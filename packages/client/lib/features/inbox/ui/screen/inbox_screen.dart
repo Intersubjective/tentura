@@ -139,21 +139,23 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                   );
                 }
 
+                final tt = context.tt;
+
                 return Scaffold(
                   backgroundColor: scheme.surface,
                   appBar: AppBar(
                     // Same fill as the inbox card Offer Help [FilledButton] default style.
                     backgroundColor: scheme.primary,
-                    surfaceTintColor: Colors.transparent,
+                    surfaceTintColor: scheme.primary,
                     elevation: 0,
                     scrolledUnderElevation: 0,
-                    toolbarHeight: 48,
+                    toolbarHeight: tt.appBarHeight,
                     foregroundColor: scheme.onPrimary,
                     iconTheme: IconThemeData(color: scheme.onPrimary),
                     // Tab root: never show a back control (some nested routes still
                     // reserve leading width unless this is explicit).
                     automaticallyImplyLeading: false,
-                    titleSpacing: 8,
+                    titleSpacing: tt.iconTextGap,
                     title: const Row(
                       children: [
                         Expanded(child: _InboxTabStrip()),
@@ -163,7 +165,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                     actions: const [_InboxOverflowMenu()],
                   ),
                   body: SafeArea(
-                    minimum: kPaddingSmallH,
+                    minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
                     child: body,
                   ),
                 );
@@ -285,7 +287,7 @@ class _InboxTabStrip extends StatelessWidget {
           labelColor: scheme.onPrimary,
           unselectedLabelColor: scheme.onPrimary.withValues(alpha: 0.72),
           indicatorColor: scheme.onPrimary,
-          dividerColor: Colors.transparent,
+          dividerColor: scheme.primary,
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: theme.textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w600,
@@ -343,6 +345,7 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
       selector: (s) => s.sort,
       builder: (context, sort) {
         final scheme = theme.colorScheme;
+        final tt = context.tt;
         final label = switch (sort) {
           InboxSort.recent => l10n.inboxSortRecent,
           InboxSort.meritRank => l10n.inboxSortMeritRank,
@@ -352,8 +355,8 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
           message: '${l10n.inboxSortMenuTitle}: $label',
           child: TextButton(
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              minimumSize: const Size(0, 48),
+              padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
+              minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
               tapTargetSize: MaterialTapTargetSize.padded,
               foregroundColor: scheme.onPrimary,
             ),
@@ -362,20 +365,19 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 88),
+                  constraints: BoxConstraints(maxWidth: tt.buttonHeight * 2),
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
+                    style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
                       fontWeight: FontWeight.w600,
-                      color: scheme.onPrimary,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.swap_vert,
-                  size: 20,
+                  size: tt.iconSize,
                   color: scheme.onPrimary,
                 ),
               ],
@@ -398,7 +400,10 @@ class _InboxOverflowMenu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       tooltip: MaterialLocalizations.of(context).showMenuTooltip,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      constraints: BoxConstraints(
+        minWidth: context.tt.buttonHeight,
+        minHeight: context.tt.buttonHeight,
+      ),
       onSelected: (value) {
         if (value == 'rejected') {
           unawaited(openInboxRejectedArchive(context));
@@ -479,6 +484,7 @@ Widget _needsMeTabBody(
 ) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
+  final tt = context.tt;
   final tombstones = state.tombstonesLast24h;
   final needsMe = state.needsMe;
 
@@ -522,16 +528,16 @@ Widget _needsMeTabBody(
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: kSpacingSmall),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(TenturaRadii.avatar),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tt.rowGap,
+                        vertical: tt.tightGap * 2,
                       ),
                       child: Text(
                         l10n.inboxTombstoneLast24h,

@@ -2,14 +2,11 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/complaint_cubit.dart';
@@ -47,6 +44,32 @@ class ComplaintScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _ComplaintScreenState extends State<ComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _detailsController;
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = context.read<ComplaintCubit>().state;
+    _detailsController = TextEditingController(text: initial.details);
+    _emailController = TextEditingController(text: initial.email);
+  }
+
+  @override
+  void dispose() {
+    _detailsController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _syncFieldsFromState(ComplaintState state) {
+    if (_detailsController.text != state.details) {
+      _detailsController.text = state.details;
+    }
+    if (_emailController.text != state.email) {
+      _emailController.text = state.email;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +80,11 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
       minimumSize: Size.fromHeight(tt.buttonHeight),
     );
 
-    return Scaffold(
+    return BlocListener<ComplaintCubit, ComplaintState>(
+      listenWhen: (prev, curr) =>
+          prev.details != curr.details || prev.email != curr.email,
+      listener: (_, state) => _syncFieldsFromState(state),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(l10n.submitComplaint),
         leading: const AutoLeadingButton(),
@@ -107,6 +134,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
               BlocSelector<ComplaintCubit, ComplaintState, bool>(
                 selector: (state) => state.isLoading,
                 builder: (_, isLoading) => TextFormField(
+                  controller: _detailsController,
                   maxLines: 5,
                   autofocus: true,
                   enabled: !isLoading,
@@ -127,6 +155,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
               BlocSelector<ComplaintCubit, ComplaintState, bool>(
                 selector: (state) => state.isLoading,
                 builder: (_, isLoading) => TextFormField(
+                  controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.done,
                   enabled: !isLoading,
@@ -165,6 +194,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

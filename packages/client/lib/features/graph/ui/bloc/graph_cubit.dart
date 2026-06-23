@@ -99,9 +99,8 @@ class GraphCubit extends Cubit<GraphState> {
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
   /// Set during [_fetch] once `authorId`/`viewerId` are known.
-  ForwardsGraphViewerRole? _helpOffererViewerRole;
-
-  ForwardsGraphViewerRole? get helpOffererViewerRole => _helpOffererViewerRole;
+  ForwardsGraphViewerRole? get helpOffererViewerRole =>
+      state.helpOffererViewerRole;
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
@@ -207,11 +206,14 @@ class GraphCubit extends Cubit<GraphState> {
         final helpOffererId = helpOffererFocusUserId!;
         final isAuthor = viewerId == authorId;
         final isSelf = viewerId == helpOffererId;
-        _helpOffererViewerRole = isAuthor
+        final viewerRole = isAuthor
             ? ForwardsGraphViewerRole.author
             : isSelf
                 ? ForwardsGraphViewerRole.self
                 : ForwardsGraphViewerRole.involvedOther;
+        if (state.helpOffererViewerRole != viewerRole) {
+          emit(state.copyWith(helpOffererViewerRole: viewerRole));
+        }
         final hasHelpOffererEndpoint = edges.any(
           (e) => e.src == helpOffererId || e.dst == helpOffererId,
         );

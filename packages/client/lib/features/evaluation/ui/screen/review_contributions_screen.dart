@@ -368,9 +368,13 @@ class _ParticipantTile extends StatelessWidget {
           : null,
     );
     final tt = context.tt;
+    final meId = context.read<ProfileCubit>().state.profile.id;
+    final displayName = SelfUserHighlight.displayName(l10n, profile, meId);
     return Card(
       margin: EdgeInsets.only(bottom: tt.rowGap),
-      child: ListTile(
+      child: Semantics(
+        label: '$displayName. $status',
+        child: ListTile(
         leading: SelfAwareAvatar.small(
           profile: profile,
         ),
@@ -398,6 +402,7 @@ class _ParticipantTile extends StatelessWidget {
         isThreeLine: true,
         trailing: Text(status, style: Theme.of(context).textTheme.labelSmall),
         onTap: onTap,
+      ),
       ),
     );
   }

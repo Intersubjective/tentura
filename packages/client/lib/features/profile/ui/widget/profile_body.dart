@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
@@ -21,7 +21,9 @@ class ProfileBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final tt = context.tt;
     final screenCubit = context.read<ScreenCubit>();
+    final sectionTop = EdgeInsets.only(top: tt.sectionGap);
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -35,7 +37,7 @@ class ProfileBody extends StatelessWidget {
 
           // Description
           Padding(
-            padding: kPaddingT,
+            padding: sectionTop,
             child: ShowMoreText(
               profile.description,
               style: textTheme.bodyMedium,
@@ -45,7 +47,7 @@ class ProfileBody extends StatelessWidget {
 
           // Show Connections
           Padding(
-            padding: kPaddingSmallT,
+            padding: sectionTop,
             child: OutlinedButton.icon(
               onPressed: () => screenCubit.showGraphFor(profile.id),
               icon: const Icon(TenturaIcons.graph),
@@ -55,7 +57,7 @@ class ProfileBody extends StatelessWidget {
 
           // Show Beacons
           Padding(
-            padding: kPaddingSmallT,
+            padding: sectionTop,
             child: OutlinedButton.icon(
               onPressed: () => screenCubit.showBeaconsOf(profile.id),
               icon: const Icon(Icons.open_in_full),
@@ -64,7 +66,7 @@ class ProfileBody extends StatelessWidget {
           ),
 
           Padding(
-            padding: kPaddingSmallT,
+            padding: sectionTop,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.settings),
               label: Text(l10n.labelSettings),

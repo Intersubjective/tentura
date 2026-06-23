@@ -1,6 +1,8 @@
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'graph_cubit.dart' show ForwardsGraphViewerRole;
+
 part 'graph_state.freezed.dart';
 
 @freezed
@@ -11,6 +13,7 @@ abstract class GraphState extends StateBase with _$GraphState {
     @Default('') String context,
     @Default(true) bool isAnimated,
     @Default(true) bool positiveOnly,
+    ForwardsGraphViewerRole? helpOffererViewerRole,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _GraphState;
 

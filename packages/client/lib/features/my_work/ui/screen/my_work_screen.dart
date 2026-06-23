@@ -8,7 +8,6 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
@@ -73,9 +72,9 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
             const _MyWorkOverflowMenu(),
           ],
         ),
-        body: const SafeArea(
-          minimum: kPaddingSmallH,
-          child: _MyWorkBody(),
+        body: SafeArea(
+          minimum: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
+          child: const _MyWorkBody(),
         ),
       ),
     );
@@ -222,13 +221,12 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
 
     return BlocSelector<MyWorkCubit, MyWorkState, MyWorkSort>(
       selector: (s) => s.sort,
       builder: (context, sort) {
-        final scheme = theme.colorScheme;
+        final scheme = Theme.of(context).colorScheme;
         final tt = context.tt;
         final label = switch (sort) {
           MyWorkSort.recent => l10n.myWorkSortRecent,
@@ -236,10 +234,10 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
           MyWorkSort.alphabetical => l10n.myWorkSortAlphabetical,
         };
         return Tooltip(
-          message: label,
+          message: l10n.myWorkSortMenuTooltip,
           child: TextButton(
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
               minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
               foregroundColor: scheme.onPrimary,
             ),
@@ -248,20 +246,19 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 88),
+                  constraints: BoxConstraints(maxWidth: tt.buttonHeight * 2),
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
+                    style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
                       fontWeight: FontWeight.w600,
-                      color: scheme.onPrimary,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.swap_vert,
-                  size: 20,
+                  size: tt.iconSize,
                   color: scheme.onPrimary,
                 ),
               ],
@@ -305,6 +302,7 @@ class _MyWorkBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final cubit = context.read<MyWorkCubit>();
+    final tt = context.tt;
 
     return BlocBuilder<MyWorkCubit, MyWorkState>(
       buildWhen: _shouldRebuild,
@@ -321,10 +319,10 @@ class _MyWorkBody extends StatelessWidget {
               children: [
                 Icon(
                   Icons.error_outline,
-                  size: 48,
+                  size: tt.iconSize * 2,
                   color: theme.colorScheme.error,
                 ),
-                const SizedBox(height: kSpacingMedium),
+                SizedBox(height: tt.sectionGap),
                 FilledButton(
                   onPressed: cubit.fetch,
                   child: Text(l10n.myWorkRetry),
@@ -374,10 +372,10 @@ class _MyWorkBody extends StatelessWidget {
         return RefreshIndicator.adaptive(
           onRefresh: cubit.fetch,
           child: ListView.separated(
-            padding: kPaddingSmallV,
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: cards.length + (showFinishedHint ? 1 : 0),
-            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
             itemBuilder: (_, i) {
               if (showFinishedHint && i == 0) {
                 return MyWorkFinishedArchiveHint(

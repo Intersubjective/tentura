@@ -51,11 +51,14 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                 Expanded(
                   child: state.accounts.isEmpty
                       ? Padding(
-                          padding: kPaddingAll,
+                          padding: tt.cardPadding,
                           child: Center(
                             child: Text(
                               l10n.alreadyHaveAccount,
                               textAlign: TextAlign.center,
+                              style: TenturaText.bodyMedium(
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         )
@@ -74,7 +77,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
 
                 // Recover from seed (QR)
                 Padding(
-                  padding: kPaddingAll,
+                  padding: tt.cardPadding,
                   child: OutlinedButton(
                     onPressed: () async => authCubit.addAccount(
                       await QRScanDialog.show(context),
@@ -85,7 +88,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
 
                 // Recover from seed (clipboard)
                 Padding(
-                  padding: kPaddingH,
+                  padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
                   child: OutlinedButton(
                     onPressed: authCubit.getSeedFromClipboard,
                     child: Text(l10n.recoverFromClipboard),
@@ -94,13 +97,16 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
 
                 // Info for new users
                 Padding(
-                  padding: kPaddingAll,
+                  padding: tt.cardPadding,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         l10n.firstTimeHerePrefix,
                         textAlign: TextAlign.center,
+                        style: TenturaText.bodyMedium(
+                          Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                       TextButton(
                         onPressed: authCubit.openInviteEmailUrl,
@@ -109,6 +115,9 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                       Text(
                         l10n.firstTimeHereSuffix,
                         textAlign: TextAlign.center,
+                        style: TenturaText.bodyMedium(
+                          Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ],
                   ),

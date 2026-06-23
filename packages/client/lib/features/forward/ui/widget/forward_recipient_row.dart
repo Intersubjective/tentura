@@ -162,10 +162,10 @@ class ForwardRecipientRow extends StatelessWidget {
                   ),
                   // Tight before presence / relation (do not use rowGap: a 44px-tall
                   // name+checkbox row was forcing extra empty space under one-line names).
-                  const SizedBox(height: 2),
+                  SizedBox(height: tt.tightGap),
                   Wrap(
                     spacing: tt.iconTextGap,
-                    runSpacing: 2,
+                    runSpacing: tt.tightGap,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       if (presence.isNotEmpty)
@@ -199,10 +199,10 @@ class ForwardRecipientRow extends StatelessWidget {
                     ],
                   ),
                   if (candidate.topCapabilities.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    SizedBox(height: tt.tightGap),
                     Wrap(
-                      spacing: 4,
-                      runSpacing: 2,
+                      spacing: tt.iconTextGap,
+                      runSpacing: tt.tightGap,
                       children: [
                         for (final slug in candidate.topCapabilities)
                           if (CapabilityTag.fromSlug(slug.trim()) case final tag?)
@@ -218,7 +218,7 @@ class ForwardRecipientRow extends StatelessWidget {
                     ),
                   ],
                   if (candidate.lineageGroup != null) ...[
-                    const SizedBox(height: 4),
+                    SizedBox(height: tt.tightGap * 2),
                     _LineageMemoryBadge(l10n: l10n, tt: tt),
                     TenturaStatusText(
                       lineageReasonLabel(
@@ -334,7 +334,7 @@ class _ForwardReadReceipt extends StatelessWidget {
     final isRead = readAt != null;
     final icon = Icon(
       isRead ? Icons.done_all : Icons.done,
-      size: 14,
+      size: tt.iconSize * 0.65,
       color: isRead ? primary : tt.textMuted,
     );
     if (!isRead) {
@@ -374,8 +374,8 @@ class _CapabilityHintChip extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: fg),
-        const SizedBox(width: 4),
+        Icon(icon, size: tt.iconSize * 0.65, color: fg),
+        SizedBox(width: tt.iconTextGap),
         Flexible(
           child: Text(
             matchesNeed ? '★ $label' : label,
@@ -390,10 +390,13 @@ class _CapabilityHintChip extends StatelessWidget {
     Widget content = row;
     if (matchesNeed) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.iconTextGap,
+          vertical: tt.tightGap,
+        ),
         decoration: BoxDecoration(
           color: tt.good.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(TenturaRadii.avatar),
           border: Border.all(
             color: tt.good.withValues(alpha: 0.45),
           ),
@@ -475,17 +478,20 @@ class _LineageMemoryBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.iconTextGap,
+        vertical: tt.tightGap,
+      ),
       decoration: BoxDecoration(
         color: tt.info.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(TenturaRadii.avatar),
         border: Border.all(color: tt.info.withValues(alpha: 0.45)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history, size: 14, color: tt.info),
-          const SizedBox(width: 4),
+          Icon(Icons.history, size: tt.iconSize * 0.65, color: tt.info),
+          SizedBox(width: tt.iconTextGap),
           Text(
             l10n.beaconLineageForwardBadge,
             style: TenturaText.labelSmall(tt.info),

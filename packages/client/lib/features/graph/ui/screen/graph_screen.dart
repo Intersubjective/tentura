@@ -9,7 +9,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-// import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../widget/graph_body.dart';
@@ -87,15 +86,6 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ],
 
-        // Context selector
-        // (hidden for now)
-        // bottom: PreferredSize(
-        //   preferredSize: const Size.fromHeight(40),
-        //   child: Padding(
-        //     padding: const EdgeInsets.only(left: 20, right: 20, bottom: 8),
-        //     child: ContextDropDown(onChanged: cubit.setContext),
-        //   ),
-        // ),
       ),
 
       // Graph
