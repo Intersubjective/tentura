@@ -749,7 +749,7 @@ void main() {
         userId: userId,
       );
 
-      expect(result['state'], 0);
+      expect(result.state, 0);
       expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(evalRepo.deleteScaffoldingCalls, 1);
       expect(beaconRepo.lifecycleTransitions, [
@@ -827,7 +827,7 @@ void main() {
         expectedRequiresReviewWindow: true,
       );
 
-      expect(result['state'], 5);
+      expect(result.state, 5);
       expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(evalRepo.deleteScaffoldingCalls, 1);
       expect(evalRepo.insertReviewWindowCalls, 1);

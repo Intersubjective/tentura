@@ -15,11 +15,163 @@ import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
+import 'beacon_case.dart' show BeaconCloseReviewResult;
 import 'capability_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
 import '_use_case_base.dart';
+
+/// One evaluation participant row for review/draft UIs (GraphQL `EvaluationParticipant`).
+final class EvaluationParticipantResult {
+  const EvaluationParticipantResult({
+    required this.userId,
+    required this.displayName,
+    required this.imageId,
+    required this.role,
+    required this.contributionSummary,
+    required this.causalHint,
+    required this.reasonTags,
+    required this.note,
+    required this.promptVariant,
+    this.value,
+  });
+
+  final String userId;
+  final String displayName;
+  final String imageId;
+  final int role;
+  final String contributionSummary;
+  final String causalHint;
+  final int? value;
+  final List<String> reasonTags;
+  final String note;
+  final String promptVariant;
+}
+
+/// One saved draft row (GraphQL `EvaluationDraftRow`).
+final class EvaluationDraftRowResult {
+  const EvaluationDraftRowResult({
+    required this.evaluatedUserId,
+    required this.value,
+    required this.reasonTags,
+    required this.note,
+  });
+
+  final String evaluatedUserId;
+  final int value;
+  final List<String> reasonTags;
+  final String note;
+}
+
+/// Review window snapshot for the viewer (GraphQL `ReviewWindowStatus`).
+final class ReviewWindowStatusResult {
+  const ReviewWindowStatusResult({
+    required this.beaconId,
+    required this.hasWindow,
+    required this.beaconTitle,
+    this.openedAt,
+    this.closesAt,
+    this.windowComplete,
+    this.userReviewStatus,
+    this.reviewedCount,
+    this.totalCount,
+    this.extensionsUsed,
+    this.canCloseNow,
+  });
+
+  final String beaconId;
+  final bool hasWindow;
+  final String beaconTitle;
+  final String? openedAt;
+  final String? closesAt;
+  final bool? windowComplete;
+  final int? userReviewStatus;
+  final int? reviewedCount;
+  final int? totalCount;
+  final int? extensionsUsed;
+  final bool? canCloseNow;
+}
+
+/// Aggregated evaluation summary for one participant (GraphQL `EvaluationSummary`).
+final class EvaluationSummaryResult {
+  const EvaluationSummaryResult({
+    required this.suppressed,
+    required this.tone,
+    required this.message,
+    required this.topReasonTags,
+    required this.roleSummaryLine,
+    this.neg2,
+    this.neg1,
+    this.zero,
+    this.pos1,
+    this.pos2,
+  });
+
+  final bool suppressed;
+  final String tone;
+  final String message;
+  final List<String> topReasonTags;
+  final int? neg2;
+  final int? neg1;
+  final int? zero;
+  final int? pos1;
+  final int? pos2;
+  final String roleSummaryLine;
+}
+
+List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
+    ? <String>[]
+    : csv.split(',').where((s) => s.isNotEmpty).toList();
+
+EvaluationSummaryResult _buildEvaluationSummary({
+  required int beaconState,
+  required int distinctEvaluatorCount,
+  required List<SummaryEvaluationRowInput> rows,
+  required EvaluationParticipantRole? viewerRole,
+}) {
+  if (beaconState != 6) {
+    return const EvaluationSummaryResult(
+      suppressed: true,
+      tone: 'mixed',
+      message: '',
+      topReasonTags: [],
+      roleSummaryLine: '',
+    );
+  }
+  if (rows.isEmpty) {
+    return const EvaluationSummaryResult(
+      suppressed: true,
+      tone: 'mixed',
+      message: 'No feedback',
+      topReasonTags: [],
+      roleSummaryLine: '',
+    );
+  }
+  final tone = evaluationToneFromValues(rows.map((r) => r.value));
+  if (distinctEvaluatorCount < 3) {
+    return EvaluationSummaryResult(
+      suppressed: true,
+      tone: tone,
+      message: 'Feedback in this beacon (details limited for privacy)',
+      topReasonTags: const [],
+      roleSummaryLine: '',
+    );
+  }
+  final agg = evaluationSummaryAggregates(rows);
+  return EvaluationSummaryResult(
+    suppressed: false,
+    tone: tone,
+    message: '',
+    topReasonTags: agg.topReasonTags,
+    neg2: agg.neg2,
+    neg1: agg.neg1,
+    zero: agg.zero,
+    pos1: agg.pos1,
+    pos2: agg.pos2,
+    roleSummaryLine: evaluationRoleSummaryLine(viewerRole, tone),
+  );
+}
 
 /// Post-beacon evaluation (Phase 1): open window, visibility, private rows, summaries.
 @Singleton(order: 2)
@@ -53,9 +205,7 @@ final class EvaluationCase extends UseCaseBase {
   Future<void> _ensureExpiredClosed() => _evaluationRepository.closeExpiredWindows();
 
   /// Author closes beacon; 0 committers → closed (6), ≥1 → wrapping up (5) + window.
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> beaconClose({
+  Future<BeaconCloseReviewResult> beaconClose({
     required String beaconId,
     required String userId,
     required bool expectedRequiresReviewWindow,
@@ -103,11 +253,10 @@ final class EvaluationCase extends UseCaseBase {
             reason: BeaconLifecycleChangeReason.directClose,
             actorId: userId,
           );
-          return {
-            'id': beaconId,
-            'state': 6,
-            'closesAt': null,
-          };
+          return BeaconCloseReviewResult(
+            id: beaconId,
+            state: 6,
+          );
         }
 
         final participants = graph.participants;
@@ -168,19 +317,17 @@ final class EvaluationCase extends UseCaseBase {
           actorUserId: userId,
         );
 
-        return {
-          'id': beaconId,
-          'state': 5,
-          'closesAt': closesAt.toUtc().toIso8601String(),
-        };
+        return BeaconCloseReviewResult(
+          id: beaconId,
+          state: 5,
+          closesAt: closesAt.toUtc().toIso8601String(),
+        );
       },
     );
   }
 
   /// Author adds 7 days during wrapping up (max 2 extensions).
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> extendReviewWindow({
+  Future<BeaconCloseReviewResult> extendReviewWindow({
     required String beaconId,
     required String userId,
   }) async {
@@ -214,21 +361,17 @@ final class EvaluationCase extends UseCaseBase {
         }
         final closesAt =
             await _evaluationRepository.extendReviewWindow(beaconId);
-        final updated = await _evaluationRepository.getReviewWindow(beaconId);
-        return {
-          'id': beaconId,
-          'state': 5,
-          'closesAt': closesAt.toUtc().toIso8601String(),
-          'extensionsUsed': updated?.extensionsUsed ?? w.extensionsUsed + 1,
-        };
+        return BeaconCloseReviewResult(
+          id: beaconId,
+          state: 5,
+          closesAt: closesAt.toUtc().toIso8601String(),
+        );
       },
     );
   }
 
   /// Author returns beacon to open; review content preserved as drafts.
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> reopenFromReview({
+  Future<BeaconCloseReviewResult> reopenFromReview({
     required String beaconId,
     required String userId,
   }) async {
@@ -263,19 +406,16 @@ final class EvaluationCase extends UseCaseBase {
           reason: BeaconLifecycleChangeReason.reopenedFromReview,
           actorId: userId,
         );
-        return {
-          'id': beaconId,
-          'state': 0,
-          'closesAt': null,
-        };
+        return BeaconCloseReviewResult(
+          id: beaconId,
+          state: 0,
+        );
       },
     );
   }
 
   /// Author closes early when required reviewers finished or skipped.
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> closeNow({
+  Future<BeaconCloseReviewResult> closeNow({
     required String beaconId,
     required String userId,
   }) async {
@@ -312,11 +452,10 @@ final class EvaluationCase extends UseCaseBase {
           reason: BeaconLifecycleChangeReason.authorCloseNow,
           actorUserId: userId,
         );
-        return {
-          'id': beaconId,
-          'state': 6,
-          'closesAt': null,
-        };
+        return BeaconCloseReviewResult(
+          id: beaconId,
+          state: 6,
+        );
       },
     );
   }
@@ -352,9 +491,7 @@ final class EvaluationCase extends UseCaseBase {
     );
   }
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<List<Map<String, dynamic>>> evaluationParticipants({
+  Future<List<EvaluationParticipantResult>> evaluationParticipants({
     required String beaconId,
     required String evaluatorId,
   }) async {
@@ -401,7 +538,7 @@ final class EvaluationCase extends UseCaseBase {
       visibleParticipantIds,
     );
 
-    final out = <Map<String, dynamic>>[];
+    final out = <EvaluationParticipantResult>[];
     for (final v in vis) {
       final pid = v.participantId;
       final row = partByUser[pid];
@@ -413,28 +550,27 @@ final class EvaluationCase extends UseCaseBase {
         throw IdNotFoundException(id: pid);
       }
       final ev = evByTarget[pid];
-      out.add({
-        'userId': pid,
-        'displayName': u.displayName,
-        'imageId': u.image?.id ?? '',
-        'role': row.role,
-        'contributionSummary': row.contributionSummary,
-        'causalHint': row.causalHint,
-        'value': ev?.value,
-        'reasonTags': ev == null || ev.reasonTags.isEmpty
-            ? <String>[]
-            : ev.reasonTags
-                  .split(',')
-                  .where((s) => s.isNotEmpty)
-                  .toList(),
-        'note': ev?.note ?? '',
-        'promptVariant': evaluationPromptVariantForPair(
-          evaluatorId: evaluatorId,
-          evaluatedRoleDb: row.role,
-          evaluatedUserId: pid,
-          latestEdgeToCommitter: latestEdgeToCommitter,
+      out.add(
+        EvaluationParticipantResult(
+          userId: pid,
+          displayName: u.displayName,
+          imageId: u.image?.id ?? '',
+          role: row.role,
+          contributionSummary: row.contributionSummary,
+          causalHint: row.causalHint,
+          reasonTags: ev == null
+              ? const []
+              : _reasonTagsFromCsv(ev.reasonTags),
+          note: ev?.note ?? '',
+          promptVariant: evaluationPromptVariantForPair(
+            evaluatorId: evaluatorId,
+            evaluatedRoleDb: row.role,
+            evaluatedUserId: pid,
+            latestEdgeToCommitter: latestEdgeToCommitter,
+          ),
+          value: ev?.value,
         ),
-      });
+      );
     }
     return out;
   }
@@ -467,9 +603,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   /// Open-beacon draft targets: same visibility as at closure, for current graph.
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<List<Map<String, dynamic>>> evaluationDraftParticipants({
+  Future<List<EvaluationParticipantResult>> evaluationDraftParticipants({
     required String beaconId,
     required String evaluatorId,
   }) async {
@@ -501,7 +635,7 @@ final class EvaluationCase extends UseCaseBase {
       visibleParticipantIds,
     );
 
-    final out = <Map<String, dynamic>>[];
+    final out = <EvaluationParticipantResult>[];
     for (final v in graph.visibility) {
       if (v.evaluatorId != evaluatorId) {
         continue;
@@ -518,35 +652,32 @@ final class EvaluationCase extends UseCaseBase {
       final ev = evByTarget[pid];
       final useEv =
           ev != null && ev.status == BeaconEvaluationRowStatus.draft ? ev : null;
-      out.add({
-        'userId': pid,
-        'displayName': u.displayName,
-        'imageId': u.image?.id ?? '',
-        'role': row.role.dbValue,
-        'contributionSummary': row.contributionSummary,
-        'causalHint': row.causalHint,
-        'value': useEv?.value,
-        'reasonTags': useEv == null || useEv.reasonTags.isEmpty
-            ? <String>[]
-            : useEv.reasonTags
-                  .split(',')
-                  .where((s) => s.isNotEmpty)
-                  .toList(),
-        'note': useEv?.note ?? '',
-        'promptVariant': evaluationPromptVariantForPair(
-          evaluatorId: evaluatorId,
-          evaluatedRoleDb: row.role.dbValue,
-          evaluatedUserId: pid,
-          latestEdgeToCommitter: graph.latestEdgeToCommitter,
+      out.add(
+        EvaluationParticipantResult(
+          userId: pid,
+          displayName: u.displayName,
+          imageId: u.image?.id ?? '',
+          role: row.role.dbValue,
+          contributionSummary: row.contributionSummary,
+          causalHint: row.causalHint,
+          reasonTags: useEv == null
+              ? const []
+              : _reasonTagsFromCsv(useEv.reasonTags),
+          note: useEv?.note ?? '',
+          promptVariant: evaluationPromptVariantForPair(
+            evaluatorId: evaluatorId,
+            evaluatedRoleDb: row.role.dbValue,
+            evaluatedUserId: pid,
+            latestEdgeToCommitter: graph.latestEdgeToCommitter,
+          ),
+          value: useEv?.value,
         ),
-      });
+      );
     }
     return out;
   }
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<List<Map<String, dynamic>>> evaluationDrafts({
+  Future<List<EvaluationDraftRowResult>> evaluationDrafts({
     required String beaconId,
     required String evaluatorId,
   }) async {
@@ -557,19 +688,16 @@ final class EvaluationCase extends UseCaseBase {
     }
     final rows = await _evaluationRepository.listDraftRowsForBeacon(beaconId);
     final mine = rows.where((r) => r.evaluatorId == evaluatorId).toList();
-    final out = <Map<String, dynamic>>[];
+    final out = <EvaluationDraftRowResult>[];
     for (final r in mine) {
-      out.add({
-        'evaluatedUserId': r.evaluatedUserId,
-        'value': r.value,
-        'reasonTags': r.reasonTags.isEmpty
-            ? <String>[]
-            : r.reasonTags
-                  .split(',')
-                  .where((s) => s.isNotEmpty)
-                  .toList(),
-        'note': r.note,
-      });
+      out.add(
+        EvaluationDraftRowResult(
+          evaluatedUserId: r.evaluatedUserId,
+          value: r.value,
+          reasonTags: _reasonTagsFromCsv(r.reasonTags),
+          note: r.note,
+        ),
+      );
     }
     return out;
   }
@@ -657,9 +785,7 @@ final class EvaluationCase extends UseCaseBase {
     return true;
   }
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> reviewWindowStatus({
+  Future<ReviewWindowStatusResult> reviewWindowStatus({
     required String beaconId,
     required String userId,
   }) async {
@@ -668,11 +794,11 @@ final class EvaluationCase extends UseCaseBase {
     final beaconTitle = beacon.title;
     final w = await _evaluationRepository.getReviewWindow(beaconId);
     if (w == null) {
-      return {
-        'beaconId': beaconId,
-        'hasWindow': false,
-        'beaconTitle': beaconTitle,
-      };
+      return ReviewWindowStatusResult(
+        beaconId: beaconId,
+        hasWindow: false,
+        beaconTitle: beaconTitle,
+      );
     }
     final st = await _evaluationRepository.getReviewUserStatus(beaconId, userId);
     final vis = await _evaluationRepository.listVisibilityForEvaluator(
@@ -692,24 +818,22 @@ final class EvaluationCase extends UseCaseBase {
     final canCloseNow = w.status == 0 &&
         beacon.state == 5 &&
         await _canCloseNow(beaconId: beaconId);
-    return {
-      'beaconId': beaconId,
-      'hasWindow': true,
-      'beaconTitle': beaconTitle,
-      'openedAt': w.openedAt.toUtc().toIso8601String(),
-      'closesAt': w.closesAt.toUtc().toIso8601String(),
-      'windowComplete': w.status == 1,
-      'userReviewStatus': st ?? -1,
-      'reviewedCount': reviewed,
-      'totalCount': vis.length,
-      'extensionsUsed': w.extensionsUsed,
-      'canCloseNow': canCloseNow,
-    };
+    return ReviewWindowStatusResult(
+      beaconId: beaconId,
+      hasWindow: true,
+      beaconTitle: beaconTitle,
+      openedAt: w.openedAt.toUtc().toIso8601String(),
+      closesAt: w.closesAt.toUtc().toIso8601String(),
+      windowComplete: w.status == 1,
+      userReviewStatus: st ?? -1,
+      reviewedCount: reviewed,
+      totalCount: vis.length,
+      extensionsUsed: w.extensionsUsed,
+      canCloseNow: canCloseNow,
+    );
   }
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> evaluationSummary({
+  Future<EvaluationSummaryResult> evaluationSummary({
     required String beaconId,
     required String userId,
   }) async {
@@ -741,7 +865,7 @@ final class EvaluationCase extends UseCaseBase {
         .toList();
     final viewerRole =
         me == null ? null : EvaluationParticipantRole.fromDb(me.role);
-    return buildEvaluationSummaryGraphqlPayload(
+    return _buildEvaluationSummary(
       beaconState: beacon.state,
       distinctEvaluatorCount: n,
       rows: rowInputs,
