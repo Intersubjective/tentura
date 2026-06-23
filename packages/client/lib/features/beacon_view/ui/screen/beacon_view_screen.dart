@@ -589,14 +589,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
                 onEnterRoomSurface: _enterRoomSurface,
                 onOpenItemDiscussion: _openItemDiscussion,
-                onAuthorCloseRequested: (ctx) => beaconViewRunAuthorCloseSheet(
-                  context: ctx,
-                  cubit: beaconViewCubit,
-                  l10n: L10n.of(ctx)!,
-                  onOpenPeopleTab: () =>
-                      _switchToTab(kBeaconTabPeople),
-                  onEnterRoomSurface: _enterRoomSurface,
-                ),
               ),
             );
           }

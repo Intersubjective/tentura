@@ -8,7 +8,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 const double kCardTriageActionRowNarrowMaxWidth = 380;
 
 /// Triage actions for beacon cards: Offer Help primary, Forward outlined, optional
-/// tertiary (beacon detail: View chain as icon-only on the right).
+/// tertiary action on the right.
 class CardTriageActionRow extends StatelessWidget {
   const CardTriageActionRow({
     required this.onForward,
