@@ -78,14 +78,6 @@ final class EvaluationCase extends UseCaseBase {
           );
         }
 
-        final existing = await _evaluationRepository.getReviewWindow(beaconId);
-        if (existing != null) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Review already exists for this beacon',
-          );
-        }
-
         final graph = await _participantGraphBuilder.build(
           beaconId: beaconId,
           authorId: beacon.author.id,
@@ -123,6 +115,9 @@ final class EvaluationCase extends UseCaseBase {
 
         final openedAt = DateTime.timestamp();
         final closesAt = openedAt.add(_reviewWindowDuration);
+
+        await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
+        await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
 
         await _beaconRepository.recordBeaconLifecycleTransition(
           beaconId: beaconId,
@@ -230,7 +225,7 @@ final class EvaluationCase extends UseCaseBase {
     );
   }
 
-  /// Author returns beacon to open and discards review scaffolding.
+  /// Author returns beacon to open; review content preserved as drafts.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
   // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> reopenFromReview({
@@ -259,6 +254,7 @@ final class EvaluationCase extends UseCaseBase {
             evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
           );
         }
+        await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
         await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
         await _beaconRepository.recordBeaconLifecycleTransition(
           beaconId: beaconId,

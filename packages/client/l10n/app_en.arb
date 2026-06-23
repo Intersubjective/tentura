@@ -2802,8 +2802,11 @@
   "beaconReviewReopenSuccess": "Beacon reopened",
   "beaconReviewCloseNowSuccess": "Beacon closed",
   "beaconReviewReopenTitle": "Reopen beacon?",
-  "beaconReviewReopenBody": "Returns to Open and discards current review progress.",
+  "beaconReviewReopenBody": "Returns to Open. Review notes are kept as drafts where still relevant.",
   "beaconReviewReopenConfirm": "Reopen",
+  "beaconNeedsMoreHelpRevertTitle": "Need more help?",
+  "beaconNeedsMoreHelpRevertBody": "Returns to Open and marks more help needed. Review notes are kept as drafts where still relevant.",
+  "beaconNeedsMoreHelpRevertConfirm": "Need more help",
   "beaconReviewWindowClosesAt": "Closes {date}",
   "@beaconReviewWindowClosesAt": {
     "placeholders": {

@@ -312,10 +312,23 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   @override
-  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
+  Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {
     await _db.managers.beaconEvaluations
-        .filter((e) => e.beaconId.id(beaconId))
-        .delete();
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.status.equals(BeaconEvaluationRowStatus.submitted),
+        )
+        .update(
+          (o) => o(
+            status: const Value(BeaconEvaluationRowStatus.draft),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  }
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
     await _db.managers.beaconEvaluationVisibility
         .filter((e) => e.beaconId.id(beaconId))
         .delete();

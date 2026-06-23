@@ -227,6 +227,27 @@ Future<void> _dispatchStatusMenuAction(
         BeaconCoordinationStatus.neutral,
       );
     case BeaconStatusMenuAction.setCoordinationMoreHelp:
+      if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+        if (!context.mounted) return;
+        final ok = await showAdaptiveDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog.adaptive(
+            title: Text(l10n.beaconNeedsMoreHelpRevertTitle),
+            content: Text(l10n.beaconNeedsMoreHelpRevertBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(l10n.beaconNeedsMoreHelpRevertConfirm),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(l10n.buttonCancel),
+              ),
+            ],
+          ),
+        );
+        if (ok != true) return;
+      }
       await cubit.setBeaconCoordinationStatus(
         BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
       );

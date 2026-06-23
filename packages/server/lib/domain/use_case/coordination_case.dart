@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
@@ -17,7 +19,8 @@ final class CoordinationCase extends UseCaseBase {
     this._beaconRepository,
     this._helpOfferRepository,
     this._coordinationRepository,
-    this._beaconRoomRepository, {
+    this._beaconRoomRepository,
+    this._evaluationRepository, {
     required super.env,
     required super.logger,
   });
@@ -26,6 +29,7 @@ final class CoordinationCase extends UseCaseBase {
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
   final BeaconRoomRepository _beaconRoomRepository;
+  final EvaluationRepositoryPort _evaluationRepository;
 
   Future<void> _ensureAuthorOrSteward({
     required String beaconId,
@@ -127,6 +131,42 @@ final class CoordinationCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
       );
     }
+
+    if (status == BeaconCoordinationStatus.moreOrDifferentHelpNeeded.smallintValue) {
+      return _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: authorUserId,
+        fn: (beacon) async {
+          if (beacon.state == 5) {
+            final w = await _evaluationRepository.getReviewWindow(beaconId);
+            if (w == null || w.status != 0) {
+              throw EvaluationException(
+                evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+              );
+            }
+            await _evaluationRepository.downgradeSubmittedReviewsToDraft(
+              beaconId,
+            );
+            await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+              beaconId,
+            );
+            await _beaconRepository.recordBeaconLifecycleTransition(
+              beaconId: beaconId,
+              fromState: beacon.state,
+              toState: 0,
+              reason: BeaconLifecycleChangeReason.reopenedFromReview,
+              actorId: authorUserId,
+            );
+          }
+          await _coordinationRepository.setBeaconCoordinationFields(
+            beaconId: beaconId,
+            coordinationStatus: status,
+          );
+          return true;
+        },
+      );
+    }
+
     await _coordinationRepository.setBeaconCoordinationFields(
       beaconId: beaconId,
       coordinationStatus: status,

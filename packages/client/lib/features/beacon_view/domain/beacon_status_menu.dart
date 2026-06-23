@@ -262,6 +262,7 @@ BeaconStatusMenuRow _coordinationRow({
 }
 
 BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) =>
+    // When lifecycle is reviewOpen, selecting this row reverts to Open (server).
     _coordinationRow(
       id: BeaconStatusMenuRowId.moreHelp,
       action: BeaconStatusMenuAction.setCoordinationMoreHelp,

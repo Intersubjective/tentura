@@ -98,6 +98,10 @@ abstract class EvaluationRepositoryPort {
 
   Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId);
 
+  /// Converts in-window submitted rows back to drafts (preserves user content).
+  Future<void> downgradeSubmittedReviewsToDraft(String beaconId);
+
+  /// Removes review window scaffolding only (not [beacon_evaluation] content).
   Future<void> deleteReviewScaffoldingForBeacon(String beaconId);
 
   /// Adds 7 days to [closesAt] and increments [extensionsUsed]. Returns new close time.

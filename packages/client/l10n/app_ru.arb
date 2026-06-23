@@ -2763,8 +2763,11 @@
   "beaconReviewReopenSuccess": "Маяк снова открыт",
   "beaconReviewCloseNowSuccess": "Маяк закрыт",
   "beaconReviewReopenTitle": "Открыть маяк снова?",
-  "beaconReviewReopenBody": "Возврат в «Открыт» и сброс текущего прогресса отзыва.",
+  "beaconReviewReopenBody": "Возврат в «Открыт». Заметки отзыва сохраняются как черновики, где это ещё уместно.",
   "beaconReviewReopenConfirm": "Открыть снова",
+  "beaconNeedsMoreHelpRevertTitle": "Нужна ещё помощь?",
+  "beaconNeedsMoreHelpRevertBody": "Возврат в «Открыт» и отметка, что нужна ещё помощь. Заметки отзыва сохраняются как черновики, где это ещё уместно.",
+  "beaconNeedsMoreHelpRevertConfirm": "Нужна ещё помощь",
   "beaconReviewWindowClosesAt": "Закрывается {date}",
   "@beaconReviewWindowClosesAt": {
     "placeholders": {

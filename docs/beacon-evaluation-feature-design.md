@@ -15,7 +15,17 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 
 - Successful closure **by beacon author** only (`beaconCloseWithReview` V2 mutation).
 - Roles: **author**, **helpers** (active `beacon_help offer` at closure), **adjacent forwarders** only (see below).
-- Excluded: dead-branch forwarders, failed/disputed closures, reopened beacons (Phase 2), stewards, cross-beacon summaries.
+- Excluded: dead-branch forwarders, failed/disputed closures, stewards, cross-beacon summaries.
+
+### Reopen / needs-more-help cycle (Phase 1)
+
+Authors (explicit **Reopen**) or authors/stewards (**Needs more help** while wrapping up) may return a beacon to **open** (`state 0`) before the review window completes:
+
+- **`beacon_evaluation` content is preserved**: submitted rows are downgraded back to **draft** (editable pre-closure memory).
+- **Review scaffolding is reset**: `beacon_review_window`, participants, visibility, and per-user review statuses are removed.
+- **Next close** rebuilds a fresh review window idempotently (stale scaffolding does not block close).
+- Drafts that no longer match the next closure visibility graph are purged on that close (same as first close).
+- Close-acknowledgement capability events are deduplicated on re-submit (`insertCloseAcknowledgements` is idempotent per observer/subject/beacon/slug).
 
 ## Beacon lifecycle values (`beacon.state` smallint)
 
