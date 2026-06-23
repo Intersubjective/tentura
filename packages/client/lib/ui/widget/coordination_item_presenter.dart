@@ -237,3 +237,16 @@ String coordinationEventTimelineLabel(
       },
   };
 }
+
+/// Short status label for cards and headers (Open, Resolved, …).
+String coordinationItemStatusLabel(
+  L10n l10n,
+  CoordinationItemStatus status,
+) =>
+    switch (status) {
+      CoordinationItemStatus.open => l10n.coordinationItemStatusOpen,
+      CoordinationItemStatus.accepted => l10n.coordinationItemStatusAccepted,
+      CoordinationItemStatus.resolved => l10n.coordinationItemStatusResolved,
+      CoordinationItemStatus.cancelled => l10n.coordinationItemStatusCancelled,
+      CoordinationItemStatus.superseded => l10n.coordinationItemStatusSuperseded,
+    };

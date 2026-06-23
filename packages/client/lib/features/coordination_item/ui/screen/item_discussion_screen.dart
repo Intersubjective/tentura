@@ -458,7 +458,7 @@ class _ItemDiscussionHeader extends StatelessWidget {
               ),
               SizedBox(width: tt.rowGap),
               Text(
-                item.status.name.toUpperCase(),
+                coordinationItemStatusLabel(l10n, item.status),
                 style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
               ),
             ],
