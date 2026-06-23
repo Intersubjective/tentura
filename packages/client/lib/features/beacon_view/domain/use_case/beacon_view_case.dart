@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -14,6 +15,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -290,15 +292,18 @@ final class BeaconViewCase extends UseCaseBase {
   Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
       _forwardRepository.currentUserHasForwardedBeacon(beaconId);
 
-  Future<Beacon> updatePublicStatus({
-    required String beaconId,
-    required int publicStatus,
-    String? lastPublicMeaningfulChange,
-  }) => _beaconRepository.updatePublicStatus(
-    id: beaconId,
-    publicStatus: publicStatus,
-    lastPublicMeaningfulChange: lastPublicMeaningfulChange,
-  );
+  Future<void> publishBeacon(String beaconId) async {
+    await _beaconRepository.publishDraft(beaconId);
+    await _beaconRepository.refreshAndNotify(beaconId);
+  }
+
+  Future<ReviewWindowInfo?> fetchReviewWindowStatusIfReviewOpen(
+    String beaconId,
+  ) async {
+    final beacon = await fetchBeaconById(beaconId);
+    if (beacon.lifecycle != BeaconLifecycle.reviewOpen) return null;
+    return _evaluationRepository.fetchReviewWindowStatus(beaconId);
+  }
 
   Future<Beacon> fork(String sourceId) => _beaconRepository.fork(sourceId);
 }

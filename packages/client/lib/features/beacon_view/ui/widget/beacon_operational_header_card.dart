@@ -77,6 +77,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ReviewWindowBannerHost(
               beaconId: state.beacon.id,
               isAuthor: state.isBeaconMine,
+              onManageStatus: onUpdateStatus,
             )
           else if (specs.isNotEmpty) ...[
             const SizedBox(height: 10),

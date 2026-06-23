@@ -58,12 +58,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// ARGB background from constrained palette; null if unset.
     int? iconBackground,
 
-    /// [`beacon.public_status`] — outward Room / Forward-facing status.
-    @Default(0) int publicStatus,
-
-    /// [`beacon.last_public_meaningful_change`]
-    String? lastPublicMeaningfulChange,
-
     /// Lineage fork: immediate parent beacon id (nullable).
     String? lineageParentBeaconId,
 

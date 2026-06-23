@@ -7,7 +7,6 @@ import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/consts/beacon_public_status.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -381,44 +380,6 @@ class BeaconRepository implements BeaconRepositoryPort {
           .update((o) => o(position: Value(i)));
     }
   }
-
-  @override
-  Future<BeaconEntity> updatePublicStatus({
-    required String beaconId,
-    required String userId,
-    required int publicStatus,
-    String? lastPublicMeaningfulChange,
-  }) =>
-      _database.withMutatingUser(userId, () async {
-        if (publicStatus < BeaconPublicStatusBits.open ||
-            publicStatus > BeaconPublicStatusBits.closed) {
-          throw const BeaconCreateException(description: 'Invalid public status');
-        }
-        final beacon = await _database.managers.beacons
-            .filter((e) => e.id.equals(beaconId))
-            .getSingleOrNull();
-        if (beacon == null) {
-          throw const BeaconCreateException(description: 'Beacon not found');
-        }
-        final isAuthor = beacon.userId == userId;
-        final isSteward = await _database.managers.beaconStewards
-            .filter((s) => s.beaconId.id(beaconId) & s.userId.id(userId))
-            .getSingleOrNull()
-            .then((r) => r != null);
-        if (!isAuthor && !isSteward) {
-          throw const UnauthorizedException(description: 'Author or steward only');
-        }
-        final note = lastPublicMeaningfulChange?.trim();
-        await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-          (o) => o(
-            publicStatus: Value(publicStatus),
-            lastPublicMeaningfulChange: Value(
-              note == null || note.isEmpty ? null : note,
-            ),
-          ),
-        );
-        return getBeaconById(beaconId: beaconId);
-      });
 
   @override
   Future<BeaconEntity> publishDraft({

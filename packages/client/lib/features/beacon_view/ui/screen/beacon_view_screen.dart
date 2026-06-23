@@ -23,6 +23,7 @@ import '../bloc/beacon_view_cubit.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_operational_scroll_view.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
+import '../widget/beacon_view_status_bottom_sheet.dart';
 import '../widget/beacon_view_constants.dart';
 import '../widget/beacon_view_room_app_bar_button.dart';
 
@@ -641,15 +642,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     l10n: l10n,
                     inRoomSurface: _showRoomSurface,
                     onItemsTabRefresh: _refreshItemsTab,
-                    onAuthorListedOpenClose: () =>
-                        beaconViewRunAuthorCloseSheet(
-                          context: context,
-                          cubit: beaconViewCubit,
-                          l10n: l10n,
-                          onOpenPeopleTab: () =>
-                              _switchToTab(kBeaconTabPeople),
-                          onEnterRoomSurface: _enterRoomSurface,
-                        ),
+                    onAuthorManageStatus: () async {
+                      await showBeaconViewUpdateStatusSheet(
+                        context,
+                        state,
+                        beaconViewCubit,
+                        onOpenPeopleTab: () =>
+                            _switchToTab(kBeaconTabPeople),
+                        onEnterRoomSurface: _enterRoomSurface,
+                      );
+                    },
                   ),
                 ],
                 bottom: PreferredSize(

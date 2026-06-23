@@ -167,16 +167,8 @@ BeaconCoordinationPhaseResult _derivePublicTier(
     return _floor(activityAt);
   }
 
-  final pub = beacon.publicStatus;
-  if (pub == 4) {
-    return _terminal(
-      phase: BeaconCoordinationPhase.closed,
-      action: BeaconPhasePrimaryAction.none,
-      lastActivityAt: activityAt,
-      lifecycleEndedAt: beacon.updatedAt,
-    );
-  }
-  if (pub == 2) {
+  if (beacon.coordinationStatus ==
+      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
@@ -184,7 +176,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
       lastActivityAt: activityAt,
     );
   }
-  if (pub == 3) {
+  if (beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
@@ -192,7 +184,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
       lastActivityAt: activityAt,
     );
   }
-  if (pub == 1 || beacon.helpOfferCount > 0) {
+  if (beacon.helpOfferCount > 0) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,

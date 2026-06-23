@@ -27,6 +27,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
 import '../message/help_offer_messages.dart';
@@ -383,17 +384,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> updatePublicStatus(
-    int publicStatus, {
-    String? lastPublicMeaningfulChange,
-  }) async {
+  Future<void> publishBeacon() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _case.updatePublicStatus(
-        beaconId: state.beacon.id,
-        publicStatus: publicStatus,
-        lastPublicMeaningfulChange: lastPublicMeaningfulChange,
-      );
+      await _case.publishBeacon(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       _showSnackError(e);
@@ -742,6 +736,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         }
       }
 
+      ReviewWindowInfo? reviewWindowInfo;
+      if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+        try {
+          reviewWindowInfo =
+              await _case.fetchReviewWindowStatusIfReviewOpen(beaconId);
+        } on Object catch (_) {
+          reviewWindowInfo = null;
+        }
+      }
+
       emit(
         state.copyWith(
           beacon: beacon,
@@ -757,6 +761,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
+          reviewWindowInfo: reviewWindowInfo,
           roomUnreadCount: roomUnreadCount,
           forwardsLoaded: wasForwardsLoaded,
           status: StateStatus.isSuccess,

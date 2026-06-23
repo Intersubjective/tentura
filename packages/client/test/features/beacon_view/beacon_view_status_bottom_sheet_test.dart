@@ -1,0 +1,59 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+
+void main() {
+  testWidgets('disabled status row shows hint when sheet passes null onTap', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b1',
+      lifecycle: BeaconLifecycle.open,
+      helpOfferCount: 2,
+    );
+    const row = BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.closed,
+      action: BeaconStatusMenuAction.closeDirect,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.finishReviewFirst,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: Scaffold(
+            body: BeaconStatusMenuRowTile(
+              row: row,
+              beacon: beacon,
+              isLoading: false,
+              onTap: null,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = lookupL10n(const Locale('en'));
+    expect(
+      find.text(l10n.beaconStatusHintFinishReviewFirst),
+      findsOneWidget,
+    );
+
+    final listTile = tester.widget<ListTile>(find.byType(ListTile));
+    expect(listTile.enabled, isFalse);
+    expect(listTile.onTap, isNull);
+    expect(listTile.subtitle, isNotNull);
+  });
+}

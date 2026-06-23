@@ -110,14 +110,6 @@ abstract class BeaconRepositoryPort {
     required List<String> imageIds,
   });
 
-  /// Author or steward only; updates `beacon.public_status` and optional note.
-  Future<BeaconEntity> updatePublicStatus({
-    required String beaconId,
-    required String userId,
-    required int publicStatus,
-    String? lastPublicMeaningfulChange,
-  });
-
   /// Draft (state 3) → open (state 0) and emit a `beaconPublished` activity event.
   /// No-op when the beacon is already published.
   Future<BeaconEntity> publishDraft({

@@ -22,7 +22,9 @@ import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart' show showBeaconCloseConfirmSheet;
+import 'beacon_view_status_bottom_sheet.dart';
+import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
+    show showBeaconCloseConfirmSheet;
 
 /// Initial help offer dialog + [BeaconViewCubit.offerHelp].
 Future<void> beaconViewRunInitialHelpOfferDialog(
@@ -219,7 +221,7 @@ Widget beaconViewAppBarOverflow({
   required BeaconViewCubit cubit,
   required ScreenCubit screenCubit,
   required L10n l10n,
-  required Future<void> Function() onAuthorListedOpenClose,
+  required Future<void> Function() onAuthorManageStatus,
   required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
 }) {
@@ -257,13 +259,13 @@ Widget beaconViewAppBarOverflow({
               state.closureActionPriority != ClosureActionPriority.hidden
           ? () async {
               if (!context.mounted) return;
-              await onAuthorListedOpenClose();
+              await onAuthorManageStatus();
             }
           : null,
       onCancelBeacon: state.isBeaconMine && beaconAllowsCancel(b)
           ? () async {
               if (!context.mounted) return;
-              await cubit.cancelBeacon();
+              await onAuthorManageStatus();
             }
           : null,
       onEdit: showBeaconManagementOverflow && b.lifecycle == BeaconLifecycle.open

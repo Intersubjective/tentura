@@ -19,11 +19,13 @@ class ReviewWindowBannerHost extends StatefulWidget {
   const ReviewWindowBannerHost({
     required this.beaconId,
     this.isAuthor = false,
+    this.onManageStatus,
     super.key,
   });
 
   final String beaconId;
   final bool isAuthor;
+  final VoidCallback? onManageStatus;
 
   @override
   State<ReviewWindowBannerHost> createState() => _ReviewWindowBannerHostState();
@@ -176,30 +178,40 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
             ],
           ],
           if (showAuthorManagement) ...[
-            if (showReviewCta) const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                TextButton(
-                  onPressed: _extendReview,
-                  child: Text(l10n.beaconReviewExtendAction),
+            if (showReviewCta) SizedBox(height: context.tt.tightGap),
+            if (widget.onManageStatus != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: widget.onManageStatus,
+                  child: Text(l10n.beaconStatusSheetTitle),
                 ),
-                TextButton(
-                  onPressed: _reopen,
-                  child: Text(l10n.beaconReviewReopenAction),
-                ),
-                TextButton(
-                  onPressed: canCloseNow ? _closeNow : null,
-                  child: Text(l10n.beaconReviewCloseNowAction),
-                ),
-              ],
-            ),
-            if (!canCloseNow && !w.windowComplete)
-              Text(
-                l10n.beaconReviewCloseNowBlocked,
-                style: TenturaText.status(scheme.onSurfaceVariant),
+              )
+            else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: _extendReview,
+                    child: Text(l10n.beaconReviewExtendAction),
+                  ),
+                  TextButton(
+                    onPressed: _reopen,
+                    child: Text(l10n.beaconReviewReopenAction),
+                  ),
+                  TextButton(
+                    onPressed: canCloseNow ? _closeNow : null,
+                    child: Text(l10n.beaconReviewCloseNowAction),
+                  ),
+                ],
               ),
+              if (!canCloseNow && !w.windowComplete)
+                Text(
+                  l10n.beaconReviewCloseNowBlocked,
+                  style: TenturaText.status(scheme.onSurfaceVariant),
+                ),
+            ],
           ],
         ],
       ),

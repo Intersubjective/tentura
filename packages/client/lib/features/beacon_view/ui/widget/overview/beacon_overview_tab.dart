@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
@@ -44,15 +45,6 @@ Widget _closureEvidenceRow(
         ],
       ),
     );
-
-String _publicStatusLine(L10n l10n, int s) => switch (s) {
-  0 => l10n.beaconPublicStatusOpen,
-  1 => l10n.beaconPublicStatusCoordinating,
-  2 => l10n.beaconPublicStatusMoreHelp,
-  3 => l10n.beaconPublicStatusEnoughHelp,
-  4 => l10n.beaconPublicStatusClosed,
-  _ => l10n.beaconPublicStatusOpen,
-};
 
 Widget _situationLabeledRow(
   BuildContext context, {
@@ -119,20 +111,17 @@ class _SituationPanelBody extends StatelessWidget {
     final currentLine = cue?.currentLine.trim() ?? '';
     final blockerTitle = cue?.openBlockerTitle?.trim();
     final roomLast = cue?.lastRoomMeaningfulChange?.trim();
-    final pubLast = beacon.lastPublicMeaningfulChange?.trim();
 
     String? lastText;
     if (roomLast != null && roomLast.isNotEmpty) {
       lastText = roomLast;
-    } else if (pubLast != null && pubLast.isNotEmpty) {
-      lastText = pubLast;
     }
 
     final rows = <Widget>[
       _situationLabeledRow(
         context,
         label: l10n.beaconSituationStateLabel,
-        value: _publicStatusLine(l10n, beacon.publicStatus),
+        value: beaconSituationStateLine(l10n, beacon),
       ),
     ];
 

@@ -146,6 +146,7 @@ class EvaluationRepository {
               userReviewStatus: s.userReviewStatus,
               reviewedCount: s.reviewedCount ?? 0,
               totalCount: s.totalCount ?? 0,
+              extensionsUsed: s.extensionsUsed ?? 0,
             );
           });
 
