@@ -14,6 +14,7 @@ abstract class ReviewWindowInfo with _$ReviewWindowInfo {
     int? userReviewStatus,
     @Default(0) int reviewedCount,
     @Default(0) int totalCount,
+    @Default(0) int extensionsUsed,
   }) = _ReviewWindowInfo;
 
   const ReviewWindowInfo._();

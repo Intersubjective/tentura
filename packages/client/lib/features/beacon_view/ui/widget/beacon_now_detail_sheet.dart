@@ -16,7 +16,6 @@ class BeaconNowDetailModel {
     this.isPlaceholder = false,
     this.blockerTitle,
     this.blockerItem,
-    this.publicStatus,
     this.coordinationStatus,
     this.lifecycle,
     this.lastChangeText,
@@ -28,7 +27,6 @@ class BeaconNowDetailModel {
   final bool isPlaceholder;
   final String? blockerTitle;
   final CoordinationItem? blockerItem;
-  final int? publicStatus;
   final BeaconCoordinationStatus? coordinationStatus;
   final BeaconLifecycle? lifecycle;
   final String? lastChangeText;
@@ -49,15 +47,26 @@ Future<void> showBeaconNowDetailSheet(
   );
 }
 
-String beaconNowPublicStatusLine(L10n l10n, int publicStatus) =>
-    switch (publicStatus) {
-      0 => l10n.beaconPublicStatusOpen,
-      1 => l10n.beaconPublicStatusCoordinating,
-      2 => l10n.beaconPublicStatusMoreHelp,
-      3 => l10n.beaconPublicStatusEnoughHelp,
-      4 => l10n.beaconPublicStatusClosed,
-      _ => l10n.beaconPublicStatusOpen,
+String _nowDetailStatusLine(L10n l10n, BeaconNowDetailModel model) {
+  final lifecycle = model.lifecycle;
+  if (lifecycle != null &&
+      lifecycle != BeaconLifecycle.open &&
+      lifecycle != BeaconLifecycle.deleted) {
+    return switch (lifecycle) {
+      BeaconLifecycle.draft => l10n.beaconStatusRowDraft,
+      BeaconLifecycle.reviewOpen => l10n.beaconStatusRowWrappingUp,
+      BeaconLifecycle.closed => l10n.beaconStatusRowClosed,
+      BeaconLifecycle.cancelled => l10n.beaconStatusRowCancelled,
+      _ => l10n.beaconStatusRowOpen,
     };
+  }
+  final coord = model.coordinationStatus;
+  if (coord != null &&
+      coord != BeaconCoordinationStatus.neutral) {
+    return coordinationStatusLabel(l10n, coord);
+  }
+  return l10n.beaconStatusRowOpen;
+}
 
 class _BeaconNowDetailSheetBody extends StatelessWidget {
   const _BeaconNowDetailSheetBody({required this.model});
@@ -73,31 +82,20 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
 
     final statusRows = <Widget>[];
 
-    if (model.publicStatus != null) {
+    if (model.lifecycle != null || model.coordinationStatus != null) {
       statusRows.add(
         _situationLabeledRow(
           context,
           label: l10n.beaconSituationStateLabel,
-          value: beaconNowPublicStatusLine(l10n, model.publicStatus!),
+          value: _nowDetailStatusLine(l10n, model),
+          valueColor: model.coordinationStatus != null
+              ? coordinationStatusOnSurfaceColor(
+                  scheme,
+                  model.coordinationStatus!,
+                )
+              : null,
         ),
       );
-    }
-
-    if (model.lifecycle == BeaconLifecycle.reviewOpen ||
-        model.lifecycle == BeaconLifecycle.closed) {
-      if (model.coordinationStatus != null) {
-        statusRows.add(
-          _situationLabeledRow(
-            context,
-            label: l10n.beaconSituationStateLabel,
-            value: coordinationStatusLabel(l10n, model.coordinationStatus!),
-            valueColor: coordinationStatusOnSurfaceColor(
-              scheme,
-              model.coordinationStatus!,
-            ),
-          ),
-        );
-      }
     }
 
     final blockerTitle = model.blockerTitle?.trim();

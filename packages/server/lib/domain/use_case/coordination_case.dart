@@ -27,6 +27,23 @@ final class CoordinationCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final BeaconRoomRepository _beaconRoomRepository;
 
+  Future<void> _ensureAuthorOrSteward({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.author.id == userId) return;
+    final isSteward = await _beaconRoomRepository.isBeaconSteward(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    if (!isSteward) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.notBeaconAuthor,
+      );
+    }
+  }
+
   Future<void> _ensureAuthor({
     required String beaconId,
     required String userId,
@@ -104,7 +121,7 @@ final class CoordinationCase extends UseCaseBase {
     required String authorUserId,
     required int status,
   }) async {
-    await _ensureAuthor(beaconId: beaconId, userId: authorUserId);
+    await _ensureAuthorOrSteward(beaconId: beaconId, userId: authorUserId);
     if (BeaconCoordinationStatus.tryFromInt(status) == null) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,

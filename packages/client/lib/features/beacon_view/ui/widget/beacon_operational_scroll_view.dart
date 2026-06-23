@@ -202,12 +202,17 @@ class BeaconOperationalScrollView extends StatelessWidget {
                         screenCubit.showProfile(state.beacon.author.id),
                     onUpdateStatus:
                         state.isAuthorOrSteward &&
-                            state.beacon.lifecycle == BeaconLifecycle.open
+                            (state.beacon.lifecycle == BeaconLifecycle.draft ||
+                                state.beacon.lifecycle == BeaconLifecycle.open ||
+                                state.beacon.lifecycle ==
+                                    BeaconLifecycle.reviewOpen)
                         ? () => unawaited(
                             showBeaconViewUpdateStatusSheet(
                               context,
                               state,
                               beaconViewCubit,
+                              onOpenPeopleTab: () =>
+                                  _setTab(kBeaconTabPeople),
                             ),
                           )
                         : null,

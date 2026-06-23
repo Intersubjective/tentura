@@ -105,11 +105,6 @@ type beacon {
   description: String!
   need_summary: String
   needs: String!
-  """Outward Beacon Room / Forward strip status."""
-  public_status: smallint!
-
-  """Optional note for last meaningful outward-facing change."""
-  last_public_meaningful_change: String
   success_criteria: String
   end_at: timestamptz
 
@@ -1541,13 +1536,7 @@ enum beacon_select_column {
   long
 
   """column name"""
-  last_public_meaningful_change
-
-  """column name"""
   polling_id
-
-  """column name"""
-  public_status
 
   """column name"""
   start_at
@@ -2279,7 +2268,6 @@ type mutation_root {
     messageId: String!
     emoji: String!
   ): Boolean!
-  BeaconPublicStatusUpdate(id: String!, lastPublicMeaningfulChange: String, publicStatus: Int!): v2_Beacon!
   BeaconFactCardPin(
     beaconId: String!
     factText: String!
@@ -5484,8 +5472,6 @@ type v2_Beacon {
   id: String!
   iconBackground: Int
   iconCode: String
-  lastPublicMeaningfulChange: String
-  publicStatus: Int!
 }
 
 type BeaconLineageSuggestion {
@@ -5662,6 +5648,7 @@ type v2_ReviewWindowStatus {
   beaconId: String!
   beaconTitle: String!
   closesAt: String
+  extensionsUsed: Int
   hasWindow: Boolean!
   openedAt: String
   reviewedCount: Int

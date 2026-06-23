@@ -220,16 +220,21 @@ Maintain two state layers to avoid leaking private coordination details.
 
 ### Public Beacon status / outward signal
 
-Visible to Beacon-visible users. Stored in `Beacon.publicStatus` (int) and `Beacon.coordinationStatus` (`BeaconCoordinationStatus`).
+Visible to Beacon-visible users. Stored in `Beacon.coordinationStatus` (`BeaconCoordinationStatus`) and `Beacon.lifecycle` (`BeaconLifecycle`).
 
-Minimal values:
+Author/steward coordination signal (while lifecycle is open or wrapping up):
 
 ```text
-Open
-Help being coordinated
-More / different help needed
-Enough help for now
-Closed
+neutral
+moreOrDifferentHelpNeeded
+enoughHelpOffered
+```
+
+Lifecycle (author-controlled via status sheet / evaluation mutations):
+
+```text
+draft → open → reviewOpen (wrapping up) → closed
+open → cancelled (no help offers only)
 ```
 
 Optional compact public blocker state:
@@ -537,10 +542,8 @@ Screens update according to visibility
 Stored as fields on the `Beacon` entity (no separate `BeaconPublicState` entity).
 
 ```text
-Beacon.publicStatus: int          // outward Room / Forward-facing status
 Beacon.coordinationStatus: BeaconCoordinationStatus
-  noHelpOffersYet
-  helpOffersWaitingForReview
+  neutral
   moreOrDifferentHelpNeeded
   enoughHelpOffered
 Beacon.lifecycle: BeaconLifecycle  // open / closed / etc.
@@ -1604,11 +1607,11 @@ Room message + Mark blocker
 ├─ sends targeted notifications
 └─ creates room BeaconActivityEvent(blockerOpened)
 
-Author/Steward public status update
-├─ updates Beacon.publicStatus
-├─ updates Overview
-├─ updates Inbox / Forward public status
-└─ creates public BeaconActivityEvent(publicStatusUpdated)
+Author/Steward coordination status update
+├─ updates Beacon.coordinationStatus (author or steward)
+├─ updates Overview / public phase strips
+├─ updates Inbox / Forward coordination signal where shown
+└─ may create coordination timeline entries
 
 Room message + Need info
 ├─ creates requested next move for target (BeaconParticipant.nextMoveStatus = requested)
@@ -1846,7 +1849,7 @@ Do not:
 
 ### Phase 2 — Public/private visibility split
 
-* Add Beacon.publicStatus.
+* `Beacon.coordinationStatus` + `Beacon.lifecycle` (replaces legacy `publicStatus`).
 * Add BeaconRoomState.
 * Ensure plan is Room-private.
 * Ensure Overview/Forward show only public facts/status.

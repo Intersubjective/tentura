@@ -43,11 +43,6 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
     return roomCue;
   }
 
-  final pub = beacon.lastPublicMeaningfulChange?.trim();
-  if (pub != null && pub.isNotEmpty) {
-    return pub;
-  }
-
   final coordShort = coordinationStatusLabel(l10n, beacon.coordinationStatus);
   if (coordShort.isNotEmpty) {
     return coordShort;
@@ -296,11 +291,6 @@ String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
   final roomCue = cue?.lastRoomMeaningfulChange?.trim();
   if (roomCue != null && roomCue.isNotEmpty) {
     lines.add(roomCue);
-  }
-
-  final pub = beacon.lastPublicMeaningfulChange?.trim();
-  if (pub != null && pub.isNotEmpty) {
-    lines.add(pub);
   }
 
   if (lines.isEmpty) {

@@ -14,6 +14,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 part 'beacon_view_state.freezed.dart';
 
@@ -226,6 +227,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// Explicit YOU-line responsibility counts for the current viewer.
     CoordinationResponsibility? youResponsibility,
+
+    /// Review-window snapshot when lifecycle is wrapping up (author status sheet).
+    ReviewWindowInfo? reviewWindowInfo,
 
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;

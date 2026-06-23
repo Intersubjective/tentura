@@ -14,7 +14,6 @@ Beacon _beacon({
   BeaconLifecycle lifecycle = BeaconLifecycle.open,
   BeaconCoordinationStatus coordinationStatus = BeaconCoordinationStatus.neutral,
   int helpOfferCount = 0,
-  int publicStatus = 0,
 }) =>
     Beacon.empty.copyWith(
       id: 'b1',
@@ -22,7 +21,6 @@ Beacon _beacon({
       lifecycle: lifecycle,
       coordinationStatus: coordinationStatus,
       helpOfferCount: helpOfferCount,
-      publicStatus: publicStatus,
       createdAt: _t,
       updatedAt: _t,
     );
@@ -101,6 +99,19 @@ void main() {
     expect(result.phase, BeaconCoordinationPhase.coordinating);
   });
 
+  test('public tier more help uses coordinationStatus', () {
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(
+          coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+        ),
+        tier: BeaconVisibilityTier.public,
+        now: _t,
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.needsMoreHelp);
+  });
+
   test('draft lifecycle maps to draft phase', () {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
@@ -151,20 +162,6 @@ void main() {
       ),
     );
     expect(result.phase, BeaconCoordinationPhase.cancelled);
-    expect(result.slot2Kind, BeaconPhaseSlot2Kind.lifecycleEndedAt);
-    expect(result.lifecycleEndedAt, endedAt);
-  });
-
-  test('public closed via publicStatus uses lifecycleEndedAt slot2', () {
-    final endedAt = DateTime.utc(2026, 6, 18, 16, 45);
-    final result = deriveBeaconCoordinationPhase(
-      BeaconCoordinationPhaseInput(
-        beacon: _beacon(publicStatus: 4).copyWith(updatedAt: endedAt),
-        tier: BeaconVisibilityTier.public,
-        now: _t,
-      ),
-    );
-    expect(result.phase, BeaconCoordinationPhase.closed);
     expect(result.slot2Kind, BeaconPhaseSlot2Kind.lifecycleEndedAt);
     expect(result.lifecycleEndedAt, endedAt);
   });

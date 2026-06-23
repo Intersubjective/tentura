@@ -9,5 +9,6 @@ query ReviewWindowStatus($id: String!) {
     userReviewStatus
     reviewedCount
     totalCount
+    extensionsUsed
   }
 }

@@ -55,12 +55,6 @@ class Beacons extends Table
   /// Optional "done when" criteria (nullable).
   late final successCriteria = text().nullable()();
 
-  /// Outward-facing status (`BeaconPublicStatusBits`); mirrored on Hasura beacon.
-  late final Column<int> publicStatus = integer().withDefault(const Constant(0))();
-
-  /// Optional short note tying public status change to last meaningful outward event.
-  late final lastPublicMeaningfulChange = text().nullable()();
-
   /// Immediate source beacon when this row was created via lineage fork.
   late final lineageParentBeaconId = text().nullable().references(Beacons, #id)();
 

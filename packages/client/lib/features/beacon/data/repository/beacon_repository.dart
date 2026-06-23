@@ -23,7 +23,6 @@ import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_update.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
-import '../gql/_g/beacon_public_status_update.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 
@@ -283,30 +282,6 @@ class BeaconRepository {
     } else {
       throw BeaconDeleteException(id);
     }
-  }
-
-  //
-  //
-  /// V2 `BeaconPublicStatusUpdate` then refetch from Hasura for full [Beacon].
-  Future<Beacon> updatePublicStatus({
-    required String id,
-    required int publicStatus,
-    String? lastPublicMeaningfulChange,
-  }) async {
-    await _remoteApiService
-        .request(
-          GBeaconPublicStatusUpdateReq(
-            (b) => b.vars
-              ..id = id
-              ..publicStatus = publicStatus
-              ..lastPublicMeaningfulChange = lastPublicMeaningfulChange,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).BeaconPublicStatusUpdate);
-    final fresh = await fetchBeaconById(id);
-    _controller.add(RepositoryEventUpdate(fresh));
-    return fresh;
   }
 
   /// Refetches [id] from the server and emits [RepositoryEventUpdate]

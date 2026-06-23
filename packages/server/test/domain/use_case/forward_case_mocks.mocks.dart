@@ -424,34 +424,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<_i2.BeaconEntity> updatePublicStatus({
-    required String? beaconId,
-    required String? userId,
-    required int? publicStatus,
-    String? lastPublicMeaningfulChange,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#updatePublicStatus, [], {
-              #beaconId: beaconId,
-              #userId: userId,
-              #publicStatus: publicStatus,
-              #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
-            }),
-            returnValue: _i3.Future<_i2.BeaconEntity>.value(
-              _FakeBeaconEntity_0(
-                this,
-                Invocation.method(#updatePublicStatus, [], {
-                  #beaconId: beaconId,
-                  #userId: userId,
-                  #publicStatus: publicStatus,
-                  #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
-                }),
-              ),
-            ),
-          )
-          as _i3.Future<_i2.BeaconEntity>);
-
-  @override
   _i3.Future<_i2.BeaconEntity> publishDraft({
     required String? id,
     required String? actorId,
