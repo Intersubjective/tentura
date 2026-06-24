@@ -172,6 +172,16 @@ DO UPDATE SET
   }
 
   @override
+  Future<DateTime?> lastEmailedAt(String accountId) async {
+    final rows = await _database.customSelect(
+      'SELECT MAX(emailed_at) AS m FROM public.notification_outbox '
+      r'WHERE account_id = $1',
+      variables: [Variable<String>(accountId)],
+    ).get();
+    return rows.isEmpty ? null : rows.first.readNullable<DateTime>('m');
+  }
+
+  @override
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,
   ) async {

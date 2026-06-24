@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
+import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -36,6 +37,22 @@ final class _FakeEmailSender implements EmailSenderPort {
     lastTo = to;
     lastVerifyUrl = verifyUrl;
   }
+
+  @override
+  Future<void> sendNotificationEmail({
+    required String to,
+    required String locale,
+    required EmailNotificationContent content,
+    String? listUnsubscribeUrl,
+  }) async {}
+
+  @override
+  Future<void> sendDigestEmail({
+    required String to,
+    required String locale,
+    required EmailDigestContent content,
+    String? listUnsubscribeUrl,
+  }) async {}
 }
 
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
