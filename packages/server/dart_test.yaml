@@ -1,0 +1,3 @@
+tags:
+  pg:
+    description: Requires a live Postgres instance (local dev / compose).

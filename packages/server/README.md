@@ -7,20 +7,22 @@
 
 Most server tests use mocked repository ports and need no database.
 
-A small set of **Postgres integration tests** exercise real Drift `customSelect` /
-`customStatement` against a live database. They are **skipped** when Postgres is
-not reachable (CI has no Postgres service). Run them locally with dev compose
-or any Postgres on `127.0.0.1:5432` (override via `POSTGRES_HOST` /
-`POSTGRES_PORT` / `POSTGRES_PASSWORD`).
+A small set of **Postgres integration tests** (tagged `pg`) exercise real Drift
+`customSelect` / `customStatement` against a live database. CI runs
+`dart test --exclude-tags pg`; locally use `dart test` (skipped when Postgres is
+not reachable) or `dart test --tags pg` for integration only. Postgres defaults
+to `127.0.0.1:5432` (override via `POSTGRES_HOST` / `POSTGRES_PORT` /
+`POSTGRES_PASSWORD`).
 
 | File | What it covers |
 |------|----------------|
+| `test/app/di_smoke_test.dart` | Prod/dev DI graph boots against live Postgres |
 | `test/data/repository/email_auth_transaction_repository_test.dart` | `consumeByToken` raw SQL + `timestamptz` RETURNING workaround (`WORKAROUNDS.md` §4) |
 
 ```bash
 cd packages/server && dart test
-# skipped integration tests show as ~ (tilde), exit 0
-# with local Postgres up, those tests run instead of skip
+# CI: dart test --exclude-tags pg
+# integration only: dart test --tags pg
 ```
 
 ## Build docker image

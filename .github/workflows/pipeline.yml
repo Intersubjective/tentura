@@ -45,7 +45,7 @@ jobs:
               dart pub get
               flutter pub get
               ( cd packages/tentura_lints && dart test ) &&
-              ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart test ) &&
+              ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart test --exclude-tags pg ) &&
               ( cd packages/server && ! rg "package:tentura_server/data/repository" lib/domain ) &&
               ( cd packages/server && ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case ) &&
               ( cd packages/server && ! rg "package:tentura_server/data/" lib/domain ) &&
