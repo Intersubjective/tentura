@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -19,7 +22,8 @@ final class ForwardCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRepository,
-    this._roomPush, {
+    this._roomPush,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -30,6 +34,7 @@ final class ForwardCase extends UseCaseBase {
   final CapabilityCase _capabilityCase;
   final BeaconRepositoryPort _beaconRepository;
   final BeaconRoomNotificationPort _roomPush;
+  final BeaconAccessGuard _guard;
 
   /// Cancel a forward edge (soft-delete).
   ///
@@ -119,6 +124,33 @@ final class ForwardCase extends UseCaseBase {
       throw ArgumentError('recipientIds must not be empty');
     }
 
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: senderId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Sender cannot read beacon content',
+      );
+    }
+
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (!beacon.allowsForward) {
+      throw const UnauthorizedException(
+        description: 'Beacon does not allow forwarding',
+      );
+    }
+
+    final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
+      beaconId: beaconId,
+      recipientId: senderId,
+    );
+    final resolvedParentEdgeId = resolveForwardParentEdgeId(
+      clientParentEdgeId: parentEdgeId,
+      activeInboundEdges: inbound,
+      senderId: senderId,
+      authorId: beacon.author.id,
+    );
+
     final batchId = generateId('X');
 
     await _forwardEdgeRepository.createBatch(
@@ -128,7 +160,7 @@ final class ForwardCase extends UseCaseBase {
       batchId: batchId,
       noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
       context: context,
-      parentEdgeId: parentEdgeId,
+      parentEdgeId: resolvedParentEdgeId,
       onAfterEdgesInserted: () async {
         final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
           beaconId: beaconId,
@@ -163,7 +195,6 @@ final class ForwardCase extends UseCaseBase {
     }
 
     try {
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       unawaited(
         _roomPush.notifyForwardReceived(
           beaconId: beaconId,

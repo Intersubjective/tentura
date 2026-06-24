@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
 import '../../support/coordination_item_record_fixtures.dart';
+import '../../support/fake_beacon_access_guard.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 void main() {
@@ -77,6 +78,7 @@ void main() {
       roomRepo,
       forwardEdgeRepo,
       roomPush,
+      FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('HelpOfferCaseTest'),
     );

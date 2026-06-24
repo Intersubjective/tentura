@@ -17,7 +17,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/dialog/share_code_dialog.dart';
+import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -240,17 +240,8 @@ Widget beaconViewAppBarOverflow({
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
       beacon: b,
-      onShare: showBeaconManagementOverflow
-          ? () => unawaited(
-              ShareCodeDialog.show(
-                context,
-                link: Uri.parse(kServerName).replace(
-                  queryParameters: {'id': beaconId},
-                  path: kPathAppLinkView,
-                ),
-                header: beaconId,
-              ),
-            )
+      onShare: showBeaconManagementOverflow && b.allowsForward
+          ? () => unawaited(showBeaconShareSheet(context, beacon: b))
           : null,
       onCloseBeacon: showBeaconManagementOverflow &&
               state.isBeaconMine &&

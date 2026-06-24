@@ -1,6 +1,8 @@
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
@@ -28,6 +30,7 @@ class EmailDigestCase {
     this._links,
     this._env,
     this._logger,
+    this._guard,
   );
 
   final NotificationPreferenceRepositoryPort _preferences;
@@ -37,6 +40,7 @@ class EmailDigestCase {
   final EmailLinkPort _links;
   final Env _env;
   final Logger _logger;
+  final BeaconAccessGuard _guard;
 
   /// Runs one pass over accounts with pending email, sending digests to those
   /// that are due. Safe to call frequently — it self-gates per account.
@@ -66,7 +70,12 @@ class EmailDigestCase {
     }
 
     final pending = await _outbox.pendingForAccount(accountId);
-    final eligible = pending
+    final filtered = await filterBeaconNotifications(
+      guard: _guard,
+      viewerId: accountId,
+      items: pending,
+    );
+    final eligible = filtered
         .where((p) => prefs.emailCategories.contains(p.category))
         .toList();
     if (eligible.isEmpty) {

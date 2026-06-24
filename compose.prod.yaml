@@ -155,6 +155,7 @@ services:
       - FB_CLIENT_EMAIL
       - FB_CLIENT_ID
       - FB_PRIVATE_KEY
+      # Minimum client semver; bump with breaking releases (see .env.example, versioning.mdc).
       - MIN_CLIENT_VERSION
       - SERVER_SENTRY_DSN
       - SENTRY_TRACES_SAMPLE_RATE

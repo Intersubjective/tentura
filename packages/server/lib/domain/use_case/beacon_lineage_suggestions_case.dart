@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/lineage_memory_fact.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -12,20 +13,26 @@ import '_use_case_base.dart';
 final class BeaconLineageSuggestionsCase extends UseCaseBase {
   BeaconLineageSuggestionsCase(
     this._beaconRepository,
-    this._lineageMemoryReadPort, {
+    this._lineageMemoryReadPort,
+    this._guard, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepositoryPort _beaconRepository;
   final LineageMemoryReadPort _lineageMemoryReadPort;
+  final BeaconAccessGuard _guard;
 
   Future<LineageForwardSuggestions> load({
     required String beaconId,
     required String userId,
   }) async {
+    await assertBeaconLineageSourceVisible(
+      guard: _guard,
+      beaconId: beaconId,
+      userId: userId,
+    );
     final source = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    assertBeaconLineageSourceVisible(beacon: source, userId: userId);
 
     final parentId = source.lineageParentBeaconId;
     if (parentId == null || parentId.isEmpty) {

@@ -18,6 +18,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     required DateTime updatedAt,
     UserEntity? invited,
     String? beaconId,
+    String? parentForwardEdgeId,
 
     /// Issuer's private name for the invitee; copied to `user_contact` on
     /// consumption. Null only on legacy rows. Never expose to the invitee.
@@ -35,6 +36,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     'issuer_id': issuer.id,
     'invited_id': invited?.id,
     'beacon_id': beaconId,
+    'parent_forward_edge_id': parentForwardEdgeId,
     'addressee_name': addresseeName,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),

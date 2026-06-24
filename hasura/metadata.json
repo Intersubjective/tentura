@@ -1,5 +1,5 @@
 {
-  "resource_version": 52,
+  "resource_version": 53,
   "metadata": {
     "version": 3,
     "sources": [
@@ -185,6 +185,28 @@
                   "session_argument": "hasura_session",
                   "table_argument": "beacon_row"
                 }
+              },
+              {
+                "name": "can_read_content",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_can_read_content",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
+                "name": "can_read_involvement",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_can_read_involvement",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
               }
             ],
             "select_permissions": [
@@ -217,9 +239,13 @@
                   "computed_fields": [
                     "is_pinned",
                     "my_vote",
-                    "rejected_user_ids"
+                    "can_read_content"
                   ],
-                  "filter": {}
+                  "filter": {
+                    "can_read_content": {
+                      "_eq": true
+                    }
+                  }
                 },
                 "comment": ""
               }
@@ -319,7 +345,13 @@
                     "image_id",
                     "position"
                   ],
-                  "filter": {}
+                  "filter": {
+                    "beacon": {
+                      "can_read_content": {
+                        "_eq": true
+                      }
+                    }
+                  }
                 },
                 "comment": ""
               }
@@ -1091,25 +1123,6 @@
                 }
               }
             ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {},
-                  "set": {
-                    "sender_id": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "beacon_id",
-                    "context",
-                    "note",
-                    "parent_edge_id",
-                    "batch_id",
-                    "recipient_id"
-                  ]
-                }
-              }
-            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -1188,9 +1201,18 @@
                 "permission": {
                   "check": {
                     "beacon": {
-                      "status": {
-                        "_in": [0, 7, 8]
-                      }
+                      "_and": [
+                        {
+                          "status": {
+                            "_in": [0, 7, 8]
+                          }
+                        },
+                        {
+                          "can_read_content": {
+                            "_eq": true
+                          }
+                        }
+                      ]
                     }
                   },
                   "set": {
@@ -1217,7 +1239,13 @@
                     "help_type",
                     "withdraw_reason"
                   ],
-                  "filter": {},
+                  "filter": {
+                    "beacon": {
+                      "can_read_involvement": {
+                        "_eq": true
+                      }
+                    }
+                  },
                   "allow_aggregations": true
                 }
               }

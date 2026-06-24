@@ -22,6 +22,7 @@ class InvitationRepositoryMock implements InvitationRepositoryPort {
     required String issuerId,
     required String addresseeName,
     String? beaconId,
+    String? parentForwardEdgeId,
   }) async {
     final issuer = kUserByPublicKey.values
         .where((e) => e.id == issuerId)
@@ -36,6 +37,7 @@ class InvitationRepositoryMock implements InvitationRepositoryPort {
       createdAt: now,
       updatedAt: now,
       beaconId: beaconId,
+      parentForwardEdgeId: parentForwardEdgeId,
       addresseeName: addresseeName,
     );
     storageById[entity.id] = entity;

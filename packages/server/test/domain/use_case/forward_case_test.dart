@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import 'forward_case_mocks.mocks.dart';
+import '../../support/fake_beacon_access_guard.dart';
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
@@ -18,6 +19,7 @@ void main() {
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
   late MockBeaconRoomNotificationPort roomPush;
+  late FakeBeaconAccessGuard guard;
   late CapabilityCase capabilityCase;
   late ForwardCase case_;
 
@@ -30,6 +32,7 @@ void main() {
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
     roomPush = MockBeaconRoomNotificationPort();
+    guard = FakeBeaconAccessGuard();
 
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -43,6 +46,7 @@ void main() {
       capabilityCase,
       beaconRepo,
       roomPush,
+      guard,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCaseTest'),
     );
@@ -66,6 +70,13 @@ void main() {
         recipientIds: anyNamed('recipientIds'),
       ),
     ).thenAnswer((_) async {});
+
+    when(
+      forwardEdgeRepo.fetchActiveInboundEdges(
+        beaconId: anyNamed('beaconId'),
+        recipientId: anyNamed('recipientId'),
+      ),
+    ).thenAnswer((_) async => []);
 
     when(
       forwardEdgeRepo.createBatch(
@@ -200,15 +211,14 @@ void main() {
       ).called(1);
     });
 
-    test('beacon fetch failure does not throw (non-fatal notification)',
-        () async {
+    test('beacon fetch failure during validation propagates', () async {
       when(
         beaconRepo.getBeaconById(beaconId: 'B1'),
       ).thenThrow(Exception('DB error'));
 
       await expectLater(
         case_.forward(senderId: 'U1', beaconId: 'B1', recipientIds: ['R1']),
-        completes,
+        throwsA(isA<Exception>()),
       );
       verifyNever(
         roomPush.notifyForwardReceived(

@@ -11,6 +11,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -104,12 +105,14 @@ final class BeaconCase extends UseCaseBase {
     TaskRepositoryPort tasksRepository,
     CoordinationRepositoryPort coordinationRepository,
     HelpOfferRepositoryPort helpOfferRepository,
+    BeaconAccessGuard guard,
   ) async => BeaconCase(
     beaconRepository,
     imageRepository,
     tasksRepository,
     coordinationRepository,
     helpOfferRepository,
+    guard,
     env: env,
     logger: logger,
   );
@@ -119,7 +122,8 @@ final class BeaconCase extends UseCaseBase {
     this._imageRepository,
     this._tasksRepository,
     this._coordinationRepository,
-    this._helpOfferRepository, {
+    this._helpOfferRepository,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -133,6 +137,8 @@ final class BeaconCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
 
   final HelpOfferRepositoryPort _helpOfferRepository;
+
+  final BeaconAccessGuard _guard;
 
   //
   Future<BeaconEntity> create({
@@ -388,7 +394,11 @@ final class BeaconCase extends UseCaseBase {
     required String userId,
   }) async {
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
-    assertBeaconLineageSourceVisible(beacon: source, userId: userId);
+    await assertBeaconLineageSourceVisible(
+      guard: _guard,
+      beaconId: sourceId,
+      userId: userId,
+    );
 
     final imageIds = <String>[];
     if (source.author.id == userId && source.images.isNotEmpty) {

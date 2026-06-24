@@ -26,11 +26,13 @@ class InvitationRepository implements InvitationRepositoryPort {
     required String issuerId,
     required String addresseeName,
     String? beaconId,
+    String? parentForwardEdgeId,
   }) async {
     final row = await _database.managers.invitations.createReturning(
       (o) => o(
         userId: issuerId,
         beaconId: Value.absentIfNull(beaconId),
+        parentForwardEdgeId: Value.absentIfNull(parentForwardEdgeId),
         addresseeName: Value(addresseeName),
       ),
     );

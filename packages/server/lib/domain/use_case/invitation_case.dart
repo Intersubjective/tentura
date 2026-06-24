@@ -1,4 +1,9 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/domain/beacon_visibility.dart';
+import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -7,8 +12,8 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/exception.dart';
 
-import '../exception.dart';
 import '_use_case_base.dart';
 import 'contact_case.dart';
 
@@ -19,7 +24,9 @@ final class InvitationCase extends UseCaseBase {
     this._userRepository,
     this._beaconRepository,
     this._friendshipLookup,
-    this._contactRepository, {
+    this._contactRepository,
+    this._guard,
+    this._forwardEdgeRepository, {
     required super.env,
     required super.logger,
   });
@@ -34,15 +41,47 @@ final class InvitationCase extends UseCaseBase {
 
   final UserContactRepositoryPort _contactRepository;
 
+  final BeaconAccessGuard _guard;
+
+  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+
   Future<InvitationEntity> create({
     required String userId,
     required String addresseeName,
     String? beaconId,
-  }) async => _invitationRepository.create(
-    issuerId: userId,
-    addresseeName: ContactCase.normalizeName(addresseeName),
-    beaconId: beaconId,
-  );
+  }) async {
+    String? parentForwardEdgeId;
+    if (beaconId != null) {
+      if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+        throw const UnauthorizedException(
+          description: 'Issuer cannot read beacon content',
+        );
+      }
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      if (!beacon.allowsForward) {
+        throw const UnauthorizedException(
+          description: 'Beacon does not allow forwarding',
+        );
+      }
+      final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
+        beaconId: beaconId,
+        recipientId: userId,
+      );
+      parentForwardEdgeId = resolveForwardParentEdgeId(
+        clientParentEdgeId: null,
+        activeInboundEdges: inbound,
+        senderId: userId,
+        authorId: beacon.author.id,
+      );
+    }
+
+    return _invitationRepository.create(
+      issuerId: userId,
+      addresseeName: ContactCase.normalizeName(addresseeName),
+      beaconId: beaconId,
+      parentForwardEdgeId: parentForwardEdgeId,
+    );
+  }
 
   /// Renames the addressee of the caller's own, still unconsumed invite.
   Future<InvitationEntity> update({
@@ -103,20 +142,17 @@ final class InvitationCase extends UseCaseBase {
     }
 
     BeaconEntity? beacon;
-    if (invitation.beaconId != null) {
-      try {
-        beacon = await _beaconRepository.getBeaconById(
-          beaconId: invitation.beaconId!,
-        );
-      } catch (_) {
-        beacon = null; // beacon removed since the invite was minted
-      }
+    final beaconId = invitation.beaconId;
+    if (beaconId != null) {
+      beacon = await _previewBeaconForInvite(
+        beaconId: beaconId,
+        issuerId: invitation.issuer.id,
+        invitationExists: true,
+        invitationConsumed: invitation.isAccepted,
+        invitationExpired: invitation.isExpired,
+      );
     }
 
-    // Subjective profiles: a signed-in caller sees the inviter under their
-    // own contact name. Resolved server-side because the static landing
-    // cannot apply the client-side overlay. The invite's addressee_name must
-    // never reach this result — it is the issuer's private data.
     var inviter = invitation.issuer;
     if (callerUserId != null && callerUserId != inviter.id) {
       final contactName = await _contactRepository.getName(
@@ -136,26 +172,60 @@ final class InvitationCase extends UseCaseBase {
     );
   }
 
+  Future<BeaconEntity?> _previewBeaconForInvite({
+    required String beaconId,
+    required String issuerId,
+    required bool invitationExists,
+    required bool invitationConsumed,
+    required bool invitationExpired,
+  }) async {
+    BeaconEntity beacon;
+    try {
+      beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    } catch (_) {
+      return null;
+    }
+
+    final issuerCanRead = await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: issuerId,
+    );
+    final canPreview = BeaconVisibility.canPreviewInvite(
+      BeaconInvitePreviewFacts(
+        invitationExists: invitationExists,
+        invitationConsumed: invitationConsumed,
+        invitationExpired: invitationExpired,
+        hasBeaconId: true,
+        beaconStatus: beacon.status,
+        beaconAllowsForward: beacon.allowsForward,
+        issuerCanReadContent: issuerCanRead,
+        issuerCanForward: beacon.allowsForward && issuerCanRead,
+      ),
+    );
+    if (!canPreview) {
+      return null;
+    }
+
+    return BeaconEntity(
+      id: beacon.id,
+      title: beacon.title,
+      description: beacon.description,
+      author: beacon.author,
+      createdAt: beacon.createdAt,
+      updatedAt: beacon.updatedAt,
+      status: beacon.status,
+    );
+  }
+
   Future<bool> accept({
     required String invitationId,
     required String userId,
   }) => _userRepository.bindMutual(
     invitationId: invitationId,
     userId: userId,
+    bindFriendship: true,
   );
 
-  /// Befriend the issuer of [code] as an already-authenticated [userId] (the
-  /// landing `accept-as-existing` endpoint). Single-use semantics — `bindMutual`
-  /// consumes (deletes) the invite row. Behaviour:
-  /// - self-invite -> rejected (`InvitationWrongException`);
-  /// - caller already connected to the issuer (invite still present) -> ok,
-  ///   no re-bind;
-  /// - invite missing / consumed / expired for a non-friend -> `IdNotFoundException`
-  ///   (404). Note this includes a *repeat* of a befriend that already
-  ///   succeeded: `bindMutual` deleted the row, so the issuer is unknown and we
-  ///   cannot re-check friendship — the caller treats 404 as "nothing left to
-  ///   do". True idempotent re-submit needs the deferred non-deleting slot model;
-  /// - otherwise -> befriend, forwarding the beacon when present.
   Future<bool> acceptAsExisting({
     required String code,
     required String userId,
@@ -173,12 +243,47 @@ final class InvitationCase extends UseCaseBase {
       viewerId: userId,
       peerId: invitation.issuer.id,
     )) {
+      if (invitation.beaconId != null &&
+          !invitation.isAccepted &&
+          !invitation.isExpired) {
+        return _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+      }
       return true;
     }
     if (invitation.isAccepted || invitation.isExpired) {
       throw IdNotFoundException(id: code);
     }
+
+    if (invitation.beaconId != null) {
+      return _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+    }
+
     return accept(invitationId: code, userId: userId);
+  }
+
+  Future<bool> _acceptBeaconInviteOnly({
+    required InvitationEntity invitation,
+    required String userId,
+  }) async {
+    final beaconId = invitation.beaconId!;
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: invitation.issuer.id,
+    )) {
+      throw IdNotFoundException(id: invitation.id);
+    }
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (!beacon.allowsForward ||
+        beacon.status == BeaconStatus.draft ||
+        beacon.status == BeaconStatus.deleted) {
+      throw IdNotFoundException(id: invitation.id);
+    }
+
+    return _userRepository.bindMutual(
+      invitationId: invitation.id,
+      userId: userId,
+      bindFriendship: false,
+    );
   }
 
   Future<bool> delete({

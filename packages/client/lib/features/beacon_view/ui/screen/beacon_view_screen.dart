@@ -502,6 +502,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             c.isSuccess ||
             c.isLoading ||
             c.hasError ||
+            p.beaconContentLoaded != c.beaconContentLoaded ||
+            p.beaconUnavailable != c.beaconUnavailable ||
             p.beacon != c.beacon ||
             p.helpOffers != c.helpOffers ||
             p.roomUnreadCount != c.roomUnreadCount ||
@@ -514,12 +516,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final scheme = theme.colorScheme;
           final showInitialLoading =
               state.isLoading &&
+              !state.beaconContentLoaded &&
               state.timeline.isEmpty &&
               state.helpOffers.isEmpty;
+          final showInitialUnavailable = state.beaconUnavailable;
           final showInitialError =
               state.hasError &&
+              !showInitialUnavailable &&
               state.timeline.isEmpty &&
               state.helpOffers.isEmpty;
+          final showBeaconContent =
+              state.beaconContentLoaded && !state.beaconUnavailable;
 
           final roomUnread = _effectiveRoomUnreadCount(state);
           final statusSlots = beaconViewStatusSlots(l10n, state);
@@ -534,6 +541,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           if (showInitialLoading) {
             body = const Center(
               child: CircularProgressIndicator.adaptive(),
+            );
+          } else if (showInitialUnavailable) {
+            body = Center(
+              child: Padding(
+                padding: const EdgeInsets.all(kSpacingLarge),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.visibility_off_outlined,
+                      size: 48,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: kSpacingMedium),
+                    Text(
+                      l10n.beaconHudBeaconUnavailable,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             );
           } else if (showInitialError) {
             body = Center(
@@ -622,37 +653,40 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       ),
                 title: BeaconViewAppBarTitle(
                   beacon: state.beacon,
+                  showBeaconContent: showBeaconContent,
                   statusLine: appBarStatusLine,
                   statusTone: appBarStatusTone,
                   l10n: l10n,
                 ),
                 actions: [
-                  if (!showInitialLoading &&
+                  if (showBeaconContent &&
+                      !showInitialLoading &&
                       !_showRoomSurface &&
                       state.canNavigateBeaconRoom)
                     BeaconViewRoomAppBarButton(
                       state: state,
                       onPressed: _enterRoomSurface,
                     ),
-                  beaconViewAppBarOverflow(
-                    context: context,
-                    state: state,
-                    cubit: beaconViewCubit,
-                    screenCubit: screenCubit,
-                    l10n: l10n,
-                    inRoomSurface: _showRoomSurface,
-                    onItemsTabRefresh: _refreshItemsTab,
-                    onAuthorManageStatus: () async {
-                      await showBeaconViewUpdateStatusSheet(
-                        context,
-                        state,
-                        beaconViewCubit,
-                        onOpenPeopleTab: () =>
-                            _switchToTab(kBeaconTabPeople),
-                        onEnterRoomSurface: _enterRoomSurface,
-                      );
-                    },
-                  ),
+                  if (showBeaconContent)
+                    beaconViewAppBarOverflow(
+                      context: context,
+                      state: state,
+                      cubit: beaconViewCubit,
+                      screenCubit: screenCubit,
+                      l10n: l10n,
+                      inRoomSurface: _showRoomSurface,
+                      onItemsTabRefresh: _refreshItemsTab,
+                      onAuthorManageStatus: () async {
+                        await showBeaconViewUpdateStatusSheet(
+                          context,
+                          state,
+                          beaconViewCubit,
+                          onOpenPeopleTab: () =>
+                              _switchToTab(kBeaconTabPeople),
+                          onEnterRoomSurface: _enterRoomSurface,
+                        );
+                      },
+                    ),
                 ],
                 bottom: PreferredSize(
                   preferredSize: LinearPiActive.size,

@@ -1,24 +1,15 @@
-import 'package:tentura_root/domain/entity/beacon_status.dart';
-
-import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 /// Shared visibility gate for fork and lineage-suggestion reads.
-void assertBeaconLineageSourceVisible({
-  required BeaconEntity beacon,
+Future<void> assertBeaconLineageSourceVisible({
+  required BeaconAccessGuard guard,
+  required String beaconId,
   required String userId,
-}) {
-  if (beacon.isDeleted) {
+}) async {
+  if (!await guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
     throw const BeaconCreateException(
-      description: 'Cannot use a deleted beacon as a lineage source',
-    );
-  }
-  if (beacon.status == BeaconStatus.draft && beacon.author.id != userId) {
-    throw const BeaconCreateException(
-      description: "Cannot use another user's draft as a lineage source",
+      description: 'Beacon is not available as a lineage source',
     );
   }
 }
-
-const kBeaconStateDraft = 3;
-const kBeaconStateDeleted = 2;

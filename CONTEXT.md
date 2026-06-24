@@ -72,6 +72,22 @@ Copies a visible beacon's reusable content into a new draft and sets that draft'
 A single forwarding user's rules-based, explainable suggested targets derived only from that user's own visible memory across the lineage (their own forwards, positive reviews, private tags, and downstream help they routed). Computed per `(current_user_id, draft_beacon_id, lineage_parent_beacon_id)`; never stored as an objective beacon property and never a "best candidates" list.
 _Avoid_: best candidates, audience, subscribers, customers, channel, campaign.
 
+## Beacon visibility & sharing
+
+**Beacon visibility** (who can SEE a beacon):
+A beacon's normal content is visible to a user V iff any of: V is the **author**; V has an active (non-cancelled) **forward edge** as recipient; V is a **room-admitted participant** or active **help-offerer**; or V is a **mutual friend** of the author (reciprocal `vote_user.amount > 0` both directions). Mutual-friend visibility covers all of the author's **non-draft, non-deleted** beacons (open, wrapping-up, closed, cancelled), but actual actions remain limited by lifecycle (e.g. forwarding only while the beacon allows forwarding). **Drafts** are always author-only. **Deleted** beacons never expose normal content to non-authors; use generic tombstones only. **MeritRank is never a visibility gate** — it is used only as the forwarding-candidate gate.
+_Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or path distance to decide who can read a beacon.
+
+**Involvement visibility** (who can see WHO is involved):
+The forwarder chain, "not interested" rejections, help-offerers, watchers, and onward-forwarders of a non-deleted beacon are visible to **involved** users (author + anyone on a forward edge + help-offerers/room participants) **and** to the author's **mutual friends**.
+
+**Beacon invite** (single-use share):
+A "Share / QR" action on a beacon mints a **single-use** `invitation` row carrying that `beacon_id` (7-day TTL, revocable before use, consumed on accept). The invite code is a separate preview capability, not general beacon visibility: raw `beacon_by_pk` remains denied until the invite is accepted. The **sharer** is whoever generated the link (author or an onward forwarder); their own inbound forward edge is the **parent** for chain integrity. Accepting always materializes a **forward edge** sharer→invitee (invitee becomes an involved recipient: can see / commit / forward while lifecycle permits, and appears in the forward graph). A **new** user who signs up via the link also gets **mutual friendship** with the sharer; an **existing** user gets beacon access only (no forced friendship).
+_Avoid_: the legacy raw `/shared/view?id=B…` link that exposed a world-readable beacon view; multi-use beacon share links.
+
+**Beacon-invite tracking**:
+Beacon invites are tracked in the **Friends → Invitations** surface, split into a **People** subsection (plain Tentura invites) and a **Beacon invites** subsection (grouped by beacon, showing beacon title + target). The beacon's share sheet also lists/regenerates that beacon's own pending links.
+
 ## Room coordination UI
 
 **Promoted message**:

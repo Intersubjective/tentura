@@ -9,6 +9,8 @@ import 'package:tentura_server/domain/use_case/beacon_lineage_suggestions_case.d
 import 'package:tentura_server/env.dart';
 import 'package:logging/logging.dart';
 
+import '../../support/fake_beacon_access_guard.dart';
+
 class _FakeLineageMemoryReadPort implements LineageMemoryReadPort {
   _FakeLineageMemoryReadPort({
     required this.edges,
@@ -96,6 +98,7 @@ BeaconLineageSuggestionsCase _caseFor({
     BeaconLineageSuggestionsCase(
       _FakeBeaconRepo(beacon),
       memory,
+      FakeBeaconAccessGuard(),
       env: Env.test(),
       logger: Logger('test'),
     );

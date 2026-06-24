@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 
 import '_use_case_base.dart';
 
@@ -20,7 +22,8 @@ final class BeaconInvolvementCase extends UseCaseBase {
   BeaconInvolvementCase(
     this._forwardEdgeRepository,
     this._helpOfferRepository,
-    this._inboxRepository, {
+    this._inboxRepository,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -28,6 +31,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
+  final BeaconAccessGuard _guard;
 
   /// [currentUserId] identifies the requesting user so the response can
   /// distinguish "forwarded by me" from "forwarded by others".
@@ -35,6 +39,15 @@ final class BeaconInvolvementCase extends UseCaseBase {
     required String beaconId,
     required String currentUserId,
   }) async {
+    if (!await _guard.canReadInvolvement(
+      beaconId: beaconId,
+      viewerId: currentUserId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read beacon involvement',
+      );
+    }
+
     final results = await Future.wait([
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),

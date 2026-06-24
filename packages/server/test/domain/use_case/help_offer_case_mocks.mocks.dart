@@ -781,6 +781,57 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<_i13.ForwardEdgeEntity>> fetchActiveInboundEdges({
+    required String? beaconId,
+    required String? recipientId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchActiveInboundEdges, [], {
+              #beaconId: beaconId,
+              #recipientId: recipientId,
+            }),
+            returnValue: _i3.Future<List<_i13.ForwardEdgeEntity>>.value(
+              <_i13.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i13.ForwardEdgeEntity>>);
+
+  @override
+  _i3.Future<_i13.ForwardEdgeEntity?> findActiveEdge({
+    required String? beaconId,
+    required String? senderId,
+    required String? recipientId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#findActiveEdge, [], {
+              #beaconId: beaconId,
+              #senderId: senderId,
+              #recipientId: recipientId,
+            }),
+            returnValue: _i3.Future<_i13.ForwardEdgeEntity?>.value(),
+          )
+          as _i3.Future<_i13.ForwardEdgeEntity?>);
+
+  @override
+  _i3.Future<void> createForInviteAccept({
+    required String? beaconId,
+    required String? senderId,
+    required String? recipientId,
+    String? parentEdgeId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createForInviteAccept, [], {
+              #beaconId: beaconId,
+              #senderId: senderId,
+              #recipientId: recipientId,
+              #parentEdgeId: parentEdgeId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
 }
 
 /// A class which mocks [InboxRepositoryPort].

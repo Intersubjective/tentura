@@ -13,6 +13,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/message/common_messages.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forwards_graph_repository.dart';
@@ -367,11 +368,15 @@ class GraphCubit extends Cubit<GraphState> {
       );
     }
     if (id.startsWith('B')) {
-      return BeaconNode(
-        beacon: await _beaconRepository.fetchBeaconById(id),
-        positionHint: _nodes.length,
-        pinned: pinned,
-      );
+      try {
+        return BeaconNode(
+          beacon: await _beaconRepository.fetchBeaconById(id),
+          positionHint: _nodes.length,
+          pinned: pinned,
+        );
+      } on BeaconFetchException {
+        return null;
+      }
     }
     return null;
   }

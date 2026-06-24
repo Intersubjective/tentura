@@ -162,6 +162,29 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
     required String authorId,
     required String userId,
   }) async => false;
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) async =>
+      [];
+
+  @override
+  Future<ForwardEdgeEntity?> findActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+  }) async =>
+      null;
+
+  @override
+  Future<void> createForInviteAccept({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    String? parentEdgeId,
+  }) async {}
 }
 
 final class StubUserRepository implements UserRepositoryPort {
@@ -300,6 +323,7 @@ final class StubUserRepository implements UserRepositoryPort {
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,
+    bool bindFriendship = true,
   }) =>
       throw UnimplementedError();
 }
