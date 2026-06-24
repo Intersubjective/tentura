@@ -199,6 +199,11 @@ final class HelpOfferCase extends UseCaseBase {
         beaconId: beaconId,
         touchForwardOrdering: false,
       );
+      // Let the author / stewards know a committer pulled out (while open).
+      await _roomPush.notifyHelpWithdrawn(
+        beaconId: beaconId,
+        withdrawerUserId: userId,
+      );
     } else {
       await _inboxRepository.applyTombstoneAfterWithdraw(
         userId: userId,

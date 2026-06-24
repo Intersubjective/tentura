@@ -65,10 +65,15 @@ class BeaconNotificationCopyBuilder {
               ? '$actor: $excerpt'
               : '$actor forwarded a beacon to you',
         ),
-      NotificationKind.commitmentEvent => (
-          actor,
-          excerpt.isNotEmpty ? excerpt : '$actor offered help',
-        ),
+      NotificationKind.commitmentEvent => intent.promiseWithdrawn
+          ? (
+              actor,
+              excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
+            )
+          : (
+              actor,
+              excerpt.isNotEmpty ? excerpt : '$actor offered help',
+            ),
       NotificationKind.reviewReady => (
           'Beacon closed — close the loop',
           beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
