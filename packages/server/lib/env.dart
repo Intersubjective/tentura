@@ -34,6 +34,9 @@ class Env {
     String? resendApiKey,
     String? resendFromEmail,
     String? emailDebugSinkDir,
+    String? unsubscribeSigningSecret,
+    Duration? emailNotifCooldown,
+    int? emailDigestHour,
     Duration? emailAuthTtl,
     Duration? emailAuthRateLimitWindow,
     int? emailAuthMaxPerEmail,
@@ -117,6 +120,17 @@ class Env {
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
+       unsubscribeSigningSecret = unsubscribeSigningSecret ??
+           _env['UNSUBSCRIBE_SIGNING_SECRET'] ??
+           '',
+       emailNotifCooldown = emailNotifCooldown ??
+           Duration(
+             seconds:
+                 int.tryParse(_env['EMAIL_NOTIF_COOLDOWN_SECONDS'] ?? '') ??
+                     1800,
+           ),
+       emailDigestHour =
+           emailDigestHour ?? int.tryParse(_env['EMAIL_DIGEST_HOUR'] ?? '') ?? 8,
        emailAuthTtl = emailAuthTtl ??
            Duration(
              seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ??
@@ -317,6 +331,15 @@ class Env {
   /// sending via Resend, so local and automated flows can read the link from
   /// disk. NEVER set in production — it bypasses real email delivery entirely.
   final String emailDebugSinkDir;
+
+  /// HMAC secret for one-click email unsubscribe tokens.
+  final String unsubscribeSigningSecret;
+
+  /// Minimum gap between immediate notification emails per recipient+category.
+  final Duration emailNotifCooldown;
+
+  /// Local hour-of-day (0–23) at which the daily/weekly digest is sent.
+  final int emailDigestHour;
 
   final Duration emailAuthTtl;
 

@@ -139,6 +139,82 @@ DO UPDATE SET
         updateKind: UpdateKind.update,
       );
 
+  @override
+  Future<int> markEmailedByDedupKey(String dedupKey) => _database.customUpdate(
+        'UPDATE public.notification_outbox SET emailed_at = now() '
+        r'WHERE dedup_key = $1 AND emailed_at IS NULL',
+        variables: [Variable<String>(dedupKey)],
+        updateKind: UpdateKind.update,
+      );
+
+  @override
+  Future<int> markEmailed(List<String> ids) async {
+    if (ids.isEmpty) {
+      return 0;
+    }
+    final placeholders =
+        List.generate(ids.length, (i) => '\$${i + 1}').join(',');
+    return _database.customUpdate(
+      'UPDATE public.notification_outbox SET emailed_at = now() '
+      'WHERE emailed_at IS NULL AND id IN ($placeholders)',
+      variables: [for (final id in ids) Variable<String>(id)],
+      updateKind: UpdateKind.update,
+    );
+  }
+
+  @override
+  Future<List<String>> accountsWithPendingEmail() async {
+    final rows = await _database.customSelect(
+      'SELECT DISTINCT account_id FROM public.notification_outbox '
+      'WHERE emailed_at IS NULL',
+    ).get();
+    return [for (final row in rows) row.read<String>('account_id')];
+  }
+
+  @override
+  Future<List<NotificationOutboxItemEntity>> pendingForAccount(
+    String accountId,
+  ) async {
+    final rows = await _database.customSelect(
+      'SELECT $_columns FROM public.notification_outbox '
+      r'WHERE account_id = $1 AND emailed_at IS NULL '
+      'ORDER BY created_at DESC',
+      variables: [Variable<String>(accountId)],
+    ).get();
+    return [for (final row in rows) _mapRow(row)];
+  }
+
+  @override
+  Future<int> countRecentEmailsByCategory({
+    required String accountId,
+    required NotificationCategory category,
+    required Duration window,
+  }) async {
+    final since = DateTime.timestamp().subtract(window);
+    final row = await _database.customSelect(
+      'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
+      r'WHERE account_id = $1 AND category = $2 '
+      r'AND emailed_at IS NOT NULL AND emailed_at >= $3::timestamptz',
+      variables: [
+        Variable<String>(accountId),
+        Variable<String>(category.name),
+        Variable<String>(since.toUtc().toIso8601String()),
+      ],
+    ).getSingle();
+    return row.read<int>('c');
+  }
+
+  @override
+  Future<int> deleteSettledOlderThan(Duration age) async {
+    final before = DateTime.timestamp().subtract(age);
+    return _database.customUpdate(
+      'DELETE FROM public.notification_outbox '
+      r'WHERE read_at IS NOT NULL AND created_at < $1::timestamptz',
+      variables: [Variable<String>(before.toUtc().toIso8601String())],
+      updateKind: UpdateKind.delete,
+    );
+  }
+
   NotificationOutboxItemEntity _mapRow(QueryRow row) =>
       NotificationOutboxItemEntity(
         id: row.read<String>('id'),
