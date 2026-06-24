@@ -61,6 +61,21 @@ class BeaconRoomPushService {
         ),
       );
 
+  /// A committer withdrew their help — let the author and room stewards know.
+  Future<void> notifyHelpWithdrawn({
+    required String beaconId,
+    required String withdrawerUserId,
+  }) =>
+      _notifications.dispatch(
+        BeaconNotificationIntent(
+          kind: NotificationKind.commitmentEvent,
+          priority: NotificationPriority.normal,
+          beaconId: beaconId,
+          actorUserId: withdrawerUserId,
+          promiseWithdrawn: true,
+        ),
+      );
+
   Future<void> notifyHelpOfferedToModerators({
     required String beaconId,
     required String offererUserId,

@@ -101,6 +101,19 @@ void main() {
     );
   });
 
+  test('commitmentEvent withdrawn uses withdrawal copy', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentEvent,
+        promiseWithdrawn: true,
+      ),
+      actorDisplayName: 'Alex',
+    );
+
+    expect(copy.title, 'Alex');
+    expect(copy.body, 'Alex withdrew their help');
+  });
+
   test('truncates long excerpt in body', () {
     final long = 'x' * 100;
     final copy = builder.build(
