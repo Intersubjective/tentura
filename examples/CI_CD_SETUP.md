@@ -59,6 +59,11 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
   |----------------------|----------|----------------|
   | `CLIENT_SERVER_NAME` | **Yes** | WASM `--dart-define=SERVER_NAME` and invite share links (`/invite/I…`) on the single public origin (e.g. `https://dev.tentura.io`) |
   | `IMAGE_SERVER` | **Yes** | WASM `--dart-define=IMAGE_SERVER` (CDN/S3 base for image URLs) |
+  | `CLIENT_SENTRY_DSN` | **No** | WASM `--dart-define=SENTRY_DSN` for the **client** Sentry project DSN. Public value (not a secret). Omitted from the build when unset — never pass an empty `--dart-define=SENTRY_DSN=`. See [ADR 0006](../docs/adr/0006-client-sentry-observability.md). |
+
+  CI also passes `--dart-define=SENTRY_ENVIRONMENT=dev`, `--dart-define=SENTRY_RELEASE=tentura@<client semver>`, and `--dart-define=SENTRY_DIST=<commit SHA>` on every web build.
+
+  **Source-map upload (deferred):** when enabled, set secrets `SENTRY_AUTH_TOKEN` and variables `SENTRY_ORG`, `SENTRY_PROJECT` (`tentura-client`); run `dart run sentry_dart_plugin` post-build with matching release/dist. Not wired in CI while the deploy target uses `--wasm` (see ADR 0006).
 
   CI also passes `--dart-define=BUILD_GIT_SHA` (commit SHA, same as `WEB_BUILD_ID`) and `--dart-define=BUILD_DATE` (UTC `YYYY-MM-DD` at build time). These surface in **Settings** for build verification.
 

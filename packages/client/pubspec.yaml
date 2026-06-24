@@ -2,7 +2,7 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 2.5.0
+version: 2.6.0
 
 environment:
   sdk: ^3.12.0
@@ -136,11 +136,12 @@ flutter:
     - images/intro.svg.vec
 
 sentry:
+  org: intersubjective
+  project: tentura-client
   upload_debug_symbols: true
   upload_source_maps: true
   upload_sources: true
   ignore_missing: true
-  project: tentura
 
 # Cropper.js getData ignores image scaleX used by the stock web slider; map
 # slider to zoomTo instead (patched package under packages/image_cropper_for_web).
