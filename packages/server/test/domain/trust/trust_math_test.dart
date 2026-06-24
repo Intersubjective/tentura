@@ -111,7 +111,7 @@ $$;
       expect(wHalf.abs(), lessThan(wFull.abs()));
       expect(wHalf, greaterThan(0));
     }, skip: postgresReachable ? false : 'local Postgres not reachable');
-  });
+  }, tags: ['pg']);
 }
 
 Future<bool> _canConnectPostgres() async {

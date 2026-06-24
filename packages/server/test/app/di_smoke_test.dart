@@ -1,3 +1,6 @@
+@Tags(['pg'])
+library;
+
 import 'package:test/test.dart';
 import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
@@ -8,6 +11,8 @@ import 'package:tentura_server/domain/use_case/coordination_item/update_coordina
 
 import '../support/smoke_env.dart';
 
+/// Boots prod/dev DI graphs end-to-end. Requires Postgres; excluded from CI
+/// (`dart test --exclude-tags pg`).
 void main() {
   for (final entry in [
     ('prod', smokeProdEnv()),
