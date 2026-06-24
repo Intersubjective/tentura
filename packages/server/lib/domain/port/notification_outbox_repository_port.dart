@@ -50,6 +50,10 @@ abstract interface class NotificationOutboxRepositoryPort {
   /// Distinct account ids that have at least one not-yet-emailed row.
   Future<List<String>> accountsWithPendingEmail();
 
+  /// Most recent emailed_at across the account's rows (digest cadence
+  /// watermark), or null when no email has ever been sent.
+  Future<DateTime?> lastEmailedAt(String accountId);
+
   /// Not-yet-emailed rows for an account (for the digest).
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,

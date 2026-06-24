@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
+import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -92,6 +93,22 @@ final class _FakeEmailSender implements EmailSenderPort {
     required String to,
     required String verifyUrl,
     String? inviterName,
+  }) async {}
+
+  @override
+  Future<void> sendNotificationEmail({
+    required String to,
+    required String locale,
+    required EmailNotificationContent content,
+    String? listUnsubscribeUrl,
+  }) async {}
+
+  @override
+  Future<void> sendDigestEmail({
+    required String to,
+    required String locale,
+    required EmailDigestContent content,
+    String? listUnsubscribeUrl,
   }) async {}
 }
 
