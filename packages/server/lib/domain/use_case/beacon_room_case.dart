@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
+import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -42,7 +43,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._imageRepository,
     this._tasksRepository,
     this._remoteStorage,
-    this._pollingRepository, {
+    this._pollingRepository,
+    this._uploadQuota, {
     required super.env,
     required super.logger,
   });
@@ -62,6 +64,8 @@ final class BeaconRoomCase extends UseCaseBase {
   final RemoteStoragePort _remoteStorage;
 
   final PollingRepositoryPort _pollingRepository;
+
+  final UploadQuotaRepositoryPort _uploadQuota;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -878,6 +882,18 @@ final class BeaconRoomCase extends UseCaseBase {
         mutatingUserId: mutatingUserId,
       );
     } else {
+      // Image attachments reserve quota inside ImageRepository.put; file
+      // attachments are written straight to storage, so reserve here.
+      final withinDailyCap = await _uploadQuota.tryReserveDailyBytes(
+        userId: userId,
+        bytes: bytes.length,
+        dailyCapBytes: env.uploadDailyCapBytes,
+      );
+      if (!withinDailyCap) {
+        throw const RateLimitedException(
+          description: 'Daily upload limit reached, try again tomorrow',
+        );
+      }
       final safeObjectName = sanitizedAttachmentBaseName(label);
       final storagePath =
           '$kRoomAttachmentsPath/$userId/$attachmentId/$safeObjectName';

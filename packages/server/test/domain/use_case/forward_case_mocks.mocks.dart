@@ -386,6 +386,20 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<int>);
 
   @override
+  _i3.Future<int> countRecentByAuthor({
+    required String? userId,
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countRecentByAuthor, [], {
+              #userId: userId,
+              #window: window,
+            }),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
   _i3.Future<void> reorderImages({
     required String? beaconId,
     required List<String>? imageIds,
@@ -520,7 +534,6 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #onAfterEdgesInserted: onAfterEdgesInserted,
             }),
             returnValue: _i3.Future<List<String>>.value(<String>[]),
-            returnValueForMissingStub: _i3.Future<List<String>>.value(<String>[]),
           )
           as _i3.Future<List<String>>);
 

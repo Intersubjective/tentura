@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
+import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -61,6 +62,7 @@ void main() {
       FakeTaskRepositoryPort(),
       FakeRemoteStorage(),
       FakePollingRepository(),
+      FakeUploadQuota(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomCaseBatchTest'),
     );
@@ -93,3 +95,13 @@ class FakeTaskRepositoryPort extends Fake implements TaskRepositoryPort {}
 class FakeRemoteStorage extends Fake implements RemoteStoragePort {}
 
 class FakePollingRepository extends Fake implements PollingRepositoryPort {}
+
+class FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
+  @override
+  Future<bool> tryReserveDailyBytes({
+    required String userId,
+    required int bytes,
+    required int dailyCapBytes,
+  }) async =>
+      true;
+}
