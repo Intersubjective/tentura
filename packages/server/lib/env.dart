@@ -245,7 +245,7 @@ class Env {
        fbClientId = fbClientId ?? _env['FB_CLIENT_ID'] ?? '',
 
        // Sentry
-       sentryDsn = sentryDsn ?? _env['SENTRY_DSN'] ?? '',
+       sentryDsn = sentryDsn ?? _env['SERVER_SENTRY_DSN'] ?? '',
        sentryRelease = sentryRelease ?? _env['SENTRY_RELEASE'] ?? '',
        sentryDist = sentryDist ?? _env['SENTRY_DIST'] ?? '',
        sentryTracesSampleRate = sentryTracesSampleRate ??

@@ -12,13 +12,13 @@ Three Sentry projects exist: **server**, **client**, and **landing**.
 
 ## Decision
 
-1. **SDK**: `sentry` ^9.22.0 in `tentura_server`. Skip `Sentry.init` when `SENTRY_DSN` is empty (local, tests, deploys without the var).
+1. **SDK**: `sentry` ^9.22.0 in `tentura_server`. Skip `Sentry.init` when `SERVER_SENTRY_DSN` is empty (local, tests, deploys without the var).
 
 2. **Init topology**: `Sentry.init` in the main process (`bin/tentura.dart`) and inside each worker isolate (`serveWeb`, `serveTask`) via shared `initSentry(appRunner:)`. Hub is isolate-local.
 
 3. **Release vs runtime config**:
    - Baked into the image at CI build: `SENTRY_RELEASE=tentura-server@<semver>`, `SENTRY_DIST=<git-sha>` (`Dockerfile_build`, `Dockerfile.server`).
-   - Runtime env (VPS / `compose.prod.yaml`): `SENTRY_DSN`, optional `SENTRY_TRACES_SAMPLE_RATE` (default `1.0`). Sentry `environment` reuses existing `Env.environment` (`dev` / `prod` / `test`).
+   - Runtime env (VPS / `compose.prod.yaml`): `SERVER_SENTRY_DSN`, optional `SENTRY_TRACES_SAMPLE_RATE` (default `1.0`). Sentry `environment` reuses existing `Env.environment` (`dev` / `prod` / `test`).
 
 4. **Logging**: `Logger.root` → formatted stdout sink always; when Sentry enabled, SEVERE+ → capture, INFO/WARNING → breadcrumbs.
 
@@ -38,7 +38,7 @@ Three Sentry projects exist: **server**, **client**, and **landing**.
 
 ## Consequences
 
-- Deployed server containers report to the **server** Sentry project when `SENTRY_DSN` is set on the VPS.
+- Deployed server containers report to the **server** Sentry project when `SERVER_SENTRY_DSN` is set on the VPS.
 - Release/dist tagging is automatic from CI-built images; operators only configure DSN and optional sample rate.
 - Trace continuation depends on seeding propagation context — a subtle SDK behavior documented here and tested.
 - Hasura-routed GraphQL calls emit client spans and headers but do not produce server-side Tentura transactions unless the operation is in the V2 direct set.

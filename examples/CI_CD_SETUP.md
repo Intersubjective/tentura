@@ -77,7 +77,7 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
 
   | Env var | Required | Purpose |
   |---------|----------|---------|
-  | `SENTRY_DSN` | **No** | DSN for the **server** Sentry project. When unset/empty, the SDK is not initialized. |
+  | `SERVER_SENTRY_DSN` | **No** | DSN for the **server** Sentry project. When unset/empty, the SDK is not initialized. |
   | `SENTRY_TRACES_SAMPLE_RATE` | **No** | Request transaction sample rate (default `1.0`). |
 
   `SENTRY_RELEASE` and `SENTRY_DIST` are baked into the server image at CI build time (`tentura-server@<semver>` and git SHA). See [ADR 0007](../docs/adr/0007-server-sentry-observability.md).

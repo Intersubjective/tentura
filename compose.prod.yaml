@@ -156,7 +156,7 @@ services:
       - FB_CLIENT_ID
       - FB_PRIVATE_KEY
       - MIN_CLIENT_VERSION
-      - SENTRY_DSN
+      - SERVER_SENTRY_DSN
       - SENTRY_TRACES_SAMPLE_RATE
 
 volumes:
