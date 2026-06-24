@@ -1828,7 +1828,7 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "просрочено",
+  "myWorkStatusOverdue": "нужно внимание",
   "@myWorkStatusOverdue": {
     "context": "MyWorkScreen"
   },
@@ -1961,7 +1961,7 @@
       }
     }
   },
-  "beaconCardScheduleOverdue": "Просрочено",
+  "beaconCardScheduleOverdue": "Нужно внимание",
   "@beaconCardScheduleOverdue": {
     "description": "Card line for a deadline whose date has passed"
   },
