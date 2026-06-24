@@ -1074,6 +1074,22 @@
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
+  "notifications": "Notifications",
+  "@notifications": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmpty": "You're all caught up",
+  "@notificationsEmpty": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmptyHint": "Updates that need you will appear here",
+  "@notificationsEmptyHint": {
+    "context": "NotificationCenter"
+  },
+  "notificationsMarkAllRead": "Mark all read",
+  "@notificationsMarkAllRead": {
+    "context": "NotificationCenter"
+  },
   "inboxEmptyHint": "Beacons forwarded to you will appear here",
   "@inboxEmptyHint": {
     "context": "InboxScreen"

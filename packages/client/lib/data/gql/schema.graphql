@@ -2375,6 +2375,11 @@ type mutation_root {
   evaluationSubmit(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
   fcmTokenDelete(appId: String!): Boolean!
+  notificationsMarkRead(ids: [String!]!): Int!
+  notificationsMarkAllRead: Int!
+  notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
+  beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
+  beaconMuteClear(beaconId: String!): Boolean!
 
   """
   insert data into the table: "beacon_help_offer"
@@ -3328,7 +3333,39 @@ input polling_variant_stream_cursor_value_input {
   polling_id: String
 }
 
+type NotificationItem {
+  id: String!
+  category: String!
+  kind: String!
+  priority: String!
+  title: String!
+  body: String!
+  actionUrl: String!
+  createdAt: String!
+  readAt: String
+  collapsedCount: Int!
+  beaconId: String
+  coordinationItemId: String
+  actorUserId: String
+}
+
+type NotificationPreferences {
+  accountId: String!
+  pushCategories: [String!]!
+  emailCategories: [String!]!
+  quietHoursStart: Int
+  quietHoursEnd: Int
+  tzOffsetMinutes: Int!
+  emailDigest: String!
+  snoozeUntil: String
+  lockScreenSafe: Boolean!
+  locale: String!
+}
+
 type query_root {
+  notificationsFeed(limit: Int, before: String): [NotificationItem!]!
+  notificationsUnreadCount: Int!
+  notificationPreferences: NotificationPreferences!
   """
   fetch data from the table: "beacon"
   """
