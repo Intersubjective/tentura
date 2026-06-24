@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -20,7 +20,7 @@ final class UpdateDraftBlockerCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
 
-  Future<CoordinationItem> call({
+  Future<CoordinationItemRecord> call({
     required String userId,
     required String itemId,
     required String title,

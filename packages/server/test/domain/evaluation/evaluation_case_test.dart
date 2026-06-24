@@ -15,7 +15,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -436,7 +436,7 @@ void main() {
       forwardRepo,
       evalRepo,
       userProfileBatchLookup,
-      MockBeaconRoomPushService(),
+      MockBeaconRoomNotificationPort(),
       graphBuilder,
       draftPurger,
       noopCapabilityCase,
@@ -728,7 +728,7 @@ void main() {
         forwardRepo,
         evalRepo,
         userProfileBatchLookup,
-        MockBeaconRoomPushService(),
+        MockBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -805,7 +805,7 @@ void main() {
         forwardRepo,
         evalRepo,
         userProfileBatchLookup,
-        _NoopBeaconRoomPushService(),
+        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -835,9 +835,9 @@ void main() {
   });
 }
 
-class MockBeaconRoomPushService extends Mock implements BeaconRoomPushService {}
+class MockBeaconRoomNotificationPort extends Mock implements BeaconRoomNotificationPort {}
 
-class _NoopBeaconRoomPushService extends Fake implements BeaconRoomPushService {
+class _NoopBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {
   @override
   Future<void> notifyReviewOpened({
     required String beaconId,

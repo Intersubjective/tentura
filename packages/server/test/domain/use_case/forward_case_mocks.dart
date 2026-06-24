@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
 @GenerateMocks([
   BeaconRepositoryPort,
@@ -13,6 +13,6 @@ import 'package:tentura_server/data/service/beacon_room_push_service.dart';
   HelpOfferRepositoryPort,
   InboxRepositoryPort,
   PersonCapabilityEventRepositoryPort,
-  BeaconRoomPushService,
+  BeaconRoomNotificationPort,
 ])
 void main() {}

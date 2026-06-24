@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -10,17 +10,17 @@ final class QueryInvitation extends GqlNodeBase {
   QueryInvitation({
     InvitationCase? invitationCase,
     UserPresenceCase? userPresenceCase,
-    VoteUserFriendshipLookup? voteUserFriendshipLookup,
+    VoteUserFriendshipLookupPort? voteUserFriendshipLookup,
   }) : _invitationCase = invitationCase ?? GetIt.I<InvitationCase>(),
        _userPresenceCase = userPresenceCase ?? GetIt.I<UserPresenceCase>(),
        _voteUserFriendshipLookup =
-           voteUserFriendshipLookup ?? GetIt.I<VoteUserFriendshipLookup>();
+           voteUserFriendshipLookup ?? GetIt.I<VoteUserFriendshipLookupPort>();
 
   final InvitationCase _invitationCase;
 
   final UserPresenceCase _userPresenceCase;
 
-  final VoteUserFriendshipLookup _voteUserFriendshipLookup;
+  final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [invitationById];
 

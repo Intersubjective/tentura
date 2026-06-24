@@ -284,7 +284,7 @@ void main() {
   late _TransactionBeaconRepo beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
-  late MockBeaconRoomCoordinationPort roomRepo;
+  late MockBeaconRoomRepositoryPort roomRepo;
   late _TrackingEvaluationRepository evalRepo;
   late CoordinationCase case_;
 
@@ -292,7 +292,7 @@ void main() {
     beaconRepo = _TransactionBeaconRepo(beacon(state: 0));
     helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
-    roomRepo = MockBeaconRoomCoordinationPort();
+    roomRepo = MockBeaconRoomRepositoryPort();
     evalRepo = _TrackingEvaluationRepository();
     case_ = CoordinationCase(
       beaconRepo,

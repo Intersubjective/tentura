@@ -8,13 +8,14 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
-import 'package:tentura_server/domain/entity/coordination_item_entity.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'mappers/coordination_row_mappers.dart';
 
 @LazySingleton(as: CoordinationItemRepositoryPort, order: 1)
 class CoordinationItemRepository implements CoordinationItemRepositoryPort {
@@ -23,7 +24,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   final TenturaDb _db;
 
   @override
-  Future<CoordinationItem> create({
+  Future<CoordinationItemRecord> create({
     required String beaconId,
     required int kind,
     required String creatorId,
@@ -97,12 +98,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             ),
           );
 
-          return item;
+          return item.toRecord();
         });
       });
 
   @override
-  Future<CoordinationItem> updateStatus({
+  Future<CoordinationItemRecord> updateStatus({
     required String id,
     required int newStatus,
     required String actorId,
@@ -141,12 +142,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           final updated = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
               .getSingle();
-          return updated;
+          return updated.toRecord();
         });
       });
 
   @override
-  Future<CoordinationItem> acceptItem({
+  Future<CoordinationItemRecord> acceptItem({
     required String id,
     required String actorId,
     required String acceptedById,
@@ -184,14 +185,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             targetUserId: existing.targetPersonId,
           );
 
-          return (_db.select(_db.coordinationItems)
-                ..where((t) => t.id.equals(id)))
-              .getSingle();
+          return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle()).toRecord();
         });
       });
 
   @override
-  Future<CoordinationItem> redirectTarget({
+  Future<CoordinationItemRecord> redirectTarget({
     required String id,
     required String actorId,
     required String newTargetPersonId,
@@ -221,9 +220,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             targetUserId: newTargetPersonId,
           );
 
-          return (_db.select(_db.coordinationItems)
-                ..where((t) => t.id.equals(id)))
-              .getSingle();
+          return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle()).toRecord();
         });
       });
 
@@ -282,7 +279,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
-  Future<CoordinationItem> createDraftAsk({
+  Future<CoordinationItemRecord> createDraftAsk({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -295,7 +292,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
         final days = validateStaleAfterDays(staleAfterDays);
-        return _db.managers.coordinationItems.createReturning(
+        return (await _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
             beaconId: beaconId,
@@ -319,11 +316,11 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
-        );
+        )).toRecord();
       });
 
   @override
-  Future<CoordinationItem> createDraftPromise({
+  Future<CoordinationItemRecord> createDraftPromise({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -336,7 +333,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
         final days = validateStaleAfterDays(staleAfterDays);
-        return _db.managers.coordinationItems.createReturning(
+        return (await _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
             beaconId: beaconId,
@@ -360,11 +357,11 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
-        );
+        )).toRecord();
       });
 
   @override
-  Future<CoordinationItem> publishDraft({
+  Future<CoordinationItemRecord> publishDraft({
     required String id,
     required String actorId,
     required String targetPersonId,
@@ -408,7 +405,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           );
 
           final updated =
-              await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+              ((await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle())).toRecord();
 
           final roomMsgIdForActivity = await _emitCreatedRoomNotify(
             itemId: id,
@@ -439,12 +436,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             ),
           );
 
-          return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+          return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle()).toRecord();
         });
       });
 
   @override
-  Future<CoordinationItem> updateDraftAsk({
+  Future<CoordinationItemRecord> updateDraftAsk({
     required String id,
     required String actorId,
     required String title,
@@ -481,11 +478,11 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             updatedAt: Value(now),
           ),
         );
-        return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+        return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle()).toRecord();
       });
 
   @override
-  Future<CoordinationItem> updatePublishedItem({
+  Future<CoordinationItemRecord> updatePublishedItem({
     required String id,
     required String actorId,
     required String title,
@@ -541,9 +538,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             }
           }
 
-          return (_db.select(_db.coordinationItems)
-                ..where((t) => t.id.equals(id)))
-              .getSingle();
+          return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle()).toRecord();
         });
       });
 
@@ -567,7 +562,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       });
 
   @override
-  Future<CoordinationItem> createDraftBlocker({
+  Future<CoordinationItemRecord> createDraftBlocker({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -579,7 +574,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
         final days = validateStaleAfterDays(staleAfterDays);
-        return _db.managers.coordinationItems.createReturning(
+        return (await _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
             beaconId: beaconId,
@@ -603,11 +598,11 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
-        );
+        )).toRecord();
       });
 
   @override
-  Future<CoordinationItem> publishDraftBlocker({
+  Future<CoordinationItemRecord> publishDraftBlocker({
     required String id,
     required String actorId,
     int? staleAfterDays,
@@ -681,12 +676,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             ),
           );
 
-          return updated;
+          return updated.toRecord();
         });
       });
 
   @override
-  Future<CoordinationItem> updateDraftBlocker({
+  Future<CoordinationItemRecord> updateDraftBlocker({
     required String id,
     required String actorId,
     required String title,
@@ -728,8 +723,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             updatedAt: Value(now),
           ),
         );
-        return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
-            .getSingle();
+        return (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
+            .getSingle()).toRecord();
       });
 
   @override
@@ -753,12 +748,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       });
 
   @override
-  Future<CoordinationItem?> getById(String id) =>
-      (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+  Future<CoordinationItemRecord?> getById(String id) async =>
+      (await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
+          .getSingleOrNull())
+          ?.toRecord();
 
   @override
-  Future<CoordinationItem?> tryClaimRemind({
+  Future<CoordinationItemRecord?> tryClaimRemind({
     required String itemId,
     required String actorId,
   }) =>
@@ -884,7 +880,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     return [
       for (final item in items)
         CoordinationItemWithCounts(
-          item: item,
+          item: item.toRecord(),
           messageCount: countsByItemId[item.id]?.messageCount ?? 0,
           unreadCount: countsByItemId[item.id]?.unreadCount ?? 0,
           lastSeenAt: lastSeenByItemId[item.id],
@@ -934,7 +930,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
-  Future<CoordinationItem> publishRootPlan({
+  Future<CoordinationItemRecord> publishRootPlan({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -984,7 +980,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
-  Future<CoordinationItem> addPlanStep({
+  Future<CoordinationItemRecord> addPlanStep({
     required String parentItemId,
     required String creatorId,
     required String title,
@@ -1403,7 +1399,7 @@ ORDER BY ci.kind, ci.created_at DESC
     return [
       for (final item in items)
         CoordinationItemWithCounts(
-          item: item,
+          item: item.toRecord(),
           messageCount: countsByItemId[item.id]?.messageCount ?? 0,
           unreadCount: countsByItemId[item.id]?.unreadCount ?? 0,
           lastSeenAt: lastSeenByItemId[item.id],

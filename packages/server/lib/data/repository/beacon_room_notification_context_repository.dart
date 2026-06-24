@@ -4,7 +4,7 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 
-import 'beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import '../database/tentura_db.dart';
 
 @LazySingleton(as: BeaconRoomNotificationContextPort)
@@ -15,7 +15,7 @@ class BeaconRoomNotificationContextRepository
     this._db,
   );
 
-  final BeaconRoomRepository _room;
+  final BeaconRoomRepositoryPort _room;
   final TenturaDb _db;
 
   @override

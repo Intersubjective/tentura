@@ -1,4 +1,4 @@
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/mark_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_blocker_case.dart';
@@ -944,7 +944,7 @@ int? _staleAfterDaysFromArgs(
 ) =>
     args.containsKey('staleAfterDays') ? field.fromArgs(args) : null;
 
-Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
+Map<String, Object?> _coordinationItemToMap(CoordinationItemRecord item) => {
       'id': item.id,
       'beaconId': item.beaconId,
       'kind': item.kind,
@@ -959,12 +959,12 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'linkedMessageId': item.linkedMessageId,
       'linkedParentItemId': item.linkedParentItemId,
       'ordering': item.ordering,
-      'createdAt': item.createdAt.dateTime.toIso8601String(),
-      'updatedAt': item.updatedAt.dateTime.toIso8601String(),
-      'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
-      'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
-      'staleAt': item.staleAt?.dateTime.toIso8601String(),
-      'lastRemindedAt': item.lastRemindedAt?.dateTime.toIso8601String(),
+      'createdAt': item.createdAt.toIso8601String(),
+      'updatedAt': item.updatedAt.toIso8601String(),
+      'resolvedAt': item.resolvedAt?.toIso8601String(),
+      'cancelledAt': item.cancelledAt?.toIso8601String(),
+      'staleAt': item.staleAt?.toIso8601String(),
+      'lastRemindedAt': item.lastRemindedAt?.toIso8601String(),
       'staleAfterDays': item.staleAfterDays,
       'source': item.source,
       'published': item.published,

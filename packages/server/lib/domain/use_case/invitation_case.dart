@@ -6,7 +6,7 @@ import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 import '../exception.dart';
 import '_use_case_base.dart';
@@ -30,7 +30,7 @@ final class InvitationCase extends UseCaseBase {
 
   final BeaconRepositoryPort _beaconRepository;
 
-  final VoteUserFriendshipLookup _friendshipLookup;
+  final VoteUserFriendshipLookupPort _friendshipLookup;
 
   final UserContactRepositoryPort _contactRepository;
 

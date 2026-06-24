@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -23,10 +23,10 @@ final class RemindCoordinationItemCase extends UseCaseBase {
   });
 
   final CoordinationItemRepositoryPort _itemRepository;
-  final BeaconRoomRepository _roomRepository;
-  final BeaconRoomPushService _push;
+  final BeaconRoomRepositoryPort _roomRepository;
+  final BeaconRoomNotificationPort _push;
 
-  Future<CoordinationItem> call({
+  Future<CoordinationItemRecord> call({
     required String userId,
     required String itemId,
   }) async {
@@ -90,14 +90,14 @@ final class RemindCoordinationItemCase extends UseCaseBase {
     return claimed;
   }
 
-  CoordinationStaleItemView _toView(CoordinationItem item) =>
+  CoordinationStaleItemView _toView(CoordinationItemRecord item) =>
       CoordinationStaleItemView(
         kind: item.kind,
         status: item.status,
         creatorId: item.creatorId,
         targetPersonId: item.targetPersonId,
         acceptedById: item.acceptedById,
-        staleAt: item.staleAt?.dateTime.toUtc(),
+        staleAt: item.staleAt?.toUtc(),
         staleAfterDays: item.staleAfterDays,
       );
 }

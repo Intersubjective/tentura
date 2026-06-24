@@ -1,4 +1,4 @@
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 /// Coordination item row plus viewer-scoped discussion counts.
 final class CoordinationItemWithCounts {
@@ -9,7 +9,7 @@ final class CoordinationItemWithCounts {
     this.lastSeenAt,
   });
 
-  final CoordinationItem item;
+  final CoordinationItemRecord item;
   final int messageCount;
   final int unreadCount;
   final DateTime? lastSeenAt;

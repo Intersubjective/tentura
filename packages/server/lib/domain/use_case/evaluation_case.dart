@@ -2,7 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
@@ -99,7 +99,7 @@ final class EvaluationCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final UserProfileBatchLookup _userProfileBatchLookup;
-  final BeaconRoomPushService _roomPush;
+  final BeaconRoomNotificationPort _roomPush;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CapabilityCase _capabilityCase;

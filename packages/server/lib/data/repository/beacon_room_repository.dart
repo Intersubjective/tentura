@@ -10,15 +10,16 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
-import 'package:tentura_server/domain/port/beacon_room_coordination_port.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'mappers/coordination_row_mappers.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
-@LazySingleton(as: BeaconRoomCoordinationPort)
-@LazySingleton()
-class BeaconRoomRepository implements BeaconRoomCoordinationPort {
+@LazySingleton(as: BeaconRoomRepositoryPort)
+class BeaconRoomRepository implements BeaconRoomRepositoryPort {
   const BeaconRoomRepository(this._db);
 
   final TenturaDb _db;
@@ -508,7 +509,7 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
     return sum / count;
   }
 
-  Future<BeaconRoomMessage> insertRoomMessage({
+  Future<BeaconRoomMessageRecord> insertRoomMessage({
     required String beaconId,
     required String authorId,
     required String body,
@@ -522,7 +523,7 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
   }) =>
       _db.withMutatingUser(authorId, () async {
         final id = generateId('R');
-        return _db.managers.beaconRoomMessages.createReturning((o) => o(
+        return (await _db.managers.beaconRoomMessages.createReturning((o) => o(
               id: id,
               beaconId: beaconId,
               authorId: authorId,
@@ -536,7 +537,7 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
               systemPayload: Value(systemPayload),
               mentions: Value(mentions),
               createdAt: const Value.absent(),
-            ));
+            ))).toRecord();
       });
 
   /// Creates a poll room message and returns the enriched row map for the GraphQL response.
@@ -601,18 +602,21 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
           .filter((m) => m.id.equals(messageId))
           .delete();
 
-  Future<BeaconParticipant?> findParticipant({
+  Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
-  }) =>
-      _db.managers.beaconParticipants
+  }) async =>
+      (await _db.managers.beaconParticipants
           .filter((r) => r.beaconId.id(beaconId) & r.userId.id(userId))
-          .getSingleOrNull();
+          .getSingleOrNull())
+          ?.toRecord();
 
-  Future<List<BeaconParticipant>> listParticipants(String beaconId) =>
-      _db.managers.beaconParticipants
-          .filter((r) => r.beaconId.id(beaconId))
-          .get();
+  Future<List<BeaconParticipantRecord>> listParticipants(String beaconId) async {
+    final rows = await _db.managers.beaconParticipants
+        .filter((r) => r.beaconId.id(beaconId))
+        .get();
+    return rows.map((r) => r.toRecord()).toList();
+  }
 
   /// Active help offer `help_type` wire per user id for this beacon (at most one row per user).
   Future<Map<String, String?>> helpTypesByUserId(String beaconId) async {
@@ -936,10 +940,11 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
           .getSingleOrNull()
           .then((r) => r != null);
 
-  Future<BeaconRoomState?> getBeaconRoomState(String beaconId) =>
-      _db.managers.beaconRoomStates
+  Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async =>
+      (await _db.managers.beaconRoomStates
           .filter((e) => e.beaconId.id(beaconId))
-          .getSingleOrNull();
+          .getSingleOrNull())
+          ?.toRecord();
 
   Future<void> markBeaconRoomSeen({
     required String userId,
@@ -1028,10 +1033,11 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
         at: DateTime.timestamp(),
       );
 
-  Future<BeaconRoomMessage?> getRoomMessageById(String messageId) =>
-      _db.managers.beaconRoomMessages
+  Future<BeaconRoomMessageRecord?> getRoomMessageById(String messageId) async =>
+      (await _db.managers.beaconRoomMessages
           .filter((m) => m.id.equals(messageId))
-          .getSingleOrNull();
+          .getSingleOrNull())
+          ?.toRecord();
 
   Future<void> markRoomMessageSemanticDone({
     required String messageId,
@@ -1395,12 +1401,13 @@ class BeaconRoomRepository implements BeaconRoomCoordinationPort {
     return rows.length;
   }
 
-  Future<BeaconRoomMessageAttachment?> getRoomMessageAttachmentById(
+  Future<BeaconRoomMessageAttachmentRecord?> getRoomMessageAttachmentById(
     String attachmentId,
-  ) =>
-      (_db.select(_db.beaconRoomMessageAttachments)
+  ) async =>
+      (await (_db.select(_db.beaconRoomMessageAttachments)
             ..where((a) => a.id.equals(attachmentId)))
-          .getSingleOrNull();
+          .getSingleOrNull())
+          ?.toRecord();
 
   Future<void> insertRoomMessageAttachmentImage({
     required String attachmentId,

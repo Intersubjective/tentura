@@ -4,8 +4,8 @@ import 'package:test/test.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -14,6 +14,8 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../../support/noop_beacon_room_notification_port.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   @override
@@ -24,7 +26,7 @@ class _StubBeacons extends Fake implements BeaconRepositoryPort {
       throw StateError('should not reach beacon lookup');
 }
 
-class _StubRoom extends Fake implements BeaconRoomRepository {}
+class _StubRoom extends Fake implements BeaconRoomRepositoryPort {}
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {}
 
@@ -61,11 +63,4 @@ void main() {
   });
 }
 
-class _NoopRoomPush extends BeaconRoomPushService {
-  _NoopRoomPush() : super(_NoopNotificationPort());
-}
-
-class _NoopNotificationPort extends Fake implements BeaconNotificationPort {
-  @override
-  Future<void> enqueue(BeaconNotificationIntent intent) async {}
-}
+class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

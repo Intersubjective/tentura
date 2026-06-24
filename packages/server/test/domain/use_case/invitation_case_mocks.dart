@@ -5,14 +5,14 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 @GenerateMocks([
   InvitationRepositoryPort,
   UserContactRepositoryPort,
   UserRepositoryPort,
   BeaconRepositoryPort,
-  VoteUserFriendshipLookup,
+  VoteUserFriendshipLookupPort,
   VerifiedContactRepositoryPort,
 ])
 void main() {}

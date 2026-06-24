@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -23,9 +23,9 @@ final class MarkAskCase extends UseCaseBase {
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
-  final BeaconRoomPushService _push;
+  final BeaconRoomNotificationPort _push;
 
-  Future<CoordinationItem> call({
+  Future<CoordinationItemRecord> call({
     required String userId,
     required String beaconId,
     required String title,

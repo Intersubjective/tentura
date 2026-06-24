@@ -9,7 +9,7 @@ import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
-import 'vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 @Injectable(
   as: MutualFriendsRepositoryPort,
@@ -30,7 +30,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
 
   final UserPresenceRepositoryPort _userPresenceRepository;
 
-  final VoteUserFriendshipLookup _voteUserFriendshipLookup;
+  final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
   /// Mutual friends of [aliceId] and [bobId] in [context], as domain records
   /// (same fields as `gqlTypeUserPublic`).

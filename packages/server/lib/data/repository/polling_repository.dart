@@ -1,25 +1,32 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/polling_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'mappers/coordination_row_mappers.dart';
 
 @Injectable(
+  as: PollingRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class PollingRepository {
+class PollingRepository implements PollingRepositoryPort {
   const PollingRepository(this._database);
 
   final TenturaDb _database;
 
-  Future<Polling?> findById(String pollingId) =>
-      _database.managers.pollings
-          .filter((p) => p.id.equals(pollingId))
-          .getSingleOrNull();
+  @override
+  Future<PollingVotePolicy?> findById(String pollingId) async {
+    final row = await _database.managers.pollings
+        .filter((p) => p.id.equals(pollingId))
+        .getSingleOrNull();
+    return row?.toVotePolicy();
+  }
 
   Future<String> create({
     required String authorId,

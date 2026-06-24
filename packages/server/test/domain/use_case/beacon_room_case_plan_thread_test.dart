@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -6,26 +8,27 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/polling_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
-import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
+import '../../support/coordination_item_record_fixtures.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
-  CoordinationItem? itemById;
+  CoordinationItemRecord? itemById;
 
   @override
-  Future<CoordinationItem?> getById(String id) async => itemById;
+  Future<CoordinationItemRecord?> getById(String id) async => itemById;
 }
 
-class _StubRoom extends Fake implements BeaconRoomRepository {
+class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   @override
   Future<bool> isBeaconAuthor({
     required String beaconId,
@@ -41,7 +44,7 @@ class _StubRoom extends Fake implements BeaconRoomRepository {
       false;
 
   @override
-  Future<BeaconParticipant?> findParticipant({
+  Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
   }) async =>
@@ -68,12 +71,12 @@ void main() {
   const planItemId = 'CIplanaaaaaaa';
   const askItemId = 'CIaskaaaaaaaa';
 
-  CoordinationItem sampleItem({
+  CoordinationItemRecord sampleItem({
     required String id,
     required int kind,
   }) {
-    final now = PgDateTime(DateTime.utc(2026, 5));
-    return CoordinationItem(
+    final now = DateTime.utc(2026, 5);
+    return testCoordinationItem(
       id: id,
       beaconId: beaconId,
       kind: kind,
@@ -96,7 +99,7 @@ void main() {
       room,
       items,
       FakeBeaconFactCardRepository(),
-      FakeBeaconRoomPushService(),
+      FakeBeaconRoomNotificationPort(),
       FakeImageRepositoryPort(),
       FakeTaskRepositoryPort(),
       FakeRemoteStorage(),
@@ -166,14 +169,14 @@ void main() {
 }
 
 class FakeBeaconFactCardRepository extends Fake
-    implements BeaconFactCardRepository {}
+    implements BeaconFactCardRepositoryPort {}
 
-class FakeBeaconRoomPushService extends Fake implements BeaconRoomPushService {}
+class FakeBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {}
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
 
 class FakeTaskRepositoryPort extends Fake implements TaskRepositoryPort {}
 
-class FakeRemoteStorage extends Fake implements RemoteStorage {}
+class FakeRemoteStorage extends Fake implements RemoteStoragePort {}
 
-class FakePollingRepository extends Fake implements PollingRepository {}
+class FakePollingRepository extends Fake implements PollingRepositoryPort {}

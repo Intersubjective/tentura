@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -11,11 +13,14 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_promise_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -40,7 +45,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   int? lastStaleAfterDays;
 
   @override
-  Future<CoordinationItem> create({
+  Future<CoordinationItemRecord> create({
     required String beaconId,
     required int kind,
     required String creatorId,
@@ -57,8 +62,8 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     lastKind = kind;
     lastTarget = targetPersonId;
     lastStaleAfterDays = staleAfterDays;
-    final now = PgDateTime(DateTime.utc(2024));
-    return CoordinationItem(
+    final now = DateTime.utc(2024);
+    return testCoordinationItem(
       id: 'Piiiiiiiiiiii',
       beaconId: beaconId,
       kind: kind,
@@ -173,11 +178,4 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
       updatedAt: DateTime.utc(2024),
     );
 
-class _NoopRoomPush extends BeaconRoomPushService {
-  _NoopRoomPush() : super(_NoopNotificationPort());
-}
-
-class _NoopNotificationPort implements BeaconNotificationPort {
-  @override
-  Future<void> dispatch(BeaconNotificationIntent intent) async {}
-}
+class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}
