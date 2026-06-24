@@ -1828,7 +1828,7 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "overdue",
+  "myWorkStatusOverdue": "needs attention",
   "@myWorkStatusOverdue": {
     "context": "MyWorkScreen"
   },
@@ -1961,7 +1961,7 @@
       }
     }
   },
-  "beaconCardScheduleOverdue": "Overdue",
+  "beaconCardScheduleOverdue": "Needs attention",
   "@beaconCardScheduleOverdue": {
     "description": "Card line for a deadline whose date has passed"
   },
