@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/port/beacon_room_notification_context_port
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 
@@ -31,6 +32,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._users,
     this._context,
     this._preferences,
+    this._outbox,
     this._logger,
   );
 
@@ -40,6 +42,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final UserRepositoryPort _users;
   final BeaconRoomNotificationContextPort _context;
   final NotificationPreferenceRepositoryPort _preferences;
+  final NotificationOutboxRepositoryPort _outbox;
   final Logger _logger;
 
   static const _resolver = BeaconNotificationRecipientResolver();
@@ -58,22 +61,27 @@ class BeaconNotificationService implements BeaconNotificationPort {
       return;
     }
 
-    // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
-    // per-beacon mute) before any push leaves the server.
-    final gated = await _filterByPushPreference(intent, resolved);
-    if (gated.isEmpty) {
-      _logger.fine(
-        '[FCM] dispatch suppressed by preferences kind=${intent.kind.name} '
-        'beaconId=${intent.beaconId}',
-      );
-      return;
-    }
-
     final actor = await _users.getById(intent.actorUserId);
     final fullCopy = _copyBuilder.build(
       intent: intent,
       actorDisplayName: actor.displayName,
     );
+
+    // Durable Notification Center is the pull-based ground truth: record the
+    // signal for every intended recipient regardless of push/email delivery.
+    await _writeOutbox(intent, resolved, fullCopy);
+
+    // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
+    // per-beacon mute) before any push leaves the server.
+    final gated = await _filterByPushPreference(intent, resolved);
+    if (gated.isEmpty) {
+      _logger.fine(
+        '[FCM] push suppressed by preferences kind=${intent.kind.name} '
+        'beaconId=${intent.beaconId}',
+      );
+      return;
+    }
+
     // Privacy-safe variant for recipients who enabled lock-screen redaction.
     final safeCopy = _copyBuilder.lockScreenSafe(intent);
 
@@ -209,6 +217,40 @@ class BeaconNotificationService implements BeaconNotificationPort {
       'actorUserId=$actorUserId reason=$reason hasToken=$hasToken '
       'queuedOrDirect=$queuedOrDirect coalescedCount=$coalescedCount',
     );
+  }
+
+  /// Records the durable Notification Center row for every intended recipient.
+  /// Unread duplicates collapse via the dedup key.
+  Future<void> _writeOutbox(
+    BeaconNotificationIntent intent,
+    List<BeaconNotificationRecipient> recipients,
+    BeaconNotificationCopy copy,
+  ) async {
+    final category = categoryOf(intent.kind);
+    final beaconId = intent.beaconId.isEmpty ? null : intent.beaconId;
+    final itemId = intent.coordinationItemId;
+    for (final r in recipients) {
+      final dedupKey =
+          '${r.userId}|${category.name}|${beaconId ?? ''}|${itemId ?? ''}';
+      try {
+        await _outbox.enqueue(
+          accountId: r.userId,
+          category: category,
+          kind: intent.kind,
+          priority: r.priority,
+          title: copy.title,
+          body: copy.body,
+          actionUrl: copy.actionUrl,
+          dedupKey: dedupKey,
+          beaconId: beaconId,
+          coordinationItemId: itemId,
+          actorUserId: intent.actorUserId,
+        );
+      } on Object catch (e, s) {
+        // The Center is best-effort; a write failure must not block push.
+        _logger.warning('[Center] outbox write failed for ${r.userId}', e, s);
+      }
+    }
   }
 
   /// Drops recipients who have opted out of push for this category, are within
