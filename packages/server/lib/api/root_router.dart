@@ -7,6 +7,7 @@ import 'package:tentura_server/env.dart';
 import 'controllers/account_credentials_controller.dart';
 import 'controllers/account_profile_controller.dart';
 import 'controllers/auth_email_controller.dart';
+import 'controllers/unsubscribe_controller.dart';
 import 'controllers/auth_google_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
@@ -37,6 +38,7 @@ class RootRouter {
     this._sessionController,
     this._authGoogleController,
     this._authEmailController,
+    this._unsubscribeController,
   );
 
   final Env _env;
@@ -68,6 +70,8 @@ class RootRouter {
   final AuthGoogleController _authGoogleController;
 
   final AuthEmailController _authEmailController;
+
+  final UnsubscribeController _unsubscribeController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -147,6 +151,14 @@ class RootRouter {
       ..post(
         '/auth/email/verify',
         _authEmailController.verifyPost,
+      )
+      ..get(
+        '/email/unsubscribe',
+        _unsubscribeController.getPage,
+      )
+      ..post(
+        '/email/unsubscribe',
+        _unsubscribeController.post,
       )
       ..post(
         '/api/v2/invite/<code>/accept-as-existing',
