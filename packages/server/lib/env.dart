@@ -42,6 +42,10 @@ class Env {
     int? emailAuthMaxPerEmail,
     int? emailAuthMaxPerIp,
     int? emailAuthMaxPerInvite,
+    Duration? beaconCreateRateWindow,
+    int? beaconCreateMaxPerUser,
+    Duration? roomMessageRateWindow,
+    int? roomMessageMaxPerUser,
 
     // Web server
     String? bindAddress,
@@ -158,6 +162,26 @@ class Env {
        emailAuthMaxPerInvite = emailAuthMaxPerInvite ??
            int.tryParse(_env['EMAIL_AUTH_MAX_PER_INVITE'] ?? '') ??
            10,
+       beaconCreateRateWindow = beaconCreateRateWindow ??
+           Duration(
+             seconds: int.tryParse(
+                   _env['BEACON_CREATE_RATE_WINDOW_SECONDS'] ?? '',
+                 ) ??
+                 3600,
+           ),
+       beaconCreateMaxPerUser = beaconCreateMaxPerUser ??
+           int.tryParse(_env['BEACON_CREATE_MAX_PER_USER'] ?? '') ??
+           30,
+       roomMessageRateWindow = roomMessageRateWindow ??
+           Duration(
+             seconds: int.tryParse(
+                   _env['ROOM_MESSAGE_RATE_WINDOW_SECONDS'] ?? '',
+                 ) ??
+                 60,
+           ),
+       roomMessageMaxPerUser = roomMessageMaxPerUser ??
+           int.tryParse(_env['ROOM_MESSAGE_MAX_PER_USER'] ?? '') ??
+           30,
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -373,6 +397,18 @@ class Env {
   final int emailAuthMaxPerIp;
 
   final int emailAuthMaxPerInvite;
+
+  /// Sliding window for beacon-creation spam control (per author).
+  final Duration beaconCreateRateWindow;
+
+  /// Max beacons one author may create within [beaconCreateRateWindow].
+  final int beaconCreateMaxPerUser;
+
+  /// Sliding window for room-message spam control (per author).
+  final Duration roomMessageRateWindow;
+
+  /// Max room messages one author may post within [roomMessageRateWindow].
+  final int roomMessageMaxPerUser;
 
   bool get isEmailAuthConfigured =>
       (resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty) ||

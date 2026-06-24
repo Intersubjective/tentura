@@ -140,6 +140,21 @@ final class BeaconCase extends UseCaseBase {
 
   final BeaconAccessGuard _guard;
 
+  /// Spam control: reject when an author has created too many beacons within
+  /// the configured trailing window.
+  Future<void> _enforceCreateRateLimit(String userId) async {
+    final recent = await _beaconRepository.countRecentByAuthor(
+      userId: userId,
+      window: env.beaconCreateRateWindow,
+    );
+    if (recent >= env.beaconCreateMaxPerUser) {
+      logger.info('beacon create rate-limited for user $userId');
+      throw const RateLimitedException(
+        description: 'Too many beacons created recently, please wait',
+      );
+    }
+  }
+
   //
   Future<BeaconEntity> create({
     required String userId,
@@ -158,6 +173,7 @@ final class BeaconCase extends UseCaseBase {
     String? needSummary,
     String? successCriteria,
   }) async {
+    await _enforceCreateRateLimit(userId);
     final imageIds = <String>[];
 
     if (imageBytes != null) {
@@ -393,6 +409,7 @@ final class BeaconCase extends UseCaseBase {
     required String sourceId,
     required String userId,
   }) async {
+    await _enforceCreateRateLimit(userId);
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
     await assertBeaconLineageSourceVisible(
       guard: _guard,

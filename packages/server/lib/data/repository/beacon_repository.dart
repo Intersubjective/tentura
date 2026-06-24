@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
@@ -351,6 +352,26 @@ class BeaconRepository implements BeaconRepositoryPort {
       _database.managers.beaconImages
           .filter((e) => e.beaconId.id.equals(beaconId))
           .count();
+
+  @override
+  Future<int> countRecentByAuthor({
+    required String userId,
+    required Duration window,
+  }) async {
+    final since = DateTime.timestamp().subtract(window);
+    final rows = await _database.customSelect(
+      '''
+SELECT COUNT(*)::int AS c
+FROM public.beacon
+WHERE user_id = \$1 AND created_at >= \$2
+''',
+      variables: [
+        Variable<String>(userId),
+        Variable(TypedValue(Type.timestampTz, since)),
+      ],
+    ).getSingle();
+    return rows.read<int>('c');
+  }
 
   @override
   Future<void> reorderImages({

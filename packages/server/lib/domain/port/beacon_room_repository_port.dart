@@ -23,6 +23,13 @@ abstract class BeaconRoomRepositoryPort {
     String? excludeAuthorId,
   });
 
+  /// Count room messages authored by [authorId] within the trailing [window]
+  /// (spam-control rate limiting; spans all beacons and threads).
+  Future<int> countRecentMessagesByAuthor({
+    required String authorId,
+    required Duration window,
+  });
+
   Future<void> deleteRoomMessage({required String messageId});
 
   Future<BeaconParticipantRecord?> findParticipant({

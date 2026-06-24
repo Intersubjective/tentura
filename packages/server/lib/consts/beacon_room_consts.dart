@@ -63,6 +63,10 @@ const kMaxRoomMessageAttachments = 10;
 /// Max upload size per attachment (bytes).
 const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
 
+/// Max characters in a room message body (after trim). Guards against
+/// text-flood abuse; the column itself is unbounded `text`.
+const kMaxRoomMessageBodyLength = 4000;
+
 /// Max length for beacon room `currentLine` (HUD NOW row + plan sync).
 const kBeaconRoomCurrentLineMaxLength = 60;
 

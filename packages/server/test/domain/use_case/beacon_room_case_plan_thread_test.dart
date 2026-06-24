@@ -59,6 +59,15 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     int limit = 50,
   }) async =>
       const [];
+
+  int recentMessageCount = 0;
+
+  @override
+  Future<int> countRecentMessagesByAuthor({
+    required String authorId,
+    required Duration window,
+  }) async =>
+      recentMessageCount;
 }
 
 void main() {
@@ -152,6 +161,32 @@ void main() {
         threadItemId: planItemId,
       ),
       throwsA(isA<IdWrongException>()),
+    );
+  });
+
+  test('createMessage throws RateLimitedException at the per-user cap',
+      () async {
+    room.recentMessageCount = 5;
+    final limited = BeaconRoomCase(
+      room,
+      items,
+      FakeBeaconFactCardRepository(),
+      FakeBeaconRoomNotificationPort(),
+      FakeImageRepositoryPort(),
+      FakeTaskRepositoryPort(),
+      FakeRemoteStorage(),
+      FakePollingRepository(),
+      env: Env(environment: Environment.test, roomMessageMaxPerUser: 5),
+      logger: Logger('BeaconRoomCaseRateLimitTest'),
+    );
+
+    await expectLater(
+      limited.createMessage(
+        beaconId: beaconId,
+        userId: userId,
+        body: 'spam spam spam',
+      ),
+      throwsA(isA<RateLimitedException>()),
     );
   });
 

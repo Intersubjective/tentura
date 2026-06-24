@@ -6,6 +6,11 @@ export 'package:tentura_root/consts.dart';
 
 const kContextJwtKey = 'contextJwt';
 
+/// Max accepted bytes for an uploaded image (avatars, beacon images). Larger
+/// uploads are rejected before they reach object storage. Kept in step with
+/// `kMaxRoomMessageAttachmentBytes` so no single upload field is unbounded.
+const kMaxImageUploadBytes = 10 * 1024 * 1024;
+
 const kSentryRequestContextKey = 'sentryRequestContext';
 
 final kInvitationTTL = Duration(

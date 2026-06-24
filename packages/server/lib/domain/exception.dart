@@ -73,6 +73,30 @@ final class IdDuplicateException extends ExceptionBase {
        );
 }
 
+/// Upload (image or attachment) exceeds the server-side byte cap. Maps to 413.
+final class PayloadTooLargeException extends ExceptionBase {
+  const PayloadTooLargeException({String? description})
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.payloadTooLargeException,
+        ),
+        description: description ?? 'Upload exceeds maximum allowed size',
+      );
+}
+
+/// Too many create/write operations from one actor in the configured window
+/// (spam / abuse control). Maps to 429.
+final class RateLimitedException extends ExceptionBase {
+  const RateLimitedException({String? description})
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.rateLimitedException,
+        ),
+        description:
+            description ?? 'Too many requests, please slow down and retry later',
+      );
+}
+
 final class PemKeyWrongException extends ExceptionBase {
   const PemKeyWrongException({
     String key = '',
