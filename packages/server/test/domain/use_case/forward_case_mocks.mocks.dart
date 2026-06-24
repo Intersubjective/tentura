@@ -1112,6 +1112,21 @@ class MockBeaconRoomPushService extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> notifyHelpWithdrawn({
+    required String? beaconId,
+    required String? withdrawerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyHelpWithdrawn, [], {
+              #beaconId: beaconId,
+              #withdrawerUserId: withdrawerUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> notifyHelpOfferedToModerators({
     required String? beaconId,
     required String? offererUserId,
