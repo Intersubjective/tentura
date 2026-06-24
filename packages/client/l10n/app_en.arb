@@ -1074,6 +1074,43 @@
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
+  "notifications": "Notifications",
+  "@notifications": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmpty": "You're all caught up",
+  "@notificationsEmpty": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmptyHint": "Updates that need you will appear here",
+  "@notificationsEmptyHint": {
+    "context": "NotificationCenter"
+  },
+  "notificationsMarkAllRead": "Mark all read",
+  "@notificationsMarkAllRead": {
+    "context": "NotificationCenter"
+  },
+  "notificationSettings": "Notification settings",
+  "notificationSettingsPush": "Push notifications",
+  "notificationSettingsEmail": "Email notifications",
+  "notificationCatAsksOfMe": "Asks of you",
+  "notificationCatAsksOfMeDesc": "Things waiting on you; you're blocking others",
+  "notificationCatUnblocksMe": "Resolutions",
+  "notificationCatUnblocksMeDesc": "Updates that let you move forward",
+  "notificationCatCoordination": "Coordination",
+  "notificationCatCoordinationDesc": "Activity in beacon rooms you're part of",
+  "notificationCatAmbient": "Ambient",
+  "notificationCatAmbientDesc": "Low-priority background activity",
+  "notificationDigest": "Email digest",
+  "notificationDigestOff": "Off",
+  "notificationDigestDaily": "Daily",
+  "notificationDigestWeekly": "Weekly",
+  "notificationQuietHours": "Quiet hours",
+  "notificationQuietHoursEnable": "Mute push during quiet hours",
+  "notificationQuietHoursFrom": "From",
+  "notificationQuietHoursTo": "To",
+  "notificationLockScreen": "Hide details on lock screen",
+  "notificationLockScreenDesc": "Show a generic summary instead of message content",
   "inboxEmptyHint": "Beacons forwarded to you will appear here",
   "@inboxEmptyHint": {
     "context": "InboxScreen"

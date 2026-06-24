@@ -1,0 +1,18 @@
+query NotificationsFeed($limit: Int, $before: String) {
+  notificationsUnreadCount
+  notificationsFeed(limit: $limit, before: $before) {
+    id
+    category
+    kind
+    priority
+    title
+    body
+    actionUrl
+    createdAt
+    readAt
+    collapsedCount
+    beaconId
+    coordinationItemId
+    actorUserId
+  }
+}

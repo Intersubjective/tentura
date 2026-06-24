@@ -101,6 +101,19 @@ void main() {
     );
   });
 
+  test('commitmentEvent withdrawn uses withdrawal copy', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentEvent,
+        promiseWithdrawn: true,
+      ),
+      actorDisplayName: 'Alex',
+    );
+
+    expect(copy.title, 'Alex');
+    expect(copy.body, 'Alex withdrew their help');
+  });
+
   test('truncates long excerpt in body', () {
     final long = 'x' * 100;
     final copy = builder.build(
@@ -113,5 +126,31 @@ void main() {
 
     expect(copy.body.length, 80);
     expect(copy.body.endsWith('…'), isTrue);
+  });
+
+  group('lockScreenSafe', () {
+    test('redacts excerpt and actor while keeping the deep link', () {
+      final i = intent(
+        kind: NotificationKind.needsMe,
+        bodyExcerpt: 'Secret: review the wiring plan',
+        coordinationItemId: 'item-9',
+      );
+      final safe = builder.lockScreenSafe(i);
+      final full = builder.build(intent: i, actorDisplayName: 'Alex');
+
+      expect(safe.body, 'Something needs your response');
+      expect(safe.body.contains('Secret'), isFalse);
+      expect(safe.title, 'Tentura');
+      // Deep link is preserved (not shown on the lock screen).
+      expect(safe.actionUrl, full.actionUrl);
+    });
+
+    test('uses category-level summary for an unblocking kind', () {
+      final safe = builder.lockScreenSafe(
+        intent(kind: NotificationKind.reviewReady, beaconTitle: 'Roof repair'),
+      );
+      expect(safe.body, 'An update is ready for you');
+      expect(safe.body.contains('Roof'), isFalse);
+    });
   });
 }

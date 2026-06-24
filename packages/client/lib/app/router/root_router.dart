@@ -110,6 +110,30 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
+    // Notification Center (full-screen stack route; no bottom tabs)
+    AutoRoute(
+      page: NotificationCenterRoute.page,
+      path: kPathNotifications,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
+    // Notification settings (full-screen stack route; no bottom tabs)
+    AutoRoute(
+      page: NotificationSettingsRoute.page,
+      path: kPathNotificationSettings,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
     // Intro (native only — web onboarding is on the static landing)
     AutoRoute(
       keepHistory: false,

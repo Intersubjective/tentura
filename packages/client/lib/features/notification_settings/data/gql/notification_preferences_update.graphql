@@ -1,0 +1,38 @@
+mutation NotificationPreferencesUpdate(
+  $pushCategories: [String!]
+  $emailCategories: [String!]
+  $quietHoursStart: Int
+  $quietHoursEnd: Int
+  $clearQuietHours: Boolean
+  $tzOffsetMinutes: Int
+  $emailDigest: String
+  $snoozeUntil: String
+  $clearSnooze: Boolean
+  $lockScreenSafe: Boolean
+  $locale: String
+) {
+  notificationPreferencesUpdate(
+    pushCategories: $pushCategories
+    emailCategories: $emailCategories
+    quietHoursStart: $quietHoursStart
+    quietHoursEnd: $quietHoursEnd
+    clearQuietHours: $clearQuietHours
+    tzOffsetMinutes: $tzOffsetMinutes
+    emailDigest: $emailDigest
+    snoozeUntil: $snoozeUntil
+    clearSnooze: $clearSnooze
+    lockScreenSafe: $lockScreenSafe
+    locale: $locale
+  ) {
+    accountId
+    pushCategories
+    emailCategories
+    quietHoursStart
+    quietHoursEnd
+    tzOffsetMinutes
+    emailDigest
+    snoozeUntil
+    lockScreenSafe
+    locale
+  }
+}

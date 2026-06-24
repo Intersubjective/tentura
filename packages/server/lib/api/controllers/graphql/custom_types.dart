@@ -48,7 +48,50 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeMyWorkLastActivityEventRow,
   gqlTypeBeaconLineageSuggestion,
   gqlTypeBeaconLineageForwardSuggestions,
+  gqlTypeNotificationPreferences,
+  gqlTypeNotificationItem,
 ];
+
+/// One durable Notification Center row.
+final gqlTypeNotificationItem =
+    GraphQLObjectType('NotificationItem', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('category', graphQLString.nonNullable()),
+        field('kind', graphQLString.nonNullable()),
+        field('priority', graphQLString.nonNullable()),
+        field('title', graphQLString.nonNullable()),
+        field('body', graphQLString.nonNullable()),
+        field('actionUrl', graphQLString.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+        field('readAt', graphQLString),
+        field('collapsedCount', graphQLInt.nonNullable()),
+        field('beaconId', graphQLString),
+        field('coordinationItemId', graphQLString),
+        field('actorUserId', graphQLString),
+      ]);
+
+/// Account notification preferences (channel × category matrix + controls).
+final gqlTypeNotificationPreferences =
+    GraphQLObjectType('NotificationPreferences', null)
+      ..fields.addAll([
+        field('accountId', graphQLString.nonNullable()),
+        field(
+          'pushCategories',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'emailCategories',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('quietHoursStart', graphQLInt),
+        field('quietHoursEnd', graphQLInt),
+        field('tzOffsetMinutes', graphQLInt.nonNullable()),
+        field('emailDigest', graphQLString.nonNullable()),
+        field('snoozeUntil', graphQLString),
+        field('lockScreenSafe', graphQLBoolean.nonNullable()),
+        field('locale', graphQLString.nonNullable()),
+      ]);
 
 /// Payload returned by `RoomMessageCreate`.
 final gqlTypeRoomMessageCreatePayload =

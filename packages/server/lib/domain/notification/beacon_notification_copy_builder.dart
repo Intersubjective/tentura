@@ -1,5 +1,6 @@
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
 
@@ -64,10 +65,15 @@ class BeaconNotificationCopyBuilder {
               ? '$actor: $excerpt'
               : '$actor forwarded a beacon to you',
         ),
-      NotificationKind.commitmentEvent => (
-          actor,
-          excerpt.isNotEmpty ? excerpt : '$actor offered help',
-        ),
+      NotificationKind.commitmentEvent => intent.promiseWithdrawn
+          ? (
+              actor,
+              excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
+            )
+          : (
+              actor,
+              excerpt.isNotEmpty ? excerpt : '$actor offered help',
+            ),
       NotificationKind.reviewReady => (
           'Beacon closed — close the loop',
           beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
@@ -82,6 +88,32 @@ class BeaconNotificationCopyBuilder {
         ),
     };
 
+    return BeaconNotificationCopy(
+      title: title,
+      body: body,
+      actionUrl: _actionUrl(intent),
+    );
+  }
+
+  /// Privacy-safe copy for recipients who enabled lock-screen redaction: a
+  /// generic, category-level summary with no excerpts, actor names, or beacon
+  /// titles. The deep link is preserved (not shown on the lock screen).
+  BeaconNotificationCopy lockScreenSafe(BeaconNotificationIntent intent) {
+    final (title, body) = switch (categoryOf(intent.kind)) {
+      NotificationCategory.asksOfMe => (
+          'Tentura',
+          'Something needs your response',
+        ),
+      NotificationCategory.unblocksMe => (
+          'Tentura',
+          'An update is ready for you',
+        ),
+      NotificationCategory.coordination => (
+          'Tentura',
+          'New activity in a beacon room',
+        ),
+      NotificationCategory.ambient => ('Tentura', 'New activity'),
+    };
     return BeaconNotificationCopy(
       title: title,
       body: body,

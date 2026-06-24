@@ -1074,6 +1074,43 @@
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
+  "notifications": "Уведомления",
+  "@notifications": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmpty": "Всё просмотрено",
+  "@notificationsEmpty": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmptyHint": "Здесь появятся обновления, требующие вашего внимания",
+  "@notificationsEmptyHint": {
+    "context": "NotificationCenter"
+  },
+  "notificationsMarkAllRead": "Отметить все как прочитанные",
+  "@notificationsMarkAllRead": {
+    "context": "NotificationCenter"
+  },
+  "notificationSettings": "Настройки уведомлений",
+  "notificationSettingsPush": "Push-уведомления",
+  "notificationSettingsEmail": "Уведомления по эл. почте",
+  "notificationCatAsksOfMe": "Просьбы к вам",
+  "notificationCatAsksOfMeDesc": "Ждут вашего ответа; вы блокируете других",
+  "notificationCatUnblocksMe": "Разблокировки",
+  "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
+  "notificationCatCoordination": "Координация",
+  "notificationCatCoordinationDesc": "Активность в комнатах маяков, где вы участвуете",
+  "notificationCatAmbient": "Фоновые",
+  "notificationCatAmbientDesc": "Фоновая активность низкого приоритета",
+  "notificationDigest": "Сводка по эл. почте",
+  "notificationDigestOff": "Выкл.",
+  "notificationDigestDaily": "Ежедневно",
+  "notificationDigestWeekly": "Еженедельно",
+  "notificationQuietHours": "Тихие часы",
+  "notificationQuietHoursEnable": "Отключать push в тихие часы",
+  "notificationQuietHoursFrom": "С",
+  "notificationQuietHoursTo": "До",
+  "notificationLockScreen": "Скрывать детали на экране блокировки",
+  "notificationLockScreenDesc": "Показывать общую сводку вместо содержимого",
   "inboxEmptyHint": "Здесь появятся маяки, пересланные вам",
   "@inboxEmptyHint": {
     "context": "InboxScreen"
