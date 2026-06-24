@@ -1,5 +1,7 @@
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'package:tentura/consts.dart';
+
 import 'sentry_benign_filter.dart';
 
 const sentryDsn = String.fromEnvironment('SENTRY_DSN');
@@ -54,10 +56,26 @@ void configureSentryOptions(SentryFlutterOptions options) {
     options.dist = sentryDist;
   }
 
+  _configureTracePropagation(options);
+
   options.beforeSend = (event, hint) {
     if (_isBenignSentryEvent(event, hint)) {
       return null;
     }
     return event;
   };
+}
+
+void _configureTracePropagation(SentryFlutterOptions options) {
+  if (kServerName.isEmpty) {
+    return;
+  }
+  final origin = Uri.parse(kServerName).origin;
+  options.tracePropagationTargets
+    ..clear()
+    ..addAll([
+      origin,
+      '$origin$kPathGraphQLEndpoint',
+      '$origin$kPathGraphQLEndpointV2',
+    ]);
 }

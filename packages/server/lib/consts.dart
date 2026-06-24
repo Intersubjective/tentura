@@ -6,6 +6,8 @@ export 'package:tentura_root/consts.dart';
 
 const kContextJwtKey = 'contextJwt';
 
+const kSentryRequestContextKey = 'sentryRequestContext';
+
 final kInvitationTTL = Duration(
   hours:
       int.tryParse(Platform.environment['INVITATION_TTL'] ?? '') ??

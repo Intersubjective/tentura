@@ -3,6 +3,7 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/app/sentry/sentry_request_tracing.dart';
 
 import 'controllers/account_credentials_controller.dart';
 import 'controllers/account_profile_controller.dart';
@@ -82,9 +83,13 @@ class RootRouter {
             ACCESS_CONTROL_ALLOW_CREDENTIALS: 'false',
             // Browsers match Origin against scheme://host[:port], not a bare host.
             ACCESS_CONTROL_ALLOW_ORIGIN: _env.serverUri.origin,
+            ACCESS_CONTROL_ALLOW_HEADERS:
+                'sentry-trace, baggage, content-type, authorization, '
+                '$kHeaderQueryContext, accept, user-agent',
           },
         ),
       )
+      ..use(sentryRequestTracing(env: _env))
       ..get('/health', () => 'I`m fine!')
       ..get('/graphiql', _graphiqlController.handler)
       ..get(kPathAppLinkView, _appLinkRedirectController.handler)

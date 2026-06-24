@@ -5,7 +5,10 @@ import 'package:gql_exec/gql_exec.dart' show Request, Response;
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_error_link/gql_error_link.dart';
 import 'package:gql_dedupe_link/gql_dedupe_link.dart';
+import 'package:http/http.dart' as http;
+import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
@@ -27,6 +30,9 @@ Future<Client> buildClient({
     kHeaderAccept: kContentApplicationJson,
     kHeaderUserAgent: params.userAgent,
   };
+
+  final hasuraHttpClient = _createGraphqlHttpClient();
+  final tenturaV2HttpClient = _createGraphqlHttpClient();
 
   return Client(
     defaultFetchPolicies: {
@@ -76,13 +82,25 @@ Future<Client> buildClient({
         hasuraLink: HttpLink(
           params.apiEndpointUrl,
           defaultHeaders: defaultHeaders,
+          httpClient: hasuraHttpClient,
         ),
         tenturaV2Link: HttpLink(
           params.apiEndpointUrlV2,
           defaultHeaders: defaultHeaders,
+          httpClient: tenturaV2HttpClient,
         ),
       ),
     ]),
+  );
+}
+
+http.Client _createGraphqlHttpClient() {
+  if (sentryDsn.isEmpty) {
+    return http.Client();
+  }
+  return SentryHttpClient(
+    client: http.Client(),
+    captureFailedRequests: false,
   );
 }
 

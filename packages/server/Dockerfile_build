@@ -2,6 +2,9 @@
 # Uses full workspace; Flutter image provides SDK for resolution.
 FROM ghcr.io/cirruslabs/flutter:stable AS build
 
+ARG GIT_SHA=unknown
+ARG SERVER_VERSION=0.0.0
+
 WORKDIR /app
 
 COPY pubspec.yaml pubspec.lock ./
@@ -19,9 +22,14 @@ RUN dart run build_runner build -d
 RUN dart build cli -t bin/tentura.dart -o bin/cli-build
 
 FROM debian:bookworm-slim
+ARG GIT_SHA=unknown
+ARG SERVER_VERSION=0.0.0
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/packages/server/bin/cli-build/bundle/bin/tentura /tentura
 COPY --from=build /app/packages/server/bin/cli-build/bundle/lib/libsqlite3.so /lib/libsqlite3.so
+
+ENV SENTRY_RELEASE=tentura-server@${SERVER_VERSION}
+ENV SENTRY_DIST=${GIT_SHA}
 
 EXPOSE 2080/tcp
 USER 33:33
