@@ -60,8 +60,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
 
     // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
     // per-beacon mute) before any push leaves the server.
-    final recipients = await _filterByPushPreference(intent, resolved);
-    if (recipients.isEmpty) {
+    final gated = await _filterByPushPreference(intent, resolved);
+    if (gated.isEmpty) {
       _logger.fine(
         '[FCM] dispatch suppressed by preferences kind=${intent.kind.name} '
         'beaconId=${intent.beaconId}',
@@ -70,37 +70,43 @@ class BeaconNotificationService implements BeaconNotificationPort {
     }
 
     final actor = await _users.getById(intent.actorUserId);
-    final copy = _copyBuilder.build(
+    final fullCopy = _copyBuilder.build(
       intent: intent,
       actorDisplayName: actor.displayName,
     );
+    // Privacy-safe variant for recipients who enabled lock-screen redaction.
+    final safeCopy = _copyBuilder.lockScreenSafe(intent);
 
     if (intent.kind == NotificationKind.reviewReady) {
       await _sendDirect(
         intent: intent,
-        recipients: recipients,
-        copy: copy,
+        gated: gated,
+        fullCopy: fullCopy,
+        safeCopy: safeCopy,
       );
       return;
     }
 
-    for (final r in recipients) {
+    for (final g in gated) {
       await _enqueue(
-        receiverId: r.userId,
+        receiverId: g.recipient.userId,
         intent: intent,
-        priority: r.priority,
-        copy: copy,
-        reason: r.reason.name,
+        priority: g.recipient.priority,
+        copy: g.lockScreenSafe ? safeCopy : fullCopy,
+        reason: g.recipient.reason.name,
       );
     }
   }
 
   Future<void> _sendDirect({
     required BeaconNotificationIntent intent,
-    required List<BeaconNotificationRecipient> recipients,
-    required BeaconNotificationCopy copy,
+    required List<_GatedRecipient> gated,
+    required BeaconNotificationCopy fullCopy,
+    required BeaconNotificationCopy safeCopy,
   }) async {
-    for (final r in recipients) {
+    for (final g in gated) {
+      final r = g.recipient;
+      final copy = g.lockScreenSafe ? safeCopy : fullCopy;
       final tokens = await _fcmTokens.getTokensByUserId(r.userId);
       if (tokens.isEmpty) {
         _logger.info(
@@ -206,15 +212,16 @@ class BeaconNotificationService implements BeaconNotificationPort {
   }
 
   /// Drops recipients who have opted out of push for this category, are within
-  /// quiet hours, globally snoozed, or have muted this beacon.
-  Future<List<BeaconNotificationRecipient>> _filterByPushPreference(
+  /// quiet hours, globally snoozed, or have muted this beacon. Surviving
+  /// recipients carry their lock-screen-safe preference for copy selection.
+  Future<List<_GatedRecipient>> _filterByPushPreference(
     BeaconNotificationIntent intent,
     List<BeaconNotificationRecipient> recipients,
   ) async {
     final now = DateTime.timestamp();
     final category = categoryOf(intent.kind);
     final beaconId = intent.beaconId.isEmpty ? null : intent.beaconId;
-    final allowed = <BeaconNotificationRecipient>[];
+    final allowed = <_GatedRecipient>[];
     for (final r in recipients) {
       final prefs = await _preferences.getForAccount(r.userId);
       final muted = beaconId == null
@@ -229,7 +236,9 @@ class BeaconNotificationService implements BeaconNotificationPort {
         mutedBeaconIds: muted,
       );
       if (ok) {
-        allowed.add(r);
+        allowed.add(
+          (recipient: r, lockScreenSafe: prefs.lockScreenSafe),
+        );
       } else {
         _logger.fine(
           '[FCM] push suppressed by prefs receiverId=${r.userId} '
@@ -250,3 +259,10 @@ class BeaconNotificationService implements BeaconNotificationPort {
     return _context.loadContextForBeacon(intent.beaconId);
   }
 }
+
+/// A recipient that passed the push-preference gate, plus their lock-screen
+/// redaction preference (chooses full vs privacy-safe copy).
+typedef _GatedRecipient = ({
+  BeaconNotificationRecipient recipient,
+  bool lockScreenSafe,
+});
