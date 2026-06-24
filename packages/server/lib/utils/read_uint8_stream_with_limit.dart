@@ -18,3 +18,20 @@ Future<Uint8List> readUint8StreamWithLimit(
   }
   return builder.takeBytes();
 }
+
+/// Like [readUint8StreamWithLimit] but throws [PayloadTooLargeException] when
+/// the payload exceeds [maxBytes]. Used for image uploads so the cap is
+/// enforced before anything is written to object storage or the DB.
+Future<Uint8List> readUint8StreamCapped(
+  Stream<Uint8List> stream,
+  int maxBytes,
+) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in stream) {
+    builder.add(chunk);
+    if (builder.length > maxBytes) {
+      throw const PayloadTooLargeException();
+    }
+  }
+  return builder.takeBytes();
+}

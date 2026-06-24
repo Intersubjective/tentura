@@ -9,6 +9,8 @@ enum GeneralExceptionCode {
   idWrongException,
   idNotFoundException,
   idDuplicateException,
+  payloadTooLargeException,
+  rateLimitedException,
 }
 
 class GeneralExceptionCodes extends ExceptionCodes {

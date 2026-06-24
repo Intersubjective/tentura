@@ -124,6 +124,29 @@ final class BeaconRoomCase extends UseCaseBase {
     );
   }
 
+  void _assertBodyWithinLimit(String trimmedBody) {
+    if (trimmedBody.length > kMaxRoomMessageBodyLength) {
+      throw const BeaconCreateException(
+        description: 'Message is too long',
+      );
+    }
+  }
+
+  /// Spam control: reject when an author has posted too many room messages
+  /// within the configured trailing window (across all beacons/threads).
+  Future<void> _enforceMessageRateLimit(String userId) async {
+    final recent = await _room.countRecentMessagesByAuthor(
+      authorId: userId,
+      window: env.roomMessageRateWindow,
+    );
+    if (recent >= env.roomMessageMaxPerUser) {
+      logger.info('room message rate-limited for user $userId');
+      throw const RateLimitedException(
+        description: 'Too many messages sent, please slow down',
+      );
+    }
+  }
+
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
@@ -171,7 +194,9 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
     }
+    await _enforceMessageRateLimit(userId);
     final trimmed = body.trim();
+    _assertBodyWithinLimit(trimmed);
     Uint8List? payload;
     if (attachmentBytes != null) {
       payload = await readUint8StreamWithLimit(
@@ -755,6 +780,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message body cannot be empty',
       );
     }
+    _assertBodyWithinLimit(trimmed);
     final mentionIds = await _room.resolveMentionUserIdsForBeacon(
       beaconId: beaconId,
       body: trimmed,
@@ -926,6 +952,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (!allowed) {
       throw const UnauthorizedException(description: 'Room access required');
     }
+    await _enforceMessageRateLimit(userId);
     final trimmedQuestion = question.trim();
     if (trimmedQuestion.isEmpty) {
       throw const BeaconCreateException(description: 'Poll question is required');

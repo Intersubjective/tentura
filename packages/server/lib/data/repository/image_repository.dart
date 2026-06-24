@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '../database/tentura_db.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
@@ -41,6 +42,9 @@ class ImageRepository implements ImageRepositoryPort {
     required String authorId,
     required Stream<Uint8List> bytes,
   }) async {
+    // Enforce the upload cap before creating the image row, so an oversized
+    // upload fails fast and never leaves an orphan row or partial object.
+    final buffered = await readUint8StreamCapped(bytes, kMaxImageUploadBytes);
     final imageModel = await _database.managers.images.createReturning(
       (o) => o(authorId: authorId),
     );
@@ -49,7 +53,7 @@ class ImageRepository implements ImageRepositoryPort {
         authorId: authorId,
         imageId: imageModel.id.uuid,
       ),
-      bytes,
+      Stream.value(buffered),
     );
     return imageModel.id.uuid;
   }

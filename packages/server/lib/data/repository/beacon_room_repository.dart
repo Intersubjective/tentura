@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -1392,6 +1393,26 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
           }))
         .get();
     return rows.length;
+  }
+
+  @override
+  Future<int> countRecentMessagesByAuthor({
+    required String authorId,
+    required Duration window,
+  }) async {
+    final since = DateTime.timestamp().subtract(window);
+    final rows = await _db.customSelect(
+      '''
+SELECT COUNT(*)::int AS c
+FROM public.beacon_room_message
+WHERE author_id = \$1 AND created_at >= \$2
+''',
+      variables: [
+        Variable<String>(authorId),
+        Variable(TypedValue(Type.timestampTz, since)),
+      ],
+    ).getSingle();
+    return rows.read<int>('c');
   }
 
   Future<int> countAttachmentsForMessage(String messageId) async {

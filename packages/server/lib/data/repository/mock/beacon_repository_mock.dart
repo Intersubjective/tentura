@@ -186,6 +186,12 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<int> countRecentByAuthor({
+    required String userId,
+    required Duration window,
+  }) async => 0;
+
+  @override
   Future<void> deleteBeaconById(String id, {required String userId}) async =>
       storageById.removeWhere((key, value) => value.id == id);
 

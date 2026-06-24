@@ -98,6 +98,13 @@ abstract class BeaconRepositoryPort {
 
   Future<int> getImageCount(String beaconId);
 
+  /// Count beacons created by [userId] within the trailing [window]
+  /// (spam-control rate limiting; counts drafts and published rows alike).
+  Future<int> countRecentByAuthor({
+    required String userId,
+    required Duration window,
+  });
+
   Future<void> reorderImages({
     required String beaconId,
     required List<String> imageIds,
