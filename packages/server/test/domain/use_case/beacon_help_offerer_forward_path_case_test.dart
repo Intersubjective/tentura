@@ -9,15 +9,16 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 
+import '../../support/fake_beacon_access_guard.dart';
 import 'forward_case_mocks.mocks.dart';
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockBeaconRepositoryPort beaconRepo;
+  late FakeBeaconAccessGuard guard;
   late BeaconHelpOffererForwardPathCase case_;
 
   const beaconId = 'B0000000000000000000000001';
@@ -71,11 +72,13 @@ void main() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
+    guard = FakeBeaconAccessGuard();
 
     case_ = BeaconHelpOffererForwardPathCase(
       beaconRepo,
       forwardEdgeRepo,
       helpOfferRepo,
+      guard,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconHelpOffererForwardPathCaseTest'),
     );
@@ -199,6 +202,7 @@ void main() {
 
   group('authorization', () {
     test('non-involved viewer with no edges throws Unauthorized', () async {
+      guard.involvementAllowed = false;
       await expectLater(
         case_.asMap(
           beaconId: beaconId,
