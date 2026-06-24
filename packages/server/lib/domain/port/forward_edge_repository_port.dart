@@ -21,7 +21,8 @@ abstract class ForwardEdgeRepositoryPort {
     String? batchId,
   });
 
-  Future<void> createBatch({
+  /// Returns recipient ids for which a new active edge was inserted.
+  Future<List<String>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,

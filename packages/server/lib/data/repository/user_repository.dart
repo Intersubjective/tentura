@@ -768,28 +768,18 @@ class UserRepository implements UserRepositoryPort {
     );
 
     if (invitation.beaconId != null) {
-      final existingEdge = await _database.managers.beaconForwardEdges
-          .filter(
-            (e) =>
-                e.beaconId.id(invitation.beaconId!) &
-                e.senderId.id(invitation.userId) &
-                e.recipientId.id(userId) &
-                e.cancelledAt.isNull(),
-          )
-          .getSingleOrNull();
-      if (existingEdge == null) {
-        await _database.withMutatingUser(userId, () async {
-          await _database.managers.beaconForwardEdges.create(
-            (o) => o(
-              beaconId: invitation.beaconId!,
-              senderId: invitation.userId,
-              recipientId: userId,
-              note: const Value(''),
-              parentEdgeId: Value(invitation.parentForwardEdgeId),
-            ),
-          );
-        });
-      }
+      await _database.withMutatingUser(userId, () async {
+        await _database.into(_database.beaconForwardEdges).insert(
+          BeaconForwardEdgesCompanion.insert(
+            beaconId: invitation.beaconId!,
+            senderId: invitation.userId,
+            recipientId: userId,
+            note: const Value(''),
+            parentEdgeId: Value(invitation.parentForwardEdgeId),
+          ),
+          onConflict: DoNothing(),
+        );
+      });
     }
 
     final invitationsDeletedCount = await _database.managers.invitations

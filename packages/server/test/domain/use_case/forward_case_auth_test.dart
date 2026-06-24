@@ -80,7 +80,11 @@ void main() {
         parentEdgeId: anyNamed('parentEdgeId'),
         onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((invocation) async {
+      final recipientIds =
+          invocation.namedArguments[#recipientIds] as List<String>;
+      return recipientIds;
+    });
     when(
       roomPush.notifyForwardReceived(
         beaconId: anyNamed('beaconId'),
