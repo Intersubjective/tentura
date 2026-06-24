@@ -1,11 +1,13 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -15,6 +17,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/update_coordina
 import 'package:tentura_server/env.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -33,7 +36,7 @@ class _StubBeacons extends Fake implements BeaconRepositoryPort {
   }
 }
 
-class _StubRoom extends Fake implements BeaconRoomRepository {
+class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   bool author = false;
   bool steward = false;
 
@@ -54,14 +57,14 @@ class _StubRoom extends Fake implements BeaconRoomRepository {
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   final List<_UpdateCall> calls = [];
-  CoordinationItem? item;
-  CoordinationItem? nextReturn;
+  CoordinationItemRecord? item;
+  CoordinationItemRecord? nextReturn;
 
   @override
-  Future<CoordinationItem?> getById(String id) async => item;
+  Future<CoordinationItemRecord?> getById(String id) async => item;
 
   @override
-  Future<CoordinationItem> updatePublishedItem({
+  Future<CoordinationItemRecord> updatePublishedItem({
     required String id,
     required String actorId,
     required String title,
@@ -198,15 +201,15 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
       updatedAt: DateTime.utc(2024),
     );
 
-CoordinationItem _sampleBlocker({
+CoordinationItemRecord _sampleBlocker({
   required String id,
   required String beaconId,
   required String creatorId,
   int status = coordinationItemStatusOpen,
   bool published = true,
 }) {
-  final now = PgDateTime(DateTime.utc(2024));
-  return CoordinationItem(
+  final now = DateTime.utc(2024);
+  return testCoordinationItem(
     id: id,
     beaconId: beaconId,
     kind: coordinationItemKindBlocker,

@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
-import 'vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'user_profile_batch_lookup.dart';
 
 @Injectable(
@@ -27,7 +27,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
 
   final UserProfileBatchLookup _userProfileBatchLookup;
 
-  final VoteUserFriendshipLookup _voteUserFriendshipLookup;
+  final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
   @override
   Future<void> deleteForCommit({

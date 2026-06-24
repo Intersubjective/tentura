@@ -142,7 +142,7 @@ EmailAuthCase _buildEmailAuthCase({
     MockInvitationRepositoryPort(),
     userRepo,
     MockBeaconRepositoryPort(),
-    MockVoteUserFriendshipLookup(),
+    MockVoteUserFriendshipLookupPort(),
     MockUserContactRepositoryPort(),
     env: env,
     logger: Logger('AuthEmailControllerTest'),

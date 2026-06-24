@@ -1,10 +1,10 @@
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
+
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 
-// TODO(contract): Phase-2 DTO migration — replace Drift types with domain DTOs.
 abstract class CoordinationItemRepositoryPort {
-  Future<CoordinationItem> create({
+  Future<CoordinationItemRecord> create({
     required String beaconId,
     required int kind,
     required String creatorId,
@@ -19,30 +19,30 @@ abstract class CoordinationItemRepositoryPort {
     int? staleAfterDays,
   });
 
-  Future<CoordinationItem> updateStatus({
+  Future<CoordinationItemRecord> updateStatus({
     required String id,
     required int newStatus,
     required String actorId,
   });
 
   /// Accepts an Ask or Promise: status → accepted, [acceptedById] set; recomputes [staleAt].
-  Future<CoordinationItem> acceptItem({
+  Future<CoordinationItemRecord> acceptItem({
     required String id,
     required String actorId,
     required String acceptedById,
   });
 
   /// Redirects an Ask to a different target person (emits updated event).
-  Future<CoordinationItem> redirectTarget({
+  Future<CoordinationItemRecord> redirectTarget({
     required String id,
     required String actorId,
     required String newTargetPersonId,
   });
 
-  Future<CoordinationItem?> getById(String id);
+  Future<CoordinationItemRecord?> getById(String id);
 
   /// Atomically claims a remind slot (24h throttle + stale predicate). Returns null if not claimed.
-  Future<CoordinationItem?> tryClaimRemind({
+  Future<CoordinationItemRecord?> tryClaimRemind({
     required String itemId,
     required String actorId,
   });
@@ -65,7 +65,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Supersedes open root plans and creates a new root plan item.
-  Future<CoordinationItem> publishRootPlan({
+  Future<CoordinationItemRecord> publishRootPlan({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -76,7 +76,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Child plan step under [parentItemId].
-  Future<CoordinationItem> addPlanStep({
+  Future<CoordinationItemRecord> addPlanStep({
     required String parentItemId,
     required String creatorId,
     required String title,
@@ -84,7 +84,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Draft ask (published=false): no room message or activity until [publishDraft].
-  Future<CoordinationItem> createDraftAsk({
+  Future<CoordinationItemRecord> createDraftAsk({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -95,7 +95,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Draft promise (published=false): no room message or activity until [publishDraft].
-  Future<CoordinationItem> createDraftPromise({
+  Future<CoordinationItemRecord> createDraftPromise({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -106,14 +106,14 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Publishes a draft ask or promise: sets [targetPersonId], published=true, emits room+activity.
-  Future<CoordinationItem> publishDraft({
+  Future<CoordinationItemRecord> publishDraft({
     required String id,
     required String actorId,
     required String targetPersonId,
     int? staleAfterDays,
   });
 
-  Future<CoordinationItem> updateDraftAsk({
+  Future<CoordinationItemRecord> updateDraftAsk({
     required String id,
     required String actorId,
     required String title,
@@ -125,7 +125,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// In-place title/body update for a published item (open or accepted).
-  Future<CoordinationItem> updatePublishedItem({
+  Future<CoordinationItemRecord> updatePublishedItem({
     required String id,
     required String actorId,
     required String title,
@@ -139,7 +139,7 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Draft blocker (published=false): no room message or activity until [publishDraftBlocker].
-  Future<CoordinationItem> createDraftBlocker({
+  Future<CoordinationItemRecord> createDraftBlocker({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -149,13 +149,13 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Publishes a draft blocker: published=true, emits room+activity.
-  Future<CoordinationItem> publishDraftBlocker({
+  Future<CoordinationItemRecord> publishDraftBlocker({
     required String id,
     required String actorId,
     int? staleAfterDays,
   });
 
-  Future<CoordinationItem> updateDraftBlocker({
+  Future<CoordinationItemRecord> updateDraftBlocker({
     required String id,
     required String actorId,
     required String title,

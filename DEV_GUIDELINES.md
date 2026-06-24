@@ -30,6 +30,8 @@ These are **project invariants**. Stricter checks live in `.cursor/rules/archite
 - **Domain use cases** depend on **`domain/port/*`** types only — **not** on concrete `data/repository` classes. Repositories **`implement`** ports and register with Injectable **`as: …Port`** (dev/prod envs); tests bind fakes the same way.
 - **Use cases** extend **`UseCaseBase`** and take **`env` + `logger`** where that base exists in the package.
 - **Quick check:** `rg "package:tentura_server/data/repository" packages/server/lib/domain` should return **no hits**.
+- **Injectable pitfall:** Do **not** put `@lazySingleton` / `@LazySingleton()` **and** `@LazySingleton(as: SomePort)` on the **same** repository class. Injectable registers only the `as:` binding; use cases that inject the **concrete** type then fail at startup (`GetIt: Object/factory with type X is not registered`). Fix: one `@LazySingleton(as: XPort)` + `implements XPort`; domain injects the port only.
+- **DI smoke test:** `packages/server/test/app/di_smoke_test.dart` boots prod/dev graphs and resolves `UpdateCoordinationItemCase`, async `BeaconRoomCase`, and `RootRouter` — run via `dart test` after port/DI changes.
 
 ### Client (`packages/client`)
 

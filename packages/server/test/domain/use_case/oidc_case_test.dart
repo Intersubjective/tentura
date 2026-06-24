@@ -19,7 +19,7 @@ void main() {
   late MockVerifiedContactRepositoryPort contactRepo;
   late MockInvitationRepositoryPort invitationRepo;
   late MockBeaconRepositoryPort beaconRepo;
-  late MockVoteUserFriendshipLookup friendshipLookup;
+  late MockVoteUserFriendshipLookupPort friendshipLookup;
   late InvitationCase invitationCase;
   late CredentialAuthCase credentialAuthCase;
   late OidcCase case_;
@@ -30,7 +30,7 @@ void main() {
     contactRepo = MockVerifiedContactRepositoryPort();
     invitationRepo = MockInvitationRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
-    friendshipLookup = MockVoteUserFriendshipLookup();
+    friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(environment: Environment.test, isNeedInvite: true);
     invitationCase = InvitationCase(
       invitationRepo,

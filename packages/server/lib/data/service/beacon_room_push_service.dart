@@ -5,10 +5,11 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
 /// Legacy façade over [BeaconNotificationPort] for room-related pushes.
-@lazySingleton
-class BeaconRoomPushService {
+@LazySingleton(as: BeaconRoomNotificationPort)
+class BeaconRoomPushService implements BeaconRoomNotificationPort {
   BeaconRoomPushService(this._notifications);
 
   final BeaconNotificationPort _notifications;

@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -7,25 +9,26 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/remind_coordination_item_case.dart';
 import 'package:tentura_server/env.dart';
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
-  CoordinationItem? item;
+  CoordinationItemRecord? item;
   int claimAttempts = 0;
   bool claimSucceeds = true;
 
   @override
-  Future<CoordinationItem?> getById(String id) async => item;
+  Future<CoordinationItemRecord?> getById(String id) async => item;
 
   @override
-  Future<CoordinationItem?> tryClaimRemind({
+  Future<CoordinationItemRecord?> tryClaimRemind({
     required String itemId,
     required String actorId,
   }) async {
@@ -35,7 +38,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }
 }
 
-class _StubRoom extends Fake implements BeaconRoomRepository {
+class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   _StubRoom({this.admittedUserIds = const {}});
 
   final Set<String> admittedUserIds;
@@ -55,28 +58,21 @@ class _StubRoom extends Fake implements BeaconRoomRepository {
       false;
 
   @override
-  Future<BeaconParticipant?> findParticipant({
+  Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
   }) async {
     if (!admittedUserIds.contains(userId)) return null;
-    final now = PgDateTime(DateTime.utc(2026));
-    return BeaconParticipant(
-      createdAt: now,
-      updatedAt: now,
+    return testBeaconParticipant(
       id: 'P1',
       beaconId: beaconId,
       userId: userId,
-      role: BeaconParticipantRoleBits.helper,
-      status: 0,
       roomAccess: RoomAccessBits.admitted,
     );
   }
 }
 
-class _RecordingPush extends BeaconRoomPushService {
-  _RecordingPush() : super(_NoopNotificationPort());
-
+class _RecordingPush extends Fake implements BeaconRoomNotificationPort {
   int staleRemindCalls = 0;
   String? lastTarget;
 
@@ -93,11 +89,6 @@ class _RecordingPush extends BeaconRoomPushService {
   }
 }
 
-class _NoopNotificationPort implements BeaconNotificationPort {
-  @override
-  Future<void> dispatch(BeaconNotificationIntent intent) async {}
-}
-
 void main() {
   late _StubItems items;
   late _StubRoom room;
@@ -110,13 +101,13 @@ void main() {
   const targetId = 'Utarget000001';
   const observerId = 'Uobserver0001';
 
-  CoordinationItem staleAsk({
+  CoordinationItemRecord staleAsk({
     int kind = coordinationItemKindAsk,
     int status = coordinationItemStatusOpen,
     String? acceptedById,
   }) {
-    final now = PgDateTime(DateTime.utc(2026, 6, 12));
-    return CoordinationItem(
+    final now = DateTime.utc(2026, 6, 12);
+    return testCoordinationItem(
       id: itemId,
       beaconId: beaconId,
       kind: kind,
@@ -131,7 +122,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
       ordering: 0,
-      staleAt: PgDateTime(DateTime.utc(2026, 6, 10)),
+      staleAt: DateTime.utc(2026, 6, 10),
     );
   }
 
@@ -166,8 +157,8 @@ void main() {
   });
 
   test('rejects non-stale item', () async {
-    final now = PgDateTime(DateTime.utc(2026, 6, 12));
-    items.item = CoordinationItem(
+    final now = DateTime.utc(2026, 6, 12);
+    items.item = testCoordinationItem(
       id: itemId,
       beaconId: beaconId,
       kind: coordinationItemKindAsk,
@@ -181,7 +172,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
       ordering: 0,
-      staleAt: PgDateTime(DateTime.utc(2099)),
+      staleAt: DateTime.utc(2099),
     );
     await expectLater(
       () => sut.call(userId: observerId, itemId: itemId),

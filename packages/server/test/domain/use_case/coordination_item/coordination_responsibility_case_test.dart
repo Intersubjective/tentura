@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -6,12 +8,13 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/coordination_responsibility_case.dart';
 import 'package:tentura_server/env.dart';
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _RecordingItemsPort extends Fake implements CoordinationItemRepositoryPort {
   List<String>? batchBeaconIds;
@@ -74,9 +77,9 @@ class _RecordingItemsPort extends Fake implements CoordinationItemRepositoryPort
     required String beaconId,
     required int kind,
   }) {
-    final now = PgDateTime(DateTime.utc(2026, 5));
+    final now = DateTime.utc(2026, 5);
     return CoordinationItemWithCounts(
-      item: CoordinationItem(
+        item: testCoordinationItem(
         id: id,
         beaconId: beaconId,
         kind: kind,
@@ -96,7 +99,7 @@ class _RecordingItemsPort extends Fake implements CoordinationItemRepositoryPort
   }
 }
 
-class _AllowRoom extends Fake implements BeaconRoomRepository {
+class _AllowRoom extends Fake implements BeaconRoomRepositoryPort {
   @override
   Future<bool> isBeaconAuthor({
     required String beaconId,
@@ -112,7 +115,7 @@ class _AllowRoom extends Fake implements BeaconRoomRepository {
       false;
 
   @override
-  Future<BeaconParticipant?> findParticipant({
+  Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
   }) async =>

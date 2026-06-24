@@ -4,11 +4,11 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/polling_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
-import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -18,7 +18,7 @@ import 'package:tentura_server/env.dart';
 
 class _FakeItems extends Fake implements CoordinationItemRepositoryPort {}
 
-class _BatchStubRoom extends Fake implements BeaconRoomRepository {
+class _BatchStubRoom extends Fake implements BeaconRoomRepositoryPort {
   List<String>? lastBeaconIds;
   String? lastViewerUserId;
 
@@ -56,7 +56,7 @@ void main() {
       room,
       _FakeItems(),
       FakeBeaconFactCardRepository(),
-      FakeBeaconRoomPushService(),
+      FakeBeaconRoomNotificationPort(),
       FakeImageRepositoryPort(),
       FakeTaskRepositoryPort(),
       FakeRemoteStorage(),
@@ -79,17 +79,17 @@ void main() {
 }
 
 class FakeBeaconFactCardRepository extends Fake
-    implements BeaconFactCardRepository {
+    implements BeaconFactCardRepositoryPort {
   @override
   Future<String> latestPublicFactSnippet(String beaconId) async => '';
 }
 
-class FakeBeaconRoomPushService extends Fake implements BeaconRoomPushService {}
+class FakeBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {}
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
 
 class FakeTaskRepositoryPort extends Fake implements TaskRepositoryPort {}
 
-class FakeRemoteStorage extends Fake implements RemoteStorage {}
+class FakeRemoteStorage extends Fake implements RemoteStoragePort {}
 
-class FakePollingRepository extends Fake implements PollingRepository {}
+class FakePollingRepository extends Fake implements PollingRepositoryPort {}

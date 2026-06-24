@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
-
-import 'package:tentura_server/data/repository/polling_repository.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 
 import '_use_case_base.dart';
 
@@ -15,7 +15,7 @@ final class PollingCase extends UseCaseBase {
   });
 
   final PollingActRepositoryPort _pollingActRepository;
-  final PollingRepository _pollingRepository;
+  final PollingRepositoryPort _pollingRepository;
 
   Future<bool> create({
     required String authorId,

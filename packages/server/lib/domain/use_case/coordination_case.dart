@@ -11,7 +11,7 @@ import 'package:tentura_server/domain/entity/gql_public/coordination_status_resu
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/domain/port/beacon_room_coordination_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 
 import '_use_case_base.dart';
 
@@ -30,7 +30,7 @@ final class CoordinationCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
-  final BeaconRoomCoordinationPort _beaconRoomRepository;
+  final BeaconRoomRepositoryPort _beaconRoomRepository;
   final EvaluationRepositoryPort _evaluationRepository;
 
   Future<void> _ensureAuthorOrSteward({

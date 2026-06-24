@@ -94,7 +94,7 @@ void main() {
         MockInvitationRepositoryPort(),
         userRepo,
         MockBeaconRepositoryPort(),
-        MockVoteUserFriendshipLookup(),
+        MockVoteUserFriendshipLookupPort(),
         MockUserContactRepositoryPort(),
         env: env,
         logger: Logger('InvitationCaseTest'),

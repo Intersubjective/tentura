@@ -9,15 +9,16 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
-import 'beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 
-@lazySingleton
-class BeaconFactCardRepository {
+@LazySingleton(as: BeaconFactCardRepositoryPort)
+class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
   BeaconFactCardRepository(this._db, this._room);
 
   final TenturaDb _db;
 
-  final BeaconRoomRepository _room;
+  final BeaconRoomRepositoryPort _room;
 
   /// Fact still shown in room (active or corrected).
   Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({

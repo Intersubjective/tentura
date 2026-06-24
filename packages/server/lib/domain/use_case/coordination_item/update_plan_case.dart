@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -26,10 +26,10 @@ final class UpdatePlanCase extends UseCaseBase {
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
-  final BeaconRoomRepository _room;
-  final BeaconRoomPushService _push;
+  final BeaconRoomRepositoryPort _room;
+  final BeaconRoomNotificationPort _push;
 
-  Future<CoordinationItem> call({
+  Future<CoordinationItemRecord> call({
     required String userId,
     required String beaconId,
     required String title,

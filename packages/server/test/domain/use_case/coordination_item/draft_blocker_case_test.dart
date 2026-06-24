@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -6,7 +8,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -14,13 +16,16 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_draft_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_blocker_case.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_blocker_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../../support/noop_beacon_room_notification_port.dart';
+
 import 'package:injectable/injectable.dart' show Environment;
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -40,16 +45,16 @@ class _StubBeacons extends Fake implements BeaconRepositoryPort {
 }
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
-  CoordinationItem? item;
-  CoordinationItem? nextReturn;
+  CoordinationItemRecord? item;
+  CoordinationItemRecord? nextReturn;
   String? lastCreateBeaconId;
   String? lastPublishId;
 
   @override
-  Future<CoordinationItem?> getById(String id) async => item;
+  Future<CoordinationItemRecord?> getById(String id) async => item;
 
   @override
-  Future<CoordinationItem> createDraftBlocker({
+  Future<CoordinationItemRecord> createDraftBlocker({
     required String beaconId,
     required String creatorId,
     required String title,
@@ -62,7 +67,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }
 
   @override
-  Future<CoordinationItem> publishDraftBlocker({
+  Future<CoordinationItemRecord> publishDraftBlocker({
     required String id,
     required String actorId,
     int? staleAfterDays,
@@ -78,7 +83,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }) async {}
 }
 
-class _StubRoom extends Fake implements BeaconRoomRepository {
+class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   _StubRoom({required this.authorId, this.admittedUserIds = const {}});
 
   final String authorId;
@@ -99,22 +104,17 @@ class _StubRoom extends Fake implements BeaconRoomRepository {
       false;
 
   @override
-  Future<BeaconParticipant?> findParticipant({
+  Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
   }) async {
     if (!admittedUserIds.contains(userId)) {
       return null;
     }
-    final now = PgDateTime(DateTime.utc(2024));
-    return BeaconParticipant(
-      createdAt: now,
-      updatedAt: now,
+    return testBeaconParticipant(
       id: 'Ptest',
       beaconId: beaconId,
       userId: userId,
-      role: BeaconParticipantRoleBits.helper,
-      status: 0,
       roomAccess: RoomAccessBits.admitted,
     );
   }
@@ -129,13 +129,13 @@ BeaconEntity _openBeacon(String id, {String authorId = 'Uowner0000001'}) =>
       updatedAt: DateTime.utc(2024),
     );
 
-CoordinationItem _draftBlocker({
+CoordinationItemRecord _draftBlocker({
   required String id,
   required String beaconId,
   required String creatorId,
 }) {
-  final now = PgDateTime(DateTime.utc(2024));
-  return CoordinationItem(
+  final now = DateTime.utc(2024);
+  return testCoordinationItem(
     id: id,
     beaconId: beaconId,
     kind: coordinationItemKindBlocker,
@@ -305,11 +305,4 @@ void main() {
   });
 }
 
-class _NoopRoomPush extends BeaconRoomPushService {
-  _NoopRoomPush() : super(_NoopNotificationPort());
-}
-
-class _NoopNotificationPort implements BeaconNotificationPort {
-  @override
-  Future<void> dispatch(BeaconNotificationIntent intent) async {}
-}
+class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

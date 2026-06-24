@@ -1,4 +1,4 @@
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/coordination_responsibility_case.dart';
@@ -11,16 +11,16 @@ import '../input/_input_types.dart';
 final class QueryCoordinationItem extends GqlNodeBase {
   QueryCoordinationItem({
     CoordinationItemRepositoryPort? itemRepository,
-    BeaconRoomRepository? roomRepository,
+    BeaconRoomRepositoryPort? roomRepository,
     CoordinationResponsibilityCase? responsibilityCase,
   })  : _itemRepository =
             itemRepository ?? GetIt.I<CoordinationItemRepositoryPort>(),
-        _room = roomRepository ?? GetIt.I<BeaconRoomRepository>(),
+        _room = roomRepository ?? GetIt.I<BeaconRoomRepositoryPort>(),
         _responsibilityCase =
             responsibilityCase ?? GetIt.I<CoordinationResponsibilityCase>();
 
   final CoordinationItemRepositoryPort _itemRepository;
-  final BeaconRoomRepository _room;
+  final BeaconRoomRepositoryPort _room;
   final CoordinationResponsibilityCase _responsibilityCase;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -170,12 +170,12 @@ Map<String, Object?> coordinationItemWithCountsToMap(
     'linkedMessageId': item.linkedMessageId,
     'linkedParentItemId': item.linkedParentItemId,
     'ordering': item.ordering,
-    'createdAt': item.createdAt.dateTime.toIso8601String(),
-    'updatedAt': item.updatedAt.dateTime.toIso8601String(),
-    'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
-    'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
-    'staleAt': item.staleAt?.dateTime.toIso8601String(),
-    'lastRemindedAt': item.lastRemindedAt?.dateTime.toIso8601String(),
+    'createdAt': item.createdAt.toIso8601String(),
+    'updatedAt': item.updatedAt.toIso8601String(),
+    'resolvedAt': item.resolvedAt?.toIso8601String(),
+    'cancelledAt': item.cancelledAt?.toIso8601String(),
+    'staleAt': item.staleAt?.toIso8601String(),
+    'lastRemindedAt': item.lastRemindedAt?.toIso8601String(),
     'staleAfterDays': item.staleAfterDays,
     'source': item.source,
     'published': item.published,

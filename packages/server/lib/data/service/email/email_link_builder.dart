@@ -1,12 +1,13 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/unsubscribe/unsubscribe_token.dart';
 import 'package:tentura_server/env.dart';
 
 /// Builds absolute email links: deep links, manage-preferences, and signed
 /// one-click unsubscribe URLs.
-@injectable
-class EmailLinkBuilder {
+@LazySingleton(as: EmailLinkPort)
+class EmailLinkBuilder implements EmailLinkPort {
   EmailLinkBuilder(this._env)
       : _token = UnsubscribeToken(_env.unsubscribeSigningSecret);
 

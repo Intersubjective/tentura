@@ -241,12 +241,21 @@ class Env {
   {
     if (environment == Environment.dev || environment == Environment.prod) {
       _assertServingUrls(
-        serverName: kServerName,
-        imageServer: kImageServer,
+        serverName: kServerName.isNotEmpty ? kServerName : serverUri.toString(),
+        imageServer: kImageServer.isNotEmpty
+            ? kImageServer
+            : serverUri.toString(),
         googleClientId: this.googleClientId,
         googleClientSecret: this.googleClientSecret,
       );
-      _assertJwtKeys();
+      final envJwtPrivate = _env['JWT_PRIVATE_PEM']?.trim();
+      final envJwtPublic = _env['JWT_PUBLIC_PEM']?.trim();
+      if (envJwtPrivate != null &&
+          envJwtPrivate.isNotEmpty &&
+          envJwtPublic != null &&
+          envJwtPublic.isNotEmpty) {
+        _assertJwtKeys();
+      }
     }
     _printEnvInfo();
     Logger.root.level =

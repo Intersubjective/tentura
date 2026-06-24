@@ -6,7 +6,7 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 
 import '../database/tentura_db.dart';
-import '../storage/remote_storage.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 
 @Injectable(
   as: ImageRepositoryPort,
@@ -24,7 +24,7 @@ class ImageRepository implements ImageRepositoryPort {
 
   final TenturaDb _database;
 
-  final RemoteStorage _remoteStorageService;
+  final RemoteStoragePort _remoteStorageService;
 
   @override
   Future<Uint8List> get({required String id}) async {

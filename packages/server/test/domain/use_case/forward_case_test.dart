@@ -17,7 +17,7 @@ void main() {
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
-  late MockBeaconRoomPushService roomPush;
+  late MockBeaconRoomNotificationPort roomPush;
   late CapabilityCase capabilityCase;
   late ForwardCase case_;
 
@@ -29,7 +29,7 @@ void main() {
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
-    roomPush = MockBeaconRoomPushService();
+    roomPush = MockBeaconRoomNotificationPort();
 
     capabilityCase = CapabilityCase(
       capabilityRepo,

@@ -46,6 +46,9 @@ jobs:
               flutter pub get
               ( cd packages/tentura_lints && dart test ) &&
               ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart test ) &&
+              ( cd packages/server && ! rg "package:tentura_server/data/repository" lib/domain ) &&
+              ( cd packages/server && ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case ) &&
+              ( cd packages/server && ! rg "package:tentura_server/data/" lib/domain ) &&
               cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
             '
 

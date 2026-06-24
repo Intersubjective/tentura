@@ -1,25 +1,17 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
-
-import '../polling_repository.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
 
 @Injectable(
-  as: PollingRepository,
+  as: PollingRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class PollingRepositoryMock implements PollingRepository {
+class PollingRepositoryMock implements PollingRepositoryPort {
   @override
-  Future<Polling?> findById(String pollingId) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String> create({
-    required String authorId,
-    required String question,
-  }) {
+  Future<PollingVotePolicy?> findById(String pollingId) {
     throw UnimplementedError();
   }
 

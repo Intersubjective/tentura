@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart' show BeaconParticipant;
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
+import '../../support/coordination_item_record_fixtures.dart';
 
 void main() {
   late MockBeaconRepositoryPort beaconRepo;
@@ -25,9 +26,9 @@ void main() {
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
-  late MockBeaconRoomRepository roomRepo;
+  late MockBeaconRoomRepositoryPort roomRepo;
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
-  late MockBeaconRoomPushService roomPush;
+  late MockBeaconRoomNotificationPort roomPush;
   late CapabilityCase capabilityCase;
   late HelpOfferCase case_;
 
@@ -58,9 +59,9 @@ void main() {
     coordinationRepo = MockCoordinationRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
-    roomRepo = MockBeaconRoomRepository();
+    roomRepo = MockBeaconRoomRepositoryPort();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
-    roomPush = MockBeaconRoomPushService();
+    roomPush = MockBeaconRoomNotificationPort();
     capabilityCase = CapabilityCase(
       capabilityRepo,
       env: Env(environment: Environment.test),
@@ -340,17 +341,13 @@ void main() {
   });
 
   group('auto-admit on new help offer', () {
-    final epoch = PgDateTime(DateTime.utc(2025));
+    final epoch = DateTime.utc(2025);
 
-    BeaconParticipant participant({required int roomAccess}) =>
-        BeaconParticipant(
-          createdAt: epoch,
-          updatedAt: epoch,
+    BeaconParticipantRecord participant({required int roomAccess}) =>
+        testBeaconParticipant(
           id: 'P1',
           beaconId: 'B1',
           userId: 'U1',
-          role: BeaconParticipantRoleBits.helper,
-          status: BeaconParticipantStatusBits.offeredHelp,
           roomAccess: roomAccess,
         );
 

@@ -166,7 +166,7 @@ void main() {
     contactRepo = MockVerifiedContactRepositoryPort();
     final invitationRepo = MockInvitationRepositoryPort();
     final beaconRepo = MockBeaconRepositoryPort();
-    final friendshipLookup = MockVoteUserFriendshipLookup();
+    final friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(
       environment: Environment.test,
       isNeedInvite: true,

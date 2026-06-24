@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura_server/data/service/email/email_link_builder.dart';
+import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -34,7 +34,7 @@ class EmailDigestCase {
   final NotificationOutboxRepositoryPort _outbox;
   final VerifiedContactRepositoryPort _contacts;
   final EmailSenderPort _email;
-  final EmailLinkBuilder _links;
+  final EmailLinkPort _links;
   final Env _env;
   final Logger _logger;
 

@@ -17,7 +17,7 @@ void main() {
   late MockInvitationRepositoryPort invitationRepo;
   late MockUserRepositoryPort userRepo;
   late MockBeaconRepositoryPort beaconRepo;
-  late MockVoteUserFriendshipLookup friendshipLookup;
+  late MockVoteUserFriendshipLookupPort friendshipLookup;
   late MockUserContactRepositoryPort contactRepo;
   late InvitationCase case_;
 
@@ -59,7 +59,7 @@ void main() {
     invitationRepo = MockInvitationRepositoryPort();
     userRepo = MockUserRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
-    friendshipLookup = MockVoteUserFriendshipLookup();
+    friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
     case_ = InvitationCase(
       invitationRepo,

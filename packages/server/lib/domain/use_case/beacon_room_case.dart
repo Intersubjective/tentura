@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
-import 'package:tentura_server/data/repository/polling_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
-import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -45,21 +47,21 @@ final class BeaconRoomCase extends UseCaseBase {
     required super.logger,
   });
 
-  final BeaconRoomRepository _room;
+  final BeaconRoomRepositoryPort _room;
 
   final CoordinationItemRepositoryPort _items;
 
-  final BeaconFactCardRepository _factCards;
+  final BeaconFactCardRepositoryPort _factCards;
 
-  final BeaconRoomPushService _push;
+  final BeaconRoomNotificationPort _push;
 
   final ImageRepositoryPort _imageRepository;
 
   final TaskRepositoryPort _tasksRepository;
 
-  final RemoteStorage _remoteStorage;
+  final RemoteStoragePort _remoteStorage;
 
-  final PollingRepository _pollingRepository;
+  final PollingRepositoryPort _pollingRepository;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -76,7 +78,7 @@ final class BeaconRoomCase extends UseCaseBase {
     return p?.roomAccess == RoomAccessBits.admitted;
   }
 
-  bool _isItemParticipant(CoordinationItem item, String userId) =>
+  bool _isItemParticipant(CoordinationItemRecord item, String userId) =>
       item.creatorId == userId ||
       item.targetPersonId == userId ||
       item.acceptedById == userId;
@@ -108,7 +110,7 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<bool> _canMutateMessage({
     required String beaconId,
     required String userId,
-    required BeaconRoomMessage msg,
+    required BeaconRoomMessageRecord msg,
   }) async {
     final tid = msg.threadItemId;
     if (tid == null || tid.isEmpty) {
@@ -284,7 +286,7 @@ final class BeaconRoomCase extends UseCaseBase {
       'openBlockerId': openBlocker?.id,
       'openBlockerTitle': openBlocker?.title,
       'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
-      'updatedAt': row.updatedAt.dateTime.toIso8601String(),
+      'updatedAt': row.updatedAt.toIso8601String(),
       'updatedBy': row.updatedBy,
     };
   }
@@ -538,8 +540,8 @@ final class BeaconRoomCase extends UseCaseBase {
                 ?.toUtc()
                 .toIso8601String(),
             'helpType': helpTypesByUserId[r.userId],
-            'createdAt': r.createdAt.dateTime.toIso8601String(),
-            'updatedAt': r.updatedAt.dateTime.toIso8601String(),
+            'createdAt': r.createdAt.toIso8601String(),
+            'updatedAt': r.updatedAt.toIso8601String(),
           },
         )
         .toList();
@@ -953,7 +955,7 @@ final class BeaconRoomCase extends UseCaseBase {
     );
   }
 
-  Future<CoordinationItem?> _findOpenCoordinationBlocker(
+  Future<CoordinationItemRecord?> _findOpenCoordinationBlocker(
     String beaconId, {
     required String viewerUserId,
   }) async {
@@ -977,7 +979,7 @@ final class BeaconRoomCase extends UseCaseBase {
       };
 
   Future<Map<String, Object?>> _openBlockerBatchFields(
-    CoordinationItem? openBlocker,
+    CoordinationItemRecord? openBlocker,
   ) async {
     if (openBlocker == null) {
       return _emptyOpenBlockerBatchFields();
@@ -995,7 +997,7 @@ final class BeaconRoomCase extends UseCaseBase {
       'openBlockerTargetPersonId': target,
       'openBlockerResponsibleUserId': responsible,
       'openBlockerCreatedAt':
-          openBlocker.createdAt.dateTime.toUtc().toIso8601String(),
+          openBlocker.createdAt.toUtc().toIso8601String(),
       'openBlockerCreatorDisplayName': titles[creatorId] ?? '',
       'openBlockerCreatorImageId': pic?.imageId,
       'openBlockerCreatorHasPicture': pic?.hasPicture ?? false,

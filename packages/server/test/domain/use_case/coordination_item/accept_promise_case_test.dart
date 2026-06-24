@@ -1,4 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -10,16 +12,17 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/accept_promise_case.dart';
 import 'package:tentura_server/env.dart';
+import '../../../support/coordination_item_record_fixtures.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
-  CoordinationItem? item;
+  CoordinationItemRecord? item;
   String? lastAcceptedById;
 
   @override
-  Future<CoordinationItem?> getById(String id) async => item;
+  Future<CoordinationItemRecord?> getById(String id) async => item;
 
   @override
-  Future<CoordinationItem> acceptItem({
+  Future<CoordinationItemRecord> acceptItem({
     required String id,
     required String actorId,
     required String acceptedById,
@@ -66,13 +69,13 @@ void main() {
   });
 }
 
-CoordinationItem _samplePromise({
+CoordinationItemRecord _samplePromise({
   required String id,
   required String creatorId,
   required String targetPersonId,
 }) {
-  final now = PgDateTime(DateTime.utc(2024));
-  return CoordinationItem(
+  final now = DateTime.utc(2024);
+  return testCoordinationItem(
     id: id,
     beaconId: 'Bbbbbbbbbbbbb',
     kind: coordinationItemKindPromise,

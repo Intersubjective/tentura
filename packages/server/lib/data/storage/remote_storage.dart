@@ -2,10 +2,11 @@ import 'dart:typed_data';
 import 'package:minio/minio.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/env.dart';
 
-@singleton
-class RemoteStorage {
+@Singleton(as: RemoteStoragePort)
+class RemoteStorage implements RemoteStoragePort {
   RemoteStorage(this.env);
 
   final Env env;

@@ -7,8 +7,6 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i12;
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i14;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i4;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i11;
@@ -26,6 +24,8 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart'
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i10;
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart'
     as _i15;
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart'
+    as _i14;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -983,12 +983,12 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<_i5.BeaconEntity>);
 }
 
-/// A class which mocks [VoteUserFriendshipLookup].
+/// A class which mocks [VoteUserFriendshipLookupPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i14.VoteUserFriendshipLookup {
-  MockVoteUserFriendshipLookup() {
+class MockVoteUserFriendshipLookupPort extends _i1.Mock
+    implements _i14.VoteUserFriendshipLookupPort {
+  MockVoteUserFriendshipLookupPort() {
     _i1.throwOnMissingStub(this);
   }
 

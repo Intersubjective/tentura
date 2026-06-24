@@ -1,12 +1,12 @@
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 
 Future<void> convertImages([Env? env]) async {
   final getIt = await configureDependencies(env ?? Env.prod());
   final database = getIt<TenturaDb>();
-  final remoteStorage = getIt<RemoteStorage>();
+  final remoteStorage = getIt<RemoteStoragePort>();
 
   final users = await database.managers.users
       .filter((e) => e.imageId.id.isNotNull())

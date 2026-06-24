@@ -12,8 +12,8 @@ import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -38,9 +38,9 @@ final class HelpOfferCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
-  final BeaconRoomRepository _beaconRoomRepository;
+  final BeaconRoomRepositoryPort _beaconRoomRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
-  final BeaconRoomPushService _roomPush;
+  final BeaconRoomNotificationPort _roomPush;
 
   Future<void> offerHelp({
     required String beaconId,

@@ -6,7 +6,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -29,7 +29,7 @@ final class ForwardCase extends UseCaseBase {
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
   final BeaconRepositoryPort _beaconRepository;
-  final BeaconRoomPushService _roomPush;
+  final BeaconRoomNotificationPort _roomPush;
 
   /// Cancel a forward edge (soft-delete).
   ///

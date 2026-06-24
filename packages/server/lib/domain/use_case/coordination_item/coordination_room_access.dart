@@ -1,10 +1,10 @@
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 /// Author, steward, or admitted room member may create coordination drafts/items.
 Future<void> ensureCanCoordinateOnBeacon({
-  required BeaconRoomRepository room,
+  required BeaconRoomRepositoryPort room,
   required String beaconId,
   required String userId,
 }) async {

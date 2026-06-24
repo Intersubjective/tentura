@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -19,9 +19,9 @@ final class BeaconFactCardCase extends UseCaseBase {
     required super.logger,
   });
 
-  final BeaconFactCardRepository _facts;
+  final BeaconFactCardRepositoryPort _facts;
 
-  final BeaconRoomRepository _room;
+  final BeaconRoomRepositoryPort _room;
 
   Future<bool> _canUseRoom({
     required String beaconId,

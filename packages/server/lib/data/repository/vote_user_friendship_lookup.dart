@@ -1,10 +1,12 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+
 import '../database/tentura_db.dart';
 
 /// Batch-friendly reciprocal positive `vote_user` edges (strict mutual subscribe).
-@lazySingleton
-class VoteUserFriendshipLookup {
+@LazySingleton(as: VoteUserFriendshipLookupPort)
+class VoteUserFriendshipLookup implements VoteUserFriendshipLookupPort {
   VoteUserFriendshipLookup(this._database);
 
   final TenturaDb _database;
