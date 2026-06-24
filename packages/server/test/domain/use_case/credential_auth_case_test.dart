@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
+import '../../support/build_test_invitation_case.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -36,12 +37,12 @@ void main() {
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(environment: Environment.test, isNeedInvite: true);
-    invitationCase = InvitationCase(
-      invitationRepo,
-      userRepo,
-      beaconRepo,
-      friendshipLookup,
-      MockUserContactRepositoryPort(),
+    invitationCase = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: beaconRepo,
+      friendshipLookup: friendshipLookup,
+      contactRepo: MockUserContactRepositoryPort(),
       env: env,
       logger: Logger('InvitationCaseTest'),
     );

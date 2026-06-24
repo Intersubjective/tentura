@@ -303,6 +303,30 @@
   "@friendsInvitesEmptyBody": {
     "context": "FriendsScreen"
   },
+  "friendsInvitesPeopleSection": "Люди",
+  "@friendsInvitesPeopleSection": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesBeaconSection": "Приглашения к маякам",
+  "@friendsInvitesBeaconSection": {
+    "context": "FriendsScreen"
+  },
+  "beaconShareSheetTitle": "Поделиться приглашением к маяку",
+  "@beaconShareSheetTitle": {
+    "context": "BeaconShareSheet"
+  },
+  "beaconShareNoPendingInvites": "Пока нет активных приглашений для этого маяка.",
+  "@beaconShareNoPendingInvites": {
+    "context": "BeaconShareSheet"
+  },
+  "beaconShareCreateInvite": "Создать приглашение",
+  "@beaconShareCreateInvite": {
+    "context": "BeaconShareSheet"
+  },
+  "beaconShareRegenerateInvite": "Пересоздать приглашение",
+  "@beaconShareRegenerateInvite": {
+    "context": "BeaconShareSheet"
+  },
   "confirmInvitationRemoval": "Вы уверены, что хотите отменить приглашение? После этого человек не сможет зарегистрироваться.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"

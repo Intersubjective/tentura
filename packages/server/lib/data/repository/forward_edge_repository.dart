@@ -217,6 +217,58 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
       )
       .exists();
 
+  @override
+  Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) =>
+      _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) &
+                e.recipientId.id(recipientId) &
+                e.cancelledAt.isNull(),
+          )
+          .orderBy((e) => e.createdAt.desc())
+          .get()
+          .then((rows) => rows.map(_toEntity).toList());
+
+  @override
+  Future<ForwardEdgeEntity?> findActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+  }) =>
+      _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) &
+                e.senderId.id(senderId) &
+                e.recipientId.id(recipientId) &
+                e.cancelledAt.isNull(),
+          )
+          .getSingleOrNull()
+          .then((row) => row == null ? null : _toEntity(row));
+
+  @override
+  Future<void> createForInviteAccept({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    String? parentEdgeId,
+  }) =>
+      _database.withMutatingUser(recipientId, () async {
+        await _database.managers.beaconForwardEdges.create(
+          (o) => o(
+            beaconId: beaconId,
+            senderId: senderId,
+            recipientId: recipientId,
+            note: const Value(''),
+            parentEdgeId: Value(parentEdgeId),
+          ),
+        );
+      });
+
   static ForwardEdgeEntity _toEntity(BeaconForwardEdge row) =>
       ForwardEdgeEntity(
         id: row.id,

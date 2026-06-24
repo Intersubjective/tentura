@@ -20,8 +20,8 @@ import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -230,16 +230,9 @@ class _AuthoredActiveCard extends StatelessWidget {
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
-              onShare: () => unawaited(
-                ShareCodeDialog.show(
-                  context,
-                  link: Uri.parse(kServerName).replace(
-                    queryParameters: {'id': b.id},
-                    path: kPathAppLinkView,
-                  ),
-                  header: b.id,
-                ),
-              ),
+              onShare: b.allowsForward
+                  ? () => unawaited(showBeaconShareSheet(context, beacon: b))
+                  : null,
               onCloseBeacon: b.status == BeaconStatus.open
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
@@ -517,16 +510,9 @@ class _FinishedAuthoredCard extends StatelessWidget {
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
-              onShare: () => unawaited(
-                ShareCodeDialog.show(
-                  context,
-                  link: Uri.parse(kServerName).replace(
-                    queryParameters: {'id': b.id},
-                    path: kPathAppLinkView,
-                  ),
-                  header: b.id,
-                ),
-              ),
+              onShare: b.allowsForward
+                  ? () => unawaited(showBeaconShareSheet(context, beacon: b))
+                  : null,
               onCloseBeacon: b.status == BeaconStatus.open
                   ? () async {
                       await Future<void>.delayed(Duration.zero);

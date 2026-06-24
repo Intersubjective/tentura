@@ -92,12 +92,14 @@ class MockInvitationRepositoryPort extends _i1.Mock
     required String? issuerId,
     required String? addresseeName,
     String? beaconId,
+    String? parentForwardEdgeId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#create, [], {
               #issuerId: issuerId,
               #addresseeName: addresseeName,
               #beaconId: beaconId,
+              #parentForwardEdgeId: parentForwardEdgeId,
             }),
             returnValue: _i6.Future<_i2.InvitationEntity>.value(
               _FakeInvitationEntity_0(
@@ -106,6 +108,7 @@ class MockInvitationRepositoryPort extends _i1.Mock
                   #issuerId: issuerId,
                   #addresseeName: addresseeName,
                   #beaconId: beaconId,
+                  #parentForwardEdgeId: parentForwardEdgeId,
                 }),
               ),
             ),
@@ -583,11 +586,13 @@ class MockUserRepositoryPort extends _i1.Mock
   _i6.Future<bool> bindMutual({
     required String? invitationId,
     required String? userId,
+    bool? bindFriendship = true,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#bindMutual, [], {
               #invitationId: invitationId,
               #userId: userId,
+              #bindFriendship: bindFriendship,
             }),
             returnValue: _i6.Future<bool>.value(false),
           )

@@ -9,6 +9,7 @@ abstract class InvitationRepositoryPort {
     required String issuerId,
     required String addresseeName,
     String? beaconId,
+    String? parentForwardEdgeId,
   });
 
   /// Renames the addressee of the caller's own, still unconsumed invite.

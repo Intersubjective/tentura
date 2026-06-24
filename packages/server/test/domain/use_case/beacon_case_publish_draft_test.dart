@@ -16,6 +16,8 @@ import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/fake_beacon_access_guard.dart';
+
 class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> Function()? onGetBeaconById;
   Future<BeaconEntity> Function()? onPublishDraft;
@@ -72,6 +74,7 @@ void main() {
       _FakeTaskRepo(),
       _FakeCoordinationRepo(),
       _FakeHelpOfferRepo(),
+      FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCasePublishDraftTest'),
     );

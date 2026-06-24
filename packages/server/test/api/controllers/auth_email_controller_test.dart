@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
+import '../../support/build_test_invitation_case.dart';
 
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   EmailAuthTransactionEntity? _tx;
@@ -138,12 +139,12 @@ EmailAuthCase _buildEmailAuthCase({
   required MockUserRepositoryPort userRepo,
   required MockVerifiedContactRepositoryPort contactRepo,
 }) {
-  final invitationCase = InvitationCase(
-    MockInvitationRepositoryPort(),
-    userRepo,
-    MockBeaconRepositoryPort(),
-    MockVoteUserFriendshipLookupPort(),
-    MockUserContactRepositoryPort(),
+  final invitationCase = buildTestInvitationCase(
+    invitationRepo: MockInvitationRepositoryPort(),
+    userRepo: userRepo,
+    beaconRepo: MockBeaconRepositoryPort(),
+    friendshipLookup: MockVoteUserFriendshipLookupPort(),
+    contactRepo: MockUserContactRepositoryPort(),
     env: env,
     logger: Logger('AuthEmailControllerTest'),
   );

@@ -8,12 +8,12 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 
 import '../../data/repository/beacon_repository.dart';
+import '../sheet/beacon_share_sheet.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import '../dialog/beacon_close_confirm_dialog.dart';
@@ -31,16 +31,9 @@ class BeaconMineControl extends StatelessWidget {
     final evaluationCase = GetIt.I<EvaluationCase>();
     return BeaconOverflowMenu(
       beacon: beacon,
-      onShare: () => unawaited(
-        ShareCodeDialog.show(
-          context,
-          link: Uri.parse(kServerName).replace(
-            queryParameters: {'id': beacon.id},
-            path: kPathAppLinkView,
-          ),
-          header: beacon.id,
-        ),
-      ),
+      onShare: beacon.allowsForward
+          ? () => unawaited(showBeaconShareSheet(context, beacon: beacon))
+          : null,
       onEdit: beacon.status == BeaconStatus.open
           ? () => unawaited(
                 context.router.pushPath(

@@ -746,6 +746,7 @@ class UserRepository implements UserRepositoryPort {
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,
+    bool bindFriendship = true,
   }) => _database.transaction<bool>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -766,35 +767,47 @@ class UserRepository implements UserRepositoryPort {
       addresseeName: invitation.addresseeName,
     );
 
+    if (invitation.beaconId != null) {
+      final existingEdge = await _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.beaconId.id(invitation.beaconId!) &
+                e.senderId.id(invitation.userId) &
+                e.recipientId.id(userId) &
+                e.cancelledAt.isNull(),
+          )
+          .getSingleOrNull();
+      if (existingEdge == null) {
+        await _database.withMutatingUser(userId, () async {
+          await _database.managers.beaconForwardEdges.create(
+            (o) => o(
+              beaconId: invitation.beaconId!,
+              senderId: invitation.userId,
+              recipientId: userId,
+              note: const Value(''),
+              parentEdgeId: Value(invitation.parentForwardEdgeId),
+            ),
+          );
+        });
+      }
+    }
+
     final invitationsDeletedCount = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .delete();
 
-    await _database.managers.voteUsers.bulkCreate(
-      (o) => [
-        o(subject: invitation.userId, object: userId, amount: 1),
-        o(subject: userId, object: invitation.userId, amount: 1),
-      ],
-      mode: InsertMode.insertOrIgnore,
-      onConflict: DoNothing(),
-    );
-    await _applyReciprocalTrustEdges(
-      userA: invitation.userId,
-      userB: userId,
-    );
-
-    if (invitation.beaconId != null) {
-      await _database.into(_database.inboxItems).insert(
-        InboxItemsCompanion.insert(
-          userId: userId,
-          beaconId: invitation.beaconId!,
-          status: const Value(0),
-          forwardCount: const Value(1),
-          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
-          latestNotePreview: const Value(''),
-          rejectionMessage: const Value(''),
-        ),
+    if (bindFriendship) {
+      await _database.managers.voteUsers.bulkCreate(
+        (o) => [
+          o(subject: invitation.userId, object: userId, amount: 1),
+          o(subject: userId, object: invitation.userId, amount: 1),
+        ],
+        mode: InsertMode.insertOrIgnore,
         onConflict: DoNothing(),
+      );
+      await _applyReciprocalTrustEdges(
+        userA: invitation.userId,
+        userB: userId,
       );
     }
 

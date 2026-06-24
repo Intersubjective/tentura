@@ -233,6 +233,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     ReviewWindowInfo? reviewWindowInfo,
 
     @Default(StateIsSuccess()) StateStatus status,
+
+    /// True after a successful beacon content fetch (title, status, etc.).
+    @Default(false) bool beaconContentLoaded,
+
+    /// Server returned no readable beacon (gated `beacon_by_pk` null).
+    @Default(false) bool beaconUnavailable,
   }) = _BeaconViewState;
 
   const BeaconViewState._();

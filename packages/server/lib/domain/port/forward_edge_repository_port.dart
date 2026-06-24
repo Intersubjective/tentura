@@ -66,4 +66,25 @@ abstract class ForwardEdgeRepositoryPort {
     required String authorId,
     required String userId,
   });
+
+  /// Active inbound edges where [recipientId] is the recipient, newest first.
+  Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  });
+
+  /// Returns an active edge for the same sender/recipient/beacon, if any.
+  Future<ForwardEdgeEntity?> findActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+  });
+
+  /// Invite accept creates the edge under [recipientId] for WS echo suppression.
+  Future<void> createForInviteAccept({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    String? parentEdgeId,
+  });
 }

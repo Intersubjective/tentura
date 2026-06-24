@@ -16,6 +16,7 @@ class BeaconViewAppBarTitle extends StatelessWidget {
     required this.statusLine,
     required this.statusTone,
     required this.l10n,
+    this.showBeaconContent = true,
     this.onTap,
     this.tooltipMessage,
     this.roomUnreadBadgeCount,
@@ -23,6 +24,9 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   });
 
   final Beacon beacon;
+
+  /// When false (loading / gated null), do not render beacon title or identity.
+  final bool showBeaconContent;
 
   /// Single-line operational status (caller chooses terse vs full).
   final String statusLine;
@@ -47,6 +51,20 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
+    if (!showBeaconContent) {
+      final label = l10n.beaconHudBeaconUnavailable;
+      return Semantics(
+        label: label,
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.titleSmall(scheme.onSurface),
+        ),
+      );
+    }
+
     final titleText =
         beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
 

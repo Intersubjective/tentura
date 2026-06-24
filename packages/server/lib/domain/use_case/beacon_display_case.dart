@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -18,7 +19,8 @@ final class BeaconDisplayCase extends UseCaseBase {
     this._helpOfferRepository,
     this._coordinationRepository,
     this._evaluationRepository,
-    this._beaconRoomRepository, {
+    this._beaconRoomRepository,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -28,6 +30,7 @@ final class BeaconDisplayCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
+  final BeaconAccessGuard _guard;
 
   Future<List<BeaconDisplayStatus>> displayStatuses({
     required List<String> beaconIds,
@@ -37,6 +40,13 @@ final class BeaconDisplayCase extends UseCaseBase {
 
     final out = <BeaconDisplayStatus>[];
     for (final beaconId in beaconIds) {
+      if (!await _guard.canReadContent(
+        beaconId: beaconId,
+        viewerId: viewerId,
+      )) {
+        continue;
+      }
+
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       final tier = await _resolveTier(
         beaconId: beaconId,

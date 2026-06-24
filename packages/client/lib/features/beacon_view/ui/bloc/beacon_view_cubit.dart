@@ -29,6 +29,7 @@ import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.da
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
+import 'package:tentura/features/beacon/domain/exception.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -631,8 +632,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final myUserId = state.myProfile.id;
       final wasForwardsLoaded = state.forwardsLoaded;
 
+      late final Beacon beacon;
+      try {
+        beacon = await _case.fetchBeaconById(beaconId);
+      } on BeaconFetchException {
+        if (isClosed) return;
+        if (state.timeline.isEmpty && state.helpOffers.isEmpty) {
+          emit(
+            state.copyWith(
+              beaconContentLoaded: false,
+              beaconUnavailable: true,
+              status: const StateIsSuccess(),
+            ),
+          );
+        } else {
+          _showSnackError(const BeaconFetchException());
+        }
+        return;
+      }
+
       final results = await Future.wait([
-        _case.fetchBeaconById(beaconId),
         _case.fetchHelpOffersWithCoordination(
           beaconId: beaconId,
         ),
@@ -644,9 +663,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomUnreadSnapshot(beaconId),
       ]);
 
-      final beacon = results[0]! as Beacon;
       final helpOffers =
-          results[1]!
+          results[0]!
               as List<
                 ({
                   String beaconId,
@@ -665,17 +683,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 })
               >;
       final inboxCtx =
-          results[2]!
+          results[1]!
               as ({
                 InboxItemStatus? status,
                 InboxProvenance provenance,
                 String latestNotePreview,
               });
-      final factCards = results[3]! as List<BeaconFactCard>;
-      final roomParticipants = results[4]! as List<BeaconParticipant>;
-      final beaconRoomCue = results[5] as BeaconRoomState?;
-      final roomActivityEvents = results[6]! as List<BeaconActivityEvent>;
-      final roomUnreadSnapshot = results[7]! as RoomUnreadSnapshot;
+      final factCards = results[2]! as List<BeaconFactCard>;
+      final roomParticipants = results[3]! as List<BeaconParticipant>;
+      final beaconRoomCue = results[4] as BeaconRoomState?;
+      final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
+      final roomUnreadSnapshot = results[6]! as RoomUnreadSnapshot;
       _serverUnreadCount = roomUnreadSnapshot.count;
       _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
       final roomUnreadCount = _case.resolveRoomUnread(
@@ -763,6 +781,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           reviewWindowInfo: reviewWindowInfo,
           roomUnreadCount: roomUnreadCount,
           forwardsLoaded: wasForwardsLoaded,
+          beaconContentLoaded: true,
+          beaconUnavailable: false,
           status: StateStatus.isSuccess,
         ),
       );
@@ -782,7 +802,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   /// Full reload when the initial fetch failed and the screen has no beacon data.
   Future<void> retryInitialLoad() async {
-    emit(state.copyWith(status: const StateIsLoading()));
+    emit(
+      state.copyWith(
+        status: const StateIsLoading(),
+        beaconUnavailable: false,
+      ),
+    );
     await _fetchBeaconByIdWithTimeline();
   }
 

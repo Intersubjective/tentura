@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -36,7 +37,8 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
   BeaconHelpOffererForwardPathCase(
     this._beaconRepository,
     this._forwardEdgeRepository,
-    this._helpOfferRepository, {
+    this._helpOfferRepository,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -44,12 +46,25 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
+  final BeaconAccessGuard _guard;
 
   Future<ForwardGraphResult> asMap({
     required String beaconId,
     required String helpOffererId,
     required String currentUserId,
   }) async {
+    // Guard first — canReadInvolvement covers author, forward edges,
+    // room participants, help offerers, and mutual friends, matching the
+    // same contract as BeaconForwardGraphCase.
+    if (!await _guard.canReadInvolvement(
+      beaconId: beaconId,
+      viewerId: currentUserId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Viewer is not involved in this beacon',
+      );
+    }
+
     final results = await Future.wait([
       _beaconRepository.getBeaconById(beaconId: beaconId),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),
@@ -67,23 +82,7 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
     if (!activeHelpOffererIds.contains(helpOffererId)) {
       throw IdNotFoundException(
         id: helpOffererId,
-        description:
-            'User is not an active help offerer of the beacon',
-      );
-    }
-
-    final allEdges = await _forwardEdgeRepository.fetchByBeaconId(beaconId);
-    final isAuthor = currentUserId == authorId;
-    final isInvolved =
-        isAuthor ||
-        activeHelpOffererIds.contains(currentUserId) ||
-        allEdges.any(
-          (e) =>
-              e.senderId == currentUserId || e.recipientId == currentUserId,
-        );
-    if (!isInvolved) {
-      throw const UnauthorizedException(
-        description: 'Viewer is not involved in this beacon',
+        description: 'User is not an active help offerer of the beacon',
       );
     }
 

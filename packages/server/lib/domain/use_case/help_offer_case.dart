@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -29,7 +30,8 @@ final class HelpOfferCase extends UseCaseBase {
     this._capabilityCase,
     this._beaconRoomRepository,
     this._forwardEdgeRepository,
-    this._roomPush, {
+    this._roomPush,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -42,6 +44,7 @@ final class HelpOfferCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final BeaconRoomNotificationPort _roomPush;
+  final BeaconAccessGuard _guard;
 
   Future<void> offerHelp({
     required String beaconId,
@@ -57,6 +60,11 @@ final class HelpOfferCase extends UseCaseBase {
           );
         }
       }
+    }
+    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read beacon content',
+      );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.status.isOpenFamily) {
@@ -174,6 +182,11 @@ final class HelpOfferCase extends UseCaseBase {
     if (!isAllowedWithdrawReason(withdrawReason)) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.invalidWithdrawReason,
+      );
+    }
+    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read beacon content',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);

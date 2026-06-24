@@ -16,6 +16,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
@@ -325,6 +326,21 @@ class _InvitesTabBody extends StatelessWidget {
         bloc: invitationCubit,
         buildWhen: (_, c) => c.isSuccess,
         builder: (_, state) {
+          final peopleInvites = state.invitations
+              .where((i) => i.beaconId == null || i.beaconId!.isEmpty)
+              .toList();
+          final beaconInvites = state.invitations
+              .where((i) => i.beaconId != null && i.beaconId!.isNotEmpty)
+              .toList();
+          final beaconGroups = <String, List<InvitationEntity>>{};
+          for (final invitation in beaconInvites) {
+            final key = invitation.beaconTitle?.trim().isNotEmpty == true
+                ? invitation.beaconTitle!.trim()
+                : (invitation.beaconId ?? invitation.id);
+            beaconGroups.putIfAbsent(key, () => []).add(invitation);
+          }
+          final beaconGroupKeys = beaconGroups.keys.toList()..sort();
+
           return CustomScrollView(
             controller: scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
@@ -375,65 +391,133 @@ class _InvitesTabBody extends StatelessWidget {
                     ),
                   ),
                 )
-              else
-                SliverList.separated(
-                  itemCount: state.invitations.length,
-                  separatorBuilder: separatorBuilder,
-                  itemBuilder: (context, i) {
-                    final invitation = state.invitations[i];
-                    if (state.invitations.length > kFetchListOffset &&
-                        state.invitations.length == i + 1) {
-                      unawaited(invitationCubit.fetch(clear: false));
-                    }
-                    final emphasize =
-                        invitation.id == emphasizedInvitationId &&
-                        !disableAnimations;
-                    final addressee = invitation.addresseeName;
-                    final name = addressee == null || addressee.isEmpty
-                        ? invitation.id
-                        : addressee;
-                    return _InviteListTile(
-                      key: ValueKey(invitation),
-                      emphasize: emphasize,
-                      title: invitation.beaconTitle != null
-                          ? '$name — ${invitation.beaconTitle}'
-                          : name,
-                      subtitle: compactRelativeTimeAgo(
-                        when: invitation.createdAt,
-                        now: DateTime.now(),
-                        l10n: l10n,
+              else ...[
+                if (peopleInvites.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        tt.screenHPadding,
+                        tt.sectionGap,
+                        tt.screenHPadding,
+                        tt.rowGap,
                       ),
-                      onEdit: () async {
-                        final newName = await InvitationAddresseeDialog.show(
-                          context,
-                          initialName: addressee ?? '',
-                          isEdit: true,
-                        );
-                        if (newName == null) return;
-                        await invitationCubit.updateInvitation(
-                          id: invitation.id,
-                          addresseeName: newName,
-                        );
-                      },
-                      onDelete: () async {
-                        if (await InvitationRemoveDialog.show(context) ??
-                            false) {
-                          await invitationCubit.deleteInvitationById(
-                            invitation.id,
-                          );
-                        }
-                      },
-                      onTap: () => ShareCodeDialog.show(
+                      child: Text(
+                        l10n.friendsInvitesPeopleSection,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverList.separated(
+                    itemCount: peopleInvites.length,
+                    separatorBuilder: separatorBuilder,
+                    itemBuilder: (context, i) => _buildInviteTile(
+                      context,
+                      state: state,
+                      invitation: peopleInvites[i],
+                      disableAnimations: disableAnimations,
+                    ),
+                  ),
+                ],
+                if (beaconGroupKeys.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        tt.screenHPadding,
+                        tt.sectionGap,
+                        tt.screenHPadding,
+                        tt.rowGap,
+                      ),
+                      child: Text(
+                        l10n.friendsInvitesBeaconSection,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  for (final groupTitle in beaconGroupKeys) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          tt.screenHPadding,
+                          tt.tightGap,
+                          tt.screenHPadding,
+                          0,
+                        ),
+                        child: Text(
+                          groupTitle,
+                          style: theme.textTheme.labelLarge,
+                        ),
+                      ),
+                    ),
+                    SliverList.separated(
+                      itemCount: beaconGroups[groupTitle]!.length,
+                      separatorBuilder: separatorBuilder,
+                      itemBuilder: (context, i) => _buildInviteTile(
                         context,
-                        header: l10n.labelInvitationCode,
-                        link: inviteShareUri(invitation.id),
+                        state: state,
+                        invitation: beaconGroups[groupTitle]![i],
+                        disableAnimations: disableAnimations,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  ],
+                ],
+              ],
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildInviteTile(
+    BuildContext context, {
+    required InvitationState state,
+    required InvitationEntity invitation,
+    required bool disableAnimations,
+  }) {
+    if (state.invitations.length > kFetchListOffset &&
+        state.invitations.last == invitation) {
+      unawaited(invitationCubit.fetch(clear: false));
+    }
+    final emphasize =
+        invitation.id == emphasizedInvitationId && !disableAnimations;
+    final addressee = invitation.addresseeName;
+    final name = addressee == null || addressee.isEmpty
+        ? invitation.id
+        : addressee;
+    return _InviteListTile(
+      key: ValueKey(invitation),
+      emphasize: emphasize,
+      title: name,
+      subtitle: compactRelativeTimeAgo(
+        when: invitation.createdAt,
+        now: DateTime.now(),
+        l10n: l10n,
+      ),
+      onEdit: () async {
+        final newName = await InvitationAddresseeDialog.show(
+          context,
+          initialName: addressee ?? '',
+          isEdit: true,
+        );
+        if (newName == null) return;
+        await invitationCubit.updateInvitation(
+          id: invitation.id,
+          addresseeName: newName,
+        );
+      },
+      onDelete: () async {
+        if (await InvitationRemoveDialog.show(context) ?? false) {
+          await invitationCubit.deleteInvitationById(invitation.id);
+        }
+      },
+      onTap: () => ShareCodeDialog.show(
+        context,
+        header: l10n.labelInvitationCode,
+        link: inviteShareUri(invitation.id),
       ),
     );
   }

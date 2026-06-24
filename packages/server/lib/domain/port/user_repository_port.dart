@@ -129,5 +129,6 @@ abstract class UserRepositoryPort {
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,
+    bool bindFriendship = true,
   });
 }

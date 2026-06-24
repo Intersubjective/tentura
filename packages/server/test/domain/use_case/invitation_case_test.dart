@@ -12,6 +12,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 
 import 'invitation_case_mocks.mocks.dart';
+import '../../support/build_test_invitation_case.dart';
+import '../../support/fake_beacon_access_guard.dart';
 
 void main() {
   late MockInvitationRepositoryPort invitationRepo;
@@ -19,6 +21,7 @@ void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late MockUserContactRepositoryPort contactRepo;
+  late FakeBeaconAccessGuard guard;
   late InvitationCase case_;
 
   const issuerId = 'Uissuer';
@@ -61,12 +64,14 @@ void main() {
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
-    case_ = InvitationCase(
-      invitationRepo,
-      userRepo,
-      beaconRepo,
-      friendshipLookup,
-      contactRepo,
+    guard = FakeBeaconAccessGuard();
+    case_ = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: beaconRepo,
+      friendshipLookup: friendshipLookup,
+      contactRepo: contactRepo,
+      guard: guard,
       env: Env(environment: Environment.test),
       logger: Logger('InvitationCaseTest'),
     );

@@ -17,6 +17,8 @@ import 'package:tentura_server/domain/port/verified_contact_repository_port.dart
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_access_guard.dart';
+
 class _FakePrefs implements NotificationPreferenceRepositoryPort {
   _FakePrefs(this._prefs);
   final NotificationPreferencesEntity _prefs;
@@ -133,6 +135,7 @@ void main() {
       links,
       env,
       Logger('test'),
+      FakeBeaconAccessGuard(),
     );
 
     await case_.runDue(now: dueNow);
@@ -155,6 +158,7 @@ void main() {
       links,
       env,
       Logger('test'),
+      FakeBeaconAccessGuard(),
     );
 
     await case_.runDue(now: dueNow);
@@ -173,6 +177,7 @@ void main() {
       links,
       env,
       Logger('test'),
+      FakeBeaconAccessGuard(),
     );
 
     // 14:30 UTC, tz 0 → local hour 14 != digest hour 8.
@@ -194,6 +199,7 @@ void main() {
       links,
       env,
       Logger('test'),
+      FakeBeaconAccessGuard(),
     );
 
     await case_.runDue(now: dueNow);

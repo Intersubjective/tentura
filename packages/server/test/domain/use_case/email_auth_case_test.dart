@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
+import '../../support/build_test_invitation_case.dart';
 
 final class _FakeEmailSender implements EmailSenderPort {
   String? lastVerifyUrl;
@@ -174,12 +175,12 @@ void main() {
       resendFromEmail: 'Tentura <auth@test.local>',
       publicOrigin: 'https://dev.tentura.io',
     );
-    invitationCase = InvitationCase(
-      invitationRepo,
-      userRepo,
-      beaconRepo,
-      friendshipLookup,
-      MockUserContactRepositoryPort(),
+    invitationCase = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: beaconRepo,
+      friendshipLookup: friendshipLookup,
+      contactRepo: MockUserContactRepositoryPort(),
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
