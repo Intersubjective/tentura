@@ -1,0 +1,14 @@
+query NotificationPreferencesFetch {
+  notificationPreferences {
+    accountId
+    pushCategories
+    emailCategories
+    quietHoursStart
+    quietHoursEnd
+    tzOffsetMinutes
+    emailDigest
+    snoozeUntil
+    lockScreenSafe
+    locale
+  }
+}
