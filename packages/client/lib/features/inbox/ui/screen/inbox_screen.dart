@@ -162,7 +162,15 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                         _InboxSortButton(),
                       ],
                     ),
-                    actions: const [_InboxOverflowMenu()],
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_outlined),
+                        tooltip: l10n.notifications,
+                        onPressed: () =>
+                            context.router.pushPath(kPathNotifications),
+                      ),
+                      const _InboxOverflowMenu(),
+                    ],
                   ),
                   body: SafeArea(
                     minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),

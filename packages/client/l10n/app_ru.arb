@@ -1074,6 +1074,22 @@
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
+  "notifications": "Уведомления",
+  "@notifications": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmpty": "Всё просмотрено",
+  "@notificationsEmpty": {
+    "context": "NotificationCenter"
+  },
+  "notificationsEmptyHint": "Здесь появятся обновления, требующие вашего внимания",
+  "@notificationsEmptyHint": {
+    "context": "NotificationCenter"
+  },
+  "notificationsMarkAllRead": "Отметить все как прочитанные",
+  "@notificationsMarkAllRead": {
+    "context": "NotificationCenter"
+  },
   "inboxEmptyHint": "Здесь появятся маяки, пересланные вам",
   "@inboxEmptyHint": {
     "context": "InboxScreen"
