@@ -7,15 +7,19 @@ import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_recipient.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_recipient_resolver.dart';
+import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 @LazySingleton(as: BeaconNotificationPort)
@@ -26,6 +30,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._fcmRemote,
     this._users,
     this._context,
+    this._preferences,
     this._logger,
   );
 
@@ -34,18 +39,31 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final FcmRemoteRepositoryPort _fcmRemote;
   final UserRepositoryPort _users;
   final BeaconRoomNotificationContextPort _context;
+  final NotificationPreferenceRepositoryPort _preferences;
   final Logger _logger;
 
   static const _resolver = BeaconNotificationRecipientResolver();
   static const _copyBuilder = BeaconNotificationCopyBuilder();
+  static const _gate = NotificationPreferenceGate();
 
   @override
   Future<void> dispatch(BeaconNotificationIntent intent) async {
     final ctx = await _loadContext(intent);
-    final recipients = _resolver.resolveRecipients(intent: intent, ctx: ctx);
-    if (recipients.isEmpty) {
+    final resolved = _resolver.resolveRecipients(intent: intent, ctx: ctx);
+    if (resolved.isEmpty) {
       _logger.fine(
         '[FCM] dispatch skipped: no recipients kind=${intent.kind.name} '
+        'beaconId=${intent.beaconId}',
+      );
+      return;
+    }
+
+    // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
+    // per-beacon mute) before any push leaves the server.
+    final recipients = await _filterByPushPreference(intent, resolved);
+    if (recipients.isEmpty) {
+      _logger.fine(
+        '[FCM] dispatch suppressed by preferences kind=${intent.kind.name} '
         'beaconId=${intent.beaconId}',
       );
       return;
@@ -185,6 +203,41 @@ class BeaconNotificationService implements BeaconNotificationPort {
       'actorUserId=$actorUserId reason=$reason hasToken=$hasToken '
       'queuedOrDirect=$queuedOrDirect coalescedCount=$coalescedCount',
     );
+  }
+
+  /// Drops recipients who have opted out of push for this category, are within
+  /// quiet hours, globally snoozed, or have muted this beacon.
+  Future<List<BeaconNotificationRecipient>> _filterByPushPreference(
+    BeaconNotificationIntent intent,
+    List<BeaconNotificationRecipient> recipients,
+  ) async {
+    final now = DateTime.timestamp();
+    final category = categoryOf(intent.kind);
+    final beaconId = intent.beaconId.isEmpty ? null : intent.beaconId;
+    final allowed = <BeaconNotificationRecipient>[];
+    for (final r in recipients) {
+      final prefs = await _preferences.getForAccount(r.userId);
+      final muted = beaconId == null
+          ? const <String>{}
+          : await _preferences.getMutedBeaconIds(r.userId, now);
+      final ok = _gate.allowsChannel(
+        channel: NotificationChannel.push,
+        category: category,
+        prefs: prefs,
+        now: now,
+        beaconId: beaconId,
+        mutedBeaconIds: muted,
+      );
+      if (ok) {
+        allowed.add(r);
+      } else {
+        _logger.fine(
+          '[FCM] push suppressed by prefs receiverId=${r.userId} '
+          'category=${category.name} kind=${intent.kind.name}',
+        );
+      }
+    }
+    return allowed;
   }
 
   Future<BeaconNotificationContext> _loadContext(
