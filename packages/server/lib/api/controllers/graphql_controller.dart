@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
+import 'package:tentura_server/app/sentry/sentry_error_classifier.dart';
+import 'package:tentura_server/app/sentry/sentry_request_context.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -49,6 +51,13 @@ final class GraphqlController extends BaseController {
       requestJson.addAll(await request.body.asJson as Map<String, dynamic>);
     }
 
+    final sentryContext = SentryRequestContext.from(request);
+    final operationName = requestJson['operationName'] as String?;
+    if (sentryContext != null) {
+      await sentryContext.enrichFromRequest(request);
+      sentryContext.renameGraphqlOperation(operationName);
+    }
+
     try {
       final response = await (env.isDebugModeOn
               ? graphqlSchema
@@ -78,13 +87,30 @@ final class GraphqlController extends BaseController {
       }
     } on GraphQLException catch (e) {
       return Response.ok(jsonEncode(e.toJson()));
-    } on ExceptionBase catch (e) {
+    } on ExceptionBase catch (e, st) {
+      if (isInternalFaultException(e)) {
+        await sentryContext?.captureException(
+          e,
+          stackTrace: st,
+          tags: {
+            'graphql.operation': operationName ?? '',
+            'exception.code': '${e.code.codeNumber}',
+          },
+        );
+      }
       return Response.ok(
         jsonEncode({
           'errors': [e.toMap],
         }),
       );
-    } catch (e) {
+    } catch (e, st) {
+      await sentryContext?.captureException(
+        e,
+        stackTrace: st,
+        tags: {
+          'graphql.operation': operationName ?? '',
+        },
+      );
       return Response.ok(
         jsonEncode({
           'errors': [

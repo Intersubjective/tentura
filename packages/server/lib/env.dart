@@ -88,6 +88,12 @@ class Env {
     String? fbPrivateKey,
     String? fbClientId,
     Duration? fbAccessTokenExpiresIn,
+
+    // Sentry
+    String? sentryDsn,
+    String? sentryRelease,
+    String? sentryDist,
+    double? sentryTracesSampleRate,
   }) : // Common
        printEnv = printEnv ?? _env['PRINT_ENV'] == 'true',
        isDebugModeOn = isDebugModeOn ?? _env['DEBUG_MODE'] == 'true',
@@ -236,7 +242,15 @@ class Env {
        fbAccessTokenExpiresIn =
            fbAccessTokenExpiresIn ?? const Duration(hours: 1),
        fbPrivateKey = fbPrivateKey ?? _env['FB_PRIVATE_KEY'] ?? '',
-       fbClientId = fbClientId ?? _env['FB_CLIENT_ID'] ?? ''
+       fbClientId = fbClientId ?? _env['FB_CLIENT_ID'] ?? '',
+
+       // Sentry
+       sentryDsn = sentryDsn ?? _env['SENTRY_DSN'] ?? '',
+       sentryRelease = sentryRelease ?? _env['SENTRY_RELEASE'] ?? '',
+       sentryDist = sentryDist ?? _env['SENTRY_DIST'] ?? '',
+       sentryTracesSampleRate = sentryTracesSampleRate ??
+           double.tryParse(_env['SENTRY_TRACES_SAMPLE_RATE'] ?? '') ??
+           1.0
   //
   {
     if (environment == Environment.dev || environment == Environment.prod) {
@@ -475,6 +489,17 @@ class Env {
   final String fbClientId;
 
   final Duration fbAccessTokenExpiresIn;
+
+  // Sentry
+  final String sentryDsn;
+
+  final String sentryRelease;
+
+  final String sentryDist;
+
+  final double sentryTracesSampleRate;
+
+  bool get isSentryEnabled => sentryDsn.isNotEmpty;
 
   //
   //

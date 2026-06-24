@@ -73,6 +73,15 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
 
   **Runtime (VPS, not web build):** `SERVER_NAME` on the Tentura container (OG `/shared/view` URLs) — set in VPS `.env`, separate from `CLIENT_SERVER_NAME`.
 
+  **Server Sentry (VPS / `compose.prod.yaml`):**
+
+  | Env var | Required | Purpose |
+  |---------|----------|---------|
+  | `SENTRY_DSN` | **No** | DSN for the **server** Sentry project. When unset/empty, the SDK is not initialized. |
+  | `SENTRY_TRACES_SAMPLE_RATE` | **No** | Request transaction sample rate (default `1.0`). |
+
+  `SENTRY_RELEASE` and `SENTRY_DIST` are baked into the server image at CI build time (`tentura-server@<semver>` and git SHA). See [ADR 0007](../docs/adr/0007-server-sentry-observability.md).
+
 ### Per Environment (dev/stage/prod) — deploy
 
 - `VPS_HOST`: Target server hostname or IP address

@@ -252,6 +252,9 @@ jobs:
           context: .
           file: packages/server/Dockerfile_build
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            SERVER_VERSION=${{ steps.versions.outputs.server_version }}
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
