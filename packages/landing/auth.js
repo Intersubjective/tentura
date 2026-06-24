@@ -14,14 +14,14 @@ export class EmailLinkError extends Error {
 export async function startEmailMagicLink({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
   if (!normalized) throw new EmailLinkError('Please enter your email.');
-  const body = { email: normalized };
-  if (code) body.inviteCode = code;
+  const payload = { email: normalized };
+  if (code) payload.inviteCode = code;
   let res;
   try {
     res = await fetch(`${API_BASE}/api/v2/auth/email/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
   } catch (e) {
     throw new EmailLinkError(`Could not reach the server (${e}).`);
@@ -29,4 +29,6 @@ export async function startEmailMagicLink({ email, code }) {
   if (!res.ok) {
     throw new EmailLinkError('Something went wrong. Please try again.');
   }
+  const data = await res.json();
+  return data?.attemptId ?? null;
 }

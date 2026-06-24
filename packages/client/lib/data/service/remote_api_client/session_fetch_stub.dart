@@ -10,11 +10,14 @@ Future<http.Response> postSessionRequest({
   required String userAgent,
   required Duration timeout,
   String? bearerToken,
+  String? authAttemptId,
 }) {
   final headers = <String, String>{
     kHeaderUserAgent: userAgent,
     kHeaderAccept: 'application/json',
     if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+    if (authAttemptId != null && authAttemptId.isNotEmpty)
+      kHeaderAuthAttemptId: authAttemptId,
   };
   return http.post(uri, headers: headers).timeout(timeout);
 }

@@ -111,7 +111,7 @@ class _FakeAuthRemote implements AuthRemoteRepositoryPort {
   }
 
   @override
-  Future<String> signIn(String seed) async {
+  Future<String> signIn(String seed, {String? authAttemptId}) async {
     order.add('signIn:$seed');
     return sessionUserId;
   }
@@ -120,7 +120,7 @@ class _FakeAuthRemote implements AuthRemoteRepositoryPort {
   Future<void> signOut() async {}
 
   @override
-  Future<void> establishSessionFromBearer() async {}
+  Future<void> establishSessionFromBearer({String? authAttemptId}) async {}
 
   @override
   Future<void> sessionLogout() async {}

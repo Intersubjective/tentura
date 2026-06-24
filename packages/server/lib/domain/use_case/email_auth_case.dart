@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
+import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -38,17 +39,23 @@ final class EmailAuthCase extends UseCaseBase {
 
   /// Sends a magic link when rate limits allow. Always completes without throwing
   /// for accepted email format (enumeration-safe at the controller).
-  Future<void> start({
+  Future<EmailAuthStartResult> start({
     required String email,
     required String ipFingerprint,
     required String userAgentFingerprint,
     String? inviteCode,
     String? linkAccountId,
+    String? attemptId,
   }) async {
+    final correlationId =
+        attemptId ?? EmailAuthTransactionEntity.newId;
     final isLink = linkAccountId != null && linkAccountId.isNotEmpty;
     final normalized = normalizeAuthEmail(email);
     if (!isValidAuthEmailFormat(normalized)) {
-      return;
+      return EmailAuthStartResult(
+        correlationId: correlationId,
+        outcome: EmailAuthStartOutcome.invalidFormat,
+      );
     }
     if (!await _withinRateLimits(
       normalizedEmail: normalized,
@@ -56,42 +63,61 @@ final class EmailAuthCase extends UseCaseBase {
       ipHash: hashFingerprint(ipFingerprint),
     )) {
       logger.info('email auth start rate-limited');
-      return;
+      return EmailAuthStartResult(
+        correlationId: correlationId,
+        outcome: EmailAuthStartOutcome.rateLimited,
+      );
     }
     if (!env.isEmailAuthConfigured) {
       logger.warning('email auth start skipped: Resend not configured');
-      return;
+      return EmailAuthStartResult(
+        correlationId: correlationId,
+        outcome: EmailAuthStartOutcome.mailUnconfigured,
+      );
     }
 
-    // Link mode is authenticated and adds a NEW address to an existing account,
-    // so it must NOT run the invite-only unregistered-email skip (that gate is
-    // for unauthenticated signup) — otherwise linking a fresh email no-ops.
     if (!isLink &&
         (inviteCode == null || inviteCode.isEmpty) &&
         env.isNeedInvite) {
       final registered = await _credentialAuthCase.emailIsRegistered(normalized);
       if (!registered) {
         logger.info('email auth start skipped: unregistered email, invite required');
-        return;
+        return EmailAuthStartResult(
+          correlationId: correlationId,
+          outcome: EmailAuthStartOutcome.inviteRequiredSkip,
+        );
       }
     }
 
-    final token = await _transactionRepository.create(
-      normalizedEmail: normalized,
-      inviteCode: inviteCode,
-      linkAccountId: linkAccountId,
-      expiresIn: env.emailAuthTtl,
-      userAgentHash: hashFingerprint(userAgentFingerprint),
-      ipHash: hashFingerprint(ipFingerprint),
-    );
-    final verifyUrl = Uri.parse(env.publicOrigin).replace(
-      path: '/auth/email/verify',
-      queryParameters: {'t': token},
-    );
-    await _emailSender.sendMagicLink(
-      to: normalized,
-      verifyUrl: verifyUrl.toString(),
-    );
+    try {
+      final token = await _transactionRepository.create(
+        normalizedEmail: normalized,
+        inviteCode: inviteCode,
+        linkAccountId: linkAccountId,
+        expiresIn: env.emailAuthTtl,
+        userAgentHash: hashFingerprint(userAgentFingerprint),
+        ipHash: hashFingerprint(ipFingerprint),
+        transactionId: correlationId,
+      );
+      final verifyUrl = Uri.parse(env.publicOrigin).replace(
+        path: '/auth/email/verify',
+        queryParameters: {'t': token},
+      );
+      await _emailSender.sendMagicLink(
+        to: normalized,
+        verifyUrl: verifyUrl.toString(),
+      );
+      return EmailAuthStartResult(
+        correlationId: correlationId,
+        outcome: EmailAuthStartOutcome.sent,
+      );
+    } catch (e, st) {
+      logger.severe('email auth start sender failed', e, st);
+      return EmailAuthStartResult(
+        correlationId: correlationId,
+        outcome: EmailAuthStartOutcome.unexpectedError,
+      );
+    }
   }
 
   /// Read-only token status for the confirmation page (never consumes).

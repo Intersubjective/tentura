@@ -28,6 +28,7 @@ import '../../support/build_test_invitation_case.dart';
 final class _FakeEmailSender implements EmailSenderPort {
   String? lastVerifyUrl;
   String? lastTo;
+  var throwOnSend = false;
 
   @override
   Future<void> sendMagicLink({
@@ -35,6 +36,9 @@ final class _FakeEmailSender implements EmailSenderPort {
     required String verifyUrl,
     String? inviterName,
   }) async {
+    if (throwOnSend) {
+      throw Exception('simulated send failure');
+    }
     lastTo = to;
     lastVerifyUrl = verifyUrl;
   }
@@ -60,22 +64,29 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   final Map<String, EmailAuthTransactionEntity> _byToken = {};
   final Set<String> _consumed = {};
   bool resolveShouldThrow = false;
+  String? lastTransactionId;
+  int recentEmailCount = 0;
 
   @override
   Future<String> create({
     required String normalizedEmail,
-    required Duration expiresIn, required String userAgentHash, required String ipHash, String? inviteCode,
+    required Duration expiresIn,
+    required String userAgentHash,
+    required String ipHash,
+    String? inviteCode,
     String? linkAccountId,
+    String? transactionId,
   }) async {
     const token = 'opaque-token';
     _byToken[token] = EmailAuthTransactionEntity(
-      id: 'Etest',
+      id: transactionId ?? 'Etest',
       normalizedEmail: normalizedEmail,
       inviteCode: inviteCode,
       linkAccountId: linkAccountId,
       createdAt: DateTime.timestamp(),
       expiresAt: DateTime.timestamp().add(expiresIn),
     );
+    lastTransactionId = transactionId ?? 'Etest';
     return token;
   }
 
@@ -110,7 +121,7 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   Future<int> countRecentByEmail({
     required String normalizedEmail,
     required Duration window,
-  }) async => 0;
+  }) async => recentEmailCount;
 
   @override
   Future<int> countRecentByIpHash({
@@ -193,6 +204,7 @@ void main() {
     );
     txRepo = _FakeTxRepo();
     sender = _FakeEmailSender();
+    sender.throwOnSend = false;
     case_ = EmailAuthCase(
       txRepo,
       sender,
@@ -210,13 +222,29 @@ void main() {
     ).thenAnswer((_) async => 'Ccred');
   });
 
+  test('start persists attemptId as transaction id when tx is created', () async {
+    const attemptId = 'Eabc1234567890';
+    final result = await case_.start(
+      email: 'Ada@Example.COM',
+      inviteCode: 'Iabc',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+      attemptId: attemptId,
+    );
+    expect(result.correlationId, attemptId);
+    expect(result.outcome, EmailAuthStartOutcome.sent);
+    expect(txRepo.lastTransactionId, attemptId);
+    expect(sender.lastTo, 'ada@example.com');
+  });
+
   test('start sends magic link when configured', () async {
-    await case_.start(
+    final result = await case_.start(
       email: 'Ada@Example.COM',
       inviteCode: 'Iabc',
       ipFingerprint: '1.2.3.4',
       userAgentFingerprint: 'Mozilla',
     );
+    expect(result.outcome, EmailAuthStartOutcome.sent);
     expect(sender.lastTo, 'ada@example.com');
     expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
   });
@@ -235,14 +263,75 @@ void main() {
       ),
     ).thenAnswer((_) async => null);
 
-    await case_.start(
+    final result = await case_.start(
       email: 'new@example.com',
       ipFingerprint: '1.2.3.4',
       userAgentFingerprint: 'Mozilla',
     );
 
+    expect(result.outcome, EmailAuthStartOutcome.inviteRequiredSkip);
     expect(sender.lastTo, isNull);
     expect(sender.lastVerifyUrl, isNull);
+  });
+
+  test('start returns invalidFormat for bad email', () async {
+    final result = await case_.start(
+      email: 'not-an-email',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+    expect(result.outcome, EmailAuthStartOutcome.invalidFormat);
+    expect(sender.lastTo, isNull);
+  });
+
+  test('start returns rateLimited when email throttle exceeded', () async {
+    txRepo.recentEmailCount = env.emailAuthMaxPerEmail;
+    final result = await case_.start(
+      email: 'throttled@example.com',
+      inviteCode: 'Iabc',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+    expect(result.outcome, EmailAuthStartOutcome.rateLimited);
+    expect(sender.lastTo, isNull);
+  });
+
+  test('start returns mailUnconfigured when Resend is absent', () async {
+    final unconfiguredEnv = Env(
+      environment: Environment.test,
+      isNeedInvite: true,
+      resendApiKey: '',
+      resendFromEmail: '',
+      publicOrigin: 'https://dev.tentura.io',
+    );
+    final unconfiguredCase = EmailAuthCase(
+      txRepo,
+      sender,
+      credentialAuthCase,
+      userRepo,
+      _fakeSessionCase(unconfiguredEnv, userRepo),
+      env: unconfiguredEnv,
+      logger: Logger('EmailAuthCaseTest'),
+    );
+    final result = await unconfiguredCase.start(
+      email: 'a@example.com',
+      inviteCode: 'Iabc',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+    expect(result.outcome, EmailAuthStartOutcome.mailUnconfigured);
+    expect(sender.lastTo, isNull);
+  });
+
+  test('start returns unexpectedError when sender fails', () async {
+    sender.throwOnSend = true;
+    final result = await case_.start(
+      email: 'fail@example.com',
+      inviteCode: 'Iabc',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+    expect(result.outcome, EmailAuthStartOutcome.unexpectedError);
   });
 
   test('peek does not consume token', () async {
@@ -303,12 +392,13 @@ void main() {
 
   test('confirm link mode strict-links without session', () async {
     const accountId = 'Uabc123456789012345678901234567890';
-    await case_.start(
+    final startResult = await case_.start(
       email: 'link@example.com',
       linkAccountId: accountId,
       ipFingerprint: 'ip',
       userAgentFingerprint: 'ua',
     );
+    expect(startResult.outcome, EmailAuthStartOutcome.sent);
     when(
       userRepo.linkCredentialToAccountStrict(
         accountId: anyNamed('accountId'),

@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import 'package:tentura/app/sentry/auth_telemetry.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -17,11 +18,15 @@ import '../bloc/auth_cubit.dart';
 class RecoverScreen extends StatefulWidget implements AutoRouteWrapper {
   const RecoverScreen({
     @QueryParam('invite') this.invite,
+    @QueryParam('auth_attempt_id') this.authAttemptId,
     super.key,
   });
 
   /// Optional invite code from the landing page (`/recover?invite=I…`).
   final String? invite;
+
+  /// Funnel correlation id from the landing recover CTA (optional).
+  final String? authAttemptId;
 
   @override
   Widget wrappedRoute(BuildContext context) {
@@ -73,7 +78,20 @@ class _RecoverScreenState extends State<RecoverScreen> {
   Future<void> _recover(String seed) async {
     final trimmed = seed.trim();
     if (trimmed.isEmpty) return;
-    await context.read<AuthCubit>().recoverAndSignIn(trimmed);
+    final attemptId = widget.authAttemptId?.trim();
+    if (attemptId != null && attemptId.isNotEmpty) {
+      await tagClientAuthAttempt(authAttemptId: attemptId, authMethod: 'seed');
+      await emitClientAuthOutcome(
+        'seed_recovery_started',
+        authOutcome: 'started',
+        authAttemptId: attemptId,
+        authMethod: 'seed',
+      );
+    }
+    await context.read<AuthCubit>().recoverAndSignIn(
+      trimmed,
+      authAttemptId: attemptId,
+    );
   }
 
   void _handleBarcode(BarcodeCapture captured) {

@@ -184,6 +184,8 @@ jobs:
           if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
+          sed -i "s|sentryEnvironment: ''|sentryEnvironment: 'dev'|" packages/landing/config.js
+          sed -i "s|sentryRelease: ''|sentryRelease: 'landing@${{ steps.versions.outputs.server_version }}'|" packages/landing/config.js
           if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
             sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
           fi

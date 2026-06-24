@@ -35,6 +35,30 @@ class EmailAuthPeek {
   }
 }
 
+/// Outcome of `EmailAuthCase.start` (ADR 0009 `email_start_outcome` tags).
+enum EmailAuthStartOutcome {
+  invalidFormat('invalid_format'),
+  rateLimited('rate_limited'),
+  mailUnconfigured('mail_unconfigured'),
+  inviteRequiredSkip('invite_required_skip'),
+  sent('sent'),
+  unexpectedError('unexpected_error');
+
+  const EmailAuthStartOutcome(this.tag);
+  final String tag;
+}
+
+/// Result of starting email magic-link auth (domain, HTTP-free).
+final class EmailAuthStartResult {
+  const EmailAuthStartResult({
+    required this.correlationId,
+    required this.outcome,
+  });
+
+  final String correlationId;
+  final EmailAuthStartOutcome outcome;
+}
+
 /// Successful email magic-link confirmation (domain outcome, HTTP-free).
 sealed class EmailAuthConfirmOutcome {
   const EmailAuthConfirmOutcome();

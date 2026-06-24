@@ -12,6 +12,18 @@ void main() {
     codec = OAuthStateCodec(Env(environment: Environment.test));
   });
 
+  test('round-trip encodes authAttemptId', () {
+    const payload = OAuthStatePayload(
+      state: 'state123',
+      codeVerifier: 'verifier',
+      nonce: 'nonce456',
+      returnTo: 'https://app.example/',
+      authAttemptId: 'Gabc1234567890',
+    );
+    final decoded = codec.decode(codec.encode(payload));
+    expect(decoded.authAttemptId, payload.authAttemptId);
+  });
+
   test('round-trip encodes OAuth transaction payload', () {
     const payload = OAuthStatePayload(
       state: 'state123',

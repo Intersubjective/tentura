@@ -1,4 +1,4 @@
-import { initAnalytics, track } from './analytics.js';
+import { initAnalytics, initVisit, track, trackError, setAttemptId, setAccount, newAttemptId } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
 import { parseInviteCode, fetchPreview } from './preview.js';
 import { startEmailMagicLink } from './auth.js';
@@ -81,12 +81,30 @@ function openAcceptInviteUrl(code) {
 }
 
 function appRecoverUrl(inviteCode) {
+  const attemptId = newAttemptId('seed');
   const url = new URL('/recover', location.origin);
   url.hash = '/recover-seed';
+  url.searchParams.set('auth_attempt_id', attemptId);
   if (inviteCode) {
     url.searchParams.set('invite', inviteCode);
   }
-  return url.toString();
+  return { href: url.toString(), attemptId };
+}
+
+function ctaRecoverSeed(inviteCode) {
+  const { href, attemptId } = appRecoverUrl(inviteCode);
+  return el(
+    'a',
+    {
+      class: 'btn btn-secondary',
+      href,
+      onclick: () => {
+        setAttemptId(attemptId, 'seed');
+        track('seed_recovery_clicked');
+      },
+    },
+    'Recover from seed',
+  );
 }
 
 function ctaOpenApp(label = 'Open Tentura') {
@@ -160,18 +178,27 @@ function ctaGoogleSignIn(inviteCode) {
   const origin = API_BASE
     ? new URL(API_BASE, window.location.href).origin
     : window.location.origin;
+  const attemptId = newAttemptId('google');
   const url = new URL('/api/auth/google/start', origin);
+  url.searchParams.set('auth_attempt_id', attemptId);
   if (inviteCode) {
     url.searchParams.set('invite', inviteCode);
     const returnTo = googleReturnTo(inviteCode);
-    if (returnTo) url.searchParams.set('returnTo', returnTo);
+    if (returnTo) {
+      const returnUrl = new URL(returnTo);
+      returnUrl.searchParams.set('auth_attempt_id', attemptId);
+      url.searchParams.set('returnTo', returnUrl.toString());
+    }
   }
   return el(
     'a',
     {
       class: 'btn btn-secondary',
       href: url.toString(),
-      onclick: () => track('cta_google_sign_in', { hasInvite: Boolean(inviteCode) }),
+      onclick: () => {
+        setAttemptId(attemptId, 'google');
+        track('google_start_clicked', { hasInvite: Boolean(inviteCode) });
+      },
     },
     'Continue with Google',
   );
@@ -187,17 +214,7 @@ function buildSignInOptionItems(inviteCode) {
   } else {
     const google = ctaGoogleSignIn(inviteCode);
     if (google) items.push(google);
-    items.push(
-      el(
-        'a',
-        {
-          class: 'btn btn-secondary',
-          href: appRecoverUrl(inviteCode),
-          onclick: () => track('cta_recover_seed'),
-        },
-        'Recover from seed',
-      ),
-    );
+    items.push(ctaRecoverSeed(inviteCode));
   }
   return items;
 }
@@ -268,17 +285,7 @@ function renderInviteAuthOptions(inviteCode) {
   } else {
     const google = ctaGoogleSignIn(inviteCode);
     if (google) items.push(google);
-    items.push(
-      el(
-        'a',
-        {
-          class: 'btn btn-secondary',
-          href: appRecoverUrl(inviteCode),
-          onclick: () => track('cta_recover_seed'),
-        },
-        'Recover from seed',
-      ),
-    );
+    items.push(ctaRecoverSeed(inviteCode));
   }
   return items;
 }
@@ -310,18 +317,19 @@ function renderEmailMagicLinkForm() {
     const label = submit.textContent;
     submit.disabled = true;
     submit.textContent = 'Sending…';
-    track('email_link_start');
+    track('email_start_clicked');
     try {
-      await startEmailMagicLink({
+      const attemptId = await startEmailMagicLink({
         email: emailInput.value,
         code: parseInviteCode(),
       });
-      track('email_link_sent');
+      if (attemptId) setAttemptId(attemptId, 'email');
+      track('email_start_accepted');
       successEl.textContent =
         'If that address can sign in, we sent a link. Open it in your browser (not this in-app viewer).';
       submit.textContent = 'Link sent';
     } catch (err) {
-      track('email_link_error', { message: String(err) });
+      trackError('email_start_error', err);
       errorEl.textContent = err.message || 'Could not send link. Try again.';
       submit.disabled = false;
       submit.textContent = label;
@@ -581,49 +589,62 @@ function renderNoInvite() {
   card.replaceChildren(el('div', { class: 'content' }, ...children));
 }
 
-async function main() {
-  startAppPreload({ env, track });
-  initAnalytics();
-  const code = parseInviteCode();
-  // Funnel event fires BEFORE any WASM — the Phase 0 analytics deliverable.
-  track('landing_view', { tier: env.tier, hasCode: Boolean(code) });
+function applyGoogleReturnAttemptId() {
+  const id = new URLSearchParams(location.search).get('auth_attempt_id');
+  if (id) setAttemptId(id, 'google');
+}
 
-  // Fresh signup return (`signed_in=1&new=1`): name step + onboarding pager,
-  // regardless of preview state (the invite is already consumed). A replayed
-  // or shared `new=1` URL has no session cookie → profile fetch fails → fall
-  // through to the normal render below.
-  if (isNewSignupReturn(location.search) && !isOnboardingDone(sessionStorage)) {
-    const profile = await fetchMyProfile();
-    if (profile) {
-      track('post_signup_view', { hasCode: Boolean(code) });
-      renderPostSignup({
-        card,
-        profile,
-        setState,
-        setPageTitle,
-        track,
-        openProductUrl,
-        storage: sessionStorage,
-      });
+async function main() {
+  try {
+    initAnalytics();
+    const code = parseInviteCode();
+    initVisit({ env, hasCode: Boolean(code) });
+    startAppPreload({ env, track });
+    track('landing_view', { tier: env.tier, hasCode: Boolean(code) });
+
+    if (isSignedInReturn()) {
+      applyGoogleReturnAttemptId();
+    }
+
+    if (isNewSignupReturn(location.search) && !isOnboardingDone(sessionStorage)) {
+      const profile = await fetchMyProfile();
+      if (profile) {
+        setAccount(profile.id);
+        track('post_signup_view', { hasCode: Boolean(code) });
+        renderPostSignup({
+          card,
+          profile,
+          setState,
+          setPageTitle,
+          track,
+          openProductUrl,
+          storage: sessionStorage,
+        });
+        return;
+      }
+      track('post_signup_fallback');
+    }
+
+    if (!code) {
+      renderNoInvite();
       return;
     }
-    track('post_signup_fallback');
-  }
-
-  if (!code) {
-    renderNoInvite();
-    return;
-  }
-  try {
-    const preview = await fetchPreview(code);
-    track('preview_loaded', {
-      codeStatus: preview.codeStatus,
-      callerStatus: preview.callerStatus,
-      hasBeacon: Boolean(preview.beacon),
-    });
-    render(preview);
+    try {
+      const preview = await fetchPreview(code);
+      track('preview_loaded', {
+        codeStatus: preview.codeStatus,
+        callerStatus: preview.callerStatus,
+        hasBeacon: Boolean(preview.beacon),
+      });
+      render(preview);
+    } catch (e) {
+      trackError('preview_error', e);
+      renderError();
+    }
   } catch (e) {
-    track('preview_error', { message: String(e) });
+    const Sentry = window.Sentry;
+    if (Sentry) Sentry.captureException(e);
+    trackError('landing_boot_error', e);
     renderError();
   }
 }

@@ -39,12 +39,16 @@ class EmailAuthTransactionRepository
     required String ipHash,
     String? inviteCode,
     String? linkAccountId,
+    String? transactionId,
   }) async {
     final token = generateToken();
     final tokenHash = hashToken(token);
     final expiresAt = DateTime.timestamp().add(expiresIn);
     await _database.into(_database.emailAuthTransactions).insert(
       EmailAuthTransactionsCompanion.insert(
+        id: transactionId != null && transactionId.isNotEmpty
+            ? Value(transactionId)
+            : const Value.absent(),
         tokenHash: tokenHash,
         normalizedEmail: normalizedEmail,
         inviteCode: inviteCode == null || inviteCode.isEmpty

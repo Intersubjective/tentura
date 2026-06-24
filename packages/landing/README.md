@@ -19,7 +19,7 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | File                 | Role                                                        |
 |----------------------|-------------------------------------------------------------|
 | `index.html`         | markup; loads Sentry CDN, `config.js`, optional `config.local.js`, `main.js` |
-| `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`) |
+| `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`, `sentryEnvironment`, `sentryRelease`) |
 | `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
 | `main.js`            | entry ES module; renders invite states + signed-out `/` + post-signup dispatch |
 | `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`) |
@@ -37,14 +37,22 @@ etc.) natively — nothing is bundled.
 ## Runtime config (`config.js` + optional `config.local.js`, no build step)
 
 ```js
-window.TENTURA = { sentryDsn: '', apiBase: '', googleEnabled: false };
+window.TENTURA = {
+  sentryDsn: '',
+  sentryEnvironment: '',
+  sentryRelease: '',
+  apiBase: '',
+  googleEnabled: false,
+};
 ```
 
-| Key              | Meaning                                          | Default  |
-|------------------|--------------------------------------------------|----------|
-| `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
-| `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
-| `googleEnabled`  | Show Google OAuth when not in-app (needs server `GOOGLE_*`)  | `false`  |
+| Key                  | Meaning                                          | Default  |
+|----------------------|--------------------------------------------------|----------|
+| `sentryDsn`          | Sentry DSN; empty = analytics no-op              | `''`     |
+| `sentryEnvironment`  | Sentry environment tag (CI injects deploy target)  | `''`     |
+| `sentryRelease`      | Sentry release (CI injects `landing@<semver>`)   | `''`     |
+| `apiBase`            | Origin for the preview API; empty = same origin  | `''`     |
+| `googleEnabled`      | Show Google OAuth when not in-app (needs server `GOOGLE_*`)  | `false`  |
 
 **CI/deploy:** set GitHub Environment variable `LANDING_GOOGLE_ENABLED=true` when
 server Google OAuth is configured; the pipeline injects it into `config.js`.
@@ -92,7 +100,18 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
   `sessionStorage` guard; without a session cookie the flow falls back to the
   normal render. WASM keeps warming in the background the whole time.
 - Funnel events fire via Sentry **before** any WASM boot; app asset warmup starts
-  immediately in the background (see `app_preload.js`).
+  immediately in the background (see `app_preload.js`). Tracing + fully masked
+  Session Replay are enabled when `sentryDsn` is set; see ADR 0009.
+
+## Analytics / funnel identity
+
+`analytics.js` initializes Sentry (tracing + replay), assigns an ephemeral
+`visit_id` in `sessionStorage`, and emits funnel `captureMessage` events. When the
+user chooses an auth method, `auth_attempt_id` is set on the Sentry scope and
+carried through email (server-returned), Google OAuth (signed state + return URL),
+or seed recovery (`/recover?auth_attempt_id=…`). After signup, `setUser` uses
+the account id and clears `visit_id`. Server and client projects join on
+`auth_attempt_id` (ADR 0009).
 
 ## WASM background warmup
 

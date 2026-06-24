@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/email_auth_failure_page.dart';
+import 'package:tentura_server/app/sentry/auth_telemetry.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -39,14 +40,13 @@ final class AuthEmailController extends BaseController {
     }
     final email = body['email'] as String? ?? '';
     final inviteCode = body['inviteCode'] as String?;
-    await _emailAuthCase.start(
+    final result = await _runEmailStart(
+      request,
       email: email,
       inviteCode: inviteCode,
-      ipFingerprint: _clientIp(request),
-      userAgentFingerprint: request.headers['user-agent'] ?? '',
     );
     return Response.ok(
-      jsonEncode({'ok': true}),
+      jsonEncode({'ok': true, 'attemptId': result.correlationId}),
       headers: {
         kHeaderContentType: kContentApplicationJson,
         kHeaderCacheControl: kCacheControlNoStore,
@@ -69,11 +69,10 @@ final class AuthEmailController extends BaseController {
       return Response.badRequest(body: 'invalid JSON body');
     }
     final email = body['email'] as String? ?? '';
-    await _emailAuthCase.start(
+    await _runEmailStart(
+      request,
       email: email,
       linkAccountId: jwt.sub,
-      ipFingerprint: _clientIp(request),
-      userAgentFingerprint: request.headers['user-agent'] ?? '',
     );
     return Response.ok(
       jsonEncode({'ok': true}),
@@ -326,6 +325,29 @@ final class AuthEmailController extends BaseController {
         ? env.publicOrigin
         : '${env.publicOrigin}/';
     return origin;
+  }
+
+  Future<EmailAuthStartResult> _runEmailStart(
+    Request request, {
+    required String email,
+    String? inviteCode,
+    String? linkAccountId,
+    String? attemptId,
+  }) async {
+    final result = await _emailAuthCase.start(
+      email: email,
+      inviteCode: inviteCode,
+      linkAccountId: linkAccountId,
+      ipFingerprint: _clientIp(request),
+      userAgentFingerprint: request.headers['user-agent'] ?? '',
+      attemptId: attemptId,
+    );
+    await emitEmailStartOutcome(
+      request: request,
+      authOutcome: result.outcome.tag,
+      correlationId: result.correlationId,
+    );
+    return result;
   }
 
   // Used only as a rate-limit fingerprint for email-OTP start.

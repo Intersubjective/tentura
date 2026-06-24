@@ -11,8 +11,10 @@ import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/oauth_return_uri.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/api/http/oauth_warmup_interstitial_page.dart';
+import 'package:tentura_server/app/sentry/auth_telemetry.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/entity/oidc_identity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/use_case/oidc_case.dart';
@@ -37,9 +39,26 @@ final class AuthGoogleController extends BaseController {
   final SessionCase _sessionCase;
   final OAuthStateCodec _oauthStateCodec;
 
-  /// `GET /api/auth/google/start?invite=…&returnTo=…`
+  /// `GET /api/auth/google/start?invite=…&returnTo=…&auth_attempt_id=…`
   Future<Response> start(Request request) async {
+    final queryAttemptId = sanitizeAuthAttemptIdQuery(
+      request.url.queryParameters['auth_attempt_id'],
+    );
+    if (queryAttemptId != null) {
+      await tagAuthAttempt(
+        request: request,
+        authAttemptId: queryAttemptId,
+        authMethod: 'google',
+      );
+    }
     if (!_oidcProvider.isConfigured) {
+      await emitAuthOutcome(
+        'google_start_outcome',
+        authOutcome: 'misconfigured',
+        authAttemptId: queryAttemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return Response(503, body: 'Google OAuth is not configured');
     }
     final inviteId = request.url.queryParameters['invite'];
@@ -47,7 +66,12 @@ final class AuthGoogleController extends BaseController {
       raw: request.url.queryParameters['returnTo'],
       publicOrigin: env.publicOrigin,
     );
-    return _beginAuthorize(inviteId: inviteId, returnTo: returnTo);
+    return _beginAuthorize(
+      request: request,
+      inviteId: inviteId,
+      returnTo: returnTo,
+      authAttemptId: queryAttemptId,
+    );
   }
 
   /// `POST /api/auth/google/link/intent` (Bearer) — mint a short-lived,
@@ -97,13 +121,19 @@ final class AuthGoogleController extends BaseController {
     if (sessionAccount == null || sessionAccount != linkAccountId) {
       return Response.found(_linkReturn('error'));
     }
-    return _beginAuthorize(returnTo: _linkReturn('google'), linkAccountId: linkAccountId);
+    return _beginAuthorize(
+      request: request,
+      returnTo: _linkReturn('google'),
+      linkAccountId: linkAccountId,
+    );
   }
 
   Future<Response> _beginAuthorize({
+    required Request request,
     required String returnTo,
     String? inviteId,
     String? linkAccountId,
+    String? authAttemptId,
   }) async {
     final state = _randomUrlSafe(16);
     final codeVerifier = _randomUrlSafe(32);
@@ -115,14 +145,25 @@ final class AuthGoogleController extends BaseController {
       nonce: nonce,
       inviteId: inviteId,
       linkAccountId: linkAccountId,
+      authAttemptId: authAttemptId,
       returnTo: returnTo,
     );
     final signed = _oauthStateCodec.encode(payload);
+    final oauthStateParam = authAttemptId != null && authAttemptId.isNotEmpty
+        ? '$state.$authAttemptId'
+        : state;
     final authorizeUri = _oidcProvider.buildGoogleAuthorizeUri(
       redirectUri: redirectUri,
-      state: state,
+      state: oauthStateParam,
       codeChallenge: _codeChallenge(codeVerifier),
       nonce: nonce,
+    );
+    await emitAuthOutcome(
+      'google_start_outcome',
+      authOutcome: 'redirected',
+      authAttemptId: authAttemptId,
+      authMethod: 'google',
+      request: request,
     );
     final oauthCookie = buildSetCookie(
       name: kCookieOAuthStateName,
@@ -156,27 +197,76 @@ final class AuthGoogleController extends BaseController {
       return Response(503, body: 'Google OAuth is not configured');
     }
     final code = request.url.queryParameters['code'] ?? '';
-    final state = request.url.queryParameters['state'] ?? '';
-    if (code.isEmpty || state.isEmpty) {
+    final rawState = request.url.queryParameters['state'] ?? '';
+    final (csrfState, queryAttemptId) = parseOAuthStateQuery(rawState);
+    if (queryAttemptId != null) {
+      await tagAuthAttempt(
+        request: request,
+        authAttemptId: queryAttemptId,
+        authMethod: 'google',
+      );
+    }
+    if (code.isEmpty || rawState.isEmpty) {
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'missing_code_or_state',
+        authAttemptId: queryAttemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return Response.badRequest(body: 'missing code or state');
     }
     final oauthCookie = readCookie(request, kCookieOAuthStateName);
     if (oauthCookie == null || oauthCookie.isEmpty) {
-      // Missing/expired state cookie (e.g. a stale tab) — fail closed but land
-      // the user on a friendly page rather than surfacing a raw 500.
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'missing_state_cookie',
+        authAttemptId: queryAttemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return _oauthStateError();
     }
     final payload = _oauthStateCodec.decode(oauthCookie);
-    if (payload.state != state) {
+    final signedAttemptId = sanitizeAuthAttemptIdQuery(payload.authAttemptId);
+    final attemptId = signedAttemptId ?? queryAttemptId;
+    if (attemptId != null) {
+      await tagAuthAttempt(
+        request: request,
+        authAttemptId: attemptId,
+        authMethod: 'google',
+      );
+    }
+    if (payload.state != csrfState) {
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'state_mismatch',
+        authAttemptId: attemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return _oauthStateError();
     }
     final redirectUri = _callbackUri().toString();
-    final identity = await _oidcProvider.exchangeGoogleCode(
-      code: code,
-      redirectUri: redirectUri,
-      codeVerifier: payload.codeVerifier,
-      expectedNonce: payload.nonce,
-    );
+    OidcIdentity identity;
+    try {
+      identity = await _oidcProvider.exchangeGoogleCode(
+        code: code,
+        redirectUri: redirectUri,
+        codeVerifier: payload.codeVerifier,
+        expectedNonce: payload.nonce,
+      );
+    } catch (e, st) {
+      _log.severe('Google OAuth token exchange failed', e, st);
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'token_exchange_failed',
+        authAttemptId: attemptId,
+        authMethod: 'google',
+        request: request,
+      );
+      return _oauthStateError();
+    }
 
     // Settings link mode: strict-link to the existing account; NEVER call
     // completeGoogle/createSession (that would switch/mint a session).
@@ -192,8 +282,22 @@ final class AuthGoogleController extends BaseController {
           identity: identity,
         );
       } on CredentialConflictException {
+        await emitAuthOutcome(
+          'google_callback_outcome',
+          authOutcome: 'credential_conflict',
+          authAttemptId: attemptId,
+          authMethod: 'google',
+          request: request,
+        );
         return Response.found(_linkReturn('conflict'), headers: clearOauth);
       } on ContactConflictException {
+        await emitAuthOutcome(
+          'google_callback_outcome',
+          authOutcome: 'credential_conflict',
+          authAttemptId: attemptId,
+          authMethod: 'google',
+          request: request,
+        );
         return Response.found(_linkReturn('conflict'), headers: clearOauth);
       }
       return Response.found(_linkReturn('google'), headers: clearOauth);
@@ -212,6 +316,13 @@ final class AuthGoogleController extends BaseController {
         returnTo: payload.returnTo,
         publicOrigin: env.publicOrigin,
         isNewAccount: resolved.isNewAccount,
+      );
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: resolved.isNewAccount ? 'success_new' : 'success_existing',
+        authAttemptId: attemptId,
+        authMethod: 'google',
+        request: request,
       );
       final headers = withSetCookie(
         withSetCookie(
@@ -235,12 +346,26 @@ final class AuthGoogleController extends BaseController {
       }
       return Response.found(destination, headers: headers);
     } on OidcInviteRequiredException {
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'invite_required',
+        authAttemptId: attemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return _inviteRequiredPage(
         returnTo: payload.returnTo,
         clearOauthCookie: true,
       );
     } catch (e, st) {
       _log.severe('Google OAuth login callback failed', e, st);
+      await emitAuthOutcome(
+        'google_callback_outcome',
+        authOutcome: 'unexpected_error',
+        authAttemptId: attemptId,
+        authMethod: 'google',
+        request: request,
+      );
       return Response.found(
         publicLandingUrl(env.publicOrigin),
         headers: withSetCookie(

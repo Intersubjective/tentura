@@ -3,10 +3,13 @@
 //   apiBase  '' = same origin (landing host proxies /api to Tentura)
 //   googleEnabled  show Google OAuth CTA when true (requires server GOOGLE_CLIENT_ID)
 //   sentryDsn '' = analytics disabled (no-op)
+//   sentryEnvironment / sentryRelease — Sentry env + release (CI sed at deploy)
 //
 // Local OAuth dev: match repo-root .env SERVER_NAME (lvh.me :9443).
 window.TENTURA = {
   sentryDsn: '',
+  sentryEnvironment: '',
+  sentryRelease: '',
   apiBase: '',
   googleEnabled: false,
 };

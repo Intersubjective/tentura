@@ -26,7 +26,7 @@ The main entry URL on the public host. Shows the full product when a valid **bro
 Server-owned sign-in state carried by an HttpOnly cookie on the public host. Not the same as a device seed or a short-lived API bearer token.
 
 **Landing surface**:
-Lightweight static HTML/JS for invite preview and sign-in entry (`/invite/…`, and `/` when signed out).
+Lightweight static HTML/JS for invite preview and sign-in entry (`/invite/…`, and `/` when signed out). Funnel observability uses an ephemeral `visit_id` until the user picks an auth method, then an `auth_attempt_id` per path (email / Google / seed), joined across landing, client, and server Sentry projects — see ADR 0009.
 
 **WASM surface**:
 The Flutter web application (`/` when a session cookie is present; deep app routes always).

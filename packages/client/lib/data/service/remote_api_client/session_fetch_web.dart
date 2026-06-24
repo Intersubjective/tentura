@@ -14,12 +14,16 @@ Future<http.Response> postSessionRequest({
   required String userAgent,
   required Duration timeout,
   String? bearerToken,
+  String? authAttemptId,
 }) async {
   final headers = web.Headers();
   headers.set(kHeaderUserAgent, userAgent);
   headers.set(kHeaderAccept, 'application/json');
   if (bearerToken != null) {
     headers.set('Authorization', 'Bearer $bearerToken');
+  }
+  if (authAttemptId != null && authAttemptId.isNotEmpty) {
+    headers.set(kHeaderAuthAttemptId, authAttemptId);
   }
   final init = web.RequestInit(
     method: 'POST',

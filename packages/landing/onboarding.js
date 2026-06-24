@@ -7,6 +7,8 @@
 // (`/api/v2/accounts/me/profile`, `credentials: 'include'`); landing JS never
 // handles JWTs.
 
+import { trackError } from './analytics.js';
+
 // '' = same origin; window guard keeps the module importable under node:test.
 const API_BASE =
   (typeof window !== 'undefined' && (window.TENTURA || {}).apiBase) || '';
@@ -195,7 +197,7 @@ function renderNameStep({ prefill, track, onDone }) {
       track('signup_name_saved');
       onDone();
     } catch (err) {
-      track('signup_name_error', { message: String(err) });
+      trackError('signup_name_error', err);
       errorEl.textContent = err.message;
       submit.disabled = false;
       submit.textContent = 'Save & continue';

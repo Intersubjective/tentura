@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura/data/repository/remote_repository.dart';
 import 'package:tentura/data/service/remote_api_client/credentials.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/app/sentry/auth_telemetry.dart';
 import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
 import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
@@ -60,14 +61,27 @@ class AuthRemoteRepository extends RemoteRepository
   /// Returns userId
   ///
   @override
-  Future<String> signIn(String seed) async {
+  Future<String> signIn(String seed, {String? authAttemptId}) async {
     await remoteApiService.dropAuth();
     await remoteApiService.setAuth(
       seed: seed,
       authTokenFetcher: authTokenFetcher,
     );
     final authToken = await remoteApiService.getAuthToken();
-    await remoteApiService.establishSessionFromBearer();
+    try {
+      await remoteApiService.establishSessionFromBearer(
+        authAttemptId: authAttemptId,
+      );
+    } on SessionHttpException catch (e) {
+      if (isValidClientAuthAttemptId(authAttemptId)) {
+        await captureSeedRecoveryFailed(
+          authOutcome: 'session_cookie_failed',
+          authAttemptId: authAttemptId,
+          error: e,
+        );
+      }
+      rethrow;
+    }
     return authToken.userId;
   }
 
@@ -87,8 +101,8 @@ class AuthRemoteRepository extends RemoteRepository
   }
 
   @override
-  Future<void> establishSessionFromBearer() =>
-      remoteApiService.establishSessionFromBearer();
+  Future<void> establishSessionFromBearer({String? authAttemptId}) =>
+      remoteApiService.establishSessionFromBearer(authAttemptId: authAttemptId);
 
   @override
   Future<void> sessionLogout() => remoteApiService.sessionLogout();

@@ -17,6 +17,7 @@ abstract class EmailAuthTransactionRepositoryPort {
     required String ipHash,
     String? inviteCode,
     String? linkAccountId,
+    String? transactionId,
   });
 
   /// Read-only token lookup; never mutates the row.
