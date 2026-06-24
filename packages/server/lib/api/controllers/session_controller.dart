@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/app/sentry/auth_telemetry.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
@@ -58,11 +59,30 @@ final class SessionController extends BaseController {
     if (jwt == null || jwt.sub.isEmpty) {
       return Response.unauthorized(null);
     }
+    final attemptId = sanitizeAuthAttemptIdQuery(
+      request.headers[kHeaderAuthAttemptId],
+    );
+    if (attemptId != null) {
+      await tagAuthAttempt(
+        request: request,
+        authAttemptId: attemptId,
+        authMethod: 'seed',
+      );
+    }
     final sessionToken = await _sessionCase.createSession(
       accountId: jwt.sub,
       credentialId: jwt.credentialId.isEmpty ? null : jwt.credentialId,
     );
     final maxAge = _sessionCase.sessionCookieMaxAge().inSeconds;
+    if (attemptId != null) {
+      await emitAuthOutcome(
+        'seed_recovery_cookie_established',
+        authOutcome: 'success',
+        authAttemptId: attemptId,
+        authMethod: 'seed',
+        request: request,
+      );
+    }
     return Response.ok(
       jsonEncode({'ok': true}),
       headers: withSetCookie(

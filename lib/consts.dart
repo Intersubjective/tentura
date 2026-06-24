@@ -90,6 +90,7 @@ const kHeaderAccept = 'Accept';
 const kHeaderUserAgent = 'User-Agent';
 const kHeaderContentType = 'Content-Type';
 const kHeaderAuthorization = 'Authorization';
+const kHeaderAuthAttemptId = 'X-Tentura-Auth-Attempt-Id';
 const kHeaderQueryContext = 'X-Hasura-Query-Context';
 
 const kImageExt = 'jpg';

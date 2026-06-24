@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/app/sentry/auth_telemetry.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -146,19 +148,68 @@ final class AccountCase extends UseCaseBase {
   /// Validates [seed], signs in remotely (sets session cookie on web),
   /// upserts local seed-backed account, and makes it current.
   ///
-  Future<AccountEntity> recoverFromSeedAndSignIn(String seed) async {
-    final seedNormalized = normalizeSeed(seed);
-    final userId = await _authRemoteRepository.signIn(seedNormalized);
-    final profile = await _profileRemoteRepository.fetchById(userId);
-    final account = fromProfile(profile);
-    await _authLocalRepository.upsertAccountWithSeed(
-      userId,
-      seedNormalized,
-      profile.displayName,
-    );
-    await _authLocalRepository.updateAccount(account);
-    await _authLocalRepository.setCurrentAccountId(userId);
-    return account;
+  Future<AccountEntity> recoverFromSeedAndSignIn(
+    String seed, {
+    String? authAttemptId,
+  }) async {
+    String seedNormalized;
+    try {
+      seedNormalized = normalizeSeed(seed);
+    } on AuthSeedIsWrongException catch (e) {
+      await captureSeedRecoveryFailed(
+        authOutcome: 'invalid_seed',
+        authAttemptId: authAttemptId,
+        error: e,
+      );
+      rethrow;
+    }
+    try {
+      final userId = await _authRemoteRepository.signIn(
+        seedNormalized,
+        authAttemptId: authAttemptId,
+      );
+      Profile profile;
+      try {
+        profile = await _profileRemoteRepository.fetchById(userId);
+      } catch (e, st) {
+        await captureSeedRecoveryFailed(
+          authOutcome: 'profile_fetch_failed',
+          authAttemptId: authAttemptId,
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+      final account = fromProfile(profile);
+      try {
+        await _authLocalRepository.upsertAccountWithSeed(
+          userId,
+          seedNormalized,
+          profile.displayName,
+        );
+        await _authLocalRepository.updateAccount(account);
+        await _authLocalRepository.setCurrentAccountId(userId);
+      } catch (e, st) {
+        await captureSeedRecoveryFailed(
+          authOutcome: 'local_store_failed',
+          authAttemptId: authAttemptId,
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+      return account;
+    } on SessionHttpException {
+      rethrow;
+    } catch (e, st) {
+      await captureSeedRecoveryFailed(
+        authOutcome: 'remote_sign_in_failed',
+        authAttemptId: authAttemptId,
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    }
   }
 
   ///

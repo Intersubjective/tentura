@@ -352,13 +352,16 @@ class AuthCubit extends Cubit<AuthState> {
   ///
   /// Web recovery: validate seed, sign in, upsert local account, stay current.
   ///
-  Future<void> recoverAndSignIn(String seed) async {
+  Future<void> recoverAndSignIn(String seed, {String? authAttemptId}) async {
     if (seed.trim().isEmpty) {
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _accountCase.recoverFromSeedAndSignIn(seed);
+      await _accountCase.recoverFromSeedAndSignIn(
+        seed,
+        authAttemptId: authAttemptId,
+      );
       final accounts = await _accountCase.getAccountsAll()
         ..sort(_compareAccounts);
       final currentAccountId = await _accountCase.getCurrentAccountId();

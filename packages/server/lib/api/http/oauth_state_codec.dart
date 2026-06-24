@@ -13,6 +13,7 @@ class OAuthStatePayload {
     required this.returnTo,
     this.inviteId,
     this.linkAccountId,
+    this.authAttemptId,
   });
 
   final String state;
@@ -25,6 +26,9 @@ class OAuthStatePayload {
   /// must strict-link to. When set, the callback links instead of logging in
   /// and mints NO session.
   final String? linkAccountId;
+
+  /// Non-secret funnel correlation id from the landing (optional).
+  final String? authAttemptId;
 }
 
 @Injectable(order: 3)
@@ -41,6 +45,8 @@ class OAuthStateCodec {
       'invite': payload.inviteId,
     if (payload.linkAccountId != null && payload.linkAccountId!.isNotEmpty)
       'lacc': payload.linkAccountId,
+    if (payload.authAttemptId != null && payload.authAttemptId!.isNotEmpty)
+      'aaid': payload.authAttemptId,
     'returnTo': payload.returnTo,
   }).sign(
     _env.privateKey,
@@ -65,6 +71,7 @@ class OAuthStateCodec {
         nonce: nonce,
         inviteId: map['invite'] as String?,
         linkAccountId: map['lacc'] as String?,
+        authAttemptId: map['aaid'] as String?,
         returnTo: returnTo,
       );
     } catch (e) {

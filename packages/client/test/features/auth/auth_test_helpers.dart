@@ -212,7 +212,7 @@ class EmptyAuthRemote implements AuthRemoteRepositoryPort {
   Future<void> signOut() async {}
 
   @override
-  Future<String> signIn(String seed) async => '';
+  Future<String> signIn(String seed, {String? authAttemptId}) async => '';
 
   @override
   Future<String> signInWithSession() async {
@@ -223,7 +223,7 @@ class EmptyAuthRemote implements AuthRemoteRepositoryPort {
   }
 
   @override
-  Future<void> establishSessionFromBearer() async {}
+  Future<void> establishSessionFromBearer({String? authAttemptId}) async {}
 
   @override
   Future<void> sessionLogout() async {}

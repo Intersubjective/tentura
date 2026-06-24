@@ -195,7 +195,7 @@ class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {
   int signInCalls = 0;
 
   @override
-  Future<String> signIn(String seed) async {
+  Future<String> signIn(String seed, {String? authAttemptId}) async {
     signInCalls++;
     return userId;
   }
@@ -205,7 +205,7 @@ class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {
   @override
   Future<String> signInWithSession() async => userId;
   @override
-  Future<void> establishSessionFromBearer() async {}
+  Future<void> establishSessionFromBearer({String? authAttemptId}) async {}
   @override
   Future<void> sessionLogout() async {}
   @override

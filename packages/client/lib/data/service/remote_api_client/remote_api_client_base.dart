@@ -109,7 +109,7 @@ abstract base class RemoteApiClientBase {
   }
 
   /// After seed Bearer sign-in, converge to HttpOnly session cookie (web preview).
-  Future<void> establishSessionFromBearer() async {
+  Future<void> establishSessionFromBearer({String? authAttemptId}) async {
     if (_sessionAuth) return;
     if (_authBox == null) {
       throw const AuthenticationNoKeyException();
@@ -120,6 +120,7 @@ abstract base class RemoteApiClientBase {
       userAgent: userAgent,
       timeout: requestTimeout,
       bearerToken: bearer,
+      authAttemptId: authAttemptId,
     );
   }
 

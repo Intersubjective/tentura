@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shelf_plus/shelf_plus.dart';
@@ -35,8 +37,12 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   @override
   Future<String> create({
     required String normalizedEmail,
-    required Duration expiresIn, required String userAgentHash, required String ipHash, String? inviteCode,
+    required Duration expiresIn,
+    required String userAgentHash,
+    required String ipHash,
+    String? inviteCode,
     String? linkAccountId,
+    String? transactionId,
   }) async {
     _tx = EmailAuthTransactionEntity(
       id: 'Etest',
@@ -300,5 +306,20 @@ void main() {
     expect(res.headers['location'], contains('signed_in=1'));
     expect(res.headers['location'], contains('new=1'));
     expect(res.headers['set-cookie'], contains(kCookieSessionName));
+  });
+
+  test('POST start returns attemptId for valid JSON', () async {
+    final res = await controller.start(
+      Request(
+        'POST',
+        Uri.parse('https://dev.tentura.io/api/v2/auth/email/start'),
+        body: '{"email":"a@example.com"}',
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    expect(res.statusCode, 200);
+    final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+    expect(body['ok'], true);
+    expect(body['attemptId'], startsWith('E'));
   });
 }

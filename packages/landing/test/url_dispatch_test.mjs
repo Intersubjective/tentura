@@ -38,8 +38,9 @@ test('Google CTA uses full same-origin returnTo for invite', () => {
   assert.match(mainJs, /function googleReturnTo\(inviteCode\)/);
   assert.match(
     mainJs,
-    /url\.searchParams\.set\('returnTo', returnTo\)/,
+    /url\.searchParams\.set\('returnTo', returnUrl\.toString\(\)\)/,
   );
+  assert.match(mainJs, /returnUrl\.searchParams\.set\('auth_attempt_id', attemptId\)/);
 });
 
 test('renderNoInvite hides auth behind createSignInReveal', () => {
@@ -63,8 +64,7 @@ test('createSignInReveal uses buildSignInOptionItems with Sign in label', () => 
   );
   assert.match(block, /'Sign in'/);
   assert.match(block, /renderEmailMagicLinkForm/);
-  assert.match(block, /Recover from seed/);
-  assert.match(block, /appRecoverUrl\(inviteCode\)/);
+  assert.match(block, /ctaRecoverSeed\(inviteCode\)/);
 });
 
 test('createSignInReveal offers invite-mode undo', () => {
@@ -95,15 +95,14 @@ test('invite auth options include email, Google, and recover-from-seed', () => {
   assert.match(block, /if \(env\.inApp\)/);
   assert.match(block, /ctaOpenInBrowser/);
   assert.match(block, /ctaGoogleSignIn\(inviteCode\)/);
-  assert.match(block, /Recover from seed/);
-  assert.match(block, /cta_recover_seed/);
-  assert.match(block, /appRecoverUrl\(inviteCode\)/);
+  assert.match(block, /ctaRecoverSeed\(inviteCode\)/);
 });
 
 test('appRecoverUrl carries invite query and recover-seed hash route', () => {
   assert.match(mainJs, /function appRecoverUrl\(inviteCode\)/);
   assert.match(mainJs, /new URL\('\/recover', location\.origin\)/);
   assert.match(mainJs, /url\.hash = '\/recover-seed'/);
+  assert.match(mainJs, /url\.searchParams\.set\('auth_attempt_id', attemptId\)/);
   assert.match(mainJs, /url\.searchParams\.set\('invite', inviteCode\)/);
 });
 
@@ -118,7 +117,7 @@ test('email sign-in field avoids login/password autofill heuristics', () => {
 });
 
 test('email magic link sends inviteCode when present', () => {
-  assert.match(authJs, /if \(code\) body\.inviteCode = code/);
+  assert.match(authJs, /if \(code\) payload\.inviteCode = code/);
   assert.doesNotMatch(authJs, /signUpWithSeed/);
 });
 
