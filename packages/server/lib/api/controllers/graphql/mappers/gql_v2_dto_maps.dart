@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
-import 'package:tentura_server/domain/entity/gql_public/coordination_status_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
@@ -11,17 +11,16 @@ Map<String, dynamic> beaconCloseReviewResultToGqlMap(
   BeaconCloseReviewResult dto,
 ) => {
   'id': dto.id,
-  'state': dto.state,
+  'status': dto.status,
   'closesAt': dto.closesAt?.toUtc().toIso8601String(),
 };
 
-Map<String, dynamic> coordinationStatusResultToGqlMap(
-  CoordinationStatusResult dto,
+Map<String, dynamic> beaconStatusResultToGqlMap(
+  BeaconStatusResult dto,
 ) => {
   'beaconId': dto.beaconId,
-  'coordinationStatus': dto.coordinationStatus,
-  'coordinationStatusUpdatedAt':
-      dto.coordinationStatusUpdatedAt?.toUtc().toIso8601String(),
+  'status': dto.status,
+  'statusChangedAt': dto.statusChangedAt?.toUtc().toIso8601String(),
 };
 
 Map<String, dynamic> forwardGraphEdgeToGqlMap(ForwardGraphEdgeResult dto) => {

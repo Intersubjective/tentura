@@ -14,9 +14,8 @@ fragment BeaconModel on beacon {
   updated_at
   is_pinned
   context
-  state
-  coordination_status
-  coordination_status_updated_at
+  status
+  status_changed_at
   my_vote
   start_at
   end_at

@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -7,7 +9,6 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -153,7 +154,7 @@ class TimelineBeaconCoordinationStatusChanged extends TimelineEntry {
   });
 
   final Profile author;
-  final BeaconCoordinationStatus status;
+  final BeaconStatus status;
   final DateTime at;
 
   @override
@@ -280,7 +281,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// May create/edit coordination items and the room current line (author,
   /// steward, or admitted room member; mirrors server coordination access).
   bool get canCoordinateInBeaconRoom {
-    if (!beacon.lifecycle.allowsCoordination) return false;
+    if (!beacon.status.allowsCoordination) return false;
     if (isAuthorOrSteward) return true;
     if (isHelpOffered && hasRoomAdmission) return true;
     return roomParticipants.any(

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -15,17 +15,17 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
   final beacon = state.beacon;
   final cue = state.beaconRoomCue;
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return l10n.beaconHudBeaconUnavailable;
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.cancelled) {
+  if (beacon.status == BeaconStatus.closed ||
+      beacon.status == BeaconStatus.cancelled) {
     return l10n.beaconHudClosedSummary;
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
-    return coordinationStatusLabel(l10n, beacon.coordinationStatus);
+  if (beacon.status == BeaconStatus.reviewOpen) {
+    return coordinationStatusLabel(l10n, beacon.status);
   }
 
   final blockerTitle = cue?.openBlockerTitle?.trim();
@@ -43,7 +43,7 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
     return roomCue;
   }
 
-  final coordShort = coordinationStatusLabel(l10n, beacon.coordinationStatus);
+  final coordShort = coordinationStatusLabel(l10n, beacon.status);
   if (coordShort.isNotEmpty) {
     return coordShort;
   }
@@ -75,18 +75,18 @@ BeaconHudNowDisplay beaconHudNowDisplay(L10n l10n, BeaconViewState state) {
   final beacon = state.beacon;
   final cue = state.beaconRoomCue;
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return BeaconHudNowDisplay(primaryText: l10n.beaconHudBeaconUnavailable);
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.cancelled) {
+  if (beacon.status == BeaconStatus.closed ||
+      beacon.status == BeaconStatus.cancelled) {
     return BeaconHudNowDisplay(primaryText: l10n.beaconHudClosedSummary);
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+  if (beacon.status == BeaconStatus.reviewOpen) {
     return BeaconHudNowDisplay(
-      primaryText: coordinationStatusLabel(l10n, beacon.coordinationStatus),
+      primaryText: coordinationStatusLabel(l10n, beacon.status),
     );
   }
 
@@ -117,18 +117,18 @@ BeaconHudNowDisplay myWorkDeskNowDisplay(
   required String roomCurrentLine,
   String openBlockerTitle = '',
 }) {
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return BeaconHudNowDisplay(primaryText: l10n.beaconHudBeaconUnavailable);
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.cancelled) {
+  if (beacon.status == BeaconStatus.closed ||
+      beacon.status == BeaconStatus.cancelled) {
     return BeaconHudNowDisplay(primaryText: l10n.beaconHudClosedSummary);
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+  if (beacon.status == BeaconStatus.reviewOpen) {
     return BeaconHudNowDisplay(
-      primaryText: coordinationStatusLabel(l10n, beacon.coordinationStatus),
+      primaryText: coordinationStatusLabel(l10n, beacon.status),
     );
   }
 
@@ -194,12 +194,12 @@ bool beaconRoomShowsPinnedNow({
 String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   final beacon = state.beacon;
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return l10n.beaconHudYouNoActionAvailable;
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.cancelled) {
+  if (beacon.status == BeaconStatus.closed ||
+      beacon.status == BeaconStatus.cancelled) {
     return l10n.beaconHudClosedSummary;
   }
 
@@ -211,7 +211,7 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
     if (blockerTitle != null && blockerTitle.isNotEmpty) {
       return l10n.beaconHudYouAuthorResolveBlocker;
     }
-    if (beacon.lifecycle == BeaconLifecycle.open) {
+    if (beacon.status == BeaconStatus.open) {
       switch (computeClosureReadiness(state)) {
         case BeaconClosureReadiness.readyToClose:
           return l10n.beaconHudYouAuthorReadyToClose;
@@ -245,7 +245,7 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
     return l10n.beaconHudYouWatching;
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.open &&
+  if (beacon.status == BeaconStatus.open &&
       !state.isHelpOffered &&
       beacon.allowsNewHelpOfferAsNonAuthor) {
     return l10n.beaconHudYouCanOfferHelp;
@@ -274,7 +274,7 @@ String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
   final cue = state.beaconRoomCue;
   final lines = <String>[];
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return l10n.beaconHudBeaconUnavailable;
   }
 

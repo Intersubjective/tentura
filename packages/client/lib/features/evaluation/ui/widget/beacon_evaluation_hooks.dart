@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 
@@ -13,12 +13,12 @@ import 'evaluation_summary_card.dart';
 class BeaconEvaluationHooks extends StatefulWidget {
   const BeaconEvaluationHooks({
     required this.beaconId,
-    required this.lifecycle,
+    required this.status,
     super.key,
   });
 
   final String beaconId;
-  final BeaconLifecycle lifecycle;
+  final BeaconStatus status;
 
   @override
   State<BeaconEvaluationHooks> createState() => _BeaconEvaluationHooksState();
@@ -38,13 +38,13 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
   void didUpdateWidget(covariant BeaconEvaluationHooks oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.beaconId != widget.beaconId ||
-        oldWidget.lifecycle != widget.lifecycle) {
+        oldWidget.status != widget.status) {
       unawaited(_load());
     }
   }
 
   Future<void> _load() async {
-    if (widget.lifecycle != BeaconLifecycle.closed) {
+    if (widget.status != BeaconStatus.closed) {
       return;
     }
     setState(() {
@@ -66,7 +66,7 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lifecycle != BeaconLifecycle.closed) {
+    if (widget.status != BeaconStatus.closed) {
       return const SizedBox.shrink();
     }
     if (_summary != null) {

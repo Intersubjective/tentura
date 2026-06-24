@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -68,14 +68,16 @@ class BeaconCubit extends Cubit<BeaconState> {
       final myAccountId = await _authLocalRepository.getCurrentAccountId();
       final lifecycleStates = state.filter == BeaconFilter.active
           ? [
-              BeaconLifecycle.open.smallintValue,
-              BeaconLifecycle.draft.smallintValue,
-              BeaconLifecycle.reviewOpen.smallintValue,
+              BeaconStatus.open.smallintValue,
+              BeaconStatus.needsMoreHelp.smallintValue,
+              BeaconStatus.enoughHelp.smallintValue,
+              BeaconStatus.draft.smallintValue,
+              BeaconStatus.reviewOpen.smallintValue,
             ]
           : [
-              BeaconLifecycle.cancelled.smallintValue,
-              BeaconLifecycle.closed.smallintValue,
-              BeaconLifecycle.deleted.smallintValue,
+              BeaconStatus.cancelled.smallintValue,
+              BeaconStatus.closed.smallintValue,
+              BeaconStatus.deleted.smallintValue,
             ];
       final offset = reset ? 0 : state.beacons.length;
       final beacons = await _beaconRepository.fetchBeacons(

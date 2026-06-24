@@ -56,7 +56,7 @@ abstract class InboxItem with _$InboxItem {
     final b = beacon;
     if (b == null) return 0;
     var max = b.updatedAt.millisecondsSinceEpoch;
-    final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
+    final cs = b.statusChangedAt?.millisecondsSinceEpoch;
     if (cs != null && cs > max) {
       max = cs;
     }
@@ -90,7 +90,7 @@ abstract class InboxItem with _$InboxItem {
       return _orderInboxReasons(raw);
     }
     final u = b.updatedAt.millisecondsSinceEpoch;
-    final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
+    final cs = b.statusChangedAt?.millisecondsSinceEpoch;
     if (cs != null && cs > seen) {
       raw.add(InboxNewStuffReason.coordinationStatusChanged);
     }

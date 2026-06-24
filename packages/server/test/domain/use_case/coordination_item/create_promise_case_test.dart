@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/coordination_item_record_fixtures.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -155,7 +156,7 @@ void main() {
   });
 
   test('rejects inactive beacon', () async {
-    beacons.entity = _openBeacon(beaconId).copyWith(state: 1);
+    beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
     await expectLater(
       () => sut.call(
         userId: creatorId,

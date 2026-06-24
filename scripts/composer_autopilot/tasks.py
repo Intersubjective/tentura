@@ -100,15 +100,14 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
             unit=WorkUnit(
                 id="coord-phase-a",
                 intent=(
-                    "Coordination Phase A: extract pure coordination_status_rules from "
-                    "CoordinationRepository.recomputeAndPersistBeaconCoordinationStatus into "
-                    "packages/server/lib/domain/coordination/coordination_status_rules.dart "
+                    "Coordination Phase A: keep beacon display-status derivation in "
+                    "packages/server/lib/domain/coordination/derive_beacon_display_status.dart "
                     "with unit tests mirroring evaluation_visibility_rules_test.dart. "
                     "Document staleness behavior vs docs/over-offer-coordination-feature-design.md §8.5."
                 ),
                 write_set=[
-                    "packages/server/lib/domain/coordination/coordination_status_rules.dart",
-                    "packages/server/test/domain/coordination/coordination_status_rules_test.dart",
+                    "packages/server/lib/domain/coordination/derive_beacon_display_status.dart",
+                    "packages/server/test/domain/coordination/derive_beacon_display_status_test.dart",
                     "packages/server/lib/data/repository/coordination_repository.dart",
                 ],
                 read_set=[
@@ -118,8 +117,8 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                     "docs/over-offer-coordination-feature-design.md",
                 ],
                 success_criteria=[
-                    "Pure deriveBeaconCoordinationStatus (or equivalent) with table-driven tests",
-                    "Coordination repository calls the pure rules module",
+                    "Pure deriveBeaconDisplayStatus with table-driven tests",
+                    "Display query uses the pure projection module",
                     "packages/server dart analyze and dart test pass",
                 ],
             ),

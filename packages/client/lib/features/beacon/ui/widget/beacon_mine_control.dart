@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -41,14 +41,14 @@ class BeaconMineControl extends StatelessWidget {
           header: beacon.id,
         ),
       ),
-      onEdit: beacon.lifecycle == BeaconLifecycle.open
+      onEdit: beacon.status == BeaconStatus.open
           ? () => unawaited(
                 context.router.pushPath(
                   '$kPathBeaconNew?$kQueryBeaconEditId=${beacon.id}',
                 ),
               )
           : null,
-      onCloseBeacon: beacon.lifecycle == BeaconLifecycle.open
+      onCloseBeacon: beacon.status == BeaconStatus.open
           ? () async {
               await Future<void>.delayed(Duration.zero);
               if (!context.mounted) return;
@@ -99,7 +99,7 @@ class BeaconMineControl extends StatelessWidget {
         if (!context.mounted) return;
         if (await BeaconDeleteDialog.show(
               context,
-              lifecycle: beacon.lifecycle,
+              status: beacon.status,
               hasEverHadCommitter: beaconDeleteBlockedByCommitters(beacon),
             ) ??
             false) {

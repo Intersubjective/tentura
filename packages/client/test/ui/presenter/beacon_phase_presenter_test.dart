@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -7,8 +8,6 @@ import 'package:tentura/domain/coordination/beacon_coordination_phase_input.dart
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
@@ -18,7 +17,7 @@ final _l10n = lookupL10n(const Locale('en'));
 Beacon _beacon() => Beacon.empty.copyWith(
       id: 'b1',
       title: 'Test',
-      lifecycle: BeaconLifecycle.open,
+      status: BeaconStatus.open,
       createdAt: _t,
       updatedAt: _t,
     );
@@ -83,7 +82,7 @@ void main() {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
         beacon: _beacon().copyWith(
-          lifecycle: BeaconLifecycle.closed,
+          status: BeaconStatus.closed,
           updatedAt: endedAt,
         ),
         tier: BeaconVisibilityTier.coordination,
@@ -102,7 +101,7 @@ void main() {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
         beacon: _beacon().copyWith(
-          lifecycle: BeaconLifecycle.cancelled,
+          status: BeaconStatus.cancelled,
           updatedAt: endedAt,
         ),
         tier: BeaconVisibilityTier.coordination,
@@ -158,7 +157,7 @@ void main() {
     final l10nRu = lookupL10n(const Locale('ru'));
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
-      coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+      status: BeaconStatus.enoughHelp,
       updatedAt: now,
     );
     final result = deriveBeaconCoordinationPhase(

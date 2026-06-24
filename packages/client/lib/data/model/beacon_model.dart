@@ -1,8 +1,7 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../gql/_g/beacon_model.data.gql.dart';
 import 'image_model.dart';
 import 'user_model.dart';
@@ -15,7 +14,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       id: i.id,
       author: author,
       title: i.title,
-      lifecycle: BeaconLifecycle.fromSmallint(i.state),
+      status: BeaconStatus.fromSmallint(i.status),
+      statusChangedAt: i.status_changed_at,
       createdAt: i.created_at,
       updatedAt: i.updated_at,
       description: i.description,
@@ -46,10 +46,6 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       endAt: i.end_at,
       reviewClosesAt: reviewWindow?.closes_at,
       reviewWindowStatus: reviewWindow?.status,
-      coordinationStatus: BeaconCoordinationStatus.fromSmallint(
-        i.coordination_status,
-      ),
-      coordinationStatusUpdatedAt: i.coordination_status_updated_at,
       helpOfferCount: i.help_offers_aggregate.aggregate?.count ?? 0,
       iconCode: i.icon_code,
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),

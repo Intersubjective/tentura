@@ -1,13 +1,14 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/gql_public/coordination_status_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -71,7 +72,7 @@ final class CoordinationCase extends UseCaseBase {
         viewerId: viewerId,
       );
 
-  Future<CoordinationStatusResult> setCoordinationResponse({
+  Future<BeaconStatusResult> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
     required String authorUserId,
@@ -83,7 +84,7 @@ final class CoordinationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: authorUserId,
     );
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
       );
@@ -118,67 +119,89 @@ final class CoordinationCase extends UseCaseBase {
         authorUserId: authorUserId,
       );
     }
-    final snap = await _coordinationRepository.beaconCoordinationSnapshot(
-      beaconId,
-    );
-    return CoordinationStatusResult(
+    final snap = await _coordinationRepository.beaconStatusSnapshot(beaconId);
+    return BeaconStatusResult(
       beaconId: beaconId,
-      coordinationStatus: snap.coordinationStatus,
-      coordinationStatusUpdatedAt: snap.coordinationStatusUpdatedAt,
+      status: snap.status.smallintValue,
+      statusChangedAt: snap.statusChangedAt,
     );
   }
 
-  Future<bool> setBeaconCoordinationStatus({
+  Future<BeaconStatusResult> setBeaconStatus({
     required String beaconId,
     required String authorUserId,
     required int status,
   }) async {
     await _ensureAuthorOrSteward(beaconId: beaconId, userId: authorUserId);
-    if (BeaconCoordinationStatus.tryFromInt(status) == null) {
-      throw HelpOfferCoordinationException(
-        coordinationCode: HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
-      );
-    }
+    final target = coordinationTargetStatus(status);
 
-    if (status == BeaconCoordinationStatus.moreOrDifferentHelpNeeded.smallintValue) {
-      return _beaconRepository.runInBeaconStateTransaction(
-        beaconId: beaconId,
-        userId: authorUserId,
-        fn: (beacon) async {
-          if (beacon.state == 5) {
-            final w = await _evaluationRepository.getReviewWindow(beaconId);
-            if (w == null || w.status != 0) {
-              throw EvaluationException(
-                evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-              );
-            }
-            await _evaluationRepository.downgradeSubmittedReviewsToDraft(
-              beaconId,
-            );
-            await _evaluationRepository.deleteReviewScaffoldingForBeacon(
-              beaconId,
-            );
-            await _beaconRepository.recordBeaconLifecycleTransition(
-              beaconId: beaconId,
-              fromState: beacon.state,
-              toState: 0,
-              reason: BeaconLifecycleChangeReason.reopenedFromReview,
-              actorId: authorUserId,
+    return _beaconRepository.runInBeaconStateTransaction(
+      beaconId: beaconId,
+      userId: authorUserId,
+      fn: (beacon) async {
+        if (target == BeaconStatus.needsMoreHelp &&
+            beacon.status == BeaconStatus.reviewOpen) {
+          final w = await _evaluationRepository.getReviewWindow(beaconId);
+          if (w == null || w.status != 0) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
             );
           }
-          await _coordinationRepository.setBeaconCoordinationFields(
-            beaconId: beaconId,
-            coordinationStatus: status,
+          await _evaluationRepository.downgradeSubmittedReviewsToDraft(
+            beaconId,
           );
-          return true;
-        },
-      );
-    }
+          await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+            beaconId,
+          );
+        }
 
-    await _coordinationRepository.setBeaconCoordinationFields(
-      beaconId: beaconId,
-      coordinationStatus: status,
+        final reason = switch (target) {
+          BeaconStatus.needsMoreHelp => BeaconStatusTransitionReason.needsMoreHelp,
+          BeaconStatus.enoughHelp => BeaconStatusTransitionReason.enoughHelp,
+          BeaconStatus.open => BeaconStatusTransitionReason.neutralOpen,
+          _ => throw HelpOfferCoordinationException(
+              coordinationCode:
+                  HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+            ),
+        };
+
+        final verdict = validateBeaconStatusTransition(
+          from: beacon.status,
+          to: target,
+          reason: reason,
+        );
+        if (verdict.verdict == BeaconStatusTransitionVerdict.noop) {
+          final snap =
+              await _coordinationRepository.beaconStatusSnapshot(beaconId);
+          return BeaconStatusResult(
+            beaconId: beaconId,
+            status: snap.status.smallintValue,
+            statusChangedAt: snap.statusChangedAt,
+          );
+        }
+        if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
+          throw HelpOfferCoordinationException(
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+          );
+        }
+
+        await _beaconRepository.recordBeaconStatusTransition(
+          beaconId: beaconId,
+          fromStatus: beacon.status,
+          toStatus: target,
+          reason: reasonStringForTransition(reason),
+          actorId: authorUserId,
+        );
+
+        final snap =
+            await _coordinationRepository.beaconStatusSnapshot(beaconId);
+        return BeaconStatusResult(
+          beaconId: beaconId,
+          status: snap.status.smallintValue,
+          statusChangedAt: snap.statusChangedAt,
+        );
+      },
     );
-    return true;
   }
 }

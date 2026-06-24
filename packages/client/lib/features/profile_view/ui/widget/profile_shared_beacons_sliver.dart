@@ -38,17 +38,17 @@ class ProfileSharedBeaconsSliver extends StatelessWidget {
         }
 
         final activeForwarded = forwarded
-            .where((e) => e.beacon.lifecycle.isActiveSection)
+            .where((e) => e.beacon.status.isActiveSection)
             .toList();
         final archivedForwarded = forwarded
-            .where((e) => !e.beacon.lifecycle.isActiveSection)
+            .where((e) => !e.beacon.status.isActiveSection)
             .toList();
 
         final activeCoHelpOffered = coHelpOffered
-            .where((e) => e.beacon.lifecycle.isActiveSection)
+            .where((e) => e.beacon.status.isActiveSection)
             .toList();
         final archivedCoHelpOffered = coHelpOffered
-            .where((e) => !e.beacon.lifecycle.isActiveSection)
+            .where((e) => !e.beacon.status.isActiveSection)
             .toList();
 
         final l10n = L10n.of(context)!;
@@ -108,7 +108,7 @@ class _ForwardedBeaconCard extends StatelessWidget {
     return Padding(
       padding: kPaddingSmallT,
       child: BeaconCardShell(
-        muted: !entry.beacon.lifecycle.isActiveSection,
+        muted: !entry.beacon.status.isActiveSection,
         onTap: () => context.read<ScreenCubit>().showBeacon(entry.beacon.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -143,7 +143,7 @@ class _CoHelpOfferedBeaconCard extends StatelessWidget {
     return Padding(
       padding: kPaddingSmallT,
       child: BeaconCardShell(
-        muted: !entry.beacon.lifecycle.isActiveSection,
+        muted: !entry.beacon.status.isActiveSection,
         onTap: () => context.read<ScreenCubit>().showBeacon(entry.beacon.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -174,7 +174,7 @@ class _LifecyclePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final isActive = beacon.lifecycle.isActiveSection;
+    final isActive = beacon.status.isActiveSection;
     return Row(
       children: [
         BeaconCardPill(

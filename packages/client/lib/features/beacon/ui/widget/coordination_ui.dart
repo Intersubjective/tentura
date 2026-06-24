@@ -1,10 +1,10 @@
 import 'dart:convert' show jsonDecode;
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 // --- Semantic colors (on neutral [ColorScheme.surface] / body text) ------------
@@ -25,12 +25,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 // [coordinationResponseOnSurfaceColor] for label ink so it matches list rows.
 // ----------------------------------------------------------------------------
 
-String coordinationStatusLabel(L10n l10n, BeaconCoordinationStatus s) =>
+String coordinationStatusLabel(L10n l10n, BeaconStatus s) =>
     switch (s) {
-      BeaconCoordinationStatus.neutral => l10n.coordinationNeutral,
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
-        l10n.coordinationMoreHelpNeeded,
-      BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
+      BeaconStatus.open => l10n.coordinationNeutral,
+      BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+      BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+      _ => l10n.coordinationNeutral,
     };
 
 String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
@@ -48,18 +48,19 @@ String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
 
 Color coordinationStatusOnSurfaceColor(
   ColorScheme scheme,
-  BeaconCoordinationStatus s,
+  BeaconStatus s,
 ) =>
     switch (s) {
-      BeaconCoordinationStatus.neutral => scheme.onSurfaceVariant,
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded => scheme.error,
-      BeaconCoordinationStatus.enoughHelpOffered => scheme.tertiary,
+      BeaconStatus.open => scheme.onSurfaceVariant,
+      BeaconStatus.needsMoreHelp => scheme.error,
+      BeaconStatus.enoughHelp => scheme.tertiary,
+      _ => scheme.onSurfaceVariant,
     };
 
 /// Dominant per-help-offer response takes precedence; otherwise [beaconStatus].
 Color coordinationContextOnSurfaceColor(
   ColorScheme scheme, {
-  required BeaconCoordinationStatus beaconStatus,
+  required BeaconStatus beaconStatus,
   CoordinationResponseType? dominantResponse,
 }) {
   if (dominantResponse != null) {

@@ -1,5 +1,5 @@
 import 'package:injectable/injectable.dart';
-
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -31,13 +31,12 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     DateTime? startAt,
     DateTime? endAt,
-    ({String question, List<String> variants})? polling,
     Set<String>? tags,
     Set<String>? needs,
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
-    int? state,
+    BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
     String? lineageParentBeaconId,
@@ -49,7 +48,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       title: title,
       context: context,
       description: description ?? '',
-      state: state ?? 0,
+      status: status ?? BeaconStatus.open,
       startAt: startAt,
       endAt: endAt,
       createdAt: now,
@@ -87,20 +86,19 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     required String description,
     String? context,
     Set<String>? tags,
+    Set<String>? needs,
     DateTime? startAt,
     DateTime? endAt,
     double? latitude,
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    ({String question, List<String> variants})? polling,
-    Set<String>? needs,
     String? needSummary,
     String? successCriteria,
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
-        existing.state != 3 ||
+        existing.status != BeaconStatus.draft ||
         existing.author.id != userId) {
       throw const BeaconCreateException(
         description: 'Beacon is not an editable draft',
@@ -147,7 +145,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
-        (existing.state != 0 && existing.state != 5) ||
+        (!existing.status.isOpenFamily &&
+            existing.status != BeaconStatus.reviewOpen) ||
         existing.author.id != userId) {
       throw const BeaconCreateException(
         description: 'Only open or wrapping-up beacons can be edited',
@@ -191,14 +190,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       storageById.removeWhere((key, value) => value.id == id);
 
   @override
-  Future<void> softDeleteBeacon(String beaconId) async {
-    final b = storageById[beaconId];
-    if (b != null) {
-      storageById[beaconId] = b.copyWith(state: 2);
-    }
-  }
-
-  @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
@@ -209,25 +200,20 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
-  Future<void> updateBeaconState({
+  Future<void> recordBeaconStatusTransition({
     required String beaconId,
-    required int state,
-  }) async {
-    final b = storageById[beaconId];
-    if (b != null) {
-      storageById[beaconId] = b.copyWith(state: state);
-    }
-  }
-
-  @override
-  Future<void> recordBeaconLifecycleTransition({
-    required String beaconId,
-    required int fromState,
-    required int toState,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
   }) async {
-    await updateBeaconState(beaconId: beaconId, state: toState);
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(
+        status: toStatus,
+        statusChangedAt: DateTime.timestamp(),
+      );
+    }
   }
 
   @override
@@ -285,9 +271,9 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     if (b == null || b.author.id != actorId) {
       throw IdNotFoundException(id: id);
     }
-    if (b.state == 3) {
+    if (b.status == BeaconStatus.draft) {
       return storageById[id] = b.copyWith(
-        state: 0,
+        status: BeaconStatus.open,
         updatedAt: DateTime.timestamp(),
       );
     }

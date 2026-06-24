@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -16,8 +15,7 @@ class BeaconNowDetailModel {
     this.isPlaceholder = false,
     this.blockerTitle,
     this.blockerItem,
-    this.coordinationStatus,
-    this.lifecycle,
+    this.status,
     this.lastChangeText,
     this.canEdit = false,
     this.onEdit,
@@ -27,8 +25,7 @@ class BeaconNowDetailModel {
   final bool isPlaceholder;
   final String? blockerTitle;
   final CoordinationItem? blockerItem;
-  final BeaconCoordinationStatus? coordinationStatus;
-  final BeaconLifecycle? lifecycle;
+  final BeaconStatus? status;
   final String? lastChangeText;
   final bool canEdit;
   final VoidCallback? onEdit;
@@ -48,24 +45,20 @@ Future<void> showBeaconNowDetailSheet(
 }
 
 String _nowDetailStatusLine(L10n l10n, BeaconNowDetailModel model) {
-  final lifecycle = model.lifecycle;
-  if (lifecycle != null &&
-      lifecycle != BeaconLifecycle.open &&
-      lifecycle != BeaconLifecycle.deleted) {
-    return switch (lifecycle) {
-      BeaconLifecycle.draft => l10n.beaconStatusRowDraft,
-      BeaconLifecycle.reviewOpen => l10n.beaconStatusRowWrappingUp,
-      BeaconLifecycle.closed => l10n.beaconStatusRowClosed,
-      BeaconLifecycle.cancelled => l10n.beaconStatusRowCancelled,
-      _ => l10n.beaconStatusRowOpen,
-    };
+  final status = model.status;
+  if (status == null) {
+    return l10n.beaconStatusRowOpen;
   }
-  final coord = model.coordinationStatus;
-  if (coord != null &&
-      coord != BeaconCoordinationStatus.neutral) {
-    return coordinationStatusLabel(l10n, coord);
-  }
-  return l10n.beaconStatusRowOpen;
+  return switch (status) {
+    BeaconStatus.draft => l10n.beaconStatusRowDraft,
+    BeaconStatus.reviewOpen => l10n.beaconStatusRowWrappingUp,
+    BeaconStatus.closed => l10n.beaconStatusRowClosed,
+    BeaconStatus.cancelled => l10n.beaconStatusRowCancelled,
+    BeaconStatus.deleted => l10n.beaconHudBeaconUnavailable,
+    BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+    BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+    BeaconStatus.open => l10n.beaconStatusRowOpen,
+  };
 }
 
 class _BeaconNowDetailSheetBody extends StatelessWidget {
@@ -82,17 +75,16 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
 
     final statusRows = <Widget>[];
 
-    if (model.lifecycle != null || model.coordinationStatus != null) {
+    if (model.status != null) {
       statusRows.add(
         _situationLabeledRow(
           context,
           label: l10n.beaconSituationStateLabel,
           value: _nowDetailStatusLine(l10n, model),
-          valueColor: model.coordinationStatus != null
-              ? coordinationStatusOnSurfaceColor(
-                  scheme,
-                  model.coordinationStatus!,
-                )
+          valueColor: model.status != null &&
+                  model.status!.isOpenFamily &&
+                  model.status != BeaconStatus.open
+              ? coordinationStatusOnSurfaceColor(scheme, model.status!)
               : null,
         ),
       );
@@ -102,7 +94,7 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
     if (blockerTitle != null && blockerTitle.isNotEmpty) {
       final item = model.blockerItem;
       final kind = item?.kind ?? CoordinationItemKind.blocker;
-      final status = item?.status ?? CoordinationItemStatus.open;
+      final itemStatus = item?.status ?? CoordinationItemStatus.open;
       statusRows.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -119,7 +111,7 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
               SizedBox(width: tt.iconTextGap),
               coordinationCompoundStatusIcon(
                 kind: kind,
-                status: status,
+                status: itemStatus,
                 tt: tt,
                 size: 18,
               ),

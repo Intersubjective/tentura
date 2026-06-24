@@ -96,11 +96,6 @@ type beacon {
   ): beacon_help_offer_aggregate!
   context: String
 
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
-  coordination_status: smallint!
-  coordination_status_updated_at: timestamptz
   created_at: timestamptz!
   description: String!
   need_summary: String
@@ -191,7 +186,8 @@ type beacon {
     where: mutual_score_bool_exp
   ): [mutual_score!]
   start_at: timestamptz
-  state: smallint!
+  status: smallint!
+  status_changed_at: timestamptz
   tags: String!
   title: String!
   updated_at: timestamptz!
@@ -239,13 +235,9 @@ input beacon_aggregate_order_by {
 order by avg() on columns of table "beacon"
 """
 input beacon_avg_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -262,8 +254,8 @@ input beacon_bool_exp {
   help_offers: beacon_help_offer_bool_exp
   help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   context: String_comparison_exp
-  coordination_status: smallint_comparison_exp
-  coordination_status_updated_at: timestamptz_comparison_exp
+  status: smallint_comparison_exp
+  status_changed_at: timestamptz_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   end_at: timestamptz_comparison_exp
@@ -281,7 +273,6 @@ input beacon_bool_exp {
   rejected_user_ids: String_comparison_exp
   scores: mutual_score_bool_exp
   start_at: timestamptz_comparison_exp
-  state: smallint_comparison_exp
   tags: String_comparison_exp
   title: String_comparison_exp
   updated_at: timestamptz_comparison_exp
@@ -1075,7 +1066,7 @@ enum beacon_forward_edge_update_column {
 input type for incrementing numeric columns in table "beacon"
 """
 input beacon_inc_input {
-  state: smallint
+  status: smallint
 }
 
 """
@@ -1087,8 +1078,6 @@ input beacon_max_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
-  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1099,7 +1088,7 @@ input beacon_max_order_by {
   long: order_by
   polling_id: order_by
   start_at: order_by
-  state: order_by
+  status: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
@@ -1115,8 +1104,6 @@ input beacon_min_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
-  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1127,7 +1114,7 @@ input beacon_min_order_by {
   long: order_by
   polling_id: order_by
   start_at: order_by
-  state: order_by
+  status: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
@@ -1152,8 +1139,6 @@ input beacon_order_by {
   beacon_review_window: beacon_review_window_order_by
   help_offers_aggregate: beacon_help_offer_aggregate_order_by
   context: order_by
-  coordination_status: order_by
-  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1170,7 +1155,7 @@ input beacon_order_by {
   rejected_user_ids: order_by
   scores_aggregate: mutual_score_aggregate_order_by
   start_at: order_by
-  state: order_by
+  status: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
@@ -1500,10 +1485,10 @@ enum beacon_select_column {
   context
 
   """column name"""
-  coordination_status
+  status
 
   """column name"""
-  coordination_status_updated_at
+  status_changed_at
 
   """column name"""
   created_at
@@ -1542,9 +1527,6 @@ enum beacon_select_column {
   start_at
 
   """column name"""
-  state
-
-  """column name"""
   tags
 
   """column name"""
@@ -1561,7 +1543,7 @@ enum beacon_select_column {
 input type for updating data in table "beacon"
 """
 input beacon_set_input {
-  state: smallint
+  status: smallint
 }
 
 """
@@ -1571,10 +1553,9 @@ input beacon_stddev_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -1584,10 +1565,9 @@ input beacon_stddev_pop_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -1597,10 +1577,9 @@ input beacon_stddev_samp_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -1619,10 +1598,9 @@ input beacon_stream_cursor_value_input {
   context: String
 
   """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
+  Persisted beacon status smallint.
   """
-  coordination_status: smallint
-  coordination_status_updated_at: timestamptz
+  status_changed_at: timestamptz
   created_at: timestamptz
   description: String
   end_at: timestamptz
@@ -1633,7 +1611,7 @@ input beacon_stream_cursor_value_input {
   long: float8
   polling_id: String
   start_at: timestamptz
-  state: smallint
+  status: smallint
   tags: String
   title: String
   updated_at: timestamptz
@@ -1647,10 +1625,9 @@ input beacon_sum_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 input beacon_updates {
@@ -1671,10 +1648,9 @@ input beacon_var_pop_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -1684,10 +1660,9 @@ input beacon_var_samp_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -1697,10 +1672,9 @@ input beacon_variance_order_by {
   """
   0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
   """
-  coordination_status: order_by
   lat: order_by
   long: order_by
-  state: order_by
+  status: order_by
 }
 
 """
@@ -2556,8 +2530,8 @@ type mutation_root {
   userUnsubscribe(objectId: String!): Int!
   userVote(amount: Int!, objectId: String!): Int!
   pollingAct(pollingId: String!, variantIds: [String!]!, score: Int): Boolean!
-  setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
-  setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!
+  setBeaconStatus(status: Int!, id: String!): v2_BeaconStatusResult!
+  setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_BeaconStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
   signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
@@ -3558,6 +3532,7 @@ type query_root {
   beacon_review_window_by_pk(beacon_id: String!): beacon_review_window
 
   helpOffersWithCoordination(id: String!): [v2_HelpOfferWithCoordinationRow!]
+  beaconDisplayStatuses(beaconIds: [String!]!): [v2_BeaconDisplayStatus!]!
 
   """
   fetch data from the table: "edge"
@@ -5531,7 +5506,7 @@ type v2_BeaconCloseResult {
   closesAt: String
   id: String!
   requiresReviewWindow: Boolean!
-  state: Int!
+  status: Int!
 }
 
 type v2_BeaconExtendReviewResult {
@@ -5542,7 +5517,7 @@ type v2_BeaconExtendReviewResult {
 
 type v2_BeaconLifecycleResult {
   id: String!
-  state: Int!
+  status: Int!
 }
 
 type v2_BeaconInvolvement {
@@ -5606,10 +5581,28 @@ input Coordinates {
   long: Float
 }
 
+type v2_BeaconStatusResult {
+  beaconId: String!
+  status: Int!
+  statusChangedAt: String
+}
+
+type v2_BeaconDisplayStatus {
+  beaconId: String!
+  status: Int!
+  phase: String!
+  suggestedAction: String!
+  slot2Kind: String!
+  tier: String!
+  reviewClosesAt: String
+  lastActivityAt: String
+  lifecycleEndedAt: String
+}
+
 type v2_CoordinationStatusResult {
   beaconId: String!
-  coordinationStatus: Int!
-  coordinationStatusUpdatedAt: String
+  status: Int!
+  statusChangedAt: String
 }
 
 type v2_EvaluationDraftRow {

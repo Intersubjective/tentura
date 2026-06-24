@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -91,8 +91,8 @@ class BeaconOperationalScrollView extends StatelessWidget {
       bloc: beaconViewCubit,
       buildWhen: (p, c) =>
           p.beacon != c.beacon ||
-          p.beacon.coordinationStatus != c.beacon.coordinationStatus ||
-          p.beacon.lifecycle != c.beacon.lifecycle ||
+          p.beacon.status != c.beacon.status ||
+          p.beacon.status != c.beacon.status ||
           p.timeline != c.timeline ||
           p.roomActivityEvents != c.roomActivityEvents ||
           p.helpOffers != c.helpOffers ||
@@ -202,10 +202,10 @@ class BeaconOperationalScrollView extends StatelessWidget {
                         screenCubit.showProfile(state.beacon.author.id),
                     onUpdateStatus:
                         state.isAuthorOrSteward &&
-                            (state.beacon.lifecycle == BeaconLifecycle.draft ||
-                                state.beacon.lifecycle == BeaconLifecycle.open ||
-                                state.beacon.lifecycle ==
-                                    BeaconLifecycle.reviewOpen)
+                            (state.beacon.status == BeaconStatus.draft ||
+                                state.beacon.status.isOpenFamily ||
+                                state.beacon.status ==
+                                    BeaconStatus.reviewOpen)
                         ? () => unawaited(
                             showBeaconViewUpdateStatusSheet(
                               context,
@@ -218,7 +218,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                         : null,
                     onOfferHelp:
                         !state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open &&
+                            state.beacon.status.isOpenFamily &&
                             !state.isHelpOffered &&
                             state.beacon.allowsNewHelpOfferAsNonAuthor
                         ? () => _runOfferHelpFlow(context, l10n)

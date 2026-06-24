@@ -1,12 +1,11 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
@@ -34,8 +33,8 @@ Future<void> beaconViewRunInitialHelpOfferDialog(
 ) async {
   if (!context.mounted) return;
   final useOfferHelpAnyway =
-      cubit.state.beacon.coordinationStatus ==
-      BeaconCoordinationStatus.enoughHelpOffered;
+      cubit.state.beacon.status ==
+      BeaconStatus.enoughHelp;
   final outcome = await HelpOfferMessageDialog.show(
     context,
     title: useOfferHelpAnyway
@@ -67,7 +66,7 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   if (s.isHelpOffered ||
       s.isBeaconMine ||
       !s.beacon.allowsNewHelpOfferAsNonAuthor ||
-      s.beacon.lifecycle != BeaconLifecycle.open) {
+      s.beacon.status != BeaconStatus.open) {
     return;
   }
   showSnackBar(
@@ -84,7 +83,7 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
 
 bool forwardInPrimaryCta(BeaconViewState state) {
   final b = state.beacon;
-  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+  if (state.isBeaconMine || b.status != BeaconStatus.open) {
     return false;
   }
   if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
@@ -98,7 +97,7 @@ bool forwardInPrimaryCta(BeaconViewState state) {
 
 bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
   final b = state.beacon;
-  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+  if (state.isBeaconMine || b.status != BeaconStatus.open) {
     return false;
   }
   if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
@@ -112,7 +111,7 @@ bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
 
 bool _authorLifecycleToggleEnabled(BeaconViewState state) {
   final b = state.beacon;
-  if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
+  if (b.status == BeaconStatus.open && b.isListed) {
     return state.closureActionPriority != ClosureActionPriority.hidden;
   }
   return true;
@@ -186,7 +185,7 @@ Future<void> beaconViewRunAuthorCloseSheet({
 
 bool canShowCreatePromise(BeaconViewState state) {
   final b = state.beacon;
-  if (b.lifecycle != BeaconLifecycle.open) return false;
+  if (b.status != BeaconStatus.open) return false;
   if (!state.isAuthorOrSteward && !state.hasRoomAdmission) return false;
   return hasPublishedPromiseTargets(
     participants: state.roomParticipants,
@@ -255,7 +254,7 @@ Widget beaconViewAppBarOverflow({
           : null,
       onCloseBeacon: showBeaconManagementOverflow &&
               state.isBeaconMine &&
-              state.beacon.lifecycle == BeaconLifecycle.open &&
+              state.beacon.status == BeaconStatus.open &&
               state.closureActionPriority != ClosureActionPriority.hidden
           ? () async {
               if (!context.mounted) return;
@@ -268,7 +267,7 @@ Widget beaconViewAppBarOverflow({
               await onAuthorManageStatus();
             }
           : null,
-      onEdit: showBeaconManagementOverflow && b.lifecycle == BeaconLifecycle.open
+      onEdit: showBeaconManagementOverflow && b.status == BeaconStatus.open
           ? () => unawaited(
               context.router.pushPath(
                 '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
@@ -304,7 +303,7 @@ Widget beaconViewAppBarOverflow({
               if (!context.mounted) return;
               if (await BeaconDeleteDialog.show(
                     context,
-                    lifecycle: b.lifecycle,
+                    status: b.status,
                     hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
                   ) ??
                   false) {

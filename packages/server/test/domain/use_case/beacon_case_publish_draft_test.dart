@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> Function()? onGetBeaconById;
@@ -59,7 +60,7 @@ void main() {
         author: const UserEntity(id: 'Uauth'),
         createdAt: now,
         updatedAt: now,
-        state: kBeaconStateDraft,
+        status: BeaconStatus.draft,
         needSummary: needSummary,
       );
 
@@ -89,7 +90,7 @@ void main() {
 
   test('publishDraft delegates to repository for valid draft', () async {
     final beacon = draftBeacon();
-    final published = beacon.copyWith(state: 0);
+    final published = beacon.copyWith(status: BeaconStatus.open);
     beaconRepo.onGetBeaconById = () async => beacon;
     beaconRepo.onPublishDraft = () async => published;
 
@@ -98,7 +99,7 @@ void main() {
       beaconId: beacon.id,
     );
 
-    expect(result.state, 0);
+    expect(result.status, BeaconStatus.open);
     expect(beaconRepo.publishDraftCalls, 1);
   });
 }

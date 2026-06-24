@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -31,7 +31,7 @@ bool viewerAwaitingAuthorHelpOfferReview({
     viewerOfferAuthorResponse == null;
 
 BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
-  required BeaconLifecycle lifecycle,
+  required BeaconStatus lifecycle,
   required bool isAuthorOrSteward,
   required int othersOpenCount,
   required bool compactSurface,
@@ -39,8 +39,8 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
   bool isAwaitingAuthorReview = false,
   BeaconPhaseRowHarmony rowHarmony = BeaconPhaseRowHarmony.empty,
 }) {
-  if (lifecycle == BeaconLifecycle.closed ||
-      lifecycle == BeaconLifecycle.deleted) {
+  if (lifecycle == BeaconStatus.closed ||
+      lifecycle == BeaconStatus.deleted) {
     return BeaconYouEmptyFallback.closed;
   }
   if (rowHarmony.suppressYouAwaitingAuthor && isAuthorOrSteward) {
@@ -53,7 +53,7 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
     return BeaconYouEmptyFallback.awaitingAuthorReview;
   }
   if (!isAuthorOrSteward &&
-      lifecycle == BeaconLifecycle.open &&
+      lifecycle == BeaconStatus.open &&
       !compactSurface) {
     return BeaconYouEmptyFallback.noInfo;
   }
@@ -222,7 +222,7 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallbackFromBeacon({
     responsibility: responsibility,
   );
   return deriveBeaconYouEmptyFallback(
-    lifecycle: beacon.lifecycle,
+    lifecycle: beacon.status,
     isAuthorOrSteward: isAuthorOrSteward,
     othersOpenCount: responsibility.othersOpenCount,
     compactSurface: compactSurface,
@@ -253,7 +253,7 @@ bool isBeaconYouMetadataVisible({
     return true;
   }
   final emptyFallback = deriveBeaconYouEmptyFallback(
-    lifecycle: beacon.lifecycle,
+    lifecycle: beacon.status,
     isAuthorOrSteward: isAuthorOrSteward,
     othersOpenCount: responsibility.othersOpenCount,
     compactSurface: compactSurface,

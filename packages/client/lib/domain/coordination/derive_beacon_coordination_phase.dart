@@ -1,39 +1,42 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import '../entity/beacon.dart';
 import '../entity/beacon_coordination_phase.dart';
-import '../entity/beacon_lifecycle.dart';
-import '../entity/coordination_status.dart';
 import '../entity/open_blocker_cue.dart';
 import 'beacon_coordination_phase_input.dart';
 import 'beacon_has_unreviewed_offers.dart';
 
 /// Priority ladder: first match wins; floor is never blank ([phase] always set).
+///
+/// Deprecated: prefer server [BeaconDisplayStatusDto] when available.
 BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
   BeaconCoordinationPhaseInput input,
 ) {
   final beacon = input.beacon;
+  final status = beacon.status;
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (status == BeaconStatus.deleted) {
     return _terminal(
       phase: BeaconCoordinationPhase.closed,
       action: BeaconPhasePrimaryAction.none,
       lifecycleEndedAt: beacon.updatedAt,
     );
   }
-  if (beacon.lifecycle == BeaconLifecycle.cancelled) {
+  if (status == BeaconStatus.cancelled) {
     return _terminal(
       phase: BeaconCoordinationPhase.cancelled,
       action: BeaconPhasePrimaryAction.none,
       lifecycleEndedAt: beacon.updatedAt,
     );
   }
-  if (beacon.lifecycle == BeaconLifecycle.closed) {
+  if (status == BeaconStatus.closed) {
     return _terminal(
       phase: BeaconCoordinationPhase.closed,
       action: BeaconPhasePrimaryAction.none,
       lifecycleEndedAt: beacon.updatedAt,
     );
   }
-  if (beacon.lifecycle == BeaconLifecycle.draft) {
+  if (status == BeaconStatus.draft) {
     return const BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.draft,
       suggestedAction: BeaconPhasePrimaryAction.none,
@@ -52,9 +55,10 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
   BeaconCoordinationPhaseInput input,
 ) {
   final beacon = input.beacon;
+  final status = beacon.status;
   final activityAt = _activityAt(input);
 
-  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+  if (status == BeaconStatus.reviewOpen) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
       slot2Kind: _reviewSlot2(beacon),
@@ -65,7 +69,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
-  if (beacon.lifecycle != BeaconLifecycle.open) {
+  if (!status.isOpenFamily) {
     return _floor(activityAt);
   }
 
@@ -83,8 +87,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
-  if (beacon.coordinationStatus ==
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+  if (status == BeaconStatus.needsMoreHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
@@ -94,7 +97,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
-  if (beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered) {
+  if (status == BeaconStatus.enoughHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
@@ -152,9 +155,10 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   BeaconCoordinationPhaseInput input,
 ) {
   final beacon = input.beacon;
+  final status = beacon.status;
   final activityAt = _activityAt(input);
 
-  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+  if (status == BeaconStatus.reviewOpen) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
       suggestedAction: BeaconPhasePrimaryAction.none,
@@ -163,12 +167,11 @@ BeaconCoordinationPhaseResult _derivePublicTier(
     );
   }
 
-  if (beacon.lifecycle != BeaconLifecycle.open) {
+  if (!status.isOpenFamily) {
     return _floor(activityAt);
   }
 
-  if (beacon.coordinationStatus ==
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+  if (status == BeaconStatus.needsMoreHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
@@ -176,7 +179,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
       lastActivityAt: activityAt,
     );
   }
-  if (beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered) {
+  if (status == BeaconStatus.enoughHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
@@ -241,7 +244,6 @@ BeaconCoordinationPhaseResult _floor(DateTime? lastActivityAt) {
   );
 }
 
-/// Builds [BeaconCoordinationPhaseInput] with shared defaults.
 BeaconCoordinationPhaseInput buildBeaconCoordinationPhaseInput({
   required Beacon beacon,
   required BeaconVisibilityTier tier,

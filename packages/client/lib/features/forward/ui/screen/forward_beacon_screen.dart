@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
@@ -226,13 +226,15 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
   }
 
   String _lifecycleLabel(L10n l10n, Beacon beacon) =>
-      switch (beacon.lifecycle) {
-        BeaconLifecycle.open => l10n.beaconLifecycleOpen,
-        BeaconLifecycle.cancelled => l10n.beaconLifecycleCancelled,
-        BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
-        BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
-        BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
-        BeaconLifecycle.reviewOpen => l10n.beaconLifecycleReviewOpen,
+      switch (beacon.status) {
+        BeaconStatus.open => l10n.beaconLifecycleOpen,
+        BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+        BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+        BeaconStatus.cancelled => l10n.beaconLifecycleCancelled,
+        BeaconStatus.closed => l10n.beaconLifecycleClosed,
+        BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
+        BeaconStatus.draft => l10n.beaconLifecycleDraft,
+        BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
       };
 
   void _toggleNote() {

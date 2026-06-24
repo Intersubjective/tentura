@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
 import '../../support/coordination_item_record_fixtures.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 void main() {
   late MockBeaconRepositoryPort beaconRepo;
@@ -35,7 +36,7 @@ void main() {
   final now = DateTime.utc(2025);
   BeaconEntity beacon({
     required String id,
-    required int state,
+    required BeaconStatus status,
     String authorId = 'Uauth',
   }) =>
       BeaconEntity(
@@ -44,7 +45,7 @@ void main() {
         author: UserEntity(id: authorId),
         createdAt: now,
         updatedAt: now,
-        state: state,
+        status: status,
       );
 
   void stubBeacon(BeaconEntity b) {
@@ -98,7 +99,7 @@ void main() {
 
   group('withdraw lifecycle', () {
     test('rejects CLOSED (1)', () async {
-      stubBeacon(beacon(id: 'B1', state: 1));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.cancelled));
 
       await expectLater(
         case_.withdraw(
@@ -120,7 +121,7 @@ void main() {
     });
 
     test('rejects DELETED (2)', () async {
-      stubBeacon(beacon(id: 'B1', state: 2));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.deleted));
 
       await expectLater(
         case_.withdraw(
@@ -133,7 +134,7 @@ void main() {
     });
 
     test('rejects DRAFT (3)', () async {
-      stubBeacon(beacon(id: 'B1', state: 3));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.draft));
 
       await expectLater(
         case_.withdraw(
@@ -146,7 +147,7 @@ void main() {
     });
 
     test('rejects CLOSED_REVIEW_COMPLETE (6)', () async {
-      stubBeacon(beacon(id: 'B1', state: 6));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.closed));
 
       await expectLater(
         case_.withdraw(
@@ -159,7 +160,7 @@ void main() {
     });
 
     test('allows OPEN (0)', () async {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
@@ -219,7 +220,7 @@ void main() {
         reset(helpOfferRepo);
         reset(coordinationRepo);
         reset(inboxRepo);
-        stubBeacon(beacon(id: 'B1', state: state));
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.fromSmallint(state)));
         when(
           coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
         ).thenAnswer((_) => Future.value());
@@ -261,7 +262,7 @@ void main() {
 
   group('offerHelp', () {
     test('rejects when beacon not OPEN', () async {
-      stubBeacon(beacon(id: 'B1', state: 1));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.closed));
 
       await expectLater(
         case_.offerHelp(beaconId: 'B1', userId: 'U1'),
@@ -277,7 +278,7 @@ void main() {
     });
 
     test('rejects author on initial offer', () async {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         helpOfferRepo.hasActiveHelpOffer(
           beaconId: 'B1',
@@ -305,7 +306,7 @@ void main() {
     });
 
     test('allows upsert when already offered help (update note)', () async {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         helpOfferRepo.hasActiveHelpOffer(
           beaconId: 'B1',
@@ -352,7 +353,7 @@ void main() {
         );
 
     void stubNewHelpOffer() {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => false);
@@ -516,7 +517,7 @@ void main() {
 
   group('offerHelp — author notification', () {
     void stubNewHelpOffer() {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => false);
@@ -540,7 +541,7 @@ void main() {
     });
 
     test('does NOT notify author on help offer update (hasActive=true)', () async {
-      stubBeacon(beacon(id: 'B1', state: 0));
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
         helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => true);

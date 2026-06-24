@@ -1,6 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../ui/util/beacon_closure_readiness.dart';
 
@@ -113,10 +112,11 @@ class BeaconStatusMenuRow {
 List<BeaconStatusMenuRow> buildBeaconStatusMenuRows(
   BeaconStatusMenuInput input,
 ) {
-  final lifecycle = input.beacon.lifecycle;
+  final lifecycle = input.beacon.status;
 
-  if (lifecycle == BeaconLifecycle.closed ||
-      lifecycle == BeaconLifecycle.cancelled) {
+  if (lifecycle == BeaconStatus.closed ||
+      lifecycle == BeaconStatus.cancelled ||
+      lifecycle == BeaconStatus.deleted) {
     return _terminalRows(lifecycle);
   }
 
@@ -131,7 +131,7 @@ List<BeaconStatusMenuRow> buildBeaconStatusMenuRows(
   ];
 }
 
-List<BeaconStatusMenuRow> _terminalRows(BeaconLifecycle lifecycle) {
+List<BeaconStatusMenuRow> _terminalRows(BeaconStatus status) {
   BeaconStatusMenuRow row(
     BeaconStatusMenuRowId id, {
     required bool selected,
@@ -152,17 +152,17 @@ List<BeaconStatusMenuRow> _terminalRows(BeaconLifecycle lifecycle) {
     row(BeaconStatusMenuRowId.wrappingUp, selected: false),
     row(
       BeaconStatusMenuRowId.closed,
-      selected: lifecycle == BeaconLifecycle.closed,
+      selected: status == BeaconStatus.closed,
     ),
     row(
       BeaconStatusMenuRowId.cancelled,
-      selected: lifecycle == BeaconLifecycle.cancelled,
+      selected: status == BeaconStatus.cancelled,
     ),
   ];
 }
 
 BeaconStatusMenuRow _draftRow(BeaconStatusMenuInput input) {
-  final selected = input.beacon.lifecycle == BeaconLifecycle.draft;
+  final selected = input.beacon.status == BeaconStatus.draft;
   return BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.draft,
     action: BeaconStatusMenuAction.none,
@@ -175,10 +175,10 @@ BeaconStatusMenuRow _draftRow(BeaconStatusMenuInput input) {
 }
 
 BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
-  final lifecycle = input.beacon.lifecycle;
-  final coord = input.beacon.coordinationStatus;
+  final lifecycle = input.beacon.status;
+  final coord = input.beacon.status;
 
-  if (lifecycle == BeaconLifecycle.draft) {
+  if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.open,
       action: BeaconStatusMenuAction.publish,
@@ -190,7 +190,7 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
     );
   }
 
-  if (lifecycle == BeaconLifecycle.reviewOpen) {
+  if (lifecycle == BeaconStatus.reviewOpen) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.open,
       action: BeaconStatusMenuAction.reopen,
@@ -203,8 +203,8 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
   }
 
   final selected =
-      lifecycle == BeaconLifecycle.open &&
-      coord == BeaconCoordinationStatus.neutral;
+      lifecycle == BeaconStatus.open &&
+      coord == BeaconStatus.open;
 
   return BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.open,
@@ -221,16 +221,15 @@ BeaconStatusMenuRow _coordinationRow({
   required BeaconStatusMenuRowId id,
   required BeaconStatusMenuAction action,
   required BeaconStatusMenuInput input,
-  required BeaconCoordinationStatus status,
+  required BeaconStatus status,
 }) {
-  final lifecycle = input.beacon.lifecycle;
-  final allowsCoordination =
-      lifecycle == BeaconLifecycle.open ||
-      lifecycle == BeaconLifecycle.reviewOpen;
+  final lifecycle = input.beacon.status;
+  final allowsCoordination = lifecycle.isOpenFamily ||
+      lifecycle == BeaconStatus.reviewOpen;
   final selected =
-      allowsCoordination && input.beacon.coordinationStatus == status;
+      allowsCoordination && input.beacon.status == status;
 
-  if (lifecycle == BeaconLifecycle.draft) {
+  if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
       id: id,
       action: action,
@@ -267,7 +266,7 @@ BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) =>
       id: BeaconStatusMenuRowId.moreHelp,
       action: BeaconStatusMenuAction.setCoordinationMoreHelp,
       input: input,
-      status: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      status: BeaconStatus.needsMoreHelp,
     );
 
 BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) =>
@@ -275,7 +274,7 @@ BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) =>
       id: BeaconStatusMenuRowId.enoughHelp,
       action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
       input: input,
-      status: BeaconCoordinationStatus.enoughHelpOffered,
+      status: BeaconStatus.enoughHelp,
     );
 
 bool _closeBlocked(BeaconStatusMenuInput input) =>
@@ -283,11 +282,11 @@ bool _closeBlocked(BeaconStatusMenuInput input) =>
     !input.allowForceCloseWhenBlocked;
 
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
-  final lifecycle = input.beacon.lifecycle;
-  final selected = lifecycle == BeaconLifecycle.reviewOpen;
+  final lifecycle = input.beacon.status;
+  final selected = lifecycle == BeaconStatus.reviewOpen;
   final review = input.reviewWindow;
 
-  if (lifecycle == BeaconLifecycle.draft) {
+  if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
@@ -297,7 +296,7 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
     );
   }
 
-  if (lifecycle == BeaconLifecycle.reviewOpen) {
+  if (lifecycle == BeaconStatus.reviewOpen) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.none,
@@ -348,10 +347,10 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
 }
 
 BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
-  final lifecycle = input.beacon.lifecycle;
+  final lifecycle = input.beacon.status;
   final review = input.reviewWindow;
 
-  if (lifecycle == BeaconLifecycle.draft) {
+  if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
@@ -361,7 +360,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
     );
   }
 
-  if (lifecycle == BeaconLifecycle.reviewOpen) {
+  if (lifecycle == BeaconStatus.reviewOpen) {
     final canClose = input.canManageLifecycle && (review?.canCloseNow ?? false);
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
@@ -425,9 +424,9 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
 }
 
 BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
-  final lifecycle = input.beacon.lifecycle;
+  final lifecycle = input.beacon.status;
 
-  if (lifecycle == BeaconLifecycle.reviewOpen) {
+  if (lifecycle == BeaconStatus.reviewOpen) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
@@ -437,7 +436,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
     );
   }
 
-  if (lifecycle == BeaconLifecycle.draft) {
+  if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,
@@ -457,7 +456,7 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
     );
   }
 
-  if (input.beacon.helpOfferCount > 0) {
+  if (input.hasCommitters) {
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.cancelled,
       action: BeaconStatusMenuAction.cancel,

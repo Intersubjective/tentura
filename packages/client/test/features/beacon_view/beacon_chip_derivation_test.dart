@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_chip_derivation.dart';
@@ -108,7 +107,7 @@ void main() {
         l10n: l10n,
         beacon: Beacon.empty.copyWith(
           endAt: endAt,
-          coordinationStatus: BeaconCoordinationStatus.neutral,
+          status: BeaconStatus.open,
         ),
         helpOffers: [
           helpOffer(response: CoordinationResponseType.useful),
@@ -134,7 +133,7 @@ void main() {
       final chips = deriveSupportingChips(
         l10n: l10n,
         beacon: Beacon.empty.copyWith(
-          coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+          status: BeaconStatus.needsMoreHelp,
         ),
         helpOffers: const [],
         viewerForwardEdges: const [],
@@ -150,7 +149,7 @@ void main() {
     test('shows forwarded-by chip for non-author when edges point to viewer', () {
       final chips = deriveSupportingChips(
         l10n: l10n,
-        beacon: Beacon.empty.copyWith(lifecycle: BeaconLifecycle.open),
+        beacon: Beacon.empty.copyWith(status: BeaconStatus.open),
         helpOffers: const [],
         viewerForwardEdges: [
           forwardEdge(senderId: 'friend', recipientId: 'me'),
@@ -168,7 +167,7 @@ void main() {
     test('shows you-forwarded chip for author on open beacon', () {
       final chips = deriveSupportingChips(
         l10n: l10n,
-        beacon: Beacon.empty.copyWith(lifecycle: BeaconLifecycle.open),
+        beacon: Beacon.empty.copyWith(status: BeaconStatus.open),
         helpOffers: const [],
         viewerForwardEdges: [
           forwardEdge(senderId: 'author', recipientId: 'peer'),

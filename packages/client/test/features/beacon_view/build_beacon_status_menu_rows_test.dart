@@ -1,23 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 
 final _t = DateTime.utc(2026, 6, 20, 12);
 
 Beacon _beacon({
-  BeaconLifecycle lifecycle = BeaconLifecycle.open,
-  BeaconCoordinationStatus coordinationStatus = BeaconCoordinationStatus.neutral,
+  BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
 }) =>
     Beacon.empty.copyWith(
       id: 'b1',
       title: 'Test',
-      lifecycle: lifecycle,
-      coordinationStatus: coordinationStatus,
+      status: status,
       helpOfferCount: helpOfferCount,
       createdAt: _t,
       updatedAt: _t,
@@ -49,7 +46,7 @@ BeaconStatusMenuRow _row(
 void main() {
   test('draft publish row enabled for author', () {
     final rows = buildBeaconStatusMenuRows(
-      _input(beacon: _beacon(lifecycle: BeaconLifecycle.draft)),
+      _input(beacon: _beacon(status: BeaconStatus.draft)),
     );
     final open = _row(rows, BeaconStatusMenuRowId.open);
     expect(open.isEnabled, isTrue);
@@ -97,7 +94,7 @@ void main() {
   test('review open with incomplete reviewers disables close now', () {
     final rows = buildBeaconStatusMenuRows(
       _input(
-        beacon: _beacon(lifecycle: BeaconLifecycle.reviewOpen),
+        beacon: _beacon(status: BeaconStatus.reviewOpen),
         reviewWindow: const ReviewWindowMenuSnapshot(
           reviewedCount: 1,
           totalCount: 3,
@@ -116,7 +113,7 @@ void main() {
   test('review open with all reviewers done enables close now', () {
     final rows = buildBeaconStatusMenuRows(
       _input(
-        beacon: _beacon(lifecycle: BeaconLifecycle.reviewOpen),
+        beacon: _beacon(status: BeaconStatus.reviewOpen),
         reviewWindow: const ReviewWindowMenuSnapshot(
           reviewedCount: 3,
           totalCount: 3,
@@ -132,7 +129,7 @@ void main() {
   test('review open more help row enabled for author or steward', () {
     final rows = buildBeaconStatusMenuRows(
       _input(
-        beacon: _beacon(lifecycle: BeaconLifecycle.reviewOpen),
+        beacon: _beacon(status: BeaconStatus.reviewOpen),
         canSetCoordination: true,
       ),
     );
@@ -143,15 +140,15 @@ void main() {
 
   test('closed terminal disables all rows', () {
     final rows = buildBeaconStatusMenuRows(
-      _input(beacon: _beacon(lifecycle: BeaconLifecycle.closed)),
+      _input(beacon: _beacon(status: BeaconStatus.closed)),
     );
     expect(_row(rows, BeaconStatusMenuRowId.closed).isSelected, isTrue);
     expect(rows.every((r) => !r.isEnabled), isTrue);
   });
 
-  test('cancel disabled when help offers exist', () {
+  test('cancel disabled when acknowledged committers exist', () {
     final rows = buildBeaconStatusMenuRows(
-      _input(beacon: _beacon(helpOfferCount: 2)),
+      _input(beacon: _beacon(helpOfferCount: 2), hasCommitters: true),
     );
     expect(_row(rows, BeaconStatusMenuRowId.cancelled).isEnabled, isFalse);
     expect(

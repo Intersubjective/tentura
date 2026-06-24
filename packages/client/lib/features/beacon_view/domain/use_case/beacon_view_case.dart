@@ -1,13 +1,12 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -176,7 +175,7 @@ final class BeaconViewCase extends UseCaseBase {
     withdrawReason: withdrawReason,
   );
 
-  Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
+  Future<({BeaconStatus status, DateTime? updatedAt})>
   setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
@@ -191,12 +190,12 @@ final class BeaconViewCase extends UseCaseBase {
     removeFromRoom: removeFromRoom,
   );
 
-  Future<void> setBeaconCoordinationStatus({
+  Future<void> setBeaconStatus({
     required String beaconId,
-    required int coordinationStatus,
-  }) => _coordinationRepository.setBeaconCoordinationStatus(
+    required int status,
+  }) => _coordinationRepository.setBeaconStatus(
     beaconId: beaconId,
-    coordinationStatus: coordinationStatus,
+    status: status,
   );
 
   Future<Beacon> fetchBeaconById(String beaconId) =>
@@ -301,7 +300,7 @@ final class BeaconViewCase extends UseCaseBase {
     String beaconId,
   ) async {
     final beacon = await fetchBeaconById(beaconId);
-    if (beacon.lifecycle != BeaconLifecycle.reviewOpen) return null;
+    if (beacon.status != BeaconStatus.reviewOpen) return null;
     return _evaluationRepository.fetchReviewWindowStatus(beaconId);
   }
 

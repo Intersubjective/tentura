@@ -1,13 +1,12 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_publish_dialog.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
@@ -23,8 +22,8 @@ Future<void> showBeaconViewUpdateStatusSheet(
   VoidCallback? onOpenPeopleTab,
   void Function([CoordinationItem? focusItem])? onEnterRoomSurface,
 }) async {
-  final lifecycle = state.beacon.lifecycle;
-  if (lifecycle == BeaconLifecycle.deleted) return;
+  final lifecycle = state.beacon.status;
+  if (lifecycle == BeaconStatus.deleted) return;
 
   final l10n = L10n.of(context)!;
   final review = state.reviewWindowInfo;
@@ -223,11 +222,11 @@ Future<void> _dispatchStatusMenuAction(
         await cubit.publishBeacon();
       }
     case BeaconStatusMenuAction.setCoordinationNeutral:
-      await cubit.setBeaconCoordinationStatus(
-        BeaconCoordinationStatus.neutral,
+      await cubit.setBeaconStatus(
+        BeaconStatus.open,
       );
     case BeaconStatusMenuAction.setCoordinationMoreHelp:
-      if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+      if (state.beacon.status == BeaconStatus.reviewOpen) {
         if (!context.mounted) return;
         final ok = await showAdaptiveDialog<bool>(
           context: context,
@@ -248,12 +247,12 @@ Future<void> _dispatchStatusMenuAction(
         );
         if (ok != true) return;
       }
-      await cubit.setBeaconCoordinationStatus(
-        BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      await cubit.setBeaconStatus(
+        BeaconStatus.needsMoreHelp,
       );
     case BeaconStatusMenuAction.setCoordinationEnoughHelp:
-      await cubit.setBeaconCoordinationStatus(
-        BeaconCoordinationStatus.enoughHelpOffered,
+      await cubit.setBeaconStatus(
+        BeaconStatus.enoughHelp,
       );
     case BeaconStatusMenuAction.startWrappingUp:
       if (!context.mounted) return;

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -94,14 +93,14 @@ class _SituationPanelBody extends StatelessWidget {
     final beacon = state.beacon;
     final cue = state.beaconRoomCue;
 
-    if (beacon.lifecycle == BeaconLifecycle.deleted) {
+    if (beacon.status == BeaconStatus.deleted) {
       return SelectableText(
         l10n.beaconHudBeaconUnavailable,
         style: TenturaText.body(scheme.onSurfaceVariant),
       );
     }
 
-    if (beacon.lifecycle != BeaconLifecycle.open) {
+    if (beacon.status != BeaconStatus.open) {
       return SelectableText(
         beaconHudNowLine(l10n, state),
         style: TenturaText.body(scheme.onSurfaceVariant),
@@ -383,7 +382,7 @@ class BeaconStatusDashboard extends StatelessWidget {
     final beacon = state.beacon;
     final coordinationAccent = coordinationContextOnSurfaceColor(
       scheme,
-      beaconStatus: beacon.coordinationStatus,
+      beaconStatus: beacon.status,
       dominantResponse: _dominantDiagnosisType(state),
     );
     final active = activeHelpOfferCount(state.helpOffers);
@@ -536,7 +535,7 @@ class BeaconStatusDashboard extends StatelessWidget {
 
     BeaconOverviewSectionCard? closurePanel;
     if (state.isBeaconMine &&
-        beacon.lifecycle == BeaconLifecycle.open &&
+        beacon.status == BeaconStatus.open &&
         state.closureReadiness != BeaconClosureReadiness.notCloseable) {
       final readiness = state.closureReadiness;
       final summary = buildClosureConfirmationSummary(state);
@@ -863,14 +862,15 @@ class _CoordinationBody extends StatelessWidget {
 }
 
 String _coordinationHeaderSummary(L10n l10n, BeaconViewState state) {
-  return switch (state.beacon.coordinationStatus) {
-    BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
+  return switch (state.beacon.status) {
+    BeaconStatus.needsMoreHelp =>
       l10n.beaconOverviewCoordinationHeaderPair(
         l10n.beaconOverviewNeedsShortMoreHelp,
         l10n.coordinationNeedDifferentSkill,
       ),
-    BeaconCoordinationStatus.neutral => l10n.coordinationNeutral,
-    BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
+    BeaconStatus.open => l10n.coordinationNeutral,
+    BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+    _ => coordinationStatusLabel(l10n, state.beacon.status),
   };
 }
 
@@ -890,7 +890,7 @@ String _coordinationHeaderSummary(L10n l10n, BeaconViewState state) {
     };
     return (title: title, body: body);
   }
-  final s = state.beacon.coordinationStatus;
+  final s = state.beacon.status;
   return (
     title: coordinationStatusLabel(l10n, s),
     body: l10n.beaconOverviewDiagnosisGenericMoreHelpBody,
@@ -909,8 +909,8 @@ CoordinationResponseType? _dominantDiagnosisType(BeaconViewState state) {
       return t;
     }
   }
-  if (state.beacon.coordinationStatus ==
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+  if (state.beacon.status ==
+      BeaconStatus.needsMoreHelp) {
     return CoordinationResponseType.needDifferentSkill;
   }
   return null;

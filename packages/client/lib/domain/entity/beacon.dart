@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 
-import 'beacon_lifecycle.dart';
-import 'coordination_status.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
@@ -25,7 +24,8 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     String? needSummary,
     String? successCriteria,
     @Default(false) bool isPinned,
-    @Default(BeaconLifecycle.open) BeaconLifecycle lifecycle,
+    @Default(BeaconStatus.open) BeaconStatus status,
+    DateTime? statusChangedAt,
     @Default(0) double rScore,
     @Default(0) double score,
     @Default(0) int myVote,
@@ -42,9 +42,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
     int? reviewWindowStatus,
-    @Default(BeaconCoordinationStatus.neutral)
-    BeaconCoordinationStatus coordinationStatus,
-    DateTime? coordinationStatusUpdatedAt,
 
     /// Rows in `beacon_help_offer` for this beacon (from GraphQL aggregate when fetched).
     @Default(0) int helpOfferCount,
@@ -70,22 +67,20 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// True when [needSummary] is a non-empty trimmed string (post–need-first schema).
   bool get hasNeedSummary => needSummary?.trim().isNotEmpty ?? false;
 
-  /// Non-closed listing (OPEN, DRAFT, WRAPPING UP); profile filters and author controls.
-  bool get isListed => lifecycle.isActiveSection;
+  /// Non-closed listing (open-family, DRAFT, WRAPPING UP); profile filters and author controls.
+  bool get isListed => status.isActiveSection;
 
-  /// Non-author may offer help only when lifecycle is OPEN (matches server `beaconOfferHelp`).
-  bool get allowsNewHelpOfferAsNonAuthor => lifecycle == BeaconLifecycle.open;
+  /// Non-author may offer help only when status is open-family (matches server).
+  bool get allowsNewHelpOfferAsNonAuthor => status.isOpenFamily;
 
-  /// Help offerer may withdraw in OPEN or WRAPPING UP (matches server `beaconWithdraw`).
-  bool get allowsWithdrawWhileHelpOffered =>
-      lifecycle == BeaconLifecycle.open ||
-      lifecycle == BeaconLifecycle.reviewOpen;
+  /// Help offerer may withdraw in open-family or WRAPPING UP.
+  bool get allowsWithdrawWhileHelpOffered => status.allowsCoordination;
 
-  bool get allowsCoordination => lifecycle.allowsCoordination;
+  bool get allowsCoordination => status.allowsCoordination;
 
-  bool get allowsForward => lifecycle.allowsForward;
+  bool get allowsForward => status.allowsForward;
 
-  bool get isFinished => lifecycle.isFinished;
+  bool get isFinished => status.isFinished;
 
   @override
   int get votes => myVote;

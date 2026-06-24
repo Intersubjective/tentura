@@ -1,25 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/coordination/beacon_coordination_phase_input.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 
 final _t = DateTime.utc(2026, 6, 20, 12);
 
 Beacon _beacon({
-  BeaconLifecycle lifecycle = BeaconLifecycle.open,
-  BeaconCoordinationStatus coordinationStatus = BeaconCoordinationStatus.neutral,
+  BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
 }) =>
     Beacon.empty.copyWith(
       id: 'b1',
       title: 'Test',
-      lifecycle: lifecycle,
-      coordinationStatus: coordinationStatus,
+      status: status,
       helpOfferCount: helpOfferCount,
       createdAt: _t,
       updatedAt: _t,
@@ -103,7 +100,7 @@ void main() {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
         beacon: _beacon(
-          coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+          status: BeaconStatus.needsMoreHelp,
         ),
         tier: BeaconVisibilityTier.public,
         now: _t,
@@ -115,7 +112,7 @@ void main() {
   test('draft lifecycle maps to draft phase', () {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
-        beacon: _beacon(lifecycle: BeaconLifecycle.draft),
+        beacon: _beacon(status: BeaconStatus.draft),
         tier: BeaconVisibilityTier.coordination,
         now: _t,
       ),
@@ -138,7 +135,7 @@ void main() {
     final endedAt = DateTime.utc(2026, 6, 15, 14, 30);
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
-        beacon: _beacon(lifecycle: BeaconLifecycle.closed).copyWith(
+        beacon: _beacon(status: BeaconStatus.closed).copyWith(
           updatedAt: endedAt,
         ),
         tier: BeaconVisibilityTier.coordination,
@@ -154,7 +151,7 @@ void main() {
     final endedAt = DateTime.utc(2026, 6, 10, 9, 0);
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
-        beacon: _beacon(lifecycle: BeaconLifecycle.cancelled).copyWith(
+        beacon: _beacon(status: BeaconStatus.cancelled).copyWith(
           updatedAt: endedAt,
         ),
         tier: BeaconVisibilityTier.public,

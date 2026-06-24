@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 
 void main() {
@@ -38,8 +38,8 @@ void main() {
         createdAt: t0,
         updatedAt: t1,
         id: 'b1',
-        coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
-        coordinationStatusUpdatedAt: t1,
+        status: BeaconStatus.needsMoreHelp,
+        statusChangedAt: t1,
       );
       final item = InboxItem(
         beaconId: 'b1',
@@ -74,7 +74,7 @@ void main() {
         createdAt: t0,
         updatedAt: t1,
         id: 'b1',
-        coordinationStatusUpdatedAt: t2,
+        statusChangedAt: t2,
       );
       final item = InboxItem(
         beaconId: 'b1',

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/consts.dart';
@@ -20,7 +21,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     required UserEntity author,
     required DateTime createdAt,
     required DateTime updatedAt,
-    @Default(0) int state,
+    @Default(BeaconStatus.open) BeaconStatus status,
+    DateTime? statusChangedAt,
     @Default('') String description,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
@@ -39,26 +41,28 @@ abstract class BeaconEntity with _$BeaconEntity {
 
   const BeaconEntity._();
 
-  bool get isActive => state == 0;
-  bool get isCancelled => state == 1;
-  bool get isDeleted => state == 2;
-  bool get isWrappingUp => state == 5;
-  bool get isFinished => state == 1 || state == 6;
+  bool get isActive => status == BeaconStatus.open;
 
-  /// NOW + coordination edits allowed in OPEN (0) and WRAPPING UP (5).
-  bool get allowsCoordination => state == 0 || state == 5;
+  bool get isCancelled => status == BeaconStatus.cancelled;
 
-  /// Forwarding only while OPEN.
-  bool get allowsForward => state == 0;
+  bool get isDeleted => status == BeaconStatus.deleted;
 
-  /// Shown under My Work "Active" (OPEN, DRAFT, WRAPPING UP).
-  bool get isLifecycleActive => state == 0 || state == 3 || state == 5;
+  bool get isWrappingUp => status == BeaconStatus.reviewOpen;
 
-  /// Shown under My Work "Closed" (CANCELLED, DELETED, CLOSED).
-  bool get isLifecycleClosed => state == 1 || state == 2 || state == 6;
+  bool get isFinished => status.isFinished;
 
-  /// Withdraw (`beaconWithdraw`) allowed only for OPEN and WRAPPING UP.
-  bool get allowsBeaconWithdraw => state == 0 || state == 5;
+  bool get allowsCoordination => status.allowsCoordination;
+
+  bool get allowsForward => status.allowsForward;
+
+  bool get isLifecycleActive => status.isActiveSection;
+
+  bool get isLifecycleClosed =>
+      status == BeaconStatus.cancelled ||
+      status == BeaconStatus.deleted ||
+      status == BeaconStatus.closed;
+
+  bool get allowsBeaconWithdraw => status.allowsCoordination;
 
   bool get hasImage => images.isNotEmpty;
 

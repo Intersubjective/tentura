@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 Beacon _beacon({
-  BeaconLifecycle lifecycle = BeaconLifecycle.open,
+  BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
-  BeaconCoordinationStatus coordinationStatus = BeaconCoordinationStatus.neutral,
 }) =>
     Beacon(
       createdAt: DateTime.utc(2026),
@@ -20,9 +18,8 @@ Beacon _beacon({
       id: 'b1',
       title: 'Test',
       author: const Profile(id: 'u1'),
-      lifecycle: lifecycle,
+      status: status,
       helpOfferCount: helpOfferCount,
-      coordinationStatus: coordinationStatus,
     );
 
 void main() {
@@ -31,7 +28,7 @@ void main() {
   group('beaconStatusMenuOpenRowLabel', () {
     test('draft shows publish label', () {
       expect(
-        beaconStatusMenuOpenRowLabel(l10n, _beacon(lifecycle: BeaconLifecycle.draft)),
+        beaconStatusMenuOpenRowLabel(l10n, _beacon(status: BeaconStatus.draft)),
         l10n.beaconStatusRowPublish,
       );
     });
@@ -92,7 +89,7 @@ void main() {
       expect(
         beaconSituationStateLine(
           l10n,
-          _beacon(lifecycle: BeaconLifecycle.closed),
+          _beacon(status: BeaconStatus.closed),
         ),
         l10n.beaconStatusRowClosed,
       );
@@ -103,7 +100,7 @@ void main() {
         beaconSituationStateLine(
           l10n,
           _beacon(
-            coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+            status: BeaconStatus.enoughHelp,
           ),
         ),
         l10n.coordinationEnoughHelp,

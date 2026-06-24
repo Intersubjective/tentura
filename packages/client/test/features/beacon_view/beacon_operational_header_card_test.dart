@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
@@ -29,9 +28,7 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 }
 
 Beacon _openAuthorBeacon({
-  BeaconCoordinationStatus coordinationStatus =
-      BeaconCoordinationStatus.neutral,
-  BeaconLifecycle lifecycle = BeaconLifecycle.open,
+  BeaconStatus status = BeaconStatus.open,
 }) =>
     Beacon(
       id: 'b1',
@@ -39,8 +36,7 @@ Beacon _openAuthorBeacon({
       author: const Profile(id: 'uAuthor', displayName: 'Author'),
       createdAt: DateTime.utc(2026, 6, 20),
       updatedAt: DateTime.utc(2026, 6, 20),
-      lifecycle: lifecycle,
-      coordinationStatus: coordinationStatus,
+      status: status,
     );
 
 Future<void> _pumpHeaderCard(
@@ -204,8 +200,7 @@ void main() {
     ) async {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(
-          coordinationStatus:
-              BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+          status: BeaconStatus.needsMoreHelp,
         ),
         myProfile: authorProfile,
       );
@@ -225,7 +220,7 @@ void main() {
       tester,
     ) async {
       final state = BeaconViewState(
-        beacon: _openAuthorBeacon(lifecycle: BeaconLifecycle.closed),
+        beacon: _openAuthorBeacon(status: BeaconStatus.closed),
         myProfile: authorProfile,
       );
 
@@ -323,7 +318,7 @@ void main() {
       tester,
     ) async {
       final state = BeaconViewState(
-        beacon: _openAuthorBeacon(lifecycle: BeaconLifecycle.closed),
+        beacon: _openAuthorBeacon(status: BeaconStatus.closed),
         myProfile: authorProfile,
       );
 

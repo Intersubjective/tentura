@@ -13,7 +13,7 @@ mutation SetCoordinationResponse(
     responseType: $responseType
   ) {
     beaconId
-    coordinationStatus
-    coordinationStatusUpdatedAt
+    status
+    statusChangedAt
   }
 }

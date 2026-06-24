@@ -7,6 +7,7 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i12;
+import 'package:tentura_root/domain/entity/beacon_status.dart' as _i14;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i4;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i11;
@@ -15,7 +16,7 @@ import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/user_contact_entity.dart' as _i9;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i3;
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart'
-    as _i16;
+    as _i17;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i13;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i7;
@@ -23,9 +24,9 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart'
     as _i8;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i10;
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart'
-    as _i15;
+    as _i16;
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart'
-    as _i14;
+    as _i15;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -618,7 +619,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     int? ticker = 0,
     String? iconCode,
     int? iconBackground,
-    int? state,
+    _i14.BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
     String? lineageParentBeaconId,
@@ -640,7 +641,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #ticker: ticker,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
-              #state: state,
+              #status: status,
               #needSummary: needSummary,
               #successCriteria: successCriteria,
               #lineageParentBeaconId: lineageParentBeaconId,
@@ -664,7 +665,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #ticker: ticker,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
-                  #state: state,
+                  #status: status,
                   #needSummary: needSummary,
                   #successCriteria: successCriteria,
                   #lineageParentBeaconId: lineageParentBeaconId,
@@ -829,15 +830,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
-  _i6.Future<void> softDeleteBeacon(String? beaconId) =>
-      (super.noSuchMethod(
-            Invocation.method(#softDeleteBeacon, [beaconId]),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
   _i6.Future<T> runInBeaconStateTransaction<T>({
     required String? beaconId,
     required String? userId,
@@ -873,33 +865,18 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<T>);
 
   @override
-  _i6.Future<void> updateBeaconState({
+  _i6.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
-    required int? state,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#updateBeaconState, [], {
-              #beaconId: beaconId,
-              #state: state,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
-  _i6.Future<void> recordBeaconLifecycleTransition({
-    required String? beaconId,
-    required int? fromState,
-    required int? toState,
+    required _i14.BeaconStatus? fromStatus,
+    required _i14.BeaconStatus? toStatus,
     required String? reason,
     required String? actorId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#recordBeaconLifecycleTransition, [], {
+            Invocation.method(#recordBeaconStatusTransition, [], {
               #beaconId: beaconId,
-              #fromState: fromState,
-              #toState: toState,
+              #fromStatus: fromStatus,
+              #toStatus: toStatus,
               #reason: reason,
               #actorId: actorId,
             }),
@@ -987,7 +964,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookupPort extends _i1.Mock
-    implements _i14.VoteUserFriendshipLookupPort {
+    implements _i15.VoteUserFriendshipLookupPort {
   MockVoteUserFriendshipLookupPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -1039,14 +1016,14 @@ class MockVoteUserFriendshipLookupPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVerifiedContactRepositoryPort extends _i1.Mock
-    implements _i15.VerifiedContactRepositoryPort {
+    implements _i16.VerifiedContactRepositoryPort {
   MockVerifiedContactRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
   _i6.Future<String?> getAccountIdByContact({
-    required _i16.ContactKind? kind,
+    required _i17.ContactKind? kind,
     required String? value,
   }) =>
       (super.noSuchMethod(
@@ -1060,7 +1037,7 @@ class MockVerifiedContactRepositoryPort extends _i1.Mock
 
   @override
   _i6.Future<Set<String>> findAccountIdsByContacts(
-    Iterable<({_i16.ContactKind kind, String value})>? contacts,
+    Iterable<({_i17.ContactKind kind, String value})>? contacts,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#findAccountIdsByContacts, [contacts]),

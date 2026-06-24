@@ -271,7 +271,7 @@ class EvaluationRepository {
               final result = r.dataOrThrow(label: _label).beaconClose;
               return BeaconCloseResult(
                 beaconId: result.id,
-                state: result.state,
+                state: result.status,
                 closesAt: result.closesAt,
                 requiresReviewWindow: result.requiresReviewWindow,
                 branchMismatch: result.branchMismatch,
@@ -288,7 +288,7 @@ class EvaluationRepository {
               final result = r.dataOrThrow(label: _label).beaconCancel;
               return BeaconLifecycleMutationResult(
                 beaconId: result.id,
-                state: result.state,
+                state: result.status,
               );
             },
           );
@@ -317,7 +317,7 @@ class EvaluationRepository {
               final result = r.dataOrThrow(label: _label).beaconReopen;
               return BeaconLifecycleMutationResult(
                 beaconId: result.id,
-                state: result.state,
+                state: result.status,
               );
             },
           );
@@ -331,7 +331,7 @@ class EvaluationRepository {
               final result = r.dataOrThrow(label: _label).beaconCloseNow;
               return BeaconLifecycleMutationResult(
                 beaconId: result.id,
-                state: result.state,
+                state: result.status,
               );
             },
           );

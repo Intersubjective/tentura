@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 
 import 'my_work_test_support.dart';
@@ -13,7 +13,7 @@ void main() {
         authoredNonArchived: [
           Beacon.empty.copyWith(
             id: 'b1',
-            lifecycle: BeaconLifecycle.open,
+            status: BeaconStatus.open,
             updatedAt: DateTime(2025, 6),
           ),
         ],
@@ -45,7 +45,7 @@ void main() {
         authoredArchived: [
           Beacon.empty.copyWith(
             id: 'c1',
-            lifecycle: BeaconLifecycle.closed,
+            status: BeaconStatus.closed,
           ),
         ],
         helpOfferedArchived: const [],

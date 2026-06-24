@@ -1,8 +1,7 @@
 import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'entity/my_work_card_view_model.dart';
@@ -58,8 +57,8 @@ MyWorkCardViewModel _deriveAuthored({
   required Beacon beacon,
   bool archived = false,
 }) {
-  final lc = beacon.lifecycle;
-  if (!archived && lc == BeaconLifecycle.draft) {
+  final lc = beacon.status;
+  if (!archived && lc == BeaconStatus.draft) {
     return MyWorkCardViewModel(
       beaconId: beacon.id,
       role: MyWorkCardRole.authored,
@@ -87,10 +86,10 @@ MyWorkCardViewModel _deriveAuthored({
   }
 
   MyWorkAttentionChip? attention;
-  if (lc == BeaconLifecycle.reviewOpen) {
+  if (lc == BeaconStatus.reviewOpen) {
     attention = MyWorkAttentionChip.reviewWindowOpen;
-  } else if (beacon.coordinationStatus ==
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+  } else if (beacon.status ==
+      BeaconStatus.needsMoreHelp) {
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
 
@@ -111,7 +110,7 @@ MyWorkCardViewModel _deriveHelpOffered({
   bool archived = false,
 }) {
   final beacon = row.beacon;
-  final lc = beacon.lifecycle;
+  final lc = beacon.status;
 
   if (archived) {
     return MyWorkCardViewModel(
@@ -143,7 +142,7 @@ MyWorkCardViewModel _deriveHelpOffered({
     );
   }
 
-  final reviewOpen = lc == BeaconLifecycle.reviewOpen;
+  final reviewOpen = lc == BeaconStatus.reviewOpen;
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,

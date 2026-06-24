@@ -240,11 +240,11 @@ class _InboxGoldenBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              coordinationStatusLabel(l10n, beacon.coordinationStatus),
+              coordinationStatusLabel(l10n, beacon.status),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: coordinationStatusOnSurfaceColor(
                   scheme,
-                  beacon.coordinationStatus,
+                  beacon.status,
                 ),
               ),
             ),

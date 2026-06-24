@@ -1,7 +1,7 @@
 mutation BeaconClose($id: String!, $expectedRequiresReviewWindow: Boolean!) {
   beaconClose(id: $id, expectedRequiresReviewWindow: $expectedRequiresReviewWindow) {
     id
-    state
+    status
     closesAt
     requiresReviewWindow
     branchMismatch

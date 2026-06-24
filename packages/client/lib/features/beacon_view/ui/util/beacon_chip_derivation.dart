@@ -1,7 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -64,7 +63,7 @@ List<BeaconDerivedChip> deriveSupportingChips({
     out.add(BeaconDerivedChip(label: l10n.beaconChipUsefulCount(u)));
   }
 
-  out.addAll(_missingHelpChips(l10n, beacon.coordinationStatus, helpOffers));
+  out.addAll(_missingHelpChips(l10n, beacon.status, helpOffers));
 
   final helpTypes = helpOffers
       .where((c) => !c.isWithdrawn)
@@ -86,7 +85,7 @@ List<BeaconDerivedChip> deriveSupportingChips({
     if (fwd > 0) {
       out.add(BeaconDerivedChip(label: l10n.beaconChipForwardedBy(fwd)));
     }
-  } else if (beacon.lifecycle == BeaconLifecycle.open) {
+  } else if (beacon.status == BeaconStatus.open) {
     final mySent = viewerForwardEdges.where((e) => e.sender.id == myUserId).length;
     if (mySent > 0) {
       out.add(BeaconDerivedChip(label: l10n.beaconChipYouForwarded(mySent)));
@@ -108,18 +107,20 @@ List<BeaconDerivedChip> deriveSupportingChips({
 
 List<BeaconDerivedChip> _missingHelpChips(
   L10n l10n,
-  BeaconCoordinationStatus status,
+  BeaconStatus status,
   List<TimelineHelpOffer> helpOffers,
 ) {
   switch (status) {
-    case BeaconCoordinationStatus.moreOrDifferentHelpNeeded:
+    case BeaconStatus.needsMoreHelp:
       return [BeaconDerivedChip(label: l10n.beaconChipMoreHelpNeeded, emphasized: true)];
-    case BeaconCoordinationStatus.enoughHelpOffered:
+    case BeaconStatus.enoughHelp:
       if (activeHelpOfferCount(helpOffers) == 0) {
         return [];
       }
       return [BeaconDerivedChip(label: l10n.beaconChipEnoughHelp)];
-    case BeaconCoordinationStatus.neutral:
+    case BeaconStatus.open:
+      return [];
+    default:
       return [];
   }
 }

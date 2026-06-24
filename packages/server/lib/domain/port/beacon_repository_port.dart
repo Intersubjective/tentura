@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 
 abstract class BeaconRepositoryPort {
@@ -16,7 +18,7 @@ abstract class BeaconRepositoryPort {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
-    int? state,
+    BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
     String? lineageParentBeaconId,
@@ -46,8 +48,7 @@ abstract class BeaconRepositoryPort {
     String? successCriteria,
   });
 
-  /// Updates an OPEN (0) or WRAPPING UP (5) beacon owned by [userId].
-  /// Throws if not found, not owned, or not editable in the current lifecycle state.
+  /// Updates an open-family or reviewOpen beacon owned by [userId].
   Future<BeaconEntity> updateBeacon({
     required String beaconId,
     required String userId,
@@ -68,9 +69,6 @@ abstract class BeaconRepositoryPort {
 
   Future<void> deleteBeaconById(String id, {required String userId});
 
-  /// Sets beacon state to 2 (soft-deleted tombstone).
-  Future<void> softDeleteBeacon(String beaconId);
-
   /// Row-lock beacon and run [fn] with the locked entity snapshot.
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
@@ -78,16 +76,11 @@ abstract class BeaconRepositoryPort {
     required Future<T> Function(BeaconEntity locked) fn,
   });
 
-  Future<void> updateBeaconState({
+  /// Atomically updates beacon status and inserts a status activity log row.
+  Future<void> recordBeaconStatusTransition({
     required String beaconId,
-    required int state,
-  });
-
-  /// Atomically updates beacon state and inserts a lifecycle activity log row.
-  Future<void> recordBeaconLifecycleTransition({
-    required String beaconId,
-    required int fromState,
-    required int toState,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
   });
@@ -110,8 +103,7 @@ abstract class BeaconRepositoryPort {
     required List<String> imageIds,
   });
 
-  /// Draft (state 3) → open (state 0) and emit a `beaconPublished` activity event.
-  /// No-op when the beacon is already published.
+  /// Draft → open and emit a `beaconPublished` activity event.
   Future<BeaconEntity> publishDraft({
     required String id,
     required String actorId,

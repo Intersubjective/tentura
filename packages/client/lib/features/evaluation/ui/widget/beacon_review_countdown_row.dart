@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -48,7 +48,7 @@ class _BeaconReviewCountdownRowState extends State<BeaconReviewCountdownRow> {
   }
 
   bool get _shouldShow =>
-      widget.beacon.lifecycle == BeaconLifecycle.reviewOpen &&
+      widget.beacon.status == BeaconStatus.reviewOpen &&
       widget.beacon.reviewClosesAt != null &&
       widget.beacon.reviewWindowStatus != 1;
 

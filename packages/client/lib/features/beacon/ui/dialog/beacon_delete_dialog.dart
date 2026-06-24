@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class BeaconDeleteDialog extends StatelessWidget {
   static Future<bool?> show(
     BuildContext context, {
-    required BeaconLifecycle lifecycle,
+    required BeaconStatus status,
     required bool hasEverHadCommitter,
   }) =>
       showAdaptiveDialog(
         context: context,
         builder: (_) => BeaconDeleteDialog(
-          lifecycle: lifecycle,
+          status: status,
           hasEverHadCommitter: hasEverHadCommitter,
         ),
       );
 
   const BeaconDeleteDialog({
-    required this.lifecycle,
+    required this.status,
     required this.hasEverHadCommitter,
     super.key,
   });
 
-  final BeaconLifecycle lifecycle;
+  final BeaconStatus status;
   final bool hasEverHadCommitter;
 
   @override
@@ -41,12 +41,14 @@ class BeaconDeleteDialog extends StatelessWidget {
         ],
       );
     }
-    final (title, body) = switch (lifecycle) {
-      BeaconLifecycle.draft => (
+    final (title, body) = switch (status) {
+      BeaconStatus.draft => (
           l10n.beaconDeleteDraftTitle,
           l10n.beaconDeleteDraftBody,
         ),
-      BeaconLifecycle.open => (
+      BeaconStatus.open ||
+      BeaconStatus.needsMoreHelp ||
+      BeaconStatus.enoughHelp => (
           l10n.beaconDeleteOpenTitle,
           l10n.beaconDeleteOpenBody,
         ),
