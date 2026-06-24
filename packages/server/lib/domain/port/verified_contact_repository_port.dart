@@ -12,4 +12,8 @@ abstract class VerifiedContactRepositoryPort {
   Future<Set<String>> findAccountIdsByContacts(
     Iterable<({ContactKind kind, String value})> contacts,
   );
+
+  /// Newest verified email for [accountId], or null when none is verified.
+  /// Email notifications are only sent when this is non-null.
+  Future<String?> getPrimaryEmailForAccount(String accountId);
 }

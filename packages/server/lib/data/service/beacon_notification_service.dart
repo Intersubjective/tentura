@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/notification/beacon_notification_recipient
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
+import 'package:tentura_server/domain/port/email_notification_port.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
@@ -33,6 +34,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._context,
     this._preferences,
     this._outbox,
+    this._emailNotification,
     this._logger,
   );
 
@@ -43,6 +45,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final BeaconRoomNotificationContextPort _context;
   final NotificationPreferenceRepositoryPort _preferences;
   final NotificationOutboxRepositoryPort _outbox;
+  final EmailNotificationPort _emailNotification;
   final Logger _logger;
 
   static const _resolver = BeaconNotificationRecipientResolver();
@@ -71,21 +74,18 @@ class BeaconNotificationService implements BeaconNotificationPort {
     // signal for every intended recipient regardless of push/email delivery.
     await _writeOutbox(intent, resolved, fullCopy);
 
-    // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
-    // per-beacon mute) before any push leaves the server.
-    final gated = await _filterByPushPreference(intent, resolved);
-    if (gated.isEmpty) {
-      _logger.fine(
-        '[FCM] push suppressed by preferences kind=${intent.kind.name} '
-        'beaconId=${intent.beaconId}',
-      );
-      return;
-    }
-
     // Privacy-safe variant for recipients who enabled lock-screen redaction.
     final safeCopy = _copyBuilder.lockScreenSafe(intent);
 
+    // Honor per-recipient preferences (category opt-out, quiet hours, snooze,
+    // per-beacon mute) before any push leaves the server.
+    final gated = await _filterByPushPreference(intent, resolved);
+    final gatedSafe = {
+      for (final g in gated) g.recipient.userId: g.lockScreenSafe,
+    };
+
     if (intent.kind == NotificationKind.reviewReady) {
+      // unblocksMe category: push only, no immediate-email path.
       await _sendDirect(
         intent: intent,
         gated: gated,
@@ -95,15 +95,39 @@ class BeaconNotificationService implements BeaconNotificationPort {
       return;
     }
 
-    for (final g in gated) {
-      await _enqueue(
-        receiverId: g.recipient.userId,
-        intent: intent,
-        priority: g.recipient.priority,
-        copy: g.lockScreenSafe ? safeCopy : fullCopy,
-        reason: g.recipient.reason.name,
+    // Email is a separate channel: consider it for every resolved recipient,
+    // even those who opted out of push for this category.
+    for (final r in resolved) {
+      var pushDelivered = false;
+      if (gatedSafe.containsKey(r.userId)) {
+        pushDelivered = await _enqueue(
+          receiverId: r.userId,
+          intent: intent,
+          priority: r.priority,
+          copy: gatedSafe[r.userId]! ? safeCopy : fullCopy,
+          reason: r.reason.name,
+        );
+      }
+      unawaited(
+        _emailNotification.considerImmediate(
+          recipientUserId: r.userId,
+          kind: intent.kind,
+          beaconId: intent.beaconId,
+          dedupKey: _dedupKey(intent, r.userId),
+          title: fullCopy.title,
+          body: fullCopy.body,
+          actionUrl: fullCopy.actionUrl,
+          pushDelivered: pushDelivered,
+        ),
       );
     }
+  }
+
+  String _dedupKey(BeaconNotificationIntent intent, String userId) {
+    final category = categoryOf(intent.kind);
+    final beaconId = intent.beaconId.isEmpty ? '' : intent.beaconId;
+    final itemId = intent.coordinationItemId ?? '';
+    return '$userId|${category.name}|$beaconId|$itemId';
   }
 
   Future<void> _sendDirect({
@@ -150,7 +174,9 @@ class BeaconNotificationService implements BeaconNotificationPort {
     }
   }
 
-  Future<void> _enqueue({
+  /// Enqueues a push for [receiverId]. Returns whether it was actually
+  /// delivered (a device token existed) — used to decide the email fallback.
+  Future<bool> _enqueue({
     required String receiverId,
     required BeaconNotificationIntent intent,
     required NotificationPriority priority,
@@ -158,7 +184,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     required String reason,
   }) async {
     if (receiverId.isEmpty) {
-      return;
+      return false;
     }
     final tokens = await _fcmTokens.getTokensByUserId(receiverId);
     if (tokens.isEmpty) {
@@ -175,7 +201,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
         queuedOrDirect: 'skipped',
         coalescedCount: 0,
       );
-      return;
+      return false;
     }
     final tokenSet = tokens.map((e) => e.token).toSet();
     _logDispatch(
@@ -200,6 +226,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
         priority: priority,
       ),
     );
+    return true;
   }
 
   void _logDispatch({
@@ -230,8 +257,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     final beaconId = intent.beaconId.isEmpty ? null : intent.beaconId;
     final itemId = intent.coordinationItemId;
     for (final r in recipients) {
-      final dedupKey =
-          '${r.userId}|${category.name}|${beaconId ?? ''}|${itemId ?? ''}';
+      final dedupKey = _dedupKey(intent, r.userId);
       try {
         await _outbox.enqueue(
           accountId: r.userId,
