@@ -45,4 +45,18 @@ class VerifiedContactRepository implements VerifiedContactRepositoryPort {
     }
     return ids;
   }
+
+  @override
+  Future<String?> getPrimaryEmailForAccount(String accountId) async {
+    final rows = await _database.customSelect(
+      'SELECT value FROM public.account_verified_contact '
+      r'WHERE account_id = $1 AND kind = $2 '
+      'ORDER BY verified_at DESC LIMIT 1',
+      variables: [
+        Variable<String>(accountId),
+        Variable<String>(ContactKind.email.wire),
+      ],
+    ).get();
+    return rows.isEmpty ? null : rows.first.read<String>('value');
+  }
 }

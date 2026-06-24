@@ -176,6 +176,12 @@ void main() {
           touchForwardOrdering: false,
         ),
       ).thenAnswer((_) => Future.value());
+      when(
+        roomPush.notifyHelpWithdrawn(
+          beaconId: 'B1',
+          withdrawerUserId: 'U1',
+        ),
+      ).thenAnswer((_) => Future.value());
 
       await case_.withdraw(
         beaconId: 'B1',
@@ -195,6 +201,13 @@ void main() {
           senderId: 'U1',
           beaconId: 'B1',
           touchForwardOrdering: false,
+        ),
+      ).called(1);
+      // Open-beacon withdrawal notifies the author/stewards.
+      verify(
+        roomPush.notifyHelpWithdrawn(
+          beaconId: 'B1',
+          withdrawerUserId: 'U1',
         ),
       ).called(1);
     });

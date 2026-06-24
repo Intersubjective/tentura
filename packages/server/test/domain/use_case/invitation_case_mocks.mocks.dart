@@ -1067,4 +1067,12 @@ class MockVerifiedContactRepositoryPort extends _i1.Mock
             returnValue: _i6.Future<Set<String>>.value(<String>{}),
           )
           as _i6.Future<Set<String>>);
+
+  @override
+  _i6.Future<String?> getPrimaryEmailForAccount(String? accountId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getPrimaryEmailForAccount, [accountId]),
+            returnValue: _i6.Future<String?>.value(),
+          )
+          as _i6.Future<String?>);
 }

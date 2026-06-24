@@ -7,7 +7,9 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -20,10 +22,14 @@ final class TaskWorkerCase extends UseCaseBase {
     Logger logger,
     ImageRepositoryPort imageRepository,
     TaskRepositoryPort tasksRepository,
+    EmailDigestCase emailDigestCase,
+    NotificationOutboxRepositoryPort notificationOutbox,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
       tasksRepository,
+      emailDigestCase,
+      notificationOutbox,
       env: env,
       logger: logger,
     ),
@@ -31,7 +37,9 @@ final class TaskWorkerCase extends UseCaseBase {
 
   TaskWorkerCase(
     this._imageRepository,
-    this._tasksRepository, {
+    this._tasksRepository,
+    this._emailDigestCase,
+    this._notificationOutbox, {
     required super.env,
     required super.logger,
   });
@@ -40,7 +48,15 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final TaskRepositoryPort _tasksRepository;
 
+  final EmailDigestCase _emailDigestCase;
+
+  final NotificationOutboxRepositoryPort _notificationOutbox;
+
   final _runnerCompleter = Completer<void>();
+
+  var _lastDigestSweep = DateTime.fromMillisecondsSinceEpoch(0);
+
+  var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Calculate Image Hash
@@ -65,6 +81,24 @@ final class TaskWorkerCase extends UseCaseBase {
         await _tasksRepository.fail(task.id);
         rethrow;
       }
+    },
+    // Email digest sweep (self-gates per account; throttle the sweep itself).
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastDigestSweep) < const Duration(minutes: 10)) {
+        return;
+      }
+      _lastDigestSweep = now;
+      await _emailDigestCase.runDue(now: now);
+    },
+    // Notification outbox retention (delete read+emailed rows older than 30d).
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastRetentionSweep) < const Duration(hours: 6)) {
+        return;
+      }
+      _lastRetentionSweep = now;
+      await _notificationOutbox.deleteSettledOlderThan(const Duration(days: 30));
     },
   ];
 
