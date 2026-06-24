@@ -31,7 +31,10 @@ import 'router/root_router.dart';
 import 'debug_error_overlay.dart';
 
 class App extends StatelessWidget {
-  static Future<void> runner({bool debugErrors = false}) async {
+  static Future<void> runner({
+    bool debugErrors = false,
+    bool useSentryWidget = false,
+  }) async {
     FlutterNativeSplash.preserve(
       widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
     );
@@ -66,6 +69,10 @@ class App extends StatelessWidget {
 
     if (debugErrors) {
       appWidget = DebugErrorOverlay(child: appWidget);
+    }
+
+    if (useSentryWidget) {
+      appWidget = SentryWidget(child: appWidget);
     }
 
     _runAppWithErrorHandling(appWidget);
@@ -139,6 +146,21 @@ class App extends StatelessWidget {
             ],
             child: MultiBlocListener(
               listeners: [
+                BlocListener<AuthCubit, AuthState>(
+                  listenWhen: (previous, current) =>
+                      previous.currentAccountId != current.currentAccountId,
+                  listener: (context, state) {
+                    // ignore: discarded_futures
+                    Sentry.configureScope((scope) {
+                      final accountId = state.currentAccountId;
+                      if (accountId.isEmpty) {
+                        scope.setUser(null);
+                      } else {
+                        scope.setUser(SentryUser(id: accountId));
+                      }
+                    });
+                  },
+                ),
                 BlocListener<AppUpdateCubit, AppUpdateState>(
                   listenWhen: (previous, current) =>
                       previous.updateAvailable != current.updateAvailable ||

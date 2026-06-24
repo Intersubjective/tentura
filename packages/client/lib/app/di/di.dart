@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
+import '../sentry/sentry_init.dart';
+import '../sentry/sentry_log_bridge.dart';
 import '../../env.dart';
 import 'di.config.dart';
 
@@ -29,6 +31,8 @@ Future<GetIt> configureDependencies() async {
       // ignore: avoid_print //
       (e) => print('${e.level.name}: ${e.message}'),
     );
+  } else if (sentryDsn.isNotEmpty) {
+    configureSentryLogBridge();
   }
 
   return getIt;
