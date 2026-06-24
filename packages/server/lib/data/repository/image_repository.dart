@@ -3,7 +3,9 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '../database/tentura_db.dart';
@@ -21,11 +23,17 @@ class ImageRepository implements ImageRepositoryPort {
   const ImageRepository(
     this._database,
     this._remoteStorageService,
+    this._uploadQuota,
+    this._env,
   );
 
   final TenturaDb _database;
 
   final RemoteStoragePort _remoteStorageService;
+
+  final UploadQuotaRepositoryPort _uploadQuota;
+
+  final Env _env;
 
   @override
   Future<Uint8List> get({required String id}) async {
@@ -45,6 +53,16 @@ class ImageRepository implements ImageRepositoryPort {
     // Enforce the upload cap before creating the image row, so an oversized
     // upload fails fast and never leaves an orphan row or partial object.
     final buffered = await readUint8StreamCapped(bytes, kMaxImageUploadBytes);
+    final withinDailyCap = await _uploadQuota.tryReserveDailyBytes(
+      userId: authorId,
+      bytes: buffered.length,
+      dailyCapBytes: _env.uploadDailyCapBytes,
+    );
+    if (!withinDailyCap) {
+      throw const RateLimitedException(
+        description: 'Daily upload limit reached, try again tomorrow',
+      );
+    }
     final imageModel = await _database.managers.images.createReturning(
       (o) => o(authorId: authorId),
     );

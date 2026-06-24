@@ -931,6 +931,20 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<int>);
 
   @override
+  _i6.Future<int> countRecentByAuthor({
+    required String? userId,
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countRecentByAuthor, [], {
+              #userId: userId,
+              #window: window,
+            }),
+            returnValue: _i6.Future<int>.value(0),
+          )
+          as _i6.Future<int>);
+
+  @override
   _i6.Future<void> reorderImages({
     required String? beaconId,
     required List<String>? imageIds,

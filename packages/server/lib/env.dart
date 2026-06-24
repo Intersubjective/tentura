@@ -46,6 +46,7 @@ class Env {
     int? beaconCreateMaxPerUser,
     Duration? roomMessageRateWindow,
     int? roomMessageMaxPerUser,
+    int? uploadDailyCapBytes,
 
     // Web server
     String? bindAddress,
@@ -182,6 +183,10 @@ class Env {
        roomMessageMaxPerUser = roomMessageMaxPerUser ??
            int.tryParse(_env['ROOM_MESSAGE_MAX_PER_USER'] ?? '') ??
            30,
+       uploadDailyCapBytes = uploadDailyCapBytes ??
+           (int.tryParse(_env['UPLOAD_DAILY_CAP_MB'] ?? '') ?? 200) *
+               1024 *
+               1024,
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -409,6 +414,10 @@ class Env {
 
   /// Max room messages one author may post within [roomMessageRateWindow].
   final int roomMessageMaxPerUser;
+
+  /// Max total bytes (images + file attachments) one user may upload per UTC
+  /// day. Configured in MB via `UPLOAD_DAILY_CAP_MB` (default 200MB).
+  final int uploadDailyCapBytes;
 
   bool get isEmailAuthConfigured =>
       (resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty) ||
