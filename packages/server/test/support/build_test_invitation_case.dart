@@ -68,7 +68,7 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
       );
 
   @override
-  Future<void> createBatch({
+  Future<List<String>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,

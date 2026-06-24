@@ -498,7 +498,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> createBatch({
+  _i3.Future<List<String>> createBatch({
     required String? beaconId,
     required String? senderId,
     required List<String>? recipientIds,
@@ -519,10 +519,10 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #parentEdgeId: parentEdgeId,
               #onAfterEdgesInserted: onAfterEdgesInserted,
             }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+            returnValueForMissingStub: _i3.Future<List<String>>.value(<String>[]),
           )
-          as _i3.Future<void>);
+          as _i3.Future<List<String>>);
 
   @override
   _i3.Future<List<_i9.ForwardEdgeEntity>> fetchByBeaconId(String? beaconId) =>

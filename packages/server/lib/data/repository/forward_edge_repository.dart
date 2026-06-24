@@ -78,25 +78,25 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? parentEdgeId,
     String? batchId,
   }) => _database.withMutatingUser(senderId, () async {
-    await _database.managers.beaconForwardEdges.create(
-      (o) => o(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-        note: Value(note),
-        context: Value(context),
-        parentEdgeId: Value(parentEdgeId),
-        batchId: Value(batchId),
-      ),
+    await _insertActiveEdge(
+      beaconId: beaconId,
+      senderId: senderId,
+      recipientId: recipientId,
+      note: note,
+      context: context,
+      parentEdgeId: parentEdgeId,
+      batchId: batchId,
     );
   });
 
   /// Inserts one batch of forward edges atomically.
   ///
-  /// [onAfterEdgesInserted] runs inside the same transaction (e.g. sender
-  /// inbox → watching when not committed).
+  /// [onAfterEdgesInserted] runs inside the same transaction when at least one
+  /// edge is inserted (e.g. sender inbox → watching when not committed).
+  ///
+  /// Returns recipient ids for which a new active edge was inserted.
   @override
-  Future<void> createBatch({
+  Future<List<String>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
@@ -106,20 +106,38 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
   }) => _database.withMutatingUser(senderId, () async {
+    final inserted = <String>[];
     for (final recipientId in recipientIds) {
-      await _database.managers.beaconForwardEdges.create(
-        (o) => o(
-          beaconId: beaconId,
-          senderId: senderId,
-          recipientId: recipientId,
-          note: Value(noteForRecipient(recipientId)),
-          context: Value(context),
-          parentEdgeId: Value(parentEdgeId),
-          batchId: Value(batchId),
-        ),
+      if (await findActiveEdge(
+            beaconId: beaconId,
+            senderId: senderId,
+            recipientId: recipientId,
+          ) !=
+          null) {
+        continue;
+      }
+      await _insertActiveEdge(
+        beaconId: beaconId,
+        senderId: senderId,
+        recipientId: recipientId,
+        note: noteForRecipient(recipientId),
+        context: context,
+        parentEdgeId: parentEdgeId,
+        batchId: batchId,
       );
+      final edge = await findActiveEdge(
+        beaconId: beaconId,
+        senderId: senderId,
+        recipientId: recipientId,
+      );
+      if (edge?.batchId == batchId) {
+        inserted.add(recipientId);
+      }
     }
-    await onAfterEdgesInserted?.call();
+    if (inserted.isNotEmpty) {
+      await onAfterEdgesInserted?.call();
+    }
+    return inserted;
   });
 
   @override
@@ -258,16 +276,36 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? parentEdgeId,
   }) =>
       _database.withMutatingUser(recipientId, () async {
-        await _database.managers.beaconForwardEdges.create(
-          (o) => o(
-            beaconId: beaconId,
-            senderId: senderId,
-            recipientId: recipientId,
-            note: const Value(''),
-            parentEdgeId: Value(parentEdgeId),
-          ),
+        await _insertActiveEdge(
+          beaconId: beaconId,
+          senderId: senderId,
+          recipientId: recipientId,
+          note: '',
+          parentEdgeId: parentEdgeId,
         );
       });
+
+  Future<void> _insertActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    required String note,
+    String? context,
+    String? parentEdgeId,
+    String? batchId,
+  }) =>
+      _database.into(_database.beaconForwardEdges).insert(
+        BeaconForwardEdgesCompanion.insert(
+          beaconId: beaconId,
+          senderId: senderId,
+          recipientId: recipientId,
+          note: Value(note),
+          context: Value(context),
+          parentEdgeId: Value(parentEdgeId),
+          batchId: Value(batchId),
+        ),
+        onConflict: DoNothing(),
+      );
 
   static ForwardEdgeEntity _toEntity(BeaconForwardEdge row) =>
       ForwardEdgeEntity(

@@ -79,6 +79,21 @@ void main() {
     ).thenAnswer((_) async => []);
 
     when(
+      helpOfferRepo.hasActiveHelpOffer(
+        beaconId: anyNamed('beaconId'),
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async => false);
+
+    when(
+      inboxRepo.upsertWatchingForSender(
+        senderId: anyNamed('senderId'),
+        beaconId: anyNamed('beaconId'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((_) async {});
+
+    when(
       forwardEdgeRepo.createBatch(
         beaconId: anyNamed('beaconId'),
         senderId: anyNamed('senderId'),
@@ -89,7 +104,14 @@ void main() {
         parentEdgeId: anyNamed('parentEdgeId'),
         onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((invocation) async {
+      final recipientIds =
+          invocation.namedArguments[#recipientIds] as List<String>;
+      final onAfter = invocation.namedArguments[#onAfterEdgesInserted]
+          as Future<void> Function()?;
+      await onAfter?.call();
+      return recipientIds;
+    });
 
     when(
       capabilityRepo.insertForwardReasons(
@@ -228,6 +250,38 @@ void main() {
           recipientIds: anyNamed('recipientIds'),
         ),
       );
+    });
+
+    test('notifyForwardReceived skipped when all recipients are dupes', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer((_) async => []);
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1', 'R2'],
+        sharedReasonSlugs: ['transport'],
+      );
+
+      verifyNever(
+        roomPush.notifyForwardReceived(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          beaconAuthorId: anyNamed('beaconAuthorId'),
+          recipientIds: anyNamed('recipientIds'),
+        ),
+      );
+      verifyZeroInteractions(capabilityRepo);
     });
   });
 }

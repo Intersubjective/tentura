@@ -153,7 +153,7 @@ final class ForwardCase extends UseCaseBase {
 
     final batchId = generateId('X');
 
-    await _forwardEdgeRepository.createBatch(
+    final insertedRecipientIds = await _forwardEdgeRepository.createBatch(
       beaconId: beaconId,
       senderId: senderId,
       recipientIds: recipientIds,
@@ -176,7 +176,7 @@ final class ForwardCase extends UseCaseBase {
     );
 
     // Record forward-reason capability events after edges are committed.
-    for (final recipientId in recipientIds) {
+    for (final recipientId in insertedRecipientIds) {
       final slugs =
           perRecipientReasonSlugs?[recipientId] ?? sharedReasonSlugs ?? [];
       if (slugs.isEmpty) continue;
@@ -194,17 +194,19 @@ final class ForwardCase extends UseCaseBase {
       }
     }
 
-    try {
-      unawaited(
-        _roomPush.notifyForwardReceived(
-          beaconId: beaconId,
-          senderId: senderId,
-          beaconAuthorId: beacon.author.id,
-          recipientIds: recipientIds,
-        ),
-      );
-    } catch (e) {
-      logger.warning('ForwardCase: failed to enqueue forward notification: $e');
+    if (insertedRecipientIds.isNotEmpty) {
+      try {
+        unawaited(
+          _roomPush.notifyForwardReceived(
+            beaconId: beaconId,
+            senderId: senderId,
+            beaconAuthorId: beacon.author.id,
+            recipientIds: insertedRecipientIds,
+          ),
+        );
+      } catch (e) {
+        logger.warning('ForwardCase: failed to enqueue forward notification: $e');
+      }
     }
 
     return batchId;
