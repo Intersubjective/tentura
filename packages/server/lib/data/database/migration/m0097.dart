@@ -2,6 +2,11 @@ part of '_migrations.dart';
 
 /// Single beacon status: merge coordination_status into status, rename state->status.
 final m0097 = Migration('0097', [
+  // Drop m0091 CHECK before backfill: values 7/8 are not in (0,1,2,3,5,6).
+  '''
+ALTER TABLE public.beacon
+  DROP CONSTRAINT IF EXISTS beacon_state_range;
+''',
   // Backfill open-family substates from coordination_status before column drop.
   '''
 UPDATE public.beacon
@@ -24,10 +29,6 @@ ALTER TABLE public.beacon
   '''
 ALTER TABLE public.beacon
   DROP COLUMN IF EXISTS coordination_status;
-''',
-  '''
-ALTER TABLE public.beacon
-  DROP CONSTRAINT IF EXISTS beacon_state_range;
 ''',
   '''
 ALTER TABLE public.beacon
