@@ -25,6 +25,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeReviewWindowStatus,
   gqlTypeEvaluationSummary,
   gqlTypeCoordinationStatusResult,
+  gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
   gqlTypeRoomMessageRow,
@@ -424,7 +425,7 @@ final gqlTypeBeaconCloseReviewResult = GraphQLObjectType(
 )
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
-    field('state', graphQLInt.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
     field('closesAt', graphQLString),
   ]);
 
@@ -501,16 +502,36 @@ final gqlTypeEvaluationSummary = GraphQLObjectType(
     field('roleSummaryLine', graphQLString.nonNullable()),
   ]);
 
-/// Result of `setCoordinationResponse` (V2).
-final gqlTypeCoordinationStatusResult = GraphQLObjectType(
-  'CoordinationStatusResult',
+/// Result of coordination/status mutations (V2).
+final gqlTypeBeaconStatusResult = GraphQLObjectType(
+  'BeaconStatusResult',
   null,
 )
   ..fields.addAll([
     field('beaconId', graphQLString.nonNullable()),
-    field('coordinationStatus', graphQLInt.nonNullable()),
-    field('coordinationStatusUpdatedAt', graphQLString),
+    field('status', graphQLInt.nonNullable()),
+    field('statusChangedAt', graphQLString),
   ]);
+
+/// Server-derived display projection per beacon (V2).
+final gqlTypeBeaconDisplayStatus = GraphQLObjectType(
+  'BeaconDisplayStatus',
+  null,
+)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
+    field('phase', graphQLString.nonNullable()),
+    field('suggestedAction', graphQLString.nonNullable()),
+    field('slot2Kind', graphQLString.nonNullable()),
+    field('tier', graphQLString.nonNullable()),
+    field('reviewClosesAt', graphQLString),
+    field('lastActivityAt', graphQLString),
+    field('lifecycleEndedAt', graphQLString),
+  ]);
+
+/// Result of `setCoordinationResponse` (V2) — legacy name retained for compat.
+final gqlTypeCoordinationStatusResult = gqlTypeBeaconStatusResult;
 
 /// One help offer row with optional author coordination response (V2).
 final gqlTypeHelpOfferWithCoordinationRow = GraphQLObjectType(

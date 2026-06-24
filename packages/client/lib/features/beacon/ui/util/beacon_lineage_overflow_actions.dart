@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_fork_navigation.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_suggestions_sheet.dart';
@@ -36,4 +36,4 @@ void runBeaconLineageSuggestionsPreview(
 }
 
 bool beaconAllowsLineageOverflow(Beacon beacon) =>
-    beacon.lifecycle != BeaconLifecycle.deleted;
+    beacon.status != BeaconStatus.deleted;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 
@@ -9,9 +10,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
@@ -394,14 +393,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> setBeaconCoordinationStatus(
-    BeaconCoordinationStatus status,
+  Future<void> setBeaconStatus(
+    BeaconStatus status,
   ) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _case.setBeaconCoordinationStatus(
+      await _case.setBeaconStatus(
         beaconId: state.beacon.id,
-        coordinationStatus: status.smallintValue,
+        status: status.smallintValue,
       );
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
@@ -716,17 +715,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
       final timeline = <TimelineEntry>[
         ...helpOfferTimeline,
-        if (beacon.coordinationStatusUpdatedAt != null)
+        if (beacon.statusChangedAt != null)
           TimelineBeaconCoordinationStatusChanged(
             author: beacon.author,
-            status: beacon.coordinationStatus,
-            at: beacon.coordinationStatusUpdatedAt!,
+            status: beacon.status,
+            at: beacon.statusChangedAt!,
           ),
         TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
       ]..sort();
 
       var showDraftEvaluationCta = false;
-      if (beacon.lifecycle == BeaconLifecycle.open) {
+      if (beacon.status == BeaconStatus.open) {
         try {
           showDraftEvaluationCta = await _case.beaconHasDraftEvaluationTargets(
             beaconId,
@@ -737,7 +736,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       }
 
       ReviewWindowInfo? reviewWindowInfo;
-      if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+      if (beacon.status == BeaconStatus.reviewOpen) {
         try {
           reviewWindowInfo =
               await _case.fetchReviewWindowStatusIfReviewOpen(beaconId);

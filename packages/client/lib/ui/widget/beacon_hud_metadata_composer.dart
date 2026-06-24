@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
@@ -28,7 +27,7 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   final l10n = L10n.of(context)!;
   final tt = context.tt;
   final entries = <BeaconHudMetadataEntry>[];
-  final hideCoordinationHud = beacon.lifecycle.isFinished;
+  final hideCoordinationHud = beacon.status.isFinished;
 
   if (BeaconCompactMetadataStrip.hasVisibleContent(
     beacon: beacon,

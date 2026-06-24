@@ -1,30 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 
 Beacon _b({
   required String id,
-  required BeaconLifecycle lifecycle,
-  BeaconCoordinationStatus coordination = BeaconCoordinationStatus.neutral,
+  required BeaconStatus status,
   int helpOfferCount = 0,
 }) =>
     Beacon.empty.copyWith(
       id: id,
       updatedAt: DateTime(2025, 1, 2),
-      lifecycle: lifecycle,
-      coordinationStatus: coordination,
+      status: status,
       helpOfferCount: helpOfferCount,
       author: const Profile(id: 'auth', displayName: 'Author Co'),
     );
 
 void main() {
   test('buildNonArchivedViewModels maps draft as authoredDraft', () {
-    final authored = [_b(id: 'd', lifecycle: BeaconLifecycle.draft)];
+    final authored = [_b(id: 'd', status: BeaconStatus.draft)];
     final vms = buildNonArchivedViewModels(
       authoredNonArchived: authored,
       helpOfferedNonArchived: const [],
@@ -36,7 +33,7 @@ void main() {
     final authored = [
       _b(
         id: 'a',
-        lifecycle: BeaconLifecycle.open,
+        status: BeaconStatus.open,
         helpOfferCount: 2,
       ),
     ];
@@ -49,7 +46,7 @@ void main() {
 
   test('committed active shows review CTA in reviewOpen', () {
     final row = (
-      beacon: _b(id: 'c', lifecycle: BeaconLifecycle.reviewOpen),
+      beacon: _b(id: 'c', status: BeaconStatus.reviewOpen),
       offerHelpMessage: 'note',
       helpType: null,
       authorResponseType: null,
@@ -67,8 +64,7 @@ void main() {
   test('authored beacon drops duplicate committed row for same id', () {
     final beacon = _b(
       id: 'both',
-      lifecycle: BeaconLifecycle.open,
-      coordination: BeaconCoordinationStatus.enoughHelpOffered,
+      status: BeaconStatus.enoughHelp,
       helpOfferCount: 2,
     );
     final row = (
@@ -90,7 +86,7 @@ void main() {
   });
 
   test('buildNonArchivedViewModels maps finished lifecycle', () {
-    final authored = [_b(id: 'f', lifecycle: BeaconLifecycle.closed)];
+    final authored = [_b(id: 'f', status: BeaconStatus.closed)];
     final vms = buildNonArchivedViewModels(
       authoredNonArchived: authored,
       helpOfferedNonArchived: const [],
@@ -99,9 +95,9 @@ void main() {
   });
 
   test('buildArchivedViewModels yields archived kinds', () {
-    final closed = [_b(id: 'z', lifecycle: BeaconLifecycle.closed)];
+    final closed = [_b(id: 'z', status: BeaconStatus.closed)];
     final row = (
-      beacon: _b(id: 'y', lifecycle: BeaconLifecycle.closed),
+      beacon: _b(id: 'y', status: BeaconStatus.closed),
       offerHelpMessage: '',
       helpType: null,
       authorResponseType: null,
@@ -122,8 +118,7 @@ void main() {
   test('myWorkCardViewModelForBeaconView mirrors authored list derivation', () {
     final b = _b(
       id: 'bv1',
-      lifecycle: BeaconLifecycle.open,
-      coordination: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      status: BeaconStatus.needsMoreHelp,
       helpOfferCount: 1,
     );
     final fromList = buildNonArchivedViewModels(
@@ -140,7 +135,7 @@ void main() {
   });
 
   test('myWorkCardViewModelForBeaconView mirrors committed list derivation', () {
-    final b = _b(id: 'bv2', lifecycle: BeaconLifecycle.open);
+    final b = _b(id: 'bv2', status: BeaconStatus.open);
     final row = (
       beacon: b,
       offerHelpMessage: 'hi',

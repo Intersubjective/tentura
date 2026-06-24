@@ -1,3 +1,4 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -31,16 +32,10 @@ final class EmptyGraphCoordinationRepository implements CoordinationRepositoryPo
       throw UnimplementedError();
 
   @override
-  Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
-      beaconCoordinationSnapshot(String beaconId) async =>
-          (coordinationStatus: 0, coordinationStatusUpdatedAt: null);
-
-  @override
-  Future<void> setBeaconCoordinationFields({
-    required String beaconId,
-    required int coordinationStatus,
-  }) =>
-      throw UnimplementedError();
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+    String beaconId,
+  ) async =>
+      (status: BeaconStatus.open, statusChangedAt: null);
 
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(

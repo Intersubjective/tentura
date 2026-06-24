@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 Beacon _beacon({
-  BeaconCoordinationStatus coordinationStatus = BeaconCoordinationStatus.neutral,
+  BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
 }) =>
     Beacon(
@@ -15,7 +15,7 @@ Beacon _beacon({
       id: 'b1',
       title: 'Test',
       author: const Profile(id: 'u1'),
-      coordinationStatus: coordinationStatus,
+      status: status,
       helpOfferCount: helpOfferCount,
     );
 
@@ -35,7 +35,7 @@ void main() {
     expect(
       beaconHasUnreviewedOffers(
         _beacon(
-          coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+          status: BeaconStatus.enoughHelp,
           helpOfferCount: 3,
         ),
       ),

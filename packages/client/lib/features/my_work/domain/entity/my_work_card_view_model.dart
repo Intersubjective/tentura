@@ -92,7 +92,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     if (b.updatedAt.millisecondsSinceEpoch > max) {
       max = b.updatedAt.millisecondsSinceEpoch;
     }
-    final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
+    final cs = b.statusChangedAt?.millisecondsSinceEpoch;
     if (cs != null && cs > max) {
       max = cs;
     }

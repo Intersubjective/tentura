@@ -1,7 +1,7 @@
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -61,7 +61,7 @@ String? beaconHudPhasePrimaryCtaLabel({
 
 bool _canOfferHelp(BeaconViewState state) {
   final b = state.beacon;
-  return b.lifecycle == BeaconLifecycle.open &&
+  return b.status == BeaconStatus.open &&
       !state.isHelpOffered &&
       b.allowsNewHelpOfferAsNonAuthor;
 }

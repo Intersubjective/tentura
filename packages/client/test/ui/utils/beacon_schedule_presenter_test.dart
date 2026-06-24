@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
@@ -19,12 +19,12 @@ void main() {
   Beacon beacon({
     DateTime? startAt,
     DateTime? endAt,
-    BeaconLifecycle lifecycle = BeaconLifecycle.open,
+    BeaconStatus status = BeaconStatus.open,
   }) =>
       Beacon.empty.copyWith(
         startAt: startAt,
         endAt: endAt,
-        lifecycle: lifecycle,
+        status: status,
       );
 
   BeaconSchedulePresentation present(Beacon b) =>
@@ -138,7 +138,7 @@ void main() {
       final b = beacon(
         startAt: now.subtract(const Duration(days: 5)),
         endAt: now.subtract(const Duration(hours: 3)),
-        lifecycle: BeaconLifecycle.reviewOpen,
+        status: BeaconStatus.reviewOpen,
       );
       final p = present(b);
       expect(p.visibleText, 'Jun 10 – Jun 15');
@@ -150,7 +150,7 @@ void main() {
     test('closed lifecycle hands off even with a future deadline', () {
       final b = beacon(
         endAt: now.add(const Duration(days: 5)),
-        lifecycle: BeaconLifecycle.closed,
+        status: BeaconStatus.closed,
       );
       final p = present(b);
       expect(p.urgent, isFalse);

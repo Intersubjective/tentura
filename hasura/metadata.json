@@ -193,8 +193,6 @@
                 "permission": {
                   "columns": [
                     "context",
-                    "coordination_status",
-                    "coordination_status_updated_at",
                     "created_at",
                     "description",
                     "end_at",
@@ -206,7 +204,8 @@
                     "need_summary",
                     "needs",
                     "start_at",
-                    "state",
+                    "status",
+                    "status_changed_at",
                     "success_criteria",
                     "tags",
                     "title",
@@ -1189,8 +1188,8 @@
                 "permission": {
                   "check": {
                     "beacon": {
-                      "state": {
-                        "_eq": 0
+                      "status": {
+                        "_in": [0, 7, 8]
                       }
                     }
                   },
@@ -1238,8 +1237,8 @@
                   },
                   "check": {
                     "beacon": {
-                      "state": {
-                        "_eq": 0
+                      "status": {
+                        "_in": [0, 7, 8]
                       }
                     }
                   }

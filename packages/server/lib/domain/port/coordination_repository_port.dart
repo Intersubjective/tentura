@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 
 abstract class CoordinationRepositoryPort {
@@ -13,13 +15,9 @@ abstract class CoordinationRepositoryPort {
     required int responseType,
   });
 
-  Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
-      beaconCoordinationSnapshot(String beaconId);
-
-  Future<void> setBeaconCoordinationFields({
-    required String beaconId,
-    required int coordinationStatus,
-  });
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+    String beaconId,
+  );
 
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {

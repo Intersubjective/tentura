@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -14,7 +14,7 @@ void main() {
   ) async {
     final beacon = Beacon.empty.copyWith(
       id: 'b1',
-      lifecycle: BeaconLifecycle.open,
+      status: BeaconStatus.open,
       helpOfferCount: 2,
     );
     const row = BeaconStatusMenuRow(

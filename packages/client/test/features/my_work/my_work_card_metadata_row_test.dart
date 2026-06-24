@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -305,7 +305,7 @@ void main() {
     const authorId = 'author1';
     final beacon = Beacon.empty.copyWith(
       id: 'b-finished',
-      lifecycle: BeaconLifecycle.closed,
+      status: BeaconStatus.closed,
       author: const Profile(id: authorId, displayName: 'Alice Author'),
       helpOfferCount: 1,
       helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],

@@ -405,12 +405,12 @@ class EvaluationRepository implements EvaluationRepositoryPort {
 
       await _db.managers.beacons
           .filter((b) => b.id.equals(beaconId))
-          .update((o) => o(state: const Value(6)));
+          .update((o) => o(status: const Value(6)));
 
       await _insertBeaconLifecycleEvent(
         db: _db,
         beaconId: beaconId,
-        fromState: beaconRow.state,
+        fromState: beaconRow.status,
         toState: 6,
         reason: reason,
         actorId: actorUserId,

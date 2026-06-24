@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
@@ -73,7 +73,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               onEditNowLine: onEditNowLine,
             ),
           ),
-          if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
+          if (state.beacon.status == BeaconStatus.reviewOpen)
             ReviewWindowBannerHost(
               beaconId: state.beacon.id,
               isAuthor: state.isBeaconMine,
@@ -92,11 +92,11 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   List<_HudActionSpec> _buildHudActions(L10n l10n) {
     final b = state.beacon;
-    final open = b.lifecycle == BeaconLifecycle.open;
+    final openFamily = b.status.isOpenFamily;
 
-    if (b.lifecycle == BeaconLifecycle.deleted ||
-        b.lifecycle == BeaconLifecycle.reviewOpen ||
-        !open) {
+    if (b.status == BeaconStatus.deleted ||
+        b.status == BeaconStatus.reviewOpen ||
+        !openFamily) {
       return const [];
     }
 
@@ -125,7 +125,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       return specs;
     }
 
-    final canOfferHelp = open &&
+    final canOfferHelp = openFamily &&
         !state.isHelpOffered &&
         b.allowsNewHelpOfferAsNonAuthor &&
         onOfferHelp != null;

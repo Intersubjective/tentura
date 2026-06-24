@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
@@ -8,7 +9,6 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -97,7 +97,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
-      if (beacon.lifecycle != BeaconLifecycle.draft) {
+      if (beacon.status != BeaconStatus.draft) {
         _emitSnackError(Exception('Beacon is not a draft'));
         return;
       }
@@ -142,7 +142,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
-      if (beacon.lifecycle != BeaconLifecycle.open) {
+      if (beacon.status != BeaconStatus.open) {
         _emitSnackError(Exception('Only open beacons can be edited'));
         return;
       }

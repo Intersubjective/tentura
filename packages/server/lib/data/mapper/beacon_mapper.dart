@@ -1,3 +1,4 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -14,7 +15,8 @@ BeaconEntity beaconModelToEntity(
   id: model.id,
   title: model.title,
   context: model.context,
-  state: model.state,
+  status: BeaconStatus.fromSmallint(model.status),
+  statusChangedAt: model.statusChangedAt?.dateTime,
   description: model.description,
   author: userModelToEntity(author),
   createdAt: model.createdAt.dateTime,

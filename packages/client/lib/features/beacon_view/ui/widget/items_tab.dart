@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
     show BeaconFactCardStatusBits;
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_edit_sheet.dart';
@@ -90,7 +90,7 @@ VoidCallback? _itemsTabEditHandler(
   required CoordinationItem item,
   required BeaconViewState state,
 }) {
-  if (state.beacon.lifecycle != BeaconLifecycle.open) {
+  if (state.beacon.status != BeaconStatus.open) {
     return null;
   }
   if (!state.canCoordinateInBeaconRoom) {

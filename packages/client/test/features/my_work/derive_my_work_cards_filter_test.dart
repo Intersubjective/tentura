@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_state.dart';
@@ -10,12 +10,12 @@ MyWorkCardViewModel _vm({
   required String id,
   required MyWorkCardRole role,
   required MyWorkCardKind kind,
-  BeaconLifecycle lifecycle = BeaconLifecycle.open,
+  BeaconStatus status = BeaconStatus.open,
 }) {
   final beacon = Beacon.empty.copyWith(
     id: id,
     updatedAt: DateTime(2025),
-    lifecycle: lifecycle,
+    status: status,
   );
   return MyWorkCardViewModel(
     beaconId: id,
@@ -36,7 +36,7 @@ void main() {
       id: 'd',
       role: MyWorkCardRole.authored,
       kind: MyWorkCardKind.authoredDraft,
-      lifecycle: BeaconLifecycle.draft,
+      status: BeaconStatus.draft,
     );
     final help = _vm(
       id: 'h',
@@ -47,7 +47,7 @@ void main() {
       id: 'x',
       role: MyWorkCardRole.authored,
       kind: MyWorkCardKind.authoredFinished,
-      lifecycle: BeaconLifecycle.closed,
+      status: BeaconStatus.closed,
     );
     final cards = [active, draft, help];
 
@@ -98,7 +98,7 @@ void main() {
         id: 'd1',
         role: MyWorkCardRole.authored,
         kind: MyWorkCardKind.authoredDraft,
-        lifecycle: BeaconLifecycle.draft,
+        status: BeaconStatus.draft,
       ),
       _vm(
         id: 'a1',
@@ -125,7 +125,7 @@ void main() {
       id: 'b',
       role: MyWorkCardRole.authored,
       kind: MyWorkCardKind.authoredFinished,
-      lifecycle: BeaconLifecycle.closed,
+      status: BeaconStatus.closed,
     ).copyWith(
       beacon: Beacon.empty.copyWith(
         id: 'b',

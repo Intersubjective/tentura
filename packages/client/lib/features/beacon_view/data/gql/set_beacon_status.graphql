@@ -1,0 +1,13 @@
+mutation SetBeaconStatus(
+  $beaconId: String!
+  $status: Int!
+) {
+  setBeaconStatus(
+    id: $beaconId
+    status: $status
+  ) {
+    beaconId
+    status
+    statusChangedAt
+  }
+}

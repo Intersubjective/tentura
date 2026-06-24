@@ -1,11 +1,11 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -240,7 +240,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                   header: b.id,
                 ),
               ),
-              onCloseBeacon: b.lifecycle == BeaconLifecycle.open
+              onCloseBeacon: b.status == BeaconStatus.open
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -273,7 +273,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onEdit: b.lifecycle == BeaconLifecycle.open
+              onEdit: b.status == BeaconStatus.open
                   ? () => unawaited(
                       context.router.pushPath(
                         '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
@@ -300,7 +300,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                 if (!context.mounted) return;
                 if (await BeaconDeleteDialog.show(
                       context,
-                      lifecycle: b.lifecycle,
+                      status: b.status,
                       hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
                     ) ??
                     false) {
@@ -448,7 +448,7 @@ class _DraftAuthoredCard extends StatelessWidget {
                 final repo = GetIt.I<BeaconRepository>();
                 if (await BeaconDeleteDialog.show(
                       context,
-                      lifecycle: b.lifecycle,
+                      status: b.status,
                       hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
                     ) ??
                     false) {
@@ -527,7 +527,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                   header: b.id,
                 ),
               ),
-              onCloseBeacon: b.lifecycle == BeaconLifecycle.open
+              onCloseBeacon: b.status == BeaconStatus.open
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -560,7 +560,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onEdit: b.lifecycle == BeaconLifecycle.open
+              onEdit: b.status == BeaconStatus.open
                   ? () => unawaited(
                       context.router.pushPath(
                         '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
@@ -587,7 +587,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                 if (!context.mounted) return;
                 if (await BeaconDeleteDialog.show(
                       context,
-                      lifecycle: b.lifecycle,
+                      status: b.status,
                       hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
                     ) ??
                     false) {

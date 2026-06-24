@@ -28,6 +28,7 @@ import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
 import 'evaluation_graph_test_repos.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 /// No-op stub for [PersonCapabilityEventRepositoryPort] used only to construct
 /// a [CapabilityCase] in evaluation unit tests.
@@ -125,39 +126,40 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
-class _LifecycleTransitionCall {
-  const _LifecycleTransitionCall({
+class _StatusTransitionCall {
+  const _StatusTransitionCall({
     required this.beaconId,
-    required this.fromState,
-    required this.toState,
+    required this.fromStatus,
+    required this.toStatus,
     required this.reason,
     this.actorId,
   });
 
   final String beaconId;
-  final int fromState;
-  final int toState;
+  final BeaconStatus fromStatus;
+  final BeaconStatus toStatus;
   final String reason;
   final String? actorId;
 
   @override
   bool operator ==(Object other) =>
-      other is _LifecycleTransitionCall &&
+      other is _StatusTransitionCall &&
       other.beaconId == beaconId &&
-      other.fromState == fromState &&
-      other.toState == toState &&
+      other.fromStatus == fromStatus &&
+      other.toStatus == toStatus &&
       other.reason == reason &&
       other.actorId == actorId;
 
   @override
-  int get hashCode => Object.hash(beaconId, fromState, toState, reason, actorId);
+  int get hashCode =>
+      Object.hash(beaconId, fromStatus, toStatus, reason, actorId);
 }
 
 class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   _TransactionStubBeaconRepo(this.lockedBeacon);
 
   final BeaconEntity lockedBeacon;
-  final lifecycleTransitions = <_LifecycleTransitionCall>[];
+  final statusTransitions = <_StatusTransitionCall>[];
 
   @override
   Future<T> runInBeaconStateTransaction<T>({
@@ -168,18 +170,18 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
       fn(lockedBeacon);
 
   @override
-  Future<void> recordBeaconLifecycleTransition({
+  Future<void> recordBeaconStatusTransition({
     required String beaconId,
-    required int fromState,
-    required int toState,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
     required String reason,
     String? actorId,
   }) async {
-    lifecycleTransitions.add(
-      _LifecycleTransitionCall(
+    statusTransitions.add(
+      _StatusTransitionCall(
         beaconId: beaconId,
-        fromState: fromState,
-        toState: toState,
+        fromStatus: fromStatus,
+        toStatus: toStatus,
         reason: reason,
         actorId: actorId,
       ),
@@ -710,7 +712,7 @@ void main() {
           author: UserEntity(id: userId),
           createdAt: DateTime.timestamp(),
           updatedAt: DateTime.timestamp(),
-          state: 5,
+          status: BeaconStatus.reviewOpen,
         ),
       );
       final helpOfferRepo = EmptyGraphHelpOfferRepository();
@@ -749,14 +751,14 @@ void main() {
         userId: userId,
       );
 
-      expect(result.state, 0);
+      expect(result.status, 0);
       expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(evalRepo.deleteScaffoldingCalls, 1);
-      expect(beaconRepo.lifecycleTransitions, [
-        _LifecycleTransitionCall(
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
           beaconId: beaconId,
-          fromState: 5,
-          toState: 0,
+          fromStatus: BeaconStatus.reviewOpen,
+          toStatus: BeaconStatus.open,
           reason: BeaconLifecycleChangeReason.reopenedFromReview,
           actorId: userId,
         ),
@@ -776,7 +778,7 @@ void main() {
           author: UserEntity(id: userId),
           createdAt: DateTime.timestamp(),
           updatedAt: DateTime.timestamp(),
-          state: 0,
+          status: BeaconStatus.open,
         ),
       );
       final now = DateTime.utc(2025);
@@ -827,7 +829,7 @@ void main() {
         expectedRequiresReviewWindow: true,
       );
 
-      expect(result.state, 5);
+      expect(result.status, 5);
       expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(evalRepo.deleteScaffoldingCalls, 1);
       expect(evalRepo.insertReviewWindowCalls, 1);
@@ -919,16 +921,10 @@ final class _SingleCommitterCoordinationRepo implements CoordinationRepositoryPo
       throw UnimplementedError();
 
   @override
-  Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
-      beaconCoordinationSnapshot(String beaconId) async =>
-          (coordinationStatus: 0, coordinationStatusUpdatedAt: null);
-
-  @override
-  Future<void> setBeaconCoordinationFields({
-    required String beaconId,
-    required int coordinationStatus,
-  }) =>
-      throw UnimplementedError();
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+    String beaconId,
+  ) async =>
+      (status: BeaconStatus.open, statusChangedAt: null);
 
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(

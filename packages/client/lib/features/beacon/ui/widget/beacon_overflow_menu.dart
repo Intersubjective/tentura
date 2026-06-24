@@ -1,11 +1,10 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 Widget _beaconOverflowMenuRow(BuildContext context, IconData icon, String label) {
@@ -109,14 +108,14 @@ class BeaconOverflowMenu extends StatelessWidget {
     if (onShare != null) {
       add('share', Icons.qr_code, l10n.shareLink);
     }
-    if (onCloseBeacon != null && beacon.lifecycle == BeaconLifecycle.open) {
+    if (onCloseBeacon != null && beacon.status == BeaconStatus.open) {
       add(
         'close_beacon',
         Icons.lock_outline,
         l10n.closeBeacon,
       );
     }
-    if (onCancelBeacon != null && beacon.lifecycle == BeaconLifecycle.open) {
+    if (onCancelBeacon != null && beacon.status == BeaconStatus.open) {
       add(
         'cancel_beacon',
         Icons.cancel_outlined,
@@ -142,8 +141,8 @@ class BeaconOverflowMenu extends StatelessWidget {
     }
     if (onOfferHelp != null) {
       final useOfferHelpAnyway =
-          beacon.coordinationStatus ==
-          BeaconCoordinationStatus.enoughHelpOffered;
+          beacon.status ==
+          BeaconStatus.enoughHelp;
       add(
         'offerHelp',
         Icons.handshake,

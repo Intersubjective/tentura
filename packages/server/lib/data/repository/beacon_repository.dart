@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -55,13 +56,13 @@ class BeaconRepository implements BeaconRepositoryPort {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
-    /// When set, overrides DB default (0=OPEN). Use 3 for DRAFT.
-    int? state,
+    BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) => _database.withMutatingUser(authorId, () async {
+    final effectiveStatus = status ?? BeaconStatus.open;
     final beacon = await _database.managers.beacons.createReturning(
       (o) => o(
         userId: authorId,
@@ -77,7 +78,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         needs: Value(needs == null || needs.isEmpty ? '' : needs.join(',')),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
-        state: Value(state ?? 0),
+        status: Value(effectiveStatus.smallintValue),
         needSummary: Value(needSummary),
         successCriteria: Value(successCriteria),
         lineageParentBeaconId: Value(lineageParentBeaconId),
@@ -98,8 +99,7 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    final effectiveState = state ?? 0;
-    if (effectiveState == 0) {
+    if (effectiveStatus == BeaconStatus.open) {
       await _insertBeaconPublishedEvent(
         beaconId: beacon.id,
         actorId: authorId,
@@ -121,9 +121,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     );
   });
 
-  ///
-  /// Query Beacon by beaconId, filter by userId if set
-  ///
   @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
@@ -149,7 +146,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     );
   }
 
-  /// Updates a beacon in DRAFT lifecycle (state 3) owned by [userId]. Throws if not found or not draft.
   @override
   Future<BeaconEntity> updateDraftBeacon({
     required String beaconId,
@@ -182,7 +178,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     }
     final (existing, _) = row;
 
-    if (existing.state != 3) {
+    if (existing.status != BeaconStatus.draft.smallintValue) {
       throw const BeaconCreateException(
         description: 'Beacon is not an editable draft',
       );
@@ -213,7 +209,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });
 
-  /// Updates an OPEN beacon (state 0) owned by [userId].
   @override
   Future<BeaconEntity> updateBeacon({
     required String beaconId,
@@ -244,7 +239,8 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    if (row.state != 0 && row.state != 5) {
+    final current = BeaconStatus.fromSmallint(row.status);
+    if (!current.isOpenFamily && current != BeaconStatus.reviewOpen) {
       throw const BeaconCreateException(
         description: 'Only open or wrapping-up beacons can be edited',
       );
@@ -284,12 +280,6 @@ class BeaconRepository implements BeaconRepositoryPort {
       });
 
   @override
-  Future<void> softDeleteBeacon(String beaconId) =>
-      _database.managers.beacons
-          .filter((e) => e.id.equals(beaconId))
-          .update((o) => o(state: const Value(2)));
-
-  @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
@@ -306,29 +296,26 @@ class BeaconRepository implements BeaconRepositoryPort {
       });
 
   @override
-  Future<void> updateBeaconState({
+  Future<void> recordBeaconStatusTransition({
     required String beaconId,
-    required int state,
-  }) => _database.managers.beacons
-      .filter((e) => e.id.equals(beaconId))
-      .update((o) => o(state: Value(state)));
-
-  @override
-  Future<void> recordBeaconLifecycleTransition({
-    required String beaconId,
-    required int fromState,
-    required int toState,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
   }) =>
       _database.transaction(() async {
         await _database.managers.beacons
             .filter((e) => e.id.equals(beaconId))
-            .update((o) => o(state: Value(toState)));
+            .update(
+              (o) => o(
+                status: Value(toStatus.smallintValue),
+                statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
         await _insertBeaconLifecycleEvent(
           beaconId: beaconId,
-          fromState: fromState,
-          toState: toState,
+          fromStatus: fromStatus,
+          toStatus: toStatus,
           reason: reason,
           actorId: actorId,
         );
@@ -400,13 +387,18 @@ class BeaconRepository implements BeaconRepositoryPort {
             );
           }
 
-          if (existing.state != kBeaconStateDraft) {
+          if (existing.status != BeaconStatus.draft.smallintValue) {
             return getBeaconById(beaconId: id, filterByUserId: actorId);
           }
 
           await _database.managers.beacons
               .filter((e) => e.id.equals(id))
-              .update((o) => o(state: const Value(0)));
+              .update(
+                (o) => o(
+                  status: Value(BeaconStatus.open.smallintValue),
+                  statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
+                ),
+              );
 
           await _insertBeaconPublishedEvent(
             beaconId: id,
@@ -450,8 +442,8 @@ class BeaconRepository implements BeaconRepositoryPort {
 
   Future<void> _insertBeaconLifecycleEvent({
     required String beaconId,
-    required int fromState,
-    required int toState,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
   }) async {
@@ -463,8 +455,10 @@ class BeaconRepository implements BeaconRepositoryPort {
         type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
         actorId: actorId == null ? const Value(null) : Value(actorId),
         diff: Value(<String, Object?>{
-          'fromState': fromState,
-          'toState': toState,
+          'fromState': fromStatus.smallintValue,
+          'toState': toStatus.smallintValue,
+          'fromStatus': fromStatus.smallintValue,
+          'toStatus': toStatus.smallintValue,
           'reason': reason,
         }),
         createdAt: const Value.absent(),

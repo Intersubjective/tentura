@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -98,7 +98,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         isAuthorView: state.isAuthorOrSteward,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
-        onAuthorTapCoordination: beacon.lifecycle == BeaconLifecycle.open &&
+        onAuthorTapCoordination: beacon.status == BeaconStatus.open &&
                 !row.isAuthor &&
                 state.isAuthorOrSteward &&
                 !c.isWithdrawn &&
@@ -206,10 +206,10 @@ class BeaconPeopleTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (beacon.lifecycle == BeaconLifecycle.closed) ...[
+        if (beacon.status == BeaconStatus.closed) ...[
           BeaconEvaluationHooks(
             beaconId: beacon.id,
-            lifecycle: beacon.lifecycle,
+            status: beacon.status,
           ),
           const SizedBox(height: 12),
         ],

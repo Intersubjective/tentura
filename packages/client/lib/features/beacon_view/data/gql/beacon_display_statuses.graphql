@@ -1,0 +1,13 @@
+query BeaconDisplayStatuses($beaconIds: [String!]!) {
+  beaconDisplayStatuses(beaconIds: $beaconIds) {
+    beaconId
+    status
+    phase
+    suggestedAction
+    slot2Kind
+    tier
+    reviewClosesAt
+    lastActivityAt
+    lifecycleEndedAt
+  }
+}

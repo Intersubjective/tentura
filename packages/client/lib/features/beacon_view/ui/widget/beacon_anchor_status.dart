@@ -1,9 +1,8 @@
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -11,10 +10,11 @@ import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 /// Semantic tone for coordination status chips (legacy surfaces).
-TenturaTone beaconAnchorStatusTone(BeaconCoordinationStatus s) => switch (s) {
-      BeaconCoordinationStatus.neutral => TenturaTone.neutral,
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded => TenturaTone.warn,
-      BeaconCoordinationStatus.enoughHelpOffered => TenturaTone.good,
+TenturaTone beaconAnchorStatusTone(BeaconStatus s) => switch (s) {
+      BeaconStatus.open => TenturaTone.neutral,
+      BeaconStatus.needsMoreHelp => TenturaTone.warn,
+      BeaconStatus.enoughHelp => TenturaTone.good,
+      _ => TenturaTone.neutral,
     };
 
 TenturaTone coordinationResponseTone(CoordinationResponseType r) => switch (r) {
@@ -58,7 +58,7 @@ BeaconViewStatusSlots beaconViewStatusSlots(
   final clock = now ?? DateTime.now();
   final beacon = state.beacon;
 
-  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+  if (beacon.status == BeaconStatus.deleted) {
     return BeaconViewStatusSlots(
       slot1: l10n.beaconHudBeaconUnavailable,
       slot2: '',
@@ -85,7 +85,7 @@ String beaconAnchorStatusLine(
   Beacon beacon,
   int activeHelpOfferCount,
 ) {
-  final coord = coordinationStatusLabel(l10n, beacon.coordinationStatus);
+  final coord = coordinationStatusLabel(l10n, beacon.status);
   final helpOfferedPart = activeHelpOfferCount == 0
       ? l10n.beaconHeaderNoHelpOffers
       : l10n.beaconHeaderHelpOffersCount(activeHelpOfferCount);

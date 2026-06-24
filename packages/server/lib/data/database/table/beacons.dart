@@ -31,15 +31,12 @@ class Beacons extends Table
 
   late final needs = text().withDefault(const Constant(''))();
 
-  // 0=OPEN, 1=CANCELLED, 2=DELETED, 3=DRAFT, 5=REVIEW_OPEN (Wrapping up), 6=CLOSED
-  late final Column<int> state = integer()
+  // 0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed,
+  // 7=needsMoreHelp, 8=enoughHelp
+  late final Column<int> status = integer()
       .withDefault(const Constant(0))();
 
-  /// 0=no help offers, 1=waiting for review, 2=more help needed, 3=enough help
-  late final Column<int> coordinationStatus = integer()
-      .withDefault(const Constant(0))();
-
-  late final coordinationStatusUpdatedAt = customType(
+  late final statusChangedAt = customType(
     PgTypes.timestampWithTimezone,
   ).nullable()();
 

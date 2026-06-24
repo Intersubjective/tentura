@@ -1,36 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 void main() {
-  group('BeaconCoordinationStatus.fromSmallint', () {
-    test('maps known coordination status values', () {
-      expect(
-        BeaconCoordinationStatus.fromSmallint(0),
-        BeaconCoordinationStatus.neutral,
-      );
-      expect(
-        BeaconCoordinationStatus.fromSmallint(2),
-        BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
-      );
-      expect(
-        BeaconCoordinationStatus.fromSmallint(3),
-        BeaconCoordinationStatus.enoughHelpOffered,
-      );
+  group('BeaconStatus.fromSmallint', () {
+    test('maps open-family coordination values', () {
+      expect(BeaconStatus.fromSmallint(0), BeaconStatus.open);
+      expect(BeaconStatus.fromSmallint(7), BeaconStatus.needsMoreHelp);
+      expect(BeaconStatus.fromSmallint(8), BeaconStatus.enoughHelp);
     });
 
-    test('maps legacy ACL value 1 to neutral', () {
-      expect(
-        BeaconCoordinationStatus.fromSmallint(1),
-        BeaconCoordinationStatus.neutral,
-      );
+    test('maps lifecycle values', () {
+      expect(BeaconStatus.fromSmallint(3), BeaconStatus.draft);
+      expect(BeaconStatus.fromSmallint(5), BeaconStatus.reviewOpen);
+      expect(BeaconStatus.fromSmallint(6), BeaconStatus.closed);
     });
 
-    test('falls back to neutral for unknown values', () {
-      expect(
-        BeaconCoordinationStatus.fromSmallint(99),
-        BeaconCoordinationStatus.neutral,
-      );
+    test('maps legacy value 4 to closed', () {
+      expect(BeaconStatus.fromSmallint(4), BeaconStatus.closed);
+    });
+
+    test('falls back to open for unknown values', () {
+      expect(BeaconStatus.fromSmallint(99), BeaconStatus.open);
     });
   });
 }

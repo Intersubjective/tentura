@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import 'query_beacon_display.dart';
 import 'query_beacon_involvement.dart';
 import 'query_beacon_room.dart';
 import 'query_capability.dart';
@@ -19,6 +20,7 @@ import 'query_notification_preferences.dart';
 import 'query_version.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
+  ...QueryBeaconDisplay().all,
   ...QueryInvitation().all,
   ...QueryBeaconInvolvement().all,
   ...QueryBeaconRoom().all,

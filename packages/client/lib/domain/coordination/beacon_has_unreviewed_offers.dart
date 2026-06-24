@@ -1,7 +1,6 @@
-import '../entity/beacon.dart';
-import '../entity/coordination_status.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-/// Author has help offers but has not set coordination status yet.
+/// Author has help offers but has not moved past neutral open status.
 bool beaconHasUnreviewedOffers(Beacon beacon) =>
-    beacon.coordinationStatus == BeaconCoordinationStatus.neutral &&
-    beacon.helpOfferCount > 0;
+    beacon.status == BeaconStatus.open && beacon.helpOfferCount > 0;

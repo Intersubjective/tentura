@@ -1,7 +1,7 @@
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
@@ -22,7 +22,7 @@ final class MyWorkStatusLineData {
   final String slot2;
 
   final CoordinationResponseType? slot1ResponseType;
-  final BeaconCoordinationStatus? slot1CoordinationStatus;
+  final BeaconStatus? slot1CoordinationStatus;
   final bool timeSlotOverdue;
   final TenturaTone tone;
 

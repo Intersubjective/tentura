@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -710,7 +710,7 @@ bool _inboxCardAllowsOfferHelp(InboxItem item) {
 Future<void> _inboxOfferHelp(BuildContext context, Beacon beacon) async {
   final l10n = L10n.of(context)!;
   final useOfferHelpAnyway =
-      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered;
+      beacon.status == BeaconStatus.enoughHelp;
   final outcome = await HelpOfferMessageDialog.show(
     context,
     title: useOfferHelpAnyway

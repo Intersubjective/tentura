@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -217,7 +217,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     if (state.selectedIds.isEmpty) return;
     final beacon = state.beacon;
-    if (beacon == null || beacon.lifecycle != BeaconLifecycle.open) {
+    if (beacon == null || beacon.status != BeaconStatus.open) {
       _emitSnackError(
         Exception('Forwarding is only available while the beacon is open'),
       );

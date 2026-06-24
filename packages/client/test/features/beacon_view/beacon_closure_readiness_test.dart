@@ -1,23 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 Beacon _openBeacon({
-  BeaconCoordinationStatus coordinationStatus =
-      BeaconCoordinationStatus.neutral,
+  BeaconStatus status = BeaconStatus.open,
 }) =>
     Beacon(
       createdAt: DateTime.utc(2025),
@@ -25,7 +23,7 @@ Beacon _openBeacon({
       id: 'b1',
       title: 'T',
       author: const Profile(id: 'uAuthor', displayName: 'Author'),
-      coordinationStatus: coordinationStatus,
+      status: status,
     );
 
 BeaconViewState _baseAuthorState({
@@ -72,7 +70,7 @@ void main() {
 
     test('false when lifecycle not open', () {
       final s = _baseAuthorState(
-        beacon: _openBeacon().copyWith(lifecycle: BeaconLifecycle.closed),
+        beacon: _openBeacon().copyWith(status: BeaconStatus.closed),
       );
       expect(closeHardGate(s), false);
     });
@@ -120,8 +118,7 @@ void main() {
     test('blocked when coordination asks for more help', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus:
-              BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+          status: BeaconStatus.needsMoreHelp,
         ),
       );
       expect(computeClosureReadiness(s), BeaconClosureReadiness.blocked);
@@ -130,7 +127,7 @@ void main() {
     test('enough help alone does not yield readyToClose', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+          status: BeaconStatus.enoughHelp,
         ),
         helpOffers: [
           _helpOffer(userId: 'h1'),
@@ -142,7 +139,7 @@ void main() {
     test('readyToClose when enoughHelp + useful + all relevant settled', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+          status: BeaconStatus.enoughHelp,
         ),
         helpOffers: [
           _helpOffer(

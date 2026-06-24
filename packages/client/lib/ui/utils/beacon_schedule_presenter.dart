@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
@@ -73,10 +73,10 @@ _ScheduleDecision? _decide(Beacon beacon, DateTime now) {
 
   // Hand-off: STATUS slot2 (reviewCountdown / lifecycleEndedAt) owns the live
   // urgency in these phases — the schedule line stays quiet historical context.
-  final lifecycle = beacon.lifecycle;
-  if (lifecycle == BeaconLifecycle.reviewOpen ||
+  final lifecycle = beacon.status;
+  if (lifecycle == BeaconStatus.reviewOpen ||
       lifecycle.isFinished ||
-      lifecycle == BeaconLifecycle.deleted) {
+      lifecycle == BeaconStatus.deleted) {
     return const _ScheduleDecision(
       mode: _ScheduleMode.handoffEnded,
       remaining: Duration.zero,

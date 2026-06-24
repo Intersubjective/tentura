@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
@@ -206,7 +206,7 @@ void main() {
     test('closed lifecycle returns closed', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.closed,
+          lifecycle: BeaconStatus.closed,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: false,
@@ -219,7 +219,7 @@ void main() {
     test('othersOpenCount returns waitingOnOthers', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: false,
           othersOpenCount: 2,
           compactSurface: false,
@@ -232,7 +232,7 @@ void main() {
     test('non-author on open beacon returns noInfo', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: false,
@@ -245,7 +245,7 @@ void main() {
     test('isAwaitingAuthorReview returns awaitingAuthorReview', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: false,
@@ -259,7 +259,7 @@ void main() {
     test('compact surface without obligation returns hidden', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: true,
@@ -272,7 +272,7 @@ void main() {
     test('compact surface with obligation does not return hidden', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: true,
@@ -285,7 +285,7 @@ void main() {
     test('author with no items returns noOpenItems', () {
       expect(
         deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconLifecycle.open,
+          lifecycle: BeaconStatus.open,
           isAuthorOrSteward: true,
           othersOpenCount: 0,
           compactSurface: false,

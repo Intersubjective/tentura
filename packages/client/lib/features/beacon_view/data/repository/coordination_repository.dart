@@ -3,13 +3,13 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/model/image_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/help_offers_with_coordination.data.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
-import '../gql/_g/set_beacon_coordination_status.req.gql.dart';
+import '../gql/_g/set_beacon_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -74,8 +74,7 @@ class CoordinationRepository {
             .toList();
       });
 
-  Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
-  setCoordinationResponse({
+  Future<({BeaconStatus status, DateTime? updatedAt})> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
     required int responseType,
@@ -96,28 +95,34 @@ class CoordinationRepository {
       .then((r) {
         final res = r.dataOrThrow(label: _label).setCoordinationResponse;
         return (
-          status: BeaconCoordinationStatus.fromSmallint(
-            res.coordinationStatus,
-          ),
-          updatedAt: res.coordinationStatusUpdatedAt == null
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
               ? null
-              : DateTime.tryParse(res.coordinationStatusUpdatedAt!),
+              : DateTime.tryParse(res.statusChangedAt!),
         );
       });
 
-  Future<void> setBeaconCoordinationStatus({
+  Future<({BeaconStatus status, DateTime? updatedAt})> setBeaconStatus({
     required String beaconId,
-    required int coordinationStatus,
+    required int status,
   }) => _remoteApiService
       .request(
-        GSetBeaconCoordinationStatusReq(
+        GSetBeaconStatusReq(
           (r) => r
             ..vars.beaconId = beaconId
-            ..vars.coordinationStatus = coordinationStatus,
+            ..vars.status = status,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label));
+      .then((r) {
+        final res = r.dataOrThrow(label: _label).setBeaconStatus;
+        return (
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
+              ? null
+              : DateTime.tryParse(res.statusChangedAt!),
+        );
+      });
 }
 
 Profile _profileFromHelpOfferUser(

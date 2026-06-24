@@ -1,12 +1,11 @@
 import 'dart:convert';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -64,7 +63,7 @@ class BeaconClosureConfirmationSummary {
 bool closeHardGate(BeaconViewState state) {
   // TODO(steward-delegated-closer): OR delegated closure permission into this gate.
   if (!state.isBeaconMine) return false;
-  if (state.beacon.lifecycle != BeaconLifecycle.open) return false;
+  if (!state.beacon.status.isOpenFamily) return false;
   if (!state.isSuccess) return false;
   if (state.beacon.author.id.isEmpty) return false;
   if (state.isLoading) return false;
@@ -141,8 +140,8 @@ bool hasSuccessfulHelpOfferResult(BeaconViewState state) {
 }
 
 bool authorMarkedEnoughHelp(BeaconViewState state) =>
-    state.beacon.coordinationStatus ==
-    BeaconCoordinationStatus.enoughHelpOffered;
+    state.beacon.status ==
+    BeaconStatus.enoughHelp;
 
 bool helpOfferRowSettled(TimelineHelpOffer c, BeaconViewState state) {
   final p = beaconParticipantForUser(state, c.user.id);
@@ -172,8 +171,8 @@ bool hasClosureBlockingState(BeaconViewState state) {
 
   if (_authorParticipantNeedsInfo(state)) return true;
 
-  if (state.beacon.coordinationStatus ==
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+  if (state.beacon.status ==
+      BeaconStatus.needsMoreHelp) {
     return true;
   }
 

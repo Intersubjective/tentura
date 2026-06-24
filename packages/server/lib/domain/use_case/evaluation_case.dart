@@ -1,4 +1,6 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
@@ -31,12 +33,12 @@ List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
     : csv.split(',').where((s) => s.isNotEmpty).toList();
 
 EvaluationSummaryResult _buildEvaluationSummary({
-  required int beaconState,
+  required BeaconStatus beaconStatus,
   required int distinctEvaluatorCount,
   required List<SummaryEvaluationRowInput> rows,
   required EvaluationParticipantRole? viewerRole,
 }) {
-  if (beaconState != 6) {
+  if (beaconStatus != BeaconStatus.closed) {
     return const EvaluationSummaryResult(
       suppressed: true,
       tone: 'mixed',
@@ -121,7 +123,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       fn: (beacon) async {
-        if (beacon.state != 0) {
+        if (!beacon.status.isOpenFamily) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
             description: 'Beacon must be open to close',
@@ -152,16 +154,16 @@ final class EvaluationCase extends UseCaseBase {
         }
 
         if (!requiresReviewWindow) {
-          await _beaconRepository.recordBeaconLifecycleTransition(
+          await _beaconRepository.recordBeaconStatusTransition(
             beaconId: beaconId,
-            fromState: beacon.state,
-            toState: 6,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.closed,
             reason: BeaconLifecycleChangeReason.directClose,
             actorId: userId,
           );
           return BeaconCloseReviewResult(
             id: beaconId,
-            state: 6,
+            status: BeaconStatus.closed.smallintValue,
           );
         }
 
@@ -174,10 +176,10 @@ final class EvaluationCase extends UseCaseBase {
         await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
         await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
 
-        await _beaconRepository.recordBeaconLifecycleTransition(
+        await _beaconRepository.recordBeaconStatusTransition(
           beaconId: beaconId,
-          fromState: beacon.state,
-          toState: 5,
+          fromStatus: beacon.status,
+          toStatus: BeaconStatus.reviewOpen,
           reason: BeaconLifecycleChangeReason.reviewWindowOpened,
           actorId: userId,
         );
@@ -225,7 +227,7 @@ final class EvaluationCase extends UseCaseBase {
 
         return BeaconCloseReviewResult(
           id: beaconId,
-          state: 5,
+          status: BeaconStatus.reviewOpen.smallintValue,
           closesAt: closesAt,
         );
       },
@@ -242,7 +244,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       fn: (beacon) async {
-        if (beacon.state != 5) {
+        if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
             description: 'Beacon must be wrapping up to extend review',
@@ -269,7 +271,7 @@ final class EvaluationCase extends UseCaseBase {
             await _evaluationRepository.extendReviewWindow(beaconId);
         return BeaconCloseReviewResult(
           id: beaconId,
-          state: 5,
+          status: BeaconStatus.reviewOpen.smallintValue,
           closesAt: closesAt,
         );
       },
@@ -286,7 +288,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       fn: (beacon) async {
-        if (beacon.state != 5) {
+        if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
             description: 'Beacon must be wrapping up to reopen',
@@ -305,16 +307,16 @@ final class EvaluationCase extends UseCaseBase {
         }
         await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
         await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
-        await _beaconRepository.recordBeaconLifecycleTransition(
+        await _beaconRepository.recordBeaconStatusTransition(
           beaconId: beaconId,
-          fromState: beacon.state,
-          toState: 0,
+          fromStatus: beacon.status,
+          toStatus: BeaconStatus.open,
           reason: BeaconLifecycleChangeReason.reopenedFromReview,
           actorId: userId,
         );
         return BeaconCloseReviewResult(
           id: beaconId,
-          state: 0,
+          status: BeaconStatus.open.smallintValue,
         );
       },
     );
@@ -330,7 +332,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       fn: (beacon) async {
-        if (beacon.state != 5) {
+        if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
             description: 'Beacon must be wrapping up to close now',
@@ -360,7 +362,7 @@ final class EvaluationCase extends UseCaseBase {
         );
         return BeaconCloseReviewResult(
           id: beaconId,
-          state: 6,
+          status: BeaconStatus.closed.smallintValue,
         );
       },
     );
@@ -515,7 +517,7 @@ final class EvaluationCase extends UseCaseBase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       return [];
     }
     final graph = await _participantGraphBuilder.build(
@@ -589,7 +591,7 @@ final class EvaluationCase extends UseCaseBase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       return [];
     }
     final rows = await _evaluationRepository.listDraftRowsForBeacon(beaconId);
@@ -618,7 +620,7 @@ final class EvaluationCase extends UseCaseBase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
         description: 'Drafts only while beacon is open',
@@ -669,7 +671,7 @@ final class EvaluationCase extends UseCaseBase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
         description: 'Draft delete only while beacon is open',
@@ -722,7 +724,7 @@ final class EvaluationCase extends UseCaseBase {
       }
     }
     final canCloseNow = w.status == 0 &&
-        beacon.state == 5 &&
+        beacon.status == BeaconStatus.reviewOpen &&
         await _canCloseNow(beaconId: beaconId);
     return ReviewWindowStatusResult(
       beaconId: beaconId,
@@ -772,7 +774,7 @@ final class EvaluationCase extends UseCaseBase {
     final viewerRole =
         me == null ? null : EvaluationParticipantRole.fromDb(me.role);
     return _buildEvaluationSummary(
-      beaconState: beacon.state,
+      beaconStatus: beacon.status,
       distinctEvaluatorCount: n,
       rows: rowInputs,
       viewerRole: viewerRole,

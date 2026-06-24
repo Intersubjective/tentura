@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -60,8 +59,7 @@ void main() {
       kind: MyWorkCardKind.authoredActive,
       beacon: Beacon.empty.copyWith(
         id: 'n',
-        lifecycle: BeaconLifecycle.open,
-        coordinationStatus: BeaconCoordinationStatus.neutral,
+        status: BeaconStatus.open,
         helpOfferCount: 2,
         updatedAt: now,
       ),
@@ -85,8 +83,7 @@ void main() {
       kind: MyWorkCardKind.authoredActive,
       beacon: Beacon.empty.copyWith(
         id: 'm',
-        lifecycle: BeaconLifecycle.open,
-        coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+        status: BeaconStatus.needsMoreHelp,
         updatedAt: now.subtract(const Duration(days: 2)),
       ),
     );
@@ -110,8 +107,7 @@ void main() {
       kind: MyWorkCardKind.authoredActive,
       beacon: Beacon.empty.copyWith(
         id: 'a',
-        lifecycle: BeaconLifecycle.reviewOpen,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        status: BeaconStatus.reviewOpen,
         reviewClosesAt: closesAt,
         reviewWindowStatus: 0,
         helpOfferCount: 3,
@@ -137,8 +133,7 @@ void main() {
       kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
         id: 'c',
-        lifecycle: BeaconLifecycle.open,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        status: BeaconStatus.enoughHelp,
         updatedAt: now.subtract(const Duration(days: 1)),
       ),
     );
@@ -159,8 +154,7 @@ void main() {
       kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
         id: 'x',
-        lifecycle: BeaconLifecycle.reviewOpen,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        status: BeaconStatus.reviewOpen,
         reviewClosesAt: DateTime.utc(2026, 6, 25),
         reviewWindowStatus: 0,
         updatedAt: now,
@@ -188,7 +182,7 @@ void main() {
       kind: MyWorkCardKind.authoredFinished,
       beacon: Beacon.empty.copyWith(
         id: 'f',
-        lifecycle: BeaconLifecycle.closed,
+        status: BeaconStatus.closed,
         updatedAt: endedAt,
       ),
     );

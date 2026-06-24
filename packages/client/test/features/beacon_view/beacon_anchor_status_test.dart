@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart';
@@ -32,7 +31,7 @@ void main() {
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: _t,
       updatedAt: _t,
-      coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      status: BeaconStatus.needsMoreHelp,
     );
     final slots = beaconViewStatusSlots(
       l10n,
@@ -71,7 +70,7 @@ void main() {
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: _t,
       updatedAt: _t,
-      lifecycle: BeaconLifecycle.deleted,
+      status: BeaconStatus.deleted,
     );
     final slots = beaconViewStatusSlots(l10n, _state(beacon: beacon));
 

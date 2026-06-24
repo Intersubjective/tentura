@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -58,7 +59,7 @@ final class HelpOfferCase extends UseCaseBase {
       }
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
+    if (!beacon.status.isOpenFamily) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
       );
@@ -193,7 +194,7 @@ final class HelpOfferCase extends UseCaseBase {
       withdrawReason: withdrawReason,
     );
     final beaconAfter = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beaconAfter.state == 0) {
+    if (beaconAfter.status.isOpenFamily) {
       await _inboxRepository.upsertWatchingForSender(
         senderId: userId,
         beaconId: beaconId,

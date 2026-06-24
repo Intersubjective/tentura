@@ -3,7 +3,7 @@ import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
-import '../mappers/gql_v2_dto_maps.dart';
+import '../mappers/beacon_display_gql_maps.dart';
 
 final class MutationCoordination extends GqlNodeBase {
   MutationCoordination({CoordinationCase? coordinationCase})
@@ -30,20 +30,20 @@ final class MutationCoordination extends GqlNodeBase {
     defaultValue: false,
   );
 
-  final GraphQLFieldInput<int, int> _coordinationStatusField = GraphQLFieldInput(
-    'coordinationStatus',
+  final GraphQLFieldInput<int, int> _statusField = GraphQLFieldInput(
+    'status',
     graphQLInt.nonNullable(),
   );
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     setCoordinationResponse,
-    setBeaconCoordinationStatus,
+    setBeaconStatus,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get setCoordinationResponse =>
       GraphQLObjectField(
         'setCoordinationResponse',
-        gqlTypeCoordinationStatusResult.nonNullable(),
+        gqlTypeBeaconStatusResult.nonNullable(),
         arguments: [
           InputFieldId.field,
           _offerUserId.field,
@@ -60,25 +60,25 @@ final class MutationCoordination extends GqlNodeBase {
             responseType: args[_responseTypeField.name]! as int,
             inviteToRoom: args[_inviteToRoomField.name]! as bool,
             removeFromRoom: args[_removeFromRoomField.name]! as bool,
-          ).then(coordinationStatusResultToGqlMap);
+          ).then(beaconStatusResultToGqlMap);
         },
       );
 
-  GraphQLObjectField<dynamic, dynamic> get setBeaconCoordinationStatus =>
+  GraphQLObjectField<dynamic, dynamic> get setBeaconStatus =>
       GraphQLObjectField(
-        'setBeaconCoordinationStatus',
-        graphQLBoolean.nonNullable(),
+        'setBeaconStatus',
+        gqlTypeBeaconStatusResult.nonNullable(),
         arguments: [
           InputFieldId.field,
-          _coordinationStatusField,
+          _statusField,
         ],
         resolve: (_, args) {
           final jwt = getCredentials(args);
-          return _coordinationCase.setBeaconCoordinationStatus(
+          return _coordinationCase.setBeaconStatus(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             authorUserId: jwt.sub,
-            status: args[_coordinationStatusField.name]! as int,
-          );
+            status: args[_statusField.name]! as int,
+          ).then(beaconStatusResultToGqlMap);
         },
       );
 }
