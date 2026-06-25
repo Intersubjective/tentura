@@ -134,6 +134,13 @@ test('Google CTA hidden in in-app browser via env.inApp guard', () => {
   assert.match(mainJs, /if \(!GOOGLE_ENABLED \|\| env\.inApp\) return null/);
 });
 
+test('email-only QA config suppresses Google without changing production config', () => {
+  assert.match(
+    mainJs,
+    /LANDING_CONFIG\.googleEnabled && !LANDING_CONFIG\.emailOnlyQa/,
+  );
+});
+
 test('already-friends uses completion copy after signed-in return', () => {
   assert.match(mainJs, /function isSignedInReturn\(\)/);
   const block = mainJs.slice(

@@ -49,8 +49,7 @@ class _IntroScreenState extends State<IntroScreen> {
     final tt = context.tt;
     return BlocBuilder<SettingsCubit, SettingsState>(
       bloc: _settingsCubit,
-      buildWhen: (previous, current) =>
-          previous.isLoading != current.isLoading,
+      buildWhen: (previous, current) => previous.isLoading != current.isLoading,
       builder: (context, settingsState) {
         final isPersistingIntro = settingsState.isLoading;
         return Scaffold(
@@ -60,68 +59,74 @@ class _IntroScreenState extends State<IntroScreen> {
               children: [
                 LinearPiActive.builder(context, isPersistingIntro),
                 Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _pageCount,
-                onPageChanged: (page) => setState(() => _page = page),
-                itemBuilder: (context, index) => Column(
-                  children: [
-                    const Spacer(),
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: _pageCount,
+                    onPageChanged: (page) => setState(() => _page = page),
+                    itemBuilder: (context, index) => Column(
+                      children: [
+                        const Spacer(),
 
-                    // Image
-                    const SvgPicture(
-                      AssetBytesLoader('images/intro.svg.vec'),
-                    ),
+                        // Image
+                        const SvgPicture(
+                          AssetBytesLoader('images/intro.svg.vec'),
+                        ),
 
-                    // Title
-                    Padding(
-                      padding: tt.cardPadding,
-                      child: Text(
-                        pages[index].title,
-                        textAlign: TextAlign.center,
-                        style: textTheme.titleLarge,
-                      ),
-                    ),
+                        // Title
+                        Padding(
+                          padding: tt.cardPadding,
+                          child: Text(
+                            pages[index].title,
+                            textAlign: TextAlign.center,
+                            style: textTheme.titleLarge,
+                          ),
+                        ),
 
-                    // Text
-                    Padding(
-                      padding: tt.cardPadding,
-                      child: Text(
-                        pages[index].text,
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyLarge,
-                      ),
-                    ),
+                        // Text
+                        Padding(
+                          padding: tt.cardPadding,
+                          child: Text(
+                            pages[index].text,
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodyLarge,
+                          ),
+                        ),
 
-                    const Spacer(),
-                  ],
-                ),
-              ),
-            ),
-
-            // Page dots
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < _pageCount; i++)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.tt.iconTextGap,
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: tt.iconTextGap + tt.tightGap,
-                      height: tt.iconTextGap + tt.tightGap,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == _page
-                            ? colorScheme.primary
-                            : colorScheme.outlineVariant,
-                      ),
+                        const Spacer(),
+                      ],
                     ),
                   ),
-              ],
-            ),
+                ),
+
+                Text(
+                  l10n.introProgress(_page + 1, _pageCount),
+                  style: textTheme.bodySmall,
+                ),
+                SizedBox(height: tt.rowGap),
+
+                // Page dots
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < _pageCount; i++)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.tt.iconTextGap,
+                        ),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: tt.iconTextGap + tt.tightGap,
+                          height: tt.iconTextGap + tt.tightGap,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i == _page
+                                ? colorScheme.primary
+                                : colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
 
                 // Next / Start
                 Padding(

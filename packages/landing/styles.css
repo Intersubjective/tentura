@@ -203,6 +203,28 @@ p {
   min-height: 1em;
 }
 
+.email-success {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  color: var(--fg);
+  background: #12151c;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.email-success[hidden] {
+  display: none;
+}
+
+.email-success span {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 /* Shared-beacon overlay, above the CTA in every state. */
 .beacon {
   background: #12151c;
@@ -241,6 +263,11 @@ p {
   justify-content: center;
   gap: 8px;
   margin: 4px 0 12px;
+}
+
+.pager-progress {
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .pager-dot {
