@@ -10,6 +10,7 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
+import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/env.dart';
 
 /// Postgres integration — skipped when DB or m0090 schema is unavailable.
@@ -48,11 +49,11 @@ Future<void> main() async {
       );
       if (await _hasBeaconItemsSeenTable(db)) {
         await db.customStatement(
-          "DELETE FROM public.beacon_items_seen WHERE beacon_id = 'Bresptestbcn1'",
+          "DELETE FROM public.beacon_items_seen WHERE beacon_id LIKE 'Bresptest%'",
         );
       }
       await db.customStatement(
-        "DELETE FROM public.beacon WHERE id = 'Bresptestbcn1'",
+        "DELETE FROM public.beacon WHERE id LIKE 'Bresptest%'",
       );
       await db.customStatement(
         '''DELETE FROM public."user" WHERE id IN ('Uresptestview1', 'Uresptestauth1')''',
@@ -107,6 +108,9 @@ ON CONFLICT (id) DO NOTHING
     );
   }
 
+  int personalOpenTotal(CoordinationResponsibilityCounts row) =>
+      row.askOpen + row.promiseOpen + row.blockerOpen + row.reviewOpen;
+
   test(
     'batch open/new counts match myResponsibilityItemsByBeacon per kind',
     () async {
@@ -146,6 +150,214 @@ ON CONFLICT (id) DO NOTHING
         items.where((e) => e.item.kind == coordinationItemKindResolution).length,
         row.reviewOpen,
       );
+      expect(items, hasLength(personalOpenTotal(row)));
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'excludes drafts unpublished and terminal statuses from count buckets',
+    () async {
+      await seedFixture();
+      const viewerId = 'Uresptestview1';
+      const beaconId = 'Bresptestbcn1';
+
+      final before = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: viewerId,
+        beaconIds: [beaconId],
+      );
+      final baseline = before.single;
+
+      await db.customStatement(
+        '''
+INSERT INTO public.coordination_item (
+  id, beacon_id, kind, status, title, body, creator_id, target_person_id,
+  target_item_id, published, created_at, updated_at, published_at, source, ordering
+) VALUES
+  ('Iresptestcncl1', 'Bresptestbcn1', 2, 3, 'Cancelled ask', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestsupr1', 'Bresptestbcn1', 5, 4, 'Superseded promise', '', 'Uresptestview1', 'Uresptestauth1', NULL, true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestunpub', 'Bresptestbcn1', 2, 0, 'Unpublished ask', '', 'Uresptestauth1', 'Uresptestview1', NULL, false,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', NULL, 0, 0)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+
+      final after = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: viewerId,
+        beaconIds: [beaconId],
+      );
+      final row = after.single;
+
+      expect(row.askOpen, baseline.askOpen);
+      expect(row.promiseOpen, baseline.promiseOpen);
+      expect(row.blockerOpen, baseline.blockerOpen);
+      expect(row.reviewOpen, baseline.reviewOpen);
+      expect(row.othersOpenCount, baseline.othersOpenCount);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'accepted status items still count as open responsibility',
+    () async {
+      await seedFixture();
+      const viewerId = 'Uresptestview1';
+      const beaconId = 'Bresptestbcn1';
+
+      await db.customStatement(
+        '''
+INSERT INTO public.coordination_item (
+  id, beacon_id, kind, status, title, body, creator_id, target_person_id,
+  target_item_id, published, created_at, updated_at, published_at, source, ordering
+) VALUES
+  ('Iresptestacc01', 'Bresptestbcn1', 2, 1, 'Accepted ask', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: viewerId,
+        beaconIds: [beaconId],
+      );
+      final items = await repo.myResponsibilityItemsByBeacon(
+        viewerUserId: viewerId,
+        beaconId: beaconId,
+      );
+      final row = counts.single;
+
+      expect(row.askOpen, 2);
+      expect(items.any((e) => e.item.id == 'Iresptestacc01'), isTrue);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'author sees asks targeted at them and othersOpen for room activity outside responsibility',
+    () async {
+      await seedFixture();
+      const authorId = 'Uresptestauth1';
+      const beaconId = 'Bresptestbcn1';
+
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: authorId,
+        beaconIds: [beaconId],
+      );
+      final row = counts.single;
+
+      expect(row.askOpen, 1);
+      expect(row.promiseOpen, 0);
+      expect(row.blockerOpen, 0);
+      expect(row.reviewOpen, 0);
+      expect(row.othersOpenCount, 4);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'review counts when viewer owns targeted ask promise or blocker',
+    () async {
+      await seedFixture();
+      const viewerId = 'Uresptestview1';
+      const beaconId = 'Bresptestbcn1';
+
+      await db.customStatement(
+        '''
+INSERT INTO public.coordination_item (
+  id, beacon_id, kind, status, title, body, creator_id, target_person_id,
+  target_item_id, published, created_at, updated_at, published_at, source, ordering
+) VALUES
+  ('Iresptestprmp2', 'Bresptestbcn1', 5, 0, 'Second promise', '', 'Uresptestview1', 'Uresptestauth1', NULL, true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestblk2', 'Bresptestbcn1', 3, 0, 'Second blocker', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestrevp2', 'Bresptestbcn1', 4, 0, 'Review promise', '', 'Uresptestauth1', NULL, 'Iresptestprmp2', true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestrevb2', 'Bresptestbcn1', 4, 0, 'Review blocker', '', 'Uresptestauth1', NULL, 'Iresptestblk2', true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
+  ('Iresptestrevx1', 'Bresptestbcn1', 4, 0, 'Review unrelated', '', 'Uresptestauth1', NULL, 'Iresptestoth01', true,
+   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: viewerId,
+        beaconIds: [beaconId],
+      );
+      final items = await repo.myResponsibilityItemsByBeacon(
+        viewerUserId: viewerId,
+        beaconId: beaconId,
+      );
+      final row = counts.single;
+
+      expect(row.reviewOpen, 3);
+      expect(
+        items.where((e) => e.item.kind == coordinationItemKindResolution).length,
+        row.reviewOpen,
+      );
+      expect(items.any((e) => e.item.id == 'Iresptestrevx1'), isFalse);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'promise responsibility uses creator_id not target_person_id',
+    () async {
+      await seedFixture();
+      const authorId = 'Uresptestauth1';
+      const beaconId = 'Bresptestbcn1';
+
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: authorId,
+        beaconIds: [beaconId],
+      );
+      final row = counts.single;
+
+      expect(row.promiseOpen, 0);
+      expect(row.othersOpenCount, greaterThanOrEqualTo(1));
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'batch returns zero counts for beacon with no coordination items',
+    () async {
+      await seedFixture();
+      const viewerId = 'Uresptestview1';
+
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon (id, user_id, title, description, created_at, updated_at)
+VALUES ('Bresptestbcn2', 'Uresptestauth1', 'Empty beacon', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: viewerId,
+        beaconIds: ['Bresptestbcn1', 'Bresptestbcn2'],
+      );
+
+      expect(counts, hasLength(2));
+      final empty = counts.singleWhere((r) => r.beaconId == 'Bresptestbcn2');
+      expect(personalOpenTotal(empty), 0);
+      expect(empty.othersOpenCount, 0);
+      expect(empty.totalNew, 0);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'empty beaconIds returns empty list',
+    () async {
+      final counts = await repo.responsibilityCountsByBeaconIds(
+        viewerUserId: 'Uresptestview1',
+        beaconIds: const [],
+      );
+      expect(counts, isEmpty);
     },
     skip: skipReason,
   );
