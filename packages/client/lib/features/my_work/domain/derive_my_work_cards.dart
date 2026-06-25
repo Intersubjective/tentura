@@ -158,6 +158,41 @@ MyWorkCardViewModel _deriveHelpOffered({
   );
 }
 
+/// Non-archived authored desk card from a [Beacon] (same rules as init fetch).
+MyWorkCardViewModel deriveAuthoredMyWorkCard({required Beacon beacon}) =>
+    _deriveAuthored(beacon: beacon);
+
+/// Inserts or replaces an authored card for [beacon] in [cards].
+List<MyWorkCardViewModel> upsertAuthoredMyWorkCard(
+  List<MyWorkCardViewModel> cards,
+  Beacon beacon,
+) {
+  final card = _deriveAuthored(beacon: beacon);
+  final without = cards.where((c) => c.beaconId != beacon.id).toList();
+  return [...without, card]..sort(compareMyWorkCards);
+}
+
+/// Merges [serverCards] with local cards for [preferIds] missing from the server.
+List<MyWorkCardViewModel> mergeMyWorkDeskCards({
+  required List<MyWorkCardViewModel> serverCards,
+  required List<MyWorkCardViewModel> localCards,
+  required Set<String> preferIds,
+}) {
+  if (preferIds.isEmpty) {
+    return serverCards;
+  }
+  final serverIds = serverCards.map((c) => c.beaconId).toSet();
+  final localById = {for (final c in localCards) c.beaconId: c};
+  final preserved = [
+    for (final id in preferIds)
+      if (!serverIds.contains(id) && localById.containsKey(id)) localById[id]!,
+  ];
+  if (preserved.isEmpty) {
+    return serverCards;
+  }
+  return [...serverCards, ...preserved]..sort(compareMyWorkCards);
+}
+
 /// Non-archived cards from init fetch (authored beacons + help-offered rows).
 List<MyWorkCardViewModel> buildNonArchivedViewModels({
   required List<Beacon> authoredNonArchived,

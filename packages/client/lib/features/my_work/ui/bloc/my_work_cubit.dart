@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
+import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 
 import 'my_work_state.dart';
@@ -38,11 +39,18 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     unawaited(fetch());
   }
 
+  static const _pendingRetryDelay = Duration(milliseconds: 400);
+
   final String _userId;
   final MyWorkCase _myWorkCase;
 
   /// Incremented on every [fetch]; stale async completions must not emit.
   int _fetchSeq = 0;
+
+  /// Authored desk cards from repository events not yet confirmed by desk init.
+  final _pendingDeskBeaconIds = <String>{};
+
+  Timer? _pendingRetryTimer;
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
@@ -54,6 +62,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   @override
   Future<void> close() async {
+    _pendingRetryTimer?.cancel();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
@@ -61,30 +70,41 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     return super.close();
   }
 
-  Future<void> fetch() async {
+  Future<void> fetch({bool showLoading = true}) async {
     final seq = ++_fetchSeq;
     final filterBefore = state.filter;
-    emit(
-      state.copyWith(
-        status: StateStatus.isLoading,
-        archivedFetchInProgress: false,
-      ),
-    );
+    if (showLoading) {
+      emit(
+        state.copyWith(
+          status: StateStatus.isLoading,
+          archivedFetchInProgress: false,
+        ),
+      );
+    }
     try {
       final init = await _myWorkCase.loadDeskInit(userId: _userId);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
+      final merged = mergeMyWorkDeskCards(
+        serverCards: init.nonArchivedCards,
+        localCards: state.nonArchivedCards,
+        preferIds: _pendingDeskBeaconIds,
+      );
+      final mergedIds = merged.map((c) => c.beaconId).toSet();
+      final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
+      _pendingDeskBeaconIds.removeWhere(mergedIds.contains);
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
-          nonArchivedCards: init.nonArchivedCards,
+          nonArchivedCards: merged,
           archivedCountHint: init.archivedCountHint,
           finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
           archivedCards: const [],
           archivedDataFetched: false,
         ),
       );
+      _schedulePendingRetryIfNeeded(stillPending);
       if (filterBefore == MyWorkFilter.archived) {
         emit(state.copyWith(archivedFetchInProgress: true));
         unawaited(_loadArchived(seq));
@@ -99,6 +119,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   Future<void> archiveBeacon(String beaconId) async {
     await _myWorkCase.archiveBeacon(beaconId: beaconId, userId: _userId);
+    _pendingDeskBeaconIds.remove(beaconId);
     _removeBeaconFromState(beaconId);
     emit(
       state.copyWith(
@@ -174,14 +195,54 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-    RepositoryEventCreate<Beacon>() ||
-    RepositoryEventUpdate<Beacon>() ||
-    RepositoryEventInvalidate<Beacon>() => unawaited(fetch()),
-    RepositoryEventDelete<Beacon>(value: final b) => _removeBeaconFromState(
-      b.id,
-    ),
+    RepositoryEventCreate<Beacon>(value: final b) ||
+    RepositoryEventUpdate<Beacon>(value: final b) => _onAuthoredBeaconChanged(b),
+    RepositoryEventInvalidate<Beacon>() => unawaited(fetch(showLoading: false)),
+    RepositoryEventDelete<Beacon>(value: final b) => _onBeaconDeleted(b.id),
     _ => null,
   };
+
+  void _onAuthoredBeaconChanged(Beacon beacon) {
+    if (beacon.id.isEmpty || beacon.author.id != _userId) {
+      unawaited(fetch(showLoading: false));
+      return;
+    }
+    _pendingDeskBeaconIds.add(beacon.id);
+    emit(
+      state.copyWith(
+        status: const StateIsSuccess(),
+        nonArchivedCards: upsertAuthoredMyWorkCard(
+          state.nonArchivedCards,
+          beacon,
+        ),
+      ),
+    );
+    unawaited(fetch(showLoading: false));
+  }
+
+  void _onBeaconDeleted(String beaconId) {
+    _pendingDeskBeaconIds.remove(beaconId);
+    _removeBeaconFromState(beaconId);
+  }
+
+  void _schedulePendingRetryIfNeeded(Set<String> stillPending) {
+    _pendingRetryTimer?.cancel();
+    if (stillPending.isEmpty || isClosed) {
+      return;
+    }
+    final retryIds = Set<String>.from(stillPending);
+    _pendingRetryTimer = Timer(_pendingRetryDelay, () {
+      if (isClosed) {
+        return;
+      }
+      unawaited(_retryPendingDesk(retryIds));
+    });
+  }
+
+  Future<void> _retryPendingDesk(Set<String> retryIds) async {
+    await fetch(showLoading: false);
+    _pendingDeskBeaconIds.removeAll(retryIds);
+  }
 
   void _removeBeaconFromState(String beaconId) {
     emit(
