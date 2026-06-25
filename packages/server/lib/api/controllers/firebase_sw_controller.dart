@@ -36,10 +36,19 @@ messaging.onBackgroundMessage((message) => {
     kHeaderEtag: md5.convert(_firebaseSwJs.codeUnits).toString(),
   };
 
+  static const _firebaseSwDisabledJs = '''
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+''';
+
   @override
   Future<Response> handler(Request request) async => env.fbApiKey.isEmpty
       ? Response.ok(
-          '',
+          _firebaseSwDisabledJs,
           headers: {
             kHeaderContentType: kContentApplicationJavaScript,
           },
