@@ -28,6 +28,15 @@ void main() {
       expect(local.currentAccountId, 'U-session');
     });
 
+    test('valid session registers unknown local account as session-only', () async {
+      final local = FakeAuthLocal();
+      final remote = FakeAuthRemote(sessionUserId: 'U-new-oauth');
+      await build(local: local, remote: remote).bootstrapWebSession();
+
+      expect(await local.isSessionAccount('U-new-oauth'), isTrue);
+      expect(await local.getAccountById('U-new-oauth'), isNotNull);
+    });
+
     test('rejected session clears cookie and reports rejection', () async {
       final local = FakeAuthLocal();
       final remote = FakeAuthRemote(sessionRejected: true);
