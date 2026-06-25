@@ -85,6 +85,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   body: HomeBottomNavListener(
                     tabsRouter: tabsRouter,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         NavigationRail(
                           extended: extendedRail,
