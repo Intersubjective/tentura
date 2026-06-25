@@ -3404,6 +3404,7 @@
     }
   },
   "forwardViewInvitations": "Открыть приглашения",
+  "inboxViewMyWork": "Открыть «Мою работу»",
   "capabilityCueHelpOffered": "Предложил помощь: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {

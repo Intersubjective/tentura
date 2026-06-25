@@ -3472,6 +3472,7 @@
     }
   },
   "forwardViewInvitations": "View invitations",
+  "inboxViewMyWork": "View My Work",
   "capabilityCueHelpOffered": "Offered help: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {

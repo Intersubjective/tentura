@@ -96,7 +96,12 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                     children: [
                       _InboxTabKeepAlive(
                         storageKey: 'inbox-tab-needs-global-empty',
-                        child: _inboxGlobalEmpty(theme: theme, l10n: l10n),
+                        child: _inboxGlobalEmpty(
+                          theme: theme,
+                          l10n: l10n,
+                          onOpenMyWork: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(0),
+                        ),
                       ),
                       _InboxTabKeepAlive(
                         storageKey: 'inbox-tab-watching-global-empty',
@@ -173,7 +178,9 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                     ],
                   ),
                   body: SafeArea(
-                    minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                    minimum: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
+                    ),
                     child: body,
                   ),
                 );
@@ -430,6 +437,7 @@ class _InboxOverflowMenu extends StatelessWidget {
 Widget _inboxGlobalEmpty({
   required ThemeData theme,
   required L10n l10n,
+  required VoidCallback onOpenMyWork,
 }) {
   final scheme = theme.colorScheme;
   return Center(
@@ -458,6 +466,11 @@ Widget _inboxGlobalEmpty({
               color: scheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          TenturaTextAction(
+            label: l10n.inboxViewMyWork,
+            onPressed: onOpenMyWork,
           ),
         ],
       ),
@@ -500,12 +513,22 @@ Widget _needsMeTabBody(
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          l10n.inboxNeedsMeEmptyCalm,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-          textAlign: TextAlign.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.inboxNeedsMeEmptyCalm,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TenturaTextAction(
+              label: l10n.inboxViewMyWork,
+              onPressed: () => AutoTabsRouter.of(context).setActiveIndex(0),
+            ),
+          ],
         ),
       ),
     );
@@ -709,8 +732,7 @@ bool _inboxCardAllowsOfferHelp(InboxItem item) {
 
 Future<void> _inboxOfferHelp(BuildContext context, Beacon beacon) async {
   final l10n = L10n.of(context)!;
-  final useOfferHelpAnyway =
-      beacon.status == BeaconStatus.enoughHelp;
+  final useOfferHelpAnyway = beacon.status == BeaconStatus.enoughHelp;
   final outcome = await HelpOfferMessageDialog.show(
     context,
     title: useOfferHelpAnyway
