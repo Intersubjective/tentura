@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
@@ -141,10 +142,13 @@ class ForwardRecipientRow extends StatelessWidget {
                   BlocBuilder<ProfileCubit, ProfileState>(
                     buildWhen: (p, c) => p.profile.id != c.profile.id,
                     builder: (context, state) {
+                      final displayProfile = profileWithContactOverlay(
+                        candidate.profile,
+                      );
                       return Text(
                         SelfUserHighlight.displayName(
                           l10n,
-                          candidate.profile,
+                          displayProfile,
                           state.profile.id,
                         ),
                         maxLines: 1,
