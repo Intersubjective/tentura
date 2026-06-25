@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/data/service/stale_session_redirect_policy.dart';
 
 void main() {
@@ -40,6 +41,13 @@ void main() {
         shouldBounceRejectedSessionToLanding(
           pathname: '/',
           hash: '#/recover-seed',
+        ),
+        isFalse,
+      );
+      expect(
+        shouldBounceRejectedSessionToLanding(
+          pathname: kPathRecover,
+          hash: '',
         ),
         isFalse,
       );
