@@ -34,11 +34,22 @@ void main() {
     test('issue / verify AuthRequest', () {
       final authRequestToken = issueAuthRequestToken(kPublicKey);
       final jwt = verifyAuthRequest(token: authRequestToken);
-      print(jwt.payload);
 
       expect(
         (jwt.payload as Map)['pk'],
         equals(base64UrlEncode(kPublicKey.bytes)),
+      );
+    });
+
+    test('verifyAuthRequest rejects non-EdDSA tokens', () {
+      final hs256Token = JWT({'pk': base64UrlEncode(kPublicKey.bytes)}).sign(
+        SecretKey('not-eddsa'),
+        algorithm: JWTAlgorithm.HS256,
+      );
+
+      expect(
+        () => verifyAuthRequest(token: hs256Token),
+        throwsA(isA<JWTInvalidException>()),
       );
     });
   });
