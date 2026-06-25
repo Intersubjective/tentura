@@ -14,6 +14,7 @@ void main() {
         ),
         isTrue,
       );
+      expect(CredentialType.fromWire('email_otp'), CredentialType.emailOtp);
     });
 
     test('oidc requires provider email_verified', () {
