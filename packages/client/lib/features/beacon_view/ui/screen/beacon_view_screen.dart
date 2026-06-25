@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
@@ -604,23 +605,25 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               _itemsTabCubit = ItemsTabCubit(beaconId: widget.id);
               unawaited(_itemsTabCubit!.fetch());
             }
-            body = BlocProvider.value(
-              value: _itemsTabCubit!,
-              child: BeaconOperationalScrollView(
-                beaconViewCubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                tabIndex: _tabIndex,
-                onTabChanged: _switchToTab,
-                peopleTabAttentionActive: _peopleTabAttentionActive,
-                onPeopleTabAttentionCleared: () => setState(() {
-                  _peopleTabAttentionActive = false;
-                }),
-                focusItemId: _focusItemId,
-                focusUserId: _focusUserId,
-                onOperationalFocusCleared: _clearOperationalFocus,
-                onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
-                onEnterRoomSurface: _enterRoomSurface,
-                onOpenItemDiscussion: _openItemDiscussion,
+            body = TenturaContentColumn(
+              child: BlocProvider.value(
+                value: _itemsTabCubit!,
+                child: BeaconOperationalScrollView(
+                  beaconViewCubit: beaconViewCubit,
+                  screenCubit: screenCubit,
+                  tabIndex: _tabIndex,
+                  onTabChanged: _switchToTab,
+                  peopleTabAttentionActive: _peopleTabAttentionActive,
+                  onPeopleTabAttentionCleared: () => setState(() {
+                    _peopleTabAttentionActive = false;
+                  }),
+                  focusItemId: _focusItemId,
+                  focusUserId: _focusUserId,
+                  onOperationalFocusCleared: _clearOperationalFocus,
+                  onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
+                  onEnterRoomSurface: _enterRoomSurface,
+                  onOpenItemDiscussion: _openItemDiscussion,
+                ),
               ),
             );
           }

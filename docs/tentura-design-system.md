@@ -56,13 +56,20 @@ Width drives layout density, **not** font size:
 
 `TenturaResponsiveScope` selects `TenturaTokens` preset per class. **TextTheme sizes stay identical** across classes; only padding, gaps, icon sizes, avatar sizes, button heights, app bar / bottom nav heights, and max content width change.
 
-On **regular** and **expanded**, content is centered with `contentMaxWidth` **560** / **720** logical px respectively. **Compact** has no cap (full bleed within the window).
+On **regular** and **expanded**, tab and standalone route bodies use [`TenturaContentColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart) to center content at `contentMaxWidth` **560** / **720** logical px respectively. **Compact** has no cap (`TenturaContentColumn` is a no-op). [`TenturaResponsiveScope`](../packages/client/lib/design_system/tentura_responsive_scope.dart) at the app root applies token density only — it does **not** cap layout width globally (avoids clipping the nav rail or graph canvas).
 
 ### Full-bleed routes
 
-Some surfaces (graph canvas, wide interactive viewers) must use the **full viewport width**, not the centered column. Wrap the route body in [`TenturaFullBleed`](../packages/client/lib/design_system/tentura_responsive_scope.dart) — it breaks out of the scope’s max-width using `LayoutBuilder` + horizontal translate. Do **not** duplicate ad-hoc “escape” hacks per screen.
+Some surfaces must use the **full viewport width**, not the centered column:
 
-**Current use:** [`graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/graph_screen.dart), [`forwards_graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/forwards_graph_screen.dart).
+| Surface | Route / widget |
+|---------|----------------|
+| Graph canvas | [`graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/graph_screen.dart), [`forwards_graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/forwards_graph_screen.dart) |
+| Beacon room (chat) | [`BeaconRoomSurface`](../packages/client/lib/features/beacon_view/ui/widget/beacon_room_surface.dart) — not wrapped when operational detail uses `TenturaContentColumn |
+
+[`TenturaFullBleed`](../packages/client/lib/design_system/tentura_responsive_scope.dart) remains available for graph routes; it is currently a pass-through when the app root is already full width.
+
+**Content-column routes (regular / expanded):** home tab bodies ([`home_screen.dart`](../packages/client/lib/features/home/ui/screen/home_screen.dart)), beacon operational detail, forward beacon picker ([`forward_beacon_screen.dart`](../packages/client/lib/features/forward/ui/screen/forward_beacon_screen.dart)), credentials ([`credentials_screen.dart`](../packages/client/lib/features/credentials/ui/screen/credentials_screen.dart)).
 
 ## Adaptive layout rules
 
@@ -87,7 +94,7 @@ When a widget sits inside a sliver or grid, prefer **`windowClassForWidth(constr
 | `regular` | [`NavigationRail`](https://api.flutter.dev/flutter/material/NavigationRail-class.html) (labels below icons) |
 | `expanded` | `NavigationRail` with `extended: true` (labels beside icons) |
 
-Implementation uses `AutoTabsRouter` (not `AutoTabsScaffold`) so one tab router drives both layouts. Tab reselect behavior and [`HomeBottomNavListener`](../packages/client/lib/features/home/ui/widget/home_bottom_nav_listener.dart) wrap nav in both modes.
+Implementation uses `AutoTabsRouter` (not `AutoTabsScaffold`) so one tab router drives both layouts. Tab reselect behavior and [`HomeBottomNavListener`](../packages/client/lib/features/home/ui/widget/home_bottom_nav_listener.dart) wrap nav in both modes. Tab content is wrapped in [`TenturaContentColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart) (no-op on `compact`).
 
 ### Expanded-window flows (≥ 600 px)
 

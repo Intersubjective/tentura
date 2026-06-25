@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -143,19 +143,29 @@ class CardTriageActionRow extends StatelessWidget {
       }
     }
 
+    final wide = context.windowClass != WindowClass.compact;
+
     return Row(
       children: [
         if (hasOfferHelp) ...[
-          Expanded(
-            flex: offerHelpFlex,
-            child: offerHelpBtn,
-          ),
+          if (wide)
+            offerHelpBtn
+          else
+            Expanded(
+              flex: offerHelpFlex,
+              child: offerHelpBtn,
+            ),
           const SizedBox(width: kSpacingSmall),
-          Expanded(
-            flex: forwardFlex,
-            child: forwardBtn,
-          ),
-        ] else
+          if (wide)
+            forwardBtn
+          else
+            Expanded(
+              flex: forwardFlex,
+              child: forwardBtn,
+            ),
+        ] else if (wide)
+          forwardBtn
+        else
           Expanded(child: forwardBtn),
         if (hasSecondary && tertiary != null) ...[
           const SizedBox(width: kSpacingSmall),

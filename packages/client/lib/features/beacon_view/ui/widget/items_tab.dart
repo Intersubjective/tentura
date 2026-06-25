@@ -472,32 +472,38 @@ class _ActiveCoordinationCtas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final wide = context.windowClass != WindowClass.compact;
+
+    final askBtn = BeaconHudActionButton(
+      icon: coordinationKindIcon(CoordinationItemKind.ask),
+      label: l10n.coordinationAskCardLabel,
+      onPressed: () => _openCoordinationComposer(
+        context,
+        state: state,
+        kind: CoordinationItemKind.ask,
+      ),
+    );
+    final promiseBtn = BeaconHudActionButton(
+      icon: coordinationKindIcon(CoordinationItemKind.promise),
+      label: l10n.coordinationPromiseCardLabel,
+      onPressed: () => _openCoordinationComposer(
+        context,
+        state: state,
+        kind: CoordinationItemKind.promise,
+      ),
+    );
 
     return Row(
       children: [
-        Expanded(
-          child: BeaconHudActionButton(
-            icon: coordinationKindIcon(CoordinationItemKind.ask),
-            label: l10n.coordinationAskCardLabel,
-            onPressed: () => _openCoordinationComposer(
-              context,
-              state: state,
-              kind: CoordinationItemKind.ask,
-            ),
-          ),
-        ),
+        if (wide)
+          askBtn
+        else
+          Expanded(child: askBtn),
         const SizedBox(width: 8),
-        Expanded(
-          child: BeaconHudActionButton(
-            icon: coordinationKindIcon(CoordinationItemKind.promise),
-            label: l10n.coordinationPromiseCardLabel,
-            onPressed: () => _openCoordinationComposer(
-              context,
-              state: state,
-              kind: CoordinationItemKind.promise,
-            ),
-          ),
-        ),
+        if (wide)
+          promiseBtn
+        else
+          Expanded(child: promiseBtn),
         const SizedBox(width: 8),
         BeaconHudIconActionButton(
           icon: coordinationKindIcon(CoordinationItemKind.blocker),

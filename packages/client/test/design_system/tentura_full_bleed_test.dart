@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/card_triage_action_row.dart';
 
 void main() {
   group('TenturaResponsiveScope', () {
@@ -135,6 +137,179 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(capturedMaxWidth, 720);
+    });
+
+    testWidgets('is a no-op on compact viewport', (tester) async {
+      const viewportWidth = 375.0;
+      double? capturedMaxWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 812),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 812)),
+            child: TenturaResponsiveScope(
+              child: TenturaContentColumn(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    capturedMaxWidth = constraints.maxWidth;
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(capturedMaxWidth, viewportWidth);
+    });
+
+    testWidgets('home shell pattern caps content pane without clipping rail', (
+      tester,
+    ) async {
+      const viewportWidth = 900.0;
+      const viewportHeight = 1200.0;
+      double? capturedMaxWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, viewportHeight),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(viewportWidth, viewportHeight),
+            ),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    NavigationRail(
+                      selectedIndex: 0,
+                      onDestinationSelected: (_) {},
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Home'),
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                      child: TenturaContentColumn(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            capturedMaxWidth = constraints.maxWidth;
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final railBox = tester.renderObject<RenderBox>(
+        find.byType(NavigationRail),
+      );
+
+      expect(capturedMaxWidth, 720);
+      expect(railBox.localToGlobal(Offset.zero).dx, closeTo(0, 1));
+      expect(railBox.size.height, closeTo(viewportHeight, 1));
+    });
+  });
+
+  group('CardTriageActionRow desktop width', () {
+    testWidgets('uses intrinsic forward button width on expanded', (tester) async {
+      const viewportWidth = 900.0;
+      double? buttonWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 800),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 800)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: Center(
+                  child: SizedBox(
+                    width: 720,
+                    child: CardTriageActionRow(onForward: () {}),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final buttonFinder = find.descendant(
+        of: find.byType(CardTriageActionRow),
+        matching: find.byType(OutlinedButton),
+      );
+      buttonWidth = tester.getSize(buttonFinder).width;
+
+      expect(buttonWidth, lessThan(360));
+    });
+
+    testWidgets('stretches forward button on compact', (tester) async {
+      const viewportWidth = 375.0;
+      double? buttonWidth;
+      double? rowWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 812),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 812)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: CardTriageActionRow(onForward: () {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final buttonFinder = find.descendant(
+        of: find.byType(CardTriageActionRow),
+        matching: find.byType(OutlinedButton),
+      );
+      rowWidth = tester.getSize(find.byType(CardTriageActionRow)).width;
+      buttonWidth = tester.getSize(buttonFinder).width;
+
+      expect(buttonWidth, greaterThan(rowWidth * 0.7));
     });
   });
 }

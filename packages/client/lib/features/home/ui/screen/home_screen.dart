@@ -75,6 +75,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
           builder: (context, child) {
             final tabsRouter = context.tabsRouter;
+            final content = TenturaContentColumn(child: child);
             if (useSideNav) {
               final extendedRail = windowClass == WindowClass.expanded;
               return Scaffold(
@@ -134,7 +135,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                         ],
                       ),
                       const TenturaVerticalHairline(),
-                      Expanded(child: child),
+                      Expanded(child: content),
                     ],
                   ),
                 ),
@@ -142,7 +143,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             }
             return Scaffold(
               resizeToAvoidBottomInset: false,
-              body: child,
+              body: content,
               bottomNavigationBar: HomeBottomNavListener(
                 tabsRouter: tabsRouter,
                 child: NavigationBar(
