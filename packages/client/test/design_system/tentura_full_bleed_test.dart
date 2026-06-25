@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 void main() {
-  group('TenturaFullBleed', () {
-    testWidgets('expands child to viewport width inside capped scope', (
+  group('TenturaResponsiveScope', () {
+    testWidgets('passes full viewport width to child (no centered cap clip)', (
       tester,
     ) async {
       const viewportWidth = 853.0;
@@ -22,13 +22,11 @@ void main() {
           home: MediaQuery(
             data: const MediaQueryData(size: Size(viewportWidth, 1280)),
             child: TenturaResponsiveScope(
-              child: TenturaFullBleed(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    capturedMaxWidth = constraints.maxWidth;
-                    return const SizedBox.shrink();
-                  },
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  capturedMaxWidth = constraints.maxWidth;
+                  return const SizedBox.shrink();
+                },
               ),
             ),
           ),
@@ -39,40 +37,7 @@ void main() {
       expect(capturedMaxWidth, viewportWidth);
     });
 
-    testWidgets('expands at regular/expanded breakpoint widths', (
-      tester,
-    ) async {
-      for (final width in [839.0, 840.0, 600.0]) {
-        double? capturedMaxWidth;
-
-        await tester.binding.setSurfaceSize(Size(width, 1280));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: TenturaTheme.light(),
-            home: MediaQuery(
-              data: MediaQueryData(size: Size(width, 1280)),
-              child: TenturaResponsiveScope(
-                child: TenturaFullBleed(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      capturedMaxWidth = constraints.maxWidth;
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(capturedMaxWidth, width, reason: 'width=$width');
-      }
-    });
-
-    testWidgets('NavigationRail stretches to scaffold body height', (
+    testWidgets('tablet shell rail is not horizontally clipped', (
       tester,
     ) async {
       const viewportWidth = 853.0;
@@ -91,24 +56,29 @@ void main() {
               size: Size(viewportWidth, viewportHeight),
             ),
             child: TenturaResponsiveScope(
-              child: TenturaFullBleed(
-                child: Scaffold(
-                  body: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      NavigationRail(
-                        selectedIndex: 0,
-                        onDestinationSelected: (_) {},
-                        destinations: const [
-                          NavigationRailDestination(
-                            icon: Icon(Icons.home),
-                            label: Text('Home'),
-                          ),
-                        ],
-                      ),
-                      const Expanded(child: SizedBox()),
-                    ],
-                  ),
+              child: Scaffold(
+                body: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    NavigationRail(
+                      extended: true,
+                      selectedIndex: 0,
+                      onDestinationSelected: (_) {},
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Caring'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.inbox),
+                          label: Text('Inbox'),
+                        ),
+                      ],
+                    ),
+                    const Expanded(
+                      child: ColoredBox(color: Colors.blue),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -117,14 +87,54 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final scaffoldBox = tester.renderObject<RenderBox>(
-        find.byType(Scaffold),
-      );
       final railBox = tester.renderObject<RenderBox>(
         find.byType(NavigationRail),
       );
+      final caringLabel = tester.renderObject<RenderBox>(
+        find.text('Caring'),
+      );
 
-      expect(railBox.size.height, closeTo(scaffoldBox.size.height, 0.1));
+      expect(railBox.size.height, closeTo(viewportHeight, 1));
+      expect(railBox.localToGlobal(Offset.zero).dx, closeTo(0, 1));
+      expect(caringLabel.size.width, greaterThan(20));
+      expect(
+        caringLabel.localToGlobal(Offset.zero).dx,
+        lessThan(railBox.size.width * 0.5),
+      );
+    });
+  });
+
+  group('TenturaContentColumn', () {
+    testWidgets('caps width when contentMaxWidth is set', (tester) async {
+      const viewportWidth = 853.0;
+      double? capturedMaxWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 1280),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 1280)),
+            child: TenturaResponsiveScope(
+              child: TenturaContentColumn(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    capturedMaxWidth = constraints.maxWidth;
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(capturedMaxWidth, 720);
     });
   });
 }
