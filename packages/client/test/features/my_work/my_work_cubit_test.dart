@@ -39,7 +39,7 @@ void main() {
     final repo = FakeMyWorkRepository()..fetchInitError = Exception('boom');
     final cubit = MyWorkCubit(
       userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(repo),
+      myWorkCase: buildTestMyWorkCase(repo: repo),
     );
 
     await cubit.stream.firstWhere((s) => s.hasError);
@@ -75,7 +75,7 @@ void main() {
       ..dismissedByUserId['user-1'] = true;
     final cubit = MyWorkCubit(
       userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(null, prefs),
+      myWorkCase: buildTestMyWorkCase(deskPreferences: prefs),
     );
 
     await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -88,7 +88,7 @@ void main() {
     final prefs = FakeMyWorkDeskPreferencesPort();
     final cubit = MyWorkCubit(
       userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(null, prefs),
+      myWorkCase: buildTestMyWorkCase(deskPreferences: prefs),
     );
     await cubit.stream.firstWhere((s) => s.isSuccess);
 
@@ -103,7 +103,7 @@ void main() {
     final prefs = FakeMyWorkDeskPreferencesPort();
     final cubit = MyWorkCubit(
       userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(null, prefs),
+      myWorkCase: buildTestMyWorkCase(deskPreferences: prefs),
     );
     await cubit.stream.firstWhere((s) => s.isSuccess);
 
@@ -119,7 +119,7 @@ void main() {
     final prefs = FakeMyWorkDeskPreferencesPort();
     final cubit = MyWorkCubit(
       userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(null, prefs),
+      myWorkCase: buildTestMyWorkCase(deskPreferences: prefs),
     );
     await cubit.stream.firstWhere((s) => s.isSuccess);
 
