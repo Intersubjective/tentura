@@ -3,7 +3,10 @@ import 'package:gql_exec/gql_exec.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura/data/service/remote_api_client/auth_loss_classifier.dart';
+import 'package:tentura/data/service/remote_api_client/exception.dart';
+import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/server_exception.dart' hide ServerException;
 import 'package:tentura/features/auth/domain/exception.dart';
 
 void main() {
@@ -150,11 +153,6 @@ void main() {
       );
     });
 
-    test('an already-classified domain exception passes through unchanged', () {
-      const original = ConnectionUplinkException();
-      expect(mapRemoteFailure(original), same(original));
-    });
-
     test('unparseable response body surfaces a malformed-response message', () {
       final mapped = mapRemoteFailure(
         const ResponseFormatException(
@@ -166,6 +164,123 @@ void main() {
         (mapped as RemoteApiException).toEn,
         contains('Malformed server response'),
       );
+    });
+  });
+
+  group('mapRemoteFailure — auth-loss shapes', () {
+    test('GraphQL extensions code invalid-jwt maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const GraphQLError(
+          message: 'JWT invalid',
+          extensions: {'code': 'invalid-jwt'},
+        ),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('GraphQL extensions code invalid_jwt maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const GraphQLError(
+          message: 'JWT invalid',
+          extensions: {'code': 'invalid_jwt'},
+        ),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('GraphQL message containing invalid-jwt maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const GraphQLError(message: 'invalid-jwt: token expired'),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('auth-loss GraphQL error in a list takes precedence over later errors',
+        () {
+      final mapped = mapRemoteFailure(
+        const [
+          GraphQLError(message: 'Contact name must be 3–32 characters'),
+          GraphQLError(message: 'Could not verify JWT: JWTExpired'),
+        ],
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('raw exception text with jwt markers maps to auth loss', () {
+      for (final message in [
+        'invalid-jwt',
+        'invalid jwt',
+        'JWTExpired',
+        'Could not verify JWT: signature mismatch',
+      ]) {
+        expect(
+          mapRemoteFailure(Exception(message)),
+          isA<AuthSessionLostException>(),
+          reason: message,
+        );
+      }
+    });
+
+    test('ServerException HTTP 403 maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const ServerException(statusCode: 403),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('SessionHttpException 401/403 maps to auth loss', () {
+      expect(
+        mapRemoteFailure(SessionHttpException(401)),
+        isA<AuthSessionLostException>(),
+      );
+      expect(
+        mapRemoteFailure(SessionHttpException(403)),
+        isA<AuthSessionLostException>(),
+      );
+    });
+
+    test('SessionHttpException other status maps to ServerStatusException', () {
+      final mapped = mapRemoteFailure(SessionHttpException(502));
+      expect(mapped, isA<ServerStatusException>());
+      expect((mapped as ServerStatusException).statusCode, 502);
+    });
+
+    test('ServerStatusException 401 maps to auth loss', () {
+      expect(
+        mapRemoteFailure(const ServerStatusException(401)),
+        isA<AuthSessionLostException>(),
+      );
+    });
+
+    test('ServerStatusException 403 stays a resource error', () {
+      final mapped = mapRemoteFailure(const ServerStatusException(403));
+      expect(mapped, isA<ServerStatusException>());
+      expect((mapped as ServerStatusException).statusCode, 403);
+    });
+
+    test('authentication failures from the link layer map to auth loss', () {
+      expect(
+        mapRemoteFailure(const AuthenticationNoKeyException()),
+        isA<AuthSessionLostException>(),
+      );
+      expect(
+        mapRemoteFailure(const AuthenticationFailedException()),
+        isA<AuthSessionLostException>(),
+      );
+    });
+  });
+
+  group('mapRemoteFailure — pass-through', () {
+    test('already-classified auth exceptions pass through unchanged', () {
+      const authLost = AuthSessionLostException();
+      const authRejected = SessionAuthRejectedException();
+      expect(mapRemoteFailure(authLost), same(authLost));
+      expect(mapRemoteFailure(authRejected), same(authRejected));
+    });
+
+    test('an already-classified domain exception passes through unchanged', () {
+      const original = ConnectionUplinkException();
+      expect(mapRemoteFailure(original), same(original));
     });
   });
 }
