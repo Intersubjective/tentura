@@ -771,6 +771,17 @@
   "@introPage3Text": {
     "context": "Intro"
   },
+  "introProgress": "Шаг {current} из {total}",
+  "@introProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "buttonNext": "Далее",
   "@buttonNext": {
     "context": "Intro"

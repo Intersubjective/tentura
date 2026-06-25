@@ -11,7 +11,10 @@ import {
   renderPostSignup,
 } from './onboarding.js';
 
-const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
+const LANDING_CONFIG = window.TENTURA || {};
+const GOOGLE_ENABLED = Boolean(
+  LANDING_CONFIG.googleEnabled && !LANDING_CONFIG.emailOnlyQa,
+);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
 
 const app = document.getElementById('app');
@@ -303,7 +306,11 @@ function renderEmailMagicLinkForm() {
     inputmode: 'email',
   });
   const errorEl = el('p', { class: 'error', role: 'alert' });
-  const successEl = el('p', { class: 'hint' });
+  const successEl = el('div', {
+    class: 'email-success',
+    role: 'status',
+    hidden: 'hidden',
+  });
   const submit = el(
     'button',
     { class: 'btn btn-secondary', type: 'submit' },
@@ -313,7 +320,8 @@ function renderEmailMagicLinkForm() {
   const onSubmit = async (e) => {
     e.preventDefault();
     errorEl.textContent = '';
-    successEl.textContent = '';
+    successEl.replaceChildren();
+    successEl.hidden = true;
     const label = submit.textContent;
     submit.disabled = true;
     submit.textContent = 'Sending…';
@@ -325,8 +333,17 @@ function renderEmailMagicLinkForm() {
       });
       if (attemptId) setAttemptId(attemptId, 'email');
       track('email_start_accepted');
-      successEl.textContent =
-        'If that address can sign in, we sent a link. Open it in your browser (not this in-app viewer).';
+      successEl.replaceChildren(
+        el('strong', {}, 'Check your email'),
+        el(
+          'span',
+          {},
+          'If that address can sign in, we sent a link. Open the message and use the link in your browser.',
+        ),
+      );
+      successEl.hidden = false;
+      emailInput.disabled = true;
+      submit.hidden = true;
       submit.textContent = 'Link sent';
     } catch (err) {
       trackError('email_start_error', err);

@@ -771,6 +771,17 @@
   "@introPage3Text": {
     "context": "Intro"
   },
+  "introProgress": "Step {current} of {total}",
+  "@introProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "buttonNext": "Next",
   "@buttonNext": {
     "context": "Intro"

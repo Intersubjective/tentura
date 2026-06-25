@@ -237,6 +237,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
 
   const title = el('h1', {});
   const body = el('p', {});
+  const progress = el('p', { class: 'hint pager-progress' });
   const dots = el('div', { class: 'pager-dots' });
   const back = el(
     'button',
@@ -273,6 +274,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     const p = ONBOARDING_PAGES[page];
     title.textContent = p.title;
     body.textContent = p.body;
+    progress.textContent = `Step ${page + 1} of ${ONBOARDING_PAGES.length}`;
     dots.replaceChildren(
       ...ONBOARDING_PAGES.map((_, i) =>
         el('span', { class: i === page ? 'pager-dot active' : 'pager-dot' }),
@@ -294,6 +296,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     'div',
     { class: 'content pager' },
     el('div', { class: 'pager-page' }, title, body),
+    progress,
     dots,
     next,
     openApp,

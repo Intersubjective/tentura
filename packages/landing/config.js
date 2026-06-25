@@ -2,6 +2,7 @@
 // of injected by a bundler. Edit per-deploy, or substitute at deploy time (CI sed).
 //   apiBase  '' = same origin (landing host proxies /api to Tentura)
 //   googleEnabled  show Google OAuth CTA when true (requires server GOOGLE_CLIENT_ID)
+//   emailOnlyQa  hide Google in QA sessions that must exercise email auth
 //   sentryDsn '' = analytics disabled (no-op)
 //   sentryEnvironment / sentryRelease — Sentry env + release (CI sed at deploy)
 //
@@ -12,4 +13,5 @@ window.TENTURA = {
   sentryRelease: '',
   apiBase: '',
   googleEnabled: false,
+  emailOnlyQa: false,
 };

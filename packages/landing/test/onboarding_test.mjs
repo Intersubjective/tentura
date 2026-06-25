@@ -94,6 +94,21 @@ test('pager marks done before opening the product', () => {
   assert.match(onboardingJs, /onboarding_skipped/);
 });
 
+test('pager exposes explicit textual progress', () => {
+  assert.match(
+    onboardingJs,
+    /progress\.textContent = `Step \$\{page \+ 1\} of \$\{ONBOARDING_PAGES\.length\}`/,
+  );
+  assert.match(onboardingJs, /class: 'hint pager-progress'/);
+});
+
+test('email success state tells the user to check email and hides submit', () => {
+  assert.match(mainJs, /'Check your email'/);
+  assert.match(mainJs, /successEl\.hidden = false/);
+  assert.match(mainJs, /emailInput\.disabled = true/);
+  assert.match(mainJs, /submit\.hidden = true/);
+});
+
 test('pager clamps page index and hidden controls actually hide', () => {
   // show() must never step past the last page even if a hidden control fires.
   assert.match(onboardingJs, /Math\.max\(0, Math\.min\(index, ONBOARDING_PAGES\.length - 1\)\)/);
