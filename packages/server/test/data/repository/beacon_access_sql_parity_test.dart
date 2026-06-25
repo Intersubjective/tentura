@@ -46,6 +46,9 @@ Future<void> main() async {
 
     tearDown(() async {
       await db.customStatement(
+        "DELETE FROM public.inbox_item WHERE beacon_id = 'Bvisparity01'",
+      );
+      await db.customStatement(
         "DELETE FROM public.beacon_forward_edge WHERE beacon_id = 'Bvisparity01'",
       );
       await db.customStatement(
@@ -98,6 +101,11 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
       repo.canReadContent(beaconId: 'Bvisparity01', viewerId: viewerId);
 
   Future<bool> sqlInvolvement(String viewerId) => repo.canReadInvolvement(
+        beaconId: 'Bvisparity01',
+        viewerId: viewerId,
+      );
+
+  Future<bool> sqlTombstone(String viewerId) => repo.canReadTombstone(
         beaconId: 'Bvisparity01',
         viewerId: viewerId,
       );
@@ -291,7 +299,327 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
     },
     skip: skipReason,
   );
+
+  test(
+    'SQL content matches Dart for steward role and non-admitted room access',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, room_access, created_at, updated_at
+) VALUES (
+  'Pvisparity02', 'Bvisparity01', 'Uvisparityview',
+  ${BeaconParticipantRoleBits.steward}, ${RoomAccessBits.none}, now(), now()
+)
+ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, room_access = EXCLUDED.room_access
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(await sqlInvolvement('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadContent(
+          const BeaconContentVisibilityFacts(
+            status: BeaconStatus.open,
+            isAuthor: false,
+            hasActiveForwardEdgeAsRecipient: false,
+            isRoomAdmittedOrSteward: true,
+            isActiveHelpOfferer: false,
+            isMutualFriendOfAuthor: false,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        '''
+UPDATE public.beacon_participant
+SET role = ${BeaconParticipantRoleBits.helper},
+    room_access = ${RoomAccessBits.requested}
+WHERE id = 'Pvisparity02'
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadContent(
+          const BeaconContentVisibilityFacts(
+            status: BeaconStatus.open,
+            isAuthor: false,
+            hasActiveForwardEdgeAsRecipient: false,
+            isRoomAdmittedOrSteward: false,
+            isActiveHelpOfferer: false,
+            isMutualFriendOfAuthor: false,
+          ),
+        ),
+        isFalse,
+      );
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL involvement matches Dart for mutual friend and sender-only forward',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uvisparityview', 'Uvisparityauth', 1, now(), now()),
+  ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(await sqlInvolvement('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadInvolvement(
+          _involvementFacts(
+            contentFacts: const BeaconContentVisibilityFacts(
+              status: BeaconStatus.open,
+              isAuthor: false,
+              hasActiveForwardEdgeAsRecipient: false,
+              isRoomAdmittedOrSteward: false,
+              isActiveHelpOfferer: false,
+              isMutualFriendOfAuthor: true,
+            ),
+            isMutualFriendOfAuthor: true,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        "DELETE FROM public.vote_user WHERE subject = 'Uvisparityauth' AND object = 'Uvisparityview'",
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at
+) VALUES (
+  'Fvisparity03', 'Bvisparity01', 'Uvisparityview', 'Uvisparitypeer', now()
+)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadInvolvement(
+          _involvementFacts(
+            contentFacts: const BeaconContentVisibilityFacts(
+              status: BeaconStatus.open,
+              isAuthor: false,
+              hasActiveForwardEdgeAsRecipient: false,
+              isRoomAdmittedOrSteward: false,
+              isActiveHelpOfferer: false,
+              isMutualFriendOfAuthor: false,
+            ),
+            isOnActiveForwardEdge: true,
+          ),
+        ),
+        isFalse,
+      );
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL tombstone matches Dart for deleted beacon durable rows',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+
+      expect(await sqlTombstone('Uvisparityauth'), isFalse);
+      expect(await sqlTombstone('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.open,
+            isAuthor: true,
+            hasInboxItem: true,
+            hasForwardEdgeHistory: true,
+            hasHelpOfferHistory: true,
+            hasParticipantRow: true,
+          ),
+        ),
+        isFalse,
+      );
+
+      await insertBeacon(status: BeaconStatus.deleted.smallintValue);
+
+      expect(await sqlTombstone('Uvisparityauth'), isTrue);
+      expect(await sqlTombstone('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: true,
+            hasInboxItem: false,
+            hasForwardEdgeHistory: false,
+            hasHelpOfferHistory: false,
+            hasParticipantRow: false,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        '''
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, context, forward_count, latest_forward_at, latest_note_preview
+) VALUES (
+  'Uvisparityview', 'Bvisparity01', 'Parity inbox', 0, now(), ''
+)
+ON CONFLICT (user_id, beacon_id) DO NOTHING
+''',
+      );
+      expect(await sqlTombstone('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: false,
+            hasInboxItem: true,
+            hasForwardEdgeHistory: false,
+            hasHelpOfferHistory: false,
+            hasParticipantRow: false,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        "DELETE FROM public.inbox_item WHERE user_id = 'Uvisparityview'",
+      );
+      expect(await sqlTombstone('Uvisparityview'), isFalse);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at, cancelled_at
+) VALUES (
+  'Fvisparity04', 'Bvisparity01', 'Uvisparityauth', 'Uvisparityview', now(), now()
+)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      expect(await sqlTombstone('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: false,
+            hasInboxItem: false,
+            hasForwardEdgeHistory: true,
+            hasHelpOfferHistory: false,
+            hasParticipantRow: false,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        "DELETE FROM public.beacon_forward_edge WHERE id = 'Fvisparity04'",
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, created_at, updated_at
+) VALUES (
+  'Bvisparity01', 'Uvisparityview', '', 1, now(), now()
+)
+ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
+''',
+      );
+      expect(await sqlTombstone('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: false,
+            hasInboxItem: false,
+            hasForwardEdgeHistory: false,
+            hasHelpOfferHistory: true,
+            hasParticipantRow: false,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        "DELETE FROM public.beacon_help_offer WHERE beacon_id = 'Bvisparity01'",
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, room_access, created_at, updated_at
+) VALUES (
+  'Pvisparity03', 'Bvisparity01', 'Uvisparityview',
+  ${BeaconParticipantRoleBits.helper}, ${RoomAccessBits.requested}, now(), now()
+)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      expect(await sqlTombstone('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: false,
+            hasInboxItem: false,
+            hasForwardEdgeHistory: false,
+            hasHelpOfferHistory: false,
+            hasParticipantRow: true,
+          ),
+        ),
+        isTrue,
+      );
+
+      await db.customStatement(
+        "DELETE FROM public.beacon_participant WHERE id = 'Pvisparity03'",
+      );
+      expect(await sqlTombstone('Uvisparitypeer'), isFalse);
+      expect(
+        BeaconVisibility.canReadTombstone(
+          const BeaconTombstoneFacts(
+            status: BeaconStatus.deleted,
+            isAuthor: false,
+            hasInboxItem: false,
+            hasForwardEdgeHistory: false,
+            hasHelpOfferHistory: false,
+            hasParticipantRow: false,
+          ),
+        ),
+        isFalse,
+      );
+    },
+    skip: skipReason,
+  );
 }
+
+BeaconInvolvementVisibilityFacts _involvementFacts({
+  required BeaconContentVisibilityFacts contentFacts,
+  bool isOnActiveForwardEdge = false,
+  bool isActiveHelpOfferer = false,
+  bool isRoomAdmittedOrSteward = false,
+  bool isMutualFriendOfAuthor = false,
+}) =>
+    BeaconInvolvementVisibilityFacts(
+      contentFacts: contentFacts,
+      isOnActiveForwardEdge: isOnActiveForwardEdge,
+      isActiveHelpOfferer: isActiveHelpOfferer,
+      isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
+      isMutualFriendOfAuthor: isMutualFriendOfAuthor,
+    );
 
 Env _testEnv() => Env(
       environment: Environment.test,
