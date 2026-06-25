@@ -34,6 +34,8 @@ class Env {
     String? resendApiKey,
     String? resendFromEmail,
     String? emailDebugSinkDir,
+    String? qaAuthToken,
+    List<String>? qaEmailDomains,
     String? unsubscribeSigningSecret,
     Duration? emailNotifCooldown,
     int? emailDigestHour,
@@ -131,6 +133,15 @@ class Env {
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
+       qaAuthToken = qaAuthToken ?? _env['QA_AUTH_TOKEN'] ?? '',
+       qaEmailDomains =
+           qaEmailDomains ??
+           (_env['QA_EMAIL_DOMAINS'] ??
+                   'test.tentura.local,qa.tentura.local,example.test')
+               .split(',')
+               .map((domain) => domain.trim().toLowerCase())
+               .where((domain) => domain.isNotEmpty)
+               .toList(),
        unsubscribeSigningSecret = unsubscribeSigningSecret ??
            _env['UNSUBSCRIBE_SIGNING_SECRET'] ??
            '',
@@ -384,6 +395,12 @@ class Env {
   /// disk. NEVER set in production — it bypasses real email delivery entirely.
   final String emailDebugSinkDir;
 
+  /// Shared secret for development/staging-only QA HTTP endpoints.
+  final String qaAuthToken;
+
+  /// Domains accepted by the QA email-sink endpoint.
+  final List<String> qaEmailDomains;
+
   /// HMAC secret for one-click email unsubscribe tokens.
   final String unsubscribeSigningSecret;
 
@@ -421,6 +438,11 @@ class Env {
 
   bool get isEmailAuthConfigured =>
       (resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty) ||
+      emailDebugSinkDir.isNotEmpty;
+
+  bool get isQaEmailSinkEnabled =>
+      environment != Environment.prod &&
+      qaAuthToken.isNotEmpty &&
       emailDebugSinkDir.isNotEmpty;
 
   // Web server
