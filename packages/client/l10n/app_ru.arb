@@ -3405,6 +3405,8 @@
   },
   "forwardViewInvitations": "Открыть приглашения",
   "inboxViewMyWork": "Открыть «Мою работу»",
+  "logoutConfirmTitle": "Выйти?",
+  "logoutConfirmBody": "Чтобы снова пользоваться Tentura на этом устройстве, потребуется войти в аккаунт.",
   "capabilityCueHelpOffered": "Предложил помощь: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {
