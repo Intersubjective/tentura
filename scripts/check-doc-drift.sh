@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Flag legacy product/implementation terms in docs/ (post-cleanup drift guard).
+# Flag legacy product/implementation terms in docs/ and structural drift in
+# agent rules + root entry-point docs (post-cleanup drift guard).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PATTERNS=(
+# Legacy product / implementation terms that should no longer appear in docs/.
+DOC_PATTERNS=(
   'Registry tab'
   'Overview tab'
   'coordination_status column'
@@ -13,16 +15,42 @@ PATTERNS=(
   'beacon_blocker'
 )
 
+# Structural drift in agent rules + root entry-point docs:
+#  - applyWhen / pathMatches: inert (unsupported) Cursor rule frontmatter
+#  - quick-reference: deleted rule hub, must not be referenced
+#  - widgetbook: no such package in the monorepo
+RULE_DOC_FILES=(
+  .cursor/rules
+  AGENTS.md
+  DEV_GUIDELINES.md
+  DEVELOPMENT.md
+  README.md
+  .claude/CLAUDE.md
+)
+RULE_DOC_PATTERNS=(
+  'applyWhen'
+  'pathMatches'
+  'quick-reference'
+  'widgetbook'
+)
+
 found=0
-for pat in "${PATTERNS[@]}"; do
+
+for pat in "${DOC_PATTERNS[@]}"; do
   if rg -n --glob 'docs/**' --glob '!docs/README.md' "$pat" docs/ 2>/dev/null; then
     found=1
   fi
 done
 
+for pat in "${RULE_DOC_PATTERNS[@]}"; do
+  if rg -n "$pat" "${RULE_DOC_FILES[@]}" 2>/dev/null; then
+    found=1
+  fi
+done
+
 if [[ $found -eq 0 ]]; then
-  echo "check-doc-drift: no legacy terms in docs/"
+  echo "check-doc-drift: no legacy terms or rule/doc drift found"
   exit 0
 fi
-echo "check-doc-drift: legacy terms found (review or update docs)" >&2
+echo "check-doc-drift: drift found (review or update the flagged files)" >&2
 exit 1

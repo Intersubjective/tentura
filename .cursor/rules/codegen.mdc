@@ -1,5 +1,7 @@
 ---
-alwaysApply: true
+description: Ferry/Freezed/Drift/AutoRoute/Injectable/JSON/l10n codegen; use when touching GraphQL, build.yaml, screens, DI, or pubspec.
+globs: **/*.graphql,**/build.yaml,**/*_screen.dart,**/di.dart,**/pubspec.yaml,**/l10n/**
+alwaysApply: false
 ---
 # Codegen Architecture Guidelines
 
@@ -10,7 +12,7 @@ This project uses multiple code generators that work together. Always run `dart 
 - `DEV_GUIDELINES.md` (repository root) - Conventions when planning UI and async-loaded screens
 - `architecture.mdc` - Clean Architecture and SOLID principles
 - `advanced-patterns.mdc` - Advanced patterns using codegen outputs
-- `quick-reference.mdc` - One-line rules (always applied)
+- `AGENTS.md` (repository root) - always-on index + invariants
 
 **⚠️ Rule Maintenance:** If you observe new codegen tools, different codegen patterns, or alternative approaches that consistently diverge from these guidelines, notify the user and suggest updating this file with specific examples.
 
@@ -27,7 +29,7 @@ This project uses multiple code generators that work together. Always run `dart 
   - Access response via `r.dataOrThrow(label: 'Label').field`
   - Hasura `type_overrides` for `smallint` / `float8` / `uuid` plus `Float8Serializer` / `SmallintSerializer` in `custom_serializers` when MeritRank `mr_*` paths return string-encoded numbers — see `DEV_GUIDELINES.md` (Ferry custom scalars) and `packages/server/WORKAROUNDS.md` section 3
   - Schema input `v2_Upload` is overridden to `MultipartFile` in `packages/client/build.yaml` (same as scalar `Upload`) so Room/message multipart vars serialize like beacon image uploads.
-  - **V2 vs Hasura routing:** new Tentura V2 operations must be registered in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` — see `DEV_GUIDELINES.md` (V2 direct routing) and `quick-reference.mdc` (V2 Routing)
+  - **V2 vs Hasura routing:** new Tentura V2 operations must be registered in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` — see `DEV_GUIDELINES.md` § V2 direct routing
 
 ### 2. Freezed (Immutable Classes)
 - **Purpose**: Generates immutable data classes with `copyWith`, equality, etc.
@@ -110,14 +112,9 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
 - Use `copyWith()` to update state immutably
 - Custom getters go in private constructor: `const State._();`
 
-## File Naming Conventions
+## File naming (triggers / conventions)
 
-- **Screens**: `*_screen.dart` (triggers Auto Route generation)
-- **BLoC States**: `*_state.dart` (use Freezed)
-- **Repositories**: `*_repository.dart` (use Injectable)
-- **GraphQL Queries**: `*.graphql` in `data/gql/` directories
-- **Domain Entities**: `*.dart` in `domain/entity/` (use Freezed)
-- **Models**: `*_model.dart` in `data/model/` (extension types wrapping Ferry types)
+`*_screen.dart` (Auto Route) · `*_state.dart` (Freezed BLoC state) · `*_repository.dart` (Injectable) · `*.graphql` in `data/gql/` · entities in `domain/entity/` · `*_model.dart` extension types in `data/model/`.
 
 ## Build Process
 
@@ -144,18 +141,8 @@ class MyScreen extends StatelessWidget implements AutoRouteWrapper {
 ```
 
 ### Repository with GraphQL (Codegen Usage)
-```dart
-@lazySingleton
-class MyRepository {
-  Future<Iterable<Entity>> fetch() => _remoteApiService
-      .request(GQueryReq())  // Ferry-generated request type
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: 'Label').field)
-      .then((v) => v.map((e) => (e.model as ModelName).toEntity()));  // Extension type conversion
-}
-```
 
-**Note**: See architecture.mdc for repository pattern details, advanced-patterns.mdc for base classes.
+Ferry request → `dataOrThrow` → extension-type `toEntity()`. See the canonical repository in `architecture.mdc` (Common Patterns) and `advanced-patterns.mdc` for base classes.
 
 ### Freezed Entity
 ```dart
@@ -175,10 +162,6 @@ abstract class Entity with _$Entity {
 
 ## Important Rules
 
-1. **Never commit generated files** - All `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart` are in `.gitignore`
-2. **Always use Freezed for domain entities** - Never use regular classes for business logic data
-3. **Always use extension types for Ferry models** - Wrap Ferry types, don't use them directly
-4. **Router must be @singleton** - Required for Injectable integration
-5. **Run codegen after schema changes** - GraphQL schema, Drift tables, new screens all require regeneration
-6. **Use copyWith for state updates** - Never mutate Freezed objects directly
-7. **Type safety first** - Leverage generated types, avoid `dynamic` and manual casting when possible
+1. **Never commit generated files** — `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart` are gitignored; run codegen after schema/screen/DI changes.
+2. **Freezed** for domain entities + BLoC states; **extension types** wrap Ferry models (never use Ferry types directly outside data).
+3. **Router must be `@singleton`** for Injectable. Use `copyWith` for state, never mutate; leverage generated types over `dynamic`.

@@ -28,7 +28,7 @@ The reverse proxy uses Caddy (official `caddy:alpine` image). For local dev, Cad
 ### Architecture & code guidelines
 
 - `**DEV_GUIDELINES.md`** — includes **layer boundaries** (server ports, client use cases / cubits, `tentura_lints`, CI analyze).
-- `**.cursor/rules/`** — `architecture.mdc` (full detail), `quick-reference.mdc` (one-line checklist, always on for agents).
+- `**.cursor/rules/`** — `AGENTS.md` (always-on index + invariants) routes to scoped rules: `architecture.mdc`, `codegen.mdc`, `tentura-design-system.mdc`, `search-tools.mdc`, `versioning.mdc`.
 
 ## Backup and restore data
 

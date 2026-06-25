@@ -56,7 +56,7 @@ arguments correctly in `coerceArgumentValues`.
 
 **Library:** `graphql_schema2` 6.5.0 (latest as of 2026-03)
 **File:** `lib/api/controllers/graphql/input/input_field_recipient_ids.dart`
-**Rule:** `.cursor/rules/quick-reference.mdc` → "Server GraphQL (graphql_schema2)"
+**Rule:** `.cursor/rules/architecture.mdc` → "Server GraphQL (graphql_schema2) & library workarounds"
 
 ### Bug
 

@@ -1,18 +1,7 @@
 ---
-applyWhen:
-  - pathMatches: "**/domain/**/*.dart"
-  - pathMatches: "**/data/**/*.dart"
-  - pathMatches: "**/ui/**/*.dart"
-  - pathMatches: "**/features/**/*.dart"
-  - pathMatches: "**/*_repository.dart"
-  - pathMatches: "**/*_case.dart"
-  - pathMatches: "**/*_cubit.dart"
-  - pathMatches: "**/*_state.dart"
-  - pathMatches: "**/use_case/**/*.dart"
-  - pathMatches: "**/entity/**/*.dart"
-  - pathMatches: "**/di.dart"
-  - pathMatches: "**/modules.dart"
-  - pathMatches: "**/tentura_lints/**/*.dart"
+description: Clean Architecture layer boundaries and use-case/repository orchestration; use when editing Dart domain/data/ui/feature code.
+globs: **/domain/**/*.dart,**/data/**/*.dart,**/ui/**/*.dart,**/features/**/*.dart,**/*_repository.dart,**/*_case.dart,**/*_cubit.dart,**/*_state.dart,**/use_case/**/*.dart,**/entity/**/*.dart,**/di.dart,**/tentura_lints/**/*.dart
+alwaysApply: false
 ---
 
 # Architecture Guidelines (SOLID & Clean Architecture)
@@ -24,7 +13,7 @@ This project follows **Clean Architecture** with **feature-based modularization*
 - `DEV_GUIDELINES.md` (repository root) — Project conventions (initial-load UI, **layer boundaries & CI checks**); read when planning features or screens
 - `codegen.mdc` - Code generation tools and usage
 - `advanced-patterns.mdc` - Advanced architectural patterns
-- `quick-reference.mdc` - One-line rules (always applied)
+- `AGENTS.md` (repository root) - always-on index + invariants
 
 **⚠️ Rule Maintenance:** If you observe architectural patterns in the codebase that consistently diverge from these guidelines (e.g., different layer structure, new patterns, alternative approaches), notify the user and suggest updating this file with specific examples of the divergence.
 
@@ -71,39 +60,18 @@ features/
 - **Widgets**: Reusable UI components
 - **Rules**:
   - Depends on domain and data layers
-  - **BLoC/Cubit:** Prefer **`features/*/domain/use_case/*_case.dart`** for orchestration when a screen coordinates **multiple repos**, streams, or non-trivial workflows (pattern used for beacon detail, inbox, my work, forward, evaluation, polling, chat). Simple single-repo cubits may still inject one repository. **Never** import `package:tentura/.../data/service/` from `ui/bloc/*_cubit.dart` — use repositories or use cases (`tentura_lints` enforces this).
+  - **BLoC/Cubit:** Prefer **`features/*/domain/use_case/*_case.dart`** for orchestration when a screen coordinates **multiple repos**, streams, or non-trivial workflows (pattern used for beacon detail, beacon room, inbox, my work, forward, evaluation). Simple single-repo cubits may still inject one repository. **Never** import `package:tentura/.../data/service/` from `ui/bloc/*_cubit.dart` — use repositories or use cases (`tentura_lints` enforces this).
   - **Immutable state:** Only `emit(state.copyWith(...))` with **new** `List`/`Map` instances — do not call `.add`, `.remove`, `[]=`, `.sort`, etc. on collections **held in** `state`.
   - States extend `StateBase` and use Freezed (see advanced-patterns.mdc for StateBase details); shared **`ScreenState`** lives in `ui/bloc/screen_state.dart` (Freezed)
   - Screens use `@RoutePage()` for Auto Route
 
-## SOLID Principles
+## SOLID (applied here)
 
-### Single Responsibility Principle (SRP)
-- **Use Cases**: One business operation per use case
-- **Repositories**: One data source per repository (e.g., `AuthRemoteRepository`, `AuthLocalRepository`)
-- **BLoC/Cubit**: One feature's state management
-- **Entities**: Pure data structures with business logic getters only
-
-### Open/Closed Principle (OCP)
-- **Repositories**: Can be extended via interfaces (abstract base classes)
-- **Use Cases**: Extend `UseCaseBase` for common functionality
-- **Entities**: Use Freezed's `copyWith()` for immutable updates
-
-### Liskov Substitution Principle (LSP)
-- **Repositories**: Follow common interfaces (e.g., `RemoteRepository` base class)
-- **Use Cases**: Can be substituted if they implement same interface
-- **Entities**: Freezed classes are substitutable via interfaces (e.g., `Likable`, `Scorable`)
-
-### Interface Segregation Principle (ISP)
-- **Interfaces**: Small, focused (e.g., `Likable`, `Scorable`, `Identifiable`)
-- **Repositories**: Separate local vs remote repositories
-- **Use Cases**: One method per use case class (or related methods)
-
-### Dependency Inversion Principle (DIP)
-- **High-level modules** (use cases, BLoC) depend on abstractions (repositories)
-- **Low-level modules** (repositories) implement abstractions
-- **Dependency Injection**: Use Injectable for all dependencies
-- **Dependency Direction**: Domain ← Data ← UI (never reverse)
+- **SRP** — one operation per use case; one data source per repository (`AuthRemoteRepository` vs `AuthLocalRepository`); one feature per cubit; entities are data + business getters only.
+- **OCP** — extend via interfaces/base classes; `copyWith()` for immutable updates.
+- **LSP** — repositories follow common interfaces (`RemoteRepository`); Freezed entities substitutable via `Likable`/`Scorable`.
+- **ISP** — small focused interfaces (`Likable`, `Scorable`, `Identifiable`); separate local vs remote repos.
+- **DIP** — high-level modules (use cases, BLoC) depend on abstractions; Injectable wires them; direction Domain ← Data ← UI (never reverse).
 
 ## Dependency Rules
 
@@ -125,67 +93,13 @@ Nothing (pure)
 - ❌ BLoC/Cubit importing **`data/service/`** (use repositories or use cases — **lint:** `no_cubit_to_data_service_import`)
 - ❌ **Server** domain use cases importing concrete **`data/repository`** (use **`domain/port/`** and `as:` bindings instead)
 
-## Common Patterns
+## Common Patterns (read canonical source, don't copy)
 
-### Use Case Pattern
-```dart
-@singleton
-final class FeatureCase extends UseCaseBase {
-  FeatureCase(
-    this._repository, {
-    required super.env,
-    required super.logger,
-  });
-  
-  final FeatureRepository _repository;
-  
-  Future<Entity> doSomething() async {
-    // Business logic here
-    return _repository.fetch();
-  }
-}
-```
+- **Use case** (`@singleton`, extends `UseCaseBase`, injects repos/ports): @packages/client/lib/features/beacon_view/domain/use_case/beacon_view_case.dart
+- **Repository** (`@lazySingleton`, returns domain entities via `toEntity()`): @packages/client/lib/features/beacon_view/data/repository/coordination_repository.dart
+- **Cubit** (injects a `*Case`, `emit(state.copyWith(...))`, Freezed state): @packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart
 
-### Repository Pattern
-```dart
-@lazySingleton
-class FeatureRepository {
-  FeatureRepository(this._remoteApiService);
-  
-  final RemoteApiService _remoteApiService;
-  
-  Future<Iterable<Entity>> fetch() => _remoteApiService
-      .request(GQueryReq())  // Ferry-generated (see codegen.mdc)
-      .then((r) => r.dataOrThrow(...).field)
-      .then((v) => v.map((e) => (e.model as ModelName).toEntity()));
-}
-```
-
-**Note**: See advanced-patterns.mdc for RemoteRepository base class pattern.
-
-### BLoC Pattern
-```dart
-class FeatureCubit extends Cubit<FeatureState> {
-  FeatureCubit({
-    FeatureCase? featureCase,
-  }) : _case = featureCase ?? GetIt.I<FeatureCase>(),
-       super(const FeatureState()); // Freezed state (see codegen.mdc)
-
-  final FeatureCase _case;
-
-  Future<void> fetch() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final data = await _case.doSomething();
-      emit(state.copyWith(data: data, status: StateStatus.isSuccess));
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-}
-```
-
-**Note**: See advanced-patterns.mdc for StateBase and StateStatus sealed class details.
+See `advanced-patterns.mdc` for `RemoteRepository`, `StateBase`, and `StateStatus` details.
 
 ## Shared Domain (`lib/domain/`)
 - **Entities**: Shared across features (e.g., `Beacon`, `Profile`, `Comment`)
@@ -248,14 +162,7 @@ class FeatureCubit extends Cubit<FeatureState> {
 
 ## Static enforcement (`tentura_lints` + CI)
 
-- **Package:** `packages/tentura_lints` — first-party **`analysis_server_plugin`** registered at workspace root [`analysis_options.yaml`](../../analysis_options.yaml) under `plugins:`.
-- **Rules today:**
-  - **`no_domain_to_data_or_ui_import`** — no `package:tentura/.../data/` or `.../ui/` imports under **`packages/client/lib/domain/`**.
-  - **`no_cubit_to_data_service_import`** — no `package:tentura/.../data/service/` imports from **`packages/client/lib/**/ui/bloc/*_cubit.dart`**.
-  - **`no_map_dynamic_in_use_case_api`** — domain **`lib/domain/use_case/`** public APIs must not return `Map<String, dynamic>` / `List<Map<...>>` / bare `dynamic` (typed DTOs at boundaries).
-  - **`no_raw_graphql_in_dart`** — no raw GraphQL document strings or `gql('...')` in Dart (use `.graphql` + generated `*Req` classes).
-  - **`no_inline_font_size`** — **`packages/client/lib/features/**`** and **`lib/ui/**`**: no numeric literal `fontSize` on `TextStyle` (use `TextTheme` / `TenturaText`). Allow-list: `design_system/`, `rating_scatter_view.dart`, `colors_drawer.dart`.
-  - **`cubit_requires_use_case_for_multi_repos`** — **`packages/client/.../ui/bloc/*_cubit.dart`**: if a Cubit constructor takes **≥2** `*Repository` / `*RepositoryPort` parameters, it must also take a **`*Case`**.
+- **Package:** `packages/tentura_lints` — first-party **`analysis_server_plugin`** registered at workspace root [`analysis_options.yaml`](../../analysis_options.yaml) under `plugins:`. The **rule list** (one-line per rule) is owned by [`lint-after-changes.mdc`](lint-after-changes.mdc) — do not re-list it here.
 - **CI:** `.github/workflows/pipeline.yml` runs **`dart analyze --no-fatal-warnings`** (server) and **`flutter analyze --no-fatal-warnings --no-fatal-infos`** (client) before tests — plugin lints are included automatically; fix new **errors** and **warnings** when touching analyzed paths.
 - **Adding a lint:** add a rule under `packages/tentura_lints/lib/src/rules/`, register it in `packages/tentura_lints/lib/main.dart`, enable it under root `analysis_options.yaml` `plugins.tentura_lints.diagnostics`, and keep rules **narrow** (path-scoped) to avoid noise.
 
@@ -267,3 +174,10 @@ class FeatureCubit extends Cubit<FeatureState> {
 - **Integration**: Test use case + repository together
 - **Client CI**: Run `flutter test --dart-define=ENV=test` so injectable resolves test-environment repository mocks
 - **Shared fixtures:** Prefer `packages/client/lib/data/repository/mock/data/` for reusable empty GraphQL-shaped / typed stubs consumed by tests or mocks (avoid copy-pasted `{}` maps)
+
+## Server GraphQL (`graphql_schema2`) & library workarounds
+
+- **NEVER** call `.nonNullable()` on a `GraphQLListType` (triggers a library `TypeError`); use `GraphQLListType(innerType.nonNullable())` for `[T!]` and enforce list non-null in `fromArgs`.
+- Nullable scalar arguments with null values crash validation — handled by `_NullSafeGraphQL`.
+- Define list arguments as `InputField*` classes (`input_field_*.dart` as `part of '_input_types.dart'`); `fromArgs` does the safe `List<String>.from(args[key]! as List)` cast. **Never** add field-name-specific coercion hacks in `graphql_controller.dart` — fix at the type-definition layer.
+- Proven third-party bugs that can't be upgraded away are documented in [`packages/server/WORKAROUNDS.md`](../../packages/server/WORKAROUNDS.md); read the relevant section before touching code that may trigger one, and add a pointer here when adding a new workaround.

@@ -25,7 +25,7 @@ When a screen's cubit loads data asynchronously after navigation, the first fram
 
 ## Layer boundaries & keeping them (client + server)
 
-These are **project invariants**. Stricter checks live in `.cursor/rules/architecture.mdc` and `quick-reference.mdc`; **automation** is in `packages/tentura_lints` and CI.
+These are **project invariants**. Stricter checks live in `.cursor/rules/architecture.mdc` (routed from `AGENTS.md`); **automation** is in `packages/tentura_lints` and CI.
 
 ### Server (`packages/server`)
 

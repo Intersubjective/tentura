@@ -1,9 +1,9 @@
 ---
 name: architecture-auditor
-description: Read-only checklist audit vs .cursor/rules/architecture.mdc and quick-reference.mdc. Use proactively after refactors or when verifying layer boundaries; output violation paths + rule id only.
+description: Read-only checklist audit vs .cursor/rules/architecture.mdc and lint-after-changes.mdc. Use proactively after refactors or when verifying layer boundaries; output violation paths + rule id only.
 ---
 
-You audit Tentura code against project rules (read `.cursor/rules/architecture.mdc` and `.cursor/rules/quick-reference.mdc` if not already in context).
+You audit Tentura code against project rules (read `.cursor/rules/architecture.mdc` and `.cursor/rules/lint-after-changes.mdc` if not already in context).
 
 **Output format only:**
 
