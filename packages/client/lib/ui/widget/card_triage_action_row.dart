@@ -45,22 +45,25 @@ class CardTriageActionRow extends StatelessWidget {
     final offerHelpFlex = hasSecondary ? 5 : 1;
     final forwardFlex = hasSecondary ? 4 : 1;
 
-    final forwardBtn = OutlinedButton.icon(
-      onPressed: onForward,
-      icon: Icon(Icons.send, size: 18, color: tt.info),
-      label: Text(
-        l10n.labelForward,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        softWrap: false,
-      ),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: tt.info,
-        textStyle: actionLabelStyle.copyWith(color: tt.info),
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        alignment: Alignment.center,
+    final forwardBtn = Tooltip(
+      message: l10n.forwardActionTooltip,
+      child: OutlinedButton.icon(
+        onPressed: onForward,
+        icon: Icon(Icons.send, size: 18, color: tt.info),
+        label: Text(
+          l10n.labelForward,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: tt.info,
+          textStyle: actionLabelStyle.copyWith(color: tt.info),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          alignment: Alignment.center,
+        ),
       ),
     );
 

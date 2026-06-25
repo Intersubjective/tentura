@@ -208,9 +208,12 @@ class RootRouter extends RootStackRouter {
       guards: [
         AutoRouteGuard.redirect((resolver) {
           final code = resolver.route.params.getString('id');
+          if (_authCubit.state.isAuthenticated) {
+            return null;
+          }
           final bounced = goToLanding(invitePath: '/invite/$code');
           return switch (resolveAcceptInviteGuard(
-            isAuthenticated: _authCubit.state.isAuthenticated,
+            isAuthenticated: false,
             code: code,
             bouncedToLanding: bounced,
           )) {

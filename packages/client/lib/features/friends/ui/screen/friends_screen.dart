@@ -26,7 +26,12 @@ import '../bloc/friends_cubit.dart';
 
 @RoutePage()
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
+  const FriendsScreen({
+    @QueryParam(kQueryHomeTab) this.initialTab,
+    super.key,
+  });
+
+  final String? initialTab;
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -45,7 +50,11 @@ class _FriendsScreenState extends State<FriendsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      initialIndex: widget.initialTab == kHomeTabInvitations ? 1 : 0,
+      vsync: this,
+    );
     _invitationCubit = InvitationCubit();
     _invitesScrollController = ScrollController();
     _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
@@ -130,91 +139,90 @@ class _FriendsScreenState extends State<FriendsScreen>
     return BlocProvider.value(
       value: _invitationCubit,
       child: Scaffold(
-          backgroundColor: scheme.surface,
-          appBar: InboxStyleAppBar(
-            title: BlocSelector<InvitationCubit, InvitationState, int>(
+        backgroundColor: scheme.surface,
+        appBar: InboxStyleAppBar(
+          title: BlocSelector<InvitationCubit, InvitationState, int>(
+            bloc: _invitationCubit,
+            selector: (s) => s.invitations.length,
+            builder: (context, inviteCount) {
+              return TabBar(
+                controller: _tabController,
+                automaticIndicatorColorAdjustment: false,
+                tabAlignment: TabAlignment.start,
+                isScrollable: true,
+                labelPadding: EdgeInsets.symmetric(
+                  horizontal: context.tt.tightGap,
+                ),
+                labelColor: scheme.onPrimary,
+                unselectedLabelColor: scheme.onPrimary.withValues(
+                  alpha: 0.72,
+                ),
+                indicatorColor: scheme.onPrimary,
+                dividerColor: scheme.primary.withValues(alpha: 0),
+                indicatorSize: TabBarIndicatorSize.label,
+                labelStyle: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onPrimary,
+                ),
+                unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onPrimary.withValues(alpha: 0.72),
+                ),
+                tabs: [
+                  Tab(text: l10n.friendsTitle),
+                  Tab(
+                    text: '${l10n.invitationScreenTitle} ($inviteCount)',
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            IconButton(
+              tooltip: l10n.friendsCreateInvitation,
+              onPressed: () => unawaited(_onCreateInvitation(context)),
+              icon: const Icon(Icons.person_add_alt_1),
+            ),
+            IconButton(
+              tooltip: l10n.friendsScanInviteCode,
+              onPressed: () => unawaited(ConnectBottomSheet.show(context)),
+              icon: const Icon(Icons.qr_code_scanner),
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(LinearPiActive.height),
+            child: BlocSelector<InvitationCubit, InvitationState, bool>(
+              key: Key(
+                'Friends.InvitationLoader:${_invitationCubit.hashCode}',
+              ),
               bloc: _invitationCubit,
-              selector: (s) => s.invitations.length,
-              builder: (context, inviteCount) {
-                return TabBar(
-                  controller: _tabController,
-                  automaticIndicatorColorAdjustment: false,
-                  tabAlignment: TabAlignment.start,
-                  isScrollable: true,
-                  labelPadding: EdgeInsets.symmetric(
-                    horizontal: context.tt.tightGap,
-                  ),
-                  labelColor: scheme.onPrimary,
-                  unselectedLabelColor: scheme.onPrimary.withValues(
-                    alpha: 0.72,
-                  ),
-                  indicatorColor: scheme.onPrimary,
-                  dividerColor: scheme.primary.withValues(alpha: 0),
-                  indicatorSize: TabBarIndicatorSize.label,
-                  labelStyle: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onPrimary,
-                  ),
-                  unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: scheme.onPrimary.withValues(alpha: 0.72),
-                  ),
-                  tabs: [
-                    Tab(text: l10n.friendsTitle),
-                    Tab(
-                      text: '${l10n.invitationScreenTitle} ($inviteCount)',
-                    ),
-                  ],
+              selector: (state) => state.isLoading,
+              builder: (context, isLoading) {
+                final onPrimary = Theme.of(context).colorScheme.onPrimary;
+                return LinearPiActive.builder(
+                  context,
+                  isLoading,
+                  color: onPrimary.withValues(alpha: 0.85),
+                  backgroundColor: onPrimary.withValues(alpha: 0.15),
                 );
               },
             ),
-            actions: [
-              IconButton(
-                tooltip: l10n.friendsCreateInvitation,
-                onPressed: () => unawaited(_onCreateInvitation(context)),
-                icon: const Icon(Icons.person_add_alt_1),
-              ),
-              IconButton(
-                tooltip: l10n.friendsScanInviteCode,
-                onPressed: () => unawaited(ConnectBottomSheet.show(context)),
-                icon: const Icon(Icons.qr_code_scanner),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(LinearPiActive.height),
-              child: BlocSelector<InvitationCubit, InvitationState, bool>(
-                key: Key(
-                  'Friends.InvitationLoader:${_invitationCubit.hashCode}',
-                ),
-                bloc: _invitationCubit,
-                selector: (state) => state.isLoading,
-                builder: (context, isLoading) {
-                  final onPrimary = Theme.of(context).colorScheme.onPrimary;
-                  return LinearPiActive.builder(
-                    context,
-                    isLoading,
-                    color: onPrimary.withValues(alpha: 0.85),
-                    backgroundColor: onPrimary.withValues(alpha: 0.15),
-                  );
-                },
-              ),
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _FriendsTabBody(friendsCubit: friendsCubit),
-              _InvitesTabBody(
-                invitationCubit: _invitationCubit,
-                scrollController: _invitesScrollController,
-                emphasizedInvitationId: _emphasizedInvitationId,
-                l10n: l10n,
-                onCreateInvitation: () =>
-                    unawaited(_onCreateInvitation(context)),
-              ),
-            ],
           ),
         ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _FriendsTabBody(friendsCubit: friendsCubit),
+            _InvitesTabBody(
+              invitationCubit: _invitationCubit,
+              scrollController: _invitesScrollController,
+              emphasizedInvitationId: _emphasizedInvitationId,
+              l10n: l10n,
+              onCreateInvitation: () => unawaited(_onCreateInvitation(context)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

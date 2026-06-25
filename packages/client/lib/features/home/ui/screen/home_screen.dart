@@ -19,11 +19,11 @@ import '../widget/profile_navbar_item.dart';
 class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
-  static const _homeTabRoutes = [
-    MyWorkRoute(),
-    InboxRoute(),
+  static final _homeTabRoutes = [
+    const MyWorkRoute(),
+    const InboxRoute(),
     FriendsRoute(),
-    ProfileRoute(),
+    const ProfileRoute(),
   ];
 
   @override
@@ -58,130 +58,130 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
     // Shell chrome uses full viewport width; token density follows [WindowClass].
     return BlocSelector<ProfileCubit, ProfileState, String>(
-        bloc: GetIt.I<ProfileCubit>(),
-        selector: (state) => state.profile.displayName,
-        builder: (context, profileTitle) {
-          // Fixed tab label keeps the profile icon stable; long names go to tooltip.
-          final profileTooltipLabel = profileTitle.isEmpty
-              ? l10n.noName
-              : profileTitle;
-          final windowClass = context.windowClass;
-          final useSideNav = windowClass != WindowClass.compact;
-          return AutoTabsRouter(
-            routes: _homeTabRoutes,
-            transitionBuilder: (context, child, animation) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
-            builder: (context, child) {
-              final tabsRouter = context.tabsRouter;
-              if (useSideNav) {
-                final extendedRail = windowClass == WindowClass.expanded;
-                return Scaffold(
-                  resizeToAvoidBottomInset: false,
-                  body: HomeBottomNavListener(
-                    tabsRouter: tabsRouter,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        NavigationRail(
-                          extended: extendedRail,
-                          selectedIndex: tabsRouter.activeIndex,
-                          onDestinationSelected: (index) =>
-                              _onDestinationSelected(
-                                context,
-                                tabsRouter,
-                                index,
-                              ),
-                          labelType: extendedRail
-                              ? NavigationRailLabelType.none
-                              : NavigationRailLabelType.all,
-                          destinations: [
-                            NavigationRailDestination(
-                              icon: const MyWorkNavbarItem(),
-                              selectedIcon: const MyWorkNavbarItem(
-                                selected: true,
-                              ),
-                              label: Text(l10n.myWork),
-                            ),
-                            NavigationRailDestination(
-                              icon: const InboxNavbarItem(),
-                              selectedIcon: const InboxNavbarItem(
-                                selected: true,
-                              ),
-                              label: Text(l10n.inbox),
-                            ),
-                            NavigationRailDestination(
-                              icon: const FriendsNavbarItem(),
-                              selectedIcon: const FriendsNavbarItem(
-                                selected: true,
-                              ),
-                              label: Text(l10n.network),
-                            ),
-                            NavigationRailDestination(
-                              icon: Tooltip(
-                                message: profileTooltipLabel,
-                                child: const ProfileNavBarItem(),
-                              ),
-                              selectedIcon: Tooltip(
-                                message: profileTooltipLabel,
-                                child: const ProfileNavBarItem(
-                                  selected: true,
-                                ),
-                              ),
-                              label: Text(l10n.profile),
-                            ),
-                          ],
-                        ),
-                        const TenturaVerticalHairline(),
-                        Expanded(child: child),
-                      ],
-                    ),
-                  ),
-                );
-              }
+      bloc: GetIt.I<ProfileCubit>(),
+      selector: (state) => state.profile.displayName,
+      builder: (context, profileTitle) {
+        // Fixed tab label keeps the profile icon stable; long names go to tooltip.
+        final profileTooltipLabel = profileTitle.isEmpty
+            ? l10n.noName
+            : profileTitle;
+        final windowClass = context.windowClass;
+        final useSideNav = windowClass != WindowClass.compact;
+        return AutoTabsRouter(
+          routes: _homeTabRoutes,
+          transitionBuilder: (context, child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+          builder: (context, child) {
+            final tabsRouter = context.tabsRouter;
+            if (useSideNav) {
+              final extendedRail = windowClass == WindowClass.expanded;
               return Scaffold(
-                  resizeToAvoidBottomInset: false,
-                  body: child,
-                  bottomNavigationBar: HomeBottomNavListener(
-                    tabsRouter: tabsRouter,
-                    child: NavigationBar(
-                      onDestinationSelected: (index) =>
-                          _onDestinationSelected(context, tabsRouter, index),
-                      selectedIndex: tabsRouter.activeIndex,
-                      destinations: [
-                        NavigationDestination(
-                          icon: const MyWorkNavbarItem(),
-                          selectedIcon: const MyWorkNavbarItem(selected: true),
-                          label: l10n.myWork,
-                        ),
-                        NavigationDestination(
-                          icon: const InboxNavbarItem(),
-                          selectedIcon: const InboxNavbarItem(selected: true),
-                          label: l10n.inbox,
-                        ),
-                        NavigationDestination(
-                          icon: const FriendsNavbarItem(),
-                          selectedIcon: const FriendsNavbarItem(
-                            selected: true,
+                resizeToAvoidBottomInset: false,
+                body: HomeBottomNavListener(
+                  tabsRouter: tabsRouter,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      NavigationRail(
+                        extended: extendedRail,
+                        selectedIndex: tabsRouter.activeIndex,
+                        onDestinationSelected: (index) =>
+                            _onDestinationSelected(
+                              context,
+                              tabsRouter,
+                              index,
+                            ),
+                        labelType: extendedRail
+                            ? NavigationRailLabelType.none
+                            : NavigationRailLabelType.all,
+                        destinations: [
+                          NavigationRailDestination(
+                            icon: const MyWorkNavbarItem(),
+                            selectedIcon: const MyWorkNavbarItem(
+                              selected: true,
+                            ),
+                            label: Text(l10n.myWork),
                           ),
-                          label: l10n.network,
-                        ),
-                        NavigationDestination(
-                          icon: const ProfileNavBarItem(),
-                          selectedIcon: const ProfileNavBarItem(
-                            selected: true,
+                          NavigationRailDestination(
+                            icon: const InboxNavbarItem(),
+                            selectedIcon: const InboxNavbarItem(
+                              selected: true,
+                            ),
+                            label: Text(l10n.inbox),
                           ),
-                          label: l10n.profile,
-                          tooltip: profileTooltipLabel,
-                        ),
-                      ],
-                    ),
+                          NavigationRailDestination(
+                            icon: const FriendsNavbarItem(),
+                            selectedIcon: const FriendsNavbarItem(
+                              selected: true,
+                            ),
+                            label: Text(l10n.network),
+                          ),
+                          NavigationRailDestination(
+                            icon: Tooltip(
+                              message: profileTooltipLabel,
+                              child: const ProfileNavBarItem(),
+                            ),
+                            selectedIcon: Tooltip(
+                              message: profileTooltipLabel,
+                              child: const ProfileNavBarItem(
+                                selected: true,
+                              ),
+                            ),
+                            label: Text(l10n.profile),
+                          ),
+                        ],
+                      ),
+                      const TenturaVerticalHairline(),
+                      Expanded(child: child),
+                    ],
                   ),
-                );
-            },
-          );
-        },
-      );
+                ),
+              );
+            }
+            return Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: child,
+              bottomNavigationBar: HomeBottomNavListener(
+                tabsRouter: tabsRouter,
+                child: NavigationBar(
+                  onDestinationSelected: (index) =>
+                      _onDestinationSelected(context, tabsRouter, index),
+                  selectedIndex: tabsRouter.activeIndex,
+                  destinations: [
+                    NavigationDestination(
+                      icon: const MyWorkNavbarItem(),
+                      selectedIcon: const MyWorkNavbarItem(selected: true),
+                      label: l10n.myWork,
+                    ),
+                    NavigationDestination(
+                      icon: const InboxNavbarItem(),
+                      selectedIcon: const InboxNavbarItem(selected: true),
+                      label: l10n.inbox,
+                    ),
+                    NavigationDestination(
+                      icon: const FriendsNavbarItem(),
+                      selectedIcon: const FriendsNavbarItem(
+                        selected: true,
+                      ),
+                      label: l10n.network,
+                    ),
+                    NavigationDestination(
+                      icon: const ProfileNavBarItem(),
+                      selectedIcon: const ProfileNavBarItem(
+                        selected: true,
+                      ),
+                      label: l10n.profile,
+                      tooltip: profileTooltipLabel,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
