@@ -10,7 +10,11 @@ import 'utils/convert_images.dart';
 Future<void> main(List<String> args) async {
   switch (args.firstOrNull) {
     case null:
-      final env = Env.prod();
+      final env = Env(
+        environment: resolveServerEnvironment(
+          Platform.environment['ENVIRONMENT'],
+        ),
+      );
       await initSentry(
         env: env,
         appRunner: () => App().run(env),
