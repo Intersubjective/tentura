@@ -16,11 +16,15 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/accept_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_draft_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/mark_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/redirect_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/update_draft_ask_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
@@ -51,6 +55,10 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   String? lastPublishTarget;
   int? lastStatusUpdate;
   String? lastMarkTarget;
+  String? lastUpdateDraftTitle;
+  String? lastDeleteDraftId;
+  String? lastAcceptedById;
+  String? lastRedirectTarget;
 
   @override
   Future<CoordinationItemRecord?> getById(String id) async => item;
@@ -124,6 +132,52 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }) async {
     lastStatusUpdate = newStatus;
     return nextReturn ?? item!.copyWith(status: newStatus);
+  }
+
+  @override
+  Future<CoordinationItemRecord> updateDraftAsk({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+    bool updateTargetPersonId = false,
+    String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
+  }) async {
+    lastUpdateDraftTitle = title;
+    return (nextReturn ?? item!).copyWith(title: title, body: body);
+  }
+
+  @override
+  Future<void> deleteDraftAsk({
+    required String id,
+    required String actorId,
+  }) async {
+    lastDeleteDraftId = id;
+  }
+
+  @override
+  Future<CoordinationItemRecord> acceptItem({
+    required String id,
+    required String actorId,
+    required String acceptedById,
+  }) async {
+    lastAcceptedById = acceptedById;
+    return (nextReturn ?? item!).copyWith(
+      status: coordinationItemStatusAccepted,
+      acceptedById: acceptedById,
+    );
+  }
+
+  @override
+  Future<CoordinationItemRecord> redirectTarget({
+    required String id,
+    required String actorId,
+    required String newTargetPersonId,
+  }) async {
+    lastRedirectTarget = newTargetPersonId;
+    return (nextReturn ?? item!).copyWith(targetPersonId: newTargetPersonId);
   }
 }
 
@@ -616,6 +670,300 @@ void main() {
         () => sut.call(userId: ownerId, itemId: itemId),
         throwsA(isA<BeaconCreateException>()),
       );
+    });
+  });
+
+  group('UpdateDraftAskCase', () {
+    late _StubBeacons beacons;
+    late _StubItems items;
+    late UpdateDraftAskCase sut;
+
+    setUp(() {
+      beacons = _StubBeacons(_openBeacon(beaconId));
+      items = _StubItems();
+      items.item = _draftAsk(
+        id: itemId,
+        beaconId: beaconId,
+        creatorId: ownerId,
+      );
+      items.nextReturn = items.item!.copyWith(title: 'Updated');
+      sut = UpdateDraftAskCase(
+        beacons,
+        items,
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
+    });
+
+    test('creator can update draft', () async {
+      final out = await sut.call(
+        userId: ownerId,
+        itemId: itemId,
+        title: 'Updated',
+        body: 'New details',
+      );
+      expect(out.title, 'Updated');
+      expect(items.lastUpdateDraftTitle, 'Updated');
+    });
+
+    test('empty body rejected', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          title: 'Updated',
+          body: '  ',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
+
+    test('not found rejected', () async {
+      items.item = null;
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          title: 'Updated',
+          body: 'details',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
+
+    test('wrong kind rejected', () async {
+      items.item = items.item!.copyWith(kind: coordinationItemKindBlocker);
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          title: 'Updated',
+          body: 'details',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
+
+    test('non-creator rejected', () async {
+      await expectLater(
+        () => sut.call(
+          userId: otherId,
+          itemId: itemId,
+          title: 'Updated',
+          body: 'details',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
+
+    test('inactive beacon rejected', () async {
+      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          title: 'Updated',
+          body: 'details',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
+  });
+
+  group('DeleteDraftAskCase', () {
+    late _StubBeacons beacons;
+    late _StubItems items;
+    late DeleteDraftAskCase sut;
+
+    setUp(() {
+      beacons = _StubBeacons(_openBeacon(beaconId));
+      items = _StubItems();
+      items.item = _draftAsk(
+        id: itemId,
+        beaconId: beaconId,
+        creatorId: ownerId,
+      );
+      sut = DeleteDraftAskCase(
+        beacons,
+        items,
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
+    });
+
+    test('creator can delete draft', () async {
+      final ok = await sut.call(userId: ownerId, itemId: itemId);
+      expect(ok, isTrue);
+      expect(items.lastDeleteDraftId, itemId);
+    });
+
+    test('not found rejected', () async {
+      items.item = null;
+      await expectLater(
+        () => sut.call(userId: ownerId, itemId: itemId),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastDeleteDraftId, null);
+    });
+
+    test('non-creator rejected', () async {
+      await expectLater(
+        () => sut.call(userId: otherId, itemId: itemId),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastDeleteDraftId, null);
+    });
+
+    test('inactive beacon rejected', () async {
+      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      await expectLater(
+        () => sut.call(userId: ownerId, itemId: itemId),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastDeleteDraftId, null);
+    });
+  });
+
+  group('AcceptAskCase', () {
+    late _StubItems items;
+    late AcceptAskCase sut;
+
+    setUp(() {
+      items = _StubItems();
+      items.item = _publishedAsk(
+        id: itemId,
+        beaconId: beaconId,
+        creatorId: ownerId,
+        targetPersonId: targetId,
+      );
+      items.nextReturn = items.item!.copyWith(status: coordinationItemStatusAccepted);
+      sut = AcceptAskCase(
+        items,
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
+    });
+
+    test('accepts open ask', () async {
+      final out = await sut.call(userId: targetId, itemId: itemId);
+      expect(out.status, coordinationItemStatusAccepted);
+      expect(items.lastAcceptedById, targetId);
+    });
+
+    test('not found rejected', () async {
+      items.item = null;
+      await expectLater(
+        () => sut.call(userId: targetId, itemId: itemId),
+        throwsA(isA<IdNotFoundException>()),
+      );
+      expect(items.lastAcceptedById, null);
+    });
+
+    test('wrong kind rejected', () async {
+      items.item = items.item!.copyWith(kind: coordinationItemKindPromise);
+      await expectLater(
+        () => sut.call(userId: targetId, itemId: itemId),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastAcceptedById, null);
+    });
+
+    test('non-open status rejected', () async {
+      items.item = items.item!.copyWith(status: coordinationItemStatusAccepted);
+      await expectLater(
+        () => sut.call(userId: targetId, itemId: itemId),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastAcceptedById, null);
+    });
+  });
+
+  group('RedirectAskCase', () {
+    late _StubItems items;
+    late RedirectAskCase sut;
+
+    const newTargetId = 'Unewtarget001';
+
+    setUp(() {
+      items = _StubItems();
+      items.item = _publishedAsk(
+        id: itemId,
+        beaconId: beaconId,
+        creatorId: ownerId,
+        targetPersonId: targetId,
+      );
+      items.nextReturn = items.item!.copyWith(targetPersonId: newTargetId);
+      sut = RedirectAskCase(
+        items,
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
+    });
+
+    test('redirects open ask', () async {
+      final out = await sut.call(
+        userId: ownerId,
+        itemId: itemId,
+        newTargetPersonId: newTargetId,
+      );
+      expect(out.targetPersonId, newTargetId);
+      expect(items.lastRedirectTarget, newTargetId);
+    });
+
+    test('not found rejected', () async {
+      items.item = null;
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          newTargetPersonId: newTargetId,
+        ),
+        throwsA(isA<IdNotFoundException>()),
+      );
+      expect(items.lastRedirectTarget, null);
+    });
+
+    test('wrong kind rejected', () async {
+      items.item = items.item!.copyWith(kind: coordinationItemKindBlocker);
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          newTargetPersonId: newTargetId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastRedirectTarget, null);
+    });
+
+    test('non-open status rejected', () async {
+      items.item = items.item!.copyWith(status: coordinationItemStatusResolved);
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          newTargetPersonId: newTargetId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastRedirectTarget, null);
+    });
+
+    test('empty target rejected', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          newTargetPersonId: '  ',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastRedirectTarget, null);
     });
   });
 }
