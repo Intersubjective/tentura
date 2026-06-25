@@ -82,6 +82,10 @@ void main() {
     const token = 'opaque-token';
     expect(await case_.resolveAccountId(token), 'Uabc');
     expect(sessionRepo.lastHash, SessionCase.hashToken(token));
+    expect(
+      SessionCase.hashToken(token),
+      '84d3f23da9b5f51b3269566eff05d3fb23607eeef89567f9cd280b90ca0dbc5c',
+    );
   });
 
   test('accessTokenForAccount delegates to AuthCase.issueAccessToken', () async {
