@@ -6,7 +6,9 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
@@ -26,6 +28,7 @@ class FriendsCubit extends Cubit<FriendsState> {
     this._likeRemoteRepository,
     this._friendsRemoteRepository,
     this._presenceRepository,
+    this._contactsCase,
     AuthCase _authCase,
     this._effects,
   ) : super(const FriendsState(friends: {})) {
@@ -37,6 +40,10 @@ class FriendsCubit extends Cubit<FriendsState> {
         .where((e) => e.value is Profile)
         .map((e) => e.value as Profile)
         .listen(_onFriendsChanged, cancelOnError: false);
+    _contactChanges = _contactsCase.changes.listen(
+      (_) => _onContactNamesChanged(),
+      cancelOnError: false,
+    );
   }
 
   final FriendsRemoteRepository _friendsRemoteRepository;
@@ -49,23 +56,29 @@ class FriendsCubit extends Cubit<FriendsState> {
 
   final PresenceRepository _presenceRepository;
 
+  final ContactsCase _contactsCase;
+
   final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
 
   late final StreamSubscription<Profile> _friendsChanges;
 
+  late final StreamSubscription<void> _contactChanges;
+
   @override
   @disposeMethod
   Future<void> close() async {
     await _authChanges.cancel();
     await _friendsChanges.cancel();
+    await _contactChanges.cancel();
     return super.close();
   }
 
   Future<void> fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      await _contactsCase.refresh();
       final friends = await _friendsRemoteRepository.fetch();
       final friendsById = {for (final e in friends) e.id: e};
       final friendContexts = await _capabilityRepository.fetchFriendContextsBatch(
@@ -113,5 +126,16 @@ class FriendsCubit extends Cubit<FriendsState> {
       state.friends.remove(profile.id);
     }
     unawaited(fetch());
+  }
+
+  void _onContactNamesChanged() {
+    if (state.friends.isEmpty || isClosed) {
+      return;
+    }
+    final next = {
+      for (final e in state.friends.entries)
+        e.key: profileWithContactOverlay(e.value),
+    };
+    emit(state.copyWith(friends: next));
   }
 }

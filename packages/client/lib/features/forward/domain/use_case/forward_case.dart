@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forward_repository.dart';
@@ -22,7 +24,8 @@ final class ForwardCase extends UseCaseBase {
     this._forwardRepository,
     this._authLocalRepository,
     this._factCards,
-    this._profileRepository, {
+    this._profileRepository,
+    this._contactsCase, {
     required super.env,
     required super.logger,
   });
@@ -34,6 +37,26 @@ final class ForwardCase extends UseCaseBase {
   final BeaconFactCardRepository _factCards;
 
   final ProfileRepositoryPort _profileRepository;
+
+  final ContactsCase _contactsCase;
+
+  /// Emits beacon ids when a forward edge changes (debounced WS invalidation).
+  Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
+
+  /// Emits when the viewer's contact-name map changes.
+  Stream<void> get contactChanges => _contactsCase.changes;
+
+  static ForwardCandidate applyContactOverlay(ForwardCandidate candidate) {
+    final profile = profileWithContactOverlay(candidate.profile);
+    if (identical(profile, candidate.profile)) {
+      return candidate;
+    }
+    return candidate.copyWith(profile: profile);
+  }
+
+  static List<ForwardCandidate> applyContactOverlayAll(
+    List<ForwardCandidate> candidates,
+  ) => candidates.map(applyContactOverlay).toList();
 
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
       _forwardRepository.fetchForwardCandidates(context: context);
@@ -50,6 +73,8 @@ final class ForwardCase extends UseCaseBase {
     required String beaconId,
     String context = '',
   }) async {
+    await _contactsCase.refresh();
+
     final results = await Future.wait([
       _forwardRepository.fetchForwardCandidates(context: context),
       _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId),
@@ -154,8 +179,8 @@ final class ForwardCase extends UseCaseBase {
         .toSet();
 
     return ForwardLoad(
-      candidates: candidates,
-      lineageSuggestions: lineageSuggestions,
+      candidates: applyContactOverlayAll(candidates),
+      lineageSuggestions: applyContactOverlayAll(lineageSuggestions),
       suggestedNote: lineage.suggestedNote,
       autoSelectIds: autoSelectIds,
       beacon: involvement.beacon,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -29,11 +30,39 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
     }
+    _subscribeLiveUpdates();
   }
 
   final ForwardCase? _forwardCase;
 
   final UiEffectPort _effects;
+
+  StreamSubscription<String>? _forwardCompletedSub;
+
+  StreamSubscription<void>? _contactChangesSub;
+
+  void _subscribeLiveUpdates() {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) {
+      return;
+    }
+    _forwardCompletedSub = forwardCase.forwardCompleted
+        .where((id) => id == state.beaconId)
+        .listen((_) => unawaited(_loadCandidates(forceReload: true)));
+    _contactChangesSub = forwardCase.contactChanges.listen((_) {
+      if (isClosed) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          candidates: ForwardCase.applyContactOverlayAll(state.candidates),
+          lineageSuggestions: ForwardCase.applyContactOverlayAll(
+            state.lineageSuggestions,
+          ),
+        ),
+      );
+    });
+  }
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -44,7 +73,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   String? _loadMemoKey;
 
-  Future<void> _loadCandidates() async {
+  Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
       return;
@@ -58,7 +87,9 @@ class ForwardCubit extends Cubit<ForwardState> {
       );
       final memoKey =
           '$myId|${state.beaconId}|${load.beacon.lineageParentBeaconId ?? ''}';
-      if (_loadMemoKey == memoKey && state.candidates.isNotEmpty) {
+      if (!forceReload &&
+          _loadMemoKey == memoKey &&
+          state.candidates.isNotEmpty) {
         emit(state.copyWith(status: const StateIsSuccess()));
         return;
       }
@@ -77,6 +108,13 @@ class ForwardCubit extends Cubit<ForwardState> {
     } catch (e) {
       _emitSnackError(e);
     }
+  }
+
+  @override
+  Future<void> close() async {
+    await _forwardCompletedSub?.cancel();
+    await _contactChangesSub?.cancel();
+    return super.close();
   }
 
   void clearLineageSuggestions() {

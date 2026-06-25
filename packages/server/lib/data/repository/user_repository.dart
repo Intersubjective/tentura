@@ -101,6 +101,29 @@ class UserRepository implements UserRepositoryPort {
         );
   }
 
+  /// ADR 0008: consuming a beacon-tied invite materializes a forward edge
+  /// (sharer→invitee). Inbox for the recipient is maintained by DB trigger
+  /// `inbox_item_on_forward_insert`.
+  Future<void> _materializeBeaconInviteForward({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    required String? parentForwardEdgeId,
+  }) async {
+    await _database.withMutatingUser(recipientId, () async {
+      await _database.into(_database.beaconForwardEdges).insert(
+        BeaconForwardEdgesCompanion.insert(
+          beaconId: beaconId,
+          senderId: senderId,
+          recipientId: recipientId,
+          note: const Value(''),
+          parentEdgeId: Value(parentForwardEdgeId),
+        ),
+        onConflict: DoNothing(),
+      );
+    });
+  }
+
   // TBD: move to SQL
   //
   @override
@@ -161,17 +184,11 @@ class UserRepository implements UserRepositoryPort {
     );
 
     if (invitation.beaconId != null) {
-      await _database.into(_database.inboxItems).insert(
-        InboxItemsCompanion.insert(
-          userId: user.id,
-          beaconId: invitation.beaconId!,
-          status: const Value(0),
-          forwardCount: const Value(1),
-          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
-          latestNotePreview: const Value(''),
-          rejectionMessage: const Value(''),
-        ),
-        onConflict: DoNothing(),
+      await _materializeBeaconInviteForward(
+        beaconId: invitation.beaconId!,
+        senderId: invitation.userId,
+        recipientId: user.id,
+        parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
     }
 
@@ -310,17 +327,11 @@ class UserRepository implements UserRepositoryPort {
     );
 
     if (invitation.beaconId != null) {
-      await _database.into(_database.inboxItems).insert(
-        InboxItemsCompanion.insert(
-          userId: user.id,
-          beaconId: invitation.beaconId!,
-          status: const Value(0),
-          forwardCount: const Value(1),
-          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
-          latestNotePreview: const Value(''),
-          rejectionMessage: const Value(''),
-        ),
-        onConflict: DoNothing(),
+      await _materializeBeaconInviteForward(
+        beaconId: invitation.beaconId!,
+        senderId: invitation.userId,
+        recipientId: user.id,
+        parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
     }
 
@@ -768,18 +779,12 @@ class UserRepository implements UserRepositoryPort {
     );
 
     if (invitation.beaconId != null) {
-      await _database.withMutatingUser(userId, () async {
-        await _database.into(_database.beaconForwardEdges).insert(
-          BeaconForwardEdgesCompanion.insert(
-            beaconId: invitation.beaconId!,
-            senderId: invitation.userId,
-            recipientId: userId,
-            note: const Value(''),
-            parentEdgeId: Value(invitation.parentForwardEdgeId),
-          ),
-          onConflict: DoNothing(),
-        );
-      });
+      await _materializeBeaconInviteForward(
+        beaconId: invitation.beaconId!,
+        senderId: invitation.userId,
+        recipientId: userId,
+        parentForwardEdgeId: invitation.parentForwardEdgeId,
+      );
     }
 
     final invitationsDeletedCount = await _database.managers.invitations
