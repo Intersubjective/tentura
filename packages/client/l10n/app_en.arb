@@ -3473,6 +3473,8 @@
   },
   "forwardViewInvitations": "View invitations",
   "inboxViewMyWork": "View My Work",
+  "logoutConfirmTitle": "Log out?",
+  "logoutConfirmBody": "You’ll need to sign in again to use Tentura on this device.",
   "capabilityCueHelpOffered": "Offered help: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {
