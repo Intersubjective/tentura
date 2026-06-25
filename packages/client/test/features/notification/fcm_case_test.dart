@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
@@ -16,6 +18,7 @@ void main() {
   const accountB = 'Ubbb';
   const appId = 'app-1';
   const tokenT = 'token-T';
+  const tokenNew = 'token-new';
 
   setUp(() {
     local = FakeFcmLocal();
@@ -24,98 +27,262 @@ void main() {
     case_ = FcmCase(local, remote, settings);
   });
 
-  test('skips server when accountId, appId, and token unchanged', () async {
-    await settings.setLastFcmRegistration(
-      const LastFcmRegistration(
+  group('syncTokenForAccount', () {
+    test('skips server when accountId, appId, and token unchanged', () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+      local.token = tokenT;
+
+      final result = await case_.syncTokenForAccount(
         accountId: accountA,
-        appId: appId,
+        platform: 'web',
+      );
+
+      expect(result, appId);
+      expect(remote.registerCalls, 0);
+    });
+
+    test('registers when accountId changes but token is the same', () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+      local.token = tokenT;
+
+      await case_.syncTokenForAccount(
+        accountId: accountB,
+        platform: 'web',
+      );
+
+      expect(remote.registerCalls, 1);
+      expect(remote.lastRegister?.token, tokenT);
+      expect(remote.lastRegister?.appId, appId);
+    });
+
+    test('registers when token changes but accountId and appId are the same',
+        () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+      local.token = tokenNew;
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+      );
+
+      expect(remote.registerCalls, 1);
+      expect(remote.lastRegister?.token, tokenNew);
+      final last = await settings.getLastFcmRegistration();
+      expect(last?.token, tokenNew);
+    });
+
+    test('forceRegister always calls server', () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+      local.token = tokenT;
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+        forceRegister: true,
+      );
+
+      expect(remote.registerCalls, 1);
+    });
+
+    test('returns null without server call when token is missing', () async {
+      local.token = null;
+
+      final result = await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+      );
+
+      expect(result, isNull);
+      expect(remote.registerCalls, 0);
+      expect(local.getTokenCalls, 1);
+    });
+
+    test('returns null without server call when token is empty', () async {
+      local.token = '';
+
+      final result = await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+      );
+
+      expect(result, isNull);
+      expect(remote.registerCalls, 0);
+    });
+
+    test('creates and persists appId when none exists', () async {
+      settings = FakeSettings();
+      case_ = FcmCase(local, remote, settings);
+      local.token = tokenT;
+
+      final result = await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'android',
+      );
+
+      expect(result, isNotNull);
+      expect(settings.setAppIdCalls, 1);
+      expect(await settings.getAppId(), result);
+      expect(remote.registerCalls, 1);
+      expect(remote.lastRegister?.appId, result);
+    });
+
+    test('uses explicit token without fetching from platform', () async {
+      local.token = 'platform-token';
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
         token: tokenT,
-      ),
-    );
-    local.token = tokenT;
+      );
 
-    final result = await case_.syncTokenForAccount(
-      accountId: accountA,
-      platform: 'web',
-    );
+      expect(local.getTokenCalls, 0);
+      expect(remote.lastRegister?.token, tokenT);
+    });
 
-    expect(result, appId);
-    expect(remote.registerCalls, 0);
+    test('persists triple-key registration after successful register', () async {
+      local.token = tokenT;
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'ios',
+      );
+
+      expect(
+        await settings.getLastFcmRegistration(),
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+    });
   });
 
-  test('registers when accountId changes but token is the same', () async {
-    await settings.setLastFcmRegistration(
-      const LastFcmRegistration(
-        accountId: accountA,
-        appId: appId,
-        token: tokenT,
-      ),
-    );
-    local.token = tokenT;
+  group('unregisterCurrentDevice', () {
+    test('clears last registration and deletes on server', () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
 
-    await case_.syncTokenForAccount(
-      accountId: accountB,
-      platform: 'web',
-    );
+      await case_.unregisterCurrentDevice();
 
-    expect(remote.registerCalls, 1);
-    expect(remote.lastRegister?.token, tokenT);
-    expect(remote.lastRegister?.appId, appId);
+      expect(remote.deleteCalls, 1);
+      expect(remote.lastDeleteAppId, appId);
+      expect(await settings.getLastFcmRegistration(), isNull);
+    });
+
+    test('skips server delete when appId is missing', () async {
+      settings = FakeSettings();
+      case_ = FcmCase(local, remote, settings);
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+
+      await case_.unregisterCurrentDevice();
+
+      expect(remote.deleteCalls, 0);
+      expect(await settings.getLastFcmRegistration(), isNotNull);
+    });
+
+    test('swallows delete errors and still clears last registration', () async {
+      remote.deleteThrows = StateError('network down');
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+
+      await expectLater(case_.unregisterCurrentDevice(), completes);
+
+      expect(remote.deleteCalls, 1);
+      expect(await settings.getLastFcmRegistration(), isNull);
+    });
   });
 
-  test('forceRegister always calls server', () async {
-    await settings.setLastFcmRegistration(
-      const LastFcmRegistration(
-        accountId: accountA,
-        appId: appId,
-        token: tokenT,
-      ),
-    );
-    local.token = tokenT;
+  group('local passthrough', () {
+    test('onTokenRefresh forwards local stream', () async {
+      final controller = StreamController<String>();
+      local.onTokenRefreshOverride = controller.stream;
 
-    await case_.syncTokenForAccount(
-      accountId: accountA,
-      platform: 'web',
-      forceRegister: true,
-    );
+      expectLater(case_.onTokenRefresh, emits('refreshed-token'));
+      controller.add('refreshed-token');
+      await controller.close();
+    });
 
-    expect(remote.registerCalls, 1);
-  });
+    test('requestPermission forwards to local repository', () async {
+      local.permissionResult = const NotificationPermissions(authorized: false);
 
-  test('unregister clears last registration and deletes on server', () async {
-    await settings.setLastFcmRegistration(
-      const LastFcmRegistration(
-        accountId: accountA,
-        appId: appId,
-        token: tokenT,
-      ),
-    );
+      final permissions = await case_.requestPermission();
 
-    await case_.unregisterCurrentDevice();
-
-    expect(remote.deleteCalls, 1);
-    expect(remote.lastDeleteAppId, appId);
-    expect(await settings.getLastFcmRegistration(), isNull);
+      expect(permissions.authorized, isFalse);
+      expect(local.requestPermissionCalls, 1);
+    });
   });
 }
 
 class FakeFcmLocal implements FcmLocalRepositoryPort {
   String? token;
-
-  @override
-  Stream<String> get onTokenRefresh => const Stream.empty();
-
-  @override
-  Future<String?> getToken() async => token;
-
-  @override
-  Future<NotificationPermissions> requestPermission() async =>
+  int getTokenCalls = 0;
+  int requestPermissionCalls = 0;
+  NotificationPermissions permissionResult =
       const NotificationPermissions(authorized: true);
+  Stream<String>? onTokenRefreshOverride;
+
+  @override
+  Stream<String> get onTokenRefresh =>
+      onTokenRefreshOverride ?? const Stream.empty();
+
+  @override
+  Future<String?> getToken() async {
+    getTokenCalls++;
+    return token;
+  }
+
+  @override
+  Future<NotificationPermissions> requestPermission() async {
+    requestPermissionCalls++;
+    return permissionResult;
+  }
 }
 
 class FakeFcmRemote implements FcmRemoteRepositoryPort {
   int registerCalls = 0;
   int deleteCalls = 0;
+  Object? deleteThrows;
   ({String appId, String token, String platform})? lastRegister;
   String? lastDeleteAppId;
 
@@ -133,20 +300,27 @@ class FakeFcmRemote implements FcmRemoteRepositoryPort {
   Future<void> deleteToken({required String appId}) async {
     deleteCalls++;
     lastDeleteAppId = appId;
+    if (deleteThrows != null) {
+      throw deleteThrows!;
+    }
   }
 }
 
 class FakeSettings implements SettingsRepositoryPort {
-  FakeSettings({required this.appId});
+  FakeSettings({this.appId});
 
-  final String appId;
+  String? appId;
+  int setAppIdCalls = 0;
   LastFcmRegistration? _last;
 
   @override
   Future<String?> getAppId() async => appId;
 
   @override
-  Future<void> setAppId(String value) async {}
+  Future<void> setAppId(String value) async {
+    setAppIdCalls++;
+    appId = value;
+  }
 
   @override
   Future<LastFcmRegistration?> getLastFcmRegistration() async => _last;
