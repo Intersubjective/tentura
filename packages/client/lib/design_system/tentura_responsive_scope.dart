@@ -21,49 +21,49 @@ class TenturaResponsiveScope extends StatelessWidget {
     }
     final wc = context.windowClass;
     final tokens = base.applyWindowClass(wc);
-    final maxW = tokens.contentMaxWidth;
     final themed = Theme(
       data: theme.copyWith(extensions: <ThemeExtension<dynamic>>[tokens]),
       child: child,
     );
+    // Apply token density only. Do not cap layout width here: a centered
+    // ConstrainedBox clips full-bleed shells (home rail, graph canvas) on web.
+    // Screens that need a centered column use [TenturaTokens.contentMaxWidth]
+    // locally (see credentials_screen.dart).
+    return themed;
+  }
+}
+
+/// Centers [child] when [TenturaTokens.contentMaxWidth] is set for the current
+/// [WindowClass]. Use on standalone routes; not on home shell / graph canvas.
+class TenturaContentColumn extends StatelessWidget {
+  const TenturaContentColumn({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxW = context.tt.contentMaxWidth;
     if (maxW == null) {
-      return themed;
+      return child;
     }
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxW),
-        child: themed,
+        child: child,
       ),
     );
   }
 }
 
-/// Expands [child] to the full viewport width, breaking out of the
-/// [TenturaResponsiveScope] content max-width cap (e.g. graph canvas routes).
+/// Expands [child] to the full viewport width.
+///
+/// Kept for graph routes; a no-op when the app root is already full width.
 class TenturaFullBleed extends StatelessWidget {
   const TenturaFullBleed({required this.child, super.key});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= viewportWidth) {
-          return child;
-        }
-        return OverflowBox(
-          maxWidth: viewportWidth,
-          minWidth: viewportWidth,
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: viewportWidth,
-            child: child,
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => child;
 }

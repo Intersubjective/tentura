@@ -56,11 +56,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    // Shell chrome follows viewport [WindowClass], not [TenturaResponsiveScope]'s
-    // content column cap (560/720). Without full bleed, a capped width < 600 forced
-    // bottom nav on wide viewports (e.g. Firefox web).
-    return TenturaFullBleed(
-      child: BlocSelector<ProfileCubit, ProfileState, String>(
+    // Shell chrome uses full viewport width; token density follows [WindowClass].
+    return BlocSelector<ProfileCubit, ProfileState, String>(
         bloc: GetIt.I<ProfileCubit>(),
         selector: (state) => state.profile.displayName,
         builder: (context, profileTitle) {
@@ -185,7 +182,6 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             },
           );
         },
-      ),
-    );
+      );
   }
 }
