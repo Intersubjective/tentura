@@ -25,7 +25,12 @@ class GeoRepository {
   Coordinates? get myCoordinates => _myCoords;
 
   @PostConstruct()
-  void init() => getMyCoords();
+  void init() {
+    // Web: skip eager geolocation — geolocator_web checkPermission() calls
+    // navigator.permissions.query which throws Illegal invocation in Chrome.
+    if (kIsWeb) return;
+    getMyCoords();
+  }
 
   Future<Place?> getPlaceNameByCoords(
     Coordinates coords, {
@@ -77,6 +82,13 @@ class GeoRepository {
 
   Future<bool> _checkLocationPermission() async {
     if (await Geolocator.isLocationServiceEnabled()) {
+      if (kIsWeb) {
+        // geolocator_web routes checkPermission() through permissions.query,
+        // which throws TypeError: Illegal invocation in Chrome (js_interop).
+        // Browser geolocation permission is resolved by getCurrentPosition().
+        return true;
+      }
+
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
