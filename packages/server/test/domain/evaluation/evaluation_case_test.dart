@@ -224,6 +224,9 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   int downgradeSubmittedCalls = 0;
   int deleteScaffoldingCalls = 0;
   int insertReviewWindowCalls = 0;
+  Map<String, int> reviewStatusesResult = {};
+  final closeBeaconReviewWindowCalls =
+      <({String beaconId, String reason, String? actorUserId})>[];
 
   @override
   Future<void> closeExpiredWindows() async {}
@@ -342,7 +345,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   @override
   Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async =>
-      {};
+      reviewStatusesResult;
 
   @override
   Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {
@@ -364,7 +367,11 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
-  }) async {}
+  }) async {
+    closeBeaconReviewWindowCalls.add(
+      (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+    );
+  }
 
   @override
   Future<void> setReviewUserStatus({
@@ -829,10 +836,418 @@ void main() {
         expectedRequiresReviewWindow: true,
       );
 
-      expect(result.status, 5);
+      expect(result.status, BeaconStatus.reviewOpen.smallintValue);
       expect(evalRepo.downgradeSubmittedCalls, 1);
       expect(evalRepo.deleteScaffoldingCalls, 1);
       expect(evalRepo.insertReviewWindowCalls, 1);
+    });
+  });
+
+  group('beaconClose direct close', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        EmptyGraphHelpOfferRepository(),
+        EmptyGraphCoordinationRepository(),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test('closes directly without review window when no committers', () async {
+      final result = await evaluationCase.beaconClose(
+        beaconId: beaconId,
+        userId: userId,
+        expectedRequiresReviewWindow: false,
+      );
+
+      expect(result.status, BeaconStatus.closed.smallintValue);
+      expect(result.closesAt, isNull);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.open,
+          toStatus: BeaconStatus.closed,
+          reason: BeaconLifecycleChangeReason.directClose,
+          actorId: userId,
+        ),
+      ]);
+      expect(evalRepo.insertReviewWindowCalls, 0);
+      expect(evalRepo.downgradeSubmittedCalls, 0);
+      expect(evalRepo.deleteScaffoldingCalls, 0);
+    });
+  });
+
+  group('beaconClose review-open path', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+      final now = DateTime.utc(2025);
+      final helpOfferRepo = _SingleCommitterHelpOfferRepo(
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: 'helper1',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        helpOfferRepo,
+        _SingleCommitterCoordinationRepo(
+          CoordinationResponseType.useful.smallintValue,
+        ),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test('opens review window when committers exist', () async {
+      final result = await evaluationCase.beaconClose(
+        beaconId: beaconId,
+        userId: userId,
+        expectedRequiresReviewWindow: true,
+      );
+
+      expect(result.status, BeaconStatus.reviewOpen.smallintValue);
+      expect(result.closesAt, isNotNull);
+      expect(evalRepo.downgradeSubmittedCalls, 1);
+      expect(evalRepo.deleteScaffoldingCalls, 1);
+      expect(evalRepo.insertReviewWindowCalls, 1);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.open,
+          toStatus: BeaconStatus.reviewOpen,
+          reason: BeaconLifecycleChangeReason.reviewWindowOpened,
+          actorId: userId,
+        ),
+      ]);
+    });
+  });
+
+  group('beaconClose validation', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+      final now = DateTime.utc(2025);
+      final helpOfferRepo = _SingleCommitterHelpOfferRepo(
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: 'helper1',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        helpOfferRepo,
+        _SingleCommitterCoordinationRepo(
+          CoordinationResponseType.useful.smallintValue,
+        ),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test('throws closeBranchConflict when expected review flag is stale', () async {
+      expect(
+        () => evaluationCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: false,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.closeBranchConflict,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+
+    test('throws notEligible when caller is not the author', () async {
+      expect(
+        () => evaluationCase.beaconClose(
+          beaconId: beaconId,
+          userId: 'other-user',
+          expectedRequiresReviewWindow: true,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+
+    test('throws beaconNotClosable when beacon is not in open family', () async {
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.closed,
+        ),
+      );
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        EmptyGraphHelpOfferRepository(),
+        EmptyGraphCoordinationRepository(),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+
+      expect(
+        () => evaluationCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: false,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.beaconNotClosable,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('closeNow', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+    const helperId = 'helper1';
+
+    EvaluationCase buildCase() {
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        EmptyGraphHelpOfferRepository(),
+        EmptyGraphCoordinationRepository(),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      return EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    }
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow()
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: helperId,
+            role: 1,
+            contributionSummary: 'helper',
+            causalHint: 'h',
+          ),
+        ];
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.reviewOpen,
+        ),
+      );
+      evaluationCase = buildCase();
+    });
+
+    test('closes early when required reviewers finished or skipped', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 3,
+      };
+
+      final result = await evaluationCase.closeNow(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(result.status, BeaconStatus.closed.smallintValue);
+      expect(evalRepo.closeBeaconReviewWindowCalls, [
+        (
+          beaconId: beaconId,
+          reason: BeaconLifecycleChangeReason.authorCloseNow,
+          actorUserId: userId,
+        ),
+      ]);
+    });
+
+    test('throws notEligible when required reviewers are incomplete', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 1,
+      };
+
+      expect(
+        () => evaluationCase.closeNow(beaconId: beaconId, userId: userId),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
+          ),
+        ),
+      );
+      expect(evalRepo.closeBeaconReviewWindowCalls, isEmpty);
+    });
+
+    test('throws reviewWindowNotOpen when review window already closed', () async {
+      final now = DateTime.timestamp();
+      evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
+        beaconId: beaconId,
+        openedAt: now.subtract(const Duration(days: 8)),
+        closesAt: now.subtract(const Duration(days: 1)),
+        status: 1,
+        extensionsUsed: 0,
+        createdAt: now.subtract(const Duration(days: 8)),
+        updatedAt: now,
+      );
+
+      expect(
+        () => evaluationCase.closeNow(beaconId: beaconId, userId: userId),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.reviewWindowNotOpen,
+            ).codeNumber,
+          ),
+        ),
+      );
     });
   });
 }
