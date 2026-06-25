@@ -5,7 +5,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/presence_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import 'capability_cue_strip.dart';
@@ -56,8 +56,9 @@ class NetworkPersonCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            SelfAwareAvatar.small(
+            PresenceAvatar.small(
               profile: profile,
+              userId: profile.id,
               withContactBadge: true,
             ),
             const SizedBox(width: 16),

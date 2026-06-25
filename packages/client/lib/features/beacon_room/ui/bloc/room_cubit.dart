@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -32,9 +33,11 @@ class RoomCubit extends Cubit<RoomState> {
     DateTime? initialUnreadAnchorAt,
     BeaconRoomCase? beaconRoomCase,
     CoordinationItemRoomSync? coordinationItemRoomSync,
+    PresenceRepository? presenceRepository,
     UiEffectPort? effects,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
        _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
+       _presenceRepository = presenceRepository ?? GetIt.I<PresenceRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          RoomState(
@@ -57,6 +60,8 @@ class RoomCubit extends Cubit<RoomState> {
   final BeaconRoomCase _case;
 
   final CoordinationItemRoomSync _itemSync;
+
+  final PresenceRepository _presenceRepository;
 
   final UiEffectPort _effects;
 
@@ -303,6 +308,9 @@ class RoomCubit extends Cubit<RoomState> {
             status: const StateIsSuccess(),
           ),
         );
+        if (!inThread) {
+          _watchRoomPresence(participants);
+        }
         if (!isClosed) {
           _applyPendingThreadScroll(messages);
         }
@@ -689,8 +697,18 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  void _watchRoomPresence(List<BeaconParticipant> participants) {
+    final myId = state.myUserId;
+    final peerIds = {
+      for (final p in participants)
+        if (p.userId.isNotEmpty && p.userId != myId) p.userId,
+    };
+    _presenceRepository.watch('room:${state.beaconId}', peerIds);
+  }
+
   @override
   Future<void> close() async {
+    _presenceRepository.unwatch('room:${state.beaconId}');
     await _refreshSub.cancel();
     await _itemSyncSub?.cancel();
     await markSeenNowIfNeeded();

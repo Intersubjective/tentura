@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
@@ -24,6 +25,7 @@ class FriendsCubit extends Cubit<FriendsState> {
     this._invitationRepository,
     this._likeRemoteRepository,
     this._friendsRemoteRepository,
+    this._presenceRepository,
     AuthCase _authCase,
     this._effects,
   ) : super(const FriendsState(friends: {})) {
@@ -44,6 +46,8 @@ class FriendsCubit extends Cubit<FriendsState> {
   final InvitationRepository _invitationRepository;
 
   final LikeRemoteRepository _likeRemoteRepository;
+
+  final PresenceRepository _presenceRepository;
 
   final UiEffectPort _effects;
 
@@ -73,6 +77,7 @@ class FriendsCubit extends Cubit<FriendsState> {
           friendContexts: friendContexts,
         ),
       );
+      _presenceRepository.watch('friends', friendsById.keys.toSet());
     } catch (e) {
       if (state.friends.isEmpty) {
         emit(state.copyWith(status: StateHasError(e)));
@@ -92,6 +97,7 @@ class FriendsCubit extends Cubit<FriendsState> {
   Future<void> acceptInvitation(String id) => _invitationRepository.accept(id);
 
   void _onAuthChanged(String userId) {
+    _presenceRepository.unwatch('friends');
     // ignore: prefer_const_constructors //
     emit(FriendsState(friends: {}));
     if (userId.isNotEmpty) {

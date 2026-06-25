@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/presence_avatar.dart';
 
 final class MentionSuggestionsOverlay extends StatefulWidget {
   const MentionSuggestionsOverlay({
@@ -83,7 +83,11 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              SelfAwareAvatar.small(profile: p.toProfile(), size: 28),
+              PresenceAvatar.small(
+                profile: p.toProfile(),
+                userId: p.userId,
+                size: 28,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

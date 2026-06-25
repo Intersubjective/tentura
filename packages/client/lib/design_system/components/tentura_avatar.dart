@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import '../tentura_icons.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
+import 'tentura_presence_dot.dart';
 
 /// Canonical avatar size buckets (responsive via [TenturaTokens] except [big]).
 enum TenturaAvatarSize {
@@ -40,6 +41,7 @@ class TenturaAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : withContactBadge = withContactBadge ?? withRating;
 
@@ -51,6 +53,7 @@ class TenturaAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.big,
        size = kTenturaAvatarBigSize,
@@ -65,6 +68,7 @@ class TenturaAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.medium,
        withContactBadge = withContactBadge ?? withRating;
@@ -78,6 +82,7 @@ class TenturaAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.small,
        withContactBadge = withContactBadge ?? withRating;
@@ -91,6 +96,7 @@ class TenturaAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.tiny,
        withContactBadge = withContactBadge ?? withRating;
@@ -103,6 +109,7 @@ class TenturaAvatar extends StatelessWidget {
   final bool withRating;
   final bool withContactBadge;
   final Widget? overlayBadge;
+  final bool isOnline;
   final BoxFit boxFit;
 
   static Widget avatarPlaceholder({
@@ -203,7 +210,7 @@ class TenturaAvatar extends StatelessWidget {
       inner = _SelfHalo(size: s, child: inner);
     }
 
-    if (showAuthorStar || overlayBadge != null) {
+    if (showAuthorStar || overlayBadge != null || isOnline) {
       inner = Stack(
         clipBehavior: Clip.none,
         children: [
@@ -214,6 +221,12 @@ class TenturaAvatar extends StatelessWidget {
               right: -1,
               bottom: -1,
               child: _OverlayBadge(size: s, child: overlayBadge!),
+            ),
+          if (isOnline)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: TenturaPresenceDot(size: s * 0.28),
             ),
         ],
       );

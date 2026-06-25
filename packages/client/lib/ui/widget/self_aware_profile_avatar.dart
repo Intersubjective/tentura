@@ -19,6 +19,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : withContactBadge = withContactBadge ?? withRating;
 
@@ -29,6 +30,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.big,
        size = kTenturaAvatarBigSize,
@@ -42,6 +44,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.medium,
        withContactBadge = withContactBadge ?? withRating;
@@ -54,6 +57,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.small,
        withContactBadge = withContactBadge ?? withRating;
@@ -66,6 +70,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.withRating = false,
     bool? withContactBadge,
     this.overlayBadge,
+    this.isOnline = false,
     this.boxFit = BoxFit.cover,
   }) : sizeBucket = TenturaAvatarSize.tiny,
        withContactBadge = withContactBadge ?? withRating;
@@ -77,6 +82,7 @@ class SelfAwareAvatar extends StatelessWidget {
   final bool withRating;
   final bool withContactBadge;
   final Widget? overlayBadge;
+  final bool isOnline;
   final BoxFit boxFit;
 
   @override
@@ -97,6 +103,7 @@ class SelfAwareAvatar extends StatelessWidget {
           withRating: withRating,
           withContactBadge: withContactBadge,
           overlayBadge: overlayBadge,
+          isOnline: isOnline,
           boxFit: boxFit,
         );
       },

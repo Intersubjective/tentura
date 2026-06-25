@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/data/repository/presence_repository.dart';
+import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -149,7 +151,16 @@ RoomCubit _roomCubit(_FakeBeaconRoomRepository fakeRoom) => RoomCubit(
       beaconId: _kBeaconId,
       beaconRoomCase: _makeCase(fakeRoom),
       coordinationItemRoomSync: _testItemSync,
+      presenceRepository: _fakePresenceRepository(),
       effects: FakeUiEffectPort(),
+    );
+
+PresenceRepository _fakePresenceRepository() => PresenceRepository(
+      UserPresenceService.forTesting(
+        messages: const Stream.empty(),
+        connectionState: const Stream.empty(),
+        send: (_) {},
+      ),
     );
 
 /// Creates a [BeaconRoomCase] backed by [fakeRoom] and minimal stubs.
@@ -247,6 +258,7 @@ void main() {
         beaconId: _kBeaconId,
         beaconRoomCase: case_,
         coordinationItemRoomSync: _testItemSync,
+        presenceRepository: _fakePresenceRepository(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -301,6 +313,7 @@ void main() {
         beaconId: _kBeaconId,
         beaconRoomCase: case_,
         coordinationItemRoomSync: _testItemSync,
+        presenceRepository: _fakePresenceRepository(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
