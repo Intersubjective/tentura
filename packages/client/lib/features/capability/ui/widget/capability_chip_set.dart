@@ -19,6 +19,7 @@ class CapabilityChipSet extends StatelessWidget {
     required this.onChanged,
     this.automaticSlugs = const {},
     this.maxSelection,
+    this.query = '',
     super.key,
   });
 
@@ -26,6 +27,7 @@ class CapabilityChipSet extends StatelessWidget {
 
   /// When non-null, unselected tags cannot be toggled on once selection length reaches this.
   final int? maxSelection;
+  final String query;
 
   /// Slugs that were added automatically (via forward/offer-help/close-ack).
   /// These chips are shown in a secondary color to distinguish them from
@@ -44,23 +46,27 @@ class CapabilityChipSet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final group in CapabilityGroup.values)
-          _GroupSection(
-            group: group,
-            groupLabel: _groupLabel(l10n, group),
-            tags: CapabilityTag.values
-                .where((t) => t.group == group)
-                .toList(),
-            selectedSlugs: selectedSlugs,
-            automaticSlugs: automaticSlugs,
-            maxSelection: maxSelection,
-            onToggle: (slug, selected) {
-              final next = Set<String>.from(selectedSlugs);
-              selected ? next.add(slug) : next.remove(slug);
-              onChanged(next);
-            },
-            theme: theme,
-            l10n: l10n,
-          ),
+          if (_matchingTags(group, l10n).isNotEmpty)
+            _GroupSection(
+              tileKey: query.trim().isEmpty
+                  ? ValueKey<CapabilityGroup>(group)
+                  : ValueKey<String>('${group.name}:search'),
+              group: group,
+              groupLabel: _groupLabel(l10n, group),
+              groupDescription: _groupDescription(l10n, group),
+              tags: _matchingTags(group, l10n),
+              forceExpanded: query.trim().isNotEmpty,
+              selectedSlugs: selectedSlugs,
+              automaticSlugs: automaticSlugs,
+              maxSelection: maxSelection,
+              onToggle: (slug, selected) {
+                final next = Set<String>.from(selectedSlugs);
+                selected ? next.add(slug) : next.remove(slug);
+                onChanged(next);
+              },
+              theme: theme,
+              l10n: l10n,
+            ),
       ],
     );
   }
@@ -74,6 +80,31 @@ class CapabilityChipSet extends StatelessWidget {
         CapabilityGroup.resources => l10n.capabilityGroupResources,
         CapabilityGroup.technical => l10n.capabilityGroupTechnical,
         CapabilityGroup.special => l10n.capabilityGroupSpecial,
+      };
+
+  List<CapabilityTag> _matchingTags(CapabilityGroup group, L10n l10n) {
+    final normalized = query.trim().toLowerCase();
+    final groupMatches =
+        normalized.isEmpty ||
+        _groupLabel(l10n, group).toLowerCase().contains(normalized) ||
+        _groupDescription(l10n, group).toLowerCase().contains(normalized);
+    return CapabilityTag.values.where((tag) {
+      if (tag.group != group) return false;
+      return groupMatches ||
+          tag.labelOf(l10n).toLowerCase().contains(normalized);
+    }).toList();
+  }
+
+  static String _groupDescription(L10n l10n, CapabilityGroup group) =>
+      switch (group) {
+        CapabilityGroup.logistics => l10n.capabilityGroupLogisticsDescription,
+        CapabilityGroup.communication =>
+          l10n.capabilityGroupCommunicationDescription,
+        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledgeDescription,
+        CapabilityGroup.care => l10n.capabilityGroupCareDescription,
+        CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
+        CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
+        CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
       };
 }
 
@@ -116,8 +147,11 @@ class _CountBadge extends StatelessWidget {
 class _GroupSection extends StatelessWidget {
   const _GroupSection({
     required this.group,
+    required this.tileKey,
     required this.groupLabel,
+    required this.groupDescription,
     required this.tags,
+    required this.forceExpanded,
     required this.selectedSlugs,
     required this.automaticSlugs,
     required this.onToggle,
@@ -127,8 +161,11 @@ class _GroupSection extends StatelessWidget {
   });
 
   final CapabilityGroup group;
+  final Key tileKey;
   final String groupLabel;
+  final String groupDescription;
   final List<CapabilityTag> tags;
+  final bool forceExpanded;
   final Set<String> selectedSlugs;
   final Set<String> automaticSlugs;
   final int? maxSelection;
@@ -141,10 +178,11 @@ class _GroupSection extends StatelessWidget {
     final groupSlugs = tags.map((t) => t.slug).toSet();
     final selectedCount = selectedSlugs.intersection(groupSlugs).length;
     final autoCount = automaticSlugs.intersection(groupSlugs).length;
-    final initiallyExpanded = selectedCount > 0 || autoCount > 0;
+    final initiallyExpanded =
+        forceExpanded || selectedCount > 0 || autoCount > 0;
     final selectionLimit = maxSelection;
-    final atSelectionLimit = selectionLimit != null &&
-        selectedSlugs.length >= selectionLimit;
+    final atSelectionLimit =
+        selectionLimit != null && selectedSlugs.length >= selectionLimit;
 
     final cs = theme.colorScheme;
     final categoryInteractionTheme = theme.copyWith(
@@ -159,7 +197,7 @@ class _GroupSection extends StatelessWidget {
     return Theme(
       data: categoryInteractionTheme,
       child: ExpansionTile(
-        key: ValueKey<CapabilityGroup>(group),
+        key: tileKey,
         tilePadding: const EdgeInsets.symmetric(horizontal: 4),
         initiallyExpanded: initiallyExpanded,
         splashColor: Colors.transparent,
@@ -173,18 +211,28 @@ class _GroupSection extends StatelessWidget {
         title: Row(
           children: [
             Expanded(
-              child: Text(
-                groupLabel,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    groupLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    groupDescription,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
             if (selectedCount > 0)
               _CountBadge(count: selectedCount, preExisting: false),
-            if (autoCount > 0)
-              _CountBadge(count: autoCount, preExisting: true),
+            if (autoCount > 0) _CountBadge(count: autoCount, preExisting: true),
           ],
         ),
         childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
@@ -200,8 +248,8 @@ class _GroupSection extends StatelessWidget {
                   theme: theme,
                   selected: selectedSlugs.contains(tag.slug),
                   isAutomatic: automaticSlugs.contains(tag.slug),
-                  onSelected: atSelectionLimit &&
-                          !selectedSlugs.contains(tag.slug)
+                  onSelected:
+                      atSelectionLimit && !selectedSlugs.contains(tag.slug)
                       ? null
                       : (v) => onToggle(tag.slug, v),
                 ),

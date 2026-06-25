@@ -157,14 +157,15 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await _expandAllCapabilityGroups(tester);
-
-      // Select the "Time" chip.
+      await tester.enterText(
+        find.byKey(const Key('help-offer-search')),
+        'time',
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilterChip, 'Time'));
       await tester.pumpAndSettle();
 
-      // Confirm via the Ok button.
-      await tester.tap(find.text('Ok'));
+      await tester.tap(find.text('Offer help (1/4)'));
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
@@ -207,7 +208,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Do NOT select any chip; just submit.
-      await tester.tap(find.text('Ok'));
+      await tester.tap(find.text('Offer help (0/4)'));
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
@@ -264,21 +265,68 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await _expandAllCapabilityGroups(tester);
-
-      final physicalHelpChip = find.widgetWithText(FilterChip, 'Physical help');
-      // TextField autofocus scrolls content to the field; early chips can sit
-      // above the viewport until we explicitly scroll them into view.
-      await tester.ensureVisible(physicalHelpChip);
+      await tester.enterText(
+        find.byKey(const Key('help-offer-search')),
+        'physical help',
+      );
       await tester.pumpAndSettle();
+      final physicalHelpChip = find.widgetWithText(FilterChip, 'Physical help');
       await tester.tap(physicalHelpChip);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ok'));
+      await tester.tap(find.text('Offer help (1/4)'));
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
       expect(outcome!.helpTypesWire, equals(['physical_help']));
     },
   );
+
+  testWidgets('search filters capabilities by tag label', (tester) async {
+    await _pumpDialog(tester);
+
+    await tester.enterText(
+      find.byKey(const Key('help-offer-search')),
+      'software',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilterChip, 'Software'), findsOneWidget);
+    expect(find.byKey(const ValueKey('technical:search')), findsOneWidget);
+    expect(find.byKey(const ValueKey(CapabilityGroup.logistics)), findsNothing);
+  });
+
+  testWidgets('selection is capped at four capabilities', (tester) async {
+    await _pumpDialog(tester);
+    for (final label in [
+      'Transport',
+      'Storage',
+      'Pickup / delivery',
+      'Tools',
+    ]) {
+      await tester.enterText(
+        find.byKey(const Key('help-offer-search')),
+        label,
+      );
+      await tester.pumpAndSettle();
+      final chip = find.widgetWithText(FilterChip, label);
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.enterText(
+      find.byKey(const Key('help-offer-search')),
+      'Physical help',
+    );
+    await tester.pumpAndSettle();
+    final fifth = find.widgetWithText(FilterChip, 'Physical help');
+    await tester.ensureVisible(fifth);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<FilterChip>(fifth).selected, isFalse);
+    expect(tester.widget<FilterChip>(fifth).onSelected, isNull);
+    expect(find.text('Offer help (4/4)'), findsOneWidget);
+  });
 }
