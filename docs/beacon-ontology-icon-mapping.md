@@ -2,7 +2,7 @@
 
 One row per ontology leaf. Icons are Flutter **`Icons.*_rounded`** constants (Rounded Material). Extracted from `deep-research-report.md` (118 rows; design target band was about 80–120).
 
-See [`beacon-icons-fluttericonpicker.md`](beacon-icons-fluttericonpicker.md) for why this list is curated and how to wire FlutterIconPicker and persistence.
+**Shipped:** fixed ontology picker in the client (`kBeaconIdentityIcons`); persisted `icon_code` keys are snake_case leaves — not a dynamic FlutterIconPicker integration.
 
 In the client catalog (`kBeaconIdentityIcons`), persisted `icon_code` keys are snake_case leaves; the two **Water** rows use distinct keys **`essentials_water`** and **`nature_water`**.
 

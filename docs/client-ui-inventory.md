@@ -2,6 +2,8 @@
 
 Complete inventory of screens, routes, dialogs, bottom sheets, and overlay entry points in the Tentura Flutter client.
 
+> **Note:** Regenerate before trusting this inventory against the tree. After refresh, verify home tab order (My Work default) and beacon detail tabs (**Items / People / Log**).
+
 **Generated:** 2026-06-22 (source scan of `packages/client/lib`; refreshed 2026-06-23 for removed stub screens)
 
 ---

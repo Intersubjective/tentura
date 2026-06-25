@@ -1,6 +1,8 @@
 # Beacon coordination status line — rationale
 
-## Theory
+## For product/UX
+
+### Theory
 
 Coordination surfaces must **never show an empty status**. Readers should instantly sense *what the situation is waiting for* without inferring from scattered cues.
 
@@ -28,7 +30,9 @@ Avoid copy that points responsibility at everyone (e.g. “group's move”) — 
 
 ---
 
-## Clean Architecture layer map
+## For implementers
+
+### Clean Architecture layer map
 
 ```
 UI adapters (thin)
@@ -59,8 +63,8 @@ Data / Server
 |----------|-------|-------|---------|
 | 1 | blocked | clearing needed | open + open blocker |
 | 2 | wrappingUp | review countdown | reviewOpen |
-| 3 | needsMoreHelp | freshness | coordinationStatus = more help |
-| 4 | enoughHelpInMotion | freshness | coordinationStatus = enough |
+| 3 | needsMoreHelp | freshness | open-family beacon status = more help needed |
+| 4 | enoughHelpInMotion | freshness | open-family beacon status = enough help in motion |
 | 5 | offersAwaitingAuthor | freshness | unreviewed offers |
 | 6 | coordinating | freshness | reviewed / room asks |
 | 7 | lookingForHelpers | no offers yet | open + 0 offers |

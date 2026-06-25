@@ -2,6 +2,8 @@
 
 Project-specific conventions beyond what lives in `.cursor/rules/`.
 
+**Documentation index:** product and engineering specs are listed in [`docs/README.md`](docs/README.md) (start there for feature context). Vocabulary: [`CONTEXT.md`](CONTEXT.md).
+
 ## Initial load on detail and list screens (spinner)
 
 When a screen's cubit loads data asynchronously after navigation, the first frame must not paint "success" UI built from empty or placeholder domain objects (that causes wrong actions, empty titles, and layout flashes).
@@ -282,7 +284,7 @@ Default is `0.0.0`, which disables the check (any client is accepted).
 
 ## Typography & responsive design (client)
 
-Tentura uses **semantic typography** and **width-based layout classes**, not proportional “shrink everything on narrow phones.” Full spec: [`docs/tentura-design-system.md`](docs/tentura-design-system.md). Work log: [`docs/typography-overhaul-journal.md`](docs/typography-overhaul-journal.md).
+Tentura uses **semantic typography** and **width-based layout classes**, not proportional “shrink everything on narrow phones.” Full spec: [`docs/tentura-design-system.md`](docs/tentura-design-system.md).
 
 ### Hard floors (logical px)
 

@@ -52,3 +52,7 @@ Two questions drove this ADR:
 - **C. Server migration mechanics.** The schema change is a hand-written `migrant` `Migration('0087', [...])` registered in `_migrations.dart`; the server keeps `schemaVersion = 1` and does not use `drift_dev make-migrations`/`onUpgrade`. Self-FKs use `ON DELETE SET NULL` (beacons soft-delete).
 - **D. Client profile prerequisite.** `ProfileRepositoryPort` has only `fetchById`; a batch `fetchProfilesByIds` that selects the `scores` relationship (so profiles carry viewer-relative `score`/`isSeeingMe`) is a hard prerequisite for reachability suppression + ordering of off-list suggested users.
 - **E. Forward render path.** The lineage block renders above `state.visibleRecipients` in `forward_beacon_screen.dart` independent of the active scope filter; `ForwardState.computeBeaconListSections` is currently unused and is not the render path.
+
+### Visibility supersession (2026-06-24)
+
+**Amendment A** documented a world-readable Hasura `beacon` select model (`filter: {}`). That visibility gate is **partially superseded** by [ADR 0008](0008-beacon-visibility-and-invite-sharing.md): relationship-scoped `beacon_can_read_content` / `canReadContent` now governs fork source access and lineage reads. Fork mechanics, copy policy, and subjective forward suggestions in this ADR remain in force; only the “any authenticated user reads any non-draft beacon” assumption is retired.

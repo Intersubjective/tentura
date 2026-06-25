@@ -7,7 +7,6 @@ type: project
 Active plan in `plan.md`. Phases 0–4 defined.
 
 **Phase 0 — DONE (2026-04-30)**
-- `docs/capability-non-ml-overhaul-journal.md` created
 - `docs/adr/0001-capability-event-storage.md` created
 - `NetworkPersonCard` widget shell created at `packages/client/lib/features/capability/ui/widget/network_person_card.dart`
 - `FriendsScreen._FriendsTabBody` replaced `ChatPeerListTile` with `NetworkPersonCard`
@@ -17,7 +16,7 @@ Active plan in `plan.md`. Phases 0–4 defined.
 
 **Why:** Non-ML capability signals from 4 observer sources. No self-declared chips. All ops via V2 GraphQL.
 
-**How to apply:** Next phase is Phase 1 (private labels + server table migration m0048). Read journal before starting.
+**How to apply:** Next phase is Phase 1 (private labels + server table migration m0048). Read ADR 0001 and `docs/README.md` before starting.
 
 **Phase 1 — PENDING**
 - Server: migration m0048, CapabilityCase, CapabilityRepositoryPort, repo, GQL ops

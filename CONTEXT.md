@@ -59,6 +59,8 @@ End-to-end routing (landing preview → WASM hash links → native deep links �
 accept/signup) is documented in
 [`docs/invite-signup-landing-flow.md`](docs/invite-signup-landing-flow.md).
 
+**Docs index:** [`docs/README.md`](docs/README.md) · product orientation [`docs/Tentura_current_status_quo.md`](docs/Tentura_current_status_quo.md).
+
 ## Beacon lineage
 
 **Lineage** (internal/domain term):

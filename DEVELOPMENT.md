@@ -231,6 +231,8 @@ When using the Cursor IDE browser MCP to interact with the Flutter web app:
 
 ## Monorepo Structure
 
+**Documentation:** [`docs/README.md`](docs/README.md) (index) · [`AGENTS.md`](AGENTS.md) (agent entry) · [`DEV_GUIDELINES.md`](DEV_GUIDELINES.md).
+
 ```
 tentura/
 ├── lib/                     # Shared domain (root package: tentura_root)

@@ -1,5 +1,7 @@
 # New Stuff Indicators (Inbox & My Work)
 
+**User-facing:** bottom-nav dots and inbox row pills show activity since your last visit to Inbox or My Work (local cursors only; no server API).
+
 Client-only “since last visit” cues for the **Inbox** and **My Work** home tabs: bottom-nav dots and per-row/per-card markers, driven by local Drift cursors and max activity timestamps from successful fetches.
 
 ## What it does
@@ -42,4 +44,4 @@ There is **no** server API dedicated to this feature: cursors are **per account*
 
 - **Null last-seen** — No dot and no row/card “new” baseline until the user has a persisted last-seen for that tab (hydrated from Drift or written after the first successful mark path).
 - **Drift writes** — Advancing last-seen is **not** tied to every background refetch; repeated `report*Activity` updates in-memory max only. Persistence happens when the user **enters** the tab (`mark*TabSeen`) or the **pending-after-fetch** path runs on first visit when max was unknown at tap time.
-- **Default Inbox tab** — `markInboxTabSeen` runs from bottom-nav **selection changes**. If the user stays on Inbox for the whole session and never switches tabs, Inbox last-seen may not advance for that session; switching away and back to Inbox updates it. My Work is usually entered by tapping tab 1, which triggers the mark path.
+- **Home tab indices** — 0 My Work, 1 Inbox, 2 Friends, 3 Profile. `markInboxTabSeen` runs on bottom-nav **selection changes**. If the user stays on Inbox for the whole session without switching tabs, Inbox last-seen may not advance; switching away and back updates it. My Work is tab 0 (app default).

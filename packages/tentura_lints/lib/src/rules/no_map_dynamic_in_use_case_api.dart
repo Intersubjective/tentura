@@ -21,7 +21,7 @@ final class NoMapDynamicInUseCaseApi extends AnalysisRule {
   static const LintCode code = LintCode(
     'no_map_dynamic_in_use_case_api',
     'Domain use_case public API must return a typed DTO/entity, not '
-    'Map<String, dynamic>/dynamic (see docs/future-arch-improvements.md Phase B).',
+    'Map<String, dynamic>/dynamic (see DEV_GUIDELINES.md § Layer boundaries).',
     severity: DiagnosticSeverity.ERROR,
   );
 
