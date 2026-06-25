@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/exception/server_exception.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 
 import '../service/remote_api_client/auth_loss_classifier.dart';
 import '../service/remote_api_service.dart';
@@ -25,12 +26,18 @@ abstract class RemoteRepository {
 
     if (response.hasErrors) {
       if (response.linkException != null) {
-        log.severe(response.linkException);
-        throwClassifiedRemoteFailure(response.linkException);
+        final linkError = response.linkException!;
+        if (mapRemoteFailure(linkError) is! AuthSessionLostException) {
+          log.severe('GraphQL link error', linkError);
+        }
+        throwClassifiedRemoteFailure(linkError);
       }
       if (response.graphqlErrors != null) {
-        log.severe(response.graphqlErrors);
-        throwClassifiedRemoteFailure(response.graphqlErrors);
+        final gqlErrors = response.graphqlErrors!;
+        if (mapRemoteFailure(gqlErrors) is! AuthSessionLostException) {
+          log.severe('GraphQL errors', gqlErrors);
+        }
+        throwClassifiedRemoteFailure(gqlErrors);
       }
     }
 
