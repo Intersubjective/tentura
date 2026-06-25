@@ -134,4 +134,31 @@ void main() {
     expect(patched.single.userId, 'h1');
     expect(patched.single.roomAccess, RoomAccessBits.admitted);
   });
+
+  test('withdrawn help offer is excluded from willing and not fitting', () {
+    final sections = classifyBeaconPeopleSections(
+      beacon: _beacon(authorId: 'auth'),
+      helpOffers: [
+        BeaconPeopleHelpOfferInput(
+          userId: 'h1',
+          profile: Profile(id: 'h1', displayName: 'h1'),
+          isWithdrawn: true,
+        ),
+      ],
+      roomParticipants: const [],
+      viewerUserId: 'viewer',
+    );
+    expect(sections.willingToHelp, isEmpty);
+    expect(sections.notFitting, isEmpty);
+  });
+
+  test('applyCoordinationRoomParticipantPatch clears admission on remove', () {
+    final patched = applyCoordinationRoomParticipantPatch(
+      participants: [_participant(userId: 'h1')],
+      offerUserId: 'h1',
+      inviteToRoom: false,
+      removeFromRoom: true,
+    );
+    expect(patched.single.roomAccess, RoomAccessBits.none);
+  });
 }
