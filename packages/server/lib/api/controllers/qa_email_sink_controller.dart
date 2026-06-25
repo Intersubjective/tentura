@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/data/service/email/file_sink_email_sender.dart';
+import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 
 import '../http/cookies.dart';
 import '_base_controller.dart';
@@ -26,8 +26,8 @@ final class QaEmailSinkController extends BaseController {
       return Response.badRequest(body: 'invalid QA email');
     }
 
-    final fileName = FileSinkEmailSender.sanitizeEmailForFileName(email);
-    final file = File('${env.emailDebugSinkDir}/$fileName.json');
+    final fileName = EmailSinkWriter.sanitizeEmailForFileName(email);
+    final file = File('${env.qaEmailCaptureDir}/$fileName.json');
     if (!file.existsSync()) {
       return Response.ok(
         jsonEncode({
@@ -68,7 +68,7 @@ final class QaEmailSinkController extends BaseController {
   }
 
   bool _qaAllowed(Request request) {
-    if (!env.isQaEmailSinkEnabled) {
+    if (!env.isQaAuthEnabled) {
       return false;
     }
 

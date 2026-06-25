@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/qa_email_sink_controller.dart';
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/request_log_sanitizer.dart';
-import 'package:tentura_server/data/service/email/file_sink_email_sender.dart';
+import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 import 'package:tentura_server/env.dart';
 
 void main() {
@@ -26,15 +26,22 @@ void main() {
 
   Env env({
     String environment = Environment.test,
+    bool qaAuthEnabled = true,
     String qaAuthToken = 'secret',
+    String emailDebugSinkDir = '',
     List<String> qaEmailDomains = const ['test.tentura.local'],
-  }) => Env(
-    environment: environment,
-    serverUri: Uri.parse('https://test.tentura.local'),
-    emailDebugSinkDir: sinkDir.path,
-    qaAuthToken: qaAuthToken,
-    qaEmailDomains: qaEmailDomains,
-  );
+  }) {
+    final resolvedSinkDir =
+        emailDebugSinkDir.isNotEmpty ? emailDebugSinkDir : sinkDir.path;
+    return Env(
+      environment: environment,
+      serverUri: Uri.parse('https://test.tentura.local'),
+      emailDebugSinkDir: resolvedSinkDir,
+      qaAuthEnabled: qaAuthEnabled,
+      qaAuthToken: qaAuthToken,
+      qaEmailDomains: qaEmailDomains,
+    );
+  }
 
   Request request({
     String email = 'agent@test.tentura.local',
@@ -61,11 +68,19 @@ void main() {
     String email,
     Object payload,
   ) {
-    final fileName = FileSinkEmailSender.sanitizeEmailForFileName(email);
+    final fileName = EmailSinkWriter.sanitizeEmailForFileName(email);
     File('${sinkDir.path}/$fileName.json').writeAsStringSync(
       jsonEncode(payload),
     );
   }
+
+  test('is disabled when QA auth is not explicitly enabled', () async {
+    final controller = QaEmailSinkController(env(qaAuthEnabled: false));
+
+    final response = await controller.latestEmail(request());
+
+    expect(response.statusCode, 404);
+  });
 
   test('is disabled without a QA token', () async {
     final controller = QaEmailSinkController(env(qaAuthToken: ''));
@@ -172,9 +187,51 @@ void main() {
     expect((await jsonBody(response))['found'], false);
   });
 
+  test('reads from internal QA capture dir when debug sink is unset', () async {
+    const email = 'agent@test.tentura.local';
+    final captureDir = Directory(Env.kDefaultQaCaptureDir);
+    captureDir.createSync(recursive: true);
+    final fileName = EmailSinkWriter.sanitizeEmailForFileName(email);
+    final captureFile = File('${captureDir.path}/$fileName.json');
+    captureFile.writeAsStringSync(
+      jsonEncode({
+        'kind': 'magicLink',
+        'to': email,
+        'verifyUrl': 'https://dev.tentura.io/auth/email/verify?t=remote',
+        'sentAt': '2026-06-25T18:00:00.000Z',
+      }),
+    );
+    addTearDown(() {
+      if (captureFile.existsSync()) {
+        captureFile.deleteSync();
+      }
+    });
+
+    final controller = QaEmailSinkController(
+      Env(
+        environment: Environment.test,
+        serverUri: Uri.parse('https://test.tentura.local'),
+        qaAuthEnabled: true,
+        qaAuthToken: 'secret',
+        qaEmailDomains: const ['test.tentura.local'],
+      ),
+    );
+
+    final response = await controller.latestEmail(request());
+
+    expect(response.statusCode, 200);
+    expect(await jsonBody(response), {
+      'found': true,
+      'email': email,
+      'kind': 'magicLink',
+      'verifyUrl': 'https://dev.tentura.io/auth/email/verify?t=remote',
+      'sentAt': '2026-06-25T18:00:00.000Z',
+    });
+  });
+
   test('returns 500 for invalid sink JSON', () async {
     const email = 'agent@test.tentura.local';
-    final fileName = FileSinkEmailSender.sanitizeEmailForFileName(email);
+    final fileName = EmailSinkWriter.sanitizeEmailForFileName(email);
     File('${sinkDir.path}/$fileName.json').writeAsStringSync('not json');
     final controller = QaEmailSinkController(env());
 

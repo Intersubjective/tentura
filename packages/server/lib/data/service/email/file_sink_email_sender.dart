@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:logging/logging.dart';
+import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 import 'package:tentura_server/data/service/email/resend_email_sender.dart' show ResendEmailSender;
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
 
@@ -21,13 +18,18 @@ class FileSinkEmailSender implements EmailSenderPort {
 
   static const _renderer = EmailTemplateRenderer();
 
+  EmailSinkWriter get _writer => EmailSinkWriter(
+    _env.emailDebugSinkDir,
+    loggerName: 'FileSinkEmailSender',
+  );
+
   @override
   Future<void> sendMagicLink({
     required String to,
     required String verifyUrl,
     String? inviterName,
   }) async {
-    _write(to, {
+    _writer.write(to, {
       'kind': 'magicLink',
       'to': to,
       'verifyUrl': verifyUrl,
@@ -43,7 +45,7 @@ class FileSinkEmailSender implements EmailSenderPort {
     String? listUnsubscribeUrl,
   }) async {
     final r = _renderer.renderNotification(content: content, locale: locale);
-    _write(to, {
+    _writer.write(to, {
       'kind': 'notification',
       'to': to,
       'locale': locale,
@@ -62,7 +64,7 @@ class FileSinkEmailSender implements EmailSenderPort {
     String? listUnsubscribeUrl,
   }) async {
     final r = _renderer.renderDigest(content: content, locale: locale);
-    _write(to, {
+    _writer.write(to, {
       'kind': 'digest',
       'to': to,
       'locale': locale,
@@ -74,24 +76,7 @@ class FileSinkEmailSender implements EmailSenderPort {
     });
   }
 
-  void _write(String to, Map<String, dynamic> payload) {
-    final dir = Directory(_env.emailDebugSinkDir);
-    if (!dir.existsSync()) {
-      dir.createSync(recursive: true);
-    }
-    final file = File('${dir.path}/${sanitizeEmailForFileName(to)}.json')
-      ..writeAsStringSync(
-        const JsonEncoder.withIndent('  ').convert({
-          ...payload,
-          'sentAt': DateTime.timestamp().toIso8601String(),
-        }),
-      );
-    Logger('FileSinkEmailSender').info(
-      '${payload['kind']} for $to written to ${file.path}',
-    );
-  }
-
   /// `ada+test@example.com` → `ada_test_example.com` (path-safe, stable).
   static String sanitizeEmailForFileName(String email) =>
-      email.replaceAll(RegExp(r'[^A-Za-z0-9.\-]'), '_');
+      EmailSinkWriter.sanitizeEmailForFileName(email);
 }
