@@ -54,9 +54,10 @@ class TenturaFullBleed extends StatelessWidget {
         if (constraints.maxWidth >= viewportWidth) {
           return child;
         }
-        final bleed = viewportWidth - constraints.maxWidth;
-        return Transform.translate(
-          offset: Offset(-bleed / 2, 0),
+        return OverflowBox(
+          maxWidth: viewportWidth,
+          minWidth: viewportWidth,
+          alignment: Alignment.topCenter,
           child: SizedBox(
             width: viewportWidth,
             child: child,
