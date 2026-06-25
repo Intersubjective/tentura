@@ -14,6 +14,15 @@ void main() {
     expect(parseCookies(request), {'a': '1', 'b': 'two', 'c': ''});
   });
 
+  test('parseCookies skips nameless cookie segments', () {
+    final request = Request(
+      'GET',
+      Uri.parse('http://localhost/'),
+      headers: {'cookie': '=orphan; a=1'},
+    );
+    expect(parseCookies(request), {'a': '1'});
+  });
+
   test('buildSetCookie enforces __Host- rules', () {
     final value = buildSetCookie(
       name: kCookieSessionName,
