@@ -302,10 +302,10 @@ cd packages/client && flutter test --dart-define=ENV=test --dart-define-from-fil
 | Field | Value |
 |-------|-------|
 | **Priority** | P2 |
-| **Status** | open |
+| **Status** | done |
 | **Source** | `packages/client/lib/features/evaluation/domain/use_case/evaluation_case.dart` |
-| **Existing** | Feature widget tests (`evaluation_ack_chips_test`, `review_window_banner_host_test`); server-heavy rules tested server-side |
-| **Gap** | Client-specific error mapping / optimistic UI rules if any in case. |
+| **Existing** | `evaluation_case_test.dart` (repository delegation for all public methods) |
+| **Gap** | Case is a thin repository facade; no client-specific orchestration beyond delegation. |
 
 ---
 
@@ -771,4 +771,4 @@ Split work to reduce merge conflicts:
 |------|--------|
 | 2026-06-25 | Initial index from coverage audit on `main` |
 
-| 2026-06-26 | Rollup: 51/52 COV items implemented (COV-041 open); per-COV commits on main |
+| 2026-06-26 | Rollup: 52/52 COV items implemented; per-COV commits on main |
