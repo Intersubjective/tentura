@@ -217,7 +217,7 @@ cd packages/client && flutter test --dart-define=ENV=test --dart-define-from-fil
 | **Priority** | P0 |
 | **Status** | done |
 | **Sources** | `create_draft_ask_case.dart`, `publish_draft_ask_case.dart`, `update_draft_ask_case.dart`, `delete_draft_ask_case.dart`, `mark_ask_case.dart`, `accept_ask_case.dart`, `resolve_ask_case.dart`, `cancel_ask_case.dart`, `redirect_ask_case.dart` |
-| **Existing** | None for ask cases |
+| **Existing** | `ask_lifecycle_case_test.dart` (all nine ask cases) |
 | **Recommended test** | One test file per case or grouped `ask_lifecycle_case_test.dart` following `draft_blocker_case_test.dart` patterns (mock `CoordinationItemRepositoryPort`, room access). |
 | **Acceptance** | Each case: happy path, unauthorized user, wrong item state, draft vs published guards. |
 
