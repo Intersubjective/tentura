@@ -36,6 +36,12 @@ void main() {
   );
 
   test('test set 1', () {
+    final a = UserNode(user: const Profile(id: 'U1'));
+    final b = UserNode(user: const Profile(id: 'U1'));
+    expect(a, equals(b));
+    expect(a.hashCode, b.hashCode);
+    expect({a, b}.length, 1);
+
     final s = <NodeDetails>{
       userNode1,
       userNode2,
@@ -44,9 +50,16 @@ void main() {
     };
 
     expect(s.length, 4);
+    expect(userNode1, isNot(userNode2));
+    expect(beaconNode1, isNot(beaconNode2));
   });
 
   test('test set 2', () {
+    final a = Node(data: UserNode(user: const Profile(id: 'U1')), size: 40);
+    final b = Node(data: UserNode(user: const Profile(id: 'U1')), size: 40);
+    expect(a, equals(b));
+    expect({a, b}.length, 1);
+
     final s = <Node<NodeDetails>>{
       const Node(data: userNode1, size: 40),
       const Node(data: userNode2, size: 40),
