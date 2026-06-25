@@ -96,7 +96,13 @@ void main() {
         attachmentFilename: 'notes.txt',
         attachmentMimeType: 'text/plain',
       ),
-      throwsA(isA<RateLimitedException>()),
+      throwsA(
+        isA<RateLimitedException>().having(
+          (e) => e.description,
+          'description',
+          'Daily upload limit reached, try again tomorrow',
+        ),
+      ),
     );
   });
 }

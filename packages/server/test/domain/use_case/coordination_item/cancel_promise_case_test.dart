@@ -64,7 +64,13 @@ void main() {
     items.item = null;
     await expectLater(
       () => sut.call(userId: creatorId, itemId: itemId),
-      throwsA(isA<IdNotFoundException>()),
+      throwsA(
+        isA<IdNotFoundException>().having(
+          (e) => e.description,
+          'description',
+          'Promise not found',
+        ),
+      ),
     );
     expect(items.lastNewStatus, null);
   });
@@ -73,7 +79,13 @@ void main() {
     items.item = items.item!.copyWith(kind: coordinationItemKindAsk);
     await expectLater(
       () => sut.call(userId: creatorId, itemId: itemId),
-      throwsA(isA<BeaconCreateException>()),
+      throwsA(
+        isA<BeaconCreateException>().having(
+          (e) => e.description,
+          'description',
+          'Item is not a promise',
+        ),
+      ),
     );
     expect(items.lastNewStatus, null);
   });
@@ -82,7 +94,13 @@ void main() {
     items.item = items.item!.copyWith(status: coordinationItemStatusResolved);
     await expectLater(
       () => sut.call(userId: creatorId, itemId: itemId),
-      throwsA(isA<BeaconCreateException>()),
+      throwsA(
+        isA<BeaconCreateException>().having(
+          (e) => e.description,
+          'description',
+          'Promise is already closed',
+        ),
+      ),
     );
     expect(items.lastNewStatus, null);
   });
@@ -91,7 +109,13 @@ void main() {
     items.item = items.item!.copyWith(status: coordinationItemStatusCancelled);
     await expectLater(
       () => sut.call(userId: creatorId, itemId: itemId),
-      throwsA(isA<BeaconCreateException>()),
+      throwsA(
+        isA<BeaconCreateException>().having(
+          (e) => e.description,
+          'description',
+          'Promise is already closed',
+        ),
+      ),
     );
     expect(items.lastNewStatus, null);
   });
