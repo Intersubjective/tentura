@@ -9,8 +9,6 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/widget/forward_bottom_composer.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_need_brief.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -269,19 +267,18 @@ class _MyWorkGoldenBody extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: beacon,
             menu: const SizedBox(width: 40, height: 40),
+            statusLine: myWorkStatusDisplayLine(
+              const MyWorkStatusLineData(
+                slot1: 'Open',
+                slot2: 'Closes 2025-05-01',
+                timeSlotOverdue: false,
+              ),
+            ),
           ),
           const SizedBox(height: 6),
           BeaconCardMetadataLine(
             beacon: beacon,
             updatedLine: 'Updated 2025-04-18 12:00',
-          ),
-          const SizedBox(height: 6),
-          const MyWorkCardStatusStrip(
-            data: MyWorkStatusLineData(
-              slot1: 'Open',
-              slot2: 'Closes 2025-05-01',
-              timeSlotOverdue: false,
-            ),
           ),
         ],
       ),
@@ -296,6 +293,10 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = L10n.of(context)!;
+    final needText = beacon.needSummary?.trim() ?? '';
     return BeaconCardShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -305,7 +306,16 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
             beacon: beacon,
             menu: const SizedBox(width: 40, height: 40),
           ),
-          BeaconNeedBrief(beacon: beacon),
+          if (needText.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '${l10n.beaconNeedBriefPrefix} $needText',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
         ],
       ),
     );

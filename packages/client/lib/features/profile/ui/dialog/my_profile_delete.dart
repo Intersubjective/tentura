@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import 'package:tentura/ui/utils/ui_utils.dart';
-
-import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-
-import '../bloc/profile_cubit.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 class MyProfileDeleteDialog extends StatelessWidget {
   static Future<void> show(BuildContext context) => showAdaptiveDialog<void>(
@@ -24,17 +21,10 @@ class MyProfileDeleteDialog extends StatelessWidget {
       content: Text(l10n.profileRemovalHint),
       actions: [
         TextButton(
-          onPressed: () async {
-            try {
-              final authCubit = GetIt.I<AuthCubit>();
-              await GetIt.I<ProfileCubit>().delete();
-              await authCubit.removeAccount(authCubit.state.currentAccountId);
-            } catch (e) {
-              if (context.mounted) {
-                showSnackBar(context, isError: true, text: e.toString());
-              }
-            }
-            if (context.mounted) Navigator.of(context).pop();
+          onPressed: () {
+            Navigator.of(context).pop();
+            final profileId = GetIt.I<ProfileCubit>().state.profile.id;
+            GetIt.I<ScreenCubit>().showAccountDeletionRequest(profileId);
           },
           child: Text(l10n.buttonDelete),
         ),

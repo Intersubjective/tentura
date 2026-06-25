@@ -8,8 +8,6 @@ import 'remote_api_client/auth_loss_classifier.dart';
 import 'remote_api_client/exception.dart';
 import 'remote_api_client/remote_api_client_web.dart';
 import 'remote_api_client/remote_api_client_ws.dart';
-// import 'remote_api_client/remote_api_client_native.dart'
-//     if (dart.library.js_interop) 'remote_api_client/remote_api_client_web.dart';
 
 export 'package:ferry/ferry.dart'
     show DataSource, FetchPolicy, OperationRequest, OperationResponse;

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 ///
 /// Default Material 3 chips (no overrides) now stay legible because
 /// [ColorScheme.secondaryContainer] / [ColorScheme.onSecondaryContainer] are set
-/// in `colorSchemeLight` and `colorSchemeDark` in `ui/theme.dart`.
+/// in [TenturaTheme.light] and [TenturaTheme.dark].
 /// Use this class only where the default outlined unselected look should match
 /// Inbox / My Work.
 class AppChoiceChipStyle {

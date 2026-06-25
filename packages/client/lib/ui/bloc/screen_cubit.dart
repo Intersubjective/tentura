@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/consts.dart';
 
@@ -78,6 +79,10 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showSettings() => _navigateTo(kPathSettings);
 
   void showComplaint(String id) => _navigateTo('$kPathComplaint/$id');
+
+  void showAccountDeletionRequest(String profileId) => _navigateTo(
+    '$kPathComplaint/$profileId?fixedType=${ComplaintType.accountDeletionRequest.name}',
+  );
 
   void showMessaging(LocalizableMessage message) {
     if (_local) {

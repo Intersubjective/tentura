@@ -11,10 +11,6 @@ final class ProfileFetchException extends ProfileException {
   const ProfileFetchException(super.message);
 }
 
-final class ProfileUpdateException extends ProfileException {
-  const ProfileUpdateException(super.message);
-}
-
 final class ProfileDeleteException extends ProfileException {
   const ProfileDeleteException(super.message);
 }

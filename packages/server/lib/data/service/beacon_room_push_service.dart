@@ -109,14 +109,6 @@ class BeaconRoomPushService implements BeaconRoomNotificationPort {
         ),
       );
 
-  @Deprecated('Fact pinning does not send push notifications')
-  Future<void> notifyFactPinned({
-    required String beaconId,
-    required String actorUserId,
-    required bool isPublic,
-    required List<String> recipientUserIds,
-  }) async {}
-
   /// Coordination-item helpers (preferred over removed legacy room-message paths).
   Future<void> notifyNeedsMe({
     required String beaconId,

@@ -8,6 +8,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
 import '../widget/language_switch_button.dart';
@@ -161,6 +162,13 @@ class _SettingsCommandList extends StatelessWidget {
               label: l10n.authRecoveryResetLocalTitle,
               icon: const Icon(Icons.delete_forever_outlined),
               onPressed: isLoading ? null : onConfirmResetLocal,
+            ),
+            TenturaCommandButton(
+              label: l10n.settingsRequestProfileDeletion,
+              icon: const Icon(Icons.person_off_outlined),
+              onPressed: isLoading
+                  ? null
+                  : () => MyProfileDeleteDialog.show(context),
             ),
             FilledButton.icon(
               onPressed: isLoading ? null : settingsCubit.signOut,

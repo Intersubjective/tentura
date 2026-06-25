@@ -8,15 +8,27 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../bloc/friends_cubit.dart';
 
 class FriendRemoveDialog extends StatelessWidget {
-  static Future<void> show(BuildContext context, {required Profile profile}) =>
+  static Future<void> show(
+    BuildContext context, {
+    required Profile profile,
+    Future<void> Function()? onRemove,
+  }) =>
       showAdaptiveDialog(
         context: context,
-        builder: (_) => FriendRemoveDialog(profile: profile),
+        builder: (_) => FriendRemoveDialog(
+          profile: profile,
+          onRemove: onRemove,
+        ),
       );
 
-  const FriendRemoveDialog({required this.profile, super.key});
+  const FriendRemoveDialog({
+    required this.profile,
+    this.onRemove,
+    super.key,
+  });
 
   final Profile profile;
+  final Future<void> Function()? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +39,11 @@ class FriendRemoveDialog extends StatelessWidget {
         // Remove
         TextButton(
           onPressed: () async {
+            final remove =
+                onRemove ??
+                () => GetIt.I<FriendsCubit>().removeFriend(profile);
             try {
-              await GetIt.I<FriendsCubit>().removeFriend(profile);
+              await remove();
             } catch (e) {
               if (context.mounted) {
                 showSnackBar(context, isError: true, text: e.toString());

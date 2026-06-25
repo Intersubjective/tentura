@@ -18,12 +18,19 @@ export 'complaint_state.dart';
 class ComplaintCubit extends Cubit<ComplaintState> {
   ComplaintCubit({
     required String id,
+    ComplaintType? fixedType,
     ComplaintRepository? complaintRepository,
     UiEffectPort? effects,
   }) : _complaintRepository =
            complaintRepository ?? GetIt.I<ComplaintRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
-       super(ComplaintState(id: id));
+       super(
+         ComplaintState(
+           id: id,
+           type: fixedType ?? ComplaintType.violatesCsaePolicy,
+           fixedType: fixedType,
+         ),
+       );
 
   final ComplaintRepository _complaintRepository;
 
@@ -31,9 +38,10 @@ class ComplaintCubit extends Cubit<ComplaintState> {
 
   ///
   void setType(ComplaintType? type) {
-    if (type != null) {
-      emit(state.copyWith(type: type));
+    if (state.fixedType != null || type == null) {
+      return;
     }
+    emit(state.copyWith(type: type));
   }
 
   ///
@@ -52,7 +60,13 @@ class ComplaintCubit extends Cubit<ComplaintState> {
         email: state.email,
         details: state.details,
       );
-      _effects.emit(const ShowMessage(ComplaintSentMessage()));
+      _effects.emit(
+        ShowMessage(
+          state.fixedType == ComplaintType.accountDeletionRequest
+              ? const AccountDeletionRequestSentMessage()
+              : const ComplaintSentMessage(),
+        ),
+      );
       _effects.emit(const NavigateBack());
       if (!isClosed) {
         emit(state.copyWith(status: const StateIsSuccess()));

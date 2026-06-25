@@ -14,4 +14,5 @@ enum ComplaintType {
   unknown,
   violatesCsaePolicy,
   violatesPlatformRules,
+  accountDeletionRequest,
 }

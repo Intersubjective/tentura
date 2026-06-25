@@ -11,6 +11,8 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/rename_contact_dialog.dart';
 
@@ -55,7 +57,13 @@ class ProfileViewAppBar extends StatelessWidget {
 
               if (state.profile.isFriend)
                 PopupMenuItem(
-                  onTap: profileViewCubit.removeFriend,
+                  onTap: () => unawaited(
+                    FriendRemoveDialog.show(
+                      context,
+                      profile: state.profile,
+                      onRemove: profileViewCubit.removeFriend,
+                    ),
+                  ),
                   child: Text(l10n.removeFromMyField),
                 ),
 
