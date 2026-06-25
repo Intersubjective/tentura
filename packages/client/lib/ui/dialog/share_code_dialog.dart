@@ -31,10 +31,23 @@ class ShareCodeDialog extends StatelessWidget {
   final String header;
   final String link;
 
+  Future<void> _copyLink(BuildContext context, L10n l10n) async {
+    await Clipboard.setData(ClipboardData(text: link));
+    if (context.mounted) {
+      showSnackBar(
+        context,
+        text: const LinkCopiedToClipboardMessage().toL10n(
+          l10n.localeName,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
+    final qrSize = MediaQuery.sizeOf(context).shortestSide * 0.6;
     return AlertDialog.adaptive(
       alignment: Alignment.center,
       actionsAlignment: MainAxisAlignment.spaceBetween,
@@ -51,25 +64,33 @@ class ShareCodeDialog extends StatelessWidget {
         style: theme.textTheme.headlineMedium,
       ),
 
-      // QRCode
-      content: QrCode(data: link),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: SizedBox.square(
+              dimension: qrSize,
+              child: QrCode(data: link),
+            ),
+          ),
+          const SizedBox(height: kSpacingSmall),
+          SelectionArea(
+            child: Text(
+              link,
+              style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
 
       // Buttons
       actions: [
         // Copy to Clipboard
         TextButton(
           child: Text(l10n.copyToClipboard),
-          onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: link));
-            if (context.mounted) {
-              showSnackBar(
-                context,
-                text: const LinkCopiedToClipboardMessage().toL10n(
-                  l10n.localeName,
-                ),
-              );
-            }
-          },
+          onPressed: () => _copyLink(context, l10n),
         ),
 
         // Share Link
@@ -91,18 +112,18 @@ class ShareCodeDialog extends StatelessWidget {
                   ),
                 );
                 if (context.mounted) {
-                  showSnackBar(
-                    context,
-                    text: result.toString(),
-                  );
+                  if (result.status == ShareResultStatus.unavailable) {
+                    await _copyLink(context, l10n);
+                  } else if (result.status == ShareResultStatus.success) {
+                    showSnackBar(
+                      context,
+                      text: result.toString(),
+                    );
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
-                  showSnackBar(
-                    context,
-                    text: e.toString(),
-                    isError: true,
-                  );
+                  await _copyLink(context, l10n);
                 }
               }
             },

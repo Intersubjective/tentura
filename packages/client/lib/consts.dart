@@ -44,6 +44,8 @@ const kPathForwardBeacon = '/forward';
 const kPathProfileEdit = '/profile/edit';
 const kPathProfileView = '/profile/view';
 const kPathInvitations = '/invitations';
+const kQueryHomeTab = 'tab';
+const kHomeTabInvitations = 'invitations';
 
 const kQueryIsDeepLink = 'is_deep_link';
 

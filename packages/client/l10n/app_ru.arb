@@ -727,7 +727,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "Мои дела",
+  "myWork": "Моя работа",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -2191,6 +2191,7 @@
   "@labelForward": {
     "context": "BeaconViewScreen"
   },
+  "forwardActionTooltip": "Лично передать этот маяк выбранным людям",
   "labelTimeline": "Хронология",
   "@labelTimeline": {
     "context": "BeaconViewScreen"
@@ -3367,6 +3368,7 @@
     }
   },
   "helpOfferRolePrompt": "Как вы помогаете?",
+  "forwardViewInvitations": "Открыть приглашения",
   "capabilityCueHelpOffered": "Предложил помощь: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {

@@ -727,7 +727,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "Caring",
+  "myWork": "My Work",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -2195,6 +2195,7 @@
   "@labelForward": {
     "context": "BeaconViewScreen"
   },
+  "forwardActionTooltip": "Privately relay this beacon to selected people",
   "labelTimeline": "Timeline",
   "@labelTimeline": {
     "context": "BeaconViewScreen"
@@ -3435,6 +3436,7 @@
     }
   },
   "helpOfferRolePrompt": "How are you helping?",
+  "forwardViewInvitations": "View invitations",
   "capabilityCueHelpOffered": "Offered help: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {

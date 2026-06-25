@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -13,6 +13,7 @@ import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
@@ -144,61 +145,61 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
           builder: (ctx, setModalState) {
             final modalTt = ctx.tt;
             return DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.7,
-            minChildSize: 0.4,
-            maxChildSize: 0.95,
-            builder: (_, scrollController) => Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    modalTt.screenHPadding,
-                    modalTt.screenHPadding,
-                    modalTt.screenHPadding,
-                    modalTt.rowGap,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l10n.forwardReasonPrompt,
-                          style: TenturaText.title(modalTt.text),
-                        ),
-                      ),
-                      FilledButton(
-                        onPressed: () {
-                          cubit.setRecipientReasons(
-                            recipientId,
-                            selected.toList(),
-                          );
-                          Navigator.of(ctx).pop();
-                        },
-                        child: Text(l10n.buttonSave),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
+              expand: false,
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.95,
+              builder: (_, scrollController) => Column(
+                children: [
+                  Padding(
                     padding: EdgeInsets.fromLTRB(
                       modalTt.screenHPadding,
-                      0,
                       modalTt.screenHPadding,
-                      modalTt.sectionGap,
+                      modalTt.screenHPadding,
+                      modalTt.rowGap,
                     ),
-                    children: [
-                      CapabilityChipSet(
-                        selectedSlugs: selected,
-                        automaticSlugs: existingSlugs,
-                        onChanged: (s) => setModalState(() => selected = s),
-                      ),
-                    ],
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l10n.forwardReasonPrompt,
+                            style: TenturaText.title(modalTt.text),
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            cubit.setRecipientReasons(
+                              recipientId,
+                              selected.toList(),
+                            );
+                            Navigator.of(ctx).pop();
+                          },
+                          child: Text(l10n.buttonSave),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: EdgeInsets.fromLTRB(
+                        modalTt.screenHPadding,
+                        0,
+                        modalTt.screenHPadding,
+                        modalTt.sectionGap,
+                      ),
+                      children: [
+                        CapabilityChipSet(
+                          selectedSlugs: selected,
+                          automaticSlugs: existingSlugs,
+                          onChanged: (s) => setModalState(() => selected = s),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
           },
         ),
       ),
@@ -220,22 +221,30 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
       link: inviteShareUri(invitation.id),
     );
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.forwardInviteCreatedHint)),
+    showSnackBar(
+      context,
+      text: l10n.forwardInviteCreatedHint,
+      action: SnackBarAction(
+        label: l10n.forwardViewInvitations,
+        onPressed: () => unawaited(
+          GetIt.I<RootRouter>().pushPath(
+            '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
+          ),
+        ),
+      ),
     );
   }
 
-  String _lifecycleLabel(L10n l10n, Beacon beacon) =>
-      switch (beacon.status) {
-        BeaconStatus.open => l10n.beaconLifecycleOpen,
-        BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
-        BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
-        BeaconStatus.cancelled => l10n.beaconLifecycleCancelled,
-        BeaconStatus.closed => l10n.beaconLifecycleClosed,
-        BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
-        BeaconStatus.draft => l10n.beaconLifecycleDraft,
-        BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
-      };
+  String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.status) {
+    BeaconStatus.open => l10n.beaconLifecycleOpen,
+    BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+    BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+    BeaconStatus.cancelled => l10n.beaconLifecycleCancelled,
+    BeaconStatus.closed => l10n.beaconLifecycleClosed,
+    BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
+    BeaconStatus.draft => l10n.beaconLifecycleDraft,
+    BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
+  };
 
   void _toggleNote() {
     setState(() {
@@ -255,19 +264,19 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     return BlocProvider.value(
       value: _invitationCubit,
       child: BlocListener<ForwardCubit, ForwardState>(
-          listenWhen: (prev, next) =>
-              prev.note != next.note &&
-              next.lineageSuggestions.isNotEmpty &&
-              next.note.trim().isNotEmpty,
-          listener: (context, state) {
-            if (_sharedNoteController.text != state.note) {
-              _sharedNoteController.text = state.note;
-            }
-            if (!_noteExpanded) {
-              setState(() => _noteExpanded = true);
-            }
-          },
-          child: Scaffold(
+        listenWhen: (prev, next) =>
+            prev.note != next.note &&
+            next.lineageSuggestions.isNotEmpty &&
+            next.note.trim().isNotEmpty,
+        listener: (context, state) {
+          if (_sharedNoteController.text != state.note) {
+            _sharedNoteController.text = state.note;
+          }
+          if (!_noteExpanded) {
+            setState(() => _noteExpanded = true);
+          }
+        },
+        child: Scaffold(
           backgroundColor: tt.bg,
           body: SafeArea(
             child: BlocBuilder<ForwardCubit, ForwardState>(
@@ -286,8 +295,8 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                     ? state.lineageSuggestions
                     : const <ForwardCandidate>[];
                 final counts = state.scopeCounts;
-                final listIsEmpty = state.activeFilter ==
-                        ForwardFilter.alreadyInvolved
+                final listIsEmpty =
+                    state.activeFilter == ForwardFilter.alreadyInvolved
                     ? visible.isEmpty
                     : visible.isEmpty && lineage.isEmpty;
 
@@ -302,210 +311,225 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                     AbsorbPointer(
                       absorbing: actionLoading,
                       child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ForwardTopBar(
-                          titleLine: l10n.forwardBeaconTitle,
-                          closeFallbackPath: widget.beaconId.isNotEmpty
-                              ? '$kPathBeaconView/${widget.beaconId}?$kQueryBeaconEntry=$kBeaconEntryForward'
-                              : null,
-                          subtitleLine: beacon != null && beacon.id.isNotEmpty
-                              ? forwardBeaconSubtitle(
-                                  l10n: l10n,
-                                  beaconTitle: beacon.title,
-                                  lifecycleLabel: _lifecycleLabel(l10n, beacon),
-                                )
-                              : '',
-                          searchTooltip: l10n.forwardOverlaySearchHint,
-                          onSearchPressed: () {
-                            setState(() => _searchOverlayOpen = true);
-                          },
-                        ),
-                        const TenturaHairlineDivider(),
-                        if (beacon != null && beacon.id.isNotEmpty) ...[
-                          CompactBeaconContextStrip(
-                            beacon: beacon,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ForwardTopBar(
+                            titleLine: l10n.forwardBeaconTitle,
+                            closeFallbackPath: widget.beaconId.isNotEmpty
+                                ? '$kPathBeaconView/${widget.beaconId}?$kQueryBeaconEntry=$kBeaconEntryForward'
+                                : null,
+                            subtitleLine: beacon != null && beacon.id.isNotEmpty
+                                ? forwardBeaconSubtitle(
+                                    l10n: l10n,
+                                    beaconTitle: beacon.title,
+                                    lifecycleLabel: _lifecycleLabel(
+                                      l10n,
+                                      beacon,
+                                    ),
+                                  )
+                                : '',
+                            searchTooltip: l10n.forwardOverlaySearchHint,
+                            onSearchPressed: () {
+                              setState(() => _searchOverlayOpen = true);
+                            },
                           ),
-                          SizedBox(height: tt.rowGap),
-                        ],
-                        ForwardScopeLinks(
-                          activeFilter: state.activeFilter,
-                          counts: counts,
-                          onScopeChanged: cubit.setFilter,
-                        ),
-                        Expanded(
-                          child: listIsEmpty
-                              ? Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: tt.screenHPadding,
-                                    ),
-                                    child: Text(
-                                      state.candidates.isEmpty
-                                          ? l10n.noReachableContacts
-                                          : l10n.labelNothingHere,
-                                      textAlign: TextAlign.center,
-                                      style: TenturaText.bodySmall(
-                                        tt.textMuted,
+                          const TenturaHairlineDivider(),
+                          if (beacon != null && beacon.id.isNotEmpty) ...[
+                            CompactBeaconContextStrip(
+                              beacon: beacon,
+                            ),
+                            SizedBox(height: tt.rowGap),
+                          ],
+                          ForwardScopeLinks(
+                            activeFilter: state.activeFilter,
+                            counts: counts,
+                            onScopeChanged: cubit.setFilter,
+                          ),
+                          Expanded(
+                            child: listIsEmpty
+                                ? Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: tt.screenHPadding,
+                                      ),
+                                      child: Text(
+                                        state.candidates.isEmpty
+                                            ? l10n.noReachableContacts
+                                            : l10n.labelNothingHere,
+                                        textAlign: TextAlign.center,
+                                        style: TenturaText.bodySmall(
+                                          tt.textMuted,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                )
-                              : ListView(
-                                  padding: EdgeInsets.only(bottom: tt.rowGap),
-                                  children: [
-                                    if (lineage.isNotEmpty) ...[
-                                      LineageForwardSectionHeader(
-                                        onClear: cubit.clearLineageSuggestions,
-                                      ),
-                                      for (var i = 0; i < lineage.length; i++) ...[
-                                        if (i > 0) const TenturaHairlineDivider(),
+                                  )
+                                : ListView(
+                                    padding: EdgeInsets.only(bottom: tt.rowGap),
+                                    children: [
+                                      if (lineage.isNotEmpty) ...[
+                                        LineageForwardSectionHeader(
+                                          onClear:
+                                              cubit.clearLineageSuggestions,
+                                        ),
+                                        for (
+                                          var i = 0;
+                                          i < lineage.length;
+                                          i++
+                                        ) ...[
+                                          if (i > 0)
+                                            const TenturaHairlineDivider(),
+                                          ForwardRecipientRow(
+                                            candidate: lineage[i],
+                                            requiredCapabilitySlugs:
+                                                beacon?.needs ?? const {},
+                                            isSelected: state.selectedIds
+                                                .contains(
+                                                  lineage[i].id,
+                                                ),
+                                            onToggle: () =>
+                                                cubit.toggleSelection(
+                                                  lineage[i].id,
+                                                ),
+                                            personalizedNoteEditorOpen:
+                                                _personalizedNoteEditorOpenIds
+                                                    .contains(lineage[i].id),
+                                            onTogglePersonalizedNoteEditor: () =>
+                                                _togglePersonalizedNoteEditor(
+                                                  lineage[i].id,
+                                                ),
+                                            reasonSlugs:
+                                                state
+                                                    .recipientReasons[lineage[i]
+                                                    .id] ??
+                                                const [],
+                                            onEditReasons: () => unawaited(
+                                              _editReasons(
+                                                context,
+                                                cubit,
+                                                lineage[i].id,
+                                                state.recipientReasons[lineage[i]
+                                                        .id] ??
+                                                    const [],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const TenturaHairlineDivider(),
+                                      ],
+                                      for (
+                                        var i = 0;
+                                        i < visible.length;
+                                        i++
+                                      ) ...[
+                                        if (i > 0)
+                                          const TenturaHairlineDivider(),
                                         ForwardRecipientRow(
-                                          candidate: lineage[i],
+                                          candidate: visible[i],
                                           requiredCapabilitySlugs:
                                               beacon?.needs ?? const {},
-                                          isSelected: state.selectedIds.contains(
-                                            lineage[i].id,
-                                          ),
+                                          isSelected: state.selectedIds
+                                              .contains(
+                                                visible[i].id,
+                                              ),
                                           onToggle: () => cubit.toggleSelection(
-                                            lineage[i].id,
+                                            visible[i].id,
                                           ),
                                           personalizedNoteEditorOpen:
                                               _personalizedNoteEditorOpenIds
-                                                  .contains(lineage[i].id),
+                                                  .contains(visible[i].id),
                                           onTogglePersonalizedNoteEditor: () =>
                                               _togglePersonalizedNoteEditor(
-                                                lineage[i].id,
+                                                visible[i].id,
                                               ),
                                           reasonSlugs:
-                                              state.recipientReasons[lineage[i]
+                                              state.recipientReasons[visible[i]
                                                   .id] ??
                                               const [],
                                           onEditReasons: () => unawaited(
                                             _editReasons(
                                               context,
                                               cubit,
-                                              lineage[i].id,
-                                              state.recipientReasons[lineage[i]
+                                              visible[i].id,
+                                              state.recipientReasons[visible[i]
                                                       .id] ??
                                                   const [],
                                             ),
                                           ),
+                                          onEditForward:
+                                              visible[i].forwardEdgeId != null
+                                              ? () {
+                                                  _editNoteController.text =
+                                                      visible[i]
+                                                          .myForwardNote ??
+                                                      '';
+                                                  cubit.startEditForward(
+                                                    visible[i].id,
+                                                  );
+                                                }
+                                              : null,
+                                          onCancelForward:
+                                              visible[i].forwardEdgeId != null
+                                              ? () => unawaited(
+                                                  cubit.cancelForward(
+                                                    visible[i].id,
+                                                  ),
+                                                )
+                                              : null,
                                         ),
-                                      ],
-                                      const TenturaHairlineDivider(),
-                                    ],
-                                    for (
-                                      var i = 0;
-                                      i < visible.length;
-                                      i++
-                                    ) ...[
-                                      if (i > 0) const TenturaHairlineDivider(),
-                                      ForwardRecipientRow(
-                                        candidate: visible[i],
-                                        requiredCapabilitySlugs:
-                                            beacon?.needs ?? const {},
-                                        isSelected: state.selectedIds.contains(
-                                          visible[i].id,
-                                        ),
-                                        onToggle: () => cubit.toggleSelection(
-                                          visible[i].id,
-                                        ),
-                                        personalizedNoteEditorOpen:
-                                            _personalizedNoteEditorOpenIds
-                                                .contains(visible[i].id),
-                                        onTogglePersonalizedNoteEditor: () =>
-                                            _togglePersonalizedNoteEditor(
-                                              visible[i].id,
+                                        if (state.editingRecipientId ==
+                                            visible[i].id)
+                                          _ForwardEditPanel(
+                                            controller: _editNoteController,
+                                            onNoteChanged: cubit.setEditNote,
+                                            onSave: () => unawaited(
+                                              cubit.saveForwardEdit(),
                                             ),
-                                        reasonSlugs:
-                                            state.recipientReasons[visible[i]
-                                                .id] ??
-                                            const [],
-                                        onEditReasons: () => unawaited(
-                                          _editReasons(
-                                            context,
-                                            cubit,
-                                            visible[i].id,
-                                            state.recipientReasons[visible[i]
-                                                    .id] ??
-                                                const [],
+                                            onCancel: cubit.cancelEditForward,
                                           ),
-                                        ),
-                                        onEditForward:
-                                            visible[i].forwardEdgeId != null
-                                            ? () {
-                                                _editNoteController.text =
-                                                    visible[i].myForwardNote ??
-                                                    '';
-                                                cubit.startEditForward(
-                                                  visible[i].id,
-                                                );
-                                              }
-                                            : null,
-                                        onCancelForward:
-                                            visible[i].forwardEdgeId != null
-                                            ? () => unawaited(
-                                                cubit.cancelForward(
-                                                  visible[i].id,
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                      if (state.editingRecipientId ==
-                                          visible[i].id)
-                                        _ForwardEditPanel(
-                                          controller: _editNoteController,
-                                          onNoteChanged: cubit.setEditNote,
-                                          onSave: () => unawaited(
-                                            cubit.saveForwardEdit(),
+                                        if (state.selectedIds.contains(
+                                              visible[i].id,
+                                            ) &&
+                                            _personalizedNoteEditorOpenIds
+                                                .contains(visible[i].id))
+                                          Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: tt.screenHPadding,
+                                            ),
+                                            child: PerRecipientNoteInput(
+                                              profile: visible[i].profile,
+                                              controller:
+                                                  _recipientNoteControllers[visible[i]
+                                                      .id]!,
+                                              onChanged: (text) =>
+                                                  cubit.setRecipientNote(
+                                                    visible[i].id,
+                                                    text,
+                                                  ),
+                                            ),
                                           ),
-                                          onCancel: cubit.cancelEditForward,
-                                        ),
-                                      if (state.selectedIds.contains(
-                                            visible[i].id,
-                                          ) &&
-                                          _personalizedNoteEditorOpenIds
-                                              .contains(visible[i].id))
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: tt.screenHPadding,
-                                          ),
-                                          child: PerRecipientNoteInput(
-                                            profile: visible[i].profile,
-                                            controller:
-                                                _recipientNoteControllers[visible[i]
-                                                    .id]!,
-                                            onChanged: (text) =>
-                                                cubit.setRecipientNote(
-                                                  visible[i].id,
-                                                  text,
-                                                ),
-                                          ),
-                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                        ),
-                        ForwardBottomComposer(
-                          selectedIds: state.selectedIds,
-                          noteExpanded: _noteExpanded,
-                          onToggleNoteExpanded: _toggleNote,
-                          sharedNoteController: _sharedNoteController,
-                          onSharedNoteChanged: cubit.setNote,
-                          showSuggestedNoteHelper: state.lineageSuggestions
-                                  .isNotEmpty &&
-                              state.note.trim().isNotEmpty &&
-                              _noteExpanded,
-                          onForward: state.selectedCount > 0
-                              ? cubit.forward
-                              : null,
-                          onInvite: widget.beaconId.isNotEmpty
-                              ? () => unawaited(_inviteNewPerson(context))
-                              : null,
-                        ),
-                      ],
-                    ),
+                                  ),
+                          ),
+                          ForwardBottomComposer(
+                            selectedIds: state.selectedIds,
+                            noteExpanded: _noteExpanded,
+                            onToggleNoteExpanded: _toggleNote,
+                            sharedNoteController: _sharedNoteController,
+                            onSharedNoteChanged: cubit.setNote,
+                            showSuggestedNoteHelper:
+                                state.lineageSuggestions.isNotEmpty &&
+                                state.note.trim().isNotEmpty &&
+                                _noteExpanded,
+                            onForward: state.selectedCount > 0
+                                ? cubit.forward
+                                : null,
+                            onInvite: widget.beaconId.isNotEmpty
+                                ? () => unawaited(_inviteNewPerson(context))
+                                : null,
+                          ),
+                        ],
+                      ),
                     ),
                     if (actionLoading)
                       const Positioned.fill(
