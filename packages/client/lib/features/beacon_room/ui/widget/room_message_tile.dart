@@ -20,7 +20,7 @@ import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/presence_avatar.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -959,8 +959,9 @@ class RoomMessageTile extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SelfAwareAvatar.medium(
+                            PresenceAvatar.medium(
                               profile: message.author,
+                              userId: message.author.id,
                             ),
                             if (authorCapabilityIcons.isNotEmpty) ...[
                               const SizedBox(height: 1),

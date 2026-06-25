@@ -7,6 +7,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:tentura/config/web_build_config.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/app_update_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
@@ -139,6 +140,9 @@ class App extends StatelessWidget {
               ),
               BlocProvider.value(
                 value: GetIt.I<ProfileCubit>(),
+              ),
+              BlocProvider.value(
+                value: GetIt.I<PresenceCubit>(),
               ),
               BlocProvider.value(
                 value: GetIt.I<AppUpdateCubit>(),

@@ -45,10 +45,16 @@ base mixin WebsocketPathUserPresence on WebsocketSessionHandlerBase {
         final requested =
             raw is List ? raw.map((e) => e as String).toList() : <String>[];
         final viewerId = getJwtBySession(session).sub;
-        final allowed = await friendshipLookup.reciprocalPositivePeerIds(
+        final friends = await friendshipLookup.reciprocalPositivePeerIds(
           viewerId: viewerId,
           peerIds: requested,
         );
+        final coParticipants =
+            await coParticipantLookup.coParticipantPeerIds(
+          viewerId: viewerId,
+          peerIds: requested,
+        );
+        final allowed = {...friends, ...coParticipants};
         final peerIds = requested.where(allowed.contains).toList();
         await sendPresenceSnapshotForPeers(session, peerIds);
 

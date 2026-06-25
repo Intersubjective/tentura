@@ -9,7 +9,9 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 class _GoldenProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -17,6 +19,15 @@ class _GoldenProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
+
+class _GoldenPresenceCubit extends Mock implements PresenceCubit {
+  @override
+  Map<String, UserPresenceStatus> get state => const {};
+
+  @override
+  Stream<Map<String, UserPresenceStatus>> get stream =>
+      Stream<Map<String, UserPresenceStatus>>.value(state);
 }
 
 void main() {
@@ -35,9 +46,13 @@ void main() {
     RoomMessage? nextMessage,
   }) async {
     final profileCubit = _GoldenProfileCubit();
+    final presenceCubit = _GoldenPresenceCubit();
     await tester.pumpWidget(
-      BlocProvider<ProfileCubit>.value(
-        value: profileCubit,
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: profileCubit),
+          BlocProvider<PresenceCubit>.value(value: presenceCubit),
+        ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           locale: const Locale('en'),
@@ -206,9 +221,13 @@ void main() {
       const reactorB = Profile(id: 'r2', displayName: 'Jo');
 
       final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
       await tester.pumpWidget(
-        BlocProvider<ProfileCubit>.value(
-          value: profileCubit,
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             locale: const Locale('en'),
