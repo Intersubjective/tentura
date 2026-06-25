@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -270,6 +271,95 @@ void main() {
         ['fresh'],
       );
       expect(cubit.state.nonArchivedCards.single.kind, MyWorkCardKind.authoredActive);
+
+      await cubit.close();
+    });
+
+    Beacon _authoredBeacon(String id, {DateTime? updatedAt}) =>
+        Beacon.empty.copyWith(
+          id: id,
+          author: const Profile(id: 'u1'),
+          status: BeaconStatus.open,
+          updatedAt: updatedAt ?? DateTime(2025, 8),
+        );
+
+    test('create event shows beacon in visibleCards before fetch completes',
+        () async {
+      repo.fetchInitDelay = const Duration(milliseconds: 100);
+      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      final callsAfterInit = repo.fetchInitCallCount;
+
+      beaconRepo.emitChange(
+        RepositoryEventCreate(_authoredBeacon('b-new')),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        cubit.state.visibleCards.map((c) => c.beaconId),
+        contains('b-new'),
+      );
+      expect(cubit.state.visibleCards.singleWhere((c) => c.beaconId == 'b-new').kind,
+          MyWorkCardKind.authoredActive);
+      expect(repo.fetchInitCallCount, greaterThan(callsAfterInit));
+
+      await cubit.close();
+    });
+
+    test('stale fetch preserves optimistic authored card', () async {
+      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      expect(cubit.state.nonArchivedCards.single.beaconId, 'b1');
+      final callsAfterInit = repo.fetchInitCallCount;
+
+      beaconRepo.emitChange(
+        RepositoryEventCreate(_authoredBeacon('b-new')),
+      );
+      await cubit.stream.firstWhere(
+        (s) => s.nonArchivedCards.any((c) => c.beaconId == 'b-new'),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(repo.fetchInitCallCount, greaterThan(callsAfterInit));
+      expect(
+        cubit.state.nonArchivedCards.map((c) => c.beaconId).toSet(),
+        containsAll(['b1', 'b-new']),
+      );
+
+      await cubit.close();
+    });
+
+    test('server fetch with pending beacon clears duplicate local row', () async {
+      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+
+      repo.initResult = (
+        authoredNonArchived: [
+          Beacon.empty.copyWith(
+            id: 'b1',
+            status: BeaconStatus.open,
+            updatedAt: DateTime(2025, 6),
+          ),
+          _authoredBeacon('b-new', updatedAt: DateTime(2025, 9)),
+        ],
+        helpOfferedNonArchived: const [],
+        archivedCountHint: 0,
+        lastItemDiscussionMessageAtByBeaconId: const {},
+      );
+
+      beaconRepo.emitChange(
+        RepositoryEventCreate(_authoredBeacon('b-new')),
+      );
+      await cubit.stream.firstWhere(
+        (s) =>
+            s.isSuccess &&
+            s.nonArchivedCards.map((c) => c.beaconId).toSet().containsAll({
+              'b1',
+              'b-new',
+            }),
+      );
+      expect(cubit.state.nonArchivedCards, hasLength(2));
 
       await cubit.close();
     });

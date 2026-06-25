@@ -109,6 +109,90 @@ void main() {
     expect(countDraftMyWorkCards(cards), 1);
   });
 
+  group('upsertAuthoredMyWorkCard', () {
+    test('inserts new authored card sorted by tier', () {
+      final existing = _vm(
+        id: 'old',
+        role: MyWorkCardRole.authored,
+        kind: MyWorkCardKind.authoredActive,
+      );
+      final beacon = Beacon.empty.copyWith(
+        id: 'new',
+        title: 'New',
+        status: BeaconStatus.open,
+        updatedAt: DateTime(2025, 8),
+      );
+      final merged = upsertAuthoredMyWorkCard([existing], beacon);
+      expect(merged.map((c) => c.beaconId), ['new', 'old']);
+      expect(merged.first.kind, MyWorkCardKind.authoredActive);
+    });
+
+    test('replaces existing card for same beacon id', () {
+      final existing = _vm(
+        id: 'b1',
+        role: MyWorkCardRole.authored,
+        kind: MyWorkCardKind.authoredDraft,
+        status: BeaconStatus.draft,
+      );
+      final beacon = Beacon.empty.copyWith(
+        id: 'b1',
+        status: BeaconStatus.open,
+        updatedAt: DateTime(2025, 9),
+      );
+      final merged = upsertAuthoredMyWorkCard([existing], beacon);
+      expect(merged, hasLength(1));
+      expect(merged.single.kind, MyWorkCardKind.authoredActive);
+    });
+  });
+
+  group('mergeMyWorkDeskCards', () {
+    test('returns server list when preferIds is empty', () {
+      final server = [
+        _vm(
+          id: 's1',
+          role: MyWorkCardRole.authored,
+          kind: MyWorkCardKind.authoredActive,
+        ),
+      ];
+      final local = [
+        _vm(
+          id: 'l1',
+          role: MyWorkCardRole.authored,
+          kind: MyWorkCardKind.authoredActive,
+        ),
+      ];
+      expect(
+        mergeMyWorkDeskCards(
+          serverCards: server,
+          localCards: local,
+          preferIds: const {},
+        ),
+        server,
+      );
+    });
+
+    test('preserves local card when server omits pending id', () {
+      final server = [
+        _vm(
+          id: 'b1',
+          role: MyWorkCardRole.authored,
+          kind: MyWorkCardKind.authoredActive,
+        ),
+      ];
+      final localPending = _vm(
+        id: 'b-new',
+        role: MyWorkCardRole.authored,
+        kind: MyWorkCardKind.authoredActive,
+      );
+      final merged = mergeMyWorkDeskCards(
+        serverCards: server,
+        localCards: [server.single, localPending],
+        preferIds: {'b-new'},
+      );
+      expect(merged.map((c) => c.beaconId), containsAll(['b1', 'b-new']));
+    });
+  });
+
   test('maxMyWorkDeskActivityEpochMs picks max across lists', () {
     final a = _vm(
       id: 'a',
