@@ -129,6 +129,7 @@ void main() {
       ),
     );
     expect(result.phase, isNotNull);
+    expect(result.isNeverEmpty, isTrue);
   });
 
   test('closed lifecycle uses lifecycleEndedAt slot2', () {
