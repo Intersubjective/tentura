@@ -16,9 +16,11 @@ import 'controllers/graphiql_controller.dart';
 import 'controllers/graphql_controller.dart';
 import 'controllers/invite_accept_existing_controller.dart';
 import 'controllers/invite_preview_controller.dart';
+import 'controllers/qa_email_sink_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
 import 'controllers/app_link_redirect_controller.dart';
+import 'http/request_log_sanitizer.dart';
 import 'middleware/auth_middleware.dart';
 
 @Injectable(order: 4)
@@ -39,6 +41,7 @@ class RootRouter {
     this._sessionController,
     this._authGoogleController,
     this._authEmailController,
+    this._qaEmailSinkController,
     this._unsubscribeController,
   );
 
@@ -72,11 +75,18 @@ class RootRouter {
 
   final AuthEmailController _authEmailController;
 
+  final QaEmailSinkController _qaEmailSinkController;
+
   final UnsubscribeController _unsubscribeController;
 
   Handler routeHandler() {
     final router = Router().plus
-      ..use(logRequests())
+      ..use(
+        logRequests(
+          logger: (message, isError) =>
+              sanitizedRequestLogger(message, isError: isError),
+        ),
+      )
       ..use(
         corsHeaders(
           headers: {
@@ -156,6 +166,10 @@ class RootRouter {
       ..post(
         '/auth/email/verify',
         _authEmailController.verifyPost,
+      )
+      ..get(
+        '/_qa/latest-email',
+        _qaEmailSinkController.latestEmail,
       )
       ..get(
         '/email/unsubscribe',
