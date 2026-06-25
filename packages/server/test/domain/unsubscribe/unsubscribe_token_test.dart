@@ -29,5 +29,6 @@ void main() {
     expect(token.verify(''), isNull);
     expect(token.verify('no-dot'), isNull);
     expect(token.verify('.'), isNull);
+    expect(token.verify('.not-a-valid-body.signature'), isNull);
   });
 }
