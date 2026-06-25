@@ -3321,6 +3321,13 @@
   "capabilityGroupResources": "Ресурсы",
   "capabilityGroupTechnical": "Техническое",
   "capabilityGroupSpecial": "Другое",
+  "capabilityGroupLogisticsDescription": "Перевозка, доставка, инструменты и физическая помощь",
+  "capabilityGroupCommunicationDescription": "Звонки, тексты, перевод и знакомства",
+  "capabilityGroupKnowledgeDescription": "Местные, юридические, медицинские и документальные вопросы",
+  "capabilityGroupCareDescription": "Практическая и эмоциональная забота о людях или животных",
+  "capabilityGroupResourcesDescription": "Деньги, еда, жильё, оборудование или место",
+  "capabilityGroupTechnicalDescription": "Техника, ремонт, программы, дизайн и администрирование",
+  "capabilityGroupSpecialDescription": "Помощь, не подходящая к другим категориям",
   "capabilityTagTransport": "Транспорт",
   "capabilityTagStorage": "Хранение",
   "capabilityTagPickupDelivery": "Доставка",
@@ -3368,6 +3375,19 @@
     }
   },
   "helpOfferRolePrompt": "Как вы помогаете?",
+  "helpOfferSelectionLimit": "Выберите до 4 способов помочь.",
+  "helpOfferSearchLabel": "Поиск способов помочь",
+  "helpOfferSubmit": "Предложить помощь ({count}/{limit})",
+  "@helpOfferSubmit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "forwardViewInvitations": "Открыть приглашения",
   "capabilityCueHelpOffered": "Предложил помощь: {tags}",
   "@capabilityCueHelpOffered": {

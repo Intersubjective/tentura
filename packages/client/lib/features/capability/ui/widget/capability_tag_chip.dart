@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Whether `wire` should show a capability chip row (non-empty after trim).
@@ -32,7 +33,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
       avatar: Icon(tag.icon, size: 18),
       showCheckmark: false,
       selected: selected,
-      onSelected: onSelected ?? (_) {},
+      onSelected: onSelected,
       selectedColor: isAutomatic && selected
           ? theme.colorScheme.secondaryContainer
           : null,
@@ -46,9 +47,23 @@ class CapabilityTagFilterChip extends StatelessWidget {
             )
           : null,
     );
-    if (onSelected == null) {
-      return IgnorePointer(child: chip);
-    }
-    return chip;
+    final semanticChip = Semantics(
+      button: true,
+      selected: selected,
+      label: '${tag.labelOf(l10n)}, ${_groupLabel(l10n, tag.group)}',
+      child: chip,
+    );
+    return semanticChip;
   }
+
+  static String _groupLabel(L10n l10n, CapabilityGroup group) =>
+      switch (group) {
+        CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
+        CapabilityGroup.communication => l10n.capabilityGroupCommunication,
+        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
+        CapabilityGroup.care => l10n.capabilityGroupCare,
+        CapabilityGroup.resources => l10n.capabilityGroupResources,
+        CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+        CapabilityGroup.special => l10n.capabilityGroupSpecial,
+      };
 }

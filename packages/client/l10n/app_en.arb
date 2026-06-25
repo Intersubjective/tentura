@@ -3389,6 +3389,13 @@
   "capabilityGroupResources": "Resources",
   "capabilityGroupTechnical": "Technical",
   "capabilityGroupSpecial": "Other",
+  "capabilityGroupLogisticsDescription": "Moving, delivery, tools, and hands-on tasks",
+  "capabilityGroupCommunicationDescription": "Calls, writing, translation, and introductions",
+  "capabilityGroupKnowledgeDescription": "Local, legal, medical, and document guidance",
+  "capabilityGroupCareDescription": "Practical and emotional care for people or pets",
+  "capabilityGroupResourcesDescription": "Money, food, housing, equipment, or space",
+  "capabilityGroupTechnicalDescription": "Technology, repair, software, design, and admin",
+  "capabilityGroupSpecialDescription": "Help that does not fit another category",
   "capabilityTagTransport": "Transport",
   "capabilityTagStorage": "Storage",
   "capabilityTagPickupDelivery": "Pickup / delivery",
@@ -3436,6 +3443,19 @@
     }
   },
   "helpOfferRolePrompt": "How are you helping?",
+  "helpOfferSelectionLimit": "Choose up to 4 ways you can help.",
+  "helpOfferSearchLabel": "Search ways to help",
+  "helpOfferSubmit": "Offer help ({count}/{limit})",
+  "@helpOfferSubmit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "forwardViewInvitations": "View invitations",
   "capabilityCueHelpOffered": "Offered help: {tags}",
   "@capabilityCueHelpOffered": {
