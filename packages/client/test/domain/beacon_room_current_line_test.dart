@@ -10,6 +10,11 @@ void main() {
     );
   });
 
+  test('clipBeaconRoomCurrentLine leaves text at max length unchanged', () {
+    final exact = 'a' * kBeaconRoomCurrentLineMaxLength;
+    expect(clipBeaconRoomCurrentLine(exact), exact);
+  });
+
   test('clipBeaconRoomCurrentLine truncates at max length with ellipsis', () {
     final long = 'a' * (kBeaconRoomCurrentLineMaxLength + 10);
     final clipped = clipBeaconRoomCurrentLine(long);

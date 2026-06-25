@@ -1,7 +1,9 @@
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
+import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
@@ -32,6 +34,13 @@ typedef _EmailConsider = ({
   NotificationKind kind,
   String beaconId,
   String dedupKey,
+  bool pushDelivered,
+});
+
+typedef _FcmBatchEnqueue = ({
+  String receiverId,
+  Set<String> fcmTokens,
+  FcmNotificationEntity message,
 });
 
 class _FakeFcmBatch implements FcmBatchQueuePort {
@@ -43,10 +52,45 @@ class _FakeFcmBatch implements FcmBatchQueuePort {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+class _CapturingFcmBatch implements FcmBatchQueuePort {
+  final enqueues = <_FcmBatchEnqueue>[];
+
+  @override
+  void enqueue({
+    required String receiverId,
+    required Set<String> fcmTokens,
+    required FcmNotificationEntity message,
+  }) {
+    enqueues.add((
+      receiverId: receiverId,
+      fcmTokens: fcmTokens,
+      message: message,
+    ));
+  }
+
+  @override
+  void dispose() {}
+}
+
 class _FakeFcmTokens implements FcmTokenRepositoryPort {
   @override
   Future<Iterable<FcmTokenEntity>> getTokensByUserId(String userId) async =>
       const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeFcmTokensForUser implements FcmTokenRepositoryPort {
+  _FakeFcmTokensForUser(this.userId, this.tokens);
+
+  final String userId;
+  final Iterable<FcmTokenEntity> tokens;
+
+  @override
+  Future<Iterable<FcmTokenEntity>> getTokensByUserId(String id) async =>
+      id == userId ? tokens : const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -185,6 +229,7 @@ class _CapturingEmail implements EmailNotificationPort {
       kind: kind,
       beaconId: beaconId,
       dedupKey: dedupKey,
+      pushDelivered: pushDelivered,
     ));
   }
 
@@ -197,13 +242,15 @@ void main() {
   BeaconNotificationService build({
     required NotificationOutboxRepositoryPort outbox,
     _CapturingEmail? email,
+    FcmBatchQueuePort? fcmBatch,
+    FcmTokenRepositoryPort? fcmTokens,
     BeaconNotificationContext ctx = const BeaconNotificationContext(
       beaconAuthorId: 'author',
     ),
   }) =>
       BeaconNotificationService(
-        _FakeFcmBatch(),
-        _FakeFcmTokens(),
+        fcmBatch ?? _FakeFcmBatch(),
+        fcmTokens ?? _FakeFcmTokens(),
         _FakeFcmRemote(),
         _FakeUsers(),
         _FakeContext(ctx),
@@ -396,6 +443,62 @@ void main() {
 
       expect(outbox.enqueues.single.dedupKey, 'reviewer-1|unblocksMe|beacon-1|');
       expect(outbox.enqueues.single.category, NotificationCategory.unblocksMe);
+    });
+  });
+
+  group('push delivery', () {
+    test('queues FCM when recipient has a device token', () async {
+      const recipientId = 'recipient-1';
+      final outbox = _CapturingOutbox();
+      final email = _CapturingEmail();
+      final batch = _CapturingFcmBatch();
+      final service = build(
+        outbox: outbox,
+        email: email,
+        fcmBatch: batch,
+        fcmTokens: _FakeFcmTokensForUser(
+          recipientId,
+          [
+            FcmTokenEntity(
+              userId: recipientId,
+              appId: const Uuid().v4obj(),
+              platform: 'test',
+              token: 'tok-1',
+              createdAt: DateTime.utc(2026),
+              lastRefreshedAt: DateTime.utc(2026),
+            ),
+          ],
+        ),
+      );
+
+      await service.dispatch(
+        intent(
+          kind: NotificationKind.needsMe,
+          targetPersonId: recipientId,
+        ),
+      );
+
+      expect(batch.enqueues, hasLength(1));
+      expect(batch.enqueues.single.receiverId, recipientId);
+      expect(batch.enqueues.single.fcmTokens, {'tok-1'});
+      expect(email.considers.single.pushDelivered, isTrue);
+    });
+
+    test('email fallback sees pushDelivered false without device token', () async {
+      final email = _CapturingEmail();
+      final service = build(
+        outbox: _CapturingOutbox(),
+        email: email,
+      );
+
+      await service.dispatch(
+        intent(
+          kind: NotificationKind.needsMe,
+          targetPersonId: 'recipient-1',
+        ),
+      );
+
+      expect(email.considers.single.pushDelivered, isFalse);
     });
   });
 
