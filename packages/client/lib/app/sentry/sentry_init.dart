@@ -18,6 +18,11 @@ bool _isBenignSentryEvent(SentryEvent event, Hint hint) {
     return true;
   }
 
+  final message = event.message?.formatted ?? '';
+  if (message.toLowerCase().contains('key pair is not set')) {
+    return true;
+  }
+
   final exceptions = event.exceptions;
   if (exceptions == null) {
     return false;
@@ -26,11 +31,14 @@ bool _isBenignSentryEvent(SentryEvent event, Hint hint) {
   for (final ex in exceptions) {
     final type = ex.type ?? '';
     if (type.contains('ConnectionUplinkException') ||
-        type.contains('AuthSessionLostException')) {
+        type.contains('AuthSessionLostException') ||
+        type.contains('AuthenticationNoKeyException')) {
       return true;
     }
     final value = ex.value ?? '';
-    if (value.toLowerCase().contains('socketexception')) {
+    final lower = value.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('key pair is not set')) {
       return true;
     }
   }
