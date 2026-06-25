@@ -5,3 +5,7 @@ test/test_test.dart
 **.config.dart
 **.schema.dart
 **.freezed.dart
+
+.local
+coverage
+bin/tentura
