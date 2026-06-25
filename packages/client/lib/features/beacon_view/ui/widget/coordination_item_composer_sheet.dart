@@ -19,7 +19,8 @@ Future<void> showCoordinationItemComposerSheet(
   required String beaconAuthorId,
   required String myUserId,
   required bool isAuthorOrSteward,
-  required VoidCallback onSaved, CoordinationItem? existingDraft,
+  required VoidCallback onSaved,
+  CoordinationItem? existingDraft,
   AskComposerSeed? seed,
 }) async {
   final l10n = L10n.of(context)!;
@@ -118,7 +119,8 @@ class _CoordinationItemComposerBody extends StatefulWidget {
       _CoordinationItemComposerBodyState();
 }
 
-class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposerBody> {
+class _CoordinationItemComposerBodyState
+    extends State<_CoordinationItemComposerBody> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   String? _selectedTargetId;
@@ -134,15 +136,15 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
       widget.kind == CoordinationItemKind.promise;
 
   List<String> get _askTargetIds => askTargetUserIds(
-        beaconAuthorId: widget.beaconAuthorId,
-        participants: widget.participants,
-      );
+    beaconAuthorId: widget.beaconAuthorId,
+    participants: widget.participants,
+  );
 
   List<BeaconParticipant> get _promiseTargets => promiseTargetParticipants(
-        participants: widget.participants,
-        myUserId: widget.myUserId,
-        isAuthorOrSteward: widget.isAuthorOrSteward,
-      );
+    participants: widget.participants,
+    myUserId: widget.myUserId,
+    isAuthorOrSteward: widget.isAuthorOrSteward,
+  );
 
   List<BeaconParticipant> get _blockerTargets =>
       participantsForCoordinationTargetPicker(
@@ -152,14 +154,24 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
       );
 
   bool get _hasLegalTargets => switch (widget.kind) {
-        CoordinationItemKind.ask => _askTargetIds.isNotEmpty,
-        CoordinationItemKind.promise => _promiseTargets.isNotEmpty,
-        CoordinationItemKind.blocker => _blockerTargets.isNotEmpty,
-        _ => false,
-      };
+    CoordinationItemKind.ask => _askTargetIds.isNotEmpty,
+    CoordinationItemKind.promise => _promiseTargets.isNotEmpty,
+    CoordinationItemKind.blocker => _blockerTargets.isNotEmpty,
+    _ => false,
+  };
 
   bool get _willPublish =>
       _selectedTargetId != null && _selectedTargetId!.isNotEmpty;
+
+  String? get _singleLegalTargetId => switch (widget.kind) {
+    CoordinationItemKind.ask when _askTargetIds.length == 1 =>
+      _askTargetIds.single,
+    CoordinationItemKind.promise when _promiseTargets.length == 1 =>
+      _promiseTargets.single.userId,
+    CoordinationItemKind.blocker when _blockerTargets.length == 1 =>
+      _blockerTargets.single.userId,
+    _ => null,
+  };
 
   @override
   void initState() {
@@ -169,7 +181,11 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
     _bodyController = TextEditingController(text: seed?.initialBody ?? '');
     final existingTarget = widget.existingDraft?.targetPersonId?.trim();
     if (existingTarget != null && existingTarget.isNotEmpty) {
-      _selectedTargetId = _isValidTarget(existingTarget) ? existingTarget : null;
+      _selectedTargetId = _isValidTarget(existingTarget)
+          ? existingTarget
+          : null;
+    } else {
+      _selectedTargetId = _singleLegalTargetId;
     }
     _selectedStaleDays = CoordinationStalenessPicker.seedFromDraft(
       widget.existingDraft?.staleAfterDays,
@@ -177,13 +193,15 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
   }
 
   bool _isValidTarget(String userId) => switch (widget.kind) {
-        CoordinationItemKind.ask => _askTargetIds.contains(userId),
-        CoordinationItemKind.promise =>
-          _promiseTargets.any((p) => p.userId == userId),
-        CoordinationItemKind.blocker =>
-          _blockerTargets.any((p) => p.userId == userId),
-        _ => false,
-      };
+    CoordinationItemKind.ask => _askTargetIds.contains(userId),
+    CoordinationItemKind.promise => _promiseTargets.any(
+      (p) => p.userId == userId,
+    ),
+    CoordinationItemKind.blocker => _blockerTargets.any(
+      (p) => p.userId == userId,
+    ),
+    _ => false,
+  };
 
   @override
   void dispose() {
@@ -354,7 +372,11 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              coordinationComposerSheetTitle(l10n, widget.kind, existing != null),
+              coordinationComposerSheetTitle(
+                l10n,
+                widget.kind,
+                existing != null,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: kSpacingSmall),
@@ -394,6 +416,13 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               const SizedBox(height: kSpacingSmall),
+              Text(
+                l10n.coordinationComposerTargetGuidance,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
               _TargetPicker(
                 kind: widget.kind,
                 askTargetIds: _askTargetIds,
@@ -425,8 +454,8 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
                   child: Text(
                     l10n.coordinationComposerNoTargetWillSaveDraft,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -441,7 +470,9 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      _willPublish ? l10n.buttonPublish : l10n.coordinationComposerSaveDraft,
+                      _willPublish
+                          ? _publishLabel(l10n, widget.kind)
+                          : l10n.coordinationComposerSaveDraft,
                     ),
             ),
           ],
@@ -449,6 +480,14 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
       ),
     );
   }
+
+  static String _publishLabel(L10n l10n, CoordinationItemKind kind) =>
+      switch (kind) {
+        CoordinationItemKind.ask => l10n.coordinationPublishAsk,
+        CoordinationItemKind.promise => l10n.coordinationPublishPromise,
+        CoordinationItemKind.blocker => l10n.coordinationPublishBlocker,
+        _ => l10n.buttonPublish,
+      };
 }
 
 class _TargetPicker extends StatelessWidget {
@@ -505,7 +544,8 @@ class _TargetPicker extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String?>(
-      initialValue: selectedId != null &&
+      initialValue:
+          selectedId != null &&
               participantTargets.any((p) => p.userId == selectedId)
           ? selectedId
           : null,

@@ -3161,6 +3161,10 @@
   "coordinationAskFromMessagePreview": "From message",
   "coordinationComposerNoTargetWillSaveDraft": "No target counterparty selected — will be saved as a draft.",
   "coordinationComposerSaveDraft": "Save draft",
+  "coordinationComposerTargetGuidance": "Choose a person to publish this item. Leave the target empty to keep it as a private draft.",
+  "coordinationPublishAsk": "Publish ask",
+  "coordinationPublishPromise": "Publish promise",
+  "coordinationPublishBlocker": "Publish blocker",
   "coordinationComposerTargetNone": "No target (draft)",
   "coordinationStalenessLabel": "Follow-up",
   "@coordinationStalenessLabel": {
