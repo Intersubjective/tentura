@@ -9,6 +9,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
+import '../../domain/forward_graph_focus_rules.dart';
 import '../utils/animated_highlighted_edge_painter.dart';
 import '../utils/initial_position_extractor.dart';
 import '../utils/ease_in_out_reynolds.dart';
@@ -182,7 +183,10 @@ class GraphBodyState extends State<GraphBody>
     nodeBuilder: (_, node) => GraphNodeWidget(
       key: ValueKey(node),
       nodeDetails: node,
-      withRating: node.id != _graphCubit.state.me.id,
+      withRating: graphNodeShowsMeritRankRating(
+        nodeId: node.id,
+        viewerId: _graphCubit.state.me.id,
+      ),
       onTap: () => _onNodeTap(node),
     ),
   );
