@@ -2,8 +2,6 @@
 chroma_db/
 rag_env/
 
-packages/server/.local
-
 # Miscellaneous
 *.class
 *.log
@@ -16,7 +14,6 @@ packages/server/.local
 .svn/
 migrate_working_dir/
 
-packages/server/bin/tentura
 
 # IntelliJ related
 *.iml
