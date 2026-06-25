@@ -9,6 +9,10 @@ Pub workspace with three packages: `packages/client` (Flutter app, package
 `tentura`), `packages/server` (Dart), `packages/tentura_lints` (custom analyzer
 plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 
+## Product docs
+
+Orientation and feature specs live under [`docs/`](docs/) — start at [`docs/README.md`](docs/README.md). High-signal entry points: [`docs/Tentura_current_status_quo.md`](docs/Tentura_current_status_quo.md), [`docs/features/beacon_room.md`](docs/features/beacon_room.md).
+
 ## UI work → Material Design 3 + the design system
 
 The client already uses Material 3 (`TenturaTheme`, `useMaterial3: true`,

@@ -1,9 +1,7 @@
 # Invite, signup, and landing flow
 
 > **Status:** Implemented (client + landing). Describes current routing and UX as
-> shipped. Phase completion summary and remaining work:
-> [`invite-onboarding-auth-plan.md`](invite-onboarding-auth-plan.md) (status table
-> at top). Domain terms: [`CONTEXT.md`](../CONTEXT.md) § Public web entry.
+> shipped. Domain terms: [`CONTEXT.md`](../CONTEXT.md) § Public web entry.
 
 ## Purpose
 
@@ -393,5 +391,5 @@ flowchart TD
 ## Related documents
 
 - [`CONTEXT.md`](../CONTEXT.md) — vocabulary (basic invite URL, signup-with-invite route, accept-invite route)
-- [`invite-onboarding-auth-plan.md`](invite-onboarding-auth-plan.md) — north star, Caddy order, session model, phased rollout
 - [`adr/0002-root-session-routing.md`](adr/0002-root-session-routing.md) — cookie-presence routing at `/`
+- [`adr/0009-landing-sentry-observability.md`](adr/0009-landing-sentry-observability.md) — landing funnel observability

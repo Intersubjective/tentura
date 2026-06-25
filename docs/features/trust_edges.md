@@ -1,5 +1,9 @@
 # User→user trust edges (Dirichlet / VSIDS)
 
+**Product:** MeritRank is a hidden procedural layer for routing and local trust calibration — not a public reputation score ([`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md) §10). User→user weights accumulate evidence from votes and finalized reviews; they are never shown as a global leaderboard.
+
+## Engineering
+
 User→user MeritRank weights are derived from a 5-bin Dirichlet model stored in
 `user_trust_edge`. Evidence (votes, finalized reviews) inflates accumulators
 `s_*` against a fixed per-edge `anchor_at`; decay is applied lazily (VSIDS-style:

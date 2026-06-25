@@ -24,9 +24,9 @@ Tentura uses three Sentry projects: **server**, **client** (this ADR), and **lan
 
 6. **SentryWidget** wraps the root only on the Sentry-initialized path (not debug overlay path).
 
-7. **Source-map upload deferred**: Sentry supports DWARF for WASM, not source maps; dart2wasm emits source maps. Official WASM symbolication is unsupported; only a non-stable community workaround exists. Errors are captured now; stack frames remain minified until we switch to dart2js or Sentry ships WASM source-map support. The `sentry:` pubspec block (`org`, `project: tentura-client`) is kept for future `dart run sentry_dart_plugin` enablement.
+7. **Source maps on WASM — deferred.** Sentry supports DWARF for WASM, not source maps; dart2wasm emits source maps. Official WASM symbolication is unsupported; only a non-stable community workaround exists. Errors are captured now; stack frames remain minified until we switch to dart2js or Sentry ships WASM source-map support. The `sentry:` pubspec block (`org`, `project: tentura-client`) is kept for future `dart run sentry_dart_plugin` enablement.
 
-8. **Distributed tracing deferred**: GraphQL uses raw `gql_http_link` `HttpLink` without `SentryHttpClient`; `tracePropagationTargets` alone would be a no-op. Revisit with server Sentry (instrument link + CORS for `sentry-trace` / `baggage`).
+8. **Distributed tracing — partially implemented (2026-06 verify).** GraphQL HTTP clients use `SentryHttpClient` when `SENTRY_DSN` is set (`build_client.dart`); `tracePropagationTargets` includes the API origin and V1/V2 GraphQL paths (`sentry_init.dart`). End-to-end trace correlation still depends on server Sentry accepting `sentry-trace` / `baggage` (see ADR 0007) and CORS — treat Issues as minified + optionally linked spans until verified in staging.
 
 ## Consequences
 

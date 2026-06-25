@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Ontology domain for icon picker (single level; no nested sub-catalog).
-/// Order: coordination-heavy domains first (see docs/beacon-icons-fluttericonpicker.md).
+/// Order: coordination-heavy domains first (see docs/beacon-ontology-icon-mapping.md).
 enum BeaconIdentityCategory {
   meta,
   community,

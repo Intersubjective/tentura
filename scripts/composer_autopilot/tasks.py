@@ -103,7 +103,7 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                     "Coordination Phase A: keep beacon display-status derivation in "
                     "packages/server/lib/domain/coordination/derive_beacon_display_status.dart "
                     "with unit tests mirroring evaluation_visibility_rules_test.dart. "
-                    "Document staleness behavior vs docs/over-offer-coordination-feature-design.md §8.5."
+                    "Document staleness behavior vs docs/features/beacon_room.md (coordination display)."
                 ),
                 write_set=[
                     "packages/server/lib/domain/coordination/derive_beacon_display_status.dart",
@@ -113,8 +113,8 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                 read_set=[
                     "packages/server/lib/domain/evaluation/evaluation_visibility_rules.dart",
                     "packages/server/test/domain/evaluation/evaluation_visibility_rules_test.dart",
-                    "docs/future-arch-improvements.md",
-                    "docs/over-offer-coordination-feature-design.md",
+                    "docs/beacon-status-line-rationale.md",
+                    "docs/features/beacon_room.md",
                 ],
                 success_criteria=[
                     "Pure deriveBeaconDisplayStatus with table-driven tests",
@@ -167,7 +167,7 @@ def build_task_queue(repo: Path) -> list[AutopilotTask]:
                 ],
                 read_set=[
                     "packages/server/lib/domain/port/",
-                    "docs/future-arch-improvements.md",
+                    "docs/features/beacon_room.md",
                 ],
                 depends_on=["coord-phase-a"],
                 success_criteria=[

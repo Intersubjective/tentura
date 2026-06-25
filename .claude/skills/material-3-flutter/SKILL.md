@@ -17,8 +17,7 @@ Tentura already ships a Material 3 theme and a design system. Your job is to
 `useMaterial3: true` from `ColorScheme.fromSeed`, plus a `TenturaTokens`
 `ThemeExtension` for operational density.
 
-Read `docs/tentura-design-system.md` before non-trivial UI changes. For
-typography work also read `docs/typography-overhaul-journal.md`.
+Read `docs/tentura-design-system.md` before non-trivial UI changes.
 
 ## Core tools (import the barrel)
 

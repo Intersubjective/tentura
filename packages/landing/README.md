@@ -143,4 +143,4 @@ the account id and clears `visit_id`. Server and client projects join on
 - **Deferred:** passkey/Apple; install-after-click server tracking; iOS Universal Links.
 
 Device-seed **signup on the landing** and `#th=` URL handoff were removed; see
-`docs/handoff-contract.md` (retired).
+[`docs/invite-signup-landing-flow.md`](../../docs/invite-signup-landing-flow.md) (current flow).

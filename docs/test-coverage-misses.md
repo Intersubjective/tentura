@@ -95,7 +95,7 @@ cd packages/client && flutter test --dart-define=ENV=test --dart-define-from-fil
 | **Gap** | Invariant “same sender cannot create a second active edge to same recipient” is not executed against DB or repository. |
 | **Recommended test** | `@Tags(['pg'])` integration: insert edge, call `createBatch` again with same triple, assert returned list excludes duplicate and DB has one active row. |
 | **Acceptance** | Second forward skipped; first edge unchanged; optional third-party sender to same recipient still allowed. |
-| **Refs** | `docs/v1/missing-features-plan.md` (per-sender dedup product spec) |
+| **Refs** | Per-sender dedup invariant (partial unique index `m0100`) |
 
 ### COV-011 — `BeaconInvolvementCase` aggregation
 

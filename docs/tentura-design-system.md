@@ -148,22 +148,21 @@ Do **not** scale the whole UI proportionally from screen width (no `fontSize: 14
 
 ## Beacon detail — type hierarchy
 
-On **Beacon view** (`features/beacon_view`), keep a clear ladder:
+On **Beacon view** (`features/beacon_view`), tabs are **Items**, **People**, **Log**. Keep a clear ladder:
 
 | Element | Role |
 |--------|------|
 | App bar title ([`BeaconViewScreen`](../packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart)) | `titleLarge` (20 / 700) |
 | Beacon title (header) | `titleMedium` (18 / 700) — pass `titleStyle` into [`BeaconCardHeaderRow`](../packages/client/lib/ui/widget/beacon_card_primitives.dart) from the detail screen only; **list cards** keep default `titleSmall`. |
-| Overview foldable section titles | `titleSmall` (15 / 600) |
-| Overview coordination **collapsed** summary (accent line under section title) | `TenturaText.status` (13 / 500) — same scale as status strip; other foldable section summaries (need / description preview) stay `TenturaText.body` (15) muted |
-| Overview coordination **expanded** diagnosis title (e.g. need-different-skill label) | `TenturaText.typeLabel` (13 / 700) — aligns with commitment coordination labels |
-| Overview / Coordination prose (diagnosis body, author update text, need excerpt) | `bodyMedium` (15 / 400) |
-| Metadata (counts under headers, timestamps, status strip) | `bodySmall` / `TenturaText.status` (13) |
-| Commitment tile display name | `titleSmall` — below the beacon title, above body message |
-| Commitments summary heading | `titleSmall` — matches overview sections |
-| Commitments tab summary subline (useful / need coordination counts) | `bodySmall` (13) with semantic colors — matches overview “useful · coordination” meta |
-| Activity tab section headers | `titleSmall` — same weight as other section titles (no extra bold bump) |
-| Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), beacon detail CTAs in [`BeaconOperationalHeaderCard`](../packages/client/lib/features/beacon_view/ui/widget/beacon_operational_header_card.dart)) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
+| Operational header ([`BeaconOperationalHeaderCard`](../packages/client/lib/features/beacon_view/ui/widget/beacon_operational_header_card.dart)) — STATUS / NOW / YOU / ACT | STATUS & NOW: `TenturaText.status` (13); YOU segment: `bodySmall`; ACT buttons: `labelLarge` (15 / 700) |
+| Items tab foldable section titles | `titleSmall` (15 / 600) |
+| Items tab coordination **collapsed** summary (accent line under section title) | `TenturaText.status` (13 / 500) |
+| Items tab coordination **expanded** diagnosis title | `TenturaText.typeLabel` (13 / 700) |
+| Items tab prose (need excerpt, pinned facts, coordination copy) | `bodyMedium` (15 / 400) |
+| Metadata (counts, timestamps) | `bodySmall` / `TenturaText.status` (13) |
+| People tab display name | `titleSmall` — below beacon title, above body message |
+| Log tab section headers | `titleSmall` — same weight as other section titles |
+| Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), beacon detail CTAs) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
 
 ## Forward Beacon picker — type hierarchy
 

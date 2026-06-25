@@ -5,6 +5,8 @@
 Post-beacon evaluation exists only to leave a local trace of how a concrete cooperation path worked.
 It is not a public reputation ritual, not a morality scoreboard, and not a performance review system.
 
+**Not the same as open-beacon coordination:** While a beacon is **open**, authors coordinate help offers and room work (fit/coverage, blockers, plan). That is operational coordination — see [`features/beacon_room.md`](features/beacon_room.md). Evaluation applies **after** successful closure in the review window.
+
 ## Core principles
 
 * Evaluate contribution to this beacon, not the person in general.
@@ -116,7 +118,7 @@ Never do any of the following:
 * require a reason tag for strong positive and negative ratings
 * keep raw submissions private; show only beacon-local summaries to the evaluated person
 * keep evaluation bounded to a review window after closure
-* support contesting unfair closure or obviously unfair evaluation later
+* support contesting unfair closure or obviously unfair evaluation later *(north-star safeguard; full contest UX may ship after core review window)*
 * keep effects local, decayed, and aggregated over time
 
 ## Recommended framing in product language

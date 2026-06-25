@@ -2,7 +2,9 @@
 
 Canonical product and implementation reference for when a beacon becomes **terminal** before the recipient takes an **explicit** triage stance (Watching, Not for me, commit, etc.).
 
-## Purpose
+## Product rules
+
+### Purpose
 
 Preserve two truths at once:
 
@@ -10,6 +12,8 @@ Preserve two truths at once:
 2. The user **never chose a stance** — opening the beacon, reading forwards, or seeing a draft does **not** count.
 
 When those truths conflict with convenience, **preserve truth**. The system must not infer Watching, Not for me, My Work ownership, or forwarded involvement from silence.
+
+## Implementation
 
 ## Data model (Phase 1)
 
@@ -19,11 +23,11 @@ When those truths conflict with convenience, **preserve truth**. The system must
 - **`before_response_terminal_at`** — set when the row first enters `3` or `4` (used for “last 24h” grouping and sorting).
 - **`tombstone_dismissed_at`** — when set, the passive card is **hidden** in the inbox UI. Dismiss does **not** change `status` or stance history.
 
-**Hard SQL delete of `beacon` rows:** `inbox_item` references `beacon` with `ON DELETE CASCADE`. Phase 1 tombstones assume **lifecycle** `deleted` (`beacon.state = 2`) with the **beacon row still present** so titles and detail links remain joinable. Hard deletes that remove the beacon row are out of scope for tombstone UX until snapshotting or FK strategy changes.
+**Hard SQL delete of `beacon` rows:** `inbox_item` references `beacon` with `ON DELETE CASCADE`. Phase 1 tombstones assume **lifecycle deleted** with the **beacon row still present** so titles and detail links remain joinable. Hard deletes that remove the beacon row are out of scope for tombstone UX until snapshotting or FK strategy changes.
 
 ## When rows become terminal (server)
 
-On `beacon.state` transition, for each `inbox_item` with `beacon_id = beacon.id`:
+On beacon **status** transition, for each `inbox_item` with `beacon_id = beacon.id`:
 
 - Eligible only if **`status = 0` (needs_me)** and the user has **no active** `beacon_help_offer` (`status = 0` on help offer).
 - **Do not** change rows that are already **watching** (`1`) or **rejected** (`2`).
@@ -34,7 +38,7 @@ Mappings:
 - New state **`2` (deleted)** → set `status = 4` (from `0`, or upgrade from `3` to `4`).
 - **`5` → `6` (review window ends)** — if `inbox_item.status = 1` (**Watching**) and the user has a **withdrawn** `beacon_help_offer` (`status = 1`) and **no active** help offer (`status = 0`), set `status = 3`. This matches users who **offered help then withdrew**: `beaconWithdraw` calls `upsertWatchingForSender`, which is **not** the same as explicitly choosing Watching before closure (see watching doc); once the beacon reaches **review complete**, they should see a **passive tombstone**, not a triage-style Watching row. Users who chose **Watching** without ever having a help offer row keep **Watching** (Case 6).
 
-**Withdraw (`beaconWithdraw`)** when the beacon is **not OPEN** (`state <> 0`): the server calls `inbox_item_apply_tombstone_after_withdraw` so the inbox row becomes **`closed_before_response` / `deleted_before_response`** instead of **`upsertWatchingForSender`** (which would leave a triage-style **Watching** row on a terminal beacon). Open beacons (`state = 0`) still use Watching after withdraw.
+**Withdraw (`beaconWithdraw`)** when the beacon is **not in the open family**: the server tombstones the inbox row instead of leaving a triage-style **Watching** row on a terminal beacon. Open beacons still use Watching after withdraw.
 
 Logic lives in Postgres (see migrations `m0024`–`m0026`) and [`HelpOfferCase.withdraw`](../packages/server/lib/domain/use_case/help_offer_case.dart) so all writers behave consistently.
 
@@ -94,9 +98,9 @@ Dispute over obligation to act, blame, inferred recommendations from silence, pu
 
 ## Related documents
 
-- [`docs/v1/product-decisions.md`](v1/product-decisions.md) — inbox locks and document map.
-- [`docs/v1/watching-mechanism.md`](v1/watching-mechanism.md) — Watching vs triage.
-- [`docs/help-offer-coordination-feature-design.md`](help-offer-coordination-feature-design.md) — commit gates and lifecycle.
+- [`docs/Tentura_current_status_quo.md`](Tentura_current_status_quo.md) — inbox vs My Work, relay model.
+- [`docs/watching-mechanism.md`](watching-mechanism.md) — Watching vs triage.
+- [`docs/features/beacon_room.md`](features/beacon_room.md) — help offers and open-beacon coordination.
 
 ## Implementation pointers
 
