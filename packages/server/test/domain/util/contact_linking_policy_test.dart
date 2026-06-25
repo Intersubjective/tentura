@@ -31,6 +31,30 @@ void main() {
         ),
         isFalse,
       );
+      expect(
+        isAuthoritativeEmail(
+          source: CredentialType.oidcApple,
+          providerEmailVerified: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('device and webauthn credentials are never authoritative', () {
+      expect(
+        isAuthoritativeEmail(
+          source: CredentialType.ed25519Device,
+          providerEmailVerified: true,
+        ),
+        isFalse,
+      );
+      expect(
+        isAuthoritativeEmail(
+          source: CredentialType.webauthn,
+          providerEmailVerified: true,
+        ),
+        isFalse,
+      );
     });
 
     test('emailContactsForCredential normalizes and filters invalid email', () {
