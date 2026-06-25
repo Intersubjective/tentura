@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      collect_coverage:
+        description: Collect test coverage and upload lcov artifacts
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -51,6 +57,58 @@ jobs:
               ( cd packages/server && ! rg "package:tentura_server/data/" lib/domain ) &&
               cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
             '
+
+  coverage:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Run tests with coverage in builder container
+        run: |
+          set -euo pipefail
+          bash scripts/test_resolve_deploy_web_config.sh
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              git config --global --add safe.directory "*"
+              dart pub get
+              flutter pub get
+              ( cd packages/tentura_lints && dart test ) &&
+              ( cd packages/server && dart run build_runner build -d && dart test --exclude-tags pg --coverage=coverage ) &&
+              ( cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --coverage )
+            '
+
+      - name: Install lcov
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lcov
+
+      - name: Filter lcov and write hand-written summary
+        run: bash scripts/ci_coverage_report.sh
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-coverage-lcov
+          path: |
+            packages/server/coverage/lcov.info
+            packages/client/coverage/lcov.info
+            packages/server/coverage/lcov.handwritten.info
+            packages/client/coverage/lcov.handwritten.info
+            coverage/lcov.handwritten.merged.info
+            coverage/handwritten-summary.txt
+          retention-days: 30
 
   build-web:
     runs-on: ubuntu-latest
