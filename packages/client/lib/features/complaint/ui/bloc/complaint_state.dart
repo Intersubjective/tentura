@@ -11,6 +11,7 @@ abstract class ComplaintState extends StateBase with _$ComplaintState {
     @Default('') String email,
     @Default('') String details,
     @Default(ComplaintType.violatesCsaePolicy) ComplaintType type,
+    ComplaintType? fixedType,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ComplaintState;
 

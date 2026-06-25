@@ -357,19 +357,19 @@
   },
   "closeBeacon": "Close Beacon",
   "@closeBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "openBeacon": "Open Beacon",
   "@openBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "deleteBeacon": "Delete Beacon",
   "@deleteBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "showOnMap": "Show on the map",
   "@showOnMap": {
-    "context": "BeaconInfo"
+    "context": "BeaconDefinitionBody"
   },
   "createNewBeacon": "Create new Beacon",
   "@createNewBeacon": {
@@ -393,7 +393,7 @@
   },
   "editBeacon": "Edit Beacon",
   "@editBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "draftSavedMessage": "Draft saved",
   "@draftSavedMessage": {
@@ -607,6 +607,14 @@
   "@buttonSubmitComplaint": {
     "context": "ComplaintScreen"
   },
+  "submitAccountDeletionRequest": "Request Profile Deletion",
+  "@submitAccountDeletionRequest": {
+    "context": "ComplaintScreen"
+  },
+  "buttonSubmitAccountDeletionRequest": "SUBMIT DELETION REQUEST",
+  "@buttonSubmitAccountDeletionRequest": {
+    "context": "ComplaintScreen"
+  },
   "filterByTag": "Filter by tag",
   "@filterByTag": {
     "context": "MyFieldScreen"
@@ -709,7 +717,7 @@
   },
   "helpOffererForwardPathTooltip": "Show forward path",
   "@helpOffererForwardPathTooltip": {
-    "context": "BeaconPeopleParticipantCard — IconButton tooltip for helper forward path graph"
+    "context": "HelpOfferTile — IconButton tooltip for helper forward path graph"
   },
   "myField": "My Field",
   "@myField": {
@@ -775,7 +783,7 @@
   "@confirmProfileRemoval": {
     "context": "MyProfileDelete"
   },
-  "profileRemovalHint": "All your beacons and personal data will be deleted completely.",
+  "profileRemovalHint": "An administrator will review your request. Your profile and data will be removed after approval.",
   "@profileRemovalHint": {
     "context": "MyProfileDelete"
   },
@@ -891,6 +899,10 @@
   "@logout": {
     "context": "SettingsScreen"
   },
+  "settingsRequestProfileDeletion": "Request profile deletion",
+  "@settingsRequestProfileDeletion": {
+    "context": "SettingsScreen"
+  },
   "signInMethods": "Sign-in methods",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"
@@ -986,10 +998,6 @@
   "russian": "Русский",
   "@russian": {
     "context": "LanguageSwitchButton"
-  },
-  "notImplementedYet": "Not implemented yet",
-  "@notImplementedYet": {
-    "context": "UpdatesScreen"
   },
   "scanQrCode": "Scan the QR Code",
   "@scanQrCode": {
@@ -2643,7 +2651,6 @@
   "labelSetCoordinationResponse": "Set coordination signal",
   "labelBeaconCoordinationSummary": "Coverage on this beacon",
   "coordinationSetOverallStatus": "Set overall coordination status",
-  "labelBeaconTabOverview": "Overview",
   "labelBeaconTabStatus": "Status",
   "labelBeaconTabActivity": "Timeline",
   "labelBeaconTabLog": "Log",
@@ -2727,7 +2734,6 @@
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
   "beaconYouClosed": "Closed",
-  "beaconYouItemsSheetTitle": "Your responsibilities",
   "beaconYouActionReply": "Reply",
   "beaconYouActionDone": "Done",
   "beaconYouActionDecline": "Decline",
@@ -3068,116 +3074,9 @@
     }
   },
   "beaconRelationNoTrail": "No forward chain recorded for you.",
-  "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
-  "@beaconOverviewCoordinationHeaderPair": {
-    "placeholders": {
-      "a": {
-        "type": "String"
-      },
-      "b": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewNeedsShortMoreHelp": "Needs more help",
-  "beaconOverviewActiveHelpOffers": "{count, plural, one{1 active help offer} other{{count} active help offers}}",
-  "@beaconOverviewActiveHelpOffers": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewUsefulAndCoord": "{useful} useful · {need} needs coordination",
-  "@beaconOverviewUsefulAndCoord": {
-    "placeholders": {
-      "useful": {
-        "type": "int"
-      },
-      "need": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconViewAndCoordinateHelpOffers": "View and coordinate help offers",
-  "beaconOverviewDiagnosisNeedDifferentSkillBody": "Existing offers help, but do not cover the remaining gap.",
-  "beaconOverviewDiagnosisNeedCoordinationBody": "Commitments need clearer coordination before work can move forward.",
-  "beaconOverviewDiagnosisGenericMoreHelpBody": "Coverage does not match the remaining gap yet.",
-  "beaconOverviewNeedEmpty": "No details yet",
-  "beaconOverviewNeedMeta": "Created by {author} · {context}",
-  "@beaconOverviewNeedMeta": {
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "context": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewNeedMetaAuthorOnly": "Created by {author}",
-  "@beaconOverviewNeedMetaAuthorOnly": {
-    "placeholders": {
-      "author": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewPhotosCount": "{count, plural, one{1 photo} other{{count} photos}}",
-  "@beaconOverviewPhotosCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewDescriptionTextOnly": "Text description",
-  "beaconOverviewActivityEventCount": "{count, plural, one{1 event} other{{count} events}}",
-  "@beaconOverviewActivityEventCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 person in your forward network} other{{people} people in your forward network}}",
-  "@beaconOverviewForwardAuthorSummary": {
-    "placeholders": {
-      "people": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 hop from author} other{{hops} hops from author}}",
-  "@beaconOverviewHopsFromAuthor": {
-    "placeholders": {
-      "hops": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewPeopleInChain": "{people, plural, one{1 person in chain} other{{people} people in chain}}",
-  "@beaconOverviewPeopleInChain": {
-    "placeholders": {
-      "people": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewForwardEmpty": "No forward path recorded for you",
-  "beaconOverviewActivityLogTitle": "Activity log",
   "beaconRoomTitle": "Room",
   "beaconRoomMessageHint": "Write a message…",
   "beaconRoomOpen": "Room",
-  "beaconOverviewPublicFactsTitle": "Public facts",
-  "beaconOverviewPublicFactsCount": "{count, plural, one{1 pinned fact} other{{count} pinned facts}}",
-  "@beaconOverviewPublicFactsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconFactsSheetTitle": "Pinned facts",
   "beaconFactsSheetEmpty": "No pinned facts yet.",
   "beaconRoomPinFactTitle": "Pin as fact",
@@ -3199,10 +3098,6 @@
   "beaconRoomDateYesterday": "Yesterday",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
   "beaconRoomMessagePinnedFactChipPrivate": "Pinned · room fact",
-  "beaconRoomFactsFilterAll": "All",
-  "beaconRoomFactsFilterActive": "Active",
-  "beaconRoomFactsFilterCorrected": "Edited",
-  "beaconRoomFactsFilteredEmpty": "No facts match this filter.",
   "beaconRoomFactCardActionEdit": "Edit text",
   "beaconRoomFactCardActionRemove": "Unpin",
   "beaconRoomFactCardActionJumpToSource": "Jump to message",
@@ -3224,12 +3119,10 @@
     }
   },
   "beaconFactsOpenTooltip": "Pinned facts",
-  "beaconRoomFactsBrowseTooltip": "Browse pinned facts (filters)",
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",
   "labelBeaconTabPeople": "People",
-  "beaconOverviewRoomCueCardTitle": "Room coordination",
   "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripCurrentLineLabel": "What's next?",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
@@ -3479,7 +3372,6 @@
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
   "beaconRoomAttachmentOpenShare": "Share file",
-  "capabilityEditPrivateLabels": "Edit my labels",
   "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {

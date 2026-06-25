@@ -1,3 +1,0 @@
-mutation UserUnsubscribe($objectId: String!) {
-  userUnsubscribe(objectId: $objectId)
-}

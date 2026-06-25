@@ -22,7 +22,7 @@ abstract final class BeaconRoomSemanticMarker {
   /// Participant next-move / cue line (participant row updated).
   static const participantStatusChanged = 4;
 
-  /// Message linked to a new `beacon_blocker`.
+  /// Message linked to a coordination-item blocker.
   static const blocker = 5;
 
   /// Need-info request attached to a message / participant cue.

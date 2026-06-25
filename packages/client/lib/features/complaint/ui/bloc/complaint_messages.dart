@@ -9,3 +9,13 @@ final class ComplaintSentMessage extends LocalizableMessage {
   @override
   String get toRu => 'Жалоба отправлена';
 }
+
+final class AccountDeletionRequestSentMessage extends LocalizableMessage {
+  const AccountDeletionRequestSentMessage();
+
+  @override
+  String get toEn => 'Deletion request sent';
+
+  @override
+  String get toRu => 'Запрос на удаление отправлен';
+}

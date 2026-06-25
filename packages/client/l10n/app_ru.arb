@@ -357,19 +357,19 @@
   },
   "closeBeacon": "Закрыть маяк",
   "@closeBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "openBeacon": "Открыть маяк",
   "@openBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "deleteBeacon": "Удалить маяк",
   "@deleteBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "showOnMap": "Показать на карте",
   "@showOnMap": {
-    "context": "BeaconInfo"
+    "context": "BeaconDefinitionBody"
   },
   "createNewBeacon": "Создать маяк",
   "@createNewBeacon": {
@@ -393,7 +393,7 @@
   },
   "editBeacon": "Редактировать маяк",
   "@editBeacon": {
-    "context": "BeaconMineControl"
+    "context": "BeaconOverflowMenu"
   },
   "draftSavedMessage": "Черновик сохранён",
   "@draftSavedMessage": {
@@ -607,6 +607,14 @@
   "@buttonSubmitComplaint": {
     "context": "ComplaintScreen"
   },
+  "submitAccountDeletionRequest": "Запрос на удаление профиля",
+  "@submitAccountDeletionRequest": {
+    "context": "ComplaintScreen"
+  },
+  "buttonSubmitAccountDeletionRequest": "ОТПРАВИТЬ ЗАПРОС",
+  "@buttonSubmitAccountDeletionRequest": {
+    "context": "ComplaintScreen"
+  },
   "filterByTag": "Фильтр по тегу",
   "@filterByTag": {
     "context": "MyFieldScreen"
@@ -709,7 +717,7 @@
   },
   "helpOffererForwardPathTooltip": "Показать путь пересылок",
   "@helpOffererForwardPathTooltip": {
-    "context": "BeaconPeopleParticipantCard — IconButton tooltip"
+    "context": "HelpOfferTile — IconButton tooltip"
   },
   "myField": "Моё поле",
   "@myField": {
@@ -775,7 +783,7 @@
   "@confirmProfileRemoval": {
     "context": "MyProfileDelete"
   },
-  "profileRemovalHint": "Все ваши маяки и личные данные будут полностью удалены.",
+  "profileRemovalHint": "Администратор рассмотрит ваш запрос. Профиль и данные будут удалены после одобрения.",
   "@profileRemovalHint": {
     "context": "MyProfileDelete"
   },
@@ -891,6 +899,10 @@
   "@logout": {
     "context": "SettingsScreen"
   },
+  "settingsRequestProfileDeletion": "Запросить удаление профиля",
+  "@settingsRequestProfileDeletion": {
+    "context": "SettingsScreen"
+  },
   "signInMethods": "Способы входа",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"
@@ -986,10 +998,6 @@
   "russian": "Русский",
   "@russian": {
     "context": "LanguageSwitchButton"
-  },
-  "notImplementedYet": "Ещё не реализовано",
-  "@notImplementedYet": {
-    "context": "UpdatesScreen"
   },
   "scanQrCode": "Отсканируйте QR-код",
   "@scanQrCode": {
@@ -2639,7 +2647,6 @@
   "labelSetCoordinationResponse": "Сигнал координации",
   "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
   "coordinationSetOverallStatus": "Общий статус координации",
-  "labelBeaconTabOverview": "Обзор",
   "labelBeaconTabStatus": "Статус",
   "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
@@ -2688,7 +2695,6 @@
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
   "beaconYouClosed": "Закрыто",
-  "beaconYouItemsSheetTitle": "Ваша ответственность",
   "beaconYouActionReply": "Ответить",
   "beaconYouActionDone": "Готово",
   "beaconYouActionDecline": "Отклонить",
@@ -3033,116 +3039,9 @@
     }
   },
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
-  "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
-  "@beaconOverviewCoordinationHeaderPair": {
-    "placeholders": {
-      "a": {
-        "type": "String"
-      },
-      "b": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewNeedsShortMoreHelp": "Нужна ещё помощь",
-  "beaconOverviewActiveHelpOffers": "{count, plural, one{1 активное предложение помощи} few{{count} активных предложения помощи} many{{count} активных предложений помощи} other{{count} активных предложений помощи}}",
-  "@beaconOverviewActiveHelpOffers": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewUsefulAndCoord": "{useful} полезн. · {need} — нужна коорд.",
-  "@beaconOverviewUsefulAndCoord": {
-    "placeholders": {
-      "useful": {
-        "type": "int"
-      },
-      "need": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconViewAndCoordinateHelpOffers": "Просмотреть и скоординировать предложения помощи",
-  "beaconOverviewDiagnosisNeedDifferentSkillBody": "Есть отклики, но они не закрывают оставшийся разрыв.",
-  "beaconOverviewDiagnosisNeedCoordinationBody": "Участиям не хватает ясной координации, прежде чем двигаться дальше.",
-  "beaconOverviewDiagnosisGenericMoreHelpBody": "Покрытие ещё не соответствует оставшейся потребности.",
-  "beaconOverviewNeedEmpty": "Пока нет текста",
-  "beaconOverviewNeedMeta": "Создал(а) {author} · {context}",
-  "@beaconOverviewNeedMeta": {
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "context": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewNeedMetaAuthorOnly": "Создал(а) {author}",
-  "@beaconOverviewNeedMetaAuthorOnly": {
-    "placeholders": {
-      "author": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconOverviewPhotosCount": "{count, plural, one{1 фото} few{{count} фото} many{{count} фото} other{{count} фото}}",
-  "@beaconOverviewPhotosCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewDescriptionTextOnly": "Текстовое описание",
-  "beaconOverviewActivityEventCount": "{count, plural, one{1 событие} few{{count} события} many{{count} событий} other{{count} событий}}",
-  "@beaconOverviewActivityEventCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 человек в сети пересылок} few{{people} человека в сети пересылок} many{{people} человек в сети пересылок} other{{people} человек в сети пересылок}}",
-  "@beaconOverviewForwardAuthorSummary": {
-    "placeholders": {
-      "people": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 шаг от автора} few{{hops} шага от автора} many{{hops} шагов от автора} other{{hops} шагов от автора}}",
-  "@beaconOverviewHopsFromAuthor": {
-    "placeholders": {
-      "hops": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewPeopleInChain": "{people, plural, one{1 человек в цепи} few{{people} человека в цепи} many{{people} человек в цепи} other{{people} человек в цепи}}",
-  "@beaconOverviewPeopleInChain": {
-    "placeholders": {
-      "people": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconOverviewForwardEmpty": "Нет зарегистрированной для вас цепочки",
-  "beaconOverviewActivityLogTitle": "Журнал событий",
   "beaconRoomTitle": "Комната",
   "beaconRoomMessageHint": "Напишите сообщение…",
   "beaconRoomOpen": "Комната",
-  "beaconOverviewPublicFactsTitle": "Публичные факты",
-  "beaconOverviewPublicFactsCount": "{count, plural, one{1 закреплённый факт} few{{count} закреплённых факта} many{{count} закреплённых фактов} other{{count} закреплённых фактов}}",
-  "@beaconOverviewPublicFactsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconFactsSheetTitle": "Закреплённые факты",
   "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
   "beaconRoomPinFactTitle": "Закрепить как факт",
@@ -3164,10 +3063,6 @@
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
   "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт комнаты",
-  "beaconRoomFactsFilterAll": "Все",
-  "beaconRoomFactsFilterActive": "Активные",
-  "beaconRoomFactsFilterCorrected": "Изменённые",
-  "beaconRoomFactsFilteredEmpty": "Нет фактов с этим фильтром.",
   "beaconRoomFactCardActionEdit": "Изменить текст",
   "beaconRoomFactCardActionRemove": "Открепить",
   "beaconRoomFactCardActionJumpToSource": "К сообщению",
@@ -3189,12 +3084,10 @@
     }
   },
   "beaconFactsOpenTooltip": "Закреплённые факты",
-  "beaconRoomFactsBrowseTooltip": "Все факты (фильтры)",
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",
   "labelBeaconTabPeople": "Люди",
-  "beaconOverviewRoomCueCardTitle": "В комнате",
   "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripCurrentLineLabel": "Что дальше?",
   "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
@@ -3411,7 +3304,6 @@
   "beaconRoomAttachmentUntitled": "Файл",
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
   "beaconRoomAttachmentOpenShare": "Поделиться файлом",
-  "capabilityEditPrivateLabels": "Мои метки",
   "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {

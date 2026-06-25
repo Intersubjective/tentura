@@ -7,10 +7,6 @@ sealed class ContextException implements Exception {
   String toString() => message?.toString() ?? super.toString();
 }
 
-final class ContextFetchException extends ContextException {
-  const ContextFetchException([super.message]);
-}
-
 final class ContextCreateException extends ContextException {
   const ContextCreateException([super.message]);
 }
