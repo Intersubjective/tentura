@@ -29,6 +29,10 @@ void main() {
         ),
       );
       expect(mapped, isA<RemoteApiException>());
+      expect(
+        (mapped as RemoteApiException).toEn,
+        "field 'addressee_name' not found in type: 'invitation'",
+      );
     });
 
     test('GraphQL error with blank message maps to UnknownException', () {
