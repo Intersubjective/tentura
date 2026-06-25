@@ -140,6 +140,7 @@ services:
       - RESEND_API_KEY
       - RESEND_FROM_EMAIL
       - EMAIL_DEBUG_SINK_DIR
+      - QA_AUTH_ENABLED
       - QA_AUTH_TOKEN
       - QA_EMAIL_DOMAINS
       - SESSION_EXPIRES_IN

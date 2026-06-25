@@ -81,6 +81,17 @@ void main() {
     );
   });
 
+  test('QA auth enabled alone makes email auth configured', () {
+    expect(
+      Env(
+        environment: 'test',
+        qaAuthEnabled: true,
+        qaAuthToken: 'secret',
+      ).isEmailAuthConfigured,
+      isTrue,
+    );
+  });
+
   test('sanitizeEmailForFileName strips path-hostile characters', () {
     expect(
       FileSinkEmailSender.sanitizeEmailForFileName('../../etc/passwd@x'),

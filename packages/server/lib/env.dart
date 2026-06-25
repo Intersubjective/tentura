@@ -37,6 +37,7 @@ class Env {
     String? resendApiKey,
     String? resendFromEmail,
     String? emailDebugSinkDir,
+    bool? qaAuthEnabled,
     String? qaAuthToken,
     List<String>? qaEmailDomains,
     String? unsubscribeSigningSecret,
@@ -136,6 +137,8 @@ class Env {
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
+       qaAuthEnabled =
+           qaAuthEnabled ?? _env['QA_AUTH_ENABLED'] == 'true',
        qaAuthToken = qaAuthToken ?? _env['QA_AUTH_TOKEN'] ?? '',
        qaEmailDomains =
            qaEmailDomains ??
@@ -398,6 +401,10 @@ class Env {
   /// disk. NEVER set in production — it bypasses real email delivery entirely.
   final String emailDebugSinkDir;
 
+  /// When true (dev/staging only), exposes `/_qa/latest-email` and captures
+  /// magic links for [qaEmailDomains] without Resend.
+  final bool qaAuthEnabled;
+
   /// Shared secret for development/staging-only QA HTTP endpoints.
   final String qaAuthToken;
 
@@ -439,14 +446,31 @@ class Env {
   /// day. Configured in MB via `UPLOAD_DAILY_CAP_MB` (default 200MB).
   final int uploadDailyCapBytes;
 
+  static const kDefaultQaCaptureDir = '/tmp/tentura-qa-email-capture';
+
   bool get isEmailAuthConfigured =>
       (resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty) ||
-      emailDebugSinkDir.isNotEmpty;
+      emailDebugSinkDir.isNotEmpty ||
+      isQaAuthEnabled;
 
-  bool get isQaEmailSinkEnabled =>
+  bool get isQaAuthEnabled =>
       environment != Environment.prod &&
-      qaAuthToken.isNotEmpty &&
-      emailDebugSinkDir.isNotEmpty;
+      qaAuthEnabled &&
+      qaAuthToken.isNotEmpty;
+
+  /// Directory used by `/_qa/latest-email` and QA-domain magic-link capture.
+  String get qaEmailCaptureDir => emailDebugSinkDir.isNotEmpty
+      ? emailDebugSinkDir
+      : kDefaultQaCaptureDir;
+
+  bool isQaEmailDomain(String normalizedEmail) {
+    final parts = normalizedEmail.split('@');
+    if (parts.length != 2) {
+      return false;
+    }
+    final domain = parts[1];
+    return domain.isNotEmpty && qaEmailDomains.contains(domain);
+  }
 
   // Web server
   final String bindAddress;
