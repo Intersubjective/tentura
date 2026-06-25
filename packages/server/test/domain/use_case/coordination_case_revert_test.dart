@@ -434,6 +434,340 @@ void main() {
     });
   });
 
+  group('setBeaconStatus enough help', () {
+    test('from open sets enoughHelp status', () async {
+      stubTransaction(beacon(status: BeaconStatus.open));
+
+      final result = await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(result.status, BeaconStatus.enoughHelp.smallintValue);
+      expect(evalRepo.downgradeSubmittedCalls, 0);
+      expect(evalRepo.deleteScaffoldingCalls, 0);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.open,
+          toStatus: BeaconStatus.enoughHelp,
+          reason: 'enoughHelp',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('from needsMoreHelp sets enoughHelp status', () async {
+      stubTransaction(beacon(status: BeaconStatus.needsMoreHelp));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.needsMoreHelp,
+          toStatus: BeaconStatus.enoughHelp,
+          reason: 'enoughHelp',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('from reviewOpen sets enoughHelp status', () async {
+      stubTransaction(beacon(status: BeaconStatus.reviewOpen));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(evalRepo.downgradeSubmittedCalls, 0);
+      expect(evalRepo.deleteScaffoldingCalls, 0);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.reviewOpen,
+          toStatus: BeaconStatus.enoughHelp,
+          reason: 'enoughHelp',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('noop when already enoughHelp', () async {
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+
+      final result = await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(result.status, BeaconStatus.enoughHelp.smallintValue);
+      expect(beaconRepo.statusTransitions, isEmpty);
+    });
+
+    test('steward may set enoughHelp', () async {
+      stubTransaction(beacon(status: BeaconStatus.open));
+      when(
+        roomRepo.isBeaconSteward(
+          beaconId: beaconId,
+          userId: stewardId,
+        ),
+      ).thenAnswer((_) async => true);
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: stewardId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.open,
+          toStatus: BeaconStatus.enoughHelp,
+          reason: 'enoughHelp',
+          actorId: stewardId,
+        ),
+      ]);
+    });
+
+    test('rejects outsider', () async {
+      stubTransaction(beacon(status: BeaconStatus.open));
+      when(
+        roomRepo.isBeaconSteward(
+          beaconId: beaconId,
+          userId: outsiderId,
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: outsiderId,
+          status: BeaconStatus.enoughHelp.smallintValue,
+        ),
+        throwsA(isA<HelpOfferCoordinationException>()),
+      );
+    });
+
+    test('rejects disallowed transition from closed', () async {
+      stubTransaction(beacon(status: BeaconStatus.closed));
+
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.enoughHelp.smallintValue,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const HelpOfferCoordinationExceptionCodes(
+              HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('setBeaconStatus neutral open', () {
+    test('from needsMoreHelp sets open status', () async {
+      stubTransaction(beacon(status: BeaconStatus.needsMoreHelp));
+
+      final result = await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.open.smallintValue,
+      );
+
+      expect(result.status, BeaconStatus.open.smallintValue);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.needsMoreHelp,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('from enoughHelp sets open status', () async {
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.open.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.enoughHelp,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('from reviewOpen reopens to open', () async {
+      stubTransaction(beacon(status: BeaconStatus.reviewOpen));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.open.smallintValue,
+      );
+
+      expect(evalRepo.downgradeSubmittedCalls, 0);
+      expect(evalRepo.deleteScaffoldingCalls, 0);
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.reviewOpen,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: authorId,
+        ),
+      ]);
+    });
+
+    test('noop when already open', () async {
+      stubTransaction(beacon(status: BeaconStatus.open));
+
+      final result = await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.open.smallintValue,
+      );
+
+      expect(result.status, BeaconStatus.open.smallintValue);
+      expect(beaconRepo.statusTransitions, isEmpty);
+    });
+
+    test('steward may set neutral open', () async {
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+      when(
+        roomRepo.isBeaconSteward(
+          beaconId: beaconId,
+          userId: stewardId,
+        ),
+      ).thenAnswer((_) async => true);
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: stewardId,
+        status: BeaconStatus.open.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.enoughHelp,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: stewardId,
+        ),
+      ]);
+    });
+
+    test('rejects outsider', () async {
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+      when(
+        roomRepo.isBeaconSteward(
+          beaconId: beaconId,
+          userId: outsiderId,
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: outsiderId,
+          status: BeaconStatus.open.smallintValue,
+        ),
+        throwsA(isA<HelpOfferCoordinationException>()),
+      );
+    });
+
+    test('rejects disallowed transition from closed', () async {
+      stubTransaction(beacon(status: BeaconStatus.closed));
+
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.open.smallintValue,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const HelpOfferCoordinationExceptionCodes(
+              HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('setBeaconStatus cannot reach review or close', () {
+    test('reviewOpen smallint maps to neutral open not review window', () async {
+      stubTransaction(beacon(status: BeaconStatus.needsMoreHelp));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.reviewOpen.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.needsMoreHelp,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: authorId,
+        ),
+      ]);
+      expect(beaconRepo.locked.status, BeaconStatus.open);
+    });
+
+    test('closed smallint maps to neutral open not closed', () async {
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.closed.smallintValue,
+      );
+
+      expect(beaconRepo.statusTransitions, [
+        _StatusTransitionCall(
+          beaconId: beaconId,
+          fromStatus: BeaconStatus.enoughHelp,
+          toStatus: BeaconStatus.open,
+          reason: 'neutralOpen',
+          actorId: authorId,
+        ),
+      ]);
+      expect(beaconRepo.locked.status, BeaconStatus.open);
+    });
+  });
+
   group('setCoordinationResponse', () {
     HelpOfferEntity activeOffer() => HelpOfferEntity(
           beaconId: beaconId,
