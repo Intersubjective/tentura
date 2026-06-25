@@ -22,28 +22,15 @@ import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/graph_edge_colors.dart';
 import '../../domain/entity/edge_directed.dart';
+import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
 import 'graph_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
+export '../../domain/forward_graph_focus_rules.dart';
 export 'graph_state.dart';
-
-/// Viewer's relationship to the focused chain in help-offerer-path mode.
-enum ForwardsGraphViewerRole {
-  /// Viewer is the beacon author (root of the chain).
-  author,
-
-  /// Viewer is the focused help offerer themselves; the focus is rotated onto
-  /// the author so the chain reads "in reverse" from the viewer's PoV.
-  self,
-
-  /// Viewer is neither the author nor the help offerer but has at least one
-  /// forward edge for the beacon; their own sub-chain is overlaid on top
-  /// of the help offerer's chain so they see how they fit between the two.
-  involvedOther,
-}
 
 class GraphCubit extends Cubit<GraphState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
@@ -111,11 +98,6 @@ class GraphCubit extends Cubit<GraphState> {
   final UserNode _egoNode;
 
   final _fetchLimits = <String, int>{};
-
-  // Heuristic for isolated focus placement: initialPositionExtractor uses
-  // y = 200 - 100*positionHint (given current constants). So hints >= 3 start
-  // "north" (negative y offset) of center.
-  static const int _isolatedFocusNorthHint = 4;
 
   late final Map<String, NodeDetails> _nodes = <String, NodeDetails>{
     _egoNode.id: _egoNode,
@@ -207,21 +189,23 @@ class GraphCubit extends Cubit<GraphState> {
         final viewerId = payload.viewerId ?? state.me.id;
         final authorId = payload.authorId;
         final helpOffererId = helpOffererFocusUserId!;
-        final isAuthor = viewerId == authorId;
         final isSelf = viewerId == helpOffererId;
-        final viewerRole = isAuthor
-            ? ForwardsGraphViewerRole.author
-            : isSelf
-                ? ForwardsGraphViewerRole.self
-                : ForwardsGraphViewerRole.involvedOther;
+        final viewerRole = resolveHelpOffererViewerRole(
+          viewerId: viewerId,
+          authorId: authorId,
+          helpOffererId: helpOffererId,
+        );
         if (state.helpOffererViewerRole != viewerRole) {
           emit(state.copyWith(helpOffererViewerRole: viewerRole));
         }
         final hasHelpOffererEndpoint = edges.any(
           (e) => e.src == helpOffererId || e.dst == helpOffererId,
         );
-        final derivedFocus =
-            isSelf ? authorId : helpOffererId;
+        final derivedFocus = deriveHelpOffererGraphFocus(
+          viewerIsHelpOfferer: isSelf,
+          authorId: authorId,
+          helpOffererId: helpOffererId,
+        );
         if (state.focus != derivedFocus) {
           emit(state.copyWith(focus: derivedFocus));
         }
@@ -289,10 +273,10 @@ class GraphCubit extends Cubit<GraphState> {
           // When the focused help offerer has no path edges, we still want to show
           // them as an isolated focus node. Give it a stable hint north of root.
           if (noPathHelpOffererId != null &&
-              state.focus == noPathHelpOffererId &&
-              lazy.positionHint != 0) {
-            _nodes[state.focus] =
-                lazy.copyWithPositionHint(_isolatedFocusNorthHint);
+              state.focus == noPathHelpOffererId) {
+            _nodes[state.focus] = lazy.copyWithPositionHint(
+              isolatedHelpOffererPositionHint(lazy.positionHint),
+            );
           } else {
             _nodes[state.focus] = lazy;
           }

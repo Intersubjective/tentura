@@ -1,7 +1,7 @@
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'graph_cubit.dart' show ForwardsGraphViewerRole;
+import '../../domain/forward_graph_focus_rules.dart';
 
 part 'graph_state.freezed.dart';
 
