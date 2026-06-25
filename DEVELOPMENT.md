@@ -239,7 +239,7 @@ tentura/
 ├── packages/
 │   ├── client/              # Flutter app (mobile + web)
 │   ├── server/              # Dart API server
-│   └── widgetbook/          # Component catalogue
+│   └── tentura_lints/       # Custom analyzer plugin (architecture lints)
 ├── compose.yaml             # Default: includes compose.dev.yaml
 ├── compose.dev.yaml         # Local dev services
 ├── compose.prod.yaml        # Production (Tentura in Docker + Caddy)

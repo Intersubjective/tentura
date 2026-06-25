@@ -1,9 +1,7 @@
 ---
-description: Tentura Flutter operational UI — use design system tokens and components
-applyWhen:
-  - pathMatches: "packages/client/lib/design_system/**/*.dart"
-  - pathMatches: "packages/client/lib/features/**/ui/**/*.dart"
-  - pathMatches: "packages/client/lib/ui/**/*.dart"
+description: Tentura Flutter operational UI — use design system tokens and components; use when editing client UI under design_system, features/**/ui, or ui/.
+globs: packages/client/lib/design_system/**/*.dart,packages/client/lib/features/**/ui/**/*.dart,packages/client/lib/ui/**/*.dart
+alwaysApply: false
 ---
 
 # Tentura design system (client UI)

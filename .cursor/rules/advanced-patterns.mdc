@@ -1,19 +1,7 @@
 ---
-applyWhen:
-  - pathMatches: "**/mock/**/*.dart"
-  - pathMatches: "**/*_base.dart"
-  - pathMatches: "**/*_native.dart"
-  - pathMatches: "**/*_web.dart"
-  - pathMatches: "**/env.dart"
-  - pathMatches: "**/exception/**/*.dart"
-  - pathMatches: "**/StateBase.dart"
-  - pathMatches: "**/StateStatus.dart"
-  - pathMatches: "**/RepositoryEvent.dart"
-  - pathMatches: "**/Localizable*.dart"
-  - pathMatches: "**/hook/**/*.dart"
-  - pathMatches: "**/platform/**/*.dart"
-  - pathMatches: "**/pubspec.yaml"
-    contentMatches: "tentura_root"
+description: StateBase, exception hierarchy, platform conditional exports, mocks, repository base classes; use for base classes and platform abstraction.
+globs: **/mock/**/*.dart,**/*_base.dart,**/*_native.dart,**/*_web.dart,**/env.dart,**/exception/**/*.dart,**/hook/**/*.dart,**/platform/**/*.dart
+alwaysApply: false
 ---
 
 # Advanced Architectural Patterns & Principles
@@ -24,13 +12,13 @@ Additional sophisticated patterns beyond SOLID and Clean Architecture. See `code
 **Related Documents:**
 - `codegen.mdc` - Code generation tools (Freezed, Ferry, Drift, etc.)
 - `architecture.mdc` - Clean Architecture and SOLID principles
-- `quick-reference.mdc` - One-line rules (always applied)
+- `AGENTS.md` (repository root) - always-on index + invariants
 
 **⚠️ Rule Maintenance:** If you observe new architectural patterns, alternative implementations, or approaches that consistently diverge from these guidelines, notify the user and suggest updating this file with specific examples.
 
 ## 1. Monorepo Architecture
 
-**Structure**: `lib/` (shared root) + `packages/{client,server,widgetbook}`
+**Structure**: `lib/` (shared root) + `packages/{client,server,tentura_lints}`
 
 **Strategy**: Root package contains shared domain entities; packages depend on root, not each other.
 

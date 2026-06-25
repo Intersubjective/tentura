@@ -1,6 +1,7 @@
 ---
-description: Semantic versioning — patch for fixes, minor for features
-alwaysApply: true
+description: Semver (patch/minor/major) + MIN_CLIENT_VERSION; use when bumping package versions or editing release config (pubspec, compose, .env, workflows).
+globs: **/pubspec.yaml,compose*.yaml,.env*,.github/workflows/**
+alwaysApply: false
 ---
 
 # Versioning (Semver)
@@ -15,12 +16,4 @@ Apply the bump in each affected package's `pubspec.yaml` when releasing that pac
 
 ## Client version gate (`MIN_CLIENT_VERSION`)
 
-The server exposes `MIN_CLIENT_VERSION` (env var, default `0.0.0`) via the WS pong frame. Clients older than this value show a "new version available" banner.
-
-**When to update `MIN_CLIENT_VERSION` on the server:**
-
-- After a **major** client bump (`X.y.z`): always — breaking API/behaviour changes require the old client to update.
-- After a **minor** client bump (`x.Y.z`): only when the new server requires a feature the old client cannot function without (e.g. a new required WS message field, a removed endpoint). Optional new features don't require bumping.
-- After a **patch** client bump: rarely — only if the patch fixes a crash that makes the old client unusable with the new server.
-
-**How to update:** set `MIN_CLIENT_VERSION=<new semver>` in the server's environment (`.env` for local/dev, `compose.prod.yaml` environment + VPS `.env` for production, GitHub Environment variable `MIN_CLIENT_VERSION` for CI-driven deploys).
+After a client bump, decide whether to raise the server's `MIN_CLIENT_VERSION`. The canonical when/where procedure (WS pong, decision table, env locations, relevant files) lives in **`DEV_GUIDELINES.md` § Client version gate** — follow it there.

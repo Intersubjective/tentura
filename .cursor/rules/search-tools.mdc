@@ -1,5 +1,6 @@
 ---
-alwaysApply: true
+description: Token-minimizing exploration ladder (Ollama RAG, Serena MCP, then Grep/Glob); use when exploring the codebase or answering how/where questions. The 1-line ladder also lives in AGENTS.md.
+alwaysApply: false
 ---
 
 # Search & Exploration Precedence (Token-Minimizing)
