@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
@@ -20,12 +21,23 @@ import 'remote_api_service.dart';
 @singleton
 class InvalidationService {
   InvalidationService(RemoteApiService remoteApiService) {
-    _subscription = remoteApiService.webSocketMessages
-        .where(
-          (e) => e['type'] == 'subscription' && e['path'] == 'entity_changes',
-        )
-        .listen(_onInvalidation);
+    _subscription = _subscribe(remoteApiService.webSocketMessages);
   }
+
+  /// Unit tests without [RemoteApiService] / WebSocket wiring.
+  @visibleForTesting
+  InvalidationService.forTesting(Stream<Map<String, dynamic>> messages) {
+    _subscription = _subscribe(messages);
+  }
+
+  StreamSubscription<Map<String, dynamic>> _subscribe(
+    Stream<Map<String, dynamic>> messages,
+  ) =>
+      messages
+          .where(
+            (e) => e['type'] == 'subscription' && e['path'] == 'entity_changes',
+          )
+          .listen(_onInvalidation);
 
   static const _debounceWindow = Duration(milliseconds: 500);
 
