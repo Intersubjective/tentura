@@ -3,6 +3,7 @@ import 'dart:convert' show jsonEncode;
 
 import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
@@ -177,6 +178,15 @@ class ForwardRepository {
     final beacon = results[0] as Beacon;
     final inv = results[1] as GBeaconInvolvementDataData_beaconInvolvement;
 
+    return mapBeaconInvolvement(beacon: beacon, inv: inv);
+  }
+
+  /// Maps V2 `beaconInvolvement` GraphQL payload into [BeaconInvolvementData].
+  @visibleForTesting
+  static BeaconInvolvementData mapBeaconInvolvement({
+    required Beacon beacon,
+    required GBeaconInvolvementDataData_beaconInvolvement inv,
+  }) {
     final myForwardedRecipientNotes = <String, String>{};
     final myForwardedRecipientEdgeIds = <String, String>{};
     final myForwardedRecipientReadAts = <String, DateTime?>{};
