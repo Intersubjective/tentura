@@ -644,8 +644,8 @@ class PersonCapabilityEventRepository
   }) async {
     if (friendIds.isEmpty) return [];
 
-    // Active beacon states: OPEN(0), WRAPPING UP(5). DRAFT(3) excluded.
-    const activeStates = [0, 5];
+    // Active beacon statuses: OPEN(0), WRAPPING UP(5). DRAFT(3) excluded.
+    const activeStatuses = [0, 5];
 
     final rows = await _database
         .customSelect(
@@ -656,7 +656,7 @@ class PersonCapabilityEventRepository
           active_beacons AS (
             SELECT id
             FROM public.beacon
-            WHERE state = ANY($3::int[])
+            WHERE status = ANY($3::int[])
           ),
           viewer_involved AS (
             SELECT b.id AS beacon_id
@@ -733,7 +733,7 @@ class PersonCapabilityEventRepository
           variables: [
             Variable.withString(viewerId),
             Variable(TypedValue(Type.textArray, friendIds)),
-            Variable(TypedValue(Type.integerArray, activeStates)),
+            Variable(TypedValue(Type.integerArray, activeStatuses)),
           ],
         )
         .get();
