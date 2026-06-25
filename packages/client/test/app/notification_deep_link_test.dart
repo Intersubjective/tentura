@@ -9,6 +9,7 @@ void main() {
       'B12345678901',
     );
     expect(out.path, '$kPathReviewContributions/B12345678901');
+    expect(out.queryParameters[kQueryIsDeepLink], 'true');
   });
 
   test('dest=room with item preserves coordination item query', () {
@@ -19,6 +20,8 @@ void main() {
     expect(out.path, '$kPathBeaconView/B12345678901');
     expect(out.queryParameters[kQueryBeaconViewTab], 'room');
     expect(out.queryParameters[kQueryCoordinationItemId], 'Iabc');
+    expect(out.queryParameters[kQueryBeaconEntry], kBeaconEntryDeepLink);
+    expect(out.queryParameters[kQueryIsDeepLink], 'true');
   });
 
   test('dest=people opens people tab', () {
@@ -28,5 +31,7 @@ void main() {
     );
     expect(out.path, '$kPathBeaconView/B12345678901');
     expect(out.queryParameters[kQueryBeaconViewTab], 'people');
+    expect(out.queryParameters[kQueryBeaconEntry], kBeaconEntryDeepLink);
+    expect(out.queryParameters[kQueryIsDeepLink], 'true');
   });
 }
