@@ -9,6 +9,9 @@ import 'consts.dart';
 
 export 'consts.dart';
 
+String resolveServerEnvironment(String? environment) =>
+    environment == Environment.dev ? Environment.dev : Environment.prod;
+
 class Env {
   Env({
     // Common

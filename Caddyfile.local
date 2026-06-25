@@ -115,6 +115,10 @@
 		}
 	}
 
+	handle /_qa/* {
+		reverse_proxy 127.0.0.1:2080
+	}
+
 	# Credential management (Phase 1) — must hit Tentura, not Hasura catch-all below.
 	handle /api/v2/accounts/* {
 		reverse_proxy 127.0.0.1:2080 {

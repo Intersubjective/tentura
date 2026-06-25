@@ -94,6 +94,11 @@
 		}
 	}
 
+	# Development/staging-only QA endpoints enforce their own hidden token guard.
+	handle /_qa/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
+	}
+
 	# Credential management (Phase 1) — must hit Tentura, not Hasura catch-all below.
 	handle /api/v2/accounts/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
