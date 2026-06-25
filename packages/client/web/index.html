@@ -115,19 +115,18 @@
     }
   </script>
 
-  <script src="flutter_bootstrap.js?v=2.4.0" async=""></script>
+  <script src="flutter_bootstrap.js?v=4.0.0" async=""></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        try {
-          navigator.serviceWorker.register('firebase-messaging-sw.js', {
-            scope: '/firebase-cloud-messaging-push-scope',
-          });
-          console.info('Service worker has been registered!');
-        } catch (e) {
-          console.error('Failed to register service worker:', e);
-        }
+        navigator.serviceWorker.register('firebase-messaging-sw.js', {
+          scope: '/firebase-cloud-messaging-push-scope',
+        }).then(function () {
+          console.info('FCM service worker registered');
+        }).catch(function (e) {
+          console.warn('FCM service worker registration failed:', e);
+        });
       });
     }
   </script>

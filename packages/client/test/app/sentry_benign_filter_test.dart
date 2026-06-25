@@ -41,6 +41,34 @@ void main() {
         isTrue,
       );
     });
+
+    test('FCM service worker registration timeout is benign', () {
+      expect(
+        isBenignSentryThrowable(
+          Exception(
+            'AbortError: Failed to register a ServiceWorker for scope '
+            "('https://dev.tentura.io/firebase-cloud-messaging-push-scope') "
+            "with script ('https://dev.tentura.io/firebase-messaging-sw.js'): "
+            'Timed out while trying to start the Service Worker.',
+          ),
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('isBenignSentryExceptionText', () {
+    test('FCM service worker registration timeout is benign', () {
+      expect(
+        isBenignSentryExceptionText(
+          'AbortError: Failed to register a ServiceWorker for scope '
+          "('https://dev.tentura.io/firebase-cloud-messaging-push-scope') "
+          "with script ('https://dev.tentura.io/firebase-messaging-sw.js'): "
+          'Timed out while trying to start the Service Worker.',
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('isBenignSentryLogRecord', () {

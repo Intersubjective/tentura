@@ -15,14 +15,11 @@ bool isBenignSentryThrowable(Object? error) {
       error is AuthenticationNoKeyException) {
     return true;
   }
-  if (error.toString().toLowerCase().contains('socketexception')) {
-    return true;
-  }
-  return false;
+  return isBenignSentryExceptionText(error.toString());
 }
 
-bool _isBenignSentryMessage(String message) {
-  final lower = message.toLowerCase();
+bool isBenignSentryExceptionText(String text) {
+  final lower = text.toLowerCase();
   if (lower.contains('socketexception')) {
     return true;
   }
@@ -30,8 +27,16 @@ bool _isBenignSentryMessage(String message) {
   if (lower.contains('key pair is not set')) {
     return true;
   }
+  // FCM push SW: CDN/importScripts timeouts, privacy browsers, offline, etc.
+  if (lower.contains('failed to register a serviceworker') ||
+      lower.contains('timed out while trying to start the service worker')) {
+    return true;
+  }
   return false;
 }
+
+bool _isBenignSentryMessage(String message) =>
+    isBenignSentryExceptionText(message);
 
 bool isBenignSentryLogRecord(LogRecord record) {
   if (isBenignSentryThrowable(record.error)) {

@@ -19,7 +19,7 @@ bool _isBenignSentryEvent(SentryEvent event, Hint hint) {
   }
 
   final message = event.message?.formatted ?? '';
-  if (message.toLowerCase().contains('key pair is not set')) {
+  if (isBenignSentryExceptionText(message)) {
     return true;
   }
 
@@ -36,9 +36,11 @@ bool _isBenignSentryEvent(SentryEvent event, Hint hint) {
       return true;
     }
     final value = ex.value ?? '';
-    final lower = value.toLowerCase();
-    if (lower.contains('socketexception') ||
-        lower.contains('key pair is not set')) {
+    if (isBenignSentryExceptionText(value)) {
+      return true;
+    }
+    if (ex.type == 'AbortError' &&
+        value.toLowerCase().contains('serviceworker')) {
       return true;
     }
   }
