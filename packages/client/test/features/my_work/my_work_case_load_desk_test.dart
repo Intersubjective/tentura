@@ -21,7 +21,7 @@ void main() {
         archivedCountHint: 2,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
-    final case_ = buildTestMyWorkCase(repo);
+    final case_ = buildTestMyWorkCase(repo: repo);
 
     final init = await case_.loadDeskInit(userId: 'u1');
     expect(init.nonArchivedCards, hasLength(1));
@@ -33,7 +33,7 @@ void main() {
   test('loadDeskInit returns finishedArchiveHintDismissed from prefs', () async {
     final prefs = FakeMyWorkDeskPreferencesPort()
       ..dismissedByUserId['u1'] = true;
-    final case_ = buildTestMyWorkCase(null, prefs);
+    final case_ = buildTestMyWorkCase(deskPreferences: prefs);
 
     final init = await case_.loadDeskInit(userId: 'u1');
     expect(init.finishedArchiveHintDismissed, isTrue);
@@ -50,7 +50,7 @@ void main() {
         ],
         helpOfferedArchived: const [],
       );
-    final case_ = buildTestMyWorkCase(repo);
+    final case_ = buildTestMyWorkCase(repo: repo);
 
     final archived = await case_.loadDeskArchived(userId: 'u1');
     expect(archived.archivedCards, hasLength(1));

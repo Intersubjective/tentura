@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -37,8 +39,16 @@ class FakeMyWorkRepository implements MyWorkRepository {
 
   Object? fetchInitError;
 
+  int fetchInitCallCount = 0;
+
+  Duration fetchInitDelay = Duration.zero;
+
   @override
   Future<MyWorkInitResult> fetchInit({required String userId}) async {
+    fetchInitCallCount++;
+    if (fetchInitDelay > Duration.zero) {
+      await Future<void>.delayed(fetchInitDelay);
+    }
     final error = fetchInitError;
     if (error != null) {
       throw error;
@@ -75,11 +85,28 @@ class FakeArchiveRepository implements ArchiveRepository {
 }
 
 class FakeForwardRepository implements ForwardRepository {
-  @override
-  Stream<HelpOfferEvent> get helpOfferChanges => const Stream.empty();
+  FakeForwardRepository()
+      : _helpOfferController = StreamController<HelpOfferEvent>.broadcast(),
+        _forwardCompletedController = StreamController<String>.broadcast();
+
+  final StreamController<HelpOfferEvent> _helpOfferController;
+  final StreamController<String> _forwardCompletedController;
 
   @override
-  Stream<String> get forwardCompleted => const Stream.empty();
+  Stream<HelpOfferEvent> get helpOfferChanges => _helpOfferController.stream;
+
+  @override
+  Stream<String> get forwardCompleted => _forwardCompletedController.stream;
+
+  void emitHelpOffer(HelpOfferEvent event) => _helpOfferController.add(event);
+
+  void emitForwardCompleted(String beaconId) =>
+      _forwardCompletedController.add(beaconId);
+
+  Future<void> dispose() async {
+    await _helpOfferController.close();
+    await _forwardCompletedController.close();
+  }
 
   @override
   Future<bool> currentUserHasForwardedBeacon(String beaconId) async => false;
@@ -90,8 +117,19 @@ class FakeForwardRepository implements ForwardRepository {
 }
 
 class FakeBeaconRepository implements BeaconRepository {
+  FakeBeaconRepository()
+      : _changesController =
+            StreamController<RepositoryEvent<Beacon>>.broadcast();
+
+  final StreamController<RepositoryEvent<Beacon>> _changesController;
+
   @override
-  Stream<RepositoryEvent<Beacon>> get changes => const Stream.empty();
+  Stream<RepositoryEvent<Beacon>> get changes => _changesController.stream;
+
+  void emitChange(RepositoryEvent<Beacon> event) =>
+      _changesController.add(event);
+
+  Future<void> dispose() async => _changesController.close();
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -139,13 +177,16 @@ class FakePollingRepository implements PollingRepository {
       super.noSuchMethod(invocation);
 }
 
-BeaconRoomCase buildTestBeaconRoomCase(FakeRoomHints hints) {
+BeaconRoomCase buildTestBeaconRoomCase(
+  FakeRoomHints hints, {
+  RoomReadWatermarkStore? watermarkStore,
+}) {
   return BeaconRoomCase(
     FakeBeaconRoomRepository(),
     FakeFactCardRepository(),
     FakePollingRepository(),
     hints,
-    RoomReadWatermarkStore.testing(),
+    watermarkStore ?? RoomReadWatermarkStore.testing(),
     CoordinationItemCase(FakeCoordinationItemRepository()),
     env: const Env(),
     logger: Logger('test'),
@@ -165,19 +206,25 @@ class FakeMyWorkDeskPreferencesPort implements MyWorkDeskPreferencesPort {
   }
 }
 
-MyWorkCase buildTestMyWorkCase([
+MyWorkCase buildTestMyWorkCase({
   FakeMyWorkRepository? repo,
   FakeMyWorkDeskPreferencesPort? deskPreferences,
-]) {
+  FakeBeaconRepository? beaconRepo,
+  FakeForwardRepository? forwardRepo,
+  RoomReadWatermarkStore? watermarkStore,
+}) {
   final hints = FakeRoomHints();
   final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
+  final beacon = beaconRepo ?? FakeBeaconRepository();
+  final forward = forwardRepo ?? FakeForwardRepository();
+  final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
   return MyWorkCase(
     repo ?? FakeMyWorkRepository(),
     FakeArchiveRepository(),
-    FakeForwardRepository(),
-    FakeBeaconRepository(),
+    forward,
+    beacon,
     CoordinationItemCase(FakeCoordinationItemRepository()),
-    buildTestBeaconRoomCase(hints),
+    buildTestBeaconRoomCase(hints, watermarkStore: watermark),
     hints,
     prefs,
     env: const Env(),
