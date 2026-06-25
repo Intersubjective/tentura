@@ -229,15 +229,19 @@ class _HudActionRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wide = context.windowClass != WindowClass.compact;
     return Row(
       // Default cross-axis is center. Avoid stretch: header sits in a sliver with
       // unbounded height, and stretch would pass infinite extent to children.
       children: [
         for (var i = 0; i < actions.length; i++) ...[
           if (i != 0) const SizedBox(width: 8),
-          Expanded(
-            child: _HudActionButton(spec: actions[i]),
-          ),
+          if (wide)
+            _HudActionButton(spec: actions[i])
+          else
+            Expanded(
+              child: _HudActionButton(spec: actions[i]),
+            ),
         ],
       ],
     );

@@ -279,7 +279,8 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
         child: Scaffold(
           backgroundColor: tt.bg,
           body: SafeArea(
-            child: BlocBuilder<ForwardCubit, ForwardState>(
+            child: TenturaContentColumn(
+              child: BlocBuilder<ForwardCubit, ForwardState>(
               builder: (_, state) {
                 if (state.isLoading && state.candidates.isEmpty) {
                   return const Center(
@@ -554,6 +555,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                   ],
                 );
               },
+            ),
             ),
           ),
         ),
