@@ -103,7 +103,13 @@ void main() {
         beaconId: 'B1',
         recipientIds: ['R1'],
       ),
-      throwsA(isA<UnauthorizedException>()),
+      throwsA(
+        isA<UnauthorizedException>().having(
+          (e) => e.description,
+          'description',
+          'Sender cannot read beacon content',
+        ),
+      ),
     );
     verifyNever(
       forwardEdgeRepo.createBatch(
