@@ -1,11 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../../invitation/data/repository/invitation_repository.dart';
 import '../../../invitation/domain/entity/invite_preview.dart';
+import '../../../invitation/domain/invite_code.dart';
 import '../../../invitation/domain/port/invitation_accept_port.dart';
 
 class RegisterInviteState {
@@ -20,25 +20,24 @@ class RegisterInviteState {
   RegisterInviteState copyWith({
     InvitePreview? preview,
     StateStatus? status,
-  }) =>
-      RegisterInviteState(
-        preview: preview ?? this.preview,
-        status: status ?? this.status,
-      );
+  }) => RegisterInviteState(
+    preview: preview ?? this.preview,
+    status: status ?? this.status,
+  );
 }
 
 /// Loads invite preview for the native register screen (beacon post-join wiring).
 @injectable
 class RegisterInviteCubit extends Cubit<RegisterInviteState> {
   RegisterInviteCubit(InvitationRepository repository)
-      : _repository = repository,
-        super(const RegisterInviteState());
+    : _repository = repository,
+      super(const RegisterInviteState());
 
   final InvitationAcceptPort _repository;
 
   Future<void> load(String rawCode) async {
-    final code = rawCode.trim();
-    if (code.isEmpty || !kInvitationCodeRegExp.hasMatch(code)) {
+    final code = normalizeInviteCode(rawCode);
+    if (code.isEmpty || !isValidInviteCode(code)) {
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));

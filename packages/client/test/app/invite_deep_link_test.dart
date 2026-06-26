@@ -22,6 +22,14 @@ void main() {
       expect(out.queryParameters[kQueryIsDeepLink], 'true');
     });
 
+    test('strips trailing dash from invite id', () {
+      final out = transformInviteDeepLink(
+        uri: Uri.parse('/invite/I806d29daebbe-'),
+        isAuthenticated: false,
+      );
+      expect(out.path, '$kPathSignUp/I806d29daebbe');
+    });
+
     test('non-invite path is unchanged', () {
       final uri = Uri.parse('/home/network');
       expect(

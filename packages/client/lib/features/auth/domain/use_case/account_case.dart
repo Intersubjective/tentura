@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../port/auth_local_repository_port.dart';
@@ -63,18 +64,10 @@ final class AccountCase extends UseCaseBase {
     String prefix = '',
   }) async {
     final text = await _platformRepository.getStringFromClipboard();
-
-    if (text.length == kIdLength && text.startsWith(prefix)) {
-      return text;
+    final code = extractInviteCodeFromText(text, prefix: prefix);
+    if (code != null) {
+      return code;
     }
-
-    try {
-      final id = Uri.dataFromString(text).queryParameters['id']!;
-      if (id.length == kIdLength && id.startsWith(prefix)) {
-        return id;
-      }
-    } catch (_) {}
-
     throw const InvitationCodeIsWrongException();
   }
 

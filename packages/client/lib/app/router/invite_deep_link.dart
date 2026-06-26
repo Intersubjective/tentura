@@ -1,4 +1,5 @@
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 
 final _invitePathPattern = RegExp(r'^/invite/([^/]+)$');
 
@@ -11,7 +12,7 @@ Uri transformInviteDeepLink({
   if (match == null) {
     return uri;
   }
-  final id = Uri.decodeComponent(match.group(1)!);
+  final id = normalizeInviteCode(Uri.decodeComponent(match.group(1)!));
   if (!id.startsWith('I')) {
     return uri;
   }
@@ -26,7 +27,12 @@ Uri transformSharedViewInviteDeepLink({
   required Uri uri,
   required String id,
   required bool isAuthenticated,
-}) => uri.replace(
-  path: isAuthenticated ? '$kPathAcceptInvite/$id' : '$kPathSignUp/$id',
-  queryParameters: {kQueryIsDeepLink: 'true'},
-);
+}) {
+  final normalizedId = normalizeInviteCode(id);
+  return uri.replace(
+    path: isAuthenticated
+        ? '$kPathAcceptInvite/$normalizedId'
+        : '$kPathSignUp/$normalizedId',
+    queryParameters: {kQueryIsDeepLink: 'true'},
+  );
+}

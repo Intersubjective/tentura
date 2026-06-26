@@ -1,7 +1,21 @@
+/** Strip whitespace and trailing `-` from pasted/URL invite fragments. */
+export function normalizeInviteCode(raw) {
+  let code = (raw || '').trim();
+  while (code.endsWith('-')) {
+    code = code.slice(0, -1);
+  }
+  return code;
+}
+
 /** Anchored invite code (client kInvitationCodeRegExp: I[a-f0-9]{0,12}). */
 export const INVITE_CODE_PATTERN = /^I[a-f0-9]{1,12}$/;
 
 const INVITE_PATH_RE = /\/invite\/([^/?#]+)/;
+
+/** True when [raw] ends with `-` after trim (common paste typo). */
+export function inviteCodeHadTrailingDash(raw) {
+  return (raw || '').trim().endsWith('-');
+}
 
 /**
  * Parse pasted invite link or raw code. Never returns an external origin.
@@ -22,7 +36,7 @@ export function parseInviteEntryInput(raw) {
     return { ok: false, error: 'That invite link does not look valid.' };
   }
 
-  candidate = candidate.split(/[?#]/)[0].trim();
+  candidate = normalizeInviteCode(candidate.split(/[?#]/)[0]);
   if (!INVITE_CODE_PATTERN.test(candidate)) {
     return {
       ok: false,
