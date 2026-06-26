@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/components/tentura_confirm_dialog.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
@@ -123,6 +124,8 @@ class _CoordinationItemComposerBodyState
     extends State<_CoordinationItemComposerBody> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
+  late final String _initialTitle;
+  late final String _initialBody;
   String? _selectedTargetId;
   late int _selectedStaleDays;
   bool _submitting = false;
@@ -177,6 +180,8 @@ class _CoordinationItemComposerBodyState
   void initState() {
     super.initState();
     final seed = widget.seed;
+    _initialTitle = (seed?.initialTitle ?? '').trim();
+    _initialBody = (seed?.initialBody ?? '').trim();
     _titleController = TextEditingController(text: seed?.initialTitle ?? '');
     _bodyController = TextEditingController(text: seed?.initialBody ?? '');
     final existingTarget = widget.existingDraft?.targetPersonId?.trim();
@@ -208,6 +213,29 @@ class _CoordinationItemComposerBodyState
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
+  }
+
+  bool get _isDirty =>
+      !_submitting &&
+      (_titleController.text.trim() != _initialTitle ||
+          _bodyController.text.trim() != _initialBody);
+
+  Future<void> _requestClose() async {
+    if (!_isDirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final l10n = widget.l10n;
+    final confirmed = await TenturaConfirmDialog.show(
+      context: context,
+      title: l10n.composerDiscardTitle,
+      content: l10n.composerDiscardBody,
+      confirmLabel: l10n.composerDiscardConfirm,
+      cancelLabel: l10n.composerDiscardKeepEditing,
+    );
+    if ((confirmed ?? false) && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   bool get _canSubmitContent {
@@ -359,123 +387,131 @@ class _CoordinationItemComposerBodyState
     final scheme = Theme.of(context).colorScheme;
     final existing = widget.existingDraft;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: kSpacingSmall,
-        right: kSpacingSmall,
-        top: kSpacingMedium,
-        bottom: bottom + kSpacingMedium,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              coordinationComposerSheetTitle(
-                l10n,
-                widget.kind,
-                existing != null,
-              ),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: kSpacingSmall),
-            if (_isAskOrPromise)
-              AskComposerFields(
-                l10n: l10n,
-                titleController: _titleController,
-                bodyController: _bodyController,
-                submitting: _submitting,
-                messagePreview: _messagePreview,
-                onChanged: () => setState(() {}),
-              )
-            else ...[
-              TextField(
-                controller: _titleController,
-                onChanged: (_) => setState(() {}),
-                maxLines: 2,
-                minLines: 1,
-                decoration: InputDecoration(labelText: l10n.labelTitle),
-                textInputAction: TextInputAction.next,
-                enabled: !_submitting,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              TextField(
-                controller: _bodyController,
-                onChanged: (_) => setState(() {}),
-                maxLines: 4,
-                minLines: 2,
-                decoration: InputDecoration(labelText: l10n.labelBody),
-                enabled: !_submitting,
-              ),
-            ],
-            if (_hasLegalTargets) ...[
-              const SizedBox(height: kSpacingSmall),
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _requestClose();
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: kSpacingSmall,
+          right: kSpacingSmall,
+          top: kSpacingMedium,
+          bottom: bottom + kSpacingMedium,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
-                coordinationTargetPickerLabel(l10n, widget.kind),
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Text(
-                l10n.coordinationComposerTargetGuidance,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+                coordinationComposerSheetTitle(
+                  l10n,
+                  widget.kind,
+                  existing != null,
                 ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: kSpacingSmall),
-              _TargetPicker(
-                kind: widget.kind,
-                askTargetIds: _askTargetIds,
-                participantTargets: widget.kind == CoordinationItemKind.promise
-                    ? _promiseTargets
-                    : _blockerTargets,
-                participants: widget.participants,
-                myUserId: widget.myUserId,
-                selectedId: _selectedTargetId,
-                submitting: _submitting,
+              if (_isAskOrPromise)
+                AskComposerFields(
+                  l10n: l10n,
+                  titleController: _titleController,
+                  bodyController: _bodyController,
+                  submitting: _submitting,
+                  messagePreview: _messagePreview,
+                  onChanged: () => setState(() {}),
+                )
+              else ...[
+                TextField(
+                  controller: _titleController,
+                  onChanged: (_) => setState(() {}),
+                  maxLines: 2,
+                  minLines: 1,
+                  decoration: InputDecoration(labelText: l10n.labelTitle),
+                  textInputAction: TextInputAction.next,
+                  enabled: !_submitting,
+                ),
+                const SizedBox(height: kSpacingSmall),
+                TextField(
+                  controller: _bodyController,
+                  onChanged: (_) => setState(() {}),
+                  maxLines: 4,
+                  minLines: 2,
+                  decoration: InputDecoration(labelText: l10n.labelBody),
+                  enabled: !_submitting,
+                ),
+              ],
+              if (_hasLegalTargets) ...[
+                const SizedBox(height: kSpacingSmall),
+                Text(
+                  coordinationTargetPickerLabel(l10n, widget.kind),
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                const SizedBox(height: kSpacingSmall),
+                Text(
+                  l10n.coordinationComposerTargetGuidance,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: kSpacingSmall),
+                _TargetPicker(
+                  kind: widget.kind,
+                  askTargetIds: _askTargetIds,
+                  participantTargets:
+                      widget.kind == CoordinationItemKind.promise
+                      ? _promiseTargets
+                      : _blockerTargets,
+                  participants: widget.participants,
+                  myUserId: widget.myUserId,
+                  selectedId: _selectedTargetId,
+                  submitting: _submitting,
+                  l10n: l10n,
+                  onSelected: (id) => setState(() => _selectedTargetId = id),
+                ),
+              ],
+              const SizedBox(height: kSpacingSmall),
+              CoordinationStalenessPicker(
                 l10n: l10n,
-                onSelected: (id) => setState(() => _selectedTargetId = id),
+                selectedDays: _selectedStaleDays,
+                enabled: !_submitting,
+                onSelected: (days) => setState(() => _selectedStaleDays = days),
               ),
-            ],
-            const SizedBox(height: kSpacingSmall),
-            CoordinationStalenessPicker(
-              l10n: l10n,
-              selectedDays: _selectedStaleDays,
-              enabled: !_submitting,
-              onSelected: (days) => setState(() => _selectedStaleDays = days),
-            ),
-            if (!_willPublish) ...[
-              const SizedBox(height: kSpacingSmall),
-              Material(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.all(kSpacingSmall),
-                  child: Text(
-                    l10n.coordinationComposerNoTargetWillSaveDraft,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+              if (!_willPublish) ...[
+                const SizedBox(height: kSpacingSmall),
+                Material(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(kSpacingSmall),
+                    child: Text(
+                      l10n.coordinationComposerNoTargetWillSaveDraft,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
+              ],
+              const SizedBox(height: kSpacingMedium),
+              FilledButton(
+                onPressed: !_canSubmitContent ? null : _onSubmit,
+                child: _submitting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _willPublish
+                            ? _publishLabel(l10n, widget.kind)
+                            : l10n.coordinationComposerSaveDraft,
+                      ),
               ),
             ],
-            const SizedBox(height: kSpacingMedium),
-            FilledButton(
-              onPressed: !_canSubmitContent ? null : _onSubmit,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _willPublish
-                          ? _publishLabel(l10n, widget.kind)
-                          : l10n.coordinationComposerSaveDraft,
-                    ),
-            ),
-          ],
+          ),
         ),
       ),
     );
