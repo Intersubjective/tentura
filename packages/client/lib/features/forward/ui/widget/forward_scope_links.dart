@@ -23,63 +23,69 @@ class ForwardScopeLinks extends StatelessWidget {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
 
-    Widget scopeTab(ForwardFilter f, String label, int count) {
+    Widget scopeTab(ForwardFilter f, String label, String hint, int count) {
       final active = f == activeFilter;
       final activeColor = tt.info;
       return Expanded(
         child: Semantics(
           button: true,
           selected: active,
-          child: InkWell(
-            onTap: () => onScopeChanged(f),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: tt.buttonHeight),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: tt.iconTextGap),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: label,
-                              style: TenturaText.tabLabel(
-                                active ? activeColor : tt.textMuted,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ' ($count)',
-                              style: TenturaText.withTabular(
-                                TenturaText.bodySmall(
+          hint: hint,
+          child: Tooltip(
+            message: hint,
+            child: InkWell(
+              onTap: () => onScopeChanged(f),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: tt.buttonHeight),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tt.iconTextGap,
+                        ),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: label,
+                                style: TenturaText.tabLabel(
                                   active ? activeColor : tt.textMuted,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    SizedBox(height: tt.iconTextGap),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 2,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: active ? activeColor : Colors.transparent,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(1),
+                              TextSpan(
+                                text: ' ($count)',
+                                style: TenturaText.withTabular(
+                                  TenturaText.bodySmall(
+                                    active ? activeColor : tt.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                         ),
-                        child: const SizedBox.expand(),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: tt.iconTextGap),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: active ? activeColor : Colors.transparent,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(1),
+                            ),
+                          ),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -102,11 +108,13 @@ class ForwardScopeLinks extends StatelessWidget {
                 scopeTab(
                   ForwardFilter.unseen,
                   l10n.forwardScopeUnseenShort,
+                  l10n.forwardScopeUnseenHint,
                   counts.unseen,
                 ),
                 scopeTab(
                   ForwardFilter.alreadyInvolved,
                   l10n.forwardScopeInvolvedShort,
+                  l10n.forwardScopeInvolvedHint,
                   counts.involved,
                 ),
               ],

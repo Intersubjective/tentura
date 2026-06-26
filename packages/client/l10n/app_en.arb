@@ -1706,6 +1706,14 @@
   "@forwardScopeInvolvedShort": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardScopeUnseenHint": "People who haven't seen this beacon yet",
+  "@forwardScopeUnseenHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedHint": "People already in this beacon's forward chain",
+  "@forwardScopeInvolvedHint": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardHidePersonalizedNotes": "Hide personalized notes",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
