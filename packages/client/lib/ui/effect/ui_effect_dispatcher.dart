@@ -44,25 +44,40 @@ void dispatchUiEffect(
         case NavigateReplaceTarget.home:
           unawaited(router.replaceAll([const HomeRoute()]));
         case NavigateReplaceTarget.homeInboxTab:
-          unawaited(router.replaceAll([
-            const HomeRoute(children: [InboxRoute()]),
-          ]));
+          unawaited(
+            router.replaceAll([
+              const HomeRoute(children: [InboxRoute()]),
+            ]),
+          );
         case NavigateReplaceTarget.authLogin:
           unawaited(router.replaceAll([const AuthLoginRoute()]));
       }
     case ShowMessage(:final message):
-      switch (message) {
-        case final LocalizableActionMessage m:
-          showSnackBar(
-            context,
-            text: m.toL10n(localeName),
-            action: SnackBarAction(
-              label: m.label.toL10n(localeName),
-              onPressed: m.onPressed,
-            ),
-          );
-        default:
-          showSnackBar(context, text: message.toL10n(localeName));
+      void show() {
+        switch (message) {
+          case final LocalizableActionMessage m:
+            showSnackBar(
+              context,
+              text: m.toL10n(localeName),
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: m.label.toL10n(localeName),
+                onPressed: m.onPressed,
+              ),
+            );
+          default:
+            showSnackBar(context, text: message.toL10n(localeName));
+        }
+      }
+
+      // Let route/dialog dismiss and list rebuild before the nudge snackbar.
+      if (message is LocalizableActionMessage) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          show();
+        });
+      } else {
+        show();
       }
     case ShowError(:final error):
       switch (error) {
