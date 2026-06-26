@@ -243,6 +243,7 @@ function createSignInReveal(inviteCode, {
   blockId = 'signin-options',
   hideOnReveal = [],
   expandedByDefault = false,
+  onSignInModeChange = null,
 } = {}) {
   const signInBlock = el('div', {
     class: 'signin-options',
@@ -269,6 +270,7 @@ function createSignInReveal(inviteCode, {
     existingToggle.hidden = false;
     existingToggle.setAttribute('aria-expanded', 'false');
     for (const node of hideOnReveal) node.hidden = false;
+    onSignInModeChange?.(false);
   });
 
   const existingToggle = el(
@@ -293,12 +295,14 @@ function createSignInReveal(inviteCode, {
     existingToggle.hidden = true;
     for (const node of hideOnReveal) node.hidden = true;
     signInBlock.querySelector('input')?.focus();
+    onSignInModeChange?.(true);
   });
 
   if (expandedByDefault) {
     signInBlock.replaceChildren(...buildSignInOptionItems(inviteCode));
     existingToggle.hidden = true;
     existingToggle.setAttribute('aria-expanded', 'true');
+    onSignInModeChange?.(true);
   }
 
   return { existingToggle, signInBlock };
@@ -651,17 +655,23 @@ function renderError() {
 // than the link-specific "Something went wrong" error.
 function renderNoInvite() {
   setState('no-invite');
-  setPageTitle('Tentura — invite-only');
 
   const inviteIntro = el('p', {}, 'Join with a personal invite from someone you know.');
   const inviteForm = renderInviteEntryForm();
+  const heading = el('h1', {}, 'Tentura is invite-only');
+  const applyLandingMode = (signInMode) => {
+    setPageTitle(signInMode ? 'Sign in — Tentura' : 'Tentura — invite-only');
+    heading.textContent = signInMode ? 'Sign in to Tentura' : 'Tentura is invite-only';
+  };
   const { existingToggle, signInBlock } = createSignInReveal('', {
     expandedByDefault: true,
+    onSignInModeChange: applyLandingMode,
   });
+  applyLandingMode(true);
 
   const children = [
     el('p', { class: 'eyebrow' }, 'Private coordination network'),
-    el('h1', {}, 'Tentura is invite-only'),
+    heading,
     inviteIntro,
     signedInFlash(),
     inviteForm,
