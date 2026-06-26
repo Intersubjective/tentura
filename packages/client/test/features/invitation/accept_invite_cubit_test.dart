@@ -45,6 +45,24 @@ void main() {
       );
     });
 
+    test('trailing dash normalizes before preview', () async {
+      repo.previewResult = const InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.anonymous,
+      );
+      await cubit.start('I806d29daebbe-');
+      expect(repo.previewCalls, 1);
+      expect(cubit.state.code, 'I806d29daebbe');
+      expect(
+        cubit.state.status,
+        isA<StateIsNavigating>().having(
+          (s) => s.path,
+          'path',
+          '/sign/up/I806d29daebbe',
+        ),
+      );
+    });
+
     test('already-friends short-circuits without accept POST', () async {
       repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,
@@ -68,7 +86,10 @@ void main() {
       );
       await cubit.start('Iabc123');
       expect(cubit.state.needsConfirmation, isTrue);
-      expect(cubit.state.pendingInviter, const Profile(id: 'U1', displayName: 'Alice'));
+      expect(
+        cubit.state.pendingInviter,
+        const Profile(id: 'U1', displayName: 'Alice'),
+      );
       expect(cubit.state.pendingBeacon?.id, 'B1');
     });
 
@@ -135,7 +156,11 @@ void main() {
       await cubit.start('Iabc123');
       expect(
         cubit.state.status,
-        isA<StateIsNavigating>().having((s) => s.path, 'path', '/sign/up/Iabc123'),
+        isA<StateIsNavigating>().having(
+          (s) => s.path,
+          'path',
+          '/sign/up/Iabc123',
+        ),
       );
     });
   });
@@ -166,5 +191,4 @@ class FakeInvitationAcceptPort implements InvitationAcceptPort {
       throw acceptError!;
     }
   }
-
 }

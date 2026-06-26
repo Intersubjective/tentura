@@ -3,10 +3,28 @@
 // Response shape (see invite_preview_result.dart):
 //   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
 
+import { normalizeInviteCode } from './invite_entry.js';
+
 /// Invite URLs: `/invite/:code` on the landing host.
 export function parseInviteCode() {
   const m = location.pathname.match(/^\/invite\/([^/]+)/);
-  return m ? decodeURIComponent(m[1]) : '';
+  if (!m) return '';
+  try {
+    return normalizeInviteCode(decodeURIComponent(m[1]));
+  } catch {
+    return '';
+  }
+}
+
+/** Raw path segment before normalization (for trailing-dash hints). */
+export function parseInviteCodeRaw() {
+  const m = location.pathname.match(/^\/invite\/([^/]+)/);
+  if (!m) return '';
+  try {
+    return decodeURIComponent(m[1]).trim();
+  } catch {
+    return '';
+  }
 }
 
 export async function fetchPreview(code) {

@@ -56,6 +56,18 @@ final class InviteInvalidCodeMessage extends LocalizableMessage {
   String get toRu => 'Этот код приглашения недействителен.';
 }
 
+final class InviteTrailingDashHintMessage extends LocalizableMessage {
+  const InviteTrailingDashHintMessage();
+
+  @override
+  String get toEn =>
+      'This invite link ends with an extra dash. Remove the trailing "-" and try again.';
+
+  @override
+  String get toRu =>
+      'В конце ссылки на приглашение лишний дефис. Удалите «-» в конце и попробуйте снова.';
+}
+
 final class _OpenBeaconActionLabel extends LocalizableMessage {
   const _OpenBeaconActionLabel();
 

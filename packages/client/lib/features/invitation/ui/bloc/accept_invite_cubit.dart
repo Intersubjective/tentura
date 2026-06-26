@@ -13,6 +13,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import '../../domain/entity/invite_preview.dart';
+import '../../domain/invite_code.dart';
 import '../../domain/port/invitation_accept_port.dart';
 import '../../domain/exception.dart';
 import '../message/accept_invite_messages.dart';
@@ -57,10 +58,15 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   }
 
   Future<void> start(String rawCode) async {
-    final code = rawCode.trim();
+    final hadTrailingDash = inviteCodeHadTrailingDash(rawCode);
+    final code = normalizeInviteCode(rawCode);
     emit(AcceptInviteState(code: code));
-    if (!kInvitationCodeRegExp.hasMatch(code)) {
-      _finishWithMessage(const InviteInvalidCodeMessage());
+    if (!isValidInviteCode(code)) {
+      _finishWithMessage(
+        hadTrailingDash
+            ? const InviteTrailingDashHintMessage()
+            : const InviteInvalidCodeMessage(),
+      );
       return;
     }
     try {

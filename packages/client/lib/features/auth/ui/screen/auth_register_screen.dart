@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/env.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
@@ -61,7 +62,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
   @override
   void initState() {
     super.initState();
-    final invitationId = widget.id.trim();
+    final invitationId = normalizeInviteCode(widget.id);
     if (invitationId.isNotEmpty) {
       _codeController.text = invitationId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -101,136 +102,138 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         !prev.isAuthenticated && curr.isAuthenticated && !curr.isLoading,
     listener: (_, auth) => _onAuthStateChanged(auth),
     child: Scaffold(
-    appBar: AppBar(
-      centerTitle: true,
-      title: Text(_l10n.createNewAccount),
-      leading: const AutoLeadingButton(),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(4),
-        child: BlocSelector<AuthCubit, AuthState, bool>(
-          key: Key('Loader:${_authCubit.hashCode}'),
-          selector: (state) => state.isLoading,
-          builder: LinearPiActive.builder,
-          bloc: _authCubit,
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(_l10n.createNewAccount),
+        leading: const AutoLeadingButton(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: BlocSelector<AuthCubit, AuthState, bool>(
+            key: Key('Loader:${_authCubit.hashCode}'),
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+            bloc: _authCubit,
+          ),
         ),
       ),
-    ),
-    body: Form(
-      key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-        // Invite Code
-        if (_env.needInviteCode)
-          AuthFormField(
-            child: TextFormField(
-                // Do NOT autofocus when the id is pre-filled from a deep link.
-              // On iOS, autofocus during cold-start (e.g. QR-code launch) fires
-              // while UIKit still rejects firstResponder requests; Flutter marks
-              // the field as focused but the keyboard never appears, breaking
-              // all subsequent taps on any field for the rest of the session.
-              autofocus: widget.id.trim().isEmpty,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _codeController,
-              contextMenuBuilder: (_, state) =>
-                  AdaptiveTextSelectionToolbar.buttonItems(
-                    anchors: state.contextMenuAnchors,
-                    buttonItems: [
-                      ContextMenuButtonItem(
-                        type: ContextMenuButtonType.paste,
-                        onPressed: _getCodeFromClipboard,
-                      ),
-                    ],
-                  ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Invite Code
+              if (_env.needInviteCode)
+                AuthFormField(
+                  child: TextFormField(
+                    // Do NOT autofocus when the id is pre-filled from a deep link.
+                    // On iOS, autofocus during cold-start (e.g. QR-code launch) fires
+                    // while UIKit still rejects firstResponder requests; Flutter marks
+                    // the field as focused but the keyboard never appears, breaking
+                    // all subsequent taps on any field for the rest of the session.
+                    autofocus: widget.id.trim().isEmpty,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    controller: _codeController,
+                    contextMenuBuilder: (_, state) =>
+                        AdaptiveTextSelectionToolbar.buttonItems(
+                          anchors: state.contextMenuAnchors,
+                          buttonItems: [
+                            ContextMenuButtonItem(
+                              type: ContextMenuButtonType.paste,
+                              onPressed: _getCodeFromClipboard,
+                            ),
+                          ],
+                        ),
 
-              decoration: InputDecoration(
-                hintText: _l10n.pleaseEnterCode,
-                labelText: _l10n.labelInvitationCode,
-                suffix: IconButton(
-                  tooltip: _l10n.buttonPaste,
-                  constraints: const BoxConstraints(
-                    minWidth: kMinInteractiveDimension,
-                    minHeight: kMinInteractiveDimension,
+                    decoration: InputDecoration(
+                      hintText: _l10n.pleaseEnterCode,
+                      labelText: _l10n.labelInvitationCode,
+                      suffix: IconButton(
+                        tooltip: _l10n.buttonPaste,
+                        constraints: const BoxConstraints(
+                          minWidth: kMinInteractiveDimension,
+                          minHeight: kMinInteractiveDimension,
+                        ),
+                        onPressed: _getCodeFromClipboard,
+                        icon: const Icon(Icons.paste_rounded),
+                      ),
+                    ),
+                    maxLength: kIdLength,
+                    keyboardType: TextInputType.text,
+                    style: _textTheme.headlineLarge,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(kInvitationCodeRegExp),
+                    ],
+                    validator: (text) => invitationCodeValidator(_l10n, text),
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    onChanged: (value) {
+                      if (value.trim().length >= kIdLength) {
+                        unawaited(
+                          context.read<RegisterInviteCubit>().load(value),
+                        );
+                      }
+                    },
                   ),
-                  onPressed: _getCodeFromClipboard,
-                  icon: const Icon(Icons.paste_rounded),
+                ),
+
+              // Username
+              AuthFormField(
+                child: TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    hintText: _l10n.pleaseFillDisplayName,
+                    labelText: _l10n.labelDisplayName,
+                  ),
+                  maxLength: kTitleMaxLength,
+                  style: _textTheme.headlineLarge,
+                  validator: (text) => displayNameValidator(_l10n, text),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 ),
               ),
-              maxLength: kIdLength,
-              keyboardType: TextInputType.text,
-              style: _textTheme.headlineLarge,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(kInvitationCodeRegExp),
-              ],
-              validator: (text) => invitationCodeValidator(_l10n, text),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: (value) {
-                if (value.trim().length >= kIdLength) {
-                  unawaited(context.read<RegisterInviteCubit>().load(value));
-                }
-              },
-            ),
-          ),
 
-        // Username
-        AuthFormField(
-          child: TextFormField(
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            controller: _titleController,
-            decoration: InputDecoration(
-              hintText: _l10n.pleaseFillDisplayName,
-              labelText: _l10n.labelDisplayName,
-            ),
-            maxLength: kTitleMaxLength,
-            style: _textTheme.headlineLarge,
-            validator: (text) => displayNameValidator(_l10n, text),
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
-          ),
-        ),
+              // Handle (optional)
+              AuthFormField(
+                child: TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  controller: _handleController,
+                  decoration: InputDecoration(
+                    hintText: _l10n.userHandleHint,
+                    labelText: _l10n.labelUserHandle,
+                  ),
+                  maxLength: kUserHandleMaxLength,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
+                  ],
+                  validator: (text) {
+                    final t = (text ?? '').trim().toLowerCase();
+                    if (t.isEmpty) return null;
+                    if (!isValidUserHandleFormat(t)) {
+                      return _l10n.userHandleInvalidFormat;
+                    }
+                    return null;
+                  },
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                ),
+              ),
 
-        // Handle (optional)
-        AuthFormField(
-          child: TextFormField(
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            controller: _handleController,
-            decoration: InputDecoration(
-              hintText: _l10n.userHandleHint,
-              labelText: _l10n.labelUserHandle,
-            ),
-            maxLength: kUserHandleMaxLength,
-            keyboardType: TextInputType.text,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
+              // Register
+              AuthFormField(
+                child: BlocSelector<AuthCubit, AuthState, bool>(
+                  bloc: _authCubit,
+                  selector: (state) => state.isLoading,
+                  builder: (context, isLoading) => FilledButton(
+                    onPressed: isLoading ? null : _submitSignUp,
+                    child: Text(_l10n.buttonCreate),
+                  ),
+                ),
+              ),
             ],
-            validator: (text) {
-              final t = (text ?? '').trim().toLowerCase();
-              if (t.isEmpty) return null;
-              if (!isValidUserHandleFormat(t)) {
-                return _l10n.userHandleInvalidFormat;
-              }
-              return null;
-            },
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
           ),
-        ),
-
-        // Register
-        AuthFormField(
-          child: BlocSelector<AuthCubit, AuthState, bool>(
-            bloc: _authCubit,
-            selector: (state) => state.isLoading,
-            builder: (context, isLoading) => FilledButton(
-              onPressed: isLoading ? null : _submitSignUp,
-              child: Text(_l10n.buttonCreate),
-            ),
-          ),
-        ),
-          ],
         ),
       ),
     ),
-  ),
   );
 
   void _submitSignUp() {
@@ -239,7 +242,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
     }
     unawaited(
       _authCubit.signUp(
-        invitationCode: _codeController.text,
+        invitationCode: normalizeInviteCode(_codeController.text),
         displayName: _titleController.text,
         handle: _handleController.text.trim().toLowerCase().isEmpty
             ? null
