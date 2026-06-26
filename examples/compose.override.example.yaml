@@ -15,7 +15,6 @@ services:
     environment:
       # Caddy site hostname (no scheme). Tentura uses full URL — see tentura below.
       - "SERVER_NAME=dev.example.com"
-      - "APP_HOST=app.dev.example.com"
       - "APP_ROOT=/srv/web"
       - "LANDING_ROOT=/srv/landing"
       - ACME_EMAIL

@@ -33,7 +33,6 @@ services:
       - backend
     environment:
       - SERVER_NAME
-      - APP_HOST
       - APP_ROOT
       - LANDING_ROOT
       - ACME_EMAIL
