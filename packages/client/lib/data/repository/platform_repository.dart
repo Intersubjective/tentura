@@ -1,9 +1,11 @@
 import 'package:logging/logging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 import 'package:url_launcher/url_launcher.dart' as url;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:tentura/data/service/web_app_version.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 
@@ -23,8 +25,12 @@ class PlatformRepository implements PlatformRepositoryPort {
       (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
 
   @override
-  Future<String> getAppVersion() =>
-      PackageInfo.fromPlatform().then((info) => info.version);
+  Future<String> getAppVersion() async {
+    if (kIsWeb) {
+      return getWebAppVersion();
+    }
+    return (await PackageInfo.fromPlatform()).version;
+  }
 
   @override
   Future<void> launchUrl(String uri) => url.launchUrl(Uri.parse(uri));
