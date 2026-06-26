@@ -16,7 +16,8 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart' show StringInputValidator;
+import 'package:tentura/ui/utils/string_input_validator.dart'
+    show StringInputValidator;
 
 import '../message/beacon_create_message.dart';
 import 'beacon_create_state.dart';
@@ -38,11 +39,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
        super(
          BeaconCreateState(
            status:
-               (draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty) ||
-                       (editBeaconIdToLoad != null &&
-                           editBeaconIdToLoad.isNotEmpty)
-                   ? StateStatus.isLoading
-                   : const StateIsSuccess(),
+               (draftBeaconIdToLoad != null &&
+                       draftBeaconIdToLoad.isNotEmpty) ||
+                   (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty)
+               ? StateStatus.isLoading
+               : const StateIsSuccess(),
          ),
        ) {
     if (draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty) {
@@ -83,7 +84,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   static const kNeedSummaryPublishMin = BeaconCreateState.needSummaryPublishMin;
 
-  static const kSuccessCriteriaHardMax = BeaconCreateState.successCriteriaHardMax;
+  static const kSuccessCriteriaHardMax =
+      BeaconCreateState.successCriteriaHardMax;
 
   static String _draftSafeTitle(String raw) {
     final t = raw.trim();
@@ -103,10 +105,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
 
       final coords = beacon.coordinates;
-      final coordinates =
-          coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel =
-          coordinates != null ? coordinates.toString() : '';
+      final coordinates = coords != null && coords.isNotEmpty ? coords : null;
+      final locationLabel = coordinates != null ? coordinates.toString() : '';
 
       emit(
         state.copyWith(
@@ -148,10 +148,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
 
       final coords = beacon.coordinates;
-      final coordinates =
-          coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel =
-          coordinates != null ? coordinates.toString() : '';
+      final coordinates = coords != null && coords.isNotEmpty ? coords : null;
+      final locationLabel = coordinates != null ? coordinates.toString() : '';
 
       emit(
         state.copyWith(
@@ -195,7 +193,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void setSuccessCriteria(String value) =>
       emit(state.copyWith(successCriteria: value));
 
-  void setNeeds(Set<String> value) => emit(state.copyWith(needs: value));
+  void setNeeds(Set<String> value) =>
+      emit(state.copyWith(needs: Set<String>.from(value)));
 
   void removeNeed(String slug) {
     if (!state.needs.contains(slug)) {
@@ -241,12 +240,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   );
 
   void setIconCode(String value) => emit(
-        state.copyWith(
-          iconCode: value,
-          iconBackground: state.iconBackground ??
-              kBeaconIdentityPalette.first.backgroundArgb,
-        ),
-      );
+    state.copyWith(
+      iconCode: value,
+      iconBackground:
+          state.iconBackground ?? kBeaconIdentityPalette.first.backgroundArgb,
+    ),
+  );
 
   void setIconBackground(int? value) =>
       emit(state.copyWith(iconBackground: value));
@@ -311,6 +310,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Future<void> _syncDraftServerImages(
     String beaconId, {
+
     /// When true, skip index 0 (already sent as multipart on `beaconCreate`).
     bool skipFirstMultipart = false,
   }) async {
@@ -376,8 +376,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           beaconPayload,
           draft: true,
         );
-        final skipFirst = state.images.isNotEmpty &&
-            state.images.first.imageBytes != null;
+        final skipFirst =
+            state.images.isNotEmpty && state.images.first.imageBytes != null;
         await _syncDraftServerImages(
           created.id,
           skipFirstMultipart: skipFirst,
