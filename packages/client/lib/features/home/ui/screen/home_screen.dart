@@ -84,10 +84,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
         final useSideNav = windowClass != WindowClass.compact;
         return AutoTabsRouter(
           routes: _homeTabRoutes,
-          transitionBuilder: (context, child, animation) => FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          // Instant tab switches: fade left the previous tab visible while URL
+          // and rail selection already pointed at the new tab (desync).
+          duration: Duration.zero,
+          transitionBuilder: (context, child, animation) => child,
           builder: (context, child) {
             final tabsRouter = context.tabsRouter;
             final content = TenturaContentColumn(
