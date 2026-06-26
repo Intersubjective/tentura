@@ -665,6 +665,19 @@
   "@confirmFriendAccept": {
     "context": "FriendAcceptInvitationDialog"
   },
+  "inviteAcceptBeaconTitle": "Принять приглашение и маяк?",
+  "@inviteAcceptBeaconTitle": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот маяк во «Входящие».",
+  "@inviteAcceptBeaconBody": {
+    "context": "InvitationAcceptDialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "tapToChooseLocation": "Нажмите, чтобы выбрать место",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
@@ -1765,9 +1778,22 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "Здесь будут показаны активные маяки, в которых вы участвуете. Вы можете создать маяк сами или поучаствовать в маяке, который вам переслали другие.",
+  "myWorkEmptyActiveBody": "«Мои дела» — маяки, которые вы создали или на которых предложили помощь. Пересланные вам маяки — во «Входящих».",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxHint": "Пересланные маяки ждут вас во «Входящих» → «Нужно мне».",
+  "@myWorkEmptyActiveInboxHint": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxPrimaryCta": "Открыть входящие ({count})",
+  "@myWorkEmptyActiveInboxPrimaryCta": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "myWorkEmptyActiveCreateCta": "Создать маяк",
   "@myWorkEmptyActiveCreateCta": {
