@@ -1873,7 +1873,7 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "нужно внимание",
+  "myWorkStatusOverdue": "Нужно внимание",
   "@myWorkStatusOverdue": {
     "context": "MyWorkScreen"
   },
@@ -3618,5 +3618,17 @@
   "forwardReasonAheadHint": "После выбора человека можно указать причину пересылки и добавить личную заметку.",
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."
+  },
+  "inboxDismissDialogTitle": "Убрать из входящих?",
+  "@inboxDismissDialogTitle": {
+    "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
+  },
+  "inboxDismissDialogHint": "Комментарий необязателен (видите только вы)",
+  "@inboxDismissDialogHint": {
+    "description": "Hint for optional note when removing a beacon from inbox."
+  },
+  "inboxDismissTooltip": "Убрать из входящих",
+  "@inboxDismissTooltip": {
+    "description": "Tooltip for the inbox card dismiss (X) control."
   }
 }

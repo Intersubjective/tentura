@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -9,19 +10,18 @@ import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
 
 Profile _senderProfile(InboxForwardSender s) => Profile(
-      id: s.id,
-      displayName: s.displayName,
-      contactName: contactNameOf(s.id),
-      image: s.imageId != null && s.imageId!.isNotEmpty && s.imageId != 'null'
-          ? ImageEntity(id: s.imageId!, authorId: s.id)
-          : null,
-    );
+  id: s.id,
+  displayName: s.displayName,
+  contactName: contactNameOf(s.id),
+  image: s.imageId != null && s.imageId!.isNotEmpty && s.imageId != 'null'
+      ? ImageEntity(id: s.imageId!, authorId: s.id)
+      : null,
+);
 
 /// Collapsed: “Forwarded by” + mini avatars + chevron (no note text).
 /// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar (full-width rows).
@@ -66,8 +66,7 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
     final viewerId = context.watch<ProfileCubit>().state.profile.id;
 
     final profiles = senders.map(_senderProfile).toList(growable: false);
-    final rawOverflow =
-        widget.provenance.totalDistinctSenders - senders.length;
+    final rawOverflow = widget.provenance.totalDistinctSenders - senders.length;
     final overflow = rawOverflow > 0 ? rawOverflow : 0;
 
     final labelStyle = theme.textTheme.labelSmall?.copyWith(
@@ -107,8 +106,10 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
             ),
           );
 
-    final deadlineMeta =
-        beaconCardCalendarDeadlineStatus(l10n, widget.deadlineEndAt);
+    final deadlineMeta = beaconCardCalendarDeadlineStatus(
+      l10n,
+      widget.deadlineEndAt,
+    );
     final baseDeadlineStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
       color: scheme.onSurfaceVariant,
@@ -122,6 +123,11 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
         : baseDeadlineStyle;
     final deadlineChild = deadlineMeta == null
         ? null
+        : deadlineMeta.overdue
+        ? TenturaStatusText(
+            deadlineMeta.text,
+            tone: TenturaTone.danger,
+          )
         : Text(
             deadlineMeta.text,
             maxLines: 1,
@@ -234,8 +240,11 @@ class _SenderNoteBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = _senderProfile(sender);
-    final displayName =
-        SelfUserHighlight.displayName(l10n, profile, viewerId).trim();
+    final displayName = SelfUserHighlight.displayName(
+      l10n,
+      profile,
+      viewerId,
+    ).trim();
     final note = sender.notePreview.trim();
 
     final header = Row(
