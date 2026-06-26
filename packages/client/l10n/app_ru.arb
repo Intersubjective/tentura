@@ -3453,6 +3453,10 @@
     }
   },
   "beaconRequirementsTitle": "Требования",
+  "beaconRequirementsSheetHint": "Выбранные требования отображаются значками в форме маяка.",
+  "beaconRequirementsDiscardTitle": "Отменить выбор?",
+  "beaconRequirementsDiscardBody": "Выбранные требования не сохранены.",
+  "beaconRequirementsDiscardConfirm": "Отменить",
   "beaconRequirementsSubheading": "Нужны:",
   "beaconForwardRequirementsHint": "Нужно:",
   "beaconRequirementsSelectedCount": "{count, plural, =0{Не выбрано} one{Выбран 1 тип} few{Выбрано {count} типа} many{Выбрано {count} типов} other{Выбрано {count} типов}}",

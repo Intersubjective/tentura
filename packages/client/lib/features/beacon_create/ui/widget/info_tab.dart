@@ -73,65 +73,104 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   Future<void> _showRequirementsSheet(BuildContext context) async {
     final l10n = L10n.of(context)!;
-    var selected = Set<String>.from(_cubit.state.needs);
+    var baseline = Set<String>.from(_cubit.state.needs);
+    var selected = Set<String>.from(baseline);
+
+    bool hasUnsavedChanges() =>
+        baseline.length != selected.length ||
+        !baseline.containsAll(selected);
+
+    Future<void> requestClose(BuildContext ctx) async {
+      if (!hasUnsavedChanges()) {
+        Navigator.of(ctx).pop();
+        return;
+      }
+      final confirmed = await TenturaConfirmDialog.show(
+        context: ctx,
+        title: l10n.beaconRequirementsDiscardTitle,
+        content: l10n.beaconRequirementsDiscardBody,
+        confirmLabel: l10n.beaconRequirementsDiscardConfirm,
+        cancelLabel: l10n.buttonCancel,
+      );
+      if ((confirmed ?? false) && ctx.mounted) {
+        Navigator.of(ctx).pop();
+      }
+    }
 
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
-          builder: (ctx, setModalState) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.7,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          builder: (_, scrollController) => Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  context.tt.screenHPadding,
-                  context.tt.sectionGap,
-                  context.tt.screenHPadding,
-                  context.tt.tightGap * 2,
-                ),
-                child: Row(
+          builder: (ctx, setModalState) {
+            final tt = ctx.tt;
+            final scheme = Theme.of(ctx).colorScheme;
+            return PopScope(
+              canPop: !hasUnsavedChanges(),
+              onPopInvokedWithResult: (didPop, _) async {
+                if (didPop) return;
+                await requestClose(ctx);
+              },
+              child: DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.7,
+                minChildSize: 0.4,
+                maxChildSize: 0.95,
+                builder: (_, scrollController) => Column(
                   children: [
-                    Expanded(
-                      child: Text(
-                        l10n.beaconRequirementsTitle,
-                        style: Theme.of(ctx).textTheme.titleMedium,
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        tt.screenHPadding,
+                        tt.sectionGap,
+                        tt.screenHPadding,
+                        tt.tightGap * 2,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.beaconRequirementsTitle,
+                              style: Theme.of(ctx).textTheme.titleMedium,
+                            ),
+                          ),
+                          FilledButton(
+                            onPressed: () {
+                              _cubit.setNeeds(selected);
+                              baseline = Set<String>.from(selected);
+                              Navigator.of(ctx).pop();
+                            },
+                            child: Text(l10n.buttonSave),
+                          ),
+                        ],
                       ),
                     ),
-                    FilledButton(
-                      onPressed: () {
-                        _cubit.setNeeds(selected);
-                        Navigator.of(ctx).pop();
-                      },
-                      child: Text(l10n.buttonSave),
+                    Expanded(
+                      child: ListView(
+                        controller: scrollController,
+                        padding: EdgeInsets.fromLTRB(
+                          tt.screenHPadding,
+                          0,
+                          tt.screenHPadding,
+                          tt.sectionGap * 2,
+                        ),
+                        children: [
+                          Text(
+                            l10n.beaconRequirementsSheetHint,
+                            style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                          ),
+                          SizedBox(height: tt.rowGap),
+                          CapabilityChipSet(
+                            selectedSlugs: selected,
+                            onChanged: (s) => setModalState(() => selected = s),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(
-                    context.tt.screenHPadding,
-                    0,
-                    context.tt.screenHPadding,
-                    context.tt.sectionGap * 2,
-                  ),
-                  children: [
-                    CapabilityChipSet(
-                      selectedSlugs: selected,
-                      onChanged: (s) => setModalState(() => selected = s),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+            );
+          },
         ),
       ),
     );
