@@ -11,5 +11,9 @@ void main() {
     expect(html, contains('wasm-preload-manifest.json'));
     expect(html, contains('https://accounts.google.com/o/oauth2/v2/auth'));
     expect(html, contains('caches.open'));
+    expect(html, contains("import { warmUrlsFromManifest } from '/browser_compatibility.js'"));
+    expect(html, contains('type="module"'));
+    expect(html, isNot(contains('[m.mainWasm].concat')));
+    expect(html, isNot(contains('m.mainWasm].concat')));
   });
 }

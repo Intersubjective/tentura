@@ -1,6 +1,8 @@
-// Background WASM app asset warmup from the static landing (single-origin).
+// Background app asset warmup from the static landing (single-origin).
 // Registers the app cache service worker and populates the versioned Cache
 // Storage bucket used by tentura-app-cache-sw.js.
+
+import { warmUrlsFromManifest } from './browser_compatibility.js';
 
 const MANIFEST_URL = '/wasm-preload-manifest.json';
 const SW_URL = '/tentura-app-cache-sw.js';
@@ -51,14 +53,7 @@ async function fetchManifest() {
 
 function assetUrls(manifest) {
   if (!manifest?.version) return [];
-  const seen = new Set();
-  const urls = [];
-  for (const u of [manifest.mainWasm, ...(manifest.preload || [])]) {
-    if (!u || seen.has(u)) continue;
-    seen.add(u);
-    urls.push(u);
-  }
-  return urls;
+  return warmUrlsFromManifest(manifest);
 }
 
 async function warmOneUrl(url, cache) {

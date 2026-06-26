@@ -25,37 +25,42 @@ void generateWasmPreloadArtifacts({String buildWebDir = 'build/web', String? ver
   // emitted ASSET_PATHS / preload manifest match the SW CACHE_VERSION.
   versionUpdate(webDir: buildWebDir, version: resolvedVersion);
 
-  final wasmFiles = <String>[];
-  final preload = <String>[];
-
   String relPath(File f) {
     var rel = f.path.substring(webDir.path.length);
     if (!rel.startsWith('/')) rel = '/$rel';
     return rel.replaceAll(r'\', '/');
   }
 
-  void consider(File f) {
-    final name = f.path.split(Platform.pathSeparator).last;
-    final rel = relPath(f);
-    if (name.endsWith('.wasm')) {
-      wasmFiles.add(rel);
-    }
-    if (name == 'flutter_bootstrap.js' ||
-        name == 'main.dart.js' ||
-        name == 'main.dart.mjs' ||
-        (name.startsWith('main.dart') && name.endsWith('.part.js')) ||
-        name == 'sqlite3.wasm' ||
-        name == 'drift_worker.js') {
-      preload.add(rel);
-    }
-    if (rel.contains('/assets/') &&
-        (name.endsWith('.wasm') || name.endsWith('.js'))) {
-      if (!preload.contains(rel)) preload.add(rel);
+  String? mainWasm;
+  String? mainJs;
+  final sharedPreload = <String>[];
+  final wasmPreload = <String>[];
+  final jsPreload = <String>[];
+
+  for (final entity in webDir.listSync(recursive: true)) {
+    if (entity is! File) continue;
+    final name = entity.path.split(Platform.pathSeparator).last;
+    final rel = relPath(entity);
+    if (name == 'main.dart.wasm') {
+      mainWasm = rel;
+    } else if (name == 'main.dart.js') {
+      mainJs = rel;
+    } else if (name == 'main.dart.mjs') {
+      if (!wasmPreload.contains(rel)) wasmPreload.add(rel);
+    } else if (name == 'sqlite3.wasm' || name == 'drift_worker.js') {
+      if (!sharedPreload.contains(rel)) sharedPreload.add(rel);
     }
   }
 
-  for (final entity in webDir.listSync(recursive: true)) {
-    if (entity is File) consider(entity);
+  if (mainWasm == null) {
+    stdout.writeln('wasm_preload: no .wasm found in $buildWebDir');
+    return;
+  }
+  if (!wasmPreload.contains(mainWasm)) {
+    wasmPreload.insert(0, mainWasm);
+  }
+  if (mainJs != null && !jsPreload.contains(mainJs)) {
+    jsPreload.add(mainJs);
   }
 
   // Bootstrap with version query when present in index.html
@@ -70,28 +75,23 @@ void generateWasmPreloadArtifacts({String buildWebDir = 'build/web', String? ver
       bootstrapPath = '/flutter_bootstrap.js?v=${match.group(1)}';
     }
   }
-  if (!preload.contains(bootstrapPath)) {
-    preload.insert(0, bootstrapPath);
+  if (!sharedPreload.contains(bootstrapPath)) {
+    sharedPreload.insert(0, bootstrapPath);
   }
 
-  String? mainWasm;
-  for (final w in wasmFiles) {
-    if (w.contains('main.dart.wasm') || w.endsWith('/main.dart.wasm')) {
-      mainWasm = w;
-      break;
-    }
-  }
-  mainWasm ??= wasmFiles.isNotEmpty ? wasmFiles.first : null;
-  if (mainWasm == null) {
-    stdout.writeln('wasm_preload: no .wasm found in $buildWebDir');
-    return;
-  }
-  if (!preload.contains(mainWasm)) preload.insert(0, mainWasm);
+  final swAssetPaths = {
+    ...sharedPreload,
+    ...wasmPreload,
+    ...jsPreload,
+  }.toList();
 
   final manifest = {
     'version': resolvedVersion,
     'mainWasm': mainWasm,
-    'preload': preload.toSet().toList(),
+    if (mainJs != null) 'mainJs': mainJs,
+    'sharedPreload': sharedPreload,
+    'wasmPreload': wasmPreload,
+    'jsPreload': jsPreload,
     'prefetch': <String>[],
   };
 
@@ -100,13 +100,14 @@ void generateWasmPreloadArtifacts({String buildWebDir = 'build/web', String? ver
     const JsonEncoder.withIndent('  ').convert(manifest),
   );
 
-  final assetPathsJson = jsonEncode(manifest['preload']);
+  final assetPathsJson = jsonEncode(swAssetPaths);
   final sw =
       _serviceWorkerSource(version: resolvedVersion, assetPathsJson: assetPathsJson);
   File('${webDir.path}/tentura-app-cache-sw.js').writeAsStringSync(sw);
 
   stdout.writeln(
-    'wasm_preload: wrote manifest (${preload.length} preload, main=$mainWasm)',
+    'wasm_preload: wrote manifest (shared=${sharedPreload.length}, '
+    'wasm=${wasmPreload.length}, js=${jsPreload.length}, sw=${swAssetPaths.length})',
   );
 }
 
