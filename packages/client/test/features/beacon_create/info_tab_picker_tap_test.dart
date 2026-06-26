@@ -48,7 +48,6 @@ Widget _infoTabHarness(BeaconCreateCubit cubit) {
   );
 }
 
-Finder _fieldByLabel(String label) => find.widgetWithText(TextFormField, label);
 
 void main() {
   late BeaconCreateCubit cubit;
@@ -153,14 +152,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).at(0), titleText);
-    await tester.enterText(
-      _fieldByLabel('What is needed?'),
-      needText,
-    );
-    await tester.enterText(
-      _fieldByLabel('What counts as done?'),
-      successText,
-    );
+    await tester.enterText(find.byType(TextFormField).at(2), needText);
+    await tester.enterText(find.byType(TextFormField).at(3), successText);
     await tester.pump();
 
     expect(cubit.state.title, titleText);
@@ -189,10 +182,7 @@ void main() {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      _fieldByLabel('What is needed?'),
-      needText,
-    );
+    await tester.enterText(find.byType(TextFormField).at(2), needText);
     await tester.pump();
 
     cubit.setDeadline(DateTime(2026, 7, 1));
@@ -242,6 +232,32 @@ void main() {
     expect(cubit.state.coordinates, isNull);
     expect(cubit.state.location, isEmpty);
     expect(find.text('Tap to choose location'), findsNothing);
+  });
+
+  testWidgets('removing a requirement chip updates cubit needs', (tester) async {
+    cubit.setNeeds({'money', 'transport'});
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Money'), findsOneWidget);
+    expect(find.text('Transport'), findsOneWidget);
+    expect(cubit.state.needs, {'money', 'transport'});
+
+    final moneyChip = find.ancestor(
+      of: find.text('Money'),
+      matching: find.byType(InputChip),
+    );
+    await tester.tap(
+      find.descendant(
+        of: moneyChip,
+        matching: find.byIcon(Icons.clear),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.needs, {'transport'});
+    expect(find.text('Money'), findsNothing);
+    expect(find.text('Transport'), findsOneWidget);
   });
 
   testWidgets('requirements sheet shows icon hint copy', (tester) async {
