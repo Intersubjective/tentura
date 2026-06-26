@@ -1706,6 +1706,14 @@
   "@forwardScopeInvolvedShort": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardScopeUnseenHint": "Люди, которые ещё не видели этот маяк",
+  "@forwardScopeUnseenHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedHint": "Люди, уже участвующие в цепочке пересылки",
+  "@forwardScopeInvolvedHint": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
