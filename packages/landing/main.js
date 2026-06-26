@@ -519,6 +519,23 @@ function renderIsInviter(p) {
     beaconOverlay(p),
     el('h1', {}, 'This is your own invite'),
     el('p', {}, 'Share this link with someone you want to connect with.'),
+    el(
+      'button',
+      {
+        class: 'btn btn-secondary',
+        type: 'button',
+        onclick: async (e) => {
+          track('cta_copy_own_invite');
+          try {
+            await navigator.clipboard.writeText(location.href);
+            e.target.textContent = 'Link copied';
+          } catch (_) {
+            /* clipboard blocked in some webviews */
+          }
+        },
+      },
+      'Copy invite link',
+    ),
     ctaOpenApp(),
   );
 }
