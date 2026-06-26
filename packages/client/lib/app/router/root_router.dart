@@ -11,6 +11,7 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
+import 'beacon_legacy_path_deep_link.dart';
 import 'credential_link_deep_link.dart';
 import 'invite_deep_link.dart';
 import 'notification_deep_link.dart';
@@ -345,6 +346,23 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconViewAll/:id',
     ),
 
+    // Legacy `/beacon/:id` (missing `/view`) → unified beacon view.
+    AutoRoute(
+      usesPathAsKey: true,
+      page: BeaconLegacyPathRoute.page,
+      path: '/beacon/:id',
+      guards: [
+        AutoRouteGuard.redirect((resolver) {
+          final id = resolver.route.params.getString('id');
+          return BeaconViewRoute(
+            id: id,
+            isDeepLink: 'true',
+            entry: kBeaconEntryDeepLink,
+          );
+        }),
+      ],
+    ),
+
     // Rating
     AutoRoute(
       usesPathAsKey: true,
@@ -407,6 +425,10 @@ class RootRouter extends RootStackRouter {
     );
     if (invitePath.path != uri.path) {
       return invitePath;
+    }
+    final legacyBeacon = transformLegacyBeaconPath(uri);
+    if (legacyBeacon.path != uri.path) {
+      return legacyBeacon;
     }
     if (uri.path != kPathAppLinkView) {
       return uri;

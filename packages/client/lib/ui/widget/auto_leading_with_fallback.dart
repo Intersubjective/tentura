@@ -11,10 +11,15 @@ import 'package:flutter/material.dart';
 class AutoLeadingWithFallback extends StatelessWidget {
   const AutoLeadingWithFallback({
     required this.fallbackPath,
+    this.onFallback,
     super.key,
   });
 
   final String fallbackPath;
+
+  /// When the stack cannot pop (e.g. web refresh on a deep link), run this
+  /// instead of [StackRouter.navigatePath] on [fallbackPath].
+  final VoidCallback? onFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +32,14 @@ class AutoLeadingWithFallback extends StatelessWidget {
       label: l10n.backButtonTooltip,
       child: IconButton(
         icon: const BackButtonIcon(),
-        onPressed: () =>
-            unawaited(context.router.navigatePath(fallbackPath)),
+        onPressed: () {
+          final onFallback = this.onFallback;
+          if (onFallback != null) {
+            onFallback();
+            return;
+          }
+          unawaited(context.router.navigatePath(fallbackPath));
+        },
       ),
     );
   }
