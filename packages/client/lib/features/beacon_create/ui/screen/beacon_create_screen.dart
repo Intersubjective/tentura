@@ -211,9 +211,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
           bloc: _beaconCreateCubit,
           buildWhen: (p, c) =>
-              p.status != c.status ||
-              p.draftId != c.draftId ||
-              p.title != c.title,
+              p.status != c.status || p.draftId != c.draftId,
           builder: (context, state) {
             if ((widget.draftId.isNotEmpty && state.draftId == null ||
                     widget.editId.isNotEmpty && state.editId == null) &&
@@ -244,7 +242,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                     child: TabBarView(
                       controller: _tabController,
                       children: const [
-                        InfoTab(),
+                        InfoTab(key: ValueKey('BeaconCreate.InfoTab')),
                         ImageTab(),
                       ],
                     ),

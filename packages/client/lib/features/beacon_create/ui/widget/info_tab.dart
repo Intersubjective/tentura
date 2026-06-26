@@ -41,13 +41,20 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   /// Declared timing meaning (event / deadline / none). Held locally so the user
   /// can pick a mode before choosing a date; initialized from existing dates so
   /// editing preselects the right mode.
-  late BeaconScheduleKind _timingKind = _deriveTimingKind(
-    _cubit.state.startAt,
-    _cubit.state.endAt,
-  );
+  late final ValueNotifier<BeaconScheduleKind> _timingKindNotifier =
+      ValueNotifier(
+        _deriveTimingKind(
+          _cubit.state.startAt,
+          _cubit.state.endAt,
+        ),
+      );
 
   late final _titleController = TextEditingController(
     text: _cubit.state.title,
+  );
+
+  late final _descriptionController = TextEditingController(
+    text: _cubit.state.description,
   );
 
   late final _locationController = TextEditingController(
@@ -64,7 +71,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   @override
   void dispose() {
+    _timingKindNotifier.dispose();
     _titleController.dispose();
+    _descriptionController.dispose();
     _locationController.dispose();
     _needSummaryController.dispose();
     _successCriteriaController.dispose();
@@ -183,12 +192,18 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         bloc: _cubit,
         listenWhen: (prev, curr) =>
             prev.title != curr.title ||
+            prev.description != curr.description ||
             prev.location != curr.location ||
             prev.needSummary != curr.needSummary ||
-            prev.successCriteria != curr.successCriteria,
+            prev.successCriteria != curr.successCriteria ||
+            prev.startAt != curr.startAt ||
+            prev.endAt != curr.endAt,
         listener: (context, state) {
           if (_titleController.text != state.title) {
             _titleController.text = state.title;
+          }
+          if (_descriptionController.text != state.description) {
+            _descriptionController.text = state.description;
           }
           if (_locationController.text != state.location) {
             _locationController.text = state.location;
@@ -198,6 +213,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           }
           if (_successCriteriaController.text != state.successCriteria) {
             _successCriteriaController.text = state.successCriteria;
+          }
+          if (state.startAt != null || state.endAt != null) {
+            final derived = _deriveTimingKind(state.startAt, state.endAt);
+            if (_timingKindNotifier.value != derived) {
+              _timingKindNotifier.value = derived;
+            }
           }
         },
         child: ListView(
@@ -238,13 +259,13 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             // Description
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
+              controller: _descriptionController,
               decoration: InputDecoration(
                 hintText: _l10n.labelDescription,
               ),
               keyboardType: TextInputType.multiline,
               maxLength: kDescriptionMaxLength,
               maxLines: null,
-              initialValue: _cubit.state.description,
               onChanged: _cubit.setDescription,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               validator: (text) => descriptionValidator(_l10n, text),
@@ -399,66 +420,70 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             // deadline), then pick. This is where date ambiguity is removed.
             Padding(
               padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _l10n.beaconTimingWhenTitle,
-                    style: _theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+              child: ValueListenableBuilder<BeaconScheduleKind>(
+                valueListenable: _timingKindNotifier,
+                builder: (context, timingKind, _) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _l10n.beaconTimingWhenTitle,
+                      style: _theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<BeaconScheduleKind>(
-                      showSelectedIcon: false,
-                      segments: [
-                        ButtonSegment(
-                          value: BeaconScheduleKind.deadline,
-                          label: Text(_l10n.beaconTimingDeadline),
-                        ),
-                        ButtonSegment(
-                          value: BeaconScheduleKind.event,
-                          label: Text(_l10n.beaconTimingEvent),
-                        ),
-                        ButtonSegment(
-                          value: BeaconScheduleKind.none,
-                          label: Text(_l10n.beaconTimingNone),
-                        ),
-                      ],
-                      selected: {_timingKind},
-                      onSelectionChanged: (s) => _onTimingKindChanged(s.first),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<BeaconScheduleKind>(
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(
+                            value: BeaconScheduleKind.deadline,
+                            label: Text(_l10n.beaconTimingDeadline),
+                          ),
+                          ButtonSegment(
+                            value: BeaconScheduleKind.event,
+                            label: Text(_l10n.beaconTimingEvent),
+                          ),
+                          ButtonSegment(
+                            value: BeaconScheduleKind.none,
+                            label: Text(_l10n.beaconTimingNone),
+                          ),
+                        ],
+                        selected: {timingKind},
+                        onSelectionChanged: (s) =>
+                            _onTimingKindChanged(s.first),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _timingKindHint(_timingKind),
-                    style: _theme.textTheme.bodySmall?.copyWith(
-                      color: _theme.colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 4),
+                    Text(
+                      _timingKindHint(timingKind),
+                      style: _theme.textTheme.bodySmall?.copyWith(
+                        color: _theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                  if (_timingKind != BeaconScheduleKind.none)
-                    Padding(
-                      padding: EdgeInsets.only(top: tt.tightGap * 2),
-                      child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-                          String>(
-                        bloc: _cubit,
-                        selector: _timingSummary,
-                        builder: (_, displayText) => _pickerField(
-                          key: const Key('BeaconCreate.TimingField'),
-                          hint: _l10n.beaconTimingPickDate,
-                          displayText: displayText,
-                          suffixIcon: const Icon(TenturaIcons.calendar),
-                          onTap: () => unawaited(
-                            _timingKind == BeaconScheduleKind.deadline
-                                ? _pickDeadline(context)
-                                : _pickEventDates(context),
+                    if (timingKind != BeaconScheduleKind.none)
+                      Padding(
+                        padding: EdgeInsets.only(top: tt.tightGap * 2),
+                        child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+                            String>(
+                          bloc: _cubit,
+                          selector: _timingSummary,
+                          builder: (_, displayText) => _pickerField(
+                            key: const Key('BeaconCreate.TimingField'),
+                            hint: _l10n.beaconTimingPickDate,
+                            displayText: displayText,
+                            suffixIcon: const Icon(TenturaIcons.calendar),
+                            onTap: () => unawaited(
+                              timingKind == BeaconScheduleKind.deadline
+                                  ? _pickDeadline(context)
+                                  : _pickEventDates(context),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -698,7 +723,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   /// stale date can't leak into the wrong semantics; compatible dates are
   /// reinterpreted rather than lost.
   void _onTimingKindChanged(BeaconScheduleKind kind) {
-    setState(() => _timingKind = kind);
+    _timingKindNotifier.value = kind;
     final s = _cubit.state;
     switch (kind) {
       case BeaconScheduleKind.none:
