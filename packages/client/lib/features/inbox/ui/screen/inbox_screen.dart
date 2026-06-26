@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -9,7 +10,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -25,20 +25,8 @@ import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
 
 @RoutePage()
-class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
+class InboxScreen extends StatelessWidget {
   const InboxScreen({super.key});
-
-  @override
-  Widget wrappedRoute(BuildContext context) =>
-      BlocSelector<AuthCubit, AuthState, String>(
-        bloc: GetIt.I<AuthCubit>(),
-        selector: (state) => state.currentAccountId,
-        builder: (_, accountId) => BlocProvider(
-          key: ValueKey(accountId),
-          create: (_) => InboxCubit(userId: accountId),
-          child: this,
-        ),
-      );
 
   @override
   Widget build(BuildContext context) {

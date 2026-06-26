@@ -5,13 +5,17 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/new_stuff_cubit.dart';
 import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
+import '../widget/home_post_join_listener.dart';
 import '../widget/inbox_navbar_item.dart';
+import '../widget/inbox_needs_me_reporter.dart';
 import '../widget/my_work_navbar_item.dart';
 import '../widget/profile_navbar_item.dart';
 
@@ -33,7 +37,18 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
       BlocProvider.value(value: GetIt.I<NewStuffCubit>()),
     ],
-    child: this,
+    child: BlocSelector<AuthCubit, AuthState, String>(
+      bloc: GetIt.I<AuthCubit>(),
+      selector: (state) => state.currentAccountId,
+      builder: (_, accountId) {
+        if (accountId.isEmpty) return this;
+        return BlocProvider(
+          key: ValueKey(accountId),
+          create: (_) => InboxCubit(userId: accountId),
+          child: InboxNeedsMeReporter(child: this),
+        );
+      },
+    ),
   );
 
   void _onDestinationSelected(
@@ -75,7 +90,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
           builder: (context, child) {
             final tabsRouter = context.tabsRouter;
-            final content = TenturaContentColumn(child: child);
+            final content = TenturaContentColumn(
+              child: HomePostJoinListener(
+                tabsRouter: tabsRouter,
+                child: child,
+              ),
+            );
             if (useSideNav) {
               final extendedRail = windowClass == WindowClass.expanded;
               return Scaffold(
