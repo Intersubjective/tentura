@@ -29,6 +29,7 @@ final class NavigateReplace extends UiEffect {
 /// Known replace-all targets handled by the root adapter.
 enum NavigateReplaceTarget {
   home,
+  homeInboxTab,
   authLogin,
 }
 
