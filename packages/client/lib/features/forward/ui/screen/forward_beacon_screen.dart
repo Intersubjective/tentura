@@ -70,6 +70,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
   bool _noteExpanded = false;
   bool _searchOverlayOpen = false;
+  bool _inviteFlowActive = false;
 
   void _syncRecipientNoteControllers(ForwardState state) {
     final selected = state.selectedIds;
@@ -207,32 +208,47 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
   }
 
   Future<void> _inviteNewPerson(BuildContext context) async {
-    final l10n = L10n.of(context)!;
-    final addresseeName = await InvitationAddresseeDialog.show(context);
-    if (addresseeName == null || !context.mounted) return;
-    final invitation = await _invitationCubit.createInvitation(
-      addresseeName: addresseeName,
-      beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
-    );
-    if (invitation == null || !context.mounted) return;
-    await ShareCodeDialog.show(
-      context,
-      header: l10n.labelInvitationCode,
-      link: inviteShareUri(invitation.id),
-    );
-    if (!context.mounted) return;
-    showSnackBar(
-      context,
-      text: l10n.forwardInviteCreatedHint,
-      action: SnackBarAction(
-        label: l10n.forwardViewInvitations,
-        onPressed: () => unawaited(
-          GetIt.I<RootRouter>().pushPath(
-            '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
+    if (_inviteFlowActive) return;
+    _inviteFlowActive = true;
+    try {
+      final l10n = L10n.of(context)!;
+      final addresseeName = await InvitationAddresseeDialog.show(context);
+      if (addresseeName == null || !context.mounted) return;
+
+      // Let the addressee dialog route finish popping before the QR overlay.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!context.mounted) return;
+
+      final invitation = await _invitationCubit.createInvitation(
+        addresseeName: addresseeName,
+        beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
+      );
+      if (invitation == null || !context.mounted) return;
+
+      await WidgetsBinding.instance.endOfFrame;
+      if (!context.mounted) return;
+
+      await ShareCodeDialog.show(
+        context,
+        header: l10n.labelInvitationCode,
+        link: inviteShareUri(invitation.id),
+      );
+      if (!context.mounted) return;
+      showSnackBar(
+        context,
+        text: l10n.forwardInviteCreatedHint,
+        action: SnackBarAction(
+          label: l10n.forwardViewInvitations,
+          onPressed: () => unawaited(
+            GetIt.I<RootRouter>().pushPath(
+              '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
+            ),
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      _inviteFlowActive = false;
+    }
   }
 
   String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.status) {
@@ -281,281 +297,286 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
           body: SafeArea(
             child: TenturaContentColumn(
               child: BlocBuilder<ForwardCubit, ForwardState>(
-              builder: (_, state) {
-                if (state.isLoading && state.candidates.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  );
-                }
+                builder: (_, state) {
+                  if (state.isLoading && state.candidates.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    );
+                  }
 
-                final beacon = state.beacon;
-                final visible = state.visibleRecipients;
-                final showLineageBlock =
-                    state.activeFilter != ForwardFilter.alreadyInvolved;
-                final lineage = showLineageBlock
-                    ? state.lineageSuggestions
-                    : const <ForwardCandidate>[];
-                final counts = state.scopeCounts;
-                final listIsEmpty =
-                    state.activeFilter == ForwardFilter.alreadyInvolved
-                    ? visible.isEmpty
-                    : visible.isEmpty && lineage.isEmpty;
+                  final beacon = state.beacon;
+                  final visible = state.visibleRecipients;
+                  final showLineageBlock =
+                      state.activeFilter != ForwardFilter.alreadyInvolved;
+                  final lineage = showLineageBlock
+                      ? state.lineageSuggestions
+                      : const <ForwardCandidate>[];
+                  final counts = state.scopeCounts;
+                  final listIsEmpty =
+                      state.activeFilter == ForwardFilter.alreadyInvolved
+                      ? visible.isEmpty
+                      : visible.isEmpty && lineage.isEmpty;
 
-                _syncRecipientNoteControllers(state);
-                _prunePersonalizedNoteEditors(state);
+                  _syncRecipientNoteControllers(state);
+                  _prunePersonalizedNoteEditors(state);
 
-                final actionLoading =
-                    state.isLoading && state.candidates.isNotEmpty;
+                  final actionLoading =
+                      state.isLoading && state.candidates.isNotEmpty;
 
-                return Stack(
-                  children: [
-                    AbsorbPointer(
-                      absorbing: actionLoading,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ForwardTopBar(
-                            titleLine: l10n.forwardBeaconTitle,
-                            closeFallbackPath: widget.beaconId.isNotEmpty
-                                ? '$kPathBeaconView/${widget.beaconId}?$kQueryBeaconEntry=$kBeaconEntryForward'
-                                : null,
-                            subtitleLine: beacon != null && beacon.id.isNotEmpty
-                                ? forwardBeaconSubtitle(
-                                    l10n: l10n,
-                                    beaconTitle: beacon.title,
-                                    lifecycleLabel: _lifecycleLabel(
-                                      l10n,
-                                      beacon,
-                                    ),
-                                  )
-                                : '',
-                            searchTooltip: l10n.forwardOverlaySearchHint,
-                            onSearchPressed: () {
-                              setState(() => _searchOverlayOpen = true);
-                            },
-                          ),
-                          const TenturaHairlineDivider(),
-                          if (beacon != null && beacon.id.isNotEmpty) ...[
-                            CompactBeaconContextStrip(
-                              beacon: beacon,
+                  return Stack(
+                    children: [
+                      AbsorbPointer(
+                        absorbing: actionLoading,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ForwardTopBar(
+                              titleLine: l10n.forwardBeaconTitle,
+                              closeFallbackPath: widget.beaconId.isNotEmpty
+                                  ? '$kPathBeaconView/${widget.beaconId}?$kQueryBeaconEntry=$kBeaconEntryForward'
+                                  : null,
+                              subtitleLine:
+                                  beacon != null && beacon.id.isNotEmpty
+                                  ? forwardBeaconSubtitle(
+                                      l10n: l10n,
+                                      beaconTitle: beacon.title,
+                                      lifecycleLabel: _lifecycleLabel(
+                                        l10n,
+                                        beacon,
+                                      ),
+                                    )
+                                  : '',
+                              searchTooltip: l10n.forwardOverlaySearchHint,
+                              onSearchPressed: () {
+                                setState(() => _searchOverlayOpen = true);
+                              },
                             ),
-                            SizedBox(height: tt.rowGap),
-                          ],
-                          ForwardScopeLinks(
-                            activeFilter: state.activeFilter,
-                            counts: counts,
-                            onScopeChanged: cubit.setFilter,
-                          ),
-                          Expanded(
-                            child: listIsEmpty
-                                ? Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: tt.screenHPadding,
-                                      ),
-                                      child: Text(
-                                        state.candidates.isEmpty
-                                            ? l10n.noReachableContacts
-                                            : l10n.labelNothingHere,
-                                        textAlign: TextAlign.center,
-                                        style: TenturaText.bodySmall(
-                                          tt.textMuted,
+                            const TenturaHairlineDivider(),
+                            if (beacon != null && beacon.id.isNotEmpty) ...[
+                              CompactBeaconContextStrip(
+                                beacon: beacon,
+                              ),
+                              SizedBox(height: tt.rowGap),
+                            ],
+                            ForwardScopeLinks(
+                              activeFilter: state.activeFilter,
+                              counts: counts,
+                              onScopeChanged: cubit.setFilter,
+                            ),
+                            Expanded(
+                              child: listIsEmpty
+                                  ? Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: tt.screenHPadding,
+                                        ),
+                                        child: Text(
+                                          state.candidates.isEmpty
+                                              ? l10n.noReachableContacts
+                                              : l10n.labelNothingHere,
+                                          textAlign: TextAlign.center,
+                                          style: TenturaText.bodySmall(
+                                            tt.textMuted,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  )
-                                : ListView(
-                                    padding: EdgeInsets.only(bottom: tt.rowGap),
-                                    children: [
-                                      if (lineage.isNotEmpty) ...[
-                                        LineageForwardSectionHeader(
-                                          onClear:
-                                              cubit.clearLineageSuggestions,
-                                        ),
+                                    )
+                                  : ListView(
+                                      padding: EdgeInsets.only(
+                                        bottom: tt.rowGap,
+                                      ),
+                                      children: [
+                                        if (lineage.isNotEmpty) ...[
+                                          LineageForwardSectionHeader(
+                                            onClear:
+                                                cubit.clearLineageSuggestions,
+                                          ),
+                                          for (
+                                            var i = 0;
+                                            i < lineage.length;
+                                            i++
+                                          ) ...[
+                                            if (i > 0)
+                                              const TenturaHairlineDivider(),
+                                            ForwardRecipientRow(
+                                              candidate: lineage[i],
+                                              requiredCapabilitySlugs:
+                                                  beacon?.needs ?? const {},
+                                              isSelected: state.selectedIds
+                                                  .contains(
+                                                    lineage[i].id,
+                                                  ),
+                                              onToggle: () =>
+                                                  cubit.toggleSelection(
+                                                    lineage[i].id,
+                                                  ),
+                                              personalizedNoteEditorOpen:
+                                                  _personalizedNoteEditorOpenIds
+                                                      .contains(lineage[i].id),
+                                              onTogglePersonalizedNoteEditor: () =>
+                                                  _togglePersonalizedNoteEditor(
+                                                    lineage[i].id,
+                                                  ),
+                                              reasonSlugs:
+                                                  state
+                                                      .recipientReasons[lineage[i]
+                                                      .id] ??
+                                                  const [],
+                                              onEditReasons: () => unawaited(
+                                                _editReasons(
+                                                  context,
+                                                  cubit,
+                                                  lineage[i].id,
+                                                  state.recipientReasons[lineage[i]
+                                                          .id] ??
+                                                      const [],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const TenturaHairlineDivider(),
+                                        ],
                                         for (
                                           var i = 0;
-                                          i < lineage.length;
+                                          i < visible.length;
                                           i++
                                         ) ...[
                                           if (i > 0)
                                             const TenturaHairlineDivider(),
                                           ForwardRecipientRow(
-                                            candidate: lineage[i],
+                                            candidate: visible[i],
                                             requiredCapabilitySlugs:
                                                 beacon?.needs ?? const {},
                                             isSelected: state.selectedIds
                                                 .contains(
-                                                  lineage[i].id,
+                                                  visible[i].id,
                                                 ),
                                             onToggle: () =>
                                                 cubit.toggleSelection(
-                                                  lineage[i].id,
+                                                  visible[i].id,
                                                 ),
                                             personalizedNoteEditorOpen:
                                                 _personalizedNoteEditorOpenIds
-                                                    .contains(lineage[i].id),
+                                                    .contains(visible[i].id),
                                             onTogglePersonalizedNoteEditor: () =>
                                                 _togglePersonalizedNoteEditor(
-                                                  lineage[i].id,
+                                                  visible[i].id,
                                                 ),
                                             reasonSlugs:
                                                 state
-                                                    .recipientReasons[lineage[i]
+                                                    .recipientReasons[visible[i]
                                                     .id] ??
                                                 const [],
                                             onEditReasons: () => unawaited(
                                               _editReasons(
                                                 context,
                                                 cubit,
-                                                lineage[i].id,
-                                                state.recipientReasons[lineage[i]
+                                                visible[i].id,
+                                                state.recipientReasons[visible[i]
                                                         .id] ??
                                                     const [],
                                               ),
                                             ),
+                                            onEditForward:
+                                                visible[i].forwardEdgeId != null
+                                                ? () {
+                                                    _editNoteController.text =
+                                                        visible[i]
+                                                            .myForwardNote ??
+                                                        '';
+                                                    cubit.startEditForward(
+                                                      visible[i].id,
+                                                    );
+                                                  }
+                                                : null,
+                                            onCancelForward:
+                                                visible[i].forwardEdgeId != null
+                                                ? () => unawaited(
+                                                    cubit.cancelForward(
+                                                      visible[i].id,
+                                                    ),
+                                                  )
+                                                : null,
                                           ),
-                                        ],
-                                        const TenturaHairlineDivider(),
-                                      ],
-                                      for (
-                                        var i = 0;
-                                        i < visible.length;
-                                        i++
-                                      ) ...[
-                                        if (i > 0)
-                                          const TenturaHairlineDivider(),
-                                        ForwardRecipientRow(
-                                          candidate: visible[i],
-                                          requiredCapabilitySlugs:
-                                              beacon?.needs ?? const {},
-                                          isSelected: state.selectedIds
-                                              .contains(
-                                                visible[i].id,
+                                          if (state.editingRecipientId ==
+                                              visible[i].id)
+                                            _ForwardEditPanel(
+                                              controller: _editNoteController,
+                                              onNoteChanged: cubit.setEditNote,
+                                              onSave: () => unawaited(
+                                                cubit.saveForwardEdit(),
                                               ),
-                                          onToggle: () => cubit.toggleSelection(
-                                            visible[i].id,
-                                          ),
-                                          personalizedNoteEditorOpen:
+                                              onCancel: cubit.cancelEditForward,
+                                            ),
+                                          if (state.selectedIds.contains(
+                                                visible[i].id,
+                                              ) &&
                                               _personalizedNoteEditorOpenIds
-                                                  .contains(visible[i].id),
-                                          onTogglePersonalizedNoteEditor: () =>
-                                              _togglePersonalizedNoteEditor(
-                                                visible[i].id,
+                                                  .contains(visible[i].id))
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: tt.screenHPadding,
                                               ),
-                                          reasonSlugs:
-                                              state.recipientReasons[visible[i]
-                                                  .id] ??
-                                              const [],
-                                          onEditReasons: () => unawaited(
-                                            _editReasons(
-                                              context,
-                                              cubit,
-                                              visible[i].id,
-                                              state.recipientReasons[visible[i]
-                                                      .id] ??
-                                                  const [],
+                                              child: PerRecipientNoteInput(
+                                                profile: visible[i].profile,
+                                                controller:
+                                                    _recipientNoteControllers[visible[i]
+                                                        .id]!,
+                                                onChanged: (text) =>
+                                                    cubit.setRecipientNote(
+                                                      visible[i].id,
+                                                      text,
+                                                    ),
+                                              ),
                                             ),
-                                          ),
-                                          onEditForward:
-                                              visible[i].forwardEdgeId != null
-                                              ? () {
-                                                  _editNoteController.text =
-                                                      visible[i]
-                                                          .myForwardNote ??
-                                                      '';
-                                                  cubit.startEditForward(
-                                                    visible[i].id,
-                                                  );
-                                                }
-                                              : null,
-                                          onCancelForward:
-                                              visible[i].forwardEdgeId != null
-                                              ? () => unawaited(
-                                                  cubit.cancelForward(
-                                                    visible[i].id,
-                                                  ),
-                                                )
-                                              : null,
-                                        ),
-                                        if (state.editingRecipientId ==
-                                            visible[i].id)
-                                          _ForwardEditPanel(
-                                            controller: _editNoteController,
-                                            onNoteChanged: cubit.setEditNote,
-                                            onSave: () => unawaited(
-                                              cubit.saveForwardEdit(),
-                                            ),
-                                            onCancel: cubit.cancelEditForward,
-                                          ),
-                                        if (state.selectedIds.contains(
-                                              visible[i].id,
-                                            ) &&
-                                            _personalizedNoteEditorOpenIds
-                                                .contains(visible[i].id))
-                                          Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: tt.screenHPadding,
-                                            ),
-                                            child: PerRecipientNoteInput(
-                                              profile: visible[i].profile,
-                                              controller:
-                                                  _recipientNoteControllers[visible[i]
-                                                      .id]!,
-                                              onChanged: (text) =>
-                                                  cubit.setRecipientNote(
-                                                    visible[i].id,
-                                                    text,
-                                                  ),
-                                            ),
-                                          ),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                          ),
-                          ForwardBottomComposer(
-                            selectedIds: state.selectedIds,
-                            noteExpanded: _noteExpanded,
-                            onToggleNoteExpanded: _toggleNote,
-                            sharedNoteController: _sharedNoteController,
-                            onSharedNoteChanged: cubit.setNote,
-                            showSuggestedNoteHelper:
-                                state.lineageSuggestions.isNotEmpty &&
-                                state.note.trim().isNotEmpty &&
-                                _noteExpanded,
-                            onForward: state.selectedCount > 0
-                                ? cubit.forward
-                                : null,
-                            onInvite: widget.beaconId.isNotEmpty
-                                ? () => unawaited(_inviteNewPerson(context))
-                                : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (actionLoading)
-                      const Positioned.fill(
-                        child: Center(
-                          child: CircularProgressIndicator.adaptive(),
+                                    ),
+                            ),
+                            ForwardBottomComposer(
+                              selectedIds: state.selectedIds,
+                              noteExpanded: _noteExpanded,
+                              onToggleNoteExpanded: _toggleNote,
+                              sharedNoteController: _sharedNoteController,
+                              onSharedNoteChanged: cubit.setNote,
+                              showSuggestedNoteHelper:
+                                  state.lineageSuggestions.isNotEmpty &&
+                                  state.note.trim().isNotEmpty &&
+                                  _noteExpanded,
+                              onForward: state.selectedCount > 0
+                                  ? cubit.forward
+                                  : null,
+                              onInvite: widget.beaconId.isNotEmpty
+                                  ? () => unawaited(_inviteNewPerson(context))
+                                  : null,
+                            ),
+                          ],
                         ),
                       ),
-                    if (_searchOverlayOpen)
-                      Positioned.fill(
-                        child: ForwardSearchOverlay(
-                          onClose: () {
-                            setState(() => _searchOverlayOpen = false);
-                          },
-                          recipientNoteControllers: _recipientNoteControllers,
-                          onRecipientNoteChanged: cubit.setRecipientNote,
-                          personalizedNoteEditorOpenIds:
-                              _personalizedNoteEditorOpenIds,
-                          onTogglePersonalizedNoteEditor:
-                              _togglePersonalizedNoteEditor,
+                      if (actionLoading)
+                        const Positioned.fill(
+                          child: Center(
+                            child: CircularProgressIndicator.adaptive(),
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
+                      if (_searchOverlayOpen)
+                        Positioned.fill(
+                          child: ForwardSearchOverlay(
+                            onClose: () {
+                              setState(() => _searchOverlayOpen = false);
+                            },
+                            recipientNoteControllers: _recipientNoteControllers,
+                            onRecipientNoteChanged: cubit.setRecipientNote,
+                            personalizedNoteEditorOpenIds:
+                                _personalizedNoteEditorOpenIds,
+                            onTogglePersonalizedNoteEditor:
+                                _togglePersonalizedNoteEditor,
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),

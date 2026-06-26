@@ -51,9 +51,11 @@ class ForwardScopeLinks extends StatelessWidget {
                               ),
                             ),
                             TextSpan(
-                              text: '/$count',
+                              text: ' ($count)',
                               style: TenturaText.withTabular(
-                                TenturaText.bodySmall(tt.textFaint),
+                                TenturaText.bodySmall(
+                                  active ? activeColor : tt.textMuted,
+                                ),
                               ),
                             ),
                           ],
