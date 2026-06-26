@@ -224,10 +224,11 @@ jobs:
               # Trim dead-weight, then preload manifest + cache SW from FINISHED
               # build/web (the build hook ran too early on fresh checkouts).
               dart run tool/trim_web_deploy_artifact.dart
+              dart run tool/apply_versioned_web_assets.dart
               dart run tool/generate_wasm_preload_artifacts.dart
               grep -q 'wasmPreload' build/web/wasm-preload-manifest.json
               python3 -c \"import json; m=json.load(open('build/web/wasm-preload-manifest.json')); assert 'preload' not in m\"
-              test -f build/web/main.dart.js
+              python3 -c \"import json, pathlib; v=json.load(open('build/web/wasm-preload-manifest.json'))['version']; assert pathlib.Path(f'build/web/app-assets/{v}/main.dart.js').is_file()\"
               # Block deploy if index.html / manifest / preload manifest / SW
               # disagree on the cache-busting build version (stale-asset guard).
               dart run tool/verify_web_version_consistency.dart
