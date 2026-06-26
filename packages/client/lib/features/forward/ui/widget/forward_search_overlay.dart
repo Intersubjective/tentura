@@ -9,7 +9,7 @@ import '../../domain/entity/forward_candidate.dart';
 import 'forward_recipient_row.dart';
 import 'per_recipient_note_input.dart';
 
-/// Full-screen recipient search (query ignores active scope tab; MR-sorted).
+/// Full-screen recipient search scoped to the active tab (MR-sorted).
 class ForwardSearchOverlay extends StatefulWidget {
   const ForwardSearchOverlay({
     required this.onClose,
@@ -60,8 +60,8 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
     final nextFocus = filtered.isEmpty
         ? null
         : filtered.any((c) => c.id == _focusedCandidateId)
-            ? _focusedCandidateId
-            : filtered.first.id;
+        ? _focusedCandidateId
+        : filtered.first.id;
     if (_focusedCandidateId == nextFocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _focusedCandidateId = nextFocus);
@@ -142,7 +142,8 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
         for (var i = 0; i < filtered.length; i++) ...[
           if (i > 0) const TenturaHairlineDivider(),
           Material(
-            color: onCandidateFocused != null &&
+            color:
+                onCandidateFocused != null &&
                     _focusedCandidateId == filtered[i].id
                 ? Theme.of(context).colorScheme.surfaceContainerHighest
                 : Colors.transparent,
@@ -172,8 +173,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
               padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
               child: PerRecipientNoteInput(
                 profile: filtered[i].profile,
-                controller:
-                    widget.recipientNoteControllers[filtered[i].id]!,
+                controller: widget.recipientNoteControllers[filtered[i].id]!,
                 onChanged: (t) =>
                     widget.onRecipientNoteChanged(filtered[i].id, t),
               ),
@@ -219,8 +219,9 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
 
     final candidate = filtered[candidateIndex];
     final isSelected = state.selectedIds.contains(candidate.id);
-    final noteEditorOpen =
-        widget.personalizedNoteEditorOpenIds.contains(candidate.id);
+    final noteEditorOpen = widget.personalizedNoteEditorOpenIds.contains(
+      candidate.id,
+    );
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(tt.screenHPadding),
@@ -242,8 +243,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
             PerRecipientNoteInput(
               profile: candidate.profile,
               controller: widget.recipientNoteControllers[candidate.id]!,
-              onChanged: (t) =>
-                  widget.onRecipientNoteChanged(candidate.id, t),
+              onChanged: (t) => widget.onRecipientNoteChanged(candidate.id, t),
             ),
           ],
         ],
@@ -271,7 +271,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
             return BlocBuilder<ForwardCubit, ForwardState>(
               builder: (context, state) {
                 final filtered = ForwardState.filterCandidatesByQuery(
-                  state.candidates,
+                  state.visibleRecipients,
                   _controller.text,
                 );
                 if (useSplit) {

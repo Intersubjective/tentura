@@ -35,9 +35,11 @@ class ForwardBeaconListSections {
 
   final List<ForwardCandidate> recommended;
   final List<ForwardCandidate> other;
+
   /// Reachable beacon author or someone who declined — not in [other].
   final List<ForwardCandidate> unavailable;
   final List<ForwardCandidate> notReachable;
+
   /// Non-empty when [ForwardFilter] is not [ForwardFilter.all].
   final List<ForwardCandidate> filteredFlatList;
 
@@ -58,7 +60,8 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default([]) List<ForwardCandidate> lineageSuggestions,
     @Default({}) Set<String> selectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
-    @Default(<String, List<String>>{}) Map<String, List<String>> recipientReasons,
+    @Default(<String, List<String>>{})
+    Map<String, List<String>> recipientReasons,
     @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
     @Default(StateIsSuccess()) StateStatus status,
@@ -72,10 +75,9 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   static int _compareByMr(ForwardCandidate a, ForwardCandidate b) =>
       b.mrScore.compareTo(a.mrScore);
 
-  static void _sortByMr(List<ForwardCandidate> list) =>
-      list.sort(_compareByMr);
+  static void _sortByMr(List<ForwardCandidate> list) => list.sort(_compareByMr);
 
-  /// Full-screen search: filter by name/description only (ignores scope tab).
+  /// Full-screen search: filter [candidates] by name/description (MR-sorted).
   static List<ForwardCandidate> filterCandidatesByQuery(
     List<ForwardCandidate> candidates,
     String query,
@@ -89,18 +91,20 @@ abstract class ForwardState extends StateBase with _$ForwardState {
                     c.profile.shownName.toLowerCase().contains(
                       trimmed.toLowerCase(),
                     ) ||
-                    c.displayName.toLowerCase().contains(trimmed.toLowerCase()) ||
+                    c.displayName.toLowerCase().contains(
+                      trimmed.toLowerCase(),
+                    ) ||
                     c.profile.description.toLowerCase().contains(
-                          trimmed.toLowerCase(),
-                        ),
+                      trimmed.toLowerCase(),
+                    ),
               )
               .toList();
     _sortByMr(list);
     return list;
   }
 
-/// Involved / touched path: anyone except purely unseen recipients and the
-/// beacon author (candidates may still list the author for some graphs).
+  /// Involved / touched path: anyone except purely unseen recipients and the
+  /// beacon author (candidates may still list the author for some graphs).
   static bool matchesInvolvedScope(ForwardCandidate c) =>
       c.involvement != CandidateInvolvement.unseen &&
       c.involvement != CandidateInvolvement.author;
@@ -144,7 +148,9 @@ abstract class ForwardState extends StateBase with _$ForwardState {
             .where((c) => !lineageIds.contains(c.id))
             .where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
-        picked = _mergedCandidatesForInvolvedScope().where(matchesInvolvedScope);
+        picked = _mergedCandidatesForInvolvedScope().where(
+          matchesInvolvedScope,
+        );
     }
     final list = picked.toList();
     _sortByMr(list);

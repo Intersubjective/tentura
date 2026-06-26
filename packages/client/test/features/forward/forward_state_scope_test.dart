@@ -67,7 +67,12 @@ void main() {
 
   test('involved scope excludes lineage-only unseen suggestions', () {
     const lineageOnly = ForwardCandidate(
-      profile: Profile(id: 'lineage', displayName: 'Lineage', rScore: 1, score: 99),
+      profile: Profile(
+        id: 'lineage',
+        displayName: 'Lineage',
+        rScore: 1,
+        score: 99,
+      ),
       lineageGroup: LineageSuggestionGroup.involved,
     );
     const involved = ForwardCandidate(
@@ -85,27 +90,42 @@ void main() {
     expect(state.visibleRecipients.map((c) => c.id).toList(), ['inv']);
   });
 
-  test('involved scope includes candidate also listed as lineage suggestion', () {
-    const shared = ForwardCandidate(
-      profile: Profile(id: 'shared', displayName: 'Shared', rScore: 1, score: 60),
-      involvement: CandidateInvolvement.forwardedByMe,
-    );
-    const lineageDup = ForwardCandidate(
-      profile: Profile(id: 'shared', displayName: 'Shared', rScore: 1, score: 60),
-      lineageGroup: LineageSuggestionGroup.involved,
-    );
+  test(
+    'involved scope includes candidate also listed as lineage suggestion',
+    () {
+      const shared = ForwardCandidate(
+        profile: Profile(
+          id: 'shared',
+          displayName: 'Shared',
+          rScore: 1,
+          score: 60,
+        ),
+        involvement: CandidateInvolvement.forwardedByMe,
+      );
+      const lineageDup = ForwardCandidate(
+        profile: Profile(
+          id: 'shared',
+          displayName: 'Shared',
+          rScore: 1,
+          score: 60,
+        ),
+        lineageGroup: LineageSuggestionGroup.involved,
+      );
 
-    const state = ForwardState(
-      candidates: [shared],
-      lineageSuggestions: [lineageDup],
-      activeFilter: ForwardFilter.alreadyInvolved,
-    );
+      const state = ForwardState(
+        candidates: [shared],
+        lineageSuggestions: [lineageDup],
+        activeFilter: ForwardFilter.alreadyInvolved,
+      );
 
-    expect(state.visibleRecipients.single.id, 'shared');
-    expect(state.visibleRecipients.single.involvement,
-        CandidateInvolvement.forwardedByMe);
-    expect(state.visibleRecipients.single.lineageGroup, isNull);
-  });
+      expect(state.visibleRecipients.single.id, 'shared');
+      expect(
+        state.visibleRecipients.single.involvement,
+        CandidateInvolvement.forwardedByMe,
+      );
+      expect(state.visibleRecipients.single.lineageGroup, isNull);
+    },
+  );
 
   test('filterCandidatesByQuery matches profile description (MR sort)', () {
     const low = ForwardCandidate(
@@ -132,5 +152,36 @@ void main() {
     );
 
     expect(filtered.map((c) => c.id).toList(), ['high', 'low']);
+  });
+
+  test('filterCandidatesByQuery respects involved scope input', () {
+    const involved = ForwardCandidate(
+      profile: Profile(
+        id: 'inv',
+        displayName: 'Involved',
+        rScore: 1,
+        score: 50,
+      ),
+      involvement: CandidateInvolvement.forwarded,
+    );
+    const unseen = ForwardCandidate(
+      profile: Profile(
+        id: 'unseen',
+        displayName: 'Unseen',
+        rScore: 1,
+        score: 90,
+      ),
+    );
+
+    const state = ForwardState(
+      candidates: [involved, unseen],
+      activeFilter: ForwardFilter.alreadyInvolved,
+    );
+    final filtered = ForwardState.filterCandidatesByQuery(
+      state.visibleRecipients,
+      'inv',
+    );
+
+    expect(filtered.map((c) => c.id).toList(), ['inv']);
   });
 }
