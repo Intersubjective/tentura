@@ -21,26 +21,29 @@ typedef _BeaconIconPickerSelection = ({
   int? iconBackground,
 });
 
+int _previewBackgroundArgb(_BeaconIconPickerSelection sel) =>
+    sel.iconBackground ?? kBeaconIdentityPalette.first.backgroundArgb;
+
 /// Background + foreground for a grid cell; matches [BeaconIdentityTile] rules.
 ({Color bg, Color fg}) _pickerTileColors({
-  required bool selected,
-  required int? selectionBackgroundArgb,
+  required bool showIdentityColors,
+  required int? identityBackgroundArgb,
   required ColorScheme scheme,
 }) {
-  if (!selected) {
+  if (!showIdentityColors) {
     return (
       bg: scheme.surfaceContainerHighest,
       fg: scheme.onSurfaceVariant,
     );
   }
-  var swatch = paletteSwatchForArgb(selectionBackgroundArgb);
-  if (swatch == null && selectionBackgroundArgb == null) {
+  var swatch = paletteSwatchForArgb(identityBackgroundArgb);
+  if (swatch == null && identityBackgroundArgb == null) {
     swatch = defaultBeaconPaletteSwatch;
   }
   if (swatch != null) {
     return (bg: swatch.background, fg: swatch.foreground);
   }
-  final argb = selectionBackgroundArgb!;
+  final argb = identityBackgroundArgb!;
   final bg = Color(argb);
   final fg = bg.computeLuminance() > 0.5
       ? scheme.onSurface
@@ -80,17 +83,19 @@ class BeaconIconPickerScreen extends StatefulWidget {
 }
 
 class _GridListenable extends Listenable {
-  _GridListenable(this._query, this._category, this._selection);
+  _GridListenable(this._query, this._category, this._selection, this._preview);
 
   final ValueNotifier<String> _query;
   final ValueNotifier<int> _category;
   final ValueNotifier<_BeaconIconPickerSelection> _selection;
+  final ValueNotifier<String?> _preview;
 
   @override
   void addListener(VoidCallback listener) {
     _query.addListener(listener);
     _category.addListener(listener);
     _selection.addListener(listener);
+    _preview.addListener(listener);
   }
 
   @override
@@ -98,6 +103,7 @@ class _GridListenable extends Listenable {
     _query.removeListener(listener);
     _category.removeListener(listener);
     _selection.removeListener(listener);
+    _preview.removeListener(listener);
   }
 }
 
@@ -112,13 +118,23 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
   late final ValueNotifier<_BeaconIconPickerSelection> _selectionNotifier =
       ValueNotifier(_initialSelection);
 
+  /// Hovered or long-pressed icon key; drives app-bar and tile preview colors.
+  late final ValueNotifier<String?> _previewIconCodeNotifier =
+      ValueNotifier(null);
+
   late final DateTime _epoch = DateTime.timestamp();
 
   late final _GridListenable _gridListenable = _GridListenable(
     _queryNotifier,
     _categoryNotifier,
     _selectionNotifier,
+    _previewIconCodeNotifier,
   );
+
+  late final Listenable _headerPreviewListenable = Listenable.merge([
+    _selectionNotifier,
+    _previewIconCodeNotifier,
+  ]);
 
   late AppChoiceChipStyle _chipStyle;
 
@@ -167,7 +183,14 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
     _queryNotifier.dispose();
     _categoryNotifier.dispose();
     _selectionNotifier.dispose();
+    _previewIconCodeNotifier.dispose();
     super.dispose();
+  }
+
+  void _clearPreviewIconCode(String code) {
+    if (_previewIconCodeNotifier.value == code) {
+      _previewIconCodeNotifier.value = null;
+    }
   }
 
   String _categoryLabel(L10n l10n, BeaconIdentityCategory c) => switch (c) {
@@ -213,27 +236,41 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: ValueListenableBuilder<_BeaconIconPickerSelection>(
-          valueListenable: _selectionNotifier,
-          builder: (context, sel, _) {
+        title: ListenableBuilder(
+          listenable: _headerPreviewListenable,
+          builder: (context, _) {
+            final sel = _selectionNotifier.value;
+            final hoverCode = _previewIconCodeNotifier.value;
+            final displayCode = hoverCode ?? sel.iconCode;
+            final displayLabel = displayCode == null
+                ? l10n.beaconSymbolTitle
+                : (kBeaconIdentityIcons[displayCode]?.label ??
+                    l10n.beaconSymbolTitle);
             final previewBeacon = Beacon(
               createdAt: _epoch,
               updatedAt: _epoch,
-              iconCode: sel.iconCode,
-              iconBackground: sel.iconBackground,
+              iconCode: displayCode,
+              iconBackground: displayCode == null
+                  ? sel.iconBackground
+                  : _previewBackgroundArgb(sel),
             );
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BeaconIdentityTile(beacon: previewBeacon, size: 32),
-                SizedBox(width: tt.rowGap),
-                Flexible(
-                  child: Text(
-                    l10n.beaconSymbolTitle,
-                    overflow: TextOverflow.ellipsis,
+            return Semantics(
+              label: displayLabel,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ExcludeSemantics(
+                    child: BeaconIdentityTile(beacon: previewBeacon, size: 32),
                   ),
-                ),
-              ],
+                  SizedBox(width: tt.rowGap),
+                  Flexible(
+                    child: Text(
+                      displayLabel,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -325,6 +362,8 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
               builder: (context, _) {
                 final entries = _cachedEntries;
                 final sel = _selectionNotifier.value;
+                final previewCode = _previewIconCodeNotifier.value;
+                final previewBg = _previewBackgroundArgb(sel);
                 if (entries.isEmpty) {
                   return CustomScrollView(
                     slivers: [
@@ -368,17 +407,23 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                               (context, i) {
                                 final entry = entries[i];
                                 final selected = sel.iconCode == entry.key;
+                                final previewing =
+                                    !selected && previewCode == entry.key;
                                 return _IconGridTile(
                                   key: ValueKey(entry.key),
                                   iconData: entry.value.icon,
                                   label: entry.value.label,
                                   selected: selected,
-                                  selectionBackgroundArgb: selected
-                                      ? sel.iconBackground
-                                      : null,
+                                  previewing: previewing,
+                                  identityBackgroundArgb: previewBg,
                                   scheme: scheme,
                                   baseLabelStyle: theme.textTheme.labelSmall,
+                                  onPreviewStart: () =>
+                                      _previewIconCodeNotifier.value = entry.key,
+                                  onPreviewEnd: () =>
+                                      _clearPreviewIconCode(entry.key),
                                   onTap: () {
+                                    _clearPreviewIconCode(entry.key);
                                     final cur = _selectionNotifier.value;
                                     _selectionNotifier.value = (
                                       iconCode: entry.key,
@@ -458,19 +503,23 @@ class _IconGridTile extends StatelessWidget {
     required this.iconData,
     required this.label,
     required this.selected,
+    required this.previewing,
+    required this.identityBackgroundArgb,
+    required this.onPreviewStart,
+    required this.onPreviewEnd,
     required this.onTap,
     required this.scheme,
     required this.baseLabelStyle,
-    this.selectionBackgroundArgb,
     super.key,
   });
 
   final IconData iconData;
   final String label;
   final bool selected;
-
-  /// Current selection background when [selected]; drives palette like [BeaconIdentityTile].
-  final int? selectionBackgroundArgb;
+  final bool previewing;
+  final int identityBackgroundArgb;
+  final VoidCallback onPreviewStart;
+  final VoidCallback onPreviewEnd;
   final VoidCallback onTap;
   final ColorScheme scheme;
   final TextStyle? baseLabelStyle;
@@ -478,49 +527,64 @@ class _IconGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final showIdentityColors = selected || previewing;
     final colors = _pickerTileColors(
-      selected: selected,
-      selectionBackgroundArgb: selectionBackgroundArgb,
+      showIdentityColors: showIdentityColors,
+      identityBackgroundArgb: identityBackgroundArgb,
       scheme: scheme,
     );
     final fg = colors.fg;
+    final borderColor = scheme.outlineVariant.withValues(alpha: 0.35);
     return Semantics(
       button: true,
       label: label,
       selected: selected,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.bg,
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            border: selected
-                ? Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.35),
-                  )
-                : null,
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: tt.tightGap * 2,
-              vertical: tt.iconTextGap,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ExcludeSemantics(child: Icon(iconData, color: fg)),
-                SizedBox(height: tt.tightGap * 2),
-                ExcludeSemantics(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: baseLabelStyle?.copyWith(color: fg),
-                  ),
+      child: Tooltip(
+        message: label,
+        child: MouseRegion(
+          onEnter: (_) => onPreviewStart(),
+          onExit: (_) => onPreviewEnd(),
+          child: GestureDetector(
+            onTap: onTap,
+            onLongPressStart: (_) => onPreviewStart(),
+            onLongPressEnd: (_) => onPreviewEnd(),
+            onLongPressCancel: onPreviewEnd,
+            behavior: HitTestBehavior.opaque,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.bg,
+                borderRadius: BorderRadius.circular(tt.cardRadius),
+                border: showIdentityColors
+                    ? Border.all(
+                        color: selected
+                            ? borderColor
+                            : scheme.primary.withValues(alpha: 0.55),
+                        width: selected ? 1 : 2,
+                      )
+                    : null,
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.tightGap * 2,
+                  vertical: tt.iconTextGap,
                 ),
-              ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ExcludeSemantics(child: Icon(iconData, color: fg)),
+                    SizedBox(height: tt.tightGap * 2),
+                    ExcludeSemantics(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: baseLabelStyle?.copyWith(color: fg),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
