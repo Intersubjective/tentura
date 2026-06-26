@@ -1825,6 +1825,55 @@
   "@myWorkRetry": {
     "context": "MyWorkScreen"
   },
+  "screenLoadErrorNetworkTitle": "No connection",
+  "@screenLoadErrorNetworkTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorNetworkBody": "Check your internet connection and try again.",
+  "@screenLoadErrorNetworkBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSessionTitle": "Session problem",
+  "@screenLoadErrorSessionTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSessionBody": "We couldn't verify your session. Sign in again to continue.",
+  "@screenLoadErrorSessionBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorPermissionsTitle": "Access problem",
+  "@screenLoadErrorPermissionsTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorPermissionsBody": "You may not have permission to view this content, or your session expired.",
+  "@screenLoadErrorPermissionsBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorServerTitle": "Server error",
+  "@screenLoadErrorServerTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorServerBody": "The server returned an error. Try again in a moment.",
+  "@screenLoadErrorServerBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorUnknownTitle": "Couldn't load",
+  "@screenLoadErrorUnknownTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorUnknownBody": "Something went wrong while loading. Try again.",
+  "@screenLoadErrorUnknownBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSupportRef": "Reference: {ref}",
+  "@screenLoadErrorSupportRef": {
+    "context": "ScreenLoadErrorPanel",
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkYouAuthor": "You (Author)",
   "@myWorkYouAuthor": {
     "context": "MyWorkScreen"
@@ -2193,6 +2242,18 @@
   },
   "beaconViewTitle": "Beacon",
   "@beaconViewTitle": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewUnavailableBody": "We couldn't load this beacon. It may have been removed, or your account may not have access.",
+  "@beaconViewUnavailableBody": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewLoadErrorBody": "Something went wrong while loading this beacon. Check your connection and try again.",
+  "@beaconViewLoadErrorBody": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewErrorGoBack": "Go back",
+  "@beaconViewErrorGoBack": {
     "context": "BeaconViewScreen"
   },
   "beaconViewRoomAccessUnavailableBanner": "Room isn’t available for this beacon.",

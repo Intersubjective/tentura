@@ -1,23 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
 import 'my_work_test_support.dart';
 
 void main() {
-  test('fetch emits success with init cards and active default filter', () async {
-    final cubit = MyWorkCubit(
-      userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(),
-    );
+  test(
+    'fetch emits success with init cards and active default filter',
+    () async {
+      final cubit = MyWorkCubit(
+        userId: 'user-1',
+        myWorkCase: buildTestMyWorkCase(),
+      );
 
-    await cubit.stream.firstWhere((s) => s.isSuccess);
-    expect(cubit.state.nonArchivedCards, isEmpty);
-    expect(cubit.state.status, isA<StateIsSuccess>());
-    expect(cubit.state.filter, MyWorkFilter.active);
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      expect(cubit.state.nonArchivedCards, isEmpty);
+      expect(cubit.state.status, isA<StateIsSuccess>());
+      expect(cubit.state.filter, MyWorkFilter.active);
 
-    await cubit.close();
-  });
+      await cubit.close();
+    },
+  );
 
   test('archived filter triggers lazy closed load', () async {
     final cubit = MyWorkCubit(
@@ -44,6 +48,33 @@ void main() {
 
     await cubit.stream.firstWhere((s) => s.hasError);
     expect(cubit.state.status, isA<StateHasError>());
+
+    await cubit.close();
+  });
+
+  test('background fetch failure keeps visible cards', () async {
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [
+          Beacon.empty.copyWith(id: 'b1'),
+        ],
+        helpOfferedNonArchived: const [],
+        archivedCountHint: 0,
+        lastItemDiscussionMessageAtByBeaconId: const {},
+      );
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(repo: repo),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+    expect(cubit.state.nonArchivedCards, isNotEmpty);
+
+    repo.fetchInitError = Exception('refresh failed');
+    await cubit.fetch(showLoading: false);
+
+    expect(cubit.state.hasError, isFalse);
+    expect(cubit.state.isSuccess, isTrue);
+    expect(cubit.state.nonArchivedCards, isNotEmpty);
 
     await cubit.close();
   });
