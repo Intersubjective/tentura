@@ -124,6 +124,11 @@ final class ForwardCase extends UseCaseBase {
       throw ArgumentError('recipientIds must not be empty');
     }
 
+    final recipients = recipientIds.where((id) => id != senderId).toList();
+    if (recipients.isEmpty) {
+      throw ArgumentError('recipientIds must not contain only the sender');
+    }
+
     if (!await _guard.canReadContent(
       beaconId: beaconId,
       viewerId: senderId,
@@ -156,7 +161,7 @@ final class ForwardCase extends UseCaseBase {
     final insertedRecipientIds = await _forwardEdgeRepository.createBatch(
       beaconId: beaconId,
       senderId: senderId,
-      recipientIds: recipientIds,
+      recipientIds: recipients,
       batchId: batchId,
       noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
       context: context,
@@ -205,7 +210,9 @@ final class ForwardCase extends UseCaseBase {
           ),
         );
       } catch (e) {
-        logger.warning('ForwardCase: failed to enqueue forward notification: $e');
+        logger.warning(
+          'ForwardCase: failed to enqueue forward notification: $e',
+        );
       }
     }
 
