@@ -42,12 +42,20 @@ void main() {
         final bootstrap = File(
           '${dir.path}/flutter_bootstrap.js',
         ).readAsStringSync();
-        expect(bootstrap, contains('"entrypointBaseUrl":"$prefix"'));
         expect(
           bootstrap,
-          contains('"canvasKitBaseUrl":"${prefix}canvaskit/"'),
+          contains('entrypointBaseUrl:new URL("$prefix",document.baseURI)'),
         );
-        expect(bootstrap, contains('"assetBase":"$prefix"'));
+        expect(
+          bootstrap,
+          contains(
+            'canvasKitBaseUrl:new URL("${prefix}canvaskit/",document.baseURI)',
+          ),
+        );
+        expect(
+          bootstrap,
+          contains('assetBase:new URL("$prefix",document.baseURI)'),
+        );
         expect(bootstrap, isNot(contains('_flutter.loader.load();')));
 
         final index = File('${dir.path}/index.html').readAsStringSync();
