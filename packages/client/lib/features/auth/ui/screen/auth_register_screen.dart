@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
+
 import 'package:tentura/env.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -11,6 +14,8 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/auth_cubit.dart';
+import '../bloc/register_invite_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import '../widget/auth_form_field.dart';
 
 @RoutePage()
@@ -29,7 +34,10 @@ class AuthRegisterScreen extends StatefulWidget implements AutoRouteWrapper {
   State<AuthRegisterScreen> createState() => _AuthRegisterScreenState();
 
   @override
-  Widget wrappedRoute(BuildContext context) => this;
+  Widget wrappedRoute(BuildContext context) => BlocProvider(
+    create: (_) => GetIt.I<RegisterInviteCubit>(),
+    child: this,
+  );
 }
 
 class _AuthRegisterScreenState extends State<AuthRegisterScreen>
@@ -56,6 +64,10 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
     final invitationId = widget.id.trim();
     if (invitationId.isNotEmpty) {
       _codeController.text = invitationId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(context.read<RegisterInviteCubit>().load(invitationId));
+      });
     } else {
       unawaited(_getCodeFromClipboard(supressError: true));
     }
@@ -69,8 +81,26 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
     super.dispose();
   }
 
+  void _onAuthStateChanged(AuthState auth) {
+    if (!auth.isAuthenticated || auth.isLoading) return;
+    final preview = context.read<RegisterInviteCubit>().state.preview;
+    final beacon = preview?.beacon;
+    if (beacon == null || beacon.id.isEmpty) return;
+    GetIt.I<PostJoinNavigationCubit>().setFromBeaconInvite(
+      beaconId: beacon.id,
+      beaconTitle: beacon.title,
+      inviterName: preview?.inviter?.displayName ?? '',
+      showSnackbar: true,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => BlocListener<AuthCubit, AuthState>(
+    bloc: _authCubit,
+    listenWhen: (prev, curr) =>
+        !prev.isAuthenticated && curr.isAuthenticated && !curr.isLoading,
+    listener: (_, auth) => _onAuthStateChanged(auth),
+    child: Scaffold(
     appBar: AppBar(
       centerTitle: true,
       title: Text(_l10n.createNewAccount),
@@ -135,6 +165,11 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
               ],
               validator: (text) => invitationCodeValidator(_l10n, text),
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              onChanged: (value) {
+                if (value.trim().length >= kIdLength) {
+                  unawaited(context.read<RegisterInviteCubit>().load(value));
+                }
+              },
             ),
           ),
 
@@ -195,6 +230,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         ),
       ),
     ),
+  ),
   );
 
   void _submitSignUp() {
@@ -220,6 +256,9 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
     );
     if (code.isNotEmpty) {
       _codeController.text = code;
+      if (mounted) {
+        unawaited(context.read<RegisterInviteCubit>().load(code));
+      }
     }
   }
 }
