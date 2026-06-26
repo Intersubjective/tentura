@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
@@ -86,8 +89,11 @@ class ProfileAppBar extends StatelessWidget {
             minHeight: tt.buttonHeight,
           ),
           onSelected: (value) {
-            if (value == 'rating') {
-              context.read<ScreenCubit>().showRating();
+            switch (value) {
+              case 'rating':
+                context.read<ScreenCubit>().showRating();
+              case 'logout':
+                unawaited(confirmAndSignOut(context));
             }
           },
           itemBuilder: (menuContext) => [
@@ -102,6 +108,20 @@ class ProfileAppBar extends StatelessWidget {
                   ),
                   SizedBox(width: tt.rowGap),
                   Text(l10n.rating),
+                ],
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.logout,
+                    size: tt.iconSize,
+                    color: Theme.of(menuContext).colorScheme.onSurface,
+                  ),
+                  SizedBox(width: tt.rowGap),
+                  Text(l10n.logout),
                 ],
               ),
             ),
