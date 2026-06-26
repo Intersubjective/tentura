@@ -354,51 +354,78 @@ class _RoomPollCardState extends State<RoomPollCard> {
             ),
             const SizedBox(height: kSpacingSmall),
 
-            // Variants
-            ...poll.variants.map((v) => Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: voted
-                  ? _buildVotedRow(theme, v, showVoters, participantsByUserId)
-                  : switch (poll.pollType) {
-                      PollType.multiple => _buildMultipleUnvoted(theme, v.id, v.description),
-                      PollType.range => _buildRangeUnvoted(theme, v.id, v.description),
-                      _ => _buildSingleUnvoted(theme, v.id, v.description),
-                    },
-            )),
-
-            // Submit button for multiple / range
-            if (!voted && poll.pollType != PollType.single) ...[
-              const SizedBox(height: kSpacingSmall),
-              FilledButton(
-                onPressed: switch (poll.pollType) {
-                  PollType.multiple when _pendingMultiple.isNotEmpty => () {
-                      // For multiple: we toggle variantIds one-by-one per tap,
-                      // but here we submit the full selection at once.
-                      // Server's upsert handles the full set by toggling.
-                      // We call onVote for each selected variant so server toggles correctly.
-                      _submitVote(_pendingMultiple.toList());
-                    },
-                  PollType.range when _pendingRange.isNotEmpty => () {
-                      // Submit variants that have been scored (score >= 1)
-                      final scored = _pendingRange.entries
-                          .where((e) => e.value >= 1)
-                          .toList();
-                      if (scored.isEmpty) return;
-                      // Send each variant separately with its score
-                      for (final entry in scored) {
-                        widget.onVote?.call([entry.key], score: entry.value);
-                      }
-                      setState(() => _revoting = false);
-                    },
-                  _ => null,
-                },
-                child: Text(
-                  poll.pollType == PollType.range
-                      ? 'Submit ratings'
-                      : 'Submit',
+            // Voting controls (sliders, option rows, submit) stay out of the focus
+            // tree so they do not hold primary focus after interaction. A focused
+            // Slider FocusNode leaves the room composer with a cursor but no soft
+            // keyboard when the user taps the message field.
+            if (voted)
+              ...poll.variants.map(
+                (v) => Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: _buildVotedRow(
+                    theme,
+                    v,
+                    showVoters,
+                    participantsByUserId,
+                  ),
+                ),
+              )
+            else
+              ExcludeFocus(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...poll.variants.map(
+                      (v) => Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: switch (poll.pollType) {
+                          PollType.multiple => _buildMultipleUnvoted(
+                            theme,
+                            v.id,
+                            v.description,
+                          ),
+                          PollType.range => _buildRangeUnvoted(
+                            theme,
+                            v.id,
+                            v.description,
+                          ),
+                          _ => _buildSingleUnvoted(theme, v.id, v.description),
+                        },
+                      ),
+                    ),
+                    if (poll.pollType != PollType.single) ...[
+                      const SizedBox(height: kSpacingSmall),
+                      FilledButton(
+                        onPressed: switch (poll.pollType) {
+                          PollType.multiple when _pendingMultiple.isNotEmpty =>
+                            () {
+                              _submitVote(_pendingMultiple.toList());
+                            },
+                          PollType.range when _pendingRange.isNotEmpty => () {
+                            final scored = _pendingRange.entries
+                                .where((e) => e.value >= 1)
+                                .toList();
+                            if (scored.isEmpty) return;
+                            for (final entry in scored) {
+                              widget.onVote?.call(
+                                [entry.key],
+                                score: entry.value,
+                              );
+                            }
+                            setState(() => _revoting = false);
+                          },
+                          _ => null,
+                        },
+                        child: Text(
+                          poll.pollType == PollType.range
+                              ? 'Submit ratings'
+                              : 'Submit',
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
 
             const SizedBox(height: kSpacingSmall),
 
