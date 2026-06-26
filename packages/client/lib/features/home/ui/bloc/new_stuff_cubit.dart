@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/home/ui/screen/home_screen.dart' show HomeScreen;
+import 'package:tentura/features/home/ui/screen/home_screen.dart'
+    show HomeScreen;
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -54,6 +55,8 @@ class NewStuffCubit extends Cubit<NewStuffState> {
           myWorkLastSeenMs: myWork,
           maxInboxActivityMs: null,
           maxMyWorkActivityMs: null,
+          inboxNeedsMeCount: 0,
+          inboxLoadComplete: false,
           status: const StateIsSuccess(),
         ),
       );
@@ -73,6 +76,16 @@ class NewStuffCubit extends Cubit<NewStuffState> {
   /// After a successful Inbox fetch: updates max activity snapshot.
   void reportInboxActivity(int? maxLatestForwardMs) {
     emit(state.copyWith(maxInboxActivityMs: maxLatestForwardMs ?? 0));
+  }
+
+  /// Needs me count for My Work empty-state CTAs (from [InboxNeedsMeReporter]).
+  void reportInboxNeedsMe({required int count, required bool loadComplete}) {
+    emit(
+      state.copyWith(
+        inboxNeedsMeCount: count,
+        inboxLoadComplete: loadComplete,
+      ),
+    );
   }
 
   /// After a successful My Work fetch: updates max activity snapshot.
@@ -142,10 +155,11 @@ class NewStuffCubit extends Cubit<NewStuffState> {
 
   bool get hasNewInboxDot =>
       _authCubit.state.currentAccountId.isNotEmpty &&
-      state.inboxLastSeenMs != null &&
+      state.activeHomeTabIndex != 1 &&
       state.maxInboxActivityMs != null &&
-      state.maxInboxActivityMs! > state.inboxLastSeenMs! &&
-      state.activeHomeTabIndex != 1;
+      state.maxInboxActivityMs! > 0 &&
+      (state.inboxLastSeenMs == null ||
+          state.maxInboxActivityMs! > state.inboxLastSeenMs!);
 
   bool get hasNewMyWorkDot =>
       _authCubit.state.currentAccountId.isNotEmpty &&
