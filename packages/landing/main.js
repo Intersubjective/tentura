@@ -532,7 +532,26 @@ function renderAnonymous(p) {
   );
 }
 
+const POST_JOIN_BEACON_KEY = 'tentura_post_join_beacon';
+
+function persistPostJoinBeacon(p) {
+  if (!p?.beacon?.id) return;
+  try {
+    sessionStorage.setItem(
+      POST_JOIN_BEACON_KEY,
+      JSON.stringify({
+        id: p.beacon.id,
+        title: p.beacon.title || '',
+        inviterName: p.inviter?.displayName || '',
+      }),
+    );
+  } catch (_) {
+    /* blocked storage */
+  }
+}
+
 function render(p) {
+  persistPostJoinBeacon(p);
   card.replaceChildren();
   card.append(header(p));
   let content;

@@ -94,6 +94,13 @@ test('pager marks done before opening the product', () => {
   assert.match(onboardingJs, /onboarding_skipped/);
 });
 
+test('main.js persists post-join beacon on preview render', () => {
+  assert.match(mainJs, /function persistPostJoinBeacon\(p\)/);
+  assert.match(mainJs, /POST_JOIN_BEACON_KEY/);
+  assert.match(mainJs, /persistPostJoinBeacon\(p\)/);
+  assert.match(mainJs, /inviterName: p\.inviter\?\.displayName/);
+});
+
 test('pager exposes explicit textual progress', () => {
   assert.match(
     onboardingJs,
