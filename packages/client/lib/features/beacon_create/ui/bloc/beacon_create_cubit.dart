@@ -79,11 +79,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  static const kNeedSummaryHardMax = 280;
+  static const kNeedSummaryHardMax = BeaconCreateState.needSummaryHardMax;
 
-  static const kNeedSummaryPublishMin = 16;
+  static const kNeedSummaryPublishMin = BeaconCreateState.needSummaryPublishMin;
 
-  static const kSuccessCriteriaHardMax = 240;
+  static const kSuccessCriteriaHardMax = BeaconCreateState.successCriteriaHardMax;
 
   static String _draftSafeTitle(String raw) {
     final t = raw.trim();
@@ -298,23 +298,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }
 
   /// Same bounds as [StringInputValidator] title/description checks on the form.
-  bool _stateMeetsBaseFormRequirements() {
-    final t = state.title;
-    if (t.length < kTitleMinLength || t.length > kBeaconTitleMaxLength) {
-      return false;
-    }
-    final d = state.description.trim();
-    if (d.isEmpty || d.length > kBeaconDescriptionMaxLength) {
-      return false;
-    }
-    if (state.needSummary.length > kNeedSummaryHardMax) {
-      return false;
-    }
-    if (state.successCriteria.length > kSuccessCriteriaHardMax) {
-      return false;
-    }
-    return true;
-  }
+  bool _stateMeetsBaseFormRequirements() => state.meetsPublishFormRequirements;
 
   ///
   ///

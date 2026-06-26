@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/accordion_expansion.dart';
 
 /// A grouped, selectable chip set for capability tags.
 ///
 /// [selectedSlugs] is the current selection; [onChanged] fires on every toggle.
 ///
-/// Groups are collapsible [ExpansionTile]s, folded by default unless the group
+/// Groups are collapsible accordion sections, folded by default unless the group
 /// has a selected or pre-existing ([automaticSlugs]) tag. Collapsed headers show
 /// small count badges for selections and pre-existing hints.
 class CapabilityChipSet extends StatelessWidget {
@@ -40,34 +40,35 @@ class CapabilityChipSet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final searching = query.trim().isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final group in CapabilityGroup.values)
-          if (_matchingTags(group, l10n).isNotEmpty)
-            _GroupSection(
-              tileKey: query.trim().isEmpty
-                  ? ValueKey<CapabilityGroup>(group)
-                  : ValueKey<String>('${group.name}:search'),
-              group: group,
-              groupLabel: _groupLabel(l10n, group),
-              groupDescription: _groupDescription(l10n, group),
-              tags: _matchingTags(group, l10n),
-              forceExpanded: query.trim().isNotEmpty,
-              selectedSlugs: selectedSlugs,
-              automaticSlugs: automaticSlugs,
-              maxSelection: maxSelection,
-              onToggle: (slug, selected) {
-                final next = Set<String>.from(selectedSlugs);
-                selected ? next.add(slug) : next.remove(slug);
-                onChanged(next);
-              },
-              theme: theme,
-              l10n: l10n,
-            ),
-      ],
+    return AccordionExpansionGroup(
+      accordionMode: !searching,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final group in CapabilityGroup.values)
+            if (_matchingTags(group, l10n).isNotEmpty)
+              _GroupSection(
+                group: group,
+                groupLabel: _groupLabel(l10n, group),
+                groupDescription: _groupDescription(l10n, group),
+                tags: _matchingTags(group, l10n),
+                forceExpanded: searching,
+                selectedSlugs: selectedSlugs,
+                automaticSlugs: automaticSlugs,
+                maxSelection: maxSelection,
+                onToggle: (slug, selected) {
+                  final next = Set<String>.from(selectedSlugs);
+                  selected ? next.add(slug) : next.remove(slug);
+                  onChanged(next);
+                },
+                theme: theme,
+                l10n: l10n,
+              ),
+        ],
+      ),
     );
   }
 
@@ -147,7 +148,6 @@ class _CountBadge extends StatelessWidget {
 class _GroupSection extends StatelessWidget {
   const _GroupSection({
     required this.group,
-    required this.tileKey,
     required this.groupLabel,
     required this.groupDescription,
     required this.tags,
@@ -161,7 +161,6 @@ class _GroupSection extends StatelessWidget {
   });
 
   final CapabilityGroup group;
-  final Key tileKey;
   final String groupLabel;
   final String groupDescription;
   final List<CapabilityTag> tags;
@@ -196,18 +195,9 @@ class _GroupSection extends StatelessWidget {
 
     return Theme(
       data: categoryInteractionTheme,
-      child: ExpansionTile(
-        key: tileKey,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+      child: AccordionExpansionTile(
+        id: group.name,
         initiallyExpanded: initiallyExpanded,
-        splashColor: Colors.transparent,
-        onExpansionChanged: (_) {
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            SchedulerBinding.instance.addPostFrameCallback((_) {
-              FocusManager.instance.primaryFocus?.unfocus();
-            });
-          });
-        },
         title: Row(
           children: [
             Expanded(
@@ -235,25 +225,27 @@ class _GroupSection extends StatelessWidget {
             if (autoCount > 0) _CountBadge(count: autoCount, preExisting: true),
           ],
         ),
-        childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final tag in tags)
-                CapabilityTagFilterChip(
-                  tag: tag,
-                  l10n: l10n,
-                  theme: theme,
-                  selected: selectedSlugs.contains(tag.slug),
-                  isAutomatic: automaticSlugs.contains(tag.slug),
-                  onSelected:
-                      atSelectionLimit && !selectedSlugs.contains(tag.slug)
-                      ? null
-                      : (v) => onToggle(tag.slug, v),
-                ),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final tag in tags)
+                  CapabilityTagFilterChip(
+                    tag: tag,
+                    l10n: l10n,
+                    theme: theme,
+                    selected: selectedSlugs.contains(tag.slug),
+                    isAutomatic: automaticSlugs.contains(tag.slug),
+                    onSelected:
+                        atSelectionLimit && !selectedSlugs.contains(tag.slug)
+                        ? null
+                        : (v) => onToggle(tag.slug, v),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
