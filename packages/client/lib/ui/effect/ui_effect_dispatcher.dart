@@ -43,6 +43,10 @@ void dispatchUiEffect(
       switch (target) {
         case NavigateReplaceTarget.home:
           unawaited(router.replaceAll([const HomeRoute()]));
+        case NavigateReplaceTarget.homeInboxTab:
+          unawaited(router.replaceAll([
+            const HomeRoute(children: [InboxRoute()]),
+          ]));
         case NavigateReplaceTarget.authLogin:
           unawaited(router.replaceAll([const AuthLoginRoute()]));
       }
