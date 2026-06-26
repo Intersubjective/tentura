@@ -509,11 +509,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   void initState() {
     super.initState();
     _text.addListener(_onTextChanged);
+    _composerFocus.addListener(_onComposerFocusChange);
   }
 
   @override
   void dispose() {
     _text.removeListener(_onTextChanged);
+    _composerFocus.removeListener(_onComposerFocusChange);
     _overlaySyncScheduled = false;
     _removeOverlay();
     _composerFocus.unfocus();
@@ -725,6 +727,45 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     } on Object catch (_) {}
   }
 
+  /// Once the composer gains focus, ensure the platform text input connection
+  /// opens on the next frame (after layout). Poll sliders used to hold primary
+  /// focus and leave the composer with a cursor but no keyboard; [ExcludeFocus]
+  /// on [RoomPollCard] voting controls prevents that, and this covers any
+  /// remaining focus→connection timing gap (EditableText #126312).
+  void _onComposerFocusChange() {
+    if (!_composerFocus.hasFocus) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_composerFocus.hasFocus) {
+        return;
+      }
+      _composerEditableText()?.requestKeyboard();
+    });
+  }
+
+  /// Locates the [EditableTextState] rendered under [_composerFocus].
+  EditableTextState? _composerEditableText() {
+    final focusContext = _composerFocus.context;
+    if (focusContext == null) {
+      return null;
+    }
+    EditableTextState? editable;
+    void walk(Element element) {
+      if (editable != null) {
+        return;
+      }
+      if (element is StatefulElement && element.state is EditableTextState) {
+        editable = element.state as EditableTextState;
+        return;
+      }
+      element.visitChildElements(walk);
+    }
+
+    focusContext.visitChildElements(walk);
+    return editable;
+  }
+
   Widget _pendingAttachmentPreview(
     BuildContext context,
     ThemeData theme,
@@ -861,7 +902,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
                   enabled: !busy,
-                  onTap: _composerFocus.requestFocus,
                   onSubmitted: (_) => unawaited(_submit()),
                   onTapOutside: (_) {
                     _removeOverlay();
