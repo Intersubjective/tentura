@@ -22,9 +22,17 @@ env:
   BUILDER_IMAGE: ghcr.io/intersubjective/tentura-builder
 
 jobs:
-  test-lints:
+  test-shards:
+    name: test-${{ matrix.target }}
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    strategy:
+      fail-fast: true
+      matrix:
+        target:
+          - lints
+          - server
+          - client
     steps:
       - uses: actions/checkout@v6
         with:
@@ -37,103 +45,61 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      - name: Run lints package tests in builder container
+      - name: Run ${{ matrix.target }} checks in builder container
         run: |
           set -euo pipefail
+          target="${{ matrix.target }}"
+          if [ "$target" = "client" ]; then
+            bash scripts/test_resolve_deploy_web_config.sh
+          fi
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            --env TEST_TARGET="$target" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c '
               set -euo pipefail
               git config --global --add safe.directory "*"
-              dart pub get
-              cd packages/tentura_lints && dart test
-            '
-
-  test-server:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          token: ${{ github.token }}
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: .pub-cache
-          key: pub-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-
-
-      - name: Run server checks in builder container
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}":/app -w /app \
-            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
-            ${{ env.BUILDER_IMAGE }}:latest \
-            bash -c '
-              set -euo pipefail
-              git config --global --add safe.directory "*"
-              dart pub get
-              cd packages/server
-              dart run build_runner build -d
-              dart analyze --no-fatal-warnings
-              dart test --exclude-tags pg
-              ! rg "package:tentura_server/data/repository" lib/domain
-              ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
-              ! rg "package:tentura_server/data/" lib/domain
-            '
-
-  test-client:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          token: ${{ github.token }}
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: .pub-cache
-          key: pub-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-
-
-      - name: Run client checks in builder container
-        run: |
-          set -euo pipefail
-          bash scripts/test_resolve_deploy_web_config.sh
-          docker run --rm \
-            -v "${{ github.workspace }}":/app -w /app \
-            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
-            ${{ env.BUILDER_IMAGE }}:latest \
-            bash -c '
-              set -euo pipefail
-              git config --global --add safe.directory "*"
-              flutter pub get
-              cd packages/client
-              flutter gen-l10n
-              dart run build_runner build -d
-              flutter analyze --no-fatal-warnings --no-fatal-infos
-              flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+              case "$TEST_TARGET" in
+                lints)
+                  dart pub get
+                  cd packages/tentura_lints
+                  dart test
+                  ;;
+                server)
+                  dart pub get
+                  cd packages/server
+                  dart run build_runner build -d
+                  dart analyze --no-fatal-warnings
+                  dart test --exclude-tags pg
+                  ! rg "package:tentura_server/data/repository" lib/domain
+                  ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
+                  ! rg "package:tentura_server/data/" lib/domain
+                  ;;
+                client)
+                  flutter pub get
+                  cd packages/client
+                  flutter gen-l10n
+                  dart run build_runner build -d
+                  flutter analyze --no-fatal-warnings --no-fatal-infos
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+                  ;;
+                *)
+                  echo "Unknown test target: $TEST_TARGET" >&2
+                  exit 1
+                  ;;
+              esac
             '
 
   test:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && always()
-    needs:
-      - test-lints
-      - test-server
-      - test-client
+    needs: test-shards
     steps:
       - name: Verify test jobs
         run: |
           set -euo pipefail
-          test "${{ needs.test-lints.result }}" = "success"
-          test "${{ needs.test-server.result }}" = "success"
-          test "${{ needs.test-client.result }}" = "success"
+          test "${{ needs.test-shards.result }}" = "success"
 
   coverage:
     runs-on: ubuntu-latest
@@ -189,6 +155,7 @@ jobs:
 
   build-web:
     runs-on: ubuntu-latest
+    needs: test
     if: github.event_name == 'push'
     permissions:
       contents: read
@@ -216,6 +183,15 @@ jobs:
           path: .pub-cache
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
+
+      - name: Cache client codegen state
+        uses: actions/cache@v5
+        with:
+          path: |
+            packages/client/.dart_tool/build
+            packages/client/.dart_tool/build_resolvers
+          key: client-codegen-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/l10n/**', 'packages/client/web/**', 'packages/client/hook/**') }}
+          restore-keys: client-codegen-${{ runner.os }}-
 
       # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
       - name: Write client dart-define file
@@ -359,6 +335,7 @@ jobs:
 
   build-server:
     runs-on: ubuntu-latest
+    needs: test
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
