@@ -1,3 +1,9 @@
+import 'dart:async' show unawaited;
+
+import 'package:get_it/get_it.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
+import 'package:tentura/ui/message/action_message_base.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 final class InviteNoLongerValidMessage extends LocalizableMessage {
@@ -48,4 +54,51 @@ final class InviteInvalidCodeMessage extends LocalizableMessage {
 
   @override
   String get toRu => 'Этот код приглашения недействителен.';
+}
+
+final class _OpenBeaconActionLabel extends LocalizableMessage {
+  const _OpenBeaconActionLabel();
+
+  @override
+  String get toEn => 'Open beacon';
+
+  @override
+  String get toRu => 'Открыть маяк';
+}
+
+/// Shown after accepting a beacon-bearing invite.
+final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
+  const BeaconInviteAcceptedMessage({
+    required this.inviterName,
+    required this.beaconId,
+    required this.beaconTitle,
+  });
+
+  final String inviterName;
+  final String beaconId;
+  final String beaconTitle;
+
+  @override
+  String get toEn {
+    final who = inviterName.isEmpty ? 'Someone' : inviterName;
+    final title = beaconTitle.isEmpty ? 'a beacon' : beaconTitle;
+    return '$who shared $title with you. It\'s in your Inbox.';
+  }
+
+  @override
+  String get toRu {
+    final who = inviterName.isEmpty ? 'Кто-то' : inviterName;
+    final title = beaconTitle.isEmpty ? 'маяк' : beaconTitle;
+    return '$who поделился(ась) «$title» с вами. Он в ваших входящих.';
+  }
+
+  @override
+  LocalizableMessage get label => const _OpenBeaconActionLabel();
+
+  @override
+  void Function() get onPressed => () {
+    unawaited(
+      GetIt.I<RootRouter>().pushPath('$kPathBeaconView/$beaconId'),
+    );
+  };
 }

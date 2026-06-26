@@ -6,6 +6,7 @@ import '../../data/repository/invitation_repository.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/data/service/web_redirect.dart';
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -25,21 +26,28 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   AcceptInviteCubit(
     InvitationRepository repository,
     UiEffectPort effects,
+    PostJoinNavigationCubit postJoinNavigation,
   ) : _repository = repository,
       _effects = effects,
+      _postJoinNavigation = postJoinNavigation,
       super(const AcceptInviteState());
 
   @visibleForTesting
   AcceptInviteCubit.withPort(
     InvitationAcceptPort repository, {
     UiEffectPort? effects,
+    PostJoinNavigationCubit? postJoinNavigation,
   }) : _repository = repository,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
+       _postJoinNavigation =
+           postJoinNavigation ?? GetIt.I<PostJoinNavigationCubit>(),
        super(const AcceptInviteState());
 
   final InvitationAcceptPort _repository;
 
   final UiEffectPort _effects;
+
+  final PostJoinNavigationCubit _postJoinNavigation;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -71,10 +79,29 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
       _goHome();
       return;
     }
-    emit(state.copyWith(status: StateStatus.isLoading, pendingInviter: null));
+    final inviter = state.pendingInviter;
+    final beacon = state.pendingBeacon;
+    emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _repository.acceptExistingInvite(code);
-      _finishWithMessage(const InviteAcceptedMessage());
+      if (beacon != null && beacon.id.isNotEmpty) {
+        _postJoinNavigation.setFromBeaconInvite(
+          beaconId: beacon.id,
+          beaconTitle: beacon.title,
+          inviterName: inviter?.displayName ?? '',
+          showSnackbar: false,
+        );
+        _finishWithMessage(
+          BeaconInviteAcceptedMessage(
+            inviterName: inviter?.displayName ?? '',
+            beaconId: beacon.id,
+            beaconTitle: beacon.title,
+          ),
+          navigateToInbox: true,
+        );
+      } else {
+        _finishWithMessage(const InviteAcceptedMessage());
+      }
     } on InvitationNoLongerValid {
       _finishWithMessage(const InviteNoLongerValidMessage());
     } on InvitationSelfOrInvalid {
@@ -113,18 +140,29 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
               id: inviter.id,
               displayName: inviter.displayName,
             ),
+            pendingBeacon: preview.beacon,
           ),
         );
     }
   }
 
-  void _finishWithMessage(LocalizableMessage message) {
+  void _finishWithMessage(
+    LocalizableMessage message, {
+    bool navigateToInbox = false,
+  }) {
     _effects.emit(ShowMessage(message));
-    _effects.emit(const NavigateReplace(NavigateReplaceTarget.home));
+    _effects.emit(
+      NavigateReplace(
+        navigateToInbox
+            ? NavigateReplaceTarget.homeInboxTab
+            : NavigateReplaceTarget.home,
+      ),
+    );
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
         pendingInviter: null,
+        pendingBeacon: null,
       ),
     );
   }
@@ -135,6 +173,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
       state.copyWith(
         status: const StateIsSuccess(),
         pendingInviter: null,
+        pendingBeacon: null,
       ),
     );
   }
