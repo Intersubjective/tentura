@@ -88,6 +88,16 @@ test('renderInvalid offers recovery paths', () => {
   assert.match(block, /inviteCodeHadTrailingDash/);
 });
 
+test('own-invite page offers a copy-link button', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderIsInviter'),
+    mainJs.indexOf('function renderAlreadyFriends'),
+  );
+  assert.match(block, /Copy invite link/);
+  assert.match(block, /navigator\.clipboard\.writeText\(location\.href\)/);
+  assert.match(block, /cta_copy_own_invite/);
+});
+
 test('email magic link shows in-page check-your-email confirmation', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderEmailMagicLinkForm'),
