@@ -9,6 +9,7 @@ import {
   isNewSignupReturn,
   isOnboardingDone,
   markOnboardingDone,
+  shouldRunPostSignup,
 } from '../onboarding.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,16 +76,42 @@ test('profile fetch returns null on failure (replay-safe)', () => {
   assert.match(onboardingJs, /catch \{\s*return null;/);
 });
 
-test('main.js gates post-signup on new-signup return and falls back', () => {
+test('main.js gates post-signup on signed-in return and falls back', () => {
   assert.match(
     mainJs,
-    /isNewSignupReturn\(location\.search\) && !isOnboardingDone\(sessionStorage\)/,
+    /isSignedInReturn\(\) && !isOnboardingDone\(sessionStorage\)/,
   );
+  assert.match(mainJs, /shouldRunPostSignup\(location\.search, sessionStorage, profile\)/);
   // 401/no-profile falls through to the normal render (replayed URL safety).
   assert.match(mainJs, /post_signup_fallback/);
   // Post-signup check runs before the no-code branch so `/invite/?new=1` works.
   assert.ok(
-    mainJs.indexOf('isNewSignupReturn') < mainJs.indexOf('renderNoInvite()'),
+    mainJs.indexOf('shouldRunPostSignup') < mainJs.indexOf('renderNoInvite()'),
+  );
+});
+
+test('shouldRunPostSignup covers new signup and placeholder names', () => {
+  const storage = fakeStorage();
+  const profile = { id: 'U1', displayName: 'agent 3c4703tb' };
+  assert.equal(
+    shouldRunPostSignup('?signed_in=1&new=1', storage, profile),
+    true,
+  );
+  assert.equal(
+    shouldRunPostSignup('?signed_in=1', storage, profile),
+    true,
+  );
+  assert.equal(
+    shouldRunPostSignup('?signed_in=1', storage, {
+      id: 'U1',
+      displayName: 'Ada Lovelace',
+    }),
+    false,
+  );
+  markOnboardingDone(storage);
+  assert.equal(
+    shouldRunPostSignup('?signed_in=1&new=1', storage, profile),
+    false,
   );
 });
 
@@ -109,11 +136,11 @@ test('pager exposes explicit textual progress', () => {
   assert.match(onboardingJs, /class: 'hint pager-progress'/);
 });
 
-test('email success state tells the user to check email and hides submit', () => {
+test('email success state tells the user to check email and relabels submit', () => {
   assert.match(mainJs, /'Check your email'/);
   assert.match(mainJs, /successEl\.hidden = false/);
   assert.match(mainJs, /emailInput\.disabled = true/);
-  assert.match(mainJs, /submit\.hidden = true/);
+  assert.match(mainJs, /Link sent — check your email/);
 });
 
 test('pager clamps page index and hidden controls actually hide', () => {
