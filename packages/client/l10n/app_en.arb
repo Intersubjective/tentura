@@ -3829,5 +3829,17 @@
   "beaconPublishBlockedNeedSummary": "Describe what is needed (at least 16 characters).",
   "@beaconPublishBlockedNeedSummary": {
     "description": "Publish blocker detail when need summary is too short."
+  },
+  "profileDisplayNameNudgeTitle": "Add your display name",
+  "@profileDisplayNameNudgeTitle": {
+    "description": "Profile tab card prompting users with placeholder names to set a display name."
+  },
+  "profileDisplayNameNudgeBody": "Help friends recognize you — set the name people see on beacons and invites.",
+  "@profileDisplayNameNudgeBody": {
+    "description": "Body copy for the display-name nudge card on Profile."
+  },
+  "profileDisplayNameNudgeAction": "Set display name",
+  "@profileDisplayNameNudgeAction": {
+    "description": "Primary action on the display-name nudge card."
   }
 }

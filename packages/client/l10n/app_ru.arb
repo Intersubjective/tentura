@@ -3646,5 +3646,17 @@
   "beaconPublishBlockedNeedSummary": "Опишите, что нужно (не менее 16 символов).",
   "@beaconPublishBlockedNeedSummary": {
     "description": "Publish blocker detail when need summary is too short."
+  },
+  "profileDisplayNameNudgeTitle": "Добавьте отображаемое имя",
+  "@profileDisplayNameNudgeTitle": {
+    "description": "Profile tab card prompting users with placeholder names to set a display name."
+  },
+  "profileDisplayNameNudgeBody": "Помогите друзьям узнать вас — укажите имя, которое видят на маяках и в приглашениях.",
+  "@profileDisplayNameNudgeBody": {
+    "description": "Body copy for the display-name nudge card on Profile."
+  },
+  "profileDisplayNameNudgeAction": "Указать имя",
+  "@profileDisplayNameNudgeAction": {
+    "description": "Primary action on the display-name nudge card."
   }
 }

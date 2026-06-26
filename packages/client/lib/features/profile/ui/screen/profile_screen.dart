@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import '../bloc/profile_cubit.dart';
+import '../widget/profile_name_nudge.dart';
 import '../widget/profile_app_bar.dart';
 import '../widget/profile_body.dart';
 
@@ -25,6 +26,13 @@ class ProfileScreen extends StatelessWidget {
               ProfileAppBar(
                 key: Key('ProfileAppBar:${profile.id}'),
                 profile: profile,
+              ),
+
+              SliverPadding(
+                padding: context.tt.cardPadding,
+                sliver: SliverToBoxAdapter(
+                  child: ProfileNameNudge(profile: profile),
+                ),
               ),
 
               // Profile

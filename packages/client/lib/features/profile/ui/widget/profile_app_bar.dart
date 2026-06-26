@@ -38,7 +38,9 @@ class ProfileAppBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  profile.displayName.isEmpty ? l10n.noName : profile.displayName,
+                  profile.displayName.isEmpty
+                      ? l10n.noName
+                      : profile.displayName,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: scheme.onPrimary,
@@ -46,14 +48,15 @@ class ProfileAppBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  profile.id,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onPrimary.withValues(alpha: 0.72),
+                if (profile.handle.isNotEmpty)
+                  Text(
+                    '@${profile.handle}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onPrimary.withValues(alpha: 0.72),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ],
             ),
           ),

@@ -38,10 +38,37 @@ export const ONBOARDING_PAGES = [
   },
 ];
 
+/** `?signed_in=1` — session cookie set after email/OAuth auth. */
+export function isSignedInReturn(search) {
+  return new URLSearchParams(search || '').get('signed_in') === '1';
+}
+
 /** `?signed_in=1&new=1` — fresh account just created by email/Google auth. */
 export function isNewSignupReturn(search) {
   const params = new URLSearchParams(search || '');
   return params.get('signed_in') === '1' && params.get('new') === '1';
+}
+
+/**
+ * Placeholder display names from email local-parts are lowercase and often
+ * contain digits (e.g. agent-3c4703tb@test… → "agent 3c4703tb").
+ */
+export function isLikelyAutoDerivedDisplayName(displayName) {
+  const t = String(displayName ?? '').trim();
+  if (t.length === 0) return true;
+  if (t !== t.toLowerCase()) return false;
+  return /\d/.test(t);
+}
+
+/**
+ * Post-signup name step (+ pager for brand-new accounts) when the session is
+ * signed in, onboarding is not done, and the account still has a placeholder name.
+ */
+export function shouldRunPostSignup(search, storage, profile) {
+  if (!profile || isOnboardingDone(storage)) return false;
+  if (!isSignedInReturn(search)) return false;
+  if (isNewSignupReturn(search)) return true;
+  return isLikelyAutoDerivedDisplayName(profile.displayName);
 }
 
 /** One-shot guard: reload/back after finishing must not replay onboarding. */
@@ -132,6 +159,7 @@ function el(tag, attrs = {}, ...children) {
  *   track: (name: string, data?: object) => void,
  *   openProductUrl: () => string,
  *   storage: Storage,
+ *   nameOnly?: boolean,
  * }} deps
  */
 export function renderPostSignup({
@@ -142,11 +170,19 @@ export function renderPostSignup({
   track,
   openProductUrl,
   storage,
+  nameOnly = false,
 }) {
   setState('post-signup');
   setPageTitle('Welcome to Tentura');
 
-  const showPager = () => {
+  const finish = () => {
+    if (nameOnly) {
+      markOnboardingDone(storage);
+      card.replaceChildren(
+        renderOpenAppPrompt({ openProductUrl, track, storage }),
+      );
+      return;
+    }
     card.replaceChildren(
       renderOnboardingPager({ track, openProductUrl, storage }),
     );
@@ -156,8 +192,27 @@ export function renderPostSignup({
     renderNameStep({
       prefill: (profile.displayName || '').trim(),
       track,
-      onDone: showPager,
+      onDone: finish,
     }),
+  );
+}
+
+function renderOpenAppPrompt({ openProductUrl, track, storage }) {
+  const openApp = el(
+    'a',
+    { class: 'btn btn-primary', href: openProductUrl() },
+    'Continue to Tentura',
+  );
+  openApp.addEventListener('click', () => {
+    markOnboardingDone(storage);
+    track('onboarding_done', { nameOnly: true });
+  });
+  return el(
+    'div',
+    { class: 'content' },
+    el('h1', {}, 'You’re all set'),
+    el('p', {}, 'Open Tentura to continue.'),
+    openApp,
   );
 }
 
@@ -249,7 +304,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   const openApp = el(
     'a',
     { class: 'btn btn-primary', href: openProductUrl() },
-    'Open Tentura',
+    'Continue to Tentura',
   );
   openApp.addEventListener('click', () => {
     markOnboardingDone(storage);
