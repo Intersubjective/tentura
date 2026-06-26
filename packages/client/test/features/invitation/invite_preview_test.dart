@@ -12,6 +12,7 @@ void main() {
         'image': 'https://example.com/a.png',
       },
       'beacon': {
+        'id': 'B1',
         'title': 'Help needed',
         'snippet': 'snippet',
       },
@@ -22,6 +23,7 @@ void main() {
     expect(preview.callerStatus, InviteCallerStatus.existingUser);
     expect(preview.inviter?.id, 'U1');
     expect(preview.inviter?.displayName, 'Alice');
+    expect(preview.beacon?.id, 'B1');
     expect(preview.beacon?.title, 'Help needed');
     expect(preview.isAvailable, isTrue);
   });

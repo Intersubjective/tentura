@@ -81,16 +81,19 @@ class InvitePreviewInviter {
 
 class InvitePreviewBeacon {
   const InvitePreviewBeacon({
+    required this.id,
     required this.title,
     this.snippet,
   });
 
   factory InvitePreviewBeacon.fromJson(Map<String, dynamic> json) =>
       InvitePreviewBeacon(
+        id: json['id'] as String? ?? '',
         title: json['title'] as String? ?? '',
         snippet: json['snippet'] as String?,
       );
 
+  final String id;
   final String title;
   final String? snippet;
 }
