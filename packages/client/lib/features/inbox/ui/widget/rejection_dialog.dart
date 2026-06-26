@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Returns optional rejection message, or null if cancelled.
-Future<String?> showRejectionDialog(BuildContext context) async {
+Future<String?> _showInboxNoteDialog(
+  BuildContext context, {
+  required String title,
+  required String hint,
+}) async {
   final l10n = L10n.of(context)!;
   final controller = TextEditingController();
 
@@ -11,11 +14,11 @@ Future<String?> showRejectionDialog(BuildContext context) async {
     return await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.rejectionDialogTitle),
+        title: Text(title),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
-            hintText: l10n.rejectionDialogHint,
+            hintText: hint,
             border: const OutlineInputBorder(),
           ),
           maxLines: 4,
@@ -38,4 +41,24 @@ Future<String?> showRejectionDialog(BuildContext context) async {
   } finally {
     controller.dispose();
   }
+}
+
+/// Returns optional rejection message, or null if cancelled.
+Future<String?> showRejectionDialog(BuildContext context) {
+  final l10n = L10n.of(context)!;
+  return _showInboxNoteDialog(
+    context,
+    title: l10n.rejectionDialogTitle,
+    hint: l10n.rejectionDialogHint,
+  );
+}
+
+/// Inbox card dismiss (X) — same reject action, inbox-oriented copy.
+Future<String?> showInboxDismissDialog(BuildContext context) {
+  final l10n = L10n.of(context)!;
+  return _showInboxNoteDialog(
+    context,
+    title: l10n.inboxDismissDialogTitle,
+    hint: l10n.inboxDismissDialogHint,
+  );
 }

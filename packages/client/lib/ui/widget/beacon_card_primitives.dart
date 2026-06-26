@@ -91,6 +91,9 @@ class BeaconCardShell extends StatelessWidget {
 
     /// When null, uses [kPaddingAllS] (no footer) or tight top/sides padding (with footer).
     this.padding,
+
+    /// Screen-reader label for the card body tap target.
+    this.tapSemanticsLabel,
     super.key,
   });
 
@@ -102,6 +105,7 @@ class BeaconCardShell extends StatelessWidget {
   final bool muted;
   final Color? color;
   final EdgeInsetsGeometry? padding;
+  final String? tapSemanticsLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +149,20 @@ class BeaconCardShell extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (onTap != null)
-          InkWell(
-            onTap: onTap,
-            borderRadius: inkRadius,
-            child: paddedMain,
+          Semantics(
+            button: true,
+            label:
+                tapSemanticsLabel ??
+                L10n.of(context)?.openBeacon ??
+                'Open beacon',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: inkRadius,
+                child: paddedMain,
+              ),
+            ),
           )
         else
           paddedMain,
@@ -166,7 +180,9 @@ class BeaconCardShell extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kBeaconCardShellHorizontalMargin),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kBeaconCardShellHorizontalMargin,
+      ),
       child: Material(
         color: bg,
         shadowColor: Colors.transparent,
@@ -372,7 +388,8 @@ class BeaconCardHeaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final resolvedTitleStyle = titleStyle ??
+    final resolvedTitleStyle =
+        titleStyle ??
         theme.textTheme.titleSmall!.copyWith(
           color: scheme.onSurface,
         );

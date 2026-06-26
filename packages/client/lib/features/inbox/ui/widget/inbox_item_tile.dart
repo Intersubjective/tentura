@@ -30,6 +30,7 @@ class InboxItemTile extends StatelessWidget {
     this.onWatch,
     this.onStopWatching,
     this.onCantHelp,
+    this.onDismissFromInbox,
     this.onMoveToInbox,
     this.onOfferHelp,
     this.showCtaRow = true,
@@ -44,6 +45,9 @@ class InboxItemTile extends StatelessWidget {
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;
+
+  /// Card dismiss (X) — inbox-oriented dialog; falls back to [onCantHelp].
+  final Future<void> Function()? onDismissFromInbox;
   final VoidCallback? onMoveToInbox;
 
   /// Offer help for this beacon (same flow as beacon view); null hides the menu item.
@@ -61,21 +65,28 @@ class InboxItemTile extends StatelessWidget {
   final InboxRowHighlightKind inboxHighlight;
 
   String? _secondaryLabel(L10n l10n) {
-    // Icon-only tertiary button for "Not for me" (see _secondaryIcon()).
-    if (onCantHelp != null) return null;
+    // Icon-only tertiary button for dismiss (see _secondaryIcon()).
+    if (_hasDismissAction) return null;
     if (onStopWatching != null) return l10n.actionStopWatching;
     if (onMoveToInbox != null) return l10n.actionMoveToInbox;
     return null;
   }
 
+  bool get _hasDismissAction =>
+      onDismissFromInbox != null || onCantHelp != null;
+
   IconData? _secondaryIcon() {
-    if (onCantHelp != null) return Icons.close;
+    if (_hasDismissAction) return Icons.close;
     if (onStopWatching != null) return Icons.visibility_off_outlined;
     if (onMoveToInbox != null) return Icons.inbox_outlined;
     return null;
   }
 
   Future<void> _onSecondaryPressed() async {
+    if (onDismissFromInbox != null) {
+      await onDismissFromInbox?.call();
+      return;
+    }
     if (onCantHelp != null) {
       await onCantHelp?.call();
       return;
@@ -104,18 +115,19 @@ class InboxItemTile extends StatelessWidget {
     final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
     final updatedLine = switch (inboxHighlight) {
       InboxRowHighlightKind.updatedBeaconOnly => () {
-          final at = DateTime.fromMillisecondsSinceEpoch(
-            item.newStuffActivityEpochMs,
-          );
-          return l10n.myWorkUpdatedLine(
-            '${dateFormatYMD(at)} ${timeFormatHm(at)}',
-          );
-        }(),
-      _ => beaconHasRealUpdate(beacon)
-          ? l10n.myWorkUpdatedLine(
-              '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
-            )
-          : null,
+        final at = DateTime.fromMillisecondsSinceEpoch(
+          item.newStuffActivityEpochMs,
+        );
+        return l10n.myWorkUpdatedLine(
+          '${dateFormatYMD(at)} ${timeFormatHm(at)}',
+        );
+      }(),
+      _ =>
+        beaconHasRealUpdate(beacon)
+            ? l10n.myWorkUpdatedLine(
+                '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+              )
+            : null,
     };
 
     final phaseInput = beaconPhaseInputFromInbox(
@@ -131,12 +143,16 @@ class InboxItemTile extends StatelessWidget {
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
+      tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
       footer: showCtaRow
           ? InboxCardActionRow(
               onOfferHelp: onOfferHelp,
               onForward: onTap,
               secondaryLabel: secondaryLabel,
               secondaryIcon: secondaryIcon,
+              secondaryTooltip: _hasDismissAction
+                  ? l10n.inboxDismissTooltip
+                  : null,
               onSecondary: (secondaryLabel != null || secondaryIcon != null)
                   ? _onSecondaryPressed
                   : null,
@@ -147,6 +163,7 @@ class InboxItemTile extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
+            onTitleBlockTap: onOpenBeacon,
             statusLine: phaseStatus.statusLine,
             statusTone: phaseStatus.tone,
             menu: BeaconOverflowMenu(

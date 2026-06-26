@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
@@ -19,32 +20,27 @@ class _TestProfileCubit extends Mock implements ProfileCubit {
 }
 
 void main() {
-  test('beaconCardUpdatedLineTextStyle uses readable secondary color in dark', () {
-    final theme = TenturaTheme.dark();
-    final scheme = theme.colorScheme;
-    final tt = theme.extension<TenturaTokens>()!;
-    final style = beaconCardUpdatedLineTextStyle(theme);
+  test(
+    'beaconCardUpdatedLineTextStyle uses readable secondary color in dark',
+    () {
+      final theme = TenturaTheme.dark();
+      final scheme = theme.colorScheme;
+      final tt = theme.extension<TenturaTokens>()!;
+      final style = beaconCardUpdatedLineTextStyle(theme);
 
-    expect(style.color, scheme.onSurface.withValues(alpha: 0.72));
-    expect(style.color, isNot(tt.textMuted));
-  });
+      expect(style.color, scheme.onSurface.withValues(alpha: 0.72));
+      expect(style.color, isNot(tt.textMuted));
+    },
+  );
 
-  testWidgets('compact header uses 40px identity and title max two lines at 360px', (
-    tester,
-  ) async {
-    final beacon = Beacon.empty.copyWith(
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025, 4, 18, 17, 6),
-      id: 'b1',
-      title:
-          '"Sweet spot": разгребаем завалы и длинный хвост чтобы title занял две строки',
-      context: 'General',
-      author: const Profile(id: 'a1', displayName: 'Fionna Campbell'),
-    );
+  testWidgets('BeaconCardShell body tap invokes onTap', (tester) async {
+    var tapped = false;
 
     await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
         home: MediaQuery(
           data: const MediaQueryData(size: Size(360, 800)),
           child: Scaffold(
@@ -52,14 +48,8 @@ void main() {
               child: SizedBox(
                 width: 360,
                 child: BeaconCardShell(
-                  child: BeaconCardHeaderRow(
-                    beacon: beacon,
-                    menu: const SizedBox(
-                      width: 32,
-                      height: 40,
-                      child: Placeholder(),
-                    ),
-                  ),
+                  onTap: () => tapped = true,
+                  child: const Text('Tap me'),
                 ),
               ),
             ),
@@ -69,17 +59,71 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final box = tester.getSize(find.byType(BeaconIdentityTile));
-    expect(box.width, 40);
-    expect(box.height, 40);
+    await tester.tap(find.text('Tap me'));
+    await tester.pumpAndSettle();
 
-    final titleFinder = find.textContaining('"Sweet spot"', findRichText: true);
-    expect(titleFinder, findsOneWidget);
-    final renderObject = tester.renderObject<RenderParagraph>(titleFinder);
-    expect(renderObject.size.height <= 50, isTrue);
+    expect(tapped, isTrue);
   });
 
-  testWidgets('header shows one-line title and status subtitle', (tester) async {
+  testWidgets(
+    'compact header uses 40px identity and title max two lines at 360px',
+    (
+      tester,
+    ) async {
+      final beacon = Beacon.empty.copyWith(
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025, 4, 18, 17, 6),
+        id: 'b1',
+        title:
+            '"Sweet spot": разгребаем завалы и длинный хвост чтобы title занял две строки',
+        context: 'General',
+        author: const Profile(id: 'a1', displayName: 'Fionna Campbell'),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(360, 800)),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 360,
+                  child: BeaconCardShell(
+                    child: BeaconCardHeaderRow(
+                      beacon: beacon,
+                      menu: const SizedBox(
+                        width: 32,
+                        height: 40,
+                        child: Placeholder(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final box = tester.getSize(find.byType(BeaconIdentityTile));
+      expect(box.width, 40);
+      expect(box.height, 40);
+
+      final titleFinder = find.textContaining(
+        '"Sweet spot"',
+        findRichText: true,
+      );
+      expect(titleFinder, findsOneWidget);
+      final renderObject = tester.renderObject<RenderParagraph>(titleFinder);
+      expect(renderObject.size.height <= 50, isTrue);
+    },
+  );
+
+  testWidgets('header shows one-line title and status subtitle', (
+    tester,
+  ) async {
     const status = 'Needs more help';
     final beacon = Beacon.empty.copyWith(
       createdAt: DateTime(2025),

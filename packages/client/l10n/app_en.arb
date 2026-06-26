@@ -1873,7 +1873,7 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "needs attention",
+  "myWorkStatusOverdue": "Needs attention",
   "@myWorkStatusOverdue": {
     "context": "MyWorkScreen"
   },
@@ -3801,5 +3801,17 @@
   "forwardReasonAheadHint": "After selecting someone, you can explain why you're forwarding and add a personal note.",
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."
+  },
+  "inboxDismissDialogTitle": "Remove from inbox?",
+  "@inboxDismissDialogTitle": {
+    "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
+  },
+  "inboxDismissDialogHint": "Optional note (only you see this)",
+  "@inboxDismissDialogHint": {
+    "description": "Hint for optional note when removing a beacon from inbox."
+  },
+  "inboxDismissTooltip": "Remove from inbox",
+  "@inboxDismissTooltip": {
+    "description": "Tooltip for the inbox card dismiss (X) control."
   }
 }
