@@ -14,7 +14,8 @@ void main() {
 
   test('RecoverScreen navigates to accept-invite after recovery when invite valid', () {
     expect(recoverSource, contains('AcceptInviteRoute(id: inviteCode)'));
-    expect(recoverSource, contains('kInvitationCodeRegExp'));
+    expect(recoverSource, contains('isValidInviteCode'));
+    expect(recoverSource, contains('normalizeInviteCode'));
     expect(recoverSource, contains('const HomeRoute()'));
   });
 
