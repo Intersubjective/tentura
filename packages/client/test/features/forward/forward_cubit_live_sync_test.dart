@@ -8,6 +8,7 @@ import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/data/repository/contacts_repository.dart';
@@ -17,11 +18,26 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
-import 'package:tentura/ui/effect/ui_effect_port.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+/// Simulates route pop disposing the cubit when [NavigateBack] fires.
+class _NavigateBackClosesCubitPort extends FakeUiEffectPort {
+  _NavigateBackClosesCubitPort(this._cubitProvider);
+
+  final ForwardCubit Function() _cubitProvider;
+
+  @override
+  void emit(UiEffect effect) {
+    super.emit(effect);
+    if (effect is NavigateBack) {
+      unawaited(_cubitProvider().close());
+    }
+  }
+}
 
 class _LiveSyncForwardRepository implements ForwardRepository {
   _LiveSyncForwardRepository({
@@ -36,11 +52,12 @@ class _LiveSyncForwardRepository implements ForwardRepository {
   @override
   Stream<String> get forwardCompleted => _forwardCompleted.stream;
 
-  void emitForwardCompleted(String beaconId) =>
-      _forwardCompleted.add(beaconId);
+  void emitForwardCompleted(String beaconId) => _forwardCompleted.add(beaconId);
 
   @override
-  Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) async {
+  Future<Iterable<Profile>> fetchForwardCandidates({
+    String context = '',
+  }) async {
     fetchForwardCandidatesCalls++;
     return candidates;
   }
@@ -48,19 +65,34 @@ class _LiveSyncForwardRepository implements ForwardRepository {
   @override
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) async =>
-      (
-        beacon: Beacon.empty.copyWith(id: beaconId),
-        forwardedToIds: <String>{},
-        helpOfferedIds: <String>{},
-        withdrawnIds: <String>{},
-        rejectedIds: <String>{},
-        watchingIds: <String>{},
-        onwardForwarderIds: <String>{},
-        myForwardedRecipientNotes: <String, String>{},
-        myForwardedRecipientEdgeIds: <String, String>{},
-        myForwardedRecipientReadAts: <String, DateTime?>{},
-      );
+  }) async => (
+    beacon: Beacon.empty.copyWith(id: beaconId),
+    forwardedToIds: <String>{},
+    helpOfferedIds: <String>{},
+    withdrawnIds: <String>{},
+    rejectedIds: <String>{},
+    watchingIds: <String>{},
+    onwardForwarderIds: <String>{},
+    myForwardedRecipientNotes: <String, String>{},
+    myForwardedRecipientEdgeIds: <String, String>{},
+    myForwardedRecipientReadAts: <String, DateTime?>{},
+  );
+
+  @override
+  Future<String> forwardBeacon({
+    required String beaconId,
+    required List<String> recipientIds,
+    String? note,
+    Map<String, String>? perRecipientNotes,
+    Map<String, List<String>>? recipientReasons,
+    String? context,
+    String? parentEdgeId,
+  }) async {
+    if (!_forwardCompleted.isClosed) {
+      emitForwardCompleted(beaconId);
+    }
+    return 'edge-1';
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -87,7 +119,7 @@ Future<
     ContactNameStore store,
   })
 >
-    _buildForwardCaseHarness() async {
+_buildForwardCaseHarness() async {
   final authLocal = StreamingAuthLocal();
   final contactsRepo = FakeContactsRepository();
   final store = ContactNameStore();
@@ -129,71 +161,118 @@ Future<
 
 void main() {
   group('ForwardCubit live contact sync', () {
-    test('forwardCompleted reloads candidates even when memo key unchanged',
-        () async {
-      final harness = await _buildForwardCaseHarness();
-      addTearDown(() async {
-        await harness.forwardRepo.dispose();
-        await harness.contactsCase.dispose();
-        if (GetIt.I.isRegistered<ContactNameStore>()) {
-          await GetIt.I.unregister<ContactNameStore>();
-        }
-        await harness.store.dispose();
-      });
+    test(
+      'forwardCompleted reloads candidates even when memo key unchanged',
+      () async {
+        final harness = await _buildForwardCaseHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
 
-      final cubit = ForwardCubit(
-        beaconId: 'b1',
-        forwardCase: harness.forwardCase,
-        effects: FakeUiEffectPort(),
-      );
-      addTearDown(cubit.close);
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
 
-      await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
-      expect(cubit.state.candidates.single.profile.shownName, 'Gym Bob');
-      expect(harness.forwardRepo.fetchForwardCandidatesCalls, 1);
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        expect(cubit.state.candidates.single.profile.shownName, 'Gym Bob');
+        expect(harness.forwardRepo.fetchForwardCandidatesCalls, 1);
 
-      harness.contactsRepo.fetchMineHandler = () async => {'u-bob': 'Alias Bob'};
-      harness.forwardRepo.emitForwardCompleted('b1');
+        harness.contactsRepo.fetchMineHandler = () async => {
+          'u-bob': 'Alias Bob',
+        };
+        harness.forwardRepo.emitForwardCompleted('b1');
 
-      await cubit.stream.firstWhere(
-        (s) => s.candidates.single.profile.shownName == 'Alias Bob',
-      );
-      expect(harness.forwardRepo.fetchForwardCandidatesCalls, 2);
-    });
+        await cubit.stream.firstWhere(
+          (s) => s.candidates.single.profile.shownName == 'Alias Bob',
+        );
+        expect(harness.forwardRepo.fetchForwardCandidatesCalls, 2);
+      },
+    );
 
-    test('contactChanges patches candidate names without full reload', () async {
-      final harness = await _buildForwardCaseHarness();
-      addTearDown(() async {
-        await harness.forwardRepo.dispose();
-        await harness.contactsCase.dispose();
-        if (GetIt.I.isRegistered<ContactNameStore>()) {
-          await GetIt.I.unregister<ContactNameStore>();
-        }
-        await harness.store.dispose();
-      });
+    test(
+      'contactChanges patches candidate names without full reload',
+      () async {
+        final harness = await _buildForwardCaseHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
 
-      final cubit = ForwardCubit(
-        beaconId: 'b1',
-        forwardCase: harness.forwardCase,
-        effects: FakeUiEffectPort(),
-      );
-      addTearDown(cubit.close);
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
 
-      await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
-      final fetchCallsBefore = harness.forwardRepo.fetchForwardCandidatesCalls;
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        final fetchCallsBefore =
+            harness.forwardRepo.fetchForwardCandidatesCalls;
 
-      await harness.contactsCase.rename(
-        subjectId: 'u-bob',
-        contactName: 'Renamed Bob',
-      );
+        await harness.contactsCase.rename(
+          subjectId: 'u-bob',
+          contactName: 'Renamed Bob',
+        );
 
-      await cubit.stream.firstWhere(
-        (s) => s.candidates.single.profile.shownName == 'Renamed Bob',
-      );
-      expect(
-        harness.forwardRepo.fetchForwardCandidatesCalls,
-        fetchCallsBefore,
-      );
-    });
+        await cubit.stream.firstWhere(
+          (s) => s.candidates.single.profile.shownName == 'Renamed Bob',
+        );
+        expect(
+          harness.forwardRepo.fetchForwardCandidatesCalls,
+          fetchCallsBefore,
+        );
+      },
+    );
+
+    test(
+      'forward navigates back without surfacing cubit-close errors',
+      () async {
+        final harness = await _buildForwardCaseHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
+
+        late ForwardCubit cubit;
+        final effects = _NavigateBackClosesCubitPort(() => cubit);
+        cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        cubit.emit(
+          cubit.state.copyWith(
+            selectedIds: {'u-bob'},
+            beacon:
+                cubit.state.beacon ??
+                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+          ),
+        );
+
+        await cubit.forward();
+
+        expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      },
+    );
   });
 }
