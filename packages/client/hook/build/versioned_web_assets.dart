@@ -71,7 +71,7 @@ void _rewriteBootstrap(File file, {required String assetPrefix}) {
   final config = jsonEncode({
     'entrypointBaseUrl': assetPrefix,
     'canvasKitBaseUrl': '${assetPrefix}canvaskit/',
-    'assetBase': '${assetPrefix}assets/',
+    'assetBase': assetPrefix,
   });
   final updated = source.replaceFirst(
     RegExp(r'_flutter\.loader\.load\(\);'),

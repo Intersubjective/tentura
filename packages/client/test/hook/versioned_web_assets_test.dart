@@ -47,7 +47,7 @@ void main() {
           bootstrap,
           contains('"canvasKitBaseUrl":"${prefix}canvaskit/"'),
         );
-        expect(bootstrap, contains('"assetBase":"${prefix}assets/"'));
+        expect(bootstrap, contains('"assetBase":"$prefix"'));
         expect(bootstrap, isNot(contains('_flutter.loader.load();')));
 
         final index = File('${dir.path}/index.html').readAsStringSync();
