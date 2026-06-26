@@ -146,6 +146,68 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
+  void _leaveBeaconView(BuildContext context) {
+    final router = context.router;
+    if (router.canPop()) {
+      router.back();
+      return;
+    }
+    unawaited(router.replacePath(kPathMyWork));
+  }
+
+  Widget _beaconViewErrorBody({
+    required ThemeData theme,
+    required ColorScheme scheme,
+    required TenturaTokens tt,
+    required String title,
+    required String body,
+    required VoidCallback onRetry,
+    required VoidCallback onGoBack,
+    required String retryLabel,
+    required String goBackLabel,
+  }) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(tt.screenHPadding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: tt.iconSize * 2,
+              color: scheme.error,
+            ),
+            SizedBox(height: tt.sectionGap),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: tt.rowGap),
+            Text(
+              body,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: tt.sectionGap),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(retryLabel),
+            ),
+            TextButton(
+              onPressed: onGoBack,
+              child: Text(goBackLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _roomFromRouteParams(BeaconViewScreen w) {
     final legacySurface = w.surface?.trim().toLowerCase();
     return legacySurface == kBeaconSurfaceRoomQueryValue ||
@@ -515,6 +577,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         builder: (context, state) {
           final theme = Theme.of(context);
           final scheme = theme.colorScheme;
+          final tt = context.tt;
           final showInitialLoading =
               state.isLoading &&
               !state.beaconContentLoaded &&
@@ -544,47 +607,28 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               child: CircularProgressIndicator.adaptive(),
             );
           } else if (showInitialUnavailable) {
-            body = Center(
-              child: Padding(
-                padding: const EdgeInsets.all(kSpacingLarge),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.visibility_off_outlined,
-                      size: 48,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: kSpacingMedium),
-                    Text(
-                      l10n.beaconHudBeaconUnavailable,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
+            body = _beaconViewErrorBody(
+              theme: theme,
+              scheme: scheme,
+              tt: tt,
+              title: l10n.beaconHudBeaconUnavailable,
+              body: l10n.beaconViewUnavailableBody,
+              retryLabel: l10n.myWorkRetry,
+              goBackLabel: l10n.beaconViewErrorGoBack,
+              onRetry: () => unawaited(beaconViewCubit.retryInitialLoad()),
+              onGoBack: () => _leaveBeaconView(context),
             );
           } else if (showInitialError) {
-            body = Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: scheme.error,
-                  ),
-                  const SizedBox(height: kSpacingMedium),
-                  FilledButton(
-                    onPressed: () =>
-                        unawaited(beaconViewCubit.retryInitialLoad()),
-                    child: Text(l10n.myWorkRetry),
-                  ),
-                ],
-              ),
+            body = _beaconViewErrorBody(
+              theme: theme,
+              scheme: scheme,
+              tt: tt,
+              title: l10n.beaconHudBeaconUnavailable,
+              body: l10n.beaconViewLoadErrorBody,
+              retryLabel: l10n.myWorkRetry,
+              goBackLabel: l10n.beaconViewErrorGoBack,
+              onRetry: () => unawaited(beaconViewCubit.retryInitialLoad()),
+              onGoBack: () => _leaveBeaconView(context),
             );
           } else if (_showRoomSurface && state.canNavigateBeaconRoom) {
             final roomCubit = _roomCubit;
@@ -651,8 +695,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 titleSpacing: 8,
                 leading: _showRoomSurface
                     ? BackButton(onPressed: _exitRoomSurface)
-                    : const AutoLeadingWithFallback(
-                        fallbackPath: kPathHome,
+                    : AutoLeadingWithFallback(
+                        fallbackPath: kPathMyWork,
+                        onFallback: () => _leaveBeaconView(context),
                       ),
                 title: BeaconViewAppBarTitle(
                   beacon: state.beacon,

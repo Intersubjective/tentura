@@ -53,8 +53,9 @@ class BeaconViewAppBarTitle extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     if (!showBeaconContent) {
-      final label = l10n.beaconHudBeaconUnavailable;
+      final label = l10n.beaconViewTitle;
       return Semantics(
+        header: true,
         label: label,
         child: Text(
           label,
