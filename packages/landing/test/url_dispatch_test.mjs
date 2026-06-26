@@ -110,6 +110,17 @@ test('main redirects invite URLs with trailing dash', () => {
   assert.match(mainJs, /location\.replace\(next\)/);
 });
 
+test('renderNoInvite aligns title and heading with sign-in mode', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderNoInvite'),
+    mainJs.indexOf('async function main'),
+  );
+  assert.match(block, /onSignInModeChange: applyLandingMode/);
+  assert.match(block, /Sign in — Tentura/);
+  assert.match(block, /Sign in to Tentura/);
+  assert.match(block, /applyLandingMode\(true\)/);
+});
+
 test('renderNoInvite shows Open Tentura when signed_in=1', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
