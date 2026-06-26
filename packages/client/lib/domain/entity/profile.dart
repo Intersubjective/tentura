@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/util/display_name_prompt.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'image_entity.dart';
@@ -20,6 +21,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     /// their contact map), empty when none. Render via [shownName];
     /// [displayName] stays the user's objective self-chosen name.
     @Default('') String contactName,
+
     /// Public @mention handle (5–30 `[a-z0-9_]`, optional).
     @Default('') String handle,
     @Default('') String description,
@@ -53,6 +55,10 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   bool get isSeeingMe => rScore > 0;
 
   bool get needEdit => id.isNotEmpty && displayName.isEmpty;
+
+  /// True when the viewer should be nudged to set a real display name.
+  bool get needsDisplayNamePrompt =>
+      id.isNotEmpty && needsDisplayNamePromptFor(displayName);
 
   bool get hasAvatar => image != null && image!.id.isNotEmpty;
   bool get hasNoAvatar => !hasAvatar;

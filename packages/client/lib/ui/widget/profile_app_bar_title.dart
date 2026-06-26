@@ -20,21 +20,24 @@ class ProfileAppBarTitle extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          profile.shownName.isEmpty ? L10n.of(context)!.noName : profile.shownName,
+          profile.shownName.isEmpty
+              ? L10n.of(context)!.noName
+              : profile.shownName,
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        Text(
-          profile.id,
-          style: textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
+        if (profile.handle.isNotEmpty)
+          Text(
+            '@${profile.handle}',
+            style: textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
       ],
     );
   }
