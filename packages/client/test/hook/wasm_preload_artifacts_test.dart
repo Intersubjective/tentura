@@ -9,6 +9,8 @@ void main() {
     final dir = Directory.systemTemp.createTempSync('tentura_web_test');
     try {
       File('${dir.path}/main.dart.wasm').writeAsStringSync('');
+      File('${dir.path}/main.dart.mjs').writeAsStringSync('');
+      File('${dir.path}/main.dart.js').writeAsStringSync('');
       File('${dir.path}/flutter_bootstrap.js').writeAsStringSync('');
       File('${dir.path}/index.html').writeAsStringSync(
         '<script src="flutter_bootstrap.js?v=9.9.9"></script>',
@@ -22,9 +24,27 @@ void main() {
       final sw = File('${dir.path}/tentura-app-cache-sw.js');
       expect(manifest.existsSync(), isTrue);
       expect(sw.existsSync(), isTrue);
-      expect(manifest.readAsStringSync(), contains('main.dart.wasm'));
+      final json = jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
+      expect(json, isNot(contains('preload')));
+      expect(json['wasmPreload'], isNotNull);
+      expect(json['jsPreload'], isNotNull);
+      expect(json['sharedPreload'], isNotNull);
+      expect(
+        (json['wasmPreload'] as List).cast<String>(),
+        contains('/main.dart.wasm'),
+      );
+      expect(
+        (json['jsPreload'] as List).cast<String>(),
+        contains('/main.dart.js'),
+      );
+      expect(
+        (json['wasmPreload'] as List).cast<String>(),
+        isNot(contains('/main.dart.js')),
+      );
       expect(sw.readAsStringSync(), contains('tentura-app-assets-'));
       expect(sw.readAsStringSync(), contains("'/invite/'"));
+      expect(sw.readAsStringSync(), contains('/main.dart.js'));
+      expect(sw.readAsStringSync(), contains('/main.dart.wasm'));
       final swBody = sw.readAsStringSync();
       expect(swBody.contains('"/"') || swBody.contains("'/'"), isFalse);
     } finally {
@@ -37,8 +57,8 @@ void main() {
     try {
       const buildVersion = '7.7.7-deadbeef';
       File('${dir.path}/main.dart.wasm').writeAsStringSync('');
+      File('${dir.path}/main.dart.mjs').writeAsStringSync('');
       File('${dir.path}/flutter_bootstrap.js').writeAsStringSync('');
-      // Stale cache-busting query that must be corrected to [buildVersion].
       File('${dir.path}/index.html').writeAsStringSync(
         '<script src="flutter_bootstrap.js?v=0.0.1" async=""></script>',
       );
@@ -65,9 +85,8 @@ void main() {
       expect(pwaManifest['version'], buildVersion);
       expect(preload['version'], buildVersion);
       expect(sw, contains("CACHE_VERSION = '$buildVersion'"));
-      // Preload list keeps the versioned bootstrap so the SW caches it.
       expect(
-        (preload['preload'] as List).cast<String>(),
+        (preload['sharedPreload'] as List).cast<String>(),
         contains('/flutter_bootstrap.js?v=$buildVersion'),
       );
     } finally {

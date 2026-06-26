@@ -21,55 +21,52 @@ String renderOAuthWarmupInterstitial({
 </head>
 <body>
   <p>Signing in…</p>
-  <script>
-(function () {
-  var REDIRECT = '$safeRedirect';
-  var MANIFEST = '$safeManifest';
-  var SW_URL = '$safeSw';
-  var MAX_WAIT = $maxWaitMs;
+  <script type="module">
+import { warmUrlsFromManifest } from '/browser_compatibility.js';
 
-  function go() {
-    window.location.replace(REDIRECT);
-  }
+const REDIRECT = '$safeRedirect';
+const MANIFEST = '$safeManifest';
+const SW_URL = '$safeSw';
+const MAX_WAIT = $maxWaitMs;
 
-  function warmAssets() {
-    if (!('caches' in window)) return Promise.resolve();
-    return fetch(MANIFEST, { credentials: 'same-origin' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (m) {
-        if (!m || !m.version) return;
-        var cacheName = 'tentura-app-assets-' + m.version;
-        var urls = [m.mainWasm].concat(m.preload || []).filter(Boolean);
-        return caches.open(cacheName).then(function (cache) {
-          return Promise.all(urls.map(function (url) {
-            return cache.match(url).then(function (hit) {
-              if (hit) return;
-              return fetch(url, { credentials: 'same-origin' })
-                .then(function (resp) {
-                  if (resp.ok) return cache.put(url, resp.clone());
-                })
-                .catch(function () {});
-            });
-          }));
-        });
-      })
-      .catch(function () {});
-  }
+function go() {
+  window.location.replace(REDIRECT);
+}
 
-  function registerSw() {
-    if (!('serviceWorker' in navigator)) return Promise.resolve();
-    return navigator.serviceWorker.register(SW_URL).catch(function () {});
-  }
+async function warmAssets() {
+  if (!('caches' in window)) return;
+  try {
+    const r = await fetch(MANIFEST, { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const m = await r.json();
+    if (!m?.version) return;
+    const cacheName = 'tentura-app-assets-' + m.version;
+    const urls = warmUrlsFromManifest(m);
+    const cache = await caches.open(cacheName);
+    await Promise.all(urls.map(async (url) => {
+      try {
+        const hit = await cache.match(url);
+        if (hit) return;
+        const resp = await fetch(url, { credentials: 'same-origin' });
+        if (resp.ok) await cache.put(url, resp.clone());
+      } catch (_) {}
+    }));
+  } catch (_) {}
+}
 
-  var deadline = new Promise(function (resolve) {
-    setTimeout(resolve, MAX_WAIT);
-  });
+async function registerSw() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    await navigator.serviceWorker.register(SW_URL);
+  } catch (_) {}
+}
 
-  Promise.race([
-    Promise.all([registerSw(), warmAssets()]),
-    deadline,
-  ]).finally(go);
-})();
+const deadline = new Promise((resolve) => setTimeout(resolve, MAX_WAIT));
+
+Promise.race([
+  Promise.all([registerSw(), warmAssets()]),
+  deadline,
+]).finally(go);
   </script>
 </body>
 </html>

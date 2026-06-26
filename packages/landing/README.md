@@ -23,7 +23,8 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
 | `main.js`            | entry ES module; renders invite states + signed-out `/` + post-signup dispatch |
 | `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`) |
-| `app_preload.js`     | background WASM asset warmup (manifest + SW + cache)        |
+| `app_preload.js`     | background app asset warmup (manifest + SW + cache)        |
+| `browser_compatibility.js` | Flutter loader–aligned wasm vs js path detection   |
 | `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
@@ -113,13 +114,16 @@ or seed recovery (`/recover?auth_attempt_id=…`). After signup, `setUser` uses
 the account id and clears `visit_id`. Server and client projects join on
 `auth_attempt_id` (ADR 0009).
 
-## WASM background warmup
+## App background warmup
 
 `app_preload.js` runs on every landing visit (fire-and-forget from `main.js`):
 
 - Registers `/tentura-app-cache-sw.js` and fetches `/wasm-preload-manifest.json`.
+- Warms **path-specific** assets via `browser_compatibility.js` (mirrors Flutter
+  loader: Chrome/Edge → `wasmPreload` + shared; Firefox/Safari → `jsPreload` +
+  shared). Does not eagerly download both compile targets or renderer blobs.
 - Populates `tentura-app-assets-<version>` in Cache Storage (same contract as the
-  OAuth warmup interstitial and the WASM app's own service worker).
+  OAuth warmup interstitial when `OAUTH_PRELOAD_ENABLED=true`, and the app's SW).
 - Uses low-priority / idle scheduling so the invite preview JSON is not delayed.
 - **Skipped** when: Tier-2 in-app webview (`env.inApp`), Save-Data is on, or
   `navigator.connection.effectiveType` is `slow-2g` / `2g`.

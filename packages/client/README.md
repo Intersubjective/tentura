@@ -18,6 +18,10 @@ flutter gen-l10n
 dart run build_runner build -d
 
 flutter build web --wasm --pwa-strategy=none --source-maps --dart-define-from-file=.env
+
+dart run tool/trim_web_deploy_artifact.dart
+dart run tool/generate_wasm_preload_artifacts.dart
+dart run tool/verify_web_version_consistency.dart
 ```
 
 To make database migration:
