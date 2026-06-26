@@ -90,6 +90,33 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
     super.dispose();
   }
 
+  bool get _isDirty {
+    if (_controller.text.trim() != widget.initialText.trim()) return true;
+    if (_withdrawReason != null) return true;
+    if (_helpTypeSlugs.length != widget.initialHelpTypeSlugs.length ||
+        !_helpTypeSlugs.containsAll(widget.initialHelpTypeSlugs)) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _requestClose(L10n l10n) async {
+    if (!_isDirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final confirmed = await TenturaConfirmDialog.show(
+      context: context,
+      title: l10n.composerDiscardTitle,
+      content: l10n.composerDiscardBody,
+      confirmLabel: l10n.composerDiscardConfirm,
+      cancelLabel: l10n.composerDiscardKeepEditing,
+    );
+    if ((confirmed ?? false) && mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   void _submit(L10n l10n) {
     if (!_canSubmit) return;
     final text = _controller.text.trim();
@@ -118,129 +145,140 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    return AlertDialog.adaptive(
-      title: Text(widget.title),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: tt.contentMaxWidth ?? double.infinity,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.68,
-        ),
-        child: Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _requestClose(l10n);
+      },
+      child: AlertDialog.adaptive(
+        title: Text(widget.title),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: tt.contentMaxWidth ?? double.infinity,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.68,
+          ),
+          child: Scrollbar(
             controller: _scrollController,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.showHelpTypeChips) ...[
-                  Text(
-                    l10n.helpOfferRolePrompt,
-                    style: theme.textTheme.labelLarge,
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  Text(
-                    l10n.helpOfferSelectionLimit,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  SizedBox(height: tt.rowGap),
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.showHelpTypeChips) ...[
+                    Text(
+                      l10n.helpOfferRolePrompt,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    Text(
+                      l10n.helpOfferSelectionLimit,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    TextField(
+                      key: const Key('help-offer-search'),
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: l10n.helpOfferSearchLabel,
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: MaterialLocalizations.of(
+                                  context,
+                                ).deleteButtonTooltip,
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.clear),
+                              ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    CapabilityChipSet(
+                      selectedSlugs: _helpTypeSlugs,
+                      automaticSlugs: widget.automaticSlugs,
+                      maxSelection: 4,
+                      query: _searchController.text,
+                      onChanged: (s) => setState(() {
+                        _helpTypeSlugs
+                          ..clear()
+                          ..addAll(s);
+                      }),
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                  ],
+                  if (widget.requireWithdrawReason) ...[
+                    Text(
+                      l10n.labelWithdrawReasonRequired,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    Wrap(
+                      spacing: tt.rowGap,
+                      runSpacing: tt.rowGap,
+                      children: [
+                        for (final r in WithdrawReason.values)
+                          FilterChip(
+                            label: Text(_withdrawReasonLabel(l10n, r)),
+                            selected: _withdrawReason == r,
+                            onSelected: (_) {
+                              setState(() {
+                                _withdrawReason = _withdrawReason == r
+                                    ? null
+                                    : r;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                  ],
                   TextField(
-                    key: const Key('help-offer-search'),
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: l10n.helpOfferSearchLabel,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isEmpty
+                    autofocus: !widget.requireWithdrawReason,
+                    controller: _controller,
+                    maxLines: 3,
+                    decoration: tenturaNoteInputDecoration(
+                      context,
+                      labelText: widget.showHelpTypeChips
+                          ? widget.hintText
+                          : null,
+                      hintText: widget.showHelpTypeChips
                           ? null
-                          : IconButton(
-                              tooltip: MaterialLocalizations.of(
-                                context,
-                              ).deleteButtonTooltip,
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                              icon: const Icon(Icons.clear),
-                            ),
+                          : widget.hintText,
                     ),
                     onChanged: (_) => setState(() {}),
+                    onTapOutside: (_) =>
+                        FocusManager.instance.primaryFocus?.unfocus(),
                   ),
-                  SizedBox(height: tt.rowGap),
-                  CapabilityChipSet(
-                    selectedSlugs: _helpTypeSlugs,
-                    automaticSlugs: widget.automaticSlugs,
-                    maxSelection: 4,
-                    query: _searchController.text,
-                    onChanged: (s) => setState(() {
-                      _helpTypeSlugs
-                        ..clear()
-                        ..addAll(s);
-                    }),
-                  ),
-                  SizedBox(height: tt.sectionGap),
                 ],
-                if (widget.requireWithdrawReason) ...[
-                  Text(
-                    l10n.labelWithdrawReasonRequired,
-                    style: theme.textTheme.labelLarge,
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  Wrap(
-                    spacing: tt.rowGap,
-                    runSpacing: tt.rowGap,
-                    children: [
-                      for (final r in WithdrawReason.values)
-                        FilterChip(
-                          label: Text(_withdrawReasonLabel(l10n, r)),
-                          selected: _withdrawReason == r,
-                          onSelected: (_) {
-                            setState(() {
-                              _withdrawReason = _withdrawReason == r ? null : r;
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                ],
-                TextField(
-                  autofocus: !widget.requireWithdrawReason,
-                  controller: _controller,
-                  maxLines: 3,
-                  decoration: tenturaNoteInputDecoration(
-                    context,
-                    labelText: widget.showHelpTypeChips
-                        ? widget.hintText
-                        : null,
-                    hintText: widget.showHelpTypeChips ? null : widget.hintText,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  onTapOutside: (_) =>
-                      FocusManager.instance.primaryFocus?.unfocus(),
-                ),
-              ],
+              ),
             ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => _requestClose(l10n),
+            child: Text(l10n.buttonCancel),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _canSubmit ? () => _submit(l10n) : null,
+              child: Text(
+                widget.showHelpTypeChips
+                    ? l10n.helpOfferSubmit(_helpTypeSlugs.length, 4)
+                    : l10n.buttonOk,
+              ),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: Navigator.of(context).pop,
-          child: Text(l10n.buttonCancel),
-        ),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _canSubmit ? () => _submit(l10n) : null,
-            child: Text(
-              widget.showHelpTypeChips
-                  ? l10n.helpOfferSubmit(_helpTypeSlugs.length, 4)
-                  : l10n.buttonOk,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
