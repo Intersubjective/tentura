@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -39,14 +38,37 @@ Future<void> _pumpDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+const _capabilityGroupLabels = [
+  'Logistics',
+  'Communication',
+  'Knowledge',
+  'Care & support',
+  'Resources',
+  'Technical',
+  'Help that does not fit another category',
+];
+
+Future<void> _expandCapabilityGroup(WidgetTester tester, String label) async {
+  final tile = find.text(label);
+  await tester.ensureVisible(tile);
+  await tester.pumpAndSettle();
+  await tester.tap(tile);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _expandAllCapabilityGroups(WidgetTester tester) async {
-  for (final g in CapabilityGroup.values) {
-    final tile = find.byKey(ValueKey<CapabilityGroup>(g));
-    await tester.ensureVisible(tile);
-    await tester.pumpAndSettle();
-    await tester.tap(tile);
-    await tester.pumpAndSettle();
+  for (final label in _capabilityGroupLabels) {
+    await _expandCapabilityGroup(tester, label);
   }
+}
+
+Future<int> _countChipsAcrossAllGroups(WidgetTester tester) async {
+  var total = 0;
+  for (final label in _capabilityGroupLabels) {
+    await _expandCapabilityGroup(tester, label);
+    total += tester.widgetList<FilterChip>(find.byType(FilterChip)).length;
+  }
+  return total;
 }
 
 void main() {
@@ -54,12 +76,9 @@ void main() {
     'dialog renders a FilterChip for every CapabilityTag value',
     (tester) async {
       await _pumpDialog(tester);
-      await _expandAllCapabilityGroups(tester);
-
-      // Every CapabilityTag must have exactly one chip in the dialog.
       expect(
-        find.byType(FilterChip),
-        findsNWidgets(CapabilityTag.values.length),
+        await _countChipsAcrossAllGroups(tester),
+        CapabilityTag.values.length,
       );
     },
   );
@@ -68,14 +87,17 @@ void main() {
     'all chip labels match expected l10n strings',
     (tester) async {
       await _pumpDialog(tester);
-      await _expandAllCapabilityGroups(tester);
-
-      // A sample of representative labels.
+      await _expandCapabilityGroup(tester, 'Resources');
       expect(find.widgetWithText(FilterChip, 'Money'), findsOneWidget);
-      expect(find.widgetWithText(FilterChip, 'Orders'), findsOneWidget);
       expect(find.widgetWithText(FilterChip, 'Time'), findsOneWidget);
-      expect(find.widgetWithText(FilterChip, 'Other'), findsOneWidget);
+      await _expandCapabilityGroup(tester, 'Logistics');
       expect(find.widgetWithText(FilterChip, 'Transport'), findsOneWidget);
+      await _expandCapabilityGroup(
+        tester,
+        'Help that does not fit another category',
+      );
+      expect(find.widgetWithText(FilterChip, 'Orders'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Other'), findsOneWidget);
     },
   );
 
@@ -83,8 +105,7 @@ void main() {
     'no chip is selected by default',
     (tester) async {
       await _pumpDialog(tester);
-      await _expandAllCapabilityGroups(tester);
-
+      await _expandCapabilityGroup(tester, 'Logistics');
       final chips = tester
           .widgetList<FilterChip>(find.byType(FilterChip))
           .toList();
@@ -98,9 +119,7 @@ void main() {
     'tapping a chip selects it and deselects it on second tap (toggle)',
     (tester) async {
       await _pumpDialog(tester);
-      await _expandAllCapabilityGroups(tester);
-
-      // Tap the "Money" chip.
+      await _expandCapabilityGroup(tester, 'Resources');
       final moneyChipFinder = find.widgetWithText(FilterChip, 'Money');
       await tester.ensureVisible(moneyChipFinder);
       await tester.pumpAndSettle();
@@ -174,45 +193,27 @@ void main() {
   );
 
   testWidgets(
-    'submitting without chip selection yields null helpTypeWire',
+    'submit button is disabled until at least one chip is selected',
     (tester) async {
-      HelpOfferDialogOutcome? outcome;
+      await _pumpDialog(tester);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          theme: TenturaTheme.light(),
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () async {
-                  outcome = await HelpOfferMessageDialog.show(
-                    context,
-                    title: 'Offer Help',
-                    hintText: 'Your message',
-                    showHelpTypeChips: true,
-                    allowEmptyMessage: true,
-                  );
-                },
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        ),
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Offer help (0/4)'),
+      );
+      expect(button.onPressed, isNull);
+
+      await tester.enterText(
+        find.byKey(const Key('help-offer-search')),
+        'time',
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('open'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Time'));
       await tester.pumpAndSettle();
 
-      // Do NOT select any chip; just submit.
-      await tester.tap(find.text('Offer help (0/4)'));
-      await tester.pumpAndSettle();
-
-      expect(outcome, isNotNull);
-      expect(outcome!.helpTypesWire, isNull);
+      final enabled = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Offer help (1/4)'),
+      );
+      expect(enabled.onPressed, isNotNull);
     },
   );
 
@@ -292,8 +293,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(FilterChip, 'Software'), findsOneWidget);
-    expect(find.byKey(const ValueKey('technical:search')), findsOneWidget);
-    expect(find.byKey(const ValueKey(CapabilityGroup.logistics)), findsNothing);
+    expect(
+      find.text('Technology, repair, software, design, and admin'),
+      findsOneWidget,
+    );
+    expect(find.text('Logistics'), findsNothing);
   });
 
   testWidgets('selection is capped at four capabilities', (tester) async {

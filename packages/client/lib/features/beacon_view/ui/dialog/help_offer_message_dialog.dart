@@ -91,18 +91,26 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
   }
 
   void _submit(L10n l10n) {
+    if (!_canSubmit) return;
     final text = _controller.text.trim();
-    if (!widget.allowEmptyMessage && text.isEmpty) {
-      return;
-    }
-    if (widget.requireWithdrawReason && _withdrawReason == null) {
-      return;
-    }
     Navigator.of(context).pop((
       message: text,
       helpTypesWire: _helpTypeSlugs.isEmpty ? null : _helpTypeSlugs.toList(),
       withdrawReasonWire: _withdrawReason?.wireKey,
     ));
+  }
+
+  bool get _canSubmit {
+    if (widget.requireWithdrawReason && _withdrawReason == null) {
+      return false;
+    }
+    if (!widget.allowEmptyMessage && _controller.text.trim().isEmpty) {
+      return false;
+    }
+    if (widget.showHelpTypeChips && _helpTypeSlugs.isEmpty) {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -200,7 +208,14 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                   autofocus: !widget.requireWithdrawReason,
                   controller: _controller,
                   maxLines: 3,
-                  decoration: InputDecoration(hintText: widget.hintText),
+                  decoration: tenturaNoteInputDecoration(
+                    context,
+                    labelText: widget.showHelpTypeChips
+                        ? widget.hintText
+                        : null,
+                    hintText: widget.showHelpTypeChips ? null : widget.hintText,
+                  ),
+                  onChanged: (_) => setState(() {}),
                   onTapOutside: (_) =>
                       FocusManager.instance.primaryFocus?.unfocus(),
                 ),
@@ -217,7 +232,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => _submit(l10n),
+            onPressed: _canSubmit ? () => _submit(l10n) : null,
             child: Text(
               widget.showHelpTypeChips
                   ? l10n.helpOfferSubmit(_helpTypeSlugs.length, 4)
