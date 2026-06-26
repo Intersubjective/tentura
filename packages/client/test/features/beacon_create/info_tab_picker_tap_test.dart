@@ -62,7 +62,6 @@ Widget _infoTabHarness(BeaconCreateCubit cubit) {
   );
 }
 
-
 void main() {
   late BeaconCreateCubit cubit;
 
@@ -104,7 +103,9 @@ void main() {
     expect(find.byType(DateRangePickerDialog), findsOneWidget);
   });
 
-  testWidgets('deadline timing mode opens a single date picker', (tester) async {
+  testWidgets('deadline timing mode opens a single date picker', (
+    tester,
+  ) async {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
@@ -210,7 +211,9 @@ void main() {
     expect(find.text(needText), findsOneWidget);
   });
 
-  testWidgets('tapping location field opens choose location dialog', (tester) async {
+  testWidgets('tapping location field opens choose location dialog', (
+    tester,
+  ) async {
     final geo = _GeoRepositoryMock();
     when(geo.myCoordinates).thenReturn(null);
 
@@ -248,7 +251,9 @@ void main() {
     expect(find.text('Tap to choose location'), findsNothing);
   });
 
-  testWidgets('removing a requirement chip updates cubit needs', (tester) async {
+  testWidgets('removing a requirement chip updates cubit needs', (
+    tester,
+  ) async {
     cubit.setNeeds({'money', 'transport'});
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
@@ -350,6 +355,38 @@ void main() {
     expect(cubit.state.needs, contains('transport'));
   });
 
+  testWidgets('requirements sheet save preserves unrelated form fields', (
+    tester,
+  ) async {
+    const titleText = 'Weekend move';
+    const needText = 'Need help moving furniture this weekend';
+    const successText = 'Everything is packed and loaded';
+
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), titleText);
+    await tester.enterText(find.byType(TextFormField).at(1), 'Desc');
+    await tester.enterText(find.byType(TextFormField).at(2), needText);
+    await tester.enterText(find.byType(TextFormField).at(3), successText);
+    await tester.pump();
+
+    await _openRequirementsSheet(tester);
+    await _expandLogisticsGroup(tester);
+    await tester.tap(find.widgetWithText(FilterChip, 'Transport'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.title, titleText);
+    expect(cubit.state.needSummary, needText);
+    expect(cubit.state.successCriteria, successText);
+    expect(cubit.state.needs, contains('transport'));
+    expect(find.text(needText), findsOneWidget);
+    expect(find.text(successText), findsOneWidget);
+  });
+
   testWidgets('requirements sheet expands the tapped capability group', (
     tester,
   ) async {
@@ -369,7 +406,9 @@ void main() {
     expect(find.widgetWithText(FilterChip, 'Calls'), findsNothing);
   });
 
-  testWidgets('requirements sheet escape closes when unchanged', (tester) async {
+  testWidgets('requirements sheet escape closes when unchanged', (
+    tester,
+  ) async {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 

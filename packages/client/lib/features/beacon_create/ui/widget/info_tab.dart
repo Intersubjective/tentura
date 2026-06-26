@@ -81,14 +81,33 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     super.dispose();
   }
 
+  /// Copies in-flight [TextEditingController] text into the cubit so modal sheets
+  /// (requirements picker) cannot leave draft state behind if focus/IME did not
+  /// flush [TextFormField.onChanged] before the overlay opened.
+  void _commitFormFieldsToCubit() {
+    final s = _cubit.state;
+    if (_titleController.text != s.title) {
+      _cubit.setTitle(_titleController.text);
+    }
+    if (_descriptionController.text != s.description) {
+      _cubit.setDescription(_descriptionController.text);
+    }
+    if (_needSummaryController.text != s.needSummary) {
+      _cubit.setNeedSummary(_needSummaryController.text);
+    }
+    if (_successCriteriaController.text != s.successCriteria) {
+      _cubit.setSuccessCriteria(_successCriteriaController.text);
+    }
+  }
+
   Future<void> _showRequirementsSheet(BuildContext context) async {
+    _commitFormFieldsToCubit();
     final l10n = L10n.of(context)!;
     final baseline = Set<String>.from(_cubit.state.needs);
     var selected = Set<String>.from(baseline);
 
     bool hasUnsavedChanges() =>
-        baseline.length != selected.length ||
-        !baseline.containsAll(selected);
+        baseline.length != selected.length || !baseline.containsAll(selected);
 
     Future<void> requestClose(BuildContext ctx) async {
       if (!hasUnsavedChanges()) {
@@ -117,93 +136,95 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             final scheme = Theme.of(ctx).colorScheme;
 
             void saveAndClose() {
+              _commitFormFieldsToCubit();
               final saved = Set<String>.from(selected);
-              Navigator.of(ctx).pop();
               _cubit.setNeeds(saved);
+              Navigator.of(ctx).pop();
             }
 
             return Focus(
               autofocus: true,
               child: Shortcuts(
-              shortcuts: const {
-                SingleActivator(LogicalKeyboardKey.escape):
-                    _DismissRequirementsSheetIntent(),
-              },
-              child: Actions(
-                actions: {
-                  _DismissRequirementsSheetIntent:
-                      CallbackAction<_DismissRequirementsSheetIntent>(
-                    onInvoke: (_) {
-                      unawaited(requestClose(ctx));
-                      return null;
-                    },
-                  ),
+                shortcuts: const {
+                  SingleActivator(LogicalKeyboardKey.escape):
+                      _DismissRequirementsSheetIntent(),
                 },
-                child: PopScope(
-                  canPop: !hasUnsavedChanges(),
-                  onPopInvokedWithResult: (didPop, _) async {
-                    if (didPop) return;
-                    await requestClose(ctx);
-                  },
-                  child: DraggableScrollableSheet(
-                    expand: false,
-                    initialChildSize: 0.7,
-                    minChildSize: 0.4,
-                    maxChildSize: 0.95,
-                    builder: (_, scrollController) => Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            tt.screenHPadding,
-                            tt.sectionGap,
-                            tt.screenHPadding,
-                            tt.tightGap * 2,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  l10n.beaconRequirementsTitle,
-                                  style: Theme.of(ctx).textTheme.titleMedium,
-                                ),
-                              ),
-                              FilledButton(
-                                onPressed: saveAndClose,
-                                child: Text(l10n.buttonSave),
-                              ),
-                            ],
-                          ),
+                child: Actions(
+                  actions: {
+                    _DismissRequirementsSheetIntent:
+                        CallbackAction<_DismissRequirementsSheetIntent>(
+                          onInvoke: (_) {
+                            unawaited(requestClose(ctx));
+                            return null;
+                          },
                         ),
-                        Expanded(
-                          child: ListView(
-                            controller: scrollController,
+                  },
+                  child: PopScope(
+                    canPop: !hasUnsavedChanges(),
+                    onPopInvokedWithResult: (didPop, _) async {
+                      if (didPop) return;
+                      await requestClose(ctx);
+                    },
+                    child: DraggableScrollableSheet(
+                      expand: false,
+                      initialChildSize: 0.7,
+                      minChildSize: 0.4,
+                      maxChildSize: 0.95,
+                      builder: (_, scrollController) => Column(
+                        children: [
+                          Padding(
                             padding: EdgeInsets.fromLTRB(
                               tt.screenHPadding,
-                              0,
+                              tt.sectionGap,
                               tt.screenHPadding,
-                              tt.sectionGap * 2,
+                              tt.tightGap * 2,
                             ),
-                            children: [
-                              Text(
-                                l10n.beaconRequirementsSheetHint,
-                                style:
-                                    TenturaText.bodySmall(scheme.onSurfaceVariant),
-                              ),
-                              SizedBox(height: tt.rowGap),
-                              CapabilityChipSet(
-                                selectedSlugs: selected,
-                                onChanged: (s) =>
-                                    setModalState(() => selected = s),
-                              ),
-                            ],
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    l10n.beaconRequirementsTitle,
+                                    style: Theme.of(ctx).textTheme.titleMedium,
+                                  ),
+                                ),
+                                FilledButton(
+                                  onPressed: saveAndClose,
+                                  child: Text(l10n.buttonSave),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          Expanded(
+                            child: ListView(
+                              controller: scrollController,
+                              padding: EdgeInsets.fromLTRB(
+                                tt.screenHPadding,
+                                0,
+                                tt.screenHPadding,
+                                tt.sectionGap * 2,
+                              ),
+                              children: [
+                                Text(
+                                  l10n.beaconRequirementsSheetHint,
+                                  style: TenturaText.bodySmall(
+                                    scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                SizedBox(height: tt.rowGap),
+                                CapabilityChipSet(
+                                  selectedSlugs: selected,
+                                  onChanged: (s) =>
+                                      setModalState(() => selected = s),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             );
           },
         ),
@@ -229,358 +250,178 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   Widget build(BuildContext context) {
     final tt = context.tt;
     return BlocListener<BeaconCreateCubit, BeaconCreateState>(
-        bloc: _cubit,
-        listenWhen: (prev, curr) =>
-            prev.title != curr.title ||
-            prev.description != curr.description ||
-            prev.location != curr.location ||
-            prev.needSummary != curr.needSummary ||
-            prev.successCriteria != curr.successCriteria ||
-            prev.startAt != curr.startAt ||
-            prev.endAt != curr.endAt,
-        listener: (context, state) {
-          if (_titleController.text != state.title) {
-            _titleController.text = state.title;
+      bloc: _cubit,
+      listenWhen: (prev, curr) =>
+          prev.title != curr.title ||
+          prev.description != curr.description ||
+          prev.location != curr.location ||
+          prev.needSummary != curr.needSummary ||
+          prev.successCriteria != curr.successCriteria ||
+          prev.startAt != curr.startAt ||
+          prev.endAt != curr.endAt,
+      listener: (context, state) {
+        if (_titleController.text != state.title) {
+          _titleController.text = state.title;
+        }
+        if (_descriptionController.text != state.description) {
+          _descriptionController.text = state.description;
+        }
+        if (_locationController.text != state.location) {
+          _locationController.text = state.location;
+        }
+        if (_needSummaryController.text != state.needSummary) {
+          _needSummaryController.text = state.needSummary;
+        }
+        if (_successCriteriaController.text != state.successCriteria) {
+          _successCriteriaController.text = state.successCriteria;
+        }
+        if (state.startAt != null || state.endAt != null) {
+          final derived = _deriveTimingKind(state.startAt, state.endAt);
+          if (_timingKindNotifier.value != derived) {
+            _timingKindNotifier.value = derived;
           }
-          if (_descriptionController.text != state.description) {
-            _descriptionController.text = state.description;
-          }
-          if (_locationController.text != state.location) {
-            _locationController.text = state.location;
-          }
-          if (_needSummaryController.text != state.needSummary) {
-            _needSummaryController.text = state.needSummary;
-          }
-          if (_successCriteriaController.text != state.successCriteria) {
-            _successCriteriaController.text = state.successCriteria;
-          }
-          if (state.startAt != null || state.endAt != null) {
-            final derived = _deriveTimingKind(state.startAt, state.endAt);
-            if (_timingKindNotifier.value != derived) {
-              _timingKindNotifier.value = derived;
-            }
-          }
-        },
-        child: ListView(
-          children: [
-            BlocSelector<
-                BeaconCreateCubit,
-                BeaconCreateState,
-                ({String? draftId, String? parentId})>(
-              bloc: _cubit,
-              selector: (s) => (
-                draftId: s.draftId,
-                parentId: s.lineageParentBeaconId,
-              ),
-              builder: (context, ids) {
-                if (ids.draftId == null ||
-                    ids.draftId!.isEmpty ||
-                    ids.parentId == null ||
-                    ids.parentId!.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return BeaconLineageSuggestionsLink(beaconId: ids.draftId!);
-              },
+        }
+      },
+      child: ListView(
+        children: [
+          BlocSelector<
+            BeaconCreateCubit,
+            BeaconCreateState,
+            ({String? draftId, String? parentId})
+          >(
+            bloc: _cubit,
+            selector: (s) => (
+              draftId: s.draftId,
+              parentId: s.lineageParentBeaconId,
             ),
-            // Title
-            TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _titleController,
-              decoration: _createFieldDecoration(
-                hintText: _l10n.beaconTitleRequired,
-              ),
-              keyboardType: TextInputType.text,
-              maxLength: kBeaconTitleMaxLength,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setTitle,
-              validator: (text) => beaconTitleValidator(_l10n, text),
+            builder: (context, ids) {
+              if (ids.draftId == null ||
+                  ids.draftId!.isEmpty ||
+                  ids.parentId == null ||
+                  ids.parentId!.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return BeaconLineageSuggestionsLink(beaconId: ids.draftId!);
+            },
+          ),
+          // Title
+          TextFormField(
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            controller: _titleController,
+            decoration: _createFieldDecoration(
+              hintText: _l10n.beaconTitleRequired,
             ),
+            keyboardType: TextInputType.text,
+            maxLength: kBeaconTitleMaxLength,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            onChanged: _cubit.setTitle,
+            validator: (text) => beaconTitleValidator(_l10n, text),
+          ),
 
-            // Description
-            TextFormField(
+          // Description
+          TextFormField(
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            controller: _descriptionController,
+            decoration: _createFieldDecoration(
+              hintText: _l10n.labelDescription,
+            ),
+            keyboardType: TextInputType.multiline,
+            maxLength: kDescriptionMaxLength,
+            maxLines: null,
+            onChanged: _cubit.setDescription,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            validator: (text) => beaconDescriptionValidator(_l10n, text),
+          ),
+
+          TextFormField(
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            controller: _needSummaryController,
+            decoration: _createFieldDecoration(
+              labelText: _l10n.beaconNeedSummaryFieldLabel,
+              helperText: _l10n.beaconNeedSummaryHelper,
+            ),
+            keyboardType: TextInputType.multiline,
+            maxLines: null,
+            maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            onChanged: _cubit.setNeedSummary,
+            validator: (text) {
+              final raw = text ?? '';
+              if (raw.length > BeaconCreateCubit.kNeedSummaryHardMax) {
+                return _l10n.beaconNeedSummaryTooLongError;
+              }
+              final t = raw.trim();
+              if (t.isNotEmpty &&
+                  t.length < BeaconCreateCubit.kNeedSummaryPublishMin) {
+                return _l10n.beaconNeedSummaryTooShortError;
+              }
+              return null;
+            },
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child: TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _descriptionController,
+              controller: _successCriteriaController,
               decoration: _createFieldDecoration(
-                hintText: _l10n.labelDescription,
+                labelText: _l10n.beaconSuccessCriteriaFieldLabel,
               ),
               keyboardType: TextInputType.multiline,
-              maxLength: kDescriptionMaxLength,
               maxLines: null,
-              onChanged: _cubit.setDescription,
+              maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => beaconDescriptionValidator(_l10n, text),
-            ),
-
-            TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _needSummaryController,
-              decoration: _createFieldDecoration(
-                labelText: _l10n.beaconNeedSummaryFieldLabel,
-                helperText: _l10n.beaconNeedSummaryHelper,
-              ),
-              keyboardType: TextInputType.multiline,
-              maxLines: null,
-              maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setNeedSummary,
+              onChanged: _cubit.setSuccessCriteria,
               validator: (text) {
                 final raw = text ?? '';
-                if (raw.length > BeaconCreateCubit.kNeedSummaryHardMax) {
-                  return _l10n.beaconNeedSummaryTooLongError;
-                }
-                final t = raw.trim();
-                if (t.isNotEmpty &&
-                    t.length < BeaconCreateCubit.kNeedSummaryPublishMin) {
-                  return _l10n.beaconNeedSummaryTooShortError;
+                if (raw.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
+                  return _l10n.beaconSuccessCriteriaTooLongError;
                 }
                 return null;
               },
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: TextFormField(
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                controller: _successCriteriaController,
-                decoration: _createFieldDecoration(
-                  labelText: _l10n.beaconSuccessCriteriaFieldLabel,
-                ),
-                keyboardType: TextInputType.multiline,
-                maxLines: null,
-                maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
-                onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                onChanged: _cubit.setSuccessCriteria,
-                validator: (text) {
-                  final raw = text ?? '';
-                  if (raw.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
-                    return _l10n.beaconSuccessCriteriaTooLongError;
-                  }
-                  return null;
-                },
-              ),
-            ),
+          ),
 
-            // Requirements — same bottom sheet pattern as forward “Why?” picker
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => unawaited(_showRequirementsSheet(context)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _l10n.beaconRequirementsTitle,
-                                    style: _theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  BlocSelector<
-                                    BeaconCreateCubit,
-                                    BeaconCreateState,
-                                    Set<String>
-                                  >(
-                                    bloc: _cubit,
-                                    selector: (state) => state.needs,
-                                    builder: (context, needs) => Text(
-                                      _l10n.beaconRequirementsSelectedCount(
-                                        needs.length,
-                                      ),
-                                      style: _theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                        color: _theme
-                                            .colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: _theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  BlocSelector<
-                    BeaconCreateCubit,
-                    BeaconCreateState,
-                    Set<String>
-                  >(
-                    bloc: _cubit,
-                    selector: (state) => state.needs,
-                    builder: (context, needs) {
-                      if (needs.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: EdgeInsets.only(top: tt.tightGap),
-                        child: RemovableCapabilityChips(
-                          slugs: needs,
-                          onRemove: _cubit.removeNeed,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // Context (topics selector; gated — see kShowBeaconCreateContextSelector)
-            if (kShowBeaconCreateContextSelector)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-                child: const ContextDropDown(),
-              ),
-
-            // Timing — declare the meaning of the dates first (event vs
-            // deadline), then pick. This is where date ambiguity is removed.
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: ValueListenableBuilder<BeaconScheduleKind>(
-                valueListenable: _timingKindNotifier,
-                builder: (context, timingKind, _) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _l10n.beaconTimingWhenTitle,
-                      style: _theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<BeaconScheduleKind>(
-                        showSelectedIcon: false,
-                        segments: [
-                          ButtonSegment(
-                            value: BeaconScheduleKind.deadline,
-                            label: Text(_l10n.beaconTimingDeadline),
-                          ),
-                          ButtonSegment(
-                            value: BeaconScheduleKind.event,
-                            label: Text(_l10n.beaconTimingEvent),
-                          ),
-                          ButtonSegment(
-                            value: BeaconScheduleKind.none,
-                            label: Text(_l10n.beaconTimingNone),
-                          ),
-                        ],
-                        selected: {timingKind},
-                        onSelectionChanged: (s) =>
-                            _onTimingKindChanged(s.first),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _timingKindHint(timingKind),
-                      style: _theme.textTheme.bodySmall?.copyWith(
-                        color: _theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (timingKind != BeaconScheduleKind.none)
-                      Padding(
-                        padding: EdgeInsets.only(top: tt.tightGap * 2),
-                        child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-                            String>(
-                          bloc: _cubit,
-                          selector: _timingSummary,
-                          builder: (_, displayText) => _pickerField(
-                            key: const Key('BeaconCreate.TimingField'),
-                            hint: _l10n.beaconTimingPickDate,
-                            displayText: displayText,
-                            suffixIcon: const Icon(TenturaIcons.calendar),
-                            onTap: () => unawaited(
-                              timingKind == BeaconScheduleKind.deadline
-                                  ? _pickDeadline(context)
-                                  : _pickEventDates(context),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Beacon symbol (optional identity tile)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Text(
-                _l10n.beaconSymbolTitle,
-                style: _theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-              bloc: _cubit,
-              builder: (_, state) {
-                final now = DateTime.timestamp();
-                final preview = Beacon(
-                  createdAt: now,
-                  updatedAt: now,
-                  title: state.title,
-                  iconCode: state.iconCode,
-                  iconBackground: state.iconBackground,
-                );
-                return Material(
+          // Requirements — same bottom sheet pattern as forward “Why?” picker
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Material(
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: () async {
-                      final r = await BeaconIconPickerScreen.show(
-                        context,
-                        iconCode: state.iconCode,
-                        iconBackground: state.iconBackground,
-                      );
-                      if (!context.mounted || r == null) {
-                        return;
-                      }
-                      if (r.iconCode == null || r.iconCode!.isEmpty) {
-                        _cubit.clearBeaconIdentity();
-                      } else {
-                        _cubit.setIconCode(r.iconCode!);
-                        if (r.iconBackground != null) {
-                          _cubit.setIconBackground(r.iconBackground);
-                        }
-                      }
-                    },
+                    onTap: () => unawaited(_showRequirementsSheet(context)),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
-                          BeaconIdentityTile(beacon: preview, size: 56),
-                          const SizedBox(width: kSpacingSmall),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _l10n.beaconSymbolSelectHint,
+                                  _l10n.beaconRequirementsTitle,
                                   style: _theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  _l10n.beaconSymbolHint,
-                                  style: _theme.textTheme.bodySmall?.copyWith(
-                                    color: _theme.colorScheme.onSurfaceVariant,
+                                BlocSelector<
+                                  BeaconCreateCubit,
+                                  BeaconCreateState,
+                                  Set<String>
+                                >(
+                                  bloc: _cubit,
+                                  selector: (state) => state.needs,
+                                  builder: (context, needs) => Text(
+                                    _l10n.beaconRequirementsSelectedCount(
+                                      needs.length,
+                                    ),
+                                    style: _theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          _theme.colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -594,39 +435,222 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+                BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
+                  bloc: _cubit,
+                  selector: (state) => state.needs,
+                  builder: (context, needs) {
+                    if (needs.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: EdgeInsets.only(top: tt.tightGap),
+                      child: RemovableCapabilityChips(
+                        slugs: needs,
+                        onRemove: _cubit.removeNeed,
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
+          ),
 
-            // Location
+          // Context (topics selector; gated — see kShowBeaconCreateContextSelector)
+          if (kShowBeaconCreateContextSelector)
             Padding(
               padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-                  ({String location, Coordinates? coordinates})>(
-                bloc: _cubit,
-                selector: (s) =>
-                    (location: s.location, coordinates: s.coordinates),
-                builder: (_, data) => _pickerField(
-                  key: const Key('BeaconCreate.LocationField'),
-                  hint: _l10n.addLocation,
-                  displayText: data.location,
-                  suffixIcon: data.coordinates == null
-                      ? const Icon(TenturaIcons.location)
-                      : IconButton(
-                          key: const Key('BeaconCreate.LocationClearButton'),
-                          icon: const Icon(Icons.cancel_rounded),
-                          onPressed: () {
-                            _locationController.clear();
-                            _cubit.setLocation(null, '');
-                          },
+              child: const ContextDropDown(),
+            ),
+
+          // Timing — declare the meaning of the dates first (event vs
+          // deadline), then pick. This is where date ambiguity is removed.
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child: ValueListenableBuilder<BeaconScheduleKind>(
+              valueListenable: _timingKindNotifier,
+              builder: (context, timingKind, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _l10n.beaconTimingWhenTitle,
+                    style: _theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<BeaconScheduleKind>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: BeaconScheduleKind.deadline,
+                          label: Text(_l10n.beaconTimingDeadline),
                         ),
-                  onTap: () => unawaited(_pickLocation(context)),
-                ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.event,
+                          label: Text(_l10n.beaconTimingEvent),
+                        ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.none,
+                          label: Text(_l10n.beaconTimingNone),
+                        ),
+                      ],
+                      selected: {timingKind},
+                      onSelectionChanged: (s) => _onTimingKindChanged(s.first),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timingKindHint(timingKind),
+                    style: _theme.textTheme.bodySmall?.copyWith(
+                      color: _theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (timingKind != BeaconScheduleKind.none)
+                    Padding(
+                      padding: EdgeInsets.only(top: tt.tightGap * 2),
+                      child:
+                          BlocSelector<
+                            BeaconCreateCubit,
+                            BeaconCreateState,
+                            String
+                          >(
+                            bloc: _cubit,
+                            selector: _timingSummary,
+                            builder: (_, displayText) => _pickerField(
+                              key: const Key('BeaconCreate.TimingField'),
+                              hint: _l10n.beaconTimingPickDate,
+                              displayText: displayText,
+                              suffixIcon: const Icon(TenturaIcons.calendar),
+                              onTap: () => unawaited(
+                                timingKind == BeaconScheduleKind.deadline
+                                    ? _pickDeadline(context)
+                                    : _pickEventDates(context),
+                              ),
+                            ),
+                          ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
-      );
+          ),
+
+          // Beacon symbol (optional identity tile)
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child: Text(
+              _l10n.beaconSymbolTitle,
+              style: _theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _cubit,
+            builder: (_, state) {
+              final now = DateTime.timestamp();
+              final preview = Beacon(
+                createdAt: now,
+                updatedAt: now,
+                title: state.title,
+                iconCode: state.iconCode,
+                iconBackground: state.iconBackground,
+              );
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final r = await BeaconIconPickerScreen.show(
+                      context,
+                      iconCode: state.iconCode,
+                      iconBackground: state.iconBackground,
+                    );
+                    if (!context.mounted || r == null) {
+                      return;
+                    }
+                    if (r.iconCode == null || r.iconCode!.isEmpty) {
+                      _cubit.clearBeaconIdentity();
+                    } else {
+                      _cubit.setIconCode(r.iconCode!);
+                      if (r.iconBackground != null) {
+                        _cubit.setIconBackground(r.iconBackground);
+                      }
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        BeaconIdentityTile(beacon: preview, size: 56),
+                        const SizedBox(width: kSpacingSmall),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _l10n.beaconSymbolSelectHint,
+                                style: _theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _l10n.beaconSymbolHint,
+                                style: _theme.textTheme.bodySmall?.copyWith(
+                                  color: _theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: _theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Location
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child:
+                BlocSelector<
+                  BeaconCreateCubit,
+                  BeaconCreateState,
+                  ({String location, Coordinates? coordinates})
+                >(
+                  bloc: _cubit,
+                  selector: (s) =>
+                      (location: s.location, coordinates: s.coordinates),
+                  builder: (_, data) => _pickerField(
+                    key: const Key('BeaconCreate.LocationField'),
+                    hint: _l10n.addLocation,
+                    displayText: data.location,
+                    suffixIcon: data.coordinates == null
+                        ? const Icon(TenturaIcons.location)
+                        : IconButton(
+                            key: const Key('BeaconCreate.LocationClearButton'),
+                            icon: const Icon(Icons.cancel_rounded),
+                            onPressed: () {
+                              _locationController.clear();
+                              _cubit.setLocation(null, '');
+                            },
+                          ),
+                    onTap: () => unawaited(_pickLocation(context)),
+                  ),
+                ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Calendar date at local midnight — Material pickers compare dates only.
@@ -734,7 +758,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       saveText: _l10n.buttonOk,
     );
     if (dateRange != null) {
-      final sameDay = dateRange.start.year == dateRange.end.year &&
+      final sameDay =
+          dateRange.start.year == dateRange.end.year &&
           dateRange.start.month == dateRange.end.month &&
           dateRange.start.day == dateRange.end.day;
       _cubit.setEventDates(
