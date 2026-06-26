@@ -46,6 +46,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     _cubit.state.endAt,
   );
 
+  late final _titleController = TextEditingController(
+    text: _cubit.state.title,
+  );
+
   late final _locationController = TextEditingController(
     text: _cubit.state.location,
   );
@@ -60,6 +64,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   @override
   void dispose() {
+    _titleController.dispose();
     _locationController.dispose();
     _needSummaryController.dispose();
     _successCriteriaController.dispose();
@@ -138,10 +143,14 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     return BlocListener<BeaconCreateCubit, BeaconCreateState>(
         bloc: _cubit,
         listenWhen: (prev, curr) =>
+            prev.title != curr.title ||
             prev.location != curr.location ||
             prev.needSummary != curr.needSummary ||
             prev.successCriteria != curr.successCriteria,
         listener: (context, state) {
+          if (_titleController.text != state.title) {
+            _titleController.text = state.title;
+          }
           if (_locationController.text != state.location) {
             _locationController.text = state.location;
           }
@@ -176,15 +185,15 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             // Title
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
+              controller: _titleController,
               decoration: InputDecoration(
                 hintText: _l10n.beaconTitleRequired,
               ),
               keyboardType: TextInputType.text,
-              maxLength: kTitleMaxLength,
-              initialValue: _cubit.state.title,
+              maxLength: kBeaconTitleMaxLength,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _cubit.setTitle,
-              validator: (text) => titleValidator(_l10n, text),
+              validator: (text) => beaconTitleValidator(_l10n, text),
             ),
 
             // Description
