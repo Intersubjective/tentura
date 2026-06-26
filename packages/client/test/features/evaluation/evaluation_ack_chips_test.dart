@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
@@ -27,7 +26,8 @@ Future<void> _pumpSheet({
     List<String>,
     String,
     List<String>,
-  ) onSave,
+  )
+  onSave,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -87,10 +87,8 @@ void main() {
         findsOneWidget,
       );
 
-      // Chips are inside collapsed ExpansionTiles; expand Logistics first.
-      await tester.tap(
-        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.logistics)),
-      );
+      // Chips are inside collapsed accordion sections; expand Logistics first.
+      await tester.tap(find.text('Logistics'));
       await tester.pumpAndSettle();
 
       // "Transport" (first logistics chip) must be present somewhere in the tree.
@@ -114,10 +112,7 @@ void main() {
       );
 
       // Expand Logistics so Transport chip exists in the tree.
-      await _scrollAndTap(
-        tester,
-        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.logistics)),
-      );
+      await _scrollAndTap(tester, find.text('Logistics'));
 
       // Scroll to Transport chip and tap it.
       await _scrollAndTap(tester, find.text('Transport').first);
@@ -165,18 +160,12 @@ void main() {
       );
 
       // Expand Logistics so Transport exists.
-      await _scrollAndTap(
-        tester,
-        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.logistics)),
-      );
+      await _scrollAndTap(tester, find.text('Logistics'));
 
       await _scrollAndTap(tester, find.text('Transport').first);
 
       // Money is in Resources.
-      await _scrollAndTap(
-        tester,
-        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.resources)),
-      );
+      await _scrollAndTap(tester, find.text('Resources'));
       await _scrollAndTap(tester, find.text('Money').first);
       await _scrollAndTap(tester, find.text('Save'));
 
@@ -200,10 +189,7 @@ void main() {
       );
 
       // Select then deselect Transport.
-      await _scrollAndTap(
-        tester,
-        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.logistics)),
-      );
+      await _scrollAndTap(tester, find.text('Logistics'));
       await _scrollAndTap(tester, find.text('Transport').first);
       await _scrollAndTap(tester, find.text('Transport').first);
 

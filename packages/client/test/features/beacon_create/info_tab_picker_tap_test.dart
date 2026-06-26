@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
@@ -13,6 +14,19 @@ import 'package:tentura/features/geo/data/repository/geo_repository.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+Future<void> _scrollToGroupInSheet(WidgetTester tester, String label) async {
+  final scrollable = find.descendant(
+    of: find.byType(DraggableScrollableSheet),
+    matching: find.byType(Scrollable),
+  );
+  await tester.scrollUntilVisible(
+    find.text(label),
+    200,
+    scrollable: scrollable,
+  );
+  await tester.pumpAndSettle();
+}
 
 Future<void> _openRequirementsSheet(WidgetTester tester) async {
   await tester.ensureVisible(find.text('Requirements'));
@@ -334,5 +348,38 @@ void main() {
 
     expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(cubit.state.needs, contains('transport'));
+  });
+
+  testWidgets('requirements sheet expands the tapped capability group', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    await _openRequirementsSheet(tester);
+
+    expect(find.widgetWithText(FilterChip, 'Calls'), findsNothing);
+    expect(find.widgetWithText(FilterChip, 'Tech help'), findsNothing);
+
+    await _scrollToGroupInSheet(tester, 'Technical');
+    await tester.tap(find.text('Technical'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilterChip, 'Tech help'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'Calls'), findsNothing);
+  });
+
+  testWidgets('requirements sheet escape closes when unchanged', (tester) async {
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    await _openRequirementsSheet(tester);
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
   });
 }

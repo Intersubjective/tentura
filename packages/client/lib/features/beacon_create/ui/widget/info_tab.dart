@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -82,7 +83,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   Future<void> _showRequirementsSheet(BuildContext context) async {
     final l10n = L10n.of(context)!;
-    var baseline = Set<String>.from(_cubit.state.needs);
+    final baseline = Set<String>.from(_cubit.state.needs);
     var selected = Set<String>.from(baseline);
 
     bool hasUnsavedChanges() =>
@@ -114,74 +115,113 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           builder: (ctx, setModalState) {
             final tt = ctx.tt;
             final scheme = Theme.of(ctx).colorScheme;
-            return PopScope(
-              canPop: !hasUnsavedChanges(),
-              onPopInvokedWithResult: (didPop, _) async {
-                if (didPop) return;
-                await requestClose(ctx);
+
+            void saveAndClose() {
+              final saved = Set<String>.from(selected);
+              Navigator.of(ctx).pop();
+              _cubit.setNeeds(saved);
+            }
+
+            return Focus(
+              autofocus: true,
+              child: Shortcuts(
+              shortcuts: const {
+                SingleActivator(LogicalKeyboardKey.escape):
+                    _DismissRequirementsSheetIntent(),
               },
-              child: DraggableScrollableSheet(
-                expand: false,
-                initialChildSize: 0.7,
-                minChildSize: 0.4,
-                maxChildSize: 0.95,
-                builder: (_, scrollController) => Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        tt.screenHPadding,
-                        tt.sectionGap,
-                        tt.screenHPadding,
-                        tt.tightGap * 2,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.beaconRequirementsTitle,
-                              style: Theme.of(ctx).textTheme.titleMedium,
-                            ),
+              child: Actions(
+                actions: {
+                  _DismissRequirementsSheetIntent:
+                      CallbackAction<_DismissRequirementsSheetIntent>(
+                    onInvoke: (_) {
+                      unawaited(requestClose(ctx));
+                      return null;
+                    },
+                  ),
+                },
+                child: PopScope(
+                  canPop: !hasUnsavedChanges(),
+                  onPopInvokedWithResult: (didPop, _) async {
+                    if (didPop) return;
+                    await requestClose(ctx);
+                  },
+                  child: DraggableScrollableSheet(
+                    expand: false,
+                    initialChildSize: 0.7,
+                    minChildSize: 0.4,
+                    maxChildSize: 0.95,
+                    builder: (_, scrollController) => Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            tt.screenHPadding,
+                            tt.sectionGap,
+                            tt.screenHPadding,
+                            tt.tightGap * 2,
                           ),
-                          FilledButton(
-                            onPressed: () {
-                              _cubit.setNeeds(selected);
-                              baseline = Set<String>.from(selected);
-                              Navigator.of(ctx).pop();
-                            },
-                            child: Text(l10n.buttonSave),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  l10n.beaconRequirementsTitle,
+                                  style: Theme.of(ctx).textTheme.titleMedium,
+                                ),
+                              ),
+                              FilledButton(
+                                onPressed: saveAndClose,
+                                child: Text(l10n.buttonSave),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        controller: scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          tt.screenHPadding,
-                          0,
-                          tt.screenHPadding,
-                          tt.sectionGap * 2,
                         ),
-                        children: [
-                          Text(
-                            l10n.beaconRequirementsSheetHint,
-                            style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                        Expanded(
+                          child: ListView(
+                            controller: scrollController,
+                            padding: EdgeInsets.fromLTRB(
+                              tt.screenHPadding,
+                              0,
+                              tt.screenHPadding,
+                              tt.sectionGap * 2,
+                            ),
+                            children: [
+                              Text(
+                                l10n.beaconRequirementsSheetHint,
+                                style:
+                                    TenturaText.bodySmall(scheme.onSurfaceVariant),
+                              ),
+                              SizedBox(height: tt.rowGap),
+                              CapabilityChipSet(
+                                selectedSlugs: selected,
+                                onChanged: (s) =>
+                                    setModalState(() => selected = s),
+                              ),
+                            ],
                           ),
-                          SizedBox(height: tt.rowGap),
-                          CapabilityChipSet(
-                            selectedSlugs: selected,
-                            onChanged: (s) => setModalState(() => selected = s),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
+            ),
             );
           },
         ),
       ),
+    );
+  }
+
+  InputDecoration _createFieldDecoration({
+    String? hintText,
+    String? labelText,
+    String? helperText,
+  }) {
+    final tt = context.tt;
+    return InputDecoration(
+      hintText: hintText,
+      labelText: labelText,
+      helperText: helperText,
+      hintStyle: TenturaText.bodyMedium(tt.textMuted),
     );
   }
 
@@ -246,7 +286,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               controller: _titleController,
-              decoration: InputDecoration(
+              decoration: _createFieldDecoration(
                 hintText: _l10n.beaconTitleRequired,
               ),
               keyboardType: TextInputType.text,
@@ -260,7 +300,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               controller: _descriptionController,
-              decoration: InputDecoration(
+              decoration: _createFieldDecoration(
                 hintText: _l10n.labelDescription,
               ),
               keyboardType: TextInputType.multiline,
@@ -268,23 +308,13 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               maxLines: null,
               onChanged: _cubit.setDescription,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => descriptionValidator(_l10n, text),
+              validator: (text) => beaconDescriptionValidator(_l10n, text),
             ),
 
-            // Need summary & success criteria (need-first; publish enforces min length)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Text(
-                _l10n.beaconNeedSummaryTitle,
-                style: _theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               controller: _needSummaryController,
-              decoration: InputDecoration(
+              decoration: _createFieldDecoration(
                 labelText: _l10n.beaconNeedSummaryFieldLabel,
                 helperText: _l10n.beaconNeedSummaryHelper,
               ),
@@ -311,7 +341,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               child: TextFormField(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 controller: _successCriteriaController,
-                decoration: InputDecoration(
+                decoration: _createFieldDecoration(
                   labelText: _l10n.beaconSuccessCriteriaFieldLabel,
                 ),
                 keyboardType: TextInputType.multiline,
@@ -626,8 +656,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         onTap: onTap,
         child: InputDecorator(
           key: key,
-          decoration: InputDecoration(
-            hintText: hint,
+          decoration: _createFieldDecoration(hintText: hint).copyWith(
             suffixIcon: suffixIcon,
           ),
           isEmpty: displayText.isEmpty,
@@ -783,4 +812,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         }
     }
   }
+}
+
+class _DismissRequirementsSheetIntent extends Intent {
+  const _DismissRequirementsSheetIntent();
 }

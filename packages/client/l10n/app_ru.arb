@@ -3630,5 +3630,21 @@
   "inboxDismissTooltip": "Убрать из входящих",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
+  },
+  "beaconPublishBlockedHint": "Заполните выделенные поля, чтобы опубликовать.",
+  "@beaconPublishBlockedHint": {
+    "description": "Inline banner when Publish is disabled on create-beacon form."
+  },
+  "beaconPublishBlockedTitle": "Добавьте заголовок (не менее 3 символов).",
+  "@beaconPublishBlockedTitle": {
+    "description": "Publish blocker detail when title is missing or too short."
+  },
+  "beaconPublishBlockedDescription": "Добавьте описание.",
+  "@beaconPublishBlockedDescription": {
+    "description": "Publish blocker detail when description is empty."
+  },
+  "beaconPublishBlockedNeedSummary": "Опишите, что нужно (не менее 16 символов).",
+  "@beaconPublishBlockedNeedSummary": {
+    "description": "Publish blocker detail when need summary is too short."
   }
 }

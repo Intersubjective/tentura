@@ -13,6 +13,13 @@ import '../dialog/beacon_publish_dialog.dart';
 import '../widget/image_tab.dart';
 import '../widget/info_tab.dart';
 
+String? _publishBlockedDetail(L10n l10n, BeaconPublishBlocker blocker) =>
+    switch (blocker) {
+      BeaconPublishBlocker.title => l10n.beaconPublishBlockedTitle,
+      BeaconPublishBlocker.description => l10n.beaconPublishBlockedDescription,
+      BeaconPublishBlocker.needSummary => l10n.beaconPublishBlockedNeedSummary,
+    };
+
 @RoutePage()
 class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconCreateScreen({
@@ -74,19 +81,23 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         centerTitle: true,
         toolbarHeight: tt.appBarHeight,
         leading: const AutoLeadingButton(),
-        title: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-            ({bool isDraft, bool isEdit})>(
-          bloc: _beaconCreateCubit,
-          selector: (s) =>
-              (isDraft: s.draftId != null, isEdit: s.isEditMode),
-          builder: (context, mode) => Text(
-            mode.isEdit
-                ? l10n.editBeaconTitle
-                : mode.isDraft
+        title:
+            BlocSelector<
+              BeaconCreateCubit,
+              BeaconCreateState,
+              ({bool isDraft, bool isEdit})
+            >(
+              bloc: _beaconCreateCubit,
+              selector: (s) =>
+                  (isDraft: s.draftId != null, isEdit: s.isEditMode),
+              builder: (context, mode) => Text(
+                mode.isEdit
+                    ? l10n.editBeaconTitle
+                    : mode.isDraft
                     ? l10n.editDraftTitle
                     : l10n.createNewBeacon,
-          ),
-        ),
+              ),
+            ),
         actions: [
           BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
@@ -120,62 +131,90 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-                    child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-                        bool>(
-                      key: const Key('BeaconCreate.SaveDraftButton'),
-                      bloc: _beaconCreateCubit,
-                      selector: (s) => s.isLoading,
-                      builder: (context, isLoading) => Tooltip(
-                        message: l10n.buttonSaveDraft,
-                        child: TextButton(
-                          style: actionButtonStyle,
-                          onPressed: isLoading
-                              ? null
-                              : () async {
-                                  await _beaconCreateCubit.saveDraft(
-                                    context: context
-                                        .read<ContextCubit>()
-                                        .state
-                                        .selected,
-                                  );
-                                },
-                          child: Text(l10n.buttonSaveDraft),
-                        ),
-                      ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-                    child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
-                        ({bool canPublish, bool isLoading})>(
-                      key: const Key('BeaconCreate.PublishButton'),
-                      bloc: _beaconCreateCubit,
-                      selector: (s) =>
-                          (canPublish: s.canTryToPublish, isLoading: s.isLoading),
-                      builder: (context, publish) => Tooltip(
-                        message: l10n.buttonPublish,
-                        child: TextButton(
-                          style: actionButtonStyle,
-                          onPressed: publish.canPublish && !publish.isLoading
-                              ? () async {
-                                  if (await BeaconPublishDialog.show(context) ??
-                                      false) {
-                                    if (context.mounted) {
-                                      await _beaconCreateCubit.publish(
+                    child:
+                        BlocSelector<
+                          BeaconCreateCubit,
+                          BeaconCreateState,
+                          bool
+                        >(
+                          key: const Key('BeaconCreate.SaveDraftButton'),
+                          bloc: _beaconCreateCubit,
+                          selector: (s) => s.isLoading,
+                          builder: (context, isLoading) => Tooltip(
+                            message: l10n.buttonSaveDraft,
+                            child: TextButton(
+                              style: actionButtonStyle,
+                              onPressed: isLoading
+                                  ? null
+                                  : () async {
+                                      await _beaconCreateCubit.saveDraft(
                                         context: context
                                             .read<ContextCubit>()
                                             .state
                                             .selected,
                                       );
-                                    }
-                                  }
-                                }
-                              : null,
-                          child: Text(l10n.buttonPublish),
+                                    },
+                              child: Text(l10n.buttonSaveDraft),
+                            ),
+                          ),
                         ),
-                      ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
                     ),
+                    child:
+                        BlocSelector<
+                          BeaconCreateCubit,
+                          BeaconCreateState,
+                          ({
+                            bool canPublish,
+                            bool isLoading,
+                            BeaconPublishBlocker? blocker,
+                          })
+                        >(
+                          key: const Key('BeaconCreate.PublishButton'),
+                          bloc: _beaconCreateCubit,
+                          selector: (s) => (
+                            canPublish: s.canTryToPublish,
+                            isLoading: s.isLoading,
+                            blocker: s.publishBlocker,
+                          ),
+                          builder: (context, publish) {
+                            final blockedDetail = publish.blocker == null
+                                ? null
+                                : _publishBlockedDetail(l10n, publish.blocker!);
+                            final tooltip = blockedDetail ?? l10n.buttonPublish;
+                            return Tooltip(
+                              message: tooltip,
+                              child: TextButton(
+                                style: actionButtonStyle,
+                                onPressed:
+                                    publish.canPublish && !publish.isLoading
+                                    ? () async {
+                                        if (await BeaconPublishDialog.show(
+                                              context,
+                                            ) ??
+                                            false) {
+                                          if (context.mounted) {
+                                            await _beaconCreateCubit.publish(
+                                              context: context
+                                                  .read<ContextCubit>()
+                                                  .state
+                                                  .selected,
+                                            );
+                                          }
+                                        }
+                                      }
+                                    : null,
+                                child: Text(l10n.buttonPublish),
+                              ),
+                            );
+                          },
+                        ),
                   ),
                 ],
               );
@@ -210,8 +249,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       body: SafeArea(
         child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
           bloc: _beaconCreateCubit,
-          buildWhen: (p, c) =>
-              p.status != c.status || p.draftId != c.draftId,
+          buildWhen: (p, c) => p.status != c.status || p.draftId != c.draftId,
           builder: (context, state) {
             if ((widget.draftId.isNotEmpty && state.draftId == null ||
                     widget.editId.isNotEmpty && state.editId == null) &&
@@ -226,28 +264,108 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
               onChanged: () => _beaconCreateCubit.validate(
                 _formKey.currentState?.validate() ?? false,
               ),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  tt.screenHPadding,
-                  tt.sectionGap * 2,
-                  tt.screenHPadding,
-                  0,
-                ),
-                child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-                  key: const Key('BeaconCreate.FormBody'),
-                  bloc: _beaconCreateCubit,
-                  selector: (state) => state.isLoading,
-                  builder: (context, isLoading) => AbsorbPointer(
-                    absorbing: isLoading,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: const [
-                        InfoTab(key: ValueKey('BeaconCreate.InfoTab')),
-                        ImageTab(),
-                      ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  BlocSelector<
+                    BeaconCreateCubit,
+                    BeaconCreateState,
+                    ({bool show, BeaconPublishBlocker? blocker})
+                  >(
+                    bloc: _beaconCreateCubit,
+                    selector: (s) => (
+                      show: !s.isEditMode && !s.canTryToPublish && !s.isLoading,
+                      blocker: s.publishBlocker,
+                    ),
+                    builder: (context, hint) {
+                      if (!hint.show || hint.blocker == null) {
+                        return const SizedBox.shrink();
+                      }
+                      final scheme = Theme.of(context).colorScheme;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: tt.rowGap),
+                        child: Material(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(tt.cardRadius),
+                          child: Padding(
+                            padding: EdgeInsets.all(tt.cardPadding.top),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  size: tt.iconSize,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                SizedBox(width: tt.tightGap * 2),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        l10n.beaconPublishBlockedHint,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                      SizedBox(height: tt.tightGap),
+                                      Text(
+                                        _publishBlockedDetail(
+                                              l10n,
+                                              hint.blocker!,
+                                            ) ??
+                                            '',
+                                        style: TenturaText.bodySmall(
+                                          scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        tt.screenHPadding,
+                        tt.sectionGap * 2,
+                        tt.screenHPadding,
+                        0,
+                      ),
+                      child:
+                          BlocSelector<
+                            BeaconCreateCubit,
+                            BeaconCreateState,
+                            bool
+                          >(
+                            key: const Key('BeaconCreate.FormBody'),
+                            bloc: _beaconCreateCubit,
+                            selector: (state) => state.isLoading,
+                            builder: (context, isLoading) => AbsorbPointer(
+                              absorbing: isLoading,
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: const [
+                                  InfoTab(
+                                    key: ValueKey('BeaconCreate.InfoTab'),
+                                  ),
+                                  ImageTab(),
+                                ],
+                              ),
+                            ),
+                          ),
                     ),
                   ),
-                ),
+                ],
               ),
             );
           },

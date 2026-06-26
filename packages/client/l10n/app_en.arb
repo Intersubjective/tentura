@@ -3813,5 +3813,21 @@
   "inboxDismissTooltip": "Remove from inbox",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
+  },
+  "beaconPublishBlockedHint": "Complete the highlighted fields to publish.",
+  "@beaconPublishBlockedHint": {
+    "description": "Inline banner when Publish is disabled on create-beacon form."
+  },
+  "beaconPublishBlockedTitle": "Add a title (at least 3 characters).",
+  "@beaconPublishBlockedTitle": {
+    "description": "Publish blocker detail when title is missing or too short."
+  },
+  "beaconPublishBlockedDescription": "Add a description.",
+  "@beaconPublishBlockedDescription": {
+    "description": "Publish blocker detail when description is empty."
+  },
+  "beaconPublishBlockedNeedSummary": "Describe what is needed (at least 16 characters).",
+  "@beaconPublishBlockedNeedSummary": {
+    "description": "Publish blocker detail when need summary is too short."
   }
 }
