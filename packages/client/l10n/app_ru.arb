@@ -1825,6 +1825,55 @@
   "@myWorkRetry": {
     "context": "MyWorkScreen"
   },
+  "screenLoadErrorNetworkTitle": "Нет соединения",
+  "@screenLoadErrorNetworkTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorNetworkBody": "Проверьте подключение к интернету и повторите попытку.",
+  "@screenLoadErrorNetworkBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSessionTitle": "Проблема с сессией",
+  "@screenLoadErrorSessionTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSessionBody": "Не удалось проверить вашу сессию. Войдите снова, чтобы продолжить.",
+  "@screenLoadErrorSessionBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorPermissionsTitle": "Проблема с доступом",
+  "@screenLoadErrorPermissionsTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorPermissionsBody": "Возможно, у вас нет прав на просмотр этого содержимого, или сессия истекла.",
+  "@screenLoadErrorPermissionsBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorServerTitle": "Ошибка сервера",
+  "@screenLoadErrorServerTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorServerBody": "Сервер вернул ошибку. Повторите попытку через некоторое время.",
+  "@screenLoadErrorServerBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorUnknownTitle": "Не удалось загрузить",
+  "@screenLoadErrorUnknownTitle": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorUnknownBody": "При загрузке что-то пошло не так. Повторите попытку.",
+  "@screenLoadErrorUnknownBody": {
+    "context": "ScreenLoadErrorPanel"
+  },
+  "screenLoadErrorSupportRef": "Справка: {ref}",
+  "@screenLoadErrorSupportRef": {
+    "context": "ScreenLoadErrorPanel",
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkYouAuthor": "Вы (автор)",
   "@myWorkYouAuthor": {
     "context": "MyWorkScreen"
@@ -2189,6 +2238,18 @@
   },
   "beaconViewTitle": "Маяк",
   "@beaconViewTitle": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewUnavailableBody": "Не удалось загрузить этот маяк. Возможно, он удалён или у вашего аккаунта нет доступа.",
+  "@beaconViewUnavailableBody": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewLoadErrorBody": "При загрузке маяка произошла ошибка. Проверьте подключение и повторите попытку.",
+  "@beaconViewLoadErrorBody": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewErrorGoBack": "Назад",
+  "@beaconViewErrorGoBack": {
     "context": "BeaconViewScreen"
   },
   "beaconViewRoomAccessUnavailableBanner": "Комната для этого маяка недоступна.",

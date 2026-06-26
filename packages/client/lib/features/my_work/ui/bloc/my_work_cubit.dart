@@ -18,7 +18,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   MyWorkCubit({
     required this._userId,
     MyWorkCase? myWorkCase,
-  })  : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
+  }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        super(const MyWorkState()) {
     _beaconChanges = _myWorkCase.beaconChanges.listen(
       _onBeaconChanged,
@@ -113,7 +113,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       if (isClosed || seq != _fetchSeq) {
         return;
       }
-      emit(state.copyWith(status: StateHasError(e)));
+      if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 
@@ -188,7 +190,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       emit(
         state.copyWith(
           archivedFetchInProgress: false,
-          status: StateHasError(e),
+          status: _shouldShowArchivedLoadError()
+              ? StateHasError(e)
+              : const StateIsSuccess(),
         ),
       );
     }
@@ -196,7 +200,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
     RepositoryEventCreate<Beacon>(value: final b) ||
-    RepositoryEventUpdate<Beacon>(value: final b) => _onAuthoredBeaconChanged(b),
+    RepositoryEventUpdate<Beacon>(
+      value: final b,
+    ) => _onAuthoredBeaconChanged(b),
     RepositoryEventInvalidate<Beacon>() => unawaited(fetch(showLoading: false)),
     RepositoryEventDelete<Beacon>(value: final b) => _onBeaconDeleted(b.id),
     _ => null,
@@ -256,4 +262,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       ),
     );
   }
+
+  bool _shouldShowFullScreenLoadError({required bool showLoading}) {
+    if (showLoading) {
+      return true;
+    }
+    return state.nonArchivedCards.isEmpty &&
+        (state.filter != MyWorkFilter.archived || state.archivedCards.isEmpty);
+  }
+
+  bool _shouldShowArchivedLoadError() =>
+      state.filter == MyWorkFilter.archived && state.archivedCards.isEmpty;
 }

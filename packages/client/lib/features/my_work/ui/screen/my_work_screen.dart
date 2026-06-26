@@ -1,14 +1,16 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
@@ -165,8 +167,7 @@ class _MyWorkFilterMenu extends StatelessWidget {
                 minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
                 foregroundColor: scheme.onPrimary,
               ),
-              onPressed: () =>
-                  unawaited(_showMyWorkFilterMenu(context, l10n)),
+              onPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -302,106 +303,112 @@ class _MyWorkBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final cubit = context.read<MyWorkCubit>();
     final tt = context.tt;
 
-    return BlocBuilder<MyWorkCubit, MyWorkState>(
-      buildWhen: _shouldRebuild,
-      builder: (_, state) {
-        if (state.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator.adaptive(),
-          );
+    return BlocListener<MyWorkCubit, MyWorkState>(
+      listenWhen: (previous, current) =>
+          current.hasError && previous.status != current.status,
+      listener: (context, state) {
+        final error = (state.status as StateHasError).error;
+        final details = describeScreenLoadError(error: error, l10n: l10n);
+        logScreenLoadError(label: 'MyWork', error: error, details: details);
+        if (error is AuthSessionLostException) {
+          GetIt.I<AuthCubit>().noteAuthSessionLoss(error);
         }
-        if (state.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: tt.iconSize * 2,
-                  color: theme.colorScheme.error,
-                ),
-                SizedBox(height: tt.sectionGap),
-                FilledButton(
-                  onPressed: cubit.fetch,
-                  child: Text(l10n.myWorkRetry),
-                ),
-              ],
+      },
+      child: BlocBuilder<MyWorkCubit, MyWorkState>(
+        buildWhen: _shouldRebuild,
+        builder: (_, state) {
+          if (state.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator.adaptive(),
+            );
+          }
+          if (state.hasError) {
+            final error = (state.status as StateHasError).error;
+            final details = describeScreenLoadError(error: error, l10n: l10n);
+            return ScreenLoadErrorPanel(
+              details: details,
+              onRetry: cubit.fetch,
+              onSignInAgain: details.kind == ScreenLoadErrorKind.session
+                  ? () => unawaited(
+                      GetIt.I<RootRouter>().push(RecoverRoute()),
+                    )
+                  : null,
+            );
+          }
+          if (state.filter == MyWorkFilter.archived &&
+              !state.archivedDataFetched &&
+              state.archivedFetchInProgress) {
+            return const Center(
+              child: CircularProgressIndicator.adaptive(),
+            );
+          }
+          final cards = state.visibleCards;
+          final showFinishedHint =
+              !state.finishedArchiveHintDismissed &&
+              (state.filter == MyWorkFilter.active ||
+                  state.filter == MyWorkFilter.all) &&
+              cards.any((c) => c.isFinishedCard);
+          if (cards.isEmpty) {
+            return BlocSelector<NewStuffCubit, NewStuffState, (int, bool)>(
+              selector: (s) => (s.inboxNeedsMeCount, s.inboxLoadComplete),
+              builder: (context, inboxMeta) {
+                final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
+                return RefreshIndicator.adaptive(
+                  onRefresh: cubit.fetch,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: MyWorkEmptyBody(
+                          filter: state.filter,
+                          draftCount: state.draftCount,
+                          archivedCountHint: state.archivedCountHint,
+                          inboxNeedsMeCount: inboxNeedsMeCount,
+                          inboxLoadComplete: inboxLoadComplete,
+                          onCreateBeacon: () =>
+                              context.read<ScreenCubit>().showBeaconCreate(),
+                          onOpenInbox: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(1),
+                          onShowDrafts: () =>
+                              cubit.setFilter(MyWorkFilter.drafts),
+                          onShowArchived: () =>
+                              cubit.setFilter(MyWorkFilter.archived),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+          return RefreshIndicator.adaptive(
+            onRefresh: cubit.fetch,
+            child: ListView.separated(
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: cards.length + (showFinishedHint ? 1 : 0),
+              separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
+              itemBuilder: (_, i) {
+                if (showFinishedHint && i == 0) {
+                  return MyWorkFinishedArchiveHint(
+                    onDismiss: cubit.dismissFinishedArchiveHint,
+                  );
+                }
+                final cardIndex = showFinishedHint ? i - 1 : i;
+                final vm = cards[cardIndex];
+                return MyWorkCardRouter(
+                  key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
+                  vm: vm,
+                );
+              },
             ),
           );
-        }
-        if (state.filter == MyWorkFilter.archived &&
-            !state.archivedDataFetched &&
-            state.archivedFetchInProgress) {
-          return const Center(
-            child: CircularProgressIndicator.adaptive(),
-          );
-        }
-        final cards = state.visibleCards;
-        final showFinishedHint = !state.finishedArchiveHintDismissed &&
-            (state.filter == MyWorkFilter.active ||
-                state.filter == MyWorkFilter.all) &&
-            cards.any((c) => c.isFinishedCard);
-        if (cards.isEmpty) {
-          return BlocSelector<NewStuffCubit, NewStuffState, (int, bool)>(
-            selector: (s) => (s.inboxNeedsMeCount, s.inboxLoadComplete),
-            builder: (context, inboxMeta) {
-              final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
-              return RefreshIndicator.adaptive(
-                onRefresh: cubit.fetch,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: MyWorkEmptyBody(
-                        filter: state.filter,
-                        draftCount: state.draftCount,
-                        archivedCountHint: state.archivedCountHint,
-                        inboxNeedsMeCount: inboxNeedsMeCount,
-                        inboxLoadComplete: inboxLoadComplete,
-                        onCreateBeacon: () =>
-                            context.read<ScreenCubit>().showBeaconCreate(),
-                        onOpenInbox: () =>
-                            AutoTabsRouter.of(context).setActiveIndex(1),
-                        onShowDrafts: () =>
-                            cubit.setFilter(MyWorkFilter.drafts),
-                        onShowArchived: () =>
-                            cubit.setFilter(MyWorkFilter.archived),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        }
-        return RefreshIndicator.adaptive(
-          onRefresh: cubit.fetch,
-          child: ListView.separated(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: cards.length + (showFinishedHint ? 1 : 0),
-            separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
-            itemBuilder: (_, i) {
-              if (showFinishedHint && i == 0) {
-                return MyWorkFinishedArchiveHint(
-                  onDismiss: cubit.dismissFinishedArchiveHint,
-                );
-              }
-              final cardIndex = showFinishedHint ? i - 1 : i;
-              final vm = cards[cardIndex];
-              return MyWorkCardRouter(
-                key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
-                vm: vm,
-              );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
