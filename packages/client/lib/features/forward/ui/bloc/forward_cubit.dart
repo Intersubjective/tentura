@@ -23,7 +23,8 @@ class ForwardCubit extends Cubit<ForwardState> {
     ForwardCase? forwardCase,
     UiEffectPort? effects,
     @visibleForTesting bool debugSkipInitialLoad = false,
-  }) : _forwardCase = forwardCase ??
+  }) : _forwardCase =
+           forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(ForwardState(beaconId: beaconId, context: context)) {
@@ -48,7 +49,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     _forwardCompletedSub = forwardCase.forwardCompleted
         .where((id) => id == state.beaconId)
-        .listen((_) => unawaited(_loadCandidates(forceReload: true)));
+        .listen((_) {
+          if (!isClosed) {
+            unawaited(_loadCandidates(forceReload: true));
+          }
+        });
     _contactChangesSub = forwardCase.contactChanges.listen((_) {
       if (isClosed) {
         return;
@@ -71,20 +76,33 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
+  void _emitNavigateBack({Object? result}) {
+    _effects.emit(NavigateBack(result: result));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
   String? _loadMemoKey;
 
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
-    if (forwardCase == null) {
+    if (forwardCase == null || isClosed) {
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final myId = await forwardCase.getCurrentAccountId();
+      if (isClosed) {
+        return;
+      }
       final load = await forwardCase.loadForwardCandidates(
         beaconId: state.beaconId,
         context: state.context,
       );
+      if (isClosed) {
+        return;
+      }
       final memoKey =
           '$myId|${state.beaconId}|${load.beacon.lineageParentBeaconId ?? ''}';
       if (!forceReload &&
@@ -184,18 +202,21 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   void clearRecipientNote(String userId) {
     if (!state.perRecipientNotes.containsKey(userId)) return;
-    final next = Map<String, String>.from(state.perRecipientNotes)..remove(userId);
+    final next = Map<String, String>.from(state.perRecipientNotes)
+      ..remove(userId);
     emit(state.copyWith(perRecipientNotes: next));
   }
 
   void startEditForward(String recipientId) {
     final candidate = _findCandidate(recipientId);
     if (candidate == null) return;
-    emit(state.copyWith(
-      editingRecipientId: recipientId,
-      editNote: candidate.myForwardNote ?? '',
-      editReasons: const [],
-    ));
+    emit(
+      state.copyWith(
+        editingRecipientId: recipientId,
+        editNote: candidate.myForwardNote ?? '',
+        editReasons: const [],
+      ),
+    );
   }
 
   void setEditNote(String note) => emit(state.copyWith(editNote: note));
@@ -238,7 +259,9 @@ class ForwardCubit extends Cubit<ForwardState> {
       final ok = await forwardCase.cancelForward(edgeId);
       if (!ok) {
         _emitSnackError(
-          Exception('Forward cannot be cancelled: already read or forwarded onward'),
+          Exception(
+            'Forward cannot be cancelled: already read or forwarded onward',
+          ),
         );
         return;
       }
@@ -270,7 +293,9 @@ class ForwardCubit extends Cubit<ForwardState> {
         .where((c) => state.selectedIds.contains(c.id))
         .toList();
 
-    final ineligible = selectedCandidates.where((c) => !c.canForwardTo).toList();
+    final ineligible = selectedCandidates
+        .where((c) => !c.canForwardTo)
+        .toList();
     if (ineligible.isNotEmpty) {
       _emitSnackError(const IneligibleRecipientsException());
       return;
@@ -296,8 +321,7 @@ class ForwardCubit extends Cubit<ForwardState> {
             ? null
             : state.recipientReasons,
       );
-      _effects.emit(const NavigateBack(result: true));
-      emit(state.copyWith(status: const StateIsSuccess()));
+      _emitNavigateBack(result: true);
     } catch (e) {
       _emitSnackError(e);
     }
