@@ -7,6 +7,7 @@ import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
@@ -26,6 +27,7 @@ class RootRouter extends RootStackRouter {
     this._logger,
     this._authCubit,
     this._settingsCubit,
+    this._postJoinNavigationCubit,
   );
 
   late final reevaluateListenable = _ReevaluateFromStreams([
@@ -38,6 +40,8 @@ class RootRouter extends RootStackRouter {
   final AuthCubit _authCubit;
 
   final SettingsCubit _settingsCubit;
+
+  final PostJoinNavigationCubit _postJoinNavigationCubit;
 
   PageRouteInfo? _redirectIfUnauthenticated() {
     if (_authCubit.state.deferAuthRedirects) {
@@ -189,7 +193,12 @@ class RootRouter extends RootStackRouter {
       path: '$kPathSignUp/:id',
       guards: [
         AutoRouteGuard.redirect((resolver) {
-          if (_authCubit.state.isAuthenticated) return const ProfileRoute();
+          if (_authCubit.state.isAuthenticated) {
+            if (_postJoinNavigationCubit.hasPending) {
+              return const HomeRoute(children: [InboxRoute()]);
+            }
+            return const ProfileRoute();
+          }
           goToLanding(
             invitePath: '/invite/${resolver.route.params.getString('id')}',
           );
@@ -412,11 +421,12 @@ class RootRouter extends RootStackRouter {
             kQueryIsDeepLink: 'true',
           },
         ),
-      final String id when id.startsWith('I') => transformSharedViewInviteDeepLink(
-        uri: uri,
-        id: id,
-        isAuthenticated: _authCubit.state.isAuthenticated,
-      ),
+      final String id when id.startsWith('I') =>
+        transformSharedViewInviteDeepLink(
+          uri: uri,
+          id: id,
+          isAuthenticated: _authCubit.state.isAuthenticated,
+        ),
       _ => uri.replace(
         path: kPathNetwork,
         queryParameters: {
@@ -433,9 +443,9 @@ class RootRouter extends RootStackRouter {
       await pushPath(uri.path);
       return;
     }
-    final destRoom = uri.queryParameters['dest'] == 'room' ||
-        (uri.path == kPathAppLinkView &&
-            uri.queryParameters['dest'] == 'room');
+    final destRoom =
+        uri.queryParameters['dest'] == 'room' ||
+        (uri.path == kPathAppLinkView && uri.queryParameters['dest'] == 'room');
     var transformed = await deepLinkTransformer(uri);
     if (destRoom && transformed.path.startsWith(kPathBeaconView)) {
       final q = Map<String, String>.from(transformed.queryParameters);
