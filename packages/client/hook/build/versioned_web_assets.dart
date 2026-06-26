@@ -68,11 +68,7 @@ void _moveIntoVersionDir(FileSystemEntity entity, Directory versionDir) {
 void _rewriteBootstrap(File file, {required String assetPrefix}) {
   if (!file.existsSync()) return;
   final source = file.readAsStringSync();
-  final config = jsonEncode({
-    'entrypointBaseUrl': assetPrefix,
-    'canvasKitBaseUrl': '${assetPrefix}canvaskit/',
-    'assetBase': assetPrefix,
-  });
+  final config = _loaderConfigSource(assetPrefix);
   final updated = source.replaceFirst(
     RegExp(r'_flutter\.loader\.load\(\);'),
     '_flutter.loader.load({config:$config});',
@@ -80,6 +76,13 @@ void _rewriteBootstrap(File file, {required String assetPrefix}) {
   if (updated != source) {
     file.writeAsStringSync(updated, flush: true);
   }
+}
+
+String _loaderConfigSource(String assetPrefix) {
+  final prefix = jsonEncode(assetPrefix);
+  final canvasKitPrefix = jsonEncode('${assetPrefix}canvaskit/');
+  return '''
+{entrypointBaseUrl:new URL($prefix,document.baseURI).toString(),canvasKitBaseUrl:new URL($canvasKitPrefix,document.baseURI).toString(),assetBase:new URL($prefix,document.baseURI).toString()}''';
 }
 
 void _rewriteIndexHtml(File file, {required String assetPrefix}) {
