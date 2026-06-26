@@ -30,8 +30,10 @@ class CapabilityTagFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final chip = FilterChip(
       label: Text(tag.labelOf(l10n)),
-      avatar: Icon(tag.icon, size: 18),
-      showCheckmark: false,
+      // Show the tag icon when unselected; the Material checkmark replaces it
+      // when selected so the selection state is unmistakable.
+      avatar: selected ? null : Icon(tag.icon, size: 18),
+      showCheckmark: true,
       selected: selected,
       onSelected: onSelected,
       selectedColor: isAutomatic && selected
