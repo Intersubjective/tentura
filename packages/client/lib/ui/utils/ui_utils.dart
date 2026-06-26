@@ -105,8 +105,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       (isError && fullText.isNotEmpty
           ? SnackBarAction(
               label: L10n.of(context)?.copyToClipboard ?? 'Copy',
-              onPressed: () =>
-                  Clipboard.setData(ClipboardData(text: fullText)),
+              onPressed: () => Clipboard.setData(ClipboardData(text: fullText)),
             )
           : null);
 
@@ -114,8 +113,8 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
     SnackBar(
       action: effectiveAction,
       duration: duration,
-      // Keep the close icon for errors even though they now carry an action.
-      showCloseIcon: effectiveAction == null || isError,
+      // Action and close icon coexist (M3); users can dismiss without using the action.
+      showCloseIcon: true,
       margin: isFloating ? kPaddingAll : null,
       dismissDirection: DismissDirection.horizontal,
       behavior: isFloating ? SnackBarBehavior.floating : null,
