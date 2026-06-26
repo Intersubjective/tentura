@@ -113,12 +113,22 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       _loadMemoKey = memoKey;
 
+      // Never pre-select recipients: forwarding is an explicit send action, and
+      // auto-checking server-suggested people risks mis-forwarding (QA Jun-26).
+      // Preserve the user's own selection across live reloads, pruning anyone no
+      // longer present in the candidate or lineage lists.
+      final availableIds = {
+        for (final c in load.candidates) c.id,
+        for (final c in load.lineageSuggestions) c.id,
+      };
+      final preservedSelection = state.selectedIds.intersection(availableIds);
+
       emit(
         state.copyWith(
           beacon: load.beacon,
           candidates: load.candidates,
           lineageSuggestions: load.lineageSuggestions,
-          selectedIds: load.autoSelectIds,
+          selectedIds: preservedSelection,
           note: load.suggestedNote,
           status: const StateIsSuccess(),
         ),
