@@ -75,7 +75,12 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     }
     final cubit = context.read<AcceptInviteCubit>();
     final accepted =
-        await InvitationAcceptDialog.show(context, profile: inviter) ?? false;
+        await InvitationAcceptDialog.show(
+          context,
+          profile: inviter,
+          beacon: state.pendingBeacon,
+        ) ??
+        false;
     if (!context.mounted) {
       return;
     }

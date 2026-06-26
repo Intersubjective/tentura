@@ -6,6 +6,7 @@ import 'package:tentura/features/invitation/domain/exception.dart';
 import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -14,12 +15,18 @@ void main() {
   group('AcceptInviteCubit', () {
     late FakeInvitationAcceptPort repo;
     late FakeUiEffectPort effects;
+    late PostJoinNavigationCubit postJoin;
     late AcceptInviteCubit cubit;
 
     setUp(() {
       repo = FakeInvitationAcceptPort();
       effects = FakeUiEffectPort();
-      cubit = AcceptInviteCubit.withPort(repo, effects: effects);
+      postJoin = PostJoinNavigationCubit();
+      cubit = AcceptInviteCubit.withPort(
+        repo,
+        effects: effects,
+        postJoinNavigation: postJoin,
+      );
     });
 
     tearDown(() => cubit.close());
@@ -57,10 +64,33 @@ void main() {
         codeStatus: InviteCodeStatus.available,
         callerStatus: InviteCallerStatus.existingUser,
         inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        beacon: InvitePreviewBeacon(id: 'B1', title: 'Help needed'),
       );
       await cubit.start('Iabc123');
       expect(cubit.state.needsConfirmation, isTrue);
       expect(cubit.state.pendingInviter, const Profile(id: 'U1', displayName: 'Alice'));
+      expect(cubit.state.pendingBeacon?.id, 'B1');
+    });
+
+    test('confirmAccept with beacon navigates to inbox tab', () async {
+      repo.previewResult = const InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.existingUser,
+        inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        beacon: InvitePreviewBeacon(id: 'B1', title: 'Help needed'),
+      );
+      await cubit.start('Iabc123');
+      effects.clear();
+      await cubit.confirmAccept();
+      expect(repo.acceptCalls, 1);
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<BeaconInviteAcceptedMessage>()),
+      );
+      expect(
+        effects.emitted.whereType<NavigateReplace>().map((e) => e.target),
+        contains(NavigateReplaceTarget.homeInboxTab),
+      );
     });
 
     test('confirmAccept posts accept-as-existing', () async {
