@@ -22,7 +22,7 @@ env:
   BUILDER_IMAGE: ghcr.io/intersubjective/tentura-builder
 
 jobs:
-  test:
+  test-lints:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
@@ -37,7 +37,71 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      - name: Run tests in builder container
+      - name: Run lints package tests in builder container
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              git config --global --add safe.directory "*"
+              dart pub get
+              cd packages/tentura_lints && dart test
+            '
+
+  test-server:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Run server checks in builder container
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              git config --global --add safe.directory "*"
+              dart pub get
+              cd packages/server
+              dart run build_runner build -d
+              dart analyze --no-fatal-warnings
+              dart test --exclude-tags pg
+              ! rg "package:tentura_server/data/repository" lib/domain
+              ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
+              ! rg "package:tentura_server/data/" lib/domain
+            '
+
+  test-client:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Run client checks in builder container
         run: |
           set -euo pipefail
           bash scripts/test_resolve_deploy_web_config.sh
@@ -48,15 +112,28 @@ jobs:
             bash -c '
               set -euo pipefail
               git config --global --add safe.directory "*"
-              dart pub get
               flutter pub get
-              ( cd packages/tentura_lints && dart test ) &&
-              ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart test --exclude-tags pg ) &&
-              ( cd packages/server && ! rg "package:tentura_server/data/repository" lib/domain ) &&
-              ( cd packages/server && ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case ) &&
-              ( cd packages/server && ! rg "package:tentura_server/data/" lib/domain ) &&
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+              cd packages/client
+              flutter gen-l10n
+              dart run build_runner build -d
+              flutter analyze --no-fatal-warnings --no-fatal-infos
+              flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
             '
+
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && always()
+    needs:
+      - test-lints
+      - test-server
+      - test-client
+    steps:
+      - name: Verify test jobs
+        run: |
+          set -euo pipefail
+          test "${{ needs.test-lints.result }}" = "success"
+          test "${{ needs.test-server.result }}" = "success"
+          test "${{ needs.test-client.result }}" = "success"
 
   coverage:
     runs-on: ubuntu-latest
