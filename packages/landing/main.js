@@ -1,14 +1,20 @@
 import { initAnalytics, initVisit, track, trackError, setAttemptId, setAccount, newAttemptId } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
-import { parseInviteCode, fetchPreview } from './preview.js';
+import { parseInviteCode, parseInviteCodeRaw, fetchPreview } from './preview.js';
 import { startEmailMagicLink } from './auth.js';
-import { parseInviteEntryInput, invitePathForCode } from './invite_entry.js';
+import {
+  parseInviteEntryInput,
+  invitePathForCode,
+  inviteCodeHadTrailingDash,
+  INVITE_CODE_PATTERN,
+} from './invite_entry.js';
 import { startAppPreload } from './app_preload.js';
 import {
   isNewSignupReturn,
   isOnboardingDone,
   fetchMyProfile,
   renderPostSignup,
+  shouldRunPostSignup,
 } from './onboarding.js';
 
 const LANDING_CONFIG = window.TENTURA || {};
@@ -45,7 +51,18 @@ function setPageTitle(title) {
   document.title = title;
 }
 
-const inviterName = (p) => p.inviter?.displayName?.trim() || 'Someone';
+const inviterName = (p) => {
+  const raw = p.inviter?.displayName?.trim();
+  if (!raw) return 'Someone';
+  if (isLikelyEmailDerivedDisplayName(raw)) return 'A friend';
+  return raw;
+};
+
+/** Matches server displayNameFromEmail: lowercase alnum tokens separated by spaces. */
+function isLikelyEmailDerivedDisplayName(name) {
+  if (!name || name.length > 50 || /[A-Z]/.test(name)) return false;
+  return /^[a-z0-9]+( [a-z0-9]+)*$/.test(name) && /\d/.test(name);
+}
 
 // Shared beacon context — shown above the CTA in EVERY state when present.
 function beaconOverlay(p) {
@@ -110,7 +127,7 @@ function ctaRecoverSeed(inviteCode) {
   );
 }
 
-function ctaOpenApp(label = 'Open Tentura') {
+function ctaOpenApp(label = 'Continue to Tentura') {
   return el(
     'a',
     {
@@ -222,13 +239,17 @@ function buildSignInOptionItems(inviteCode) {
   return items;
 }
 
-function createSignInReveal(inviteCode, { blockId = 'signin-options', hideOnReveal = [] } = {}) {
+function createSignInReveal(inviteCode, {
+  blockId = 'signin-options',
+  hideOnReveal = [],
+  expandedByDefault = false,
+} = {}) {
   const signInBlock = el('div', {
     class: 'signin-options',
     id: blockId,
     role: 'region',
     'aria-label': 'Sign in',
-    hidden: 'hidden',
+    hidden: expandedByDefault ? null : 'hidden',
   });
 
   const inviteModeUndo = el(
@@ -273,6 +294,12 @@ function createSignInReveal(inviteCode, { blockId = 'signin-options', hideOnReve
     for (const node of hideOnReveal) node.hidden = true;
     signInBlock.querySelector('input')?.focus();
   });
+
+  if (expandedByDefault) {
+    signInBlock.replaceChildren(...buildSignInOptionItems(inviteCode));
+    existingToggle.hidden = true;
+    existingToggle.setAttribute('aria-expanded', 'true');
+  }
 
   return { existingToggle, signInBlock };
 }
@@ -334,17 +361,18 @@ function renderEmailMagicLinkForm() {
       if (attemptId) setAttemptId(attemptId, 'email');
       track('email_start_accepted');
       successEl.replaceChildren(
-        el('strong', {}, 'Check your email'),
+        el('p', { class: 'email-success-title' }, 'Check your email'),
         el(
-          'span',
-          {},
-          'If that address can sign in, we sent a link. Open the message and use the link in your browser.',
+          'p',
+          { class: 'email-success-body' },
+          'If that address can sign in, we sent a link. Open the message and tap the link to continue.',
         ),
       );
       successEl.hidden = false;
       emailInput.disabled = true;
-      submit.hidden = true;
-      submit.textContent = 'Link sent';
+      submit.disabled = true;
+      submit.textContent = 'Link sent — check your email';
+      successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     } catch (err) {
       trackError('email_start_error', err);
       errorEl.textContent = err.message || 'Could not send link. Try again.';
@@ -448,11 +476,33 @@ function renderInvalid(p) {
       : p.codeStatus === 'expired'
         ? 'This invite has expired.'
         : 'We couldn’t find this invite.';
+  const rawCode = parseInviteCodeRaw();
+  const showDashHint =
+    inviteCodeHadTrailingDash(rawCode) ||
+    (rawCode && !INVITE_CODE_PATTERN.test(rawCode) && rawCode.endsWith('-'));
   return el(
     'div',
     { class: 'content' },
     el('h1', {}, 'This invite link is no longer valid'),
     el('p', {}, msg),
+    showDashHint
+      ? el(
+          'p',
+          { class: 'hint hint-emphasis' },
+          'This link ends with a hyphen. Remove any trailing "-" and try again.',
+        )
+      : null,
+    el('p', { class: 'section-label' }, 'Try another invite'),
+    renderInviteEntryForm(),
+    el(
+      'a',
+      {
+        class: 'btn btn-secondary',
+        href: '/invite/',
+        onclick: () => track('cta_invalid_back_to_entry'),
+      },
+      'Back to invite entry',
+    ),
   );
 }
 
@@ -606,7 +656,7 @@ function renderNoInvite() {
   const inviteIntro = el('p', {}, 'Join with a personal invite from someone you know.');
   const inviteForm = renderInviteEntryForm();
   const { existingToggle, signInBlock } = createSignInReveal('', {
-    hideOnReveal: [inviteIntro, inviteForm],
+    expandedByDefault: true,
   });
 
   const children = [
@@ -615,7 +665,6 @@ function renderNoInvite() {
     inviteIntro,
     signedInFlash(),
     inviteForm,
-    existingToggle,
     signInBlock,
   ];
   if (isSignedInReturn()) {
@@ -633,6 +682,7 @@ function applyGoogleReturnAttemptId() {
 async function main() {
   try {
     initAnalytics();
+    const rawCode = parseInviteCodeRaw();
     const code = parseInviteCode();
     initVisit({ env, hasCode: Boolean(code) });
     startAppPreload({ env, track });
@@ -642,11 +692,14 @@ async function main() {
       applyGoogleReturnAttemptId();
     }
 
-    if (isNewSignupReturn(location.search) && !isOnboardingDone(sessionStorage)) {
+    if (isSignedInReturn() && !isOnboardingDone(sessionStorage)) {
       const profile = await fetchMyProfile();
-      if (profile) {
+      if (profile && shouldRunPostSignup(location.search, sessionStorage, profile)) {
         setAccount(profile.id);
-        track('post_signup_view', { hasCode: Boolean(code) });
+        track('post_signup_view', {
+          hasCode: Boolean(code),
+          nameOnly: !isNewSignupReturn(location.search),
+        });
         renderPostSignup({
           card,
           profile,
@@ -655,10 +708,19 @@ async function main() {
           track,
           openProductUrl,
           storage: sessionStorage,
+          nameOnly: !isNewSignupReturn(location.search),
         });
         return;
       }
-      track('post_signup_fallback');
+      if (isNewSignupReturn(location.search)) {
+        track('post_signup_fallback');
+      }
+    }
+
+    if (rawCode && code && rawCode !== code && INVITE_CODE_PATTERN.test(code)) {
+      const next = invitePathForCode(code) + location.search + location.hash;
+      location.replace(next);
+      return;
     }
 
     if (!code) {

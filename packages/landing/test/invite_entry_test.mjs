@@ -4,6 +4,8 @@ import {
   parseInviteEntryInput,
   invitePathForCode,
   INVITE_CODE_PATTERN,
+  normalizeInviteCode,
+  inviteCodeHadTrailingDash,
 } from '../invite_entry.js';
 
 test('INVITE_CODE_PATTERN rejects bare I', () => {
@@ -15,6 +17,12 @@ test('parseInviteEntryInput accepts raw code', () => {
   const result = parseInviteEntryInput('  Iabc123  ');
   assert.equal(result.ok, true);
   assert.equal(result.code, 'Iabc123');
+});
+
+test('parseInviteEntryInput accepts code with trailing dash', () => {
+  const result = parseInviteEntryInput('I806d29daebbe-');
+  assert.equal(result.ok, true);
+  assert.equal(result.code, 'I806d29daebbe');
 });
 
 test('parseInviteEntryInput accepts full invite URL', () => {
@@ -43,4 +51,19 @@ test('parseInviteEntryInput rejects empty input', () => {
 
 test('invitePathForCode encodes code in path', () => {
   assert.equal(invitePathForCode('Iabc'), '/invite/Iabc');
+});
+
+test('normalizeInviteCode strips trailing dash', () => {
+  assert.equal(normalizeInviteCode('I806d29daebbe-'), 'I806d29daebbe');
+});
+
+test('parseInviteEntryInput accepts code with trailing dash', () => {
+  const result = parseInviteEntryInput('I806d29daebbe-');
+  assert.equal(result.ok, true);
+  assert.equal(result.code, 'I806d29daebbe');
+});
+
+test('inviteCodeHadTrailingDash detects paste typo', () => {
+  assert.equal(inviteCodeHadTrailingDash('Iabc-'), true);
+  assert.equal(inviteCodeHadTrailingDash('Iabc'), false);
 });

@@ -43,7 +43,7 @@ test('Google CTA uses full same-origin returnTo for invite', () => {
   assert.match(mainJs, /returnUrl\.searchParams\.set\('auth_attempt_id', attemptId\)/);
 });
 
-test('renderNoInvite hides auth behind createSignInReveal', () => {
+test('renderNoInvite shows sign-in expanded by default', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
     mainJs.indexOf('async function main'),
@@ -51,10 +51,11 @@ test('renderNoInvite hides auth behind createSignInReveal', () => {
   assert.match(block, /setState\('no-invite'\)/);
   assert.match(block, /renderInviteEntryForm/);
   assert.match(block, /createSignInReveal\('', \{/);
-  assert.match(block, /hideOnReveal: \[inviteIntro, inviteForm\]/);
+  assert.match(block, /expandedByDefault: true/);
+  assert.doesNotMatch(block, /hideOnReveal: \[inviteIntro, inviteForm\]/);
+  assert.match(block, /signInBlock,\n  \];/);
   assert.doesNotMatch(block, /renderInviteAuthOptions\(''\)/);
   assert.doesNotMatch(block, /cta_open_app_no_invite/);
-  assert.doesNotMatch(block, /Open Tentura/);
 });
 
 test('createSignInReveal uses buildSignInOptionItems with Sign in label', () => {
@@ -75,6 +76,38 @@ test('createSignInReveal offers invite-mode undo', () => {
   assert.match(block, /Have an invite link\?/);
   assert.match(block, /track\('cta_invite_mode'\)/);
   assert.match(block, /for \(const node of hideOnReveal\) node\.hidden = false/);
+});
+
+test('renderInvalid offers recovery paths', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderInvalid'),
+    mainJs.indexOf('function renderIsInviter'),
+  );
+  assert.match(block, /renderInviteEntryForm/);
+  assert.match(block, /Back to invite entry/);
+  assert.match(block, /inviteCodeHadTrailingDash/);
+});
+
+test('email magic link shows in-page check-your-email confirmation', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderEmailMagicLinkForm'),
+    mainJs.indexOf('function renderInviteEntryForm'),
+  );
+  assert.match(block, /Check your email/);
+  assert.match(block, /Link sent — check your email/);
+  assert.match(block, /successEl\.scrollIntoView/);
+  assert.doesNotMatch(block, /submit\.hidden = true/);
+});
+
+test('inviterName hides email-derived display names', () => {
+  assert.match(mainJs, /function isLikelyEmailDerivedDisplayName/);
+  assert.ok(mainJs.includes("&& /\\d/.test(name)"));
+  assert.match(mainJs, /return 'A friend'/);
+});
+
+test('main redirects invite URLs with trailing dash', () => {
+  assert.match(mainJs, /parseInviteCodeRaw/);
+  assert.match(mainJs, /location\.replace\(next\)/);
 });
 
 test('renderNoInvite shows Open Tentura when signed_in=1', () => {
