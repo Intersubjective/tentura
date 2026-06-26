@@ -3589,6 +3589,30 @@
   },
   "beaconRoomCreatePoll": "Create poll",
   "beaconRoomSendPollButton": "Send Poll",
+  "beaconRoomPollTypeSingle": "Single",
+  "@beaconRoomPollTypeSingle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollTypeMultiple": "Multiple",
+  "@beaconRoomPollTypeMultiple": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollTypeRange": "Range 1–5",
+  "@beaconRoomPollTypeRange": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAnonymousTitle": "Anonymous",
+  "@beaconRoomPollAnonymousTitle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAnonymousSubtitle": "Hide who voted for what",
+  "@beaconRoomPollAnonymousSubtitle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAllowRevoteTitle": "Allow changing answer",
+  "@beaconRoomPollAllowRevoteTitle": {
+    "context": "PollEditor"
+  },
   "beaconRoomPollVotesCount": "{count, plural, =0{No votes} =1{1 vote} other{{count} votes}}",
   "@beaconRoomPollVotesCount": {
     "placeholders": {

@@ -660,7 +660,10 @@ class RoomCubit extends Cubit<RoomState> {
         variantIds: variantIds,
         score: score,
       );
-      await load();
+      // Silent refresh: an optimistic vote is already shown, so reconcile in
+      // the background without flipping to StateIsLoading — that would disable
+      // the composer and block the keyboard right after voting on a poll.
+      await _fetchRoomData(silent: true);
     } on Object catch (e) {
       emit(
         state.copyWith(

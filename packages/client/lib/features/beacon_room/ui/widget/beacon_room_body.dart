@@ -1377,7 +1377,13 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               ),
               const SizedBox(height: kSpacingMedium),
               PollingQuestionInput(
+                labelText: l10n.pollQuestionFieldLabel,
                 onChanged: (v) => _question = v,
+              ),
+              const SizedBox(height: kSpacingMedium),
+              Text(
+                l10n.pollOptionsLabel,
+                style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: kSpacingSmall),
               ..._variants.asMap().entries.map(
@@ -1387,6 +1393,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                     key: ValueKey(idx),
                     padding: const EdgeInsets.only(bottom: kSpacingSmall),
                     child: PollingVariantInput(
+                      labelText: l10n.optionLabel(idx + 1),
                       onChanged: (v) => _variants[idx] = v,
                       onRemove: _variants.length > 2
                           ? () => setState(() => _variants.removeAt(idx))
@@ -1407,10 +1414,19 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               // Poll type selector
               Align(
                 child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'single', label: Text('Single')),
-                    ButtonSegment(value: 'multiple', label: Text('Multiple')),
-                    ButtonSegment(value: 'range', label: Text('Range 1–5')),
+                  segments: [
+                    ButtonSegment(
+                      value: 'single',
+                      label: Text(l10n.beaconRoomPollTypeSingle),
+                    ),
+                    ButtonSegment(
+                      value: 'multiple',
+                      label: Text(l10n.beaconRoomPollTypeMultiple),
+                    ),
+                    ButtonSegment(
+                      value: 'range',
+                      label: Text(l10n.beaconRoomPollTypeRange),
+                    ),
                   ],
                   selected: {_pollType},
                   onSelectionChanged: (s) =>
@@ -1425,8 +1441,8 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               // Anonymous / open toggle
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Anonymous'),
-                subtitle: const Text('Hide who voted for what'),
+                title: Text(l10n.beaconRoomPollAnonymousTitle),
+                subtitle: Text(l10n.beaconRoomPollAnonymousSubtitle),
                 value: _isAnonymous,
                 onChanged: (v) => setState(() => _isAnonymous = v),
               ),
@@ -1434,7 +1450,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               // Allow revote toggle
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Allow changing answer'),
+                title: Text(l10n.beaconRoomPollAllowRevoteTitle),
                 value: _allowRevote,
                 onChanged: (v) => setState(() => _allowRevote = v),
               ),

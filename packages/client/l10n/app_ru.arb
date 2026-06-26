@@ -3521,6 +3521,30 @@
   },
   "beaconRoomCreatePoll": "Создать опрос",
   "beaconRoomSendPollButton": "Отправить опрос",
+  "beaconRoomPollTypeSingle": "Один",
+  "@beaconRoomPollTypeSingle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollTypeMultiple": "Несколько",
+  "@beaconRoomPollTypeMultiple": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollTypeRange": "Оценка 1–5",
+  "@beaconRoomPollTypeRange": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAnonymousTitle": "Анонимно",
+  "@beaconRoomPollAnonymousTitle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAnonymousSubtitle": "Скрыть, кто как проголосовал",
+  "@beaconRoomPollAnonymousSubtitle": {
+    "context": "PollEditor"
+  },
+  "beaconRoomPollAllowRevoteTitle": "Разрешить менять ответ",
+  "@beaconRoomPollAllowRevoteTitle": {
+    "context": "PollEditor"
+  },
   "beaconRoomPollVotesCount": "{count, plural, =0{Нет голосов} =1{1 голос} few{{count} голоса} other{{count} голосов}}",
   "@beaconRoomPollVotesCount": {
     "placeholders": {

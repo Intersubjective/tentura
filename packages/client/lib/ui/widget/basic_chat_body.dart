@@ -330,7 +330,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
                       children: [
                         ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.zero,
+                          // Small gap so the last bubble (notably a full-width
+                          // poll) doesn't sit flush against the composer, which
+                          // made its tap target compete with the text field.
+                          padding: const EdgeInsets.only(bottom: kSpacingSmall),
                           itemCount: messages.length,
                           itemBuilder: (context, i) {
                             final m = messages[i];
@@ -858,10 +861,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
                   enabled: !busy,
+                  onTap: _composerFocus.requestFocus,
                   onSubmitted: (_) => unawaited(_submit()),
                   onTapOutside: (_) {
                     _removeOverlay();
-                    FocusManager.instance.primaryFocus?.unfocus();
+                    // Only dismiss our own keyboard; don't yank focus from
+                    // poll interactives (sliders/buttons) elsewhere on screen.
+                    if (_composerFocus.hasFocus) {
+                      _composerFocus.unfocus();
+                    }
                   },
                 ),
               ),
