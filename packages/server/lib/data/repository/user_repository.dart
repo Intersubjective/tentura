@@ -110,17 +110,31 @@ class UserRepository implements UserRepositoryPort {
     required String recipientId,
     required String? parentForwardEdgeId,
   }) async {
+    if (senderId == recipientId) return;
+    final existing = await _database.managers.beaconForwardEdges
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.senderId.id(senderId) &
+              e.recipientId.id(recipientId) &
+              e.cancelledAt.isNull(),
+        )
+        .getSingleOrNull();
+    if (existing != null) return;
+
     await _database.withMutatingUser(recipientId, () async {
-      await _database.into(_database.beaconForwardEdges).insert(
-        BeaconForwardEdgesCompanion.insert(
-          beaconId: beaconId,
-          senderId: senderId,
-          recipientId: recipientId,
-          note: const Value(''),
-          parentEdgeId: Value(parentForwardEdgeId),
-        ),
-        onConflict: DoNothing(),
-      );
+      await _database
+          .into(_database.beaconForwardEdges)
+          .insert(
+            BeaconForwardEdgesCompanion.insert(
+              beaconId: beaconId,
+              senderId: senderId,
+              recipientId: recipientId,
+              note: const Value(''),
+              parentEdgeId: Value(parentForwardEdgeId),
+            ),
+            onConflict: DoNothing(),
+          );
     });
   }
 
@@ -210,7 +224,9 @@ class UserRepository implements UserRepositoryPort {
           .getSingleOrNull();
       if (exists == null) return key;
     }
-    throw const IdDuplicateException(description: 'Could not allocate public_key');
+    throw const IdDuplicateException(
+      description: 'Could not allocate public_key',
+    );
   }
 
   Future<UserEntity> _createUserWithCredential({
@@ -401,7 +417,10 @@ class UserRepository implements UserRepositoryPort {
       );
       return _credentialModelToEntity(row);
     } on UniqueViolationException catch (_) {
-      final existing = await _findCredentialRow(type: type, identifier: identifier);
+      final existing = await _findCredentialRow(
+        type: type,
+        identifier: identifier,
+      );
       if (existing != null && existing.accountId != accountId) {
         throw const CredentialConflictException();
       }
@@ -488,7 +507,10 @@ class UserRepository implements UserRepositoryPort {
     final authoritative = AssertedContact.authoritativeOnly(contacts);
 
     // Idempotent: the credential is already linked to this exact account.
-    final existing = await _findCredentialRow(type: type, identifier: identifier);
+    final existing = await _findCredentialRow(
+      type: type,
+      identifier: identifier,
+    );
     if (existing != null) {
       if (existing.accountId != accountId) {
         throw const CredentialConflictException();
@@ -531,7 +553,10 @@ class UserRepository implements UserRepositoryPort {
       });
     } on UniqueViolationException catch (_) {
       // Lost a race — re-resolve ownership and map to the right 409.
-      final raced = await _findCredentialRow(type: type, identifier: identifier);
+      final raced = await _findCredentialRow(
+        type: type,
+        identifier: identifier,
+      );
       if (raced != null && raced.accountId != accountId) {
         throw const CredentialConflictException();
       }
@@ -639,8 +664,8 @@ class UserRepository implements UserRepositoryPort {
   Future<String?> _findCredentialOwner({
     required CredentialType type,
     required String identifier,
-  }) async => (await _findCredentialRow(type: type, identifier: identifier))
-      ?.accountId;
+  }) async =>
+      (await _findCredentialRow(type: type, identifier: identifier))?.accountId;
 
   Future<AccountCredential?> _findCredentialRow({
     required CredentialType type,
@@ -675,11 +700,13 @@ class UserRepository implements UserRepositoryPort {
     // Lock the account's credential rows so concurrent removals serialize —
     // otherwise two deletes of different rows could both pass the
     // last-credential guard and leave the account with none.
-    final locked = await _database.customSelect(
-      'SELECT id FROM public.account_credential '
-      r'WHERE account_id = $1 FOR UPDATE',
-      variables: [Variable<String>(accountId)],
-    ).get();
+    final locked = await _database
+        .customSelect(
+          'SELECT id FROM public.account_credential '
+          r'WHERE account_id = $1 FOR UPDATE',
+          variables: [Variable<String>(accountId)],
+        )
+        .get();
     final ids = locked.map((r) => r.read<String>('id')).toSet();
 
     if (!ids.contains(credentialId)) {

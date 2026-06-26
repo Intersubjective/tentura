@@ -38,11 +38,15 @@ Future<void> main() async {
         provenanceSkipReason = skipReason;
       } else {
         if (!await _hasM0102TombstoneFunction(probe)) {
-          tombstoneSkipReason = 'm0102 tombstone function (beacon.status) missing';
+          tombstoneSkipReason =
+              'm0102 tombstone function (beacon.status) missing';
         }
         if (!await _hasM0100Provenance(probe)) {
           provenanceSkipReason =
               'm0100 provenance (cancelled_at filter) missing';
+        } else if (!await _hasM0103Provenance(probe)) {
+          provenanceSkipReason =
+              'm0103 provenance (self/context invite-forward) missing';
         }
       }
     } finally {
@@ -123,19 +127,23 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
   }
 
   Future<int> inboxStatus(String userId) async {
-    final row = await db.customSelect(
-      'SELECT status FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
-      variables: [Variable<String>(userId), Variable<String>(_beaconId)],
-    ).getSingle();
+    final row = await db
+        .customSelect(
+          'SELECT status FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
+          variables: [Variable<String>(userId), Variable<String>(_beaconId)],
+        )
+        .getSingle();
     return row.read<int>('status');
   }
 
   Future<DateTime?> inboxLatestForwardAt(String userId) async {
-    final row = await db.customSelect(
-      'SELECT latest_forward_at::text AS latest_forward_at '
-      'FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
-      variables: [Variable<String>(userId), Variable<String>(_beaconId)],
-    ).getSingleOrNull();
+    final row = await db
+        .customSelect(
+          'SELECT latest_forward_at::text AS latest_forward_at '
+          'FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
+          variables: [Variable<String>(userId), Variable<String>(_beaconId)],
+        )
+        .getSingleOrNull();
     final text = row?.read<String>('latest_forward_at');
     return text == null ? null : DateTime.parse(text).toUtc();
   }
@@ -193,11 +201,16 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       );
 
       expect(await inboxStatus(_senderId), 1);
-      final row = await db.customSelect(
-        'SELECT forward_count, latest_note_preview, rejection_message '
-        'FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
-        variables: [Variable<String>(_senderId), Variable<String>(_beaconId)],
-      ).getSingle();
+      final row = await db
+          .customSelect(
+            'SELECT forward_count, latest_note_preview, rejection_message '
+            'FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
+            variables: [
+              Variable<String>(_senderId),
+              Variable<String>(_beaconId),
+            ],
+          )
+          .getSingle();
       expect(row.read<int>('forward_count'), 3);
       expect(row.read<String>('latest_note_preview'), 'old preview');
       expect(row.read<String>('rejection_message'), '');
@@ -259,10 +272,15 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       );
 
       expect(await inboxStatus(_recipientId), 2);
-      final msg = await db.customSelect(
-        'SELECT rejection_message FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
-        variables: [Variable<String>(_recipientId), Variable<String>(_beaconId)],
-      ).getSingle();
+      final msg = await db
+          .customSelect(
+            'SELECT rejection_message FROM public.inbox_item WHERE user_id = \$1 AND beacon_id = \$2',
+            variables: [
+              Variable<String>(_recipientId),
+              Variable<String>(_beaconId),
+            ],
+          )
+          .getSingle();
       expect(msg.read<String>('rejection_message'), 'not for me');
     },
     skip: skipReason,
@@ -411,20 +429,77 @@ WHERE id = 'Finboxtest02'
 ''',
       );
 
-      final row = await db.customSelect(
-        r'''
+      final row = await db
+          .customSelect(
+            r'''
 SELECT public.inbox_item_inbox_provenance_data(ii, $1::json) AS data
 FROM public.inbox_item ii
 WHERE ii.user_id = $2 AND ii.beacon_id = $3
 ''',
-        variables: [
-          Variable<String>(
-            jsonEncode({'x-hasura-user-id': _recipientId}),
-          ),
-          Variable<String>(_recipientId),
-          Variable<String>(_beaconId),
-        ],
-      ).getSingle();
+            variables: [
+              Variable<String>(
+                jsonEncode({'x-hasura-user-id': _recipientId}),
+              ),
+              Variable<String>(_recipientId),
+              Variable<String>(_beaconId),
+            ],
+          )
+          .getSingle();
+
+      final parsed =
+          jsonDecode(row.read<String>('data')) as Map<String, dynamic>;
+      expect(parsed['totalDistinctSenders'], 1);
+      final senders = parsed['senders'] as List<dynamic>;
+      expect(senders, hasLength(1));
+      expect(senders.single['id'], _senderId);
+    },
+    skip: provenanceSkipReason,
+  );
+
+  test(
+    'inbox provenance excludes self-forward and counts invite-forward edges',
+    () async {
+      await seedUsers();
+      await seedBeacon();
+
+      await db.customStatement(
+        r'''
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, context, status, forward_count, latest_forward_at, latest_note_preview, rejection_message
+) VALUES ($1, $2, 'coordination', 0, 1, '2026-01-01T00:00:00Z', '', '')
+ON CONFLICT (user_id, beacon_id) DO UPDATE SET context = EXCLUDED.context
+''',
+        [_recipientId, _beaconId],
+      );
+
+      await db.customStatement(
+        r'''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, note, context, created_at
+) VALUES
+  ('Finboxtest03', $1, $2, $3, 'invite path', NULL, '2026-01-01T00:00:00Z'),
+  ('Finboxtest04', $1, $3, $3, 'self loop', 'coordination', '2026-01-02T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+        [_beaconId, _senderId, _recipientId],
+      );
+
+      final row = await db
+          .customSelect(
+            r'''
+SELECT public.inbox_item_inbox_provenance_data(ii, $1::json) AS data
+FROM public.inbox_item ii
+WHERE ii.user_id = $2 AND ii.beacon_id = $3
+''',
+            variables: [
+              Variable<String>(
+                jsonEncode({'x-hasura-user-id': _recipientId}),
+              ),
+              Variable<String>(_recipientId),
+              Variable<String>(_beaconId),
+            ],
+          )
+          .getSingle();
 
       final parsed =
           jsonDecode(row.read<String>('data')) as Map<String, dynamic>;
@@ -438,13 +513,13 @@ WHERE ii.user_id = $2 AND ii.beacon_id = $3
 }
 
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _hasInboxSchema(TenturaDb db) async {
   final statusCol = await db.customSelect(
@@ -517,6 +592,22 @@ LIMIT 1
 ''',
   ).getSingleOrNull();
   return (row?.read<String>('def') ?? '').contains('cancelled_at IS NULL');
+}
+
+Future<bool> _hasM0103Provenance(TenturaDb db) async {
+  final row = await db.customSelect(
+    r'''
+SELECT pg_get_functiondef(p.oid) AS def
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname = 'inbox_item_inbox_provenance_data'
+LIMIT 1
+''',
+  ).getSingleOrNull();
+  final def = row?.read<String>('def') ?? '';
+  return def.contains('bfe.sender_id <> inbox_row.user_id') &&
+      def.contains("nullif(trim(bfe.context), '') IS NULL");
 }
 
 Future<bool> _canConnectPostgres() async {

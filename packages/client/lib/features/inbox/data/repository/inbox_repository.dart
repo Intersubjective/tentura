@@ -38,7 +38,9 @@ class InboxRepository {
         .request(GInboxFetchReq((r) => r..vars.userId = userId))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).inbox_item);
-    final hints = await _roomHints.fetchByBeaconIds(rows.map((e) => e.beacon_id));
+    final hints = await _roomHints.fetchByBeaconIds(
+      rows.map((e) => e.beacon_id),
+    );
     return rows
         .map(
           (e) => InboxItem(
@@ -51,7 +53,9 @@ class InboxRepository {
             rejectionMessage: e.rejection_message,
             beforeResponseTerminalAt: e.before_response_terminal_at,
             tombstoneDismissedAt: e.tombstone_dismissed_at,
-            provenance: InboxProvenance.parse(e.inbox_provenance_data),
+            provenance: InboxProvenance.parse(
+              e.inbox_provenance_data,
+            ).withoutViewer(userId),
             isForwardedByMe: e.beacon.my_forward_edges.isNotEmpty,
             beacon: (e.beacon as BeaconModel).toEntity(),
             roomHints: hints[e.beacon_id],
@@ -62,31 +66,36 @@ class InboxRepository {
 
   /// Current user's inbox row for this beacon (status + forward provenance).
   /// When there is no row, status is null and provenance is empty.
-  Future<({InboxItemStatus? status, InboxProvenance provenance, String latestNotePreview})>
-      fetchInboxContextForBeacon(String beaconId) =>
-      _remoteApiService
-          .request(
-            GInboxItemStatusForBeaconReq(
-              (r) => r..vars.beaconId = beaconId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) {
-            final rows = r.dataOrThrow(label: _label).inbox_item;
-            if (rows.isEmpty) {
-              return (
-                status: null,
-                provenance: InboxProvenance.empty,
-                latestNotePreview: '',
-              );
-            }
-            final row = rows.first;
-            return (
-              status: inboxItemStatusFromSmallint(row.status),
-              provenance: InboxProvenance.parse(row.inbox_provenance_data),
-              latestNotePreview: row.latest_note_preview,
-            );
-          });
+  Future<
+    ({
+      InboxItemStatus? status,
+      InboxProvenance provenance,
+      String latestNotePreview,
+    })
+  >
+  fetchInboxContextForBeacon(String beaconId) => _remoteApiService
+      .request(
+        GInboxItemStatusForBeaconReq(
+          (r) => r..vars.beaconId = beaconId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final rows = r.dataOrThrow(label: _label).inbox_item;
+        if (rows.isEmpty) {
+          return (
+            status: null,
+            provenance: InboxProvenance.empty,
+            latestNotePreview: '',
+          );
+        }
+        final row = rows.first;
+        return (
+          status: inboxItemStatusFromSmallint(row.status),
+          provenance: InboxProvenance.parse(row.inbox_provenance_data),
+          latestNotePreview: row.latest_note_preview,
+        );
+      });
 
   Future<void> setStatus({
     required String beaconId,

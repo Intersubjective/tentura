@@ -33,7 +33,11 @@ query MyWorkInit($userId: String!) {
     }
     beacon {
       ...BeaconModelWithHelpOfferUsers
-      forward_edges(limit: 3, order_by: {created_at: desc}) {
+      forward_edges(
+        where: {recipient_id: {_eq: $userId}}
+        limit: 3
+        order_by: {created_at: desc}
+      ) {
         sender {
           ...UserModel
         }
@@ -76,7 +80,11 @@ query MyWorkArchived($userId: String!) {
     }
     beacon {
       ...BeaconModelWithHelpOfferUsers
-      forward_edges(limit: 3, order_by: {created_at: desc}) {
+      forward_edges(
+        where: {recipient_id: {_eq: $userId}}
+        limit: 3
+        order_by: {created_at: desc}
+      ) {
         sender {
           ...UserModel
         }

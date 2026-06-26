@@ -60,6 +60,22 @@ class InboxProvenance {
       return empty;
     }
   }
+
+  /// Drops the viewer from forwarder attribution (never show self as forwarder).
+  InboxProvenance withoutViewer(String viewerId) {
+    if (viewerId.isEmpty) return this;
+    final filtered = senders
+        .where((s) => s.id.isNotEmpty && s.id != viewerId)
+        .toList();
+    if (filtered.length == senders.length) return this;
+    final removed = senders.length - filtered.length;
+    final adjustedTotal = totalDistinctSenders - removed;
+    return InboxProvenance(
+      senders: filtered,
+      totalDistinctSenders: adjustedTotal < 0 ? 0 : adjustedTotal,
+      strongestNotePreview: strongestNotePreview,
+    );
+  }
 }
 
 class InboxForwardSender {
