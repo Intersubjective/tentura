@@ -1698,11 +1698,11 @@
   "@forwardScopeBestShort": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardScopeUnseenShort": "не видели",
+  "forwardScopeUnseenShort": "Пока не видели",
   "@forwardScopeUnseenShort": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardScopeInvolvedShort": "в цепочке",
+  "forwardScopeInvolvedShort": "Уже в цепочке",
   "@forwardScopeInvolvedShort": {
     "context": "ForwardBeaconScreen"
   },
@@ -3614,5 +3614,9 @@
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",
   "beaconPhaseCtaResolveBlocker": "Снять блок",
   "beaconPhaseCtaReviewOffers": "Просмотреть предложения",
-  "beaconYouOfferSent": "Ждём решения автора"
+  "beaconYouOfferSent": "Ждём решения автора",
+  "forwardReasonAheadHint": "После выбора человека можно указать причину пересылки и добавить личную заметку.",
+  "@forwardReasonAheadHint": {
+    "description": "Hint above forward composer before recipients are selected."
+  }
 }

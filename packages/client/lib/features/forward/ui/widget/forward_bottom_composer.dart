@@ -47,6 +47,14 @@ class ForwardBottomComposer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (selectedIds.isEmpty)
+              Padding(
+                padding: EdgeInsets.only(bottom: tt.rowGap),
+                child: Text(
+                  l10n.forwardReasonAheadHint,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+              ),
             if (noteExpanded) ...[
               SizedBox(height: tt.rowGap),
               if (showSuggestedNoteHelper)
@@ -72,8 +80,9 @@ class ForwardBottomComposer extends StatelessWidget {
                     hintText: l10n.forwardSharedNoteHint.toLowerCase(),
                     suffixIcon: IconButton(
                       icon: Icon(Icons.expand_less, color: tt.textMuted),
-                      tooltip:
-                          MaterialLocalizations.of(context).closeButtonTooltip,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
                       onPressed: onToggleNoteExpanded,
                     ),
                   ),
@@ -125,15 +134,15 @@ class ForwardBottomComposer extends StatelessWidget {
                   minimumSize: Size(0, tt.buttonHeight),
                   padding: EdgeInsets.symmetric(horizontal: tt.cardPadding.top),
                   side: BorderSide(
-                    color: enabled ? tt.skyBorder : tt.borderSubtle,
+                    color: enabled ? tt.skyBorder : tt.border,
                   ),
-                  foregroundColor: enabled ? tt.info : tt.textFaint,
-                  disabledForegroundColor: tt.textFaint,
+                  foregroundColor: enabled ? tt.info : tt.textMuted,
+                  disabledForegroundColor: tt.textMuted,
                   disabledBackgroundColor: tt.surface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(tt.buttonRadius),
                   ),
-                  backgroundColor: enabled ? tt.surface : tt.bg,
+                  backgroundColor: tt.surface,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -142,7 +151,7 @@ class ForwardBottomComposer extends StatelessWidget {
                     Icon(
                       Icons.send,
                       size: tt.iconSize,
-                      color: enabled ? tt.info : tt.textFaint,
+                      color: enabled ? tt.info : tt.textMuted,
                     ),
                     SizedBox(width: tt.rowGap),
                     Text(
@@ -150,7 +159,7 @@ class ForwardBottomComposer extends StatelessWidget {
                           ? l10n.forwardToCount(selectedIds.length)
                           : l10n.selectRecipients,
                       style: TenturaText.command(
-                        enabled ? tt.info : tt.textFaint,
+                        enabled ? tt.info : tt.textMuted,
                       ),
                     ),
                   ],

@@ -33,8 +33,10 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Stream<void> get changes => const Stream<void>.empty();
 
   @override
-  Future<List<InvitationEntity>> fetchMine({int offset = 0, int limit = 0}) async =>
-      <InvitationEntity>[];
+  Future<List<InvitationEntity>> fetchMine({
+    int offset = 0,
+    int limit = 0,
+  }) async => <InvitationEntity>[];
 
   @override
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
@@ -54,20 +56,24 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
 
 void _registerInvitationRepository() {
   final getIt = GetIt.I;
-  unawaited((() async {
-    if (getIt.isRegistered<InvitationRepository>()) {
-      await getIt.unregister<InvitationRepository>();
-    }
-  })());
+  unawaited(
+    (() async {
+      if (getIt.isRegistered<InvitationRepository>()) {
+        await getIt.unregister<InvitationRepository>();
+      }
+    })(),
+  );
 
   getIt.registerSingleton<InvitationRepository>(_FakeInvitationRepository());
 
   addTearDown(() {
-    unawaited((() async {
-      if (getIt.isRegistered<InvitationRepository>()) {
-        await getIt.unregister<InvitationRepository>();
-      }
-    })());
+    unawaited(
+      (() async {
+        if (getIt.isRegistered<InvitationRepository>()) {
+          await getIt.unregister<InvitationRepository>();
+        }
+      })(),
+    );
   });
 }
 
@@ -76,11 +82,13 @@ void _registerUiEffectPort() {
   if (!getIt.isRegistered<UiEffectPort>()) {
     getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
     addTearDown(() {
-      unawaited((() async {
-        if (getIt.isRegistered<UiEffectPort>()) {
-          await getIt.unregister<UiEffectPort>();
-        }
-      })());
+      unawaited(
+        (() async {
+          if (getIt.isRegistered<UiEffectPort>()) {
+            await getIt.unregister<UiEffectPort>();
+          }
+        })(),
+      );
     });
   }
 }
@@ -156,8 +164,8 @@ void main() {
 
     expect(find.byType(FilterChip), findsNothing);
     expect(find.text('BEST NEXT'), findsNothing);
-    expect(find.textContaining('unseen'), findsWidgets);
-    expect(find.textContaining('involved'), findsWidgets);
+    expect(find.textContaining('Not yet seen'), findsOneWidget);
+    expect(find.textContaining('Already involved'), findsOneWidget);
     expect(find.byType(CompactBeaconContextStrip), findsOneWidget);
   });
 
@@ -233,7 +241,12 @@ void main() {
     final candidates = List.generate(
       8,
       (i) => ForwardCandidate(
-        profile: Profile(id: 'u$i', displayName: 'User $i', rScore: 1, score: 50),
+        profile: Profile(
+          id: 'u$i',
+          displayName: 'User $i',
+          rScore: 1,
+          score: 50,
+        ),
       ),
     );
 
