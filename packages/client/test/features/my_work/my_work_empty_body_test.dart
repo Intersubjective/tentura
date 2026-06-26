@@ -7,6 +7,41 @@ import 'package:tentura/features/my_work/ui/widget/my_work_empty_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 void main() {
+  testWidgets('inbox primary CTA when needs-me count positive', (
+    tester,
+  ) async {
+    var inboxTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: MyWorkEmptyBody(
+            filter: MyWorkFilter.active,
+            draftCount: 0,
+            archivedCountHint: 0,
+            inboxNeedsMeCount: 2,
+            inboxLoadComplete: true,
+            onCreateBeacon: () {},
+            onOpenInbox: () => inboxTapped = true,
+            onShowDrafts: () {},
+            onShowArchived: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('View Inbox (2)'), findsOneWidget);
+    expect(find.text('Create beacon'), findsOneWidget);
+
+    await tester.tap(find.text('View Inbox (2)'));
+    expect(inboxTapped, isTrue);
+  });
+
   testWidgets('active empty shows onboarding CTAs', (tester) async {
     var createTapped = false;
     var inboxTapped = false;

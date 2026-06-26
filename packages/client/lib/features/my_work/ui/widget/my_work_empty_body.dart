@@ -17,12 +17,16 @@ class MyWorkEmptyBody extends StatelessWidget {
     required this.onOpenInbox,
     required this.onShowDrafts,
     required this.onShowArchived,
+    this.inboxNeedsMeCount = 0,
+    this.inboxLoadComplete = false,
     super.key,
   });
 
   final MyWorkFilter filter;
   final int draftCount;
   final int archivedCountHint;
+  final int inboxNeedsMeCount;
+  final bool inboxLoadComplete;
   final VoidCallback onCreateBeacon;
   final VoidCallback onOpenInbox;
   final VoidCallback onShowDrafts;
@@ -32,6 +36,11 @@ class MyWorkEmptyBody extends StatelessWidget {
       filter != MyWorkFilter.archived &&
       filter != MyWorkFilter.drafts &&
       (draftCount > 0 || archivedCountHint > 0);
+
+  bool get _inboxPrimary =>
+      filter == MyWorkFilter.active &&
+      inboxLoadComplete &&
+      inboxNeedsMeCount > 0;
 
   String _title(L10n l10n) => switch (filter) {
     MyWorkFilter.active => l10n.myWorkEmptyActiveTitle,
@@ -82,17 +91,42 @@ class MyWorkEmptyBody extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (_inboxPrimary) ...[
+                  const SizedBox(height: kSpacingSmall),
+                  Text(
+                    l10n.myWorkEmptyActiveInboxHint,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 const SizedBox(height: kSpacingMedium),
-                TenturaCommandButton(
-                  label: l10n.myWorkEmptyActiveCreateCta,
-                  icon: const Icon(Icons.add),
-                  onPressed: onCreateBeacon,
-                ),
-                const SizedBox(height: kSpacingSmall),
-                TenturaTextAction(
-                  label: l10n.myWorkEmptyActiveInboxCta,
-                  onPressed: onOpenInbox,
-                ),
+                if (_inboxPrimary) ...[
+                  TenturaCommandButton(
+                    label: l10n.myWorkEmptyActiveInboxPrimaryCta(
+                      inboxNeedsMeCount,
+                    ),
+                    icon: const Icon(Icons.inbox_outlined),
+                    onPressed: onOpenInbox,
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  TenturaTextAction(
+                    label: l10n.myWorkEmptyActiveCreateCta,
+                    onPressed: onCreateBeacon,
+                  ),
+                ] else ...[
+                  TenturaCommandButton(
+                    label: l10n.myWorkEmptyActiveCreateCta,
+                    icon: const Icon(Icons.add),
+                    onPressed: onCreateBeacon,
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  TenturaTextAction(
+                    label: l10n.myWorkEmptyActiveInboxCta,
+                    onPressed: onOpenInbox,
+                  ),
+                ],
               ],
               if (_showShortcuts) ...[
                 if (!isActive) const SizedBox(height: kSpacingSmall),

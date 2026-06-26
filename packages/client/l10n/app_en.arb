@@ -665,6 +665,19 @@
   "@confirmFriendAccept": {
     "context": "FriendAcceptInvitationDialog"
   },
+  "inviteAcceptBeaconTitle": "Accept invite and beacon?",
+  "@inviteAcceptBeaconTitle": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptBeaconBody": "Accepting connects you with {name} and adds this beacon to your Inbox.",
+  "@inviteAcceptBeaconBody": {
+    "context": "InvitationAcceptDialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "tapToChooseLocation": "Tap to choose location",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
@@ -1765,9 +1778,22 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "Active beacons you're involved in will appear here. You can create a beacon yourself, or take part in one that others forwarded to you.",
+  "myWorkEmptyActiveBody": "My Work shows beacons you authored or offered help on. Beacons others forward to you appear in Inbox.",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxHint": "Forwarded beacons waiting for you are in Inbox → Needs me.",
+  "@myWorkEmptyActiveInboxHint": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxPrimaryCta": "View Inbox ({count})",
+  "@myWorkEmptyActiveInboxPrimaryCta": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "myWorkEmptyActiveCreateCta": "Create beacon",
   "@myWorkEmptyActiveCreateCta": {

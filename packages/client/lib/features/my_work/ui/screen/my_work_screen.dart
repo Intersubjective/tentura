@@ -11,6 +11,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
@@ -344,29 +346,37 @@ class _MyWorkBody extends StatelessWidget {
                 state.filter == MyWorkFilter.all) &&
             cards.any((c) => c.isFinishedCard);
         if (cards.isEmpty) {
-          return RefreshIndicator.adaptive(
-            onRefresh: cubit.fetch,
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: MyWorkEmptyBody(
-                    filter: state.filter,
-                    draftCount: state.draftCount,
-                    archivedCountHint: state.archivedCountHint,
-                    onCreateBeacon: () =>
-                        context.read<ScreenCubit>().showBeaconCreate(),
-                    onOpenInbox: () =>
-                        AutoTabsRouter.of(context).setActiveIndex(1),
-                    onShowDrafts: () =>
-                        cubit.setFilter(MyWorkFilter.drafts),
-                    onShowArchived: () =>
-                        cubit.setFilter(MyWorkFilter.archived),
-                  ),
+          return BlocSelector<NewStuffCubit, NewStuffState, (int, bool)>(
+            selector: (s) => (s.inboxNeedsMeCount, s.inboxLoadComplete),
+            builder: (context, inboxMeta) {
+              final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
+              return RefreshIndicator.adaptive(
+                onRefresh: cubit.fetch,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: MyWorkEmptyBody(
+                        filter: state.filter,
+                        draftCount: state.draftCount,
+                        archivedCountHint: state.archivedCountHint,
+                        inboxNeedsMeCount: inboxNeedsMeCount,
+                        inboxLoadComplete: inboxLoadComplete,
+                        onCreateBeacon: () =>
+                            context.read<ScreenCubit>().showBeaconCreate(),
+                        onOpenInbox: () =>
+                            AutoTabsRouter.of(context).setActiveIndex(1),
+                        onShowDrafts: () =>
+                            cubit.setFilter(MyWorkFilter.drafts),
+                        onShowArchived: () =>
+                            cubit.setFilter(MyWorkFilter.archived),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         }
         return RefreshIndicator.adaptive(
