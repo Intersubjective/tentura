@@ -197,6 +197,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   void setNeeds(Set<String> value) => emit(state.copyWith(needs: value));
 
+  void removeNeed(String slug) {
+    if (!state.needs.contains(slug)) {
+      return;
+    }
+    final next = Set<String>.from(state.needs)..remove(slug);
+    emit(state.copyWith(needs: next));
+  }
+
   ///
   ///
   void setDateRange({DateTime? startAt, DateTime? endAt}) => emit(

@@ -13,7 +13,7 @@ import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
-import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
+import 'package:tentura/features/capability/ui/widget/removable_capability_chips.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_suggestions_link.dart';
@@ -311,37 +311,37 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             // Requirements — same bottom sheet pattern as forward “Why?” picker
             Padding(
               padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => unawaited(_showRequirementsSheet(context)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _l10n.beaconRequirementsTitle,
-                                style: _theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              BlocSelector<
-                                BeaconCreateCubit,
-                                BeaconCreateState,
-                                Set<String>
-                              >(
-                                bloc: _cubit,
-                                selector: (state) => state.needs,
-                                builder: (context, needs) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => unawaited(_showRequirementsSheet(context)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _l10n.beaconRequirementsTitle,
+                                    style: _theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  BlocSelector<
+                                    BeaconCreateCubit,
+                                    BeaconCreateState,
+                                    Set<String>
+                                  >(
+                                    bloc: _cubit,
+                                    selector: (state) => state.needs,
+                                    builder: (context, needs) => Text(
                                       _l10n.beaconRequirementsSelectedCount(
                                         needs.length,
                                       ),
@@ -351,27 +351,40 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                                             .colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                                    if (needs.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      BeaconRequirementsBar(
-                                        needs: needs,
-                                        maxIcons: 12,
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: _theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ],
                         ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: _theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  BlocSelector<
+                    BeaconCreateCubit,
+                    BeaconCreateState,
+                    Set<String>
+                  >(
+                    bloc: _cubit,
+                    selector: (state) => state.needs,
+                    builder: (context, needs) {
+                      if (needs.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: EdgeInsets.only(top: tt.tightGap),
+                        child: RemovableCapabilityChips(
+                          slugs: needs,
+                          onRemove: _cubit.removeNeed,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
 
@@ -561,72 +574,47 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       );
   }
 
-  /// Calendar date at local midnight — Material pickers compare dates only.
-  static DateTime _calendarDate(DateTime value) =>
-      DateTime(value.year, value.month, value.day);
-
   /// Picker row styled like a [TextFormField] but opened via [InkWell], not
   /// `readOnly` + `onTap` on a real text input.
   ///
   /// Workaround: read-only [TextFormField] inside a [ListView] often does not
   /// receive taps on Flutter web (especially mobile Firefox); [onTap] never
   /// runs so date/map dialogs never open. See flutter/flutter#164282.
-  /// [InkWell] wraps the whole [InputDecorator] with a minimum height so the
-  /// hint row and suffix icon share one tappable target (an empty label alone
-  /// has no hit area).
   Widget _pickerField({
     required Key key,
     required String hint,
     required String displayText,
     required Widget? suffixIcon,
     required VoidCallback onTap,
-  }) {
-    final tt = context.tt;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: InputDecorator(
-          key: key,
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixIcon: suffixIcon,
-          ),
-          isEmpty: displayText.isEmpty,
-          child: SizedBox(
-            width: double.infinity,
-            height: tt.buttonHeight,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                displayText,
-                style: _theme.textTheme.bodyLarge,
-              ),
+  }) =>
+      InputDecorator(
+        key: key,
+        decoration: InputDecoration(
+          hintText: hint,
+          suffixIcon: suffixIcon,
+        ),
+        isEmpty: displayText.isEmpty,
+        child: InkWell(
+          onTap: onTap,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              displayText,
+              style: _theme.textTheme.bodyLarge,
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   /// Deadline mode: one date → `endAt` only (startAt cleared).
   Future<void> _pickDeadline(BuildContext context) async {
-    final today = _calendarDate(DateTime.now());
-    final lastDate = today.add(const Duration(days: 365));
-    final rawInitial = _cubit.state.endAt;
-    var initialDate = rawInitial != null ? _calendarDate(rawInitial) : today;
-    if (initialDate.isBefore(today)) {
-      initialDate = today;
-    } else if (initialDate.isAfter(lastDate)) {
-      initialDate = lastDate;
-    }
-
+    final now = DateTime.timestamp();
     final picked = await showDatePicker(
       context: context,
-      firstDate: today,
-      currentDate: today,
-      initialDate: initialDate,
-      lastDate: lastDate,
+      firstDate: now,
+      currentDate: now,
+      initialDate: _cubit.state.endAt,
+      lastDate: now.add(const Duration(days: 365)),
       initialEntryMode: DatePickerEntryMode.calendarOnly,
     );
     if (picked != null) {
@@ -637,32 +625,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   /// Event mode: a date or period. Same start/end day → single-moment event
   /// (`startAt` only); a span → window (`startAt` + `endAt`).
   Future<void> _pickEventDates(BuildContext context) async {
-    final today = _calendarDate(DateTime.now());
-    final lastDate = today.add(const Duration(days: 365));
-    final startAt = _cubit.state.startAt;
-    final endAt = _cubit.state.endAt;
-    DateTimeRange? initialDateRange;
-    if (startAt != null) {
-      var start = _calendarDate(startAt);
-      var end = _calendarDate(endAt ?? startAt);
-      if (start.isBefore(today)) {
-        start = today;
-      }
-      if (end.isAfter(lastDate)) {
-        end = lastDate;
-      }
-      if (end.isBefore(start)) {
-        end = start;
-      }
-      initialDateRange = DateTimeRange(start: start, end: end);
-    }
-
+    final now = DateTime.timestamp();
     final dateRange = await showDateRangePicker(
       context: context,
-      firstDate: today,
-      currentDate: today,
-      lastDate: lastDate,
-      initialDateRange: initialDateRange,
+      firstDate: now,
+      currentDate: now,
+      lastDate: now.add(const Duration(days: 365)),
       initialEntryMode: DatePickerEntryMode.calendarOnly,
       saveText: _l10n.buttonOk,
     );
