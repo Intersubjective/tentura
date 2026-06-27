@@ -650,6 +650,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             canPop: !_showRoomSurface,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
+              // Imperative overlay (photo viewer) above this route: pop it first.
+              final route = ModalRoute.of(context);
+              if (route != null && !route.isCurrent) {
+                final nav = Navigator.of(context, rootNavigator: true);
+                if (nav.canPop()) {
+                  nav.pop();
+                  return;
+                }
+              }
               // Browser/system back while room is open: close overlay only
               // ([_exitRoomSurface]); do not pop the beacon route.
               _exitRoomSurface();
