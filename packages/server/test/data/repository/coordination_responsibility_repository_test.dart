@@ -13,6 +13,8 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 /// Postgres integration — skipped when DB or m0090 schema is unavailable.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
@@ -62,8 +64,8 @@ Future<void> main() async {
   }
 
   Future<void> seedFixture() async {
-    final viewerKey = '${'a' * 43}1';
-    final authorKey = '${'b' * 43}2';
+    final viewerKey = pgTestPublicKey('resptest', 1);
+    final authorKey = pgTestPublicKey('resptest', 2);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)

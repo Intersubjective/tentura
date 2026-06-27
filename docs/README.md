@@ -26,6 +26,7 @@ Short pointers for agents — read only what your task needs. Full inventory: **
 
 | Doc | Read when |
 |-----|-----------|
+| [`beacon-visibility-matrix.md`](beacon-visibility-matrix.md) | Checking who can see / open / forward a beacon — involvement-type matrix, profile surface mismatches |
 | [`tentura-design-system.md`](tentura-design-system.md) | Flutter UI tokens, typography, layout, M3 patterns |
 | [`beacon-ontology-icon-mapping.md`](beacon-ontology-icon-mapping.md) | Ontology leaf → `Icons.*_rounded` catalog |
 | [`client-ui-inventory.md`](client-ui-inventory.md) | Screens, routes, dialogs — **regenerate before trusting** |

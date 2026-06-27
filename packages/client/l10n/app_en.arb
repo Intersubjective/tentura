@@ -1714,6 +1714,10 @@
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardReachExplainer": "These are people you can reach. They get access only after they accept your forward.",
+  "@forwardReachExplainer": {
+    "description": "Clarifies that forward-picker candidacy (reach) is not the same as read access."
+  },
   "forwardHidePersonalizedNotes": "Hide personalized notes",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"

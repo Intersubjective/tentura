@@ -658,7 +658,7 @@ class PersonCapabilityEventRepository
             FROM public.beacon
             WHERE status = ANY($3::int[])
           ),
-          viewer_involved AS (
+          viewer_involved_raw AS (
             SELECT b.id AS beacon_id
             FROM public.beacon b
             JOIN active_beacons ab ON ab.id = b.id
@@ -677,6 +677,11 @@ class PersonCapabilityEventRepository
             FROM public.beacon_help_offer bho
             JOIN active_beacons ab ON ab.id = bho.beacon_id
             WHERE bho.user_id = $1 AND bho.status = 0
+          ),
+          viewer_involved AS (
+            SELECT vir.beacon_id
+            FROM viewer_involved_raw vir
+            WHERE public.beacon_can_read_content(vir.beacon_id, $1)
           ),
           friend_involved AS (
             SELECT f.friend_id, b.id AS beacon_id

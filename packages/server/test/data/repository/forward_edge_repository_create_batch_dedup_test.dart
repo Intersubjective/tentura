@@ -11,6 +11,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 /// Postgres integration — skipped when DB or m0100 dedup index is unavailable.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
@@ -55,10 +57,10 @@ Future<void> main() async {
   }
 
   Future<void> seedFixture() async {
-    final keyA = '${'a' * 43}1';
-    final keyB = '${'b' * 43}2';
-    final keyC = '${'c' * 43}3';
-    final keyD = '${'d' * 43}4';
+    final keyA = pgTestPublicKey('fwdedup', 1);
+    final keyB = pgTestPublicKey('fwdedup', 2);
+    final keyC = pgTestPublicKey('fwdedup', 3);
+    final keyD = pgTestPublicKey('fwdedup', 4);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)

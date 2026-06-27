@@ -11,6 +11,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 /// Postgres integration — recursive CTE path chain and cancel on forward edges.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
@@ -52,10 +54,10 @@ Future<void> main() async {
   const edgeAuthorDirect = 'Ffwdchain0003';
 
   Future<void> seedFixture() async {
-    final keyA = '${'a' * 43}1';
-    final keyB = '${'b' * 43}2';
-    final keyC = '${'c' * 43}3';
-    final keyD = '${'d' * 43}4';
+    final keyA = pgTestPublicKey('fwdchain', 1);
+    final keyB = pgTestPublicKey('fwdchain', 2);
+    final keyC = pgTestPublicKey('fwdchain', 3);
+    final keyD = pgTestPublicKey('fwdchain', 4);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
