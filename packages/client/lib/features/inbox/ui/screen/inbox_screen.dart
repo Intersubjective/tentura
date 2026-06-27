@@ -27,8 +27,24 @@ import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
 
 @RoutePage()
-class InboxScreen extends StatelessWidget {
+class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
+
+  @override
+  State<InboxScreen> createState() => _InboxScreenState();
+}
+
+class _InboxScreenState extends State<InboxScreen> {
+  String? _selectedNeedsBeaconId;
+  String? _selectedWatchingBeaconId;
+
+  void _selectNeedsItem(InboxItem item) {
+    setState(() => _selectedNeedsBeaconId = item.beaconId);
+  }
+
+  void _selectWatchingItem(InboxItem item) {
+    setState(() => _selectedWatchingBeaconId = item.beaconId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +91,8 @@ class InboxScreen extends StatelessWidget {
                 final theme = Theme.of(context);
                 final scheme = theme.colorScheme;
                 final l10n = L10n.of(context)!;
+                final useExpandedPane =
+                    context.windowClass == WindowClass.expanded;
 
                 late final Widget body;
                 if (state.isLoading) {
@@ -116,6 +134,9 @@ class InboxScreen extends StatelessWidget {
                               state,
                               l10n,
                               newStuff,
+                              onSelectItem: useExpandedPane
+                                  ? _selectNeedsItem
+                                  : null,
                             ),
                           ),
                           _InboxTabKeepAlive(
@@ -126,6 +147,9 @@ class InboxScreen extends StatelessWidget {
                               state.watching,
                               l10n,
                               newStuff,
+                              onSelectItem: useExpandedPane
+                                  ? _selectWatchingItem
+                                  : null,
                             ),
                           ),
                         ],
@@ -171,7 +195,20 @@ class InboxScreen extends StatelessWidget {
                     minimum: EdgeInsets.symmetric(
                       horizontal: tt.screenHPadding,
                     ),
-                    child: body,
+                    child: useExpandedPane
+                        ? _InboxExpandedBody(
+                            tabView: body,
+                            state: state,
+                            selectedNeedsBeaconId: _selectedNeedsBeaconId,
+                            selectedWatchingBeaconId: _selectedWatchingBeaconId,
+                            onSelectNeeds: (item) => setState(
+                              () => _selectedNeedsBeaconId = item.beaconId,
+                            ),
+                            onSelectWatching: (item) => setState(
+                              () => _selectedWatchingBeaconId = item.beaconId,
+                            ),
+                          )
+                        : TenturaContentColumn(child: body),
                   ),
                 );
               },
@@ -181,6 +218,171 @@ class InboxScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InboxExpandedBody extends StatelessWidget {
+  const _InboxExpandedBody({
+    required this.tabView,
+    required this.state,
+    required this.selectedNeedsBeaconId,
+    required this.selectedWatchingBeaconId,
+    required this.onSelectNeeds,
+    required this.onSelectWatching,
+  });
+
+  final Widget tabView;
+  final InboxState state;
+  final String? selectedNeedsBeaconId;
+  final String? selectedWatchingBeaconId;
+  final ValueChanged<InboxItem> onSelectNeeds;
+  final ValueChanged<InboxItem> onSelectWatching;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final masterWidth = (tt.contentMaxWidth ?? constraints.maxWidth / 2)
+            .clamp(420.0, 560.0)
+            .toDouble();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: masterWidth, child: tabView),
+            SizedBox(width: tt.screenHPadding),
+            const TenturaVerticalHairline(),
+            SizedBox(width: tt.screenHPadding),
+            Expanded(
+              child: _InboxExpandedPreview(
+                state: state,
+                selectedNeedsBeaconId: selectedNeedsBeaconId,
+                selectedWatchingBeaconId: selectedWatchingBeaconId,
+                onSelectNeeds: onSelectNeeds,
+                onSelectWatching: onSelectWatching,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _InboxExpandedPreview extends StatelessWidget {
+  const _InboxExpandedPreview({
+    required this.state,
+    required this.selectedNeedsBeaconId,
+    required this.selectedWatchingBeaconId,
+    required this.onSelectNeeds,
+    required this.onSelectWatching,
+  });
+
+  final InboxState state;
+  final String? selectedNeedsBeaconId;
+  final String? selectedWatchingBeaconId;
+  final ValueChanged<InboxItem> onSelectNeeds;
+  final ValueChanged<InboxItem> onSelectWatching;
+
+  @override
+  Widget build(BuildContext context) {
+    final tabController = DefaultTabController.of(context);
+    return AnimatedBuilder(
+      animation: tabController,
+      builder: (context, _) {
+        final watchingTab = tabController.index == 1;
+        final items = watchingTab ? state.watching : state.needsMe;
+        final selectedId = watchingTab
+            ? selectedWatchingBeaconId
+            : selectedNeedsBeaconId;
+        final selected = _selectedInboxItem(items, selectedId);
+        if (selected == null) {
+          final tt = context.tt;
+          final l10n = L10n.of(context)!;
+          return Center(
+            child: Padding(
+              padding: EdgeInsets.all(tt.screenHPadding),
+              child: Text(
+                watchingTab ? l10n.inboxWatchingEmptyCalm : l10n.inboxEmptyHint,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          );
+        }
+
+        final inboxCubit = context.read<InboxCubit>();
+        final newStuff = context.read<NewStuffCubit>();
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: context.tt.contentMaxWidth!),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(vertical: context.tt.rowGap),
+              child: InboxItemTile(
+                key: ValueKey('preview-${selected.beaconId}'),
+                item: selected,
+                inboxHighlight: newStuff.inboxRowHighlight(
+                  latestForwardAt: selected.latestForwardAt,
+                  forwardCount: selected.forwardCount,
+                  beaconActivityEpochMs:
+                      selected.newStuffBeaconOnlyActivityEpochMs,
+                ),
+                onOpenBeacon: () => context.router.pushPath(
+                  '$kPathBeaconView/${selected.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                ),
+                onTap: () => unawaited(_onForwardItem(context, selected)),
+                onWatch: watchingTab
+                    ? null
+                    : () {
+                        onSelectWatching(selected);
+                        inboxCubit.setWatching(selected.beaconId);
+                      },
+                onStopWatching: watchingTab
+                    ? () {
+                        onSelectNeeds(selected);
+                        inboxCubit.stopWatching(selected.beaconId);
+                      }
+                    : null,
+                onDismissFromInbox: () async {
+                  final msg = await showInboxDismissDialog(context);
+                  if (!context.mounted) return;
+                  if (msg != null) {
+                    await inboxCubit.reject(selected.beaconId, message: msg);
+                  }
+                },
+                onCantHelp: () async {
+                  final msg = await showRejectionDialog(context);
+                  if (!context.mounted) return;
+                  if (msg != null) {
+                    await inboxCubit.reject(selected.beaconId, message: msg);
+                  }
+                },
+                onOfferHelp: _inboxCardAllowsOfferHelp(selected)
+                    ? () => _inboxOfferHelp(context, selected.beacon!)
+                    : null,
+                showCtaRow: !watchingTab,
+                showProvenance: !watchingTab,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+InboxItem? _selectedInboxItem(List<InboxItem> items, String? selectedId) {
+  if (items.isEmpty) return null;
+  if (selectedId != null) {
+    for (final item in items) {
+      if (item.beaconId == selectedId) {
+        return item;
+      }
+    }
+  }
+  return items.first;
 }
 
 /// Hides the "beacon moved" snack bar when the user switches Needs me ↔
@@ -430,9 +632,10 @@ Widget _inboxGlobalEmpty({
   required VoidCallback onOpenMyWork,
 }) {
   final scheme = theme.colorScheme;
+  final tt = theme.extension<TenturaTokens>()!;
   return Center(
     child: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(tt.screenHPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -441,7 +644,7 @@ Widget _inboxGlobalEmpty({
             size: 48,
             color: scheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: tt.sectionGap),
           Text(
             l10n.inboxEmpty,
             style: theme.textTheme.titleSmall?.copyWith(
@@ -449,7 +652,7 @@ Widget _inboxGlobalEmpty({
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: tt.rowGap),
           Text(
             l10n.inboxEmptyHint,
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -457,7 +660,7 @@ Widget _inboxGlobalEmpty({
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: tt.sectionGap),
           TenturaTextAction(
             label: l10n.inboxViewMyWork,
             onPressed: onOpenMyWork,
@@ -472,9 +675,10 @@ Widget _watchingQuietEmpty({
   required ThemeData theme,
   required L10n l10n,
 }) {
+  final tt = theme.extension<TenturaTokens>()!;
   return Center(
     child: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(tt.screenHPadding),
       child: Text(
         l10n.inboxWatchingEmptyCalm,
         style: theme.textTheme.bodyMedium?.copyWith(
@@ -491,8 +695,9 @@ Widget _needsMeTabBody(
   InboxCubit inboxCubit,
   InboxState state,
   L10n l10n,
-  NewStuffCubit newStuff,
-) {
+  NewStuffCubit newStuff, {
+  ValueChanged<InboxItem>? onSelectItem,
+}) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   final tt = context.tt;
@@ -502,7 +707,7 @@ Widget _needsMeTabBody(
   if (tombstones.isEmpty && needsMe.isEmpty) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(tt.screenHPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -513,7 +718,7 @@ Widget _needsMeTabBody(
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: tt.sectionGap),
             TenturaTextAction(
               label: l10n.inboxViewMyWork,
               onPressed: () => AutoTabsRouter.of(context).setActiveIndex(0),
@@ -531,11 +736,14 @@ Widget _needsMeTabBody(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         if (tombstones.isNotEmpty || needsMe.isNotEmpty)
-          const SliverToBoxAdapter(child: SizedBox(height: kSpacingSmall)),
+          SliverToBoxAdapter(child: SizedBox(height: tt.rowGap)),
         if (tombstones.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 4, 0, kSpacingSmall),
+              padding: EdgeInsets.only(
+                top: tt.tightGap * 2,
+                bottom: tt.rowGap,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -549,7 +757,7 @@ Widget _needsMeTabBody(
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: kSpacingSmall),
+                  SizedBox(width: tt.rowGap),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHigh,
@@ -574,7 +782,7 @@ Widget _needsMeTabBody(
           ),
           SliverList.separated(
             itemCount: tombstones.length,
-            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
             itemBuilder: (_, i) {
               final item = tombstones[i];
               return InboxTombstoneCard(
@@ -587,12 +795,12 @@ Widget _needsMeTabBody(
               );
             },
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          SliverToBoxAdapter(child: SizedBox(height: tt.sectionGap)),
         ],
         if (needsMe.isNotEmpty) ...[
           SliverList.separated(
             itemCount: needsMe.length,
-            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
             itemBuilder: (_, i) {
               final item = needsMe[i];
               return InboxItemTile(
@@ -603,9 +811,11 @@ Widget _needsMeTabBody(
                   forwardCount: item.forwardCount,
                   beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
                 ),
-                onOpenBeacon: () => context.router.pushPath(
-                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
-                ),
+                onOpenBeacon: onSelectItem == null
+                    ? () => context.router.pushPath(
+                        '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                      )
+                    : () => onSelectItem(item),
                 onTap: () => unawaited(_onForwardItem(context, item)),
                 onWatch: () => inboxCubit.setWatching(item.beaconId),
                 onDismissFromInbox: () async {
@@ -631,7 +841,11 @@ Widget _needsMeTabBody(
         ] else if (tombstones.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+              padding: EdgeInsets.only(
+                left: tt.rowGap,
+                right: tt.rowGap,
+                bottom: tt.sectionGap,
+              ),
               child: Text(
                 l10n.inboxNeedsMeEmptyCalm,
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -641,7 +855,7 @@ Widget _needsMeTabBody(
               ),
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        SliverToBoxAdapter(child: SizedBox(height: tt.sectionGap)),
       ],
     ),
   );
@@ -652,14 +866,16 @@ Widget _watchingTabBody(
   InboxCubit inboxCubit,
   List<InboxItem> items,
   L10n l10n,
-  NewStuffCubit newStuff,
-) {
+  NewStuffCubit newStuff, {
+  ValueChanged<InboxItem>? onSelectItem,
+}) {
   final theme = Theme.of(context);
+  final tt = context.tt;
 
   if (items.isEmpty) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(tt.screenHPadding),
         child: Text(
           l10n.inboxWatchingEmptyCalm,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -676,9 +892,9 @@ Widget _watchingTabBody(
     child: ListView.separated(
       key: const PageStorageKey<String>('inbox-watching-scroll'),
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: kPaddingSmallV,
+      padding: EdgeInsets.symmetric(vertical: tt.rowGap),
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+      separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
       itemBuilder: (_, i) {
         final item = items[i];
         return InboxItemTile(
@@ -689,9 +905,11 @@ Widget _watchingTabBody(
             forwardCount: item.forwardCount,
             beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
           ),
-          onOpenBeacon: () => context.router.pushPath(
-            '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
-          ),
+          onOpenBeacon: onSelectItem == null
+              ? () => context.router.pushPath(
+                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                )
+              : () => onSelectItem(item),
           onTap: () => unawaited(_onForwardItem(context, item)),
           onStopWatching: () => inboxCubit.stopWatching(item.beaconId),
           onDismissFromInbox: () async {

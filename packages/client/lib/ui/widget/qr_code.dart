@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-/// QR layout uses **height** breakpoints: under 800px expand; under 1200px half
-/// viewport loose; else one-third (share-sheet style).
-BoxConstraints _qrConstraintsForViewport(Size size) {
+/// Upper bound for QR in dialogs and share sheets (avoids viewport-scale blow-up).
+const double kQrMaxDimension = 280;
+
+/// QR side length from viewport: shorter viewports use the cap; taller ones scale
+/// down by height tier, always clamped to [kQrMaxDimension].
+double _qrSideForViewport(Size size) {
   final h = size.height;
-  if (h < 800) {
-    return const BoxConstraints.expand();
-  }
-  if (h < 1200) {
-    return BoxConstraints.loose(size / 2);
-  }
-  return BoxConstraints.loose(size / 3);
+  final raw = switch (h) {
+    < 800 => kQrMaxDimension,
+    < 1200 => size.shortestSide / 2,
+    _ => size.shortestSide / 3,
+  };
+  return raw.clamp(160, kQrMaxDimension);
 }
 
 class QrCode extends StatelessWidget {
@@ -23,10 +25,10 @@ class QrCode extends StatelessWidget {
   final String data;
 
   @override
-  Widget build(BuildContext context) => ConstrainedBox(
-    constraints: _qrConstraintsForViewport(MediaQuery.sizeOf(context)),
-    child: AspectRatio(
-      aspectRatio: 1,
+  Widget build(BuildContext context) {
+    final side = _qrSideForViewport(MediaQuery.sizeOf(context));
+    return SizedBox.square(
+      dimension: side,
       child: QrImageView(
         data: data,
         backgroundColor: Colors.white,
@@ -40,6 +42,6 @@ class QrCode extends StatelessWidget {
           color: Colors.black,
         ),
       ),
-    ),
-  );
+    );
+  }
 }

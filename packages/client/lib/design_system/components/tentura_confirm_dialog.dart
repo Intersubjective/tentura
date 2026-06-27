@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../tentura_tokens.dart';
+
 /// Adaptive confirm/cancel dialog using [AlertDialog.adaptive] and theme typography.
 class TenturaConfirmDialog extends StatelessWidget {
   const TenturaConfirmDialog({
@@ -35,7 +37,9 @@ class TenturaConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
+    final tt = Theme.of(context).extension<TenturaTokens>();
     return AlertDialog.adaptive(
+      constraints: BoxConstraints(maxWidth: tt?.contentMaxWidth ?? 560),
       title: Text(title),
       content: Text(
         content,

@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -17,12 +18,13 @@ Future<void> showMutualFriendsSheet(
   List<Profile> profiles,
 ) async {
   final l10n = L10n.of(context)!;
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     useSafeArea: true,
     builder: (ctx) {
+      final tt = ctx.tt;
       return DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.6,
@@ -33,7 +35,12 @@ Future<void> showMutualFriendsSheet(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.rowGap,
+                  tt.screenHPadding,
+                  tt.rowGap,
+                ),
                 child: Text(
                   l10n.mutualFriendsTitle,
                   style: Theme.of(context).textTheme.titleMedium,
@@ -42,7 +49,7 @@ Future<void> showMutualFriendsSheet(
               Expanded(
                 child: ListView.separated(
                   controller: scrollController,
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.only(bottom: tt.sectionGap),
                   itemCount: profiles.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {

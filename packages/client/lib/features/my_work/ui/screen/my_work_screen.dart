@@ -78,7 +78,7 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         body: SafeArea(
           minimum: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
-          child: const _MyWorkBody(),
+          child: const TenturaContentColumn(child: _MyWorkBody()),
         ),
       ),
     );

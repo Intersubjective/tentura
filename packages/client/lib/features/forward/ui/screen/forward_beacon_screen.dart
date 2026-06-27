@@ -138,9 +138,10 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
     if (!context.mounted) return;
 
-    await showModalBottomSheet<void>(
+    await showTenturaAdaptiveSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
           builder: (ctx, setModalState) {

@@ -58,7 +58,8 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
       body: SafeArea(
         minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: BlocBuilder<NewStuffCubit, NewStuffState>(
+        child: TenturaContentColumn(
+          child: BlocBuilder<NewStuffCubit, NewStuffState>(
           buildWhen: (p, c) =>
               p.inboxLastSeenMs != c.inboxLastSeenMs ||
               p.maxInboxActivityMs != c.maxInboxActivityMs,
@@ -139,6 +140,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
               },
             );
           },
+        ),
         ),
       ),
     );

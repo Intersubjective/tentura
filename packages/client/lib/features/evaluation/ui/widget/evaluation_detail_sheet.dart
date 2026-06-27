@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
@@ -16,7 +17,8 @@ Future<void> showEvaluationDetailSheet({
     List<String> tags,
     String note,
     List<String> acknowledgedHelpTags,
-  ) onSave,
+  )
+  onSave,
 }) async {
   final l10n = L10n.of(context)!;
   var value = participant.currentValue ?? EvaluationValue.noBasis;
@@ -27,16 +29,49 @@ Future<void> showEvaluationDetailSheet({
   List<String> allowedTags(EvaluationValue v) {
     final neg = v == EvaluationValue.neg2 || v == EvaluationValue.neg1;
     final pos = v == EvaluationValue.pos1 || v == EvaluationValue.pos2;
-    const ap = ['clear_request', 'fair_closure', 'useful_updates', 'coordinated_well'];
-    const an = ['unclear_request', 'poor_updates', 'closed_unfairly', 'hard_to_coordinate'];
-    const cp = ['delivered_as_promised', 'very_useful', 'communicated_honestly', 'above_expectation'];
-    const cn = ['did_not_follow_through', 'overpromised', 'created_extra_work', 'poor_communication'];
-    const fp = ['reached_right_person', 'forwarded_quickly', 'useful_routing_note', 'crucial_bridge'];
-    const fn = ['sent_to_wrong_people', 'created_noise', 'forwarded_too_late', 'misleading_note'];
+    const ap = [
+      'clear_request',
+      'fair_closure',
+      'useful_updates',
+      'coordinated_well',
+    ];
+    const an = [
+      'unclear_request',
+      'poor_updates',
+      'closed_unfairly',
+      'hard_to_coordinate',
+    ];
+    const cp = [
+      'delivered_as_promised',
+      'very_useful',
+      'communicated_honestly',
+      'above_expectation',
+    ];
+    const cn = [
+      'did_not_follow_through',
+      'overpromised',
+      'created_extra_work',
+      'poor_communication',
+    ];
+    const fp = [
+      'reached_right_person',
+      'forwarded_quickly',
+      'useful_routing_note',
+      'crucial_bridge',
+    ];
+    const fn = [
+      'sent_to_wrong_people',
+      'created_noise',
+      'forwarded_too_late',
+      'misleading_note',
+    ];
     return switch (participant.role) {
-      EvaluationParticipantRole.author => neg ? an : (pos ? ap : [...ap, ...an]),
-      EvaluationParticipantRole.committer => neg ? cn : (pos ? cp : [...cp, ...cn]),
-      EvaluationParticipantRole.forwarder => neg ? fn : (pos ? fp : [...fp, ...fn]),
+      EvaluationParticipantRole.author =>
+        neg ? an : (pos ? ap : [...ap, ...an]),
+      EvaluationParticipantRole.committer =>
+        neg ? cn : (pos ? cp : [...cp, ...cn]),
+      EvaluationParticipantRole.forwarder =>
+        neg ? fn : (pos ? fp : [...fp, ...fn]),
     };
   }
 
@@ -52,23 +87,24 @@ Future<void> showEvaluationDetailSheet({
     };
   }
 
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (ctx) {
       return StatefulBuilder(
         builder: (context, setState) {
+          final tt = context.tt;
           final needs = value.requiresReasonTag;
           final allowTags = value.allowsReasonTag;
           final pool = allowTags ? allowedTags(value) : <String>[];
 
           return Padding(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 8,
-              bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+              left: tt.screenHPadding,
+              right: tt.screenHPadding,
+              top: tt.rowGap,
+              bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -81,15 +117,15 @@ Future<void> showEvaluationDetailSheet({
                         : participant.displayName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: tt.tightGap * 2),
                   Text(
                     promptText(),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: tt.sectionGap),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: tt.iconTextGap,
+                    runSpacing: tt.iconTextGap,
                     children: [
                       for (final v in EvaluationValue.values)
                         ChoiceChip(
@@ -100,15 +136,15 @@ Future<void> showEvaluationDetailSheet({
                     ],
                   ),
                   if (allowTags && pool.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: tt.sectionGap),
                     Text(
                       needs ? 'Choose reason (required)' : 'Reason (optional)',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: tt.iconTextGap),
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: tt.iconTextGap,
+                      runSpacing: tt.iconTextGap,
                       children: [
                         for (final t in pool)
                           FilterChip(
@@ -125,12 +161,12 @@ Future<void> showEvaluationDetailSheet({
                       ],
                     ),
                   ],
-                  const SizedBox(height: 12),
+                  SizedBox(height: tt.sectionGap),
                   Text(
                     l10n.closeAckPrompt,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: tt.iconTextGap),
                   CapabilityChipSet(
                     selectedSlugs: ackTags,
                     onChanged: (slugs) => setState(() {
@@ -139,7 +175,7 @@ Future<void> showEvaluationDetailSheet({
                         ..addAll(slugs);
                     }),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: tt.rowGap),
                   TextField(
                     controller: noteController,
                     decoration: const InputDecoration(
@@ -153,7 +189,7 @@ Future<void> showEvaluationDetailSheet({
                     shortLabel: l10n.evaluationPrivacyShort,
                     fullText: l10n.evaluationPrivateHint,
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: tt.sectionGap),
                   FilledButton(
                     onPressed: () async {
                       if (needs && tags.isEmpty) {
@@ -182,10 +218,10 @@ Future<void> showEvaluationDetailSheet({
 }
 
 String _label(EvaluationValue v, L10n l10n) => switch (v) {
-      EvaluationValue.noBasis => l10n.evaluationNoBasisLabel,
-      EvaluationValue.neg2 => l10n.evaluationVeryBadLabel,
-      EvaluationValue.neg1 => l10n.evaluationBadLabel,
-      EvaluationValue.zero => l10n.evaluationNoEffectLabel,
-      EvaluationValue.pos1 => l10n.evaluationGoodLabel,
-      EvaluationValue.pos2 => l10n.evaluationVeryGoodLabel,
-    };
+  EvaluationValue.noBasis => l10n.evaluationNoBasisLabel,
+  EvaluationValue.neg2 => l10n.evaluationVeryBadLabel,
+  EvaluationValue.neg1 => l10n.evaluationBadLabel,
+  EvaluationValue.zero => l10n.evaluationNoEffectLabel,
+  EvaluationValue.pos1 => l10n.evaluationGoodLabel,
+  EvaluationValue.pos2 => l10n.evaluationVeryGoodLabel,
+};

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -33,14 +34,17 @@ class EditCapabilitiesDialog extends StatefulWidget {
     required List<CapabilityWithSource> currentVisible,
     required void Function(List<String>, Set<String>) onSaved,
   }) async {
-    await showModalBottomSheet<void>(
+    await showTenturaAdaptiveSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => EditCapabilitiesDialog._(
         subjectId: subjectId,
         initialSlugs: currentVisible.map((c) => c.slug).toSet(),
-        automaticSlugs:
-            currentVisible.where((c) => !c.hasManualLabel).map((c) => c.slug).toSet(),
+        automaticSlugs: currentVisible
+            .where((c) => !c.hasManualLabel)
+            .map((c) => c.slug)
+            .toSet(),
         onSaved: onSaved,
       ),
     );

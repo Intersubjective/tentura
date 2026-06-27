@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -21,7 +22,7 @@ Future<void> showBeaconCurrentLineSheet(
   final titleController = TextEditingController(text: initialText);
   try {
     var submitting = false;
-    final savedLine = await showModalBottomSheet<String>(
+    final savedLine = await showTenturaAdaptiveSheet<String>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -29,15 +30,16 @@ Future<void> showBeaconCurrentLineSheet(
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
+            final tt = ctx.tt;
             final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
             final canSubmit =
                 titleController.text.trim().isNotEmpty && !submitting;
             return Padding(
               padding: EdgeInsets.only(
-                left: kSpacingSmall,
-                right: kSpacingSmall,
-                top: kSpacingMedium,
-                bottom: bottom + kSpacingMedium,
+                left: tt.screenHPadding,
+                right: tt.screenHPadding,
+                top: tt.sectionGap,
+                bottom: bottom + tt.sectionGap,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -47,7 +49,7 @@ Future<void> showBeaconCurrentLineSheet(
                     l10n.beaconHudEditCurrentLineTitle,
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   TextField(
                     controller: titleController,
                     decoration: InputDecoration(
@@ -61,7 +63,7 @@ Future<void> showBeaconCurrentLineSheet(
                     enabled: !submitting,
                     autofocus: true,
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   FilledButton(
                     onPressed: !canSubmit
                         ? null
@@ -106,9 +108,7 @@ Future<void> showBeaconCurrentLineSheet(
         );
       },
     );
-    if (savedLine != null &&
-        savedLine.isNotEmpty &&
-        context.mounted) {
+    if (savedLine != null && savedLine.isNotEmpty && context.mounted) {
       onSaved?.call(savedLine);
     }
   } finally {

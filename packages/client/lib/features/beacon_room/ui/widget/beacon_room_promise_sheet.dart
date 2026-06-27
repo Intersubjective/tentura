@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -19,14 +20,16 @@ List<BeaconParticipant> participantsForPromiseTargetPicker({
 }) {
   final admitted = isAuthorOrSteward
       ? participants
-          .where((p) =>
-              p.roomAccess == RoomAccessBits.admitted ||
-              p.status == BeaconParticipantStatusBits.candidate ||
-              p.status == BeaconParticipantStatusBits.offeredHelp)
-          .toList()
+            .where(
+              (p) =>
+                  p.roomAccess == RoomAccessBits.admitted ||
+                  p.status == BeaconParticipantStatusBits.candidate ||
+                  p.status == BeaconParticipantStatusBits.offeredHelp,
+            )
+            .toList()
       : participants
-          .where((p) => p.roomAccess == RoomAccessBits.admitted)
-          .toList();
+            .where((p) => p.roomAccess == RoomAccessBits.admitted)
+            .toList();
   return admitted.where((p) => p.userId != myUserId).toList();
 }
 
@@ -34,12 +37,11 @@ bool hasPublishedPromiseTargets({
   required List<BeaconParticipant> participants,
   required String myUserId,
   required bool isAuthorOrSteward,
-}) =>
-    participantsForPromiseTargetPicker(
-      participants: participants,
-      myUserId: myUserId,
-      isAuthorOrSteward: isAuthorOrSteward,
-    ).isNotEmpty;
+}) => participantsForPromiseTargetPicker(
+  participants: participants,
+  myUserId: myUserId,
+  isAuthorOrSteward: isAuthorOrSteward,
+).isNotEmpty;
 
 String _targetLabel(L10n l10n, BeaconParticipant p) {
   final t = p.userTitle.trim();
@@ -86,7 +88,7 @@ Future<void> showBeaconRoomPromiseSheet(
 
   try {
     var submitting = false;
-    final ok = await showModalBottomSheet<bool>(
+    final ok = await showTenturaAdaptiveSheet<bool>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -94,15 +96,17 @@ Future<void> showBeaconRoomPromiseSheet(
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
+            final tt = ctx.tt;
             final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-            final canSubmit = AskComposerFields.canSubmit(bodyController, submitting) &&
+            final canSubmit =
+                AskComposerFields.canSubmit(bodyController, submitting) &&
                 targetUserId.isNotEmpty;
             return Padding(
               padding: EdgeInsets.only(
-                left: kSpacingSmall,
-                right: kSpacingSmall,
-                top: kSpacingMedium,
-                bottom: bottom + kSpacingMedium,
+                left: tt.screenHPadding,
+                right: tt.screenHPadding,
+                top: tt.sectionGap,
+                bottom: bottom + tt.sectionGap,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -112,7 +116,7 @@ Future<void> showBeaconRoomPromiseSheet(
                     l10n.coordinationCreatePromiseSheetPrompt,
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   AskComposerFields(
                     l10n: l10n,
                     titleController: titleController,
@@ -121,7 +125,7 @@ Future<void> showBeaconRoomPromiseSheet(
                     messagePreview: messagePreview,
                     onChanged: () => setState(() {}),
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   DropdownButtonFormField<String>(
                     key: ValueKey<String>(targetUserId),
                     initialValue: targetUserId,
@@ -137,16 +141,17 @@ Future<void> showBeaconRoomPromiseSheet(
                     ],
                     onChanged: submitting
                         ? null
-                        : (v) => setState(() => targetUserId = v ?? targetUserId),
+                        : (v) =>
+                              setState(() => targetUserId = v ?? targetUserId),
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   CoordinationStalenessPicker(
                     l10n: l10n,
                     selectedDays: staleDays,
                     enabled: !submitting,
                     onSelected: (days) => setState(() => staleDays = days),
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   FilledButton(
                     onPressed: !canSubmit
                         ? null

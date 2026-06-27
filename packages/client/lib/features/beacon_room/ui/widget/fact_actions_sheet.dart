@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
@@ -19,7 +20,7 @@ Future<void> showFactActionsSheet(
   final l10n = L10n.of(context)!;
   final rootCtx = context;
 
-  return showModalBottomSheet<void>(
+  return showTenturaAdaptiveSheet<void>(
     context: context,
     showDragHandle: true,
     useRootNavigator: true,
@@ -30,7 +31,11 @@ Future<void> showFactActionsSheet(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: kPaddingH.add(kPaddingSmallT),
+              padding: EdgeInsets.only(
+                left: ctx.tt.screenHPadding,
+                right: ctx.tt.screenHPadding,
+                top: ctx.tt.rowGap,
+              ),
               child: Text(
                 l10n.beaconRoomFactManageSheetTitle,
                 style: Theme.of(ctx).textTheme.titleMedium,
@@ -75,8 +80,11 @@ Future<void> showFactActionsSheet(
             ListTile(
               leading: const Icon(Icons.message_outlined),
               title: Text(l10n.beaconRoomFactCardActionJumpToSource),
-              enabled: fact.sourceMessageId != null && fact.sourceMessageId!.isNotEmpty,
-              onTap: fact.sourceMessageId == null || fact.sourceMessageId!.isEmpty
+              enabled:
+                  fact.sourceMessageId != null &&
+                  fact.sourceMessageId!.isNotEmpty,
+              onTap:
+                  fact.sourceMessageId == null || fact.sourceMessageId!.isEmpty
                   ? null
                   : () {
                       final mid = fact.sourceMessageId!;
@@ -157,7 +165,7 @@ Future<void> _showEditFactSheet(
   BeaconFactCard fact,
 ) async {
   final l10n = L10n.of(context)!;
-  final newText = await showModalBottomSheet<String>(
+  final newText = await showTenturaAdaptiveSheet<String>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -208,13 +216,14 @@ class _EditFactSheetState extends State<_EditFactSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
       padding: EdgeInsets.only(
-        left: kSpacingMedium,
-        right: kSpacingMedium,
-        top: kSpacingMedium,
-        bottom: bottom + kSpacingMedium,
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: bottom + tt.sectionGap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -224,7 +233,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
             widget.l10n.beaconRoomFactCardEditTitle,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: kSpacingMedium),
+          SizedBox(height: tt.sectionGap),
           TextField(
             controller: _controller,
             minLines: 3,
@@ -234,7 +243,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
               hintText: widget.l10n.beaconRoomFactCardEditHint,
             ),
           ),
-          const SizedBox(height: kSpacingMedium),
+          SizedBox(height: tt.sectionGap),
           FilledButton(
             onPressed: _save,
             child: Text(MaterialLocalizations.of(context).saveButtonLabel),

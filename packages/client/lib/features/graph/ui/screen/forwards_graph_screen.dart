@@ -2,7 +2,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
@@ -68,6 +67,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<GraphCubit>();
+    final tt = context.tt;
     return Scaffold(
       appBar: AppBar(
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
@@ -90,9 +90,9 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
             tooltip: MaterialLocalizations.of(context).showMenuTooltip,
             icon: const Icon(Icons.more_vert),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 48,
-              minHeight: 48,
+            constraints: BoxConstraints(
+              minWidth: tt.buttonHeight,
+              minHeight: tt.buttonHeight,
             ),
             itemBuilder: (_) => <PopupMenuEntry<void>>[
               PopupMenuItem<void>(

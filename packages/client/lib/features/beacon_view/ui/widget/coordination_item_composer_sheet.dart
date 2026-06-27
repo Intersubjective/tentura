@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/design_system/components/tentura_confirm_dialog.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'coordination_target_candidates.dart';
 
@@ -29,7 +28,7 @@ Future<void> showCoordinationItemComposerSheet(
   final resolvedSeed = existingDraft != null
       ? AskComposerSeed.fromItem(existingDraft)
       : seed;
-  final ok = await showModalBottomSheet<bool>(
+  final ok = await showTenturaAdaptiveSheet<bool>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -383,6 +382,7 @@ class _CoordinationItemComposerBodyState
   @override
   Widget build(BuildContext context) {
     final l10n = widget.l10n;
+    final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final scheme = Theme.of(context).colorScheme;
     final existing = widget.existingDraft;
@@ -395,10 +395,10 @@ class _CoordinationItemComposerBodyState
       },
       child: Padding(
         padding: EdgeInsets.only(
-          left: kSpacingSmall,
-          right: kSpacingSmall,
-          top: kSpacingMedium,
-          bottom: bottom + kSpacingMedium,
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -413,7 +413,7 @@ class _CoordinationItemComposerBodyState
                 ),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: kSpacingSmall),
+              SizedBox(height: tt.rowGap),
               if (_isAskOrPromise)
                 AskComposerFields(
                   l10n: l10n,
@@ -433,7 +433,7 @@ class _CoordinationItemComposerBodyState
                   textInputAction: TextInputAction.next,
                   enabled: !_submitting,
                 ),
-                const SizedBox(height: kSpacingSmall),
+                SizedBox(height: tt.rowGap),
                 TextField(
                   controller: _bodyController,
                   onChanged: (_) => setState(() {}),
@@ -444,19 +444,19 @@ class _CoordinationItemComposerBodyState
                 ),
               ],
               if (_hasLegalTargets) ...[
-                const SizedBox(height: kSpacingSmall),
+                SizedBox(height: tt.rowGap),
                 Text(
                   coordinationTargetPickerLabel(l10n, widget.kind),
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
-                const SizedBox(height: kSpacingSmall),
+                SizedBox(height: tt.rowGap),
                 Text(
                   l10n.coordinationComposerTargetGuidance,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: kSpacingSmall),
+                SizedBox(height: tt.rowGap),
                 _TargetPicker(
                   kind: widget.kind,
                   askTargetIds: _askTargetIds,
@@ -472,7 +472,7 @@ class _CoordinationItemComposerBodyState
                   onSelected: (id) => setState(() => _selectedTargetId = id),
                 ),
               ],
-              const SizedBox(height: kSpacingSmall),
+              SizedBox(height: tt.rowGap),
               CoordinationStalenessPicker(
                 l10n: l10n,
                 selectedDays: _selectedStaleDays,
@@ -480,12 +480,12 @@ class _CoordinationItemComposerBodyState
                 onSelected: (days) => setState(() => _selectedStaleDays = days),
               ),
               if (!_willPublish) ...[
-                const SizedBox(height: kSpacingSmall),
+                SizedBox(height: tt.rowGap),
                 Material(
                   color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(tt.cardRadius),
                   child: Padding(
-                    padding: const EdgeInsets.all(kSpacingSmall),
+                    padding: tt.cardPadding,
                     child: Text(
                       l10n.coordinationComposerNoTargetWillSaveDraft,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -495,7 +495,7 @@ class _CoordinationItemComposerBodyState
                   ),
                 ),
               ],
-              const SizedBox(height: kSpacingMedium),
+              SizedBox(height: tt.sectionGap),
               FilledButton(
                 onPressed: !_canSubmitContent ? null : _onSubmit,
                 child: _submitting

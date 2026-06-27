@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:tentura/app/platform/platform_info.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 
@@ -63,56 +64,64 @@ class _QRScanDialogState extends State<QRScanDialog> {
   );
 
   Widget _buildDesktopBody() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          TextField(
-            controller: _desktopController,
-            decoration: InputDecoration(
-              hintText: _l10n.pleaseEnterCode,
-              border: const OutlineInputBorder(),
-            ),
-            onSubmitted: (value) {
-              if (value.trim().isNotEmpty && context.mounted) {
-                Navigator.of(context).pop(value.trim());
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
+    final tt = context.tt;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: tt.contentMaxWidth ?? 560),
+        child: Padding(
+          padding: tt.cardPadding,
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextButton.icon(
-                onPressed: () async {
-                  final data = await Clipboard.getData(Clipboard.kTextPlain);
-                  final text = data?.text?.trim();
-                  if (text != null && text.isNotEmpty && mounted) {
-                    _desktopController.text = text;
+              TextField(
+                controller: _desktopController,
+                decoration: InputDecoration(
+                  hintText: _l10n.pleaseEnterCode,
+                  border: const OutlineInputBorder(),
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty && context.mounted) {
+                    Navigator.of(context).pop(value.trim());
                   }
                 },
-                icon: const Icon(Icons.paste_rounded),
-                label: Text(_l10n.buttonPaste),
               ),
-              const SizedBox(width: 16),
-              FilledButton(
-                onPressed: () {
-                  final value = _desktopController.text.trim();
-                  if (value.isNotEmpty && context.mounted) {
-                    Navigator.of(context).pop(value);
-                  }
-                },
-                child: Text(_l10n.buttonOk),
-              ),
-              const SizedBox(width: 16),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(_l10n.buttonCancel),
+              SizedBox(height: tt.rowGap),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: tt.rowGap,
+                runSpacing: tt.tightGap,
+                children: [
+                  TextButton.icon(
+                    onPressed: () async {
+                      final data = await Clipboard.getData(Clipboard.kTextPlain);
+                      final text = data?.text?.trim();
+                      if (text != null && text.isNotEmpty && mounted) {
+                        _desktopController.text = text;
+                      }
+                    },
+                    icon: const Icon(Icons.paste_rounded),
+                    label: Text(_l10n.buttonPaste),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final value = _desktopController.text.trim();
+                      if (value.isNotEmpty && context.mounted) {
+                        Navigator.of(context).pop(value);
+                      }
+                    },
+                    child: Text(_l10n.buttonOk),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(_l10n.buttonCancel),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

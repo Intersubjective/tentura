@@ -235,7 +235,9 @@ void main() {
   });
 
   group('CardTriageActionRow desktop width', () {
-    testWidgets('uses intrinsic forward button width on expanded', (tester) async {
+    testWidgets('uses intrinsic forward button width on expanded', (
+      tester,
+    ) async {
       const viewportWidth = 900.0;
       double? buttonWidth;
 
@@ -310,6 +312,96 @@ void main() {
       buttonWidth = tester.getSize(buttonFinder).width;
 
       expect(buttonWidth, greaterThan(rowWidth * 0.7));
+    });
+  });
+
+  group('showTenturaAdaptiveSheet', () {
+    testWidgets('uses a bottom sheet on compact viewport', (tester) async {
+      const viewportWidth = 375.0;
+      double? capturedMaxWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 812),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 812)),
+            child: TenturaResponsiveScope(
+              child: Builder(
+                builder: (context) {
+                  return TextButton(
+                    onPressed: () => showTenturaAdaptiveSheet<void>(
+                      context: context,
+                      builder: (_) => LayoutBuilder(
+                        builder: (context, constraints) {
+                          capturedMaxWidth = constraints.maxWidth;
+                          return const SizedBox(height: 80);
+                        },
+                      ),
+                    ),
+                    child: const Text('open'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      expect(capturedMaxWidth, viewportWidth);
+    });
+
+    testWidgets('uses constrained dialog on expanded viewport', (tester) async {
+      const viewportWidth = 900.0;
+      double? capturedMaxWidth;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 900),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 900)),
+            child: TenturaResponsiveScope(
+              child: Builder(
+                builder: (context) {
+                  return TextButton(
+                    onPressed: () => showTenturaAdaptiveSheet<void>(
+                      context: context,
+                      builder: (_) => LayoutBuilder(
+                        builder: (context, constraints) {
+                          capturedMaxWidth = constraints.maxWidth;
+                          return const SizedBox(height: 80);
+                        },
+                      ),
+                    ),
+                    child: const Text('open'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(capturedMaxWidth, 720);
     });
   });
 }

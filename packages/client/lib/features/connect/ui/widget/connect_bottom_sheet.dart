@@ -18,36 +18,18 @@ class ConnectBottomSheet extends StatefulWidget {
   static const _dialogMaxWidth = 480.0;
 
   static Future<void> show(BuildContext context) {
-    final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
-    if (windowClass == WindowClass.compact) {
-      return showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        useSafeArea: true,
-        builder: (context) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: const ConnectBottomSheet(),
-        ),
-      );
-    }
-
-    return showDialog<void>(
+    return showTenturaAdaptiveSheet<void>(
       context: context,
-      builder: (dialogContext) {
-        final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
-        return Dialog(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
-            child: Padding(
-              padding: EdgeInsets.only(bottom: bottomInset),
-              child: const ConnectBottomSheet(),
-            ),
-          ),
-        );
-      },
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      maxWidth: _dialogMaxWidth,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: const ConnectBottomSheet(),
+      ),
     );
   }
 

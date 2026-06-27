@@ -43,9 +43,10 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
             ),
           ),
           body: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-              child: Column(
+            child: TenturaContentColumn(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
@@ -131,8 +132,9 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                     child: Text(l10n.createNewAccount),
                   ),
                 ),
-              ],
-            ),
+                ],
+              ),
+              ),
             ),
           ),
         );

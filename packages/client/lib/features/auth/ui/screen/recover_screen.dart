@@ -150,9 +150,10 @@ class _RecoverScreenState extends State<RecoverScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(tt.screenHPadding),
-          child: BlocSelector<AuthCubit, AuthState, bool>(
+        child: TenturaContentColumn(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(tt.screenHPadding),
+            child: BlocSelector<AuthCubit, AuthState, bool>(
             bloc: authCubit,
             selector: (state) => state.isLoading,
             builder: (context, isLoading) {
@@ -244,7 +245,8 @@ class _RecoverScreenState extends State<RecoverScreen> {
                   ),
                 ],
               );
-            },
+              },
+            ),
           ),
         ),
       ),

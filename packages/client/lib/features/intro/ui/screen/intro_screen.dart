@@ -55,7 +55,8 @@ class _IntroScreenState extends State<IntroScreen> {
         return Scaffold(
           body: SafeArea(
             minimum: tt.cardPadding,
-            child: Column(
+            child: TenturaContentColumn(
+              child: Column(
               children: [
                 LinearPiActive.builder(context, isPersistingIntro),
                 Expanded(
@@ -143,7 +144,8 @@ class _IntroScreenState extends State<IntroScreen> {
                     child: Text(isLast ? l10n.buttonStart : l10n.buttonNext),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         );

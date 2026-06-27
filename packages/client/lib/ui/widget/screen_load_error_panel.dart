@@ -174,11 +174,15 @@ class ScreenLoadErrorPanel extends StatelessWidget {
         details.kind == ScreenLoadErrorKind.session && onSignInAgain != null;
 
     return Center(
-      child: Padding(
-        padding: tt.cardPadding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: tt.contentMaxWidth ?? 560,
+        ),
+        child: Padding(
+          padding: tt.cardPadding,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Icon(
               Icons.error_outline,
               size: tt.iconSize * 2,
@@ -232,7 +236,8 @@ class ScreenLoadErrorPanel extends StatelessWidget {
               ),
               child: Text(l10n.copyToClipboard),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

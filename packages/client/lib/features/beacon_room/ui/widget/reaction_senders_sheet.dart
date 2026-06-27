@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Telegram-style bottom sheet: tab by emoji, list of people who reacted.
 Future<void> showReactionSendersSheet(
@@ -25,7 +24,7 @@ Future<void> showReactionSendersSheet(
   }
   var selected = keys.contains(initialEmoji) ? initialEmoji : keys.first;
 
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     useRootNavigator: true,
@@ -33,6 +32,7 @@ Future<void> showReactionSendersSheet(
       final theme = Theme.of(sheetContext);
       final scheme = theme.colorScheme;
       final l10n = L10n.of(sheetContext)!;
+      final tt = sheetContext.tt;
 
       return SafeArea(
         child: Semantics(
@@ -52,19 +52,28 @@ Future<void> showReactionSendersSheet(
                     children: [
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 8, bottom: 4),
+                          padding: EdgeInsets.only(
+                            top: tt.rowGap,
+                            bottom: tt.tightGap * 2,
+                          ),
                           child: Container(
-                            width: 32,
-                            height: 4,
+                            width: tt.buttonHeight,
+                            height: tt.tightGap * 2,
                             decoration: BoxDecoration(
                               color: scheme.outlineVariant,
-                              borderRadius: BorderRadius.circular(2),
+                              borderRadius: BorderRadius.circular(
+                                tt.cardRadius,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       Padding(
-                        padding: kPaddingH.add(const EdgeInsets.only(bottom: 8)),
+                        padding: EdgeInsets.only(
+                          left: tt.screenHPadding,
+                          right: tt.screenHPadding,
+                          bottom: tt.rowGap,
+                        ),
                         child: Text(
                           l10n.beaconRoomReactionSendersSheetTitle,
                           style: theme.textTheme.titleMedium,
@@ -75,17 +84,22 @@ Future<void> showReactionSendersSheet(
                         height: 48,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          padding: kPaddingH,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: tt.screenHPadding,
+                          ),
                           itemCount: keys.length,
                           separatorBuilder: (context, index) =>
-                              const SizedBox(width: kSpacingSmall),
+                              SizedBox(width: tt.rowGap),
                           itemBuilder: (context, i) {
                             final emoji = keys[i];
                             final active = emoji == selected;
                             return FilterChip(
                               selected: active,
                               showCheckmark: false,
-                              label: Text(emoji, style: theme.textTheme.titleMedium),
+                              label: Text(
+                                emoji,
+                                style: theme.textTheme.titleMedium,
+                              ),
                               onSelected: (_) {
                                 setModalState(() {
                                   selected = emoji;
@@ -93,7 +107,9 @@ Future<void> showReactionSendersSheet(
                               },
                               selectedColor: scheme.primaryContainer,
                               side: BorderSide(
-                                color: active ? scheme.primary : scheme.outlineVariant,
+                                color: active
+                                    ? scheme.primary
+                                    : scheme.outlineVariant,
                               ),
                             );
                           },
@@ -103,7 +119,11 @@ Future<void> showReactionSendersSheet(
                       Expanded(
                         child: ListView.separated(
                           controller: scrollController,
-                          padding: kPaddingH.add(const EdgeInsets.only(top: 8)),
+                          padding: EdgeInsets.only(
+                            left: tt.screenHPadding,
+                            right: tt.screenHPadding,
+                            top: tt.rowGap,
+                          ),
                           itemCount: senders.length,
                           separatorBuilder: (context, index) =>
                               const Divider(height: 1),
@@ -113,8 +133,11 @@ Future<void> showReactionSendersSheet(
                               height: 48,
                               child: Row(
                                 children: [
-                                  TenturaAvatar.medium(profile: p, size: 32),
-                                  const SizedBox(width: 12),
+                                  TenturaAvatar.medium(
+                                    profile: p,
+                                    size: tt.avatarSize,
+                                  ),
+                                  SizedBox(width: tt.avatarTextGap),
                                   Expanded(
                                     child: Text(
                                       p.shownName,

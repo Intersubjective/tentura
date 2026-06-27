@@ -90,12 +90,15 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           transitionBuilder: (context, child, animation) => child,
           builder: (context, child) {
             final tabsRouter = context.tabsRouter;
-            final content = TenturaContentColumn(
-              child: HomePostJoinListener(
-                tabsRouter: tabsRouter,
-                child: child,
-              ),
+            final tabContent = HomePostJoinListener(
+              tabsRouter: tabsRouter,
+              child: child,
             );
+            final content =
+                tabsRouter.activeIndex == 1 &&
+                    windowClass == WindowClass.expanded
+                ? tabContent
+                : TenturaContentColumn(child: tabContent);
             if (useSideNav) {
               final extendedRail = windowClass == WindowClass.expanded;
               return Scaffold(

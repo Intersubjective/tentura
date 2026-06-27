@@ -195,7 +195,11 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
             ),
           ),
-          body: SafeArea(child: body),
+          body: SafeArea(
+            child: _isScatterView
+                ? body
+                : TenturaContentColumn(child: body),
+          ),
         );
       },
     );

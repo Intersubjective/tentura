@@ -72,7 +72,8 @@ class ProfileEditScreen extends StatelessWidget
 
       // Form
       body: SafeArea(
-        child: Column(
+        child: TenturaContentColumn(
+          child: Column(
         children: [
           // Avatar
           Center(
@@ -251,6 +252,7 @@ class ProfileEditScreen extends StatelessWidget
             ),
           ),
         ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
 import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
@@ -10,7 +11,7 @@ Future<void> showBeaconRoomPollSheet(
   BuildContext context, {
   required RoomCubit cubit,
 }) async {
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     useRootNavigator: true,
@@ -66,12 +67,13 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final tt = context.tt;
     return Padding(
       padding: EdgeInsets.only(
-        left: kSpacingMedium,
-        right: kSpacingMedium,
-        top: kSpacingMedium,
-        bottom: MediaQuery.of(context).viewInsets.bottom + kSpacingMedium,
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
       ),
       child: Form(
         key: _formKey,
@@ -84,23 +86,23 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                 l10n.beaconRoomCreatePoll,
                 style: theme.textTheme.titleMedium,
               ),
-              const SizedBox(height: kSpacingMedium),
+              SizedBox(height: tt.sectionGap),
               PollingQuestionInput(
                 labelText: l10n.pollQuestionFieldLabel,
                 onChanged: (v) => _question = v,
               ),
-              const SizedBox(height: kSpacingMedium),
+              SizedBox(height: tt.sectionGap),
               Text(
                 l10n.pollOptionsLabel,
                 style: theme.textTheme.labelLarge,
               ),
-              const SizedBox(height: kSpacingSmall),
+              SizedBox(height: tt.rowGap),
               ..._variants.asMap().entries.map(
                 (entry) {
                   final idx = entry.key;
                   return Padding(
                     key: ValueKey(idx),
-                    padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                    padding: EdgeInsets.only(bottom: tt.rowGap),
                     child: PollingVariantInput(
                       labelText: l10n.optionLabel(idx + 1),
                       onChanged: (v) => _variants[idx] = v,
@@ -118,7 +120,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                     ? () => setState(() => _variants.add(''))
                     : null,
               ),
-              const SizedBox(height: kSpacingMedium),
+              SizedBox(height: tt.sectionGap),
 
               // Poll type selector
               Align(
@@ -145,7 +147,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: kSpacingSmall),
+              SizedBox(height: tt.rowGap),
 
               // Anonymous / open toggle
               SwitchListTile(
@@ -164,7 +166,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                 onChanged: (v) => setState(() => _allowRevote = v),
               ),
 
-              const SizedBox(height: kSpacingSmall),
+              SizedBox(height: tt.rowGap),
               FilledButton(
                 onPressed: _sending ? null : _send,
                 child: Text(l10n.beaconRoomSendPollButton),
