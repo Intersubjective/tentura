@@ -386,12 +386,12 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
   }) async {
     final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-    return _room.listActivityEvents(beaconId: beaconId);
+    final rows = await _room.listActivityEvents(beaconId: beaconId);
+    if (allowed) return rows;
+    return [
+      for (final r in rows)
+        if (r['visibility'] == BeaconActivityEventVisibilityBits.public) r,
+    ];
   }
 
   Future<List<MyWorkLastActivityEventRow>> myWorkLastActivityEventsByBeaconIds({

@@ -225,9 +225,16 @@ final class BeaconViewCase extends UseCaseBase {
     }
   }
 
-  /// Room coordination activity timeline (V2).
-  Future<List<BeaconActivityEvent>> fetchRoomActivityEvents(String beaconId) =>
-      _activityEvents.list(beaconId: beaconId);
+  /// Room coordination activity timeline; empty when caller cannot use room APIs.
+  Future<List<BeaconActivityEvent>> fetchRoomActivityEvents(
+    String beaconId,
+  ) async {
+    try {
+      return await _activityEvents.list(beaconId: beaconId);
+    } on Object catch (_) {
+      return [];
+    }
+  }
 
   /// Inbox/My Work style unread snapshot for beacon room (0 when not a room member).
   Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) =>

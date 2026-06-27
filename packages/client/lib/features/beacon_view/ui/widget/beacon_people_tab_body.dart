@@ -10,7 +10,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
-import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_response_bottom_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
@@ -131,26 +131,11 @@ class BeaconPeopleTabBody extends StatelessWidget {
             : null,
         onEdit: row.userId == state.myProfile.id && !c.isWithdrawn
             ? () async {
-                final outcome = await HelpOfferMessageDialog.show(
+                await beaconViewRunEditHelpOfferDialog(
                   context,
-                  title: l10n.beaconHeaderUpdateHelpOffer,
-                  hintText: l10n.hintOfferHelpMessage,
-                  initialText: c.message,
-                  allowEmptyMessage: true,
-                  showHelpTypeChips: true,
-                  initialHelpTypeSlugs: helpOfferStoredHelpTypeSlugs(
-                    c.helpType,
-                  ),
-                  automaticSlugs: beacon.needs,
+                  beaconViewCubit,
+                  l10n,
                 );
-                if (outcome != null && context.mounted) {
-                  await beaconViewCubit.offerHelp(
-                    message: outcome.message,
-                    helpTypes: normalizeOfferHelpTypesWire(
-                      outcome.helpTypesWire,
-                    ),
-                  );
-                }
               }
             : null,
         onWithdraw:

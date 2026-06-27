@@ -294,7 +294,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     setState(() {
       if (roomDenied) {
         _showRoomSurface = false;
-        _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
+        if (s.showsRoomAccessUnavailableBanner) {
+          _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
+        } else {
+          unawaited(_stripRoomFromUrl());
+        }
       }
       _didApplyFetchResolution = true;
       if (_showRoomSurface && s.canNavigateBeaconRoom) {
@@ -517,9 +521,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           unawaited(_releaseEmbeddedRoomCubit());
           setState(() {
             _showRoomSurface = false;
-            _bannerMessage = L10n.of(
-              ctx,
-            )!.beaconViewRoomAccessUnavailableBanner;
+            if (s.showsRoomAccessUnavailableBanner) {
+              _bannerMessage = L10n.of(
+                ctx,
+              )!.beaconViewRoomAccessUnavailableBanner;
+            } else {
+              unawaited(_stripRoomFromUrl());
+            }
           });
           return;
         }

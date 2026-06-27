@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
@@ -44,6 +45,7 @@ Future<void> _pumpHeaderCard(
   required BeaconViewState state,
   VoidCallback? onUpdateStatus,
   VoidCallback? onForward,
+  VoidCallback? onEditHelpOffer,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -60,6 +62,7 @@ Future<void> _pumpHeaderCard(
               onAuthorTap: () {},
               onUpdateStatus: onUpdateStatus,
               onForward: onForward ?? () {},
+              onEditHelpOffer: onEditHelpOffer,
             ),
           ),
         ),
@@ -333,6 +336,60 @@ void main() {
       expect(find.text('View chain'), findsNothing);
       expect(find.text('Forward'), findsNothing);
       expect(find.text('Update status'), findsNothing);
+    });
+
+    testWidgets('waiting help offerer shows Edit help offer CTA', (tester) async {
+      const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: viewer,
+        isHelpOffered: true,
+        helpOffers: [
+          TimelineHelpOffer(
+            user: viewer,
+            message: 'I can help',
+            createdAt: t,
+            updatedAt: t,
+          ),
+        ],
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onEditHelpOffer: () {},
+      );
+
+      expect(find.text('Edit help offer'), findsOneWidget);
+      expect(find.text('Offer help'), findsNothing);
+    });
+
+    testWidgets('rejected help offerer does not show Edit help offer CTA', (
+      tester,
+    ) async {
+      const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: viewer,
+        isHelpOffered: true,
+        helpOffers: [
+          TimelineHelpOffer(
+            user: viewer,
+            message: 'I can help',
+            createdAt: t,
+            updatedAt: t,
+            coordinationResponse: CoordinationResponseType.notSuitable,
+          ),
+        ],
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onEditHelpOffer: () {},
+      );
+
+      expect(find.text('Edit help offer'), findsNothing);
     });
   });
 }
