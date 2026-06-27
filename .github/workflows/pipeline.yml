@@ -91,16 +91,6 @@ jobs:
               esac
             '
 
-  test:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && always()
-    needs: test-shards
-    steps:
-      - name: Verify test jobs
-        run: |
-          set -euo pipefail
-          test "${{ needs.test-shards.result }}" = "success"
-
   coverage:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true'
@@ -155,7 +145,6 @@ jobs:
 
   build-web:
     runs-on: ubuntu-latest
-    needs: test
     if: github.event_name == 'push'
     permissions:
       contents: read
@@ -335,7 +324,6 @@ jobs:
 
   build-server:
     runs-on: ubuntu-latest
-    needs: test
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
@@ -391,7 +379,7 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [test, build-web, build-server]
+    needs: [test-shards, build-web, build-server]
     if: |
       always() &&
       !cancelled() &&
@@ -399,7 +387,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          needs.test.result == 'success' &&
+          needs.test-shards.result == 'success' &&
           needs.build-web.result == 'success' &&
           needs.build-server.result == 'success'
         )
