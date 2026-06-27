@@ -1,5 +1,7 @@
 export 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -9,7 +11,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import '../../data/repository/complaint_repository.dart';
+import '../../domain/use_case/complaint_case.dart';
 import 'complaint_messages.dart';
 import 'complaint_state.dart';
 
@@ -19,10 +21,9 @@ class ComplaintCubit extends Cubit<ComplaintState> {
   ComplaintCubit({
     required String id,
     ComplaintType? fixedType,
-    ComplaintRepository? complaintRepository,
+    ComplaintCase? complaintCase,
     UiEffectPort? effects,
-  }) : _complaintRepository =
-           complaintRepository ?? GetIt.I<ComplaintRepository>(),
+  }) : _complaintCase = complaintCase ?? GetIt.I<ComplaintCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          ComplaintState(
@@ -30,11 +31,23 @@ class ComplaintCubit extends Cubit<ComplaintState> {
            type: fixedType ?? ComplaintType.violatesCsaePolicy,
            fixedType: fixedType,
          ),
-       );
+       ) {
+    if (fixedType == ComplaintType.accountDeletionRequest) {
+      unawaited(_prefillEmail());
+    }
+  }
 
-  final ComplaintRepository _complaintRepository;
+  final ComplaintCase _complaintCase;
 
   final UiEffectPort _effects;
+
+  Future<void> _prefillEmail() async {
+    final email = await _complaintCase.resolveDefaultFeedbackEmail();
+    if (email == null || isClosed || state.email.isNotEmpty) {
+      return;
+    }
+    emit(state.copyWith(email: email));
+  }
 
   ///
   void setType(ComplaintType? type) {
@@ -54,7 +67,7 @@ class ComplaintCubit extends Cubit<ComplaintState> {
   Future<void> submit() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _complaintRepository.create(
+      await _complaintCase.create(
         id: state.id,
         type: state.type,
         email: state.email,

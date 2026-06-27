@@ -36,6 +36,7 @@ class Env {
     bool? oauthPreloadEnabled,
     String? resendApiKey,
     String? resendFromEmail,
+    String? complaintEmail,
     String? emailDebugSinkDir,
     bool? qaAuthEnabled,
     String? qaAuthToken,
@@ -135,6 +136,7 @@ class Env {
            oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
        resendApiKey = resendApiKey ?? _env['RESEND_API_KEY'] ?? '',
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
+       complaintEmail = complaintEmail ?? _env['COMPLAINT_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
        qaAuthEnabled =
@@ -394,6 +396,9 @@ class Env {
   final String resendApiKey;
 
   final String resendFromEmail;
+
+  /// Inbox for profile-deletion and complaint notifications (`COMPLAINT_EMAIL`).
+  final String complaintEmail;
 
   /// Dev-only magic-link delivery sink (`EMAIL_DEBUG_SINK_DIR`): when set, the
   /// server writes verify URLs to `<dir>/<sanitized-email>.json` instead of
