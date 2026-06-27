@@ -10,6 +10,8 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_poll_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -214,6 +216,15 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
       );
 }
 
+VoidCallback? beaconViewRoomCreatePollAction({
+  required BuildContext context,
+  required RoomCubit? roomCubit,
+  required bool inRoomSurface,
+}) {
+  if (!inRoomSurface || roomCubit == null || roomCubit.isClosed) return null;
+  return () => unawaited(showBeaconRoomPollSheet(context, cubit: roomCubit));
+}
+
 Widget beaconViewAppBarOverflow({
   required BuildContext context,
   required BeaconViewState state,
@@ -223,6 +234,7 @@ Widget beaconViewAppBarOverflow({
   required Future<void> Function() onAuthorManageStatus,
   required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
+  RoomCubit? roomCubit,
 }) {
   final b = state.beacon;
   final beaconId = b.id;
@@ -234,6 +246,11 @@ Widget beaconViewAppBarOverflow({
     state: state,
     beaconId: beaconId,
     onSaved: onItemsTabRefresh,
+    inRoomSurface: inRoomSurface,
+  );
+  final onCreatePoll = beaconViewRoomCreatePollAction(
+    context: context,
+    roomCubit: roomCubit,
     inRoomSurface: inRoomSurface,
   );
 
@@ -274,6 +291,7 @@ Widget beaconViewAppBarOverflow({
             }
           : null,
       onCreatePromise: onCreatePromise,
+      onCreatePoll: onCreatePoll,
       onForward: showBeaconManagementOverflow
           ? () => unawaited(
               beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
@@ -309,6 +327,7 @@ Widget beaconViewAppBarOverflow({
   return BeaconOverflowMenu(
     beacon: b,
     onCreatePromise: onCreatePromise,
+    onCreatePoll: onCreatePoll,
     onOfferHelp:
         !hideOfferHelpWithdraw &&
             !state.isHelpOffered &&
