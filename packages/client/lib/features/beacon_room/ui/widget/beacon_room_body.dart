@@ -620,6 +620,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
         content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
@@ -651,6 +652,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
         content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
@@ -691,6 +693,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       showDragHandle: true,
       isScrollControlled: true,
       useRootNavigator: true,
+      enableDrag: false,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
@@ -873,79 +876,86 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     try {
       final ok = await showDialog<bool>(
         context: context,
-        builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: Text(dialogTitle),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: InputDecoration(
-                      hintText: l10n.coordinationPromoteTitleHint,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: kSpacingSmall),
-                  TextField(
-                    controller: bodyController,
-                    decoration: InputDecoration(
-                      hintText: l10n.coordinationPromoteBodyHint,
-                    ),
-                    maxLines: 4,
-                    autofocus: messageBody.isEmpty,
-                  ),
-                  const SizedBox(height: kSpacingSmall),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey<String>(targetUserId),
-                    initialValue: targetUserId,
-                    decoration: InputDecoration(
-                      labelText: l10n.beaconRoomNeedInfoPickTarget,
-                    ),
-                    items: [
-                      for (final p in admitted)
-                        DropdownMenuItem(
-                          value: p.userId,
-                          child: Text(
-                            _needInfoTargetLabel(l10n, viewer, p),
+        useRootNavigator: true,
+        builder: (ctx) {
+          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+          return StatefulBuilder(
+            builder: (ctx, setState) => Padding(
+              padding: EdgeInsets.only(bottom: bottom),
+              child: AlertDialog(
+                title: Text(dialogTitle),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: titleController,
+                        decoration: InputDecoration(
+                          hintText: l10n.coordinationPromoteTitleHint,
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: kSpacingSmall),
+                      TextField(
+                        controller: bodyController,
+                        decoration: InputDecoration(
+                          hintText: l10n.coordinationPromoteBodyHint,
+                        ),
+                        maxLines: 4,
+                        autofocus: messageBody.isEmpty,
+                      ),
+                      const SizedBox(height: kSpacingSmall),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey<String>(targetUserId),
+                        initialValue: targetUserId,
+                        decoration: InputDecoration(
+                          labelText: l10n.beaconRoomNeedInfoPickTarget,
+                        ),
+                        items: [
+                          for (final p in admitted)
+                            DropdownMenuItem(
+                              value: p.userId,
+                              child: Text(
+                                _needInfoTargetLabel(l10n, viewer, p),
+                              ),
+                            ),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => targetUserId = v ?? targetUserId),
+                      ),
+                      if (includeStalenessPicker) ...[
+                        const SizedBox(height: kSpacingSmall),
+                        CoordinationStalenessPicker(
+                          l10n: l10n,
+                          selectedDays: staleDays,
+                          onSelected: (days) => setState(() => staleDays = days),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: kSpacingSmall),
+                        Text(
+                          l10n.coordinationStalenessDefaultHint,
+                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                           ),
                         ),
+                      ],
                     ],
-                    onChanged: (v) =>
-                        setState(() => targetUserId = v ?? targetUserId),
                   ),
-                  if (includeStalenessPicker) ...[
-                    const SizedBox(height: kSpacingSmall),
-                    CoordinationStalenessPicker(
-                      l10n: l10n,
-                      selectedDays: staleDays,
-                      onSelected: (days) => setState(() => staleDays = days),
-                    ),
-                  ] else ...[
-                    const SizedBox(height: kSpacingSmall),
-                    Text(
-                      l10n.coordinationStalenessDefaultHint,
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       );
       if (ok != true) return null;
       final body = bodyController.text.trim();
@@ -1064,6 +1074,7 @@ Future<void> showBeaconRoomUpdatePlanSheet(
     showDragHandle: true,
     isScrollControlled: true,
     useRootNavigator: true,
+    enableDrag: false,
     builder: (ctx) => _BeaconRoomTextBottomSheet(
       title: l10n.beaconRoomActionUpdatePlan,
       hintText: l10n.beaconRoomStripCurrentLineLabel,
@@ -1120,30 +1131,32 @@ class _BeaconRoomTextBottomSheetState
         top: tt.sectionGap,
         bottom: bottom + tt.sectionGap,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.title,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          SizedBox(height: tt.rowGap),
-          TextField(
-            controller: _controller,
-            maxLines: widget.maxLength != null ? 2 : 6,
-            minLines: widget.maxLength != null ? 1 : 3,
-            maxLength: widget.maxLength,
-            decoration: InputDecoration(
-              hintText: widget.hintText,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-          ),
-          SizedBox(height: tt.sectionGap),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-          ),
-        ],
+            SizedBox(height: tt.rowGap),
+            TextField(
+              controller: _controller,
+              maxLines: widget.maxLength != null ? 2 : 6,
+              minLines: widget.maxLength != null ? 1 : 3,
+              maxLength: widget.maxLength,
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+              ),
+            ),
+            SizedBox(height: tt.sectionGap),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+              child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+            ),
+          ],
+        ),
       ),
     );
   }

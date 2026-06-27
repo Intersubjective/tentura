@@ -136,6 +136,7 @@ Future<void> _confirmRemoveFact(
 ) async {
   final ok = await showDialog<bool>(
     context: context,
+    useRootNavigator: true,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
       content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
@@ -170,6 +171,7 @@ Future<void> _showEditFactSheet(
     showDragHandle: true,
     isScrollControlled: true,
     useRootNavigator: true,
+    enableDrag: false,
     builder: (ctx) => _EditFactSheet(
       initialText: fact.factText,
       l10n: l10n,

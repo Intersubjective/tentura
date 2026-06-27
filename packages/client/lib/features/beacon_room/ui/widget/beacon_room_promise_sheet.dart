@@ -93,6 +93,7 @@ Future<void> showBeaconRoomPromiseSheet(
       showDragHandle: true,
       isScrollControlled: true,
       useRootNavigator: true,
+      enableDrag: false,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
@@ -108,10 +109,11 @@ Future<void> showBeaconRoomPromiseSheet(
                 top: tt.sectionGap,
                 bottom: bottom + tt.sectionGap,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Text(
                     l10n.coordinationCreatePromiseSheetPrompt,
                     style: Theme.of(ctx).textTheme.titleMedium,
@@ -184,6 +186,7 @@ Future<void> showBeaconRoomPromiseSheet(
                         : Text(MaterialLocalizations.of(ctx).saveButtonLabel),
                   ),
                 ],
+                ),
               ),
             );
           },

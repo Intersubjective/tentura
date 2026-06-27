@@ -15,6 +15,7 @@ Future<void> showBeaconRoomPollSheet(
     context: context,
     isScrollControlled: true,
     useRootNavigator: true,
+    enableDrag: false,
     builder: (_) => _PollCreateSheet(cubit: cubit),
   );
 }
