@@ -14,6 +14,7 @@ import 'package:tentura_root/consts.dart';
 import 'auth_link.dart';
 import 'auth_loss_classifier.dart';
 import 'graphql_v2_exceptions.dart';
+import 'v2_upload_multipart_link.dart';
 
 typedef ClientParams = ({
   String apiEndpointUrl,
@@ -84,11 +85,18 @@ Future<Client> buildClient({
           defaultHeaders: defaultHeaders,
           httpClient: hasuraHttpClient,
         ),
-        tenturaV2Link: HttpLink(
-          params.apiEndpointUrlV2,
-          defaultHeaders: defaultHeaders,
-          httpClient: tenturaV2HttpClient,
-        ),
+        tenturaV2Link: Link.from([
+          V2UploadMultipartLink(
+            uri: Uri.parse(params.apiEndpointUrlV2),
+            httpClient: tenturaV2HttpClient,
+            defaultHeaders: defaultHeaders,
+          ),
+          HttpLink(
+            params.apiEndpointUrlV2,
+            defaultHeaders: defaultHeaders,
+            httpClient: tenturaV2HttpClient,
+          ),
+        ]),
       ),
     ]),
   );
