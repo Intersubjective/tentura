@@ -96,6 +96,27 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   /// Patches joined item snapshots on all messages referencing [item].
+  /// Patches each message's linked-item reply counts from [items] (keyed by id).
+  static List<RoomMessage> _joinCoordinationCounts(
+    List<RoomMessage> messages,
+    List<CoordinationItem> items,
+  ) {
+    if (items.isEmpty) return messages;
+    final byId = <String, CoordinationItem>{
+      for (final it in items) it.id: it,
+    };
+    return [
+      for (final m in messages)
+        if (m.linkedItemId != null && byId[m.linkedItemId] != null)
+          m.copyWith(
+            linkedItemMessageCount: byId[m.linkedItemId]!.messageCount,
+            linkedItemUnreadCount: byId[m.linkedItemId]!.unreadCount,
+          )
+        else
+          m,
+    ];
+  }
+
   void applyCoordinationItemSnapshot(CoordinationItem item) {
     if (isClosed || state.threadItemId != null) return;
     final patched = state.messages.map((m) {
@@ -248,7 +269,7 @@ class RoomCubit extends Cubit<RoomState> {
     }
     try {
       final inThread = state.threadItemId != null;
-      final messages = await _case.fetchMessages(
+      final rawMessages = await _case.fetchMessages(
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
       );
@@ -266,6 +287,13 @@ class RoomCubit extends Cubit<RoomState> {
       final currentCoordinationPlan = inThread
           ? null
           : await _case.fetchCurrentCoordinationPlan(state.beaconId);
+      // Join thread reply counts (messageCount/unreadCount) onto messages by
+      // linkedItemId — these are not in the gql message snapshot.
+      final coordinationItems = inThread
+          ? const <CoordinationItem>[]
+          : await _case.fetchCoordinationItems(state.beaconId);
+      final messages =
+          _joinCoordinationCounts(rawMessages, coordinationItems);
 
       if (isClosed) return;
 
@@ -338,7 +366,16 @@ class RoomCubit extends Cubit<RoomState> {
     String? targetPersonId,
     String? linkedMessageId,
   }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
+    // Optimistically reflect the new pinned plan/status line so the HUD strip
+    // updates instantly; load() below reconciles (and restores on error).
+    final optimisticRoomState =
+        state.roomState?.copyWith(currentLine: currentLine);
+    emit(
+      state.copyWith(
+        status: const StateIsLoading(),
+        roomState: optimisticRoomState ?? state.roomState,
+      ),
+    );
     try {
       await _case.updateRoomPlan(
         beaconId: state.beaconId,
@@ -577,29 +614,6 @@ class RoomCubit extends Cubit<RoomState> {
         title: title,
         body: body,
         targetPersonId: targetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
-      await load();
-    } on Object catch (e) {
-      _showSnackError(e);
-    }
-  }
-
-  Future<void> markAskFromMessageAsNeedInfo({
-    required String messageId,
-    required String targetPersonId,
-    required String title,
-    String body = '',
-    int? staleAfterDays,
-  }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.markAskFromMessageAsNeedInfo(
-        beaconId: state.beaconId,
-        messageId: messageId,
-        targetPersonId: targetPersonId,
-        title: title,
-        body: body,
         staleAfterDays: staleAfterDays,
       );
       await load();

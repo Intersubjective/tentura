@@ -186,6 +186,11 @@ final class BeaconRoomCase extends UseCaseBase {
     return items.firstOrNull;
   }
 
+  /// All coordination items for the beacon, with `messageCount`/`unreadCount`,
+  /// used to join thread reply counts onto room messages.
+  Future<List<CoordinationItem>> fetchCoordinationItems(String beaconId) =>
+      _coordinationItemCase.listByBeacon(beaconId);
+
   Future<void> updateRoomPlan({
     required String beaconId,
     required String currentLine,
@@ -323,23 +328,6 @@ final class BeaconRoomCase extends UseCaseBase {
             staleAfterDays: staleAfterDays,
           )
           .then((_) {});
-
-  Future<void> markAskFromMessageAsNeedInfo({
-    required String beaconId,
-    required String messageId,
-    required String targetPersonId,
-    required String title,
-    String body = '',
-    int? staleAfterDays,
-  }) =>
-      markAskFromMessage(
-        beaconId: beaconId,
-        messageId: messageId,
-        title: title,
-        targetPersonId: targetPersonId,
-        body: body,
-        staleAfterDays: staleAfterDays,
-      );
 
   Future<void> resolveCoordinationBlocker({required String itemId}) =>
       _coordinationItemCase.resolveBlocker(itemId: itemId).then((_) {});

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -393,6 +394,33 @@ class RoomMessageTile extends StatelessWidget {
         }
         final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
         final isCreated = eventKind == CoordinationItemEventKind.created;
+        // A plan update promoted from a message announces the new plan text
+        // (like a standalone plan update), not a generic "promoted" line — the
+        // pinned plan/status updates alongside it.
+        if (kind == CoordinationItemKind.plan && isCreated) {
+          final title = (message.linkedItemTitle ?? '').trim();
+          return _CenteredTimelineBar(
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              topPad / 2,
+              tt.screenHPadding,
+              bottomPad / 2,
+            ),
+            icon: Icons.edit_note_outlined,
+            lineBuilder: (authorName) => title.isEmpty
+                ? l10n.beaconRoomPlanAnnounceLine(authorName)
+                : l10n.beaconRoomPlanAnnounceLineWithTitle(authorName, title),
+            author: message.author,
+            onTap: onScrollToPromoteSource == null
+                ? null
+                : () => onScrollToPromoteSource!(srcId),
+            accessibilityHint: l10n.beaconRoomPromotePinAccessibilityHint,
+            borderRadius: tt.cardRadius,
+            scheme: scheme,
+            theme: theme,
+            iconTextGap: tt.iconTextGap,
+          );
+        }
         return _CenteredTimelineBar(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
@@ -689,14 +717,18 @@ class RoomMessageTile extends StatelessWidget {
       ),
     );
 
-    Widget wrapActions(Widget inner) => GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onActionsPressed == null ? null : () => onActionsPressed!(message),
-      onSecondaryTap: onActionsPressed == null
-          ? null
-          : () => onActionsPressed!(message),
-      child: inner,
-    );
+    final actionsCb =
+        onActionsPressed == null ? null : () => onActionsPressed!(message);
+    // Plain tap opens the linked item/thread (touch only, see
+    // [_MessageBubbleInteraction]); quick-react toggles the heart emoji.
+    final openItemCb =
+        linkedCoord == null ? null : _coordinationItemTap(context, linkedCoord);
+    void quickReactCb() => unawaited(
+          onToggleReaction(
+            message.id,
+            BeaconRoomMessageReaction.quickPickerEmojis.first,
+          ),
+        );
 
     final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
     final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
@@ -776,6 +808,17 @@ class RoomMessageTile extends StatelessWidget {
             color: scheme.onSurfaceVariant,
           );
           final hasItemTap = linkedCoord != null;
+          final threadMarkExtra = (linkedCoord != null &&
+                  RoomMessageTile.isThreadEntryKind(linkedCoord.kind))
+              ? measureLifecycleThreadMarkWidth(
+                  count: linkedCoord.messageCount,
+                  hasUnread: linkedCoord.hasUnread,
+                  countStyle: lifecycleTimeStyle ?? const TextStyle(),
+                  itemGap: footerGap,
+                  textDirection: textDirection,
+                  textScaler: textScaler,
+                )
+              : 0.0;
           var footerMinWidth = 0.0;
 
           if (showCoordinationFooter && linkedCoord != null) {
@@ -792,6 +835,7 @@ class RoomMessageTile extends StatelessWidget {
                 timeStyle: lifecycleTimeStyle,
                 itemGap: footerGap,
                 showChevron: hasItemTap,
+                trailingExtraWidth: threadMarkExtra,
                 textDirection: textDirection,
                 textScaler: textScaler,
               );
@@ -812,6 +856,7 @@ class RoomMessageTile extends StatelessWidget {
                 timeStyle: lifecycleTimeStyle,
                 itemGap: footerGap,
                 showChevron: hasItemTap,
+                trailingExtraWidth: threadMarkExtra,
                 textDirection: textDirection,
                 textScaler: textScaler,
               );
@@ -850,6 +895,7 @@ class RoomMessageTile extends StatelessWidget {
                   timeStyle: lifecycleTimeStyle,
                   itemGap: footerGap,
                   showChevron: hasItemTap,
+                  trailingExtraWidth: threadMarkExtra,
                   textDirection: textDirection,
                   textScaler: textScaler,
                 );
@@ -920,7 +966,13 @@ class RoomMessageTile extends StatelessWidget {
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: SizedBox(
             width: bubbleWidth,
-            child: wrapActions(bubbleChild),
+            child: _MessageBubbleInteraction(
+              isMine: isMine,
+              onActions: actionsCb,
+              onOpenItem: openItemCb,
+              onQuickReact: quickReactCb,
+              child: bubbleChild,
+            ),
           ),
         );
       },
@@ -1199,6 +1251,9 @@ class _MessageLifecycleFooter extends StatelessWidget {
           ),
           time: RoomMessageTile._formatMessageTime(at),
           onTap: onOpenItem,
+          kind: linkedCoord!.kind,
+          messageCount: linkedCoord!.messageCount,
+          hasUnread: linkedCoord!.hasUnread,
         );
       }
     }
@@ -1232,6 +1287,9 @@ class _MessageLifecycleFooter extends StatelessWidget {
         label: RoomMessageTile._coordKindShortLabel(l10n, kind),
         time: RoomMessageTile._formatMessageTime(promotionDate),
         onTap: onOpenItem,
+        kind: kind,
+        messageCount: linkedCoord!.messageCount,
+        hasUnread: linkedCoord!.hasUnread,
       );
     }
 
@@ -1277,6 +1335,9 @@ class _MessageLifecycleFooter extends StatelessWidget {
         ),
         time: RoomMessageTile._formatMessageTime(at),
         onTap: onOpenItem,
+        kind: kind,
+        messageCount: linkedCoord!.messageCount,
+        hasUnread: linkedCoord!.hasUnread,
       );
     }
 
@@ -1435,7 +1496,13 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required String label,
     required String time,
     required VoidCallback? onTap,
+    CoordinationItemKind? kind,
+    int messageCount = 0,
+    bool hasUnread = false,
   }) {
+    // Ask/promise/blocker open a real sub-thread → forum mark (+ reply count /
+    // unread dot) and a chevron. Plan only scrolls to its anchor → jump glyph.
+    final isThread = kind != null && RoomMessageTile.isThreadEntryKind(kind);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1463,10 +1530,44 @@ class _MessageLifecycleFooter extends StatelessWidget {
             color: scheme.onSurfaceVariant,
           ),
         ),
-        if (onTap != null) ...[
+        if (onTap != null && isThread) ...[
+          SizedBox(width: tokens.iconTextGap / 4),
+          Icon(
+            Icons.forum_outlined,
+            size: _iconSize,
+            color: scheme.onSurfaceVariant,
+          ),
+          if (messageCount > 0) ...[
+            SizedBox(width: tokens.iconTextGap / 4),
+            Text(
+              '$messageCount',
+              maxLines: 1,
+              style: textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (hasUnread) ...[
+            SizedBox(width: tokens.iconTextGap / 4),
+            Container(
+              width: kLifecycleUnreadDotSize,
+              height: kLifecycleUnreadDotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: tokens.info,
+              ),
+            ),
+          ],
           SizedBox(width: tokens.iconTextGap / 4),
           Icon(
             Icons.chevron_right,
+            size: _iconSize,
+            color: scheme.onSurfaceVariant,
+          ),
+        ] else if (onTap != null) ...[
+          SizedBox(width: tokens.iconTextGap / 4),
+          Icon(
+            Icons.subdirectory_arrow_left,
             size: _iconSize,
             color: scheme.onSurfaceVariant,
           ),
@@ -1626,6 +1727,157 @@ class _ReactorAvatarStrip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Pointer-adaptive interaction wrapper for a message bubble.
+///
+/// Touch: long-press opens the action sheet, double-tap quick-reacts, a plain
+/// tap opens the linked item. Desktop/mouse/trackpad: secondary-tap (right-click
+/// / Mac ctrl-click / two-finger) opens the sheet and a hover toolbar exposes
+/// quick-react + more. Long-press / double-tap / tap-to-open are filtered to
+/// touch pointers so a mouse can't trigger them and a left click stays free for
+/// text selection.
+class _MessageBubbleInteraction extends StatefulWidget {
+  const _MessageBubbleInteraction({
+    required this.child,
+    required this.isMine,
+    required this.onActions,
+    required this.onOpenItem,
+    required this.onQuickReact,
+  });
+
+  final Widget child;
+  final bool isMine;
+  final VoidCallback? onActions;
+  final VoidCallback? onOpenItem;
+  final VoidCallback? onQuickReact;
+
+  @override
+  State<_MessageBubbleInteraction> createState() =>
+      _MessageBubbleInteractionState();
+}
+
+class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction> {
+  static const _touchOnly = {PointerDeviceKind.touch};
+  static const _touchOrStylus = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+  };
+
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final onActions = widget.onActions;
+    final onOpenItem = widget.onOpenItem;
+    final onQuickReact = widget.onQuickReact;
+
+    Widget content = RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: <Type, GestureRecognizerFactory>{
+        if (onActions != null)
+          LongPressGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+            () => LongPressGestureRecognizer(supportedDevices: _touchOrStylus),
+            (r) => r.onLongPress = onActions,
+          ),
+        if (onOpenItem != null)
+          TapGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+            () => TapGestureRecognizer(supportedDevices: _touchOnly),
+            (r) => r.onTap = onOpenItem,
+          ),
+        if (onQuickReact != null)
+          DoubleTapGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+            () => DoubleTapGestureRecognizer(supportedDevices: _touchOnly),
+            (r) => r.onDoubleTap = onQuickReact,
+          ),
+      },
+      child: widget.child,
+    );
+
+    if (onActions != null) {
+      content = GestureDetector(
+        behavior: HitTestBehavior.deferToChild,
+        onSecondaryTap: onActions,
+        child: content,
+      );
+    }
+
+    if (onActions == null && onQuickReact == null) {
+      return content;
+    }
+
+    // MouseRegion hover fires only for pointer devices, so the toolbar never
+    // appears on touch (where long-press / double-tap already cover it).
+    return MouseRegion(
+      onEnter: (_) {
+        if (!_hovering) setState(() => _hovering = true);
+      },
+      onExit: (_) {
+        if (_hovering) setState(() => _hovering = false);
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          content,
+          // Kept within the Stack bounds so the surrounding MouseRegion still
+          // covers it — moving the pointer onto the toolbar must not dismiss it.
+          if (_hovering)
+            Positioned(
+              top: 0,
+              left: widget.isMine ? 4 : null,
+              right: widget.isMine ? null : 4,
+              child: _HoverActionToolbar(
+                onReact: onQuickReact,
+                onMore: onActions,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Desktop hover toolbar: quick-react + more, mirroring Slack/Discord chat rows.
+class _HoverActionToolbar extends StatelessWidget {
+  const _HoverActionToolbar({required this.onReact, required this.onMore});
+
+  final VoidCallback? onReact;
+  final VoidCallback? onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = L10n.of(context)!;
+    return Material(
+      elevation: 2,
+      color: scheme.surfaceContainerHigh,
+      shape: const StadiumBorder(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onReact != null)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              tooltip: l10n.beaconRoomReactionAddTooltip,
+              icon: const Icon(Icons.favorite_border),
+              onPressed: onReact,
+            ),
+          if (onMore != null)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              tooltip: l10n.beaconRoomMessageActionsTitle,
+              icon: const Icon(Icons.more_horiz),
+              onPressed: onMore,
+            ),
+        ],
+      ),
     );
   }
 }

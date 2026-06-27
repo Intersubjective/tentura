@@ -3277,8 +3277,12 @@
   "beaconRoomActionUpdatePlan": "Обновить план…",
   "beaconRoomActionPinFact": "Закрепить как факт",
   "beaconRoomActionMarkBlocker": "Пометить блокер…",
-  "beaconRoomActionNeedInfo": "Нужна информация…",
-  "beaconRoomActionMarkDone": "Отметить выполнено…",
+  "beaconRoomActionTurnInto": "Преобразовать в…",
+  "beaconRoomActionOpenThread": "Открыть обсуждение",
+  "beaconRoomActionJumpToPlan": "Перейти к плану",
+  "beaconRoomActionResolveBlocker": "Снять этот блокер",
+  "beaconRoomActionCopyText": "Скопировать текст",
+  "beaconRoomCopiedToClipboard": "Скопировано",
   "beaconRoomActionEditMessage": "Изменить сообщение",
   "beaconRoomActionDeleteMessage": "Удалить сообщение",
   "beaconRoomDeleteMessageConfirmTitle": "Удалить сообщение?",
@@ -3287,26 +3291,6 @@
   "beaconRoomMessageEdited": "Изменено",
   "beaconRoomBlockerTitleHint": "Заголовок блокера",
   "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
-  "beaconRoomNeedInfoRequestHint": "Что нужно уточнить?",
-  "beaconRoomMarkDoneTitle": "Что сделано?",
-  "beaconRoomMarkDoneMessageOnly": "Только это сообщение",
-  "beaconRoomMarkDoneResolveBlocker": "Снять связанный блокер",
-  "beaconRoomMarkDoneMyNextStep": "Мой следующий шаг: {text}",
-  "@beaconRoomMarkDoneMyNextStep": {
-    "placeholders": {
-      "text": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconRoomMarkDoneConfirmSingleBlocker": "Снять блокер: {title}",
-  "@beaconRoomMarkDoneConfirmSingleBlocker": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
   "beaconPeopleSectionTitle": "Люди и роли",
   "beaconPeopleParticipantUpdated": "Обновлено {when}",
   "@beaconPeopleParticipantUpdated": {
@@ -3607,7 +3591,6 @@
   "coordinationSemanticBlockerCancelled": "Блокер отменён",
   "coordinationMarkBlockerTitle": "Отметить блокер",
   "coordinationMarkBlockerHint": "Что заблокировано?",
-  "coordinationPromoteSheetTitle": "Повысить сообщение",
   "coordinationPromoteTitleHint": "Заголовок (необязательно)",
   "coordinationPromoteBodyHint": "Текст",
   "coordinationAskCardLabel": "Запрос",

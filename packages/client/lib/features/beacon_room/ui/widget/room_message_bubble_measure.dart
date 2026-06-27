@@ -206,6 +206,9 @@ double ensureHugWidthFitsReactionFooter({
   return width.ceilToDouble();
 }
 
+/// Unread dot diameter shown on a thread-mark reply chip.
+const double kLifecycleUnreadDotSize = 6;
+
 /// Fixed width of a lifecycle tap row excluding [label] and [time] text.
 double lifecycleTapRowChromeWidth({
   required double itemGap,
@@ -219,6 +222,32 @@ double lifecycleTapRowChromeWidth({
   return width;
 }
 
+/// Extra trailing width for a thread-mark reply chip (forum icon + optional
+/// reply count + optional unread dot), sitting before the chevron.
+double measureLifecycleThreadMarkWidth({
+  required int count,
+  required bool hasUnread,
+  required TextStyle countStyle,
+  required double itemGap,
+  required TextDirection textDirection,
+  required TextScaler textScaler,
+}) {
+  var width = kLifecycleFooterIconSize + itemGap / 4;
+  if (count > 0) {
+    final countPainter = TextPainter(
+      text: TextSpan(text: '$count', style: countStyle),
+      textDirection: textDirection,
+      textScaler: textScaler,
+      maxLines: 1,
+    )..layout();
+    width += countPainter.width + itemGap / 4;
+  }
+  if (hasUnread) {
+    width += kLifecycleUnreadDotSize + itemGap / 4;
+  }
+  return width.ceilToDouble();
+}
+
 /// Minimum content width for a right-aligned lifecycle tap row.
 double measureLifecycleTapRowMinWidth({
   required String label,
@@ -229,6 +258,7 @@ double measureLifecycleTapRowMinWidth({
   required bool showChevron,
   required TextDirection textDirection,
   required TextScaler textScaler,
+  double trailingExtraWidth = 0,
 }) {
   final labelPainter = TextPainter(
     text: TextSpan(text: label, style: labelStyle),
@@ -248,7 +278,8 @@ double measureLifecycleTapRowMinWidth({
         showChevron: showChevron,
       ) +
       labelPainter.width +
-      timePainter.width;
+      timePainter.width +
+      trailingExtraWidth;
 }
 
 /// Minimum content width for the semantic "done" footer row.
