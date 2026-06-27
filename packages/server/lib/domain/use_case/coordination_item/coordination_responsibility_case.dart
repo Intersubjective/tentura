@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 
 import '../_use_case_base.dart';
@@ -29,17 +30,38 @@ final class CoordinationResponsibilityCase extends UseCaseBase {
     }
     final unique = beaconIds.toSet().toList();
     final slice = unique.length > 80 ? unique.sublist(0, 80) : unique;
+    final allowed = <String>[];
     for (final bid in slice) {
-      await ensureCanCoordinateOnBeacon(
-        room: _room,
+      if (await _canCoordinateOnBeacon(
         beaconId: bid,
         userId: viewerUserId,
-      );
+      )) {
+        allowed.add(bid);
+      }
+    }
+    if (allowed.isEmpty) {
+      return const [];
     }
     return _items.responsibilityCountsByBeaconIds(
       viewerUserId: viewerUserId,
-      beaconIds: slice,
+      beaconIds: allowed,
     );
+  }
+
+  Future<bool> _canCoordinateOnBeacon({
+    required String beaconId,
+    required String userId,
+  }) async {
+    try {
+      await ensureCanCoordinateOnBeacon(
+        room: _room,
+        beaconId: beaconId,
+        userId: userId,
+      );
+      return true;
+    } on BeaconCreateException {
+      return false;
+    }
   }
 
   Future<List<CoordinationItemWithCounts>> myItems({

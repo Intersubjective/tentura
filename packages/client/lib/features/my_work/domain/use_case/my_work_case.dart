@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -12,6 +11,7 @@ import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.da
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
@@ -51,13 +51,16 @@ final class MyWorkCase extends UseCaseBase {
 
   final MyWorkDeskPreferencesPort _deskPreferences;
 
-  Stream<RepositoryEvent<Beacon>> get beaconChanges => _beaconRepository.changes;
+  Stream<RepositoryEvent<Beacon>> get beaconChanges =>
+      _beaconRepository.changes;
 
-  Stream<HelpOfferEvent> get helpOfferChanges => _forwardRepository.helpOfferChanges;
+  Stream<HelpOfferEvent> get helpOfferChanges =>
+      _forwardRepository.helpOfferChanges;
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
-  Stream<String> get readWatermarkChanges => _beaconRoomCase.readWatermarkChanges;
+  Stream<String> get readWatermarkChanges =>
+      _beaconRoomCase.readWatermarkChanges;
 
   Future<MyWorkInitResult> fetchInit({required String userId}) =>
       _repository.fetchInit(userId: userId);
@@ -79,23 +82,21 @@ final class MyWorkCase extends UseCaseBase {
   Future<void> unarchiveBeacon({
     required String beaconId,
     required String userId,
-  }) =>
-      _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
+  }) => _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
 
   Future<MyWorkDeskInitLoad> loadDeskInit({required String userId}) async {
     final init = await _repository.fetchInit(userId: userId);
-    final nonArchived = buildNonArchivedViewModels(
-      authoredNonArchived: init.authoredNonArchived,
-      helpOfferedNonArchived: init.helpOfferedNonArchived,
-    ).map((c) {
-      final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
-      return at == null
-          ? c
-          : c.copyWith(lastCoordinationItemMessageAt: at);
-    }).toList();
+    final nonArchived =
+        buildNonArchivedViewModels(
+          authoredNonArchived: init.authoredNonArchived,
+          helpOfferedNonArchived: init.helpOfferedNonArchived,
+        ).map((c) {
+          final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
+          return at == null ? c : c.copyWith(lastCoordinationItemMessageAt: at);
+        }).toList();
     final enriched = await _enrichDeskCards(nonArchived);
-    final finishedArchiveHintDismissed =
-        await _deskPreferences.isFinishedArchiveHintDismissed(userId: userId);
+    final finishedArchiveHintDismissed = await _deskPreferences
+        .isFinishedArchiveHintDismissed(userId: userId);
     return (
       nonArchivedCards: enriched,
       archivedCountHint: init.archivedCountHint,
@@ -103,7 +104,9 @@ final class MyWorkCase extends UseCaseBase {
     );
   }
 
-  Future<MyWorkDeskArchivedLoad> loadDeskArchived({required String userId}) async {
+  Future<MyWorkDeskArchivedLoad> loadDeskArchived({
+    required String userId,
+  }) async {
     final archivedResult = await _repository.fetchArchived(userId: userId);
     final archived = buildArchivedViewModels(
       authoredArchived: archivedResult.authoredArchived,
@@ -129,28 +132,36 @@ final class MyWorkCase extends UseCaseBase {
       for (final card in cards)
         () {
           final last = byBeacon[card.beaconId];
-          return last == null
-              ? card
-              : card.copyWith(lastActivityEvent: last);
+          return last == null ? card : card.copyWith(lastActivityEvent: last);
         }(),
     ];
   }
 
   Future<List<MyWorkCardViewModel>> attachResponsibilityCounts(
-    List<MyWorkCardViewModel> cards,
-  ) async {
+    List<MyWorkCardViewModel> cards, {
+    Map<String, InboxRoomCardHints>? roomHints,
+  }) async {
     if (cards.isEmpty) {
       return cards;
     }
+    final ids = roomHints == null
+        ? cards.map((c) => c.beaconId).toList()
+        : [
+            for (final c in cards)
+              if (roomHints[c.beaconId]?.isRoomMember ?? false) c.beaconId,
+          ];
+    if (ids.isEmpty) {
+      return cards;
+    }
     final byBeacon = await _coordinationItemCase.fetchResponsibilityBatch(
-      cards.map((c) => c.beaconId).toList(),
+      ids,
     );
     return [
       for (final card in cards)
-        card.copyWith(
-          youResponsibility: byBeacon[card.beaconId] ??
-              CoordinationResponsibility(beaconId: card.beaconId),
-        ),
+        if (byBeacon.containsKey(card.beaconId))
+          card.copyWith(youResponsibility: byBeacon[card.beaconId])
+        else
+          card,
     ];
   }
 
@@ -161,21 +172,24 @@ final class MyWorkCase extends UseCaseBase {
       return cards;
     }
     final withLastEvents = await attachLastActivityEvents(cards);
-    final withResponsibility =
-        await attachResponsibilityCounts(withLastEvents);
-    final withHints = await _applyRoomInboxSubtitles(withResponsibility);
+    final hints = await _roomHints.fetchByBeaconIds(
+      withLastEvents.map((c) => c.beaconId),
+    );
+    final withResponsibility = await attachResponsibilityCounts(
+      withLastEvents,
+      roomHints: hints,
+    );
+    final withHints = _applyRoomInboxSubtitles(withResponsibility, hints);
     return _withAuthorForwardFlags(withHints);
   }
 
-  Future<List<MyWorkCardViewModel>> _applyRoomInboxSubtitles(
+  List<MyWorkCardViewModel> _applyRoomInboxSubtitles(
     List<MyWorkCardViewModel> cards,
-  ) async {
+    Map<String, InboxRoomCardHints> hints,
+  ) {
     if (cards.isEmpty) {
       return cards;
     }
-    final hints = await _roomHints.fetchByBeaconIds(
-      cards.map((c) => c.beaconId),
-    );
     return [
       for (final c in cards)
         () {
@@ -201,7 +215,9 @@ final class MyWorkCase extends UseCaseBase {
             roomCurrentLine: h.currentLineSnippet,
             roomOpenBlockerTitle: h.openBlockerTitle,
             roomOpenBlocker: h.openBlocker,
-            roomInboxSubtitle: parts.isEmpty ? c.roomInboxSubtitle : parts.join(' · '),
+            roomInboxSubtitle: parts.isEmpty
+                ? c.roomInboxSubtitle
+                : parts.join(' · '),
           );
         }(),
     ];
