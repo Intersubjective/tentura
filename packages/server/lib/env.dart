@@ -406,8 +406,9 @@ class Env {
   /// disk. NEVER set in production — it bypasses real email delivery entirely.
   final String emailDebugSinkDir;
 
-  /// When true (dev/staging only), exposes `/_qa/latest-email` and captures
-  /// magic links for [qaEmailDomains] without Resend.
+  /// When true (dev/staging only), exposes `/_qa/latest-email`,
+  /// `POST /_qa/send-fcm`, and captures magic links for [qaEmailDomains]
+  /// without Resend.
   final bool qaAuthEnabled;
 
   /// Shared secret for development/staging-only QA HTTP endpoints.
