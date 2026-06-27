@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 
@@ -39,6 +40,26 @@ class LoggingEmailSender implements EmailSenderPort {
   }) async {
     _log.info(
       'digest email to=$to locale=$locale items=${content.totalItems}',
+    );
+  }
+
+  @override
+  Future<void> sendAccountDeletionRequestAdminEmail({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {
+    _log.info(
+      'account deletion admin email to=$to complaintId=${payload.complaintId}',
+    );
+  }
+
+  @override
+  Future<void> sendAccountDeletionRequestUserConfirmation({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {
+    _log.info(
+      'account deletion user confirmation to=$to complaintId=${payload.complaintId}',
     );
   }
 }

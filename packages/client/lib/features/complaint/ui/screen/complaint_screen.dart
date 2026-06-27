@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/complaint_cubit.dart';
+import '../../domain/util/feedback_email.dart';
 
 String? _validateRequired(String? value, String message) {
   if (value == null || value.trim().isEmpty) return message;
@@ -17,9 +18,7 @@ String? _validateRequired(String? value, String message) {
 }
 
 String? _validateEmail(String? value, String message) {
-  final v = value?.trim();
-  if (v == null || v.isEmpty) return message;
-  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) return message;
+  if (value == null || !isValidFeedbackEmail(value)) return message;
   return null;
 }
 

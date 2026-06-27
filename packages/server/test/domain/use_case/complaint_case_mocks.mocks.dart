@@ -6,9 +6,14 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart'
+    as _i7;
 import 'package:tentura_server/domain/entity/complaint_entity.dart' as _i4;
+import 'package:tentura_server/domain/entity/email_notification_content.dart'
+    as _i6;
 import 'package:tentura_server/domain/port/complaint_repository_port.dart'
     as _i2;
+import 'package:tentura_server/domain/port/email_sender_port.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -38,6 +43,100 @@ class MockComplaintRepositoryPort extends _i1.Mock
   _i3.Future<void> create(_i4.ComplaintEntity? complaint) =>
       (super.noSuchMethod(
             Invocation.method(#create, [complaint]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+}
+
+/// A class which mocks [EmailSenderPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockEmailSenderPort extends _i1.Mock implements _i5.EmailSenderPort {
+  MockEmailSenderPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<void> sendMagicLink({
+    required String? to,
+    required String? verifyUrl,
+    String? inviterName,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendMagicLink, [], {
+              #to: to,
+              #verifyUrl: verifyUrl,
+              #inviterName: inviterName,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> sendNotificationEmail({
+    required String? to,
+    required String? locale,
+    required _i6.EmailNotificationContent? content,
+    String? listUnsubscribeUrl,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendNotificationEmail, [], {
+              #to: to,
+              #locale: locale,
+              #content: content,
+              #listUnsubscribeUrl: listUnsubscribeUrl,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> sendDigestEmail({
+    required String? to,
+    required String? locale,
+    required _i6.EmailDigestContent? content,
+    String? listUnsubscribeUrl,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendDigestEmail, [], {
+              #to: to,
+              #locale: locale,
+              #content: content,
+              #listUnsubscribeUrl: listUnsubscribeUrl,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> sendAccountDeletionRequestAdminEmail({
+    required String? to,
+    required _i7.AccountDeletionRequestEmailPayload? payload,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendAccountDeletionRequestAdminEmail, [], {
+              #to: to,
+              #payload: payload,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> sendAccountDeletionRequestUserConfirmation({
+    required String? to,
+    required _i7.AccountDeletionRequestEmailPayload? payload,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendAccountDeletionRequestUserConfirmation, [], {
+              #to: to,
+              #payload: payload,
+            }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )

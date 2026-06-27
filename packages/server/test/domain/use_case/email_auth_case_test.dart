@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
@@ -57,6 +58,18 @@ final class _FakeEmailSender implements EmailSenderPort {
     required String locale,
     required EmailDigestContent content,
     String? listUnsubscribeUrl,
+  }) async {}
+
+  @override
+  Future<void> sendAccountDeletionRequestAdminEmail({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {}
+
+  @override
+  Future<void> sendAccountDeletionRequestUserConfirmation({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
   }) async {}
 }
 

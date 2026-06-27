@@ -1,7 +1,9 @@
+import 'package:tentura_server/data/service/email/account_deletion_request_email_bodies.dart';
 import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 import 'package:tentura_server/data/service/email/resend_email_sender.dart' show ResendEmailSender;
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
 
+import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/env.dart';
@@ -73,6 +75,39 @@ class FileSinkEmailSender implements EmailSenderPort {
       'html': r.html,
       'itemCount': content.totalItems,
       'listUnsubscribeUrl': listUnsubscribeUrl,
+    });
+  }
+
+  @override
+  Future<void> sendAccountDeletionRequestAdminEmail({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {
+    final r = AccountDeletionRequestEmailBodies.admin(payload);
+    _writer.write(to, {
+      'kind': 'accountDeletionRequestAdmin',
+      'to': to,
+      'subject': r.subject,
+      'text': r.text,
+      'html': r.html,
+      'complaintId': payload.complaintId,
+      'userId': payload.userId,
+    });
+  }
+
+  @override
+  Future<void> sendAccountDeletionRequestUserConfirmation({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {
+    final r = AccountDeletionRequestEmailBodies.userConfirmation(payload);
+    _writer.write(to, {
+      'kind': 'accountDeletionRequestUserConfirmation',
+      'to': to,
+      'subject': r.subject,
+      'text': r.text,
+      'html': r.html,
+      'complaintId': payload.complaintId,
     });
   }
 

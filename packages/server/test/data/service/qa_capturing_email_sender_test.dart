@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 import 'package:tentura_server/data/service/email/qa_capturing_email_sender.dart';
+import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/env.dart';
@@ -141,4 +142,16 @@ final class _RecordingEmailSender implements EmailSenderPort {
   }) async {
     digestCalls++;
   }
+
+  @override
+  Future<void> sendAccountDeletionRequestAdminEmail({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {}
+
+  @override
+  Future<void> sendAccountDeletionRequestUserConfirmation({
+    required String to,
+    required AccountDeletionRequestEmailPayload payload,
+  }) async {}
 }
