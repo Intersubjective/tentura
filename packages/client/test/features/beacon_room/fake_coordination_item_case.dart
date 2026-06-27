@@ -2,9 +2,12 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
-/// Test double for room cubit tests (coordination list returns empty).
+/// Test double for room cubit tests (coordination list returns [items]).
 class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
-  const FakeCoordinationItemCaseForRoom();
+  const FakeCoordinationItemCaseForRoom({this.items = const []});
+
+  /// Items returned by [listByBeacon] when no kind/status filter is applied.
+  final List<CoordinationItem> items;
 
   @override
   Future<List<CoordinationItem>> listByBeacon(
@@ -16,7 +19,9 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String? linkedParentItemId,
     bool? rootOnly,
   }) async =>
-      const [];
+      // Filtered calls (e.g. open blocker) keep the legacy empty behaviour;
+      // the unfiltered room-load call returns the configured [items].
+      (status == null && kind == null) ? items : const [];
 
   @override
   Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async => null;

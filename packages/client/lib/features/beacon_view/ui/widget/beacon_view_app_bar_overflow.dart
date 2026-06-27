@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart'
+    show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_poll_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -225,6 +228,31 @@ VoidCallback? beaconViewRoomCreatePollAction({
   return () => unawaited(showBeaconRoomPollSheet(context, cubit: roomCubit));
 }
 
+/// Room-level "Update plan" — only for members allowed to edit the plan
+/// (author / steward / admitted), matching the pinned-now strip's edit gate.
+VoidCallback? beaconViewRoomUpdatePlanAction({
+  required BuildContext context,
+  required RoomCubit? roomCubit,
+  required bool inRoomSurface,
+}) {
+  if (!inRoomSurface || roomCubit == null || roomCubit.isClosed) return null;
+  final myUserId = roomCubit.state.myUserId;
+  if (myUserId.isEmpty) return null;
+  var canEdit = false;
+  for (final p in roomCubit.state.participants) {
+    if (p.userId == myUserId) {
+      canEdit = p.role == BeaconParticipantRoleBits.author ||
+          p.role == BeaconParticipantRoleBits.steward ||
+          p.roomAccess == RoomAccessBits.admitted;
+      break;
+    }
+  }
+  if (!canEdit) return null;
+  final l10n = L10n.of(context)!;
+  return () =>
+      unawaited(showBeaconRoomUpdatePlanSheet(context, roomCubit, l10n));
+}
+
 Widget beaconViewAppBarOverflow({
   required BuildContext context,
   required BeaconViewState state,
@@ -249,6 +277,11 @@ Widget beaconViewAppBarOverflow({
     inRoomSurface: inRoomSurface,
   );
   final onCreatePoll = beaconViewRoomCreatePollAction(
+    context: context,
+    roomCubit: roomCubit,
+    inRoomSurface: inRoomSurface,
+  );
+  final onUpdatePlan = beaconViewRoomUpdatePlanAction(
     context: context,
     roomCubit: roomCubit,
     inRoomSurface: inRoomSurface,
@@ -292,6 +325,7 @@ Widget beaconViewAppBarOverflow({
           : null,
       onCreatePromise: onCreatePromise,
       onCreatePoll: onCreatePoll,
+      onUpdatePlan: onUpdatePlan,
       onForward: showBeaconManagementOverflow
           ? () => unawaited(
               beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
@@ -328,6 +362,7 @@ Widget beaconViewAppBarOverflow({
     beacon: b,
     onCreatePromise: onCreatePromise,
     onCreatePoll: onCreatePoll,
+    onUpdatePlan: onUpdatePlan,
     onOfferHelp:
         !hideOfferHelpWithdraw &&
             !state.isHelpOffered &&

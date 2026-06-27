@@ -9,6 +9,7 @@ import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -20,6 +21,7 @@ import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
@@ -147,9 +149,13 @@ RoomMessage _msg(String id, DateTime createdAt, {String authorId = 'other'}) =>
 
 final _testItemSync = CoordinationItemRoomSync();
 
-RoomCubit _roomCubit(_FakeBeaconRoomRepository fakeRoom) => RoomCubit(
+RoomCubit _roomCubit(
+  _FakeBeaconRoomRepository fakeRoom, {
+  CoordinationItemCase? coordinationCase,
+}) =>
+    RoomCubit(
       beaconId: _kBeaconId,
-      beaconRoomCase: _makeCase(fakeRoom),
+      beaconRoomCase: _makeCase(fakeRoom, coordinationCase: coordinationCase),
       coordinationItemRoomSync: _testItemSync,
       presenceRepository: _fakePresenceRepository(),
       effects: FakeUiEffectPort(),
@@ -164,14 +170,17 @@ PresenceRepository _fakePresenceRepository() => PresenceRepository(
     );
 
 /// Creates a [BeaconRoomCase] backed by [fakeRoom] and minimal stubs.
-BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
+BeaconRoomCase _makeCase(
+  _FakeBeaconRoomRepository fakeRoom, {
+  CoordinationItemCase? coordinationCase,
+}) =>
     BeaconRoomCase(
       fakeRoom,
       _FakeBeaconFactCardRepository(),
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
       RoomReadWatermarkStore.testing(),
-      const FakeCoordinationItemCaseForRoom(),
+      coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
       env: const Env(),
       logger: Logger('test'),
     );
@@ -527,6 +536,56 @@ void main() {
         reason: 'after sending a message the room is fully seen',
       );
       expect(cubit.state.firstUnreadMessageId, isNull);
+    });
+
+    test('load() joins coordination reply counts onto messages', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final linked = RoomMessage(
+        id: 'linked',
+        beaconId: _kBeaconId,
+        authorId: 'other',
+        body: 'help me',
+        createdAt: _kAnchorTime,
+        linkedItemId: 'item1',
+        linkedItemKind: CoordinationItemKind.ask.value,
+        linkedItemStatus: CoordinationItemStatus.open.value,
+        linkedItemCreatorId: 'other',
+        linkedItemCreatedAt: _kAnchorTime,
+        linkedItemUpdatedAt: _kAnchorTime,
+      );
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [linked, _msg('plain', _kAnchorTime)];
+
+      final coordinationCase = FakeCoordinationItemCaseForRoom(
+        items: [
+          CoordinationItem(
+            id: 'item1',
+            beaconId: _kBeaconId,
+            kind: CoordinationItemKind.ask,
+            status: CoordinationItemStatus.open,
+            creatorId: 'other',
+            createdAt: _kAnchorTime,
+            updatedAt: _kAnchorTime,
+            messageCount: 3,
+            unreadCount: 1,
+          ),
+        ],
+      );
+
+      final cubit = _roomCubit(fakeRoom, coordinationCase: coordinationCase);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+
+      final joined = cubit.state.messages.firstWhere((m) => m.id == 'linked');
+      expect(joined.linkedItemMessageCount, 3);
+      expect(joined.linkedItemUnreadCount, 1);
+      expect(joined.linkedCoordinationItem?.hasUnread, isTrue);
+
+      final untouched = cubit.state.messages.firstWhere((m) => m.id == 'plain');
+      expect(untouched.linkedItemMessageCount, 0);
     });
   });
 }

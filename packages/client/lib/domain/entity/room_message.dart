@@ -37,6 +37,10 @@ abstract class RoomMessage with _$RoomMessage {
     DateTime? linkedItemUpdatedAt,
     String? linkedItemLinkedMessageId,
     DateTime? linkedItemResolvedAt,
+    // Joined client-side from `listByBeacon` during room load (not in the gql
+    // message snapshot); drive the thread-mark reply count + unread dot.
+    @Default(0) int linkedItemMessageCount,
+    @Default(0) int linkedItemUnreadCount,
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
@@ -145,6 +149,8 @@ abstract class RoomMessage with _$RoomMessage {
       body: linkedItemBody ?? '',
       linkedMessageId: linkedItemLinkedMessageId,
       resolvedAt: linkedItemResolvedAt,
+      messageCount: linkedItemMessageCount,
+      unreadCount: linkedItemUnreadCount,
     );
   }
 }

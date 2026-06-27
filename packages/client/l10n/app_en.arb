@@ -3339,8 +3339,12 @@
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",
   "beaconRoomActionMarkBlocker": "Mark blocker…",
-  "beaconRoomActionNeedInfo": "Need info…",
-  "beaconRoomActionMarkDone": "Mark done…",
+  "beaconRoomActionTurnInto": "Turn into…",
+  "beaconRoomActionOpenThread": "Open thread",
+  "beaconRoomActionJumpToPlan": "Jump to plan",
+  "beaconRoomActionResolveBlocker": "Resolve this blocker",
+  "beaconRoomActionCopyText": "Copy text",
+  "beaconRoomCopiedToClipboard": "Copied",
   "beaconRoomActionEditMessage": "Edit message",
   "@beaconRoomActionEditMessage": {
     "description": "Menu action to edit an existing beacon room message"
@@ -3355,26 +3359,6 @@
   },
   "beaconRoomBlockerTitleHint": "Blocker title",
   "beaconRoomNeedInfoPickTarget": "Who is this for?",
-  "beaconRoomNeedInfoRequestHint": "What do you need?",
-  "beaconRoomMarkDoneTitle": "What is done?",
-  "beaconRoomMarkDoneMessageOnly": "Mark this message only",
-  "beaconRoomMarkDoneResolveBlocker": "Resolve linked blocker",
-  "beaconRoomMarkDoneMyNextStep": "My next step: {text}",
-  "@beaconRoomMarkDoneMyNextStep": {
-    "placeholders": {
-      "text": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconRoomMarkDoneConfirmSingleBlocker": "Resolve blocker: {title}",
-  "@beaconRoomMarkDoneConfirmSingleBlocker": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
   "beaconPeopleSectionTitle": "People & roles",
   "beaconPeopleParticipantUpdated": "Updated {when}",
   "@beaconPeopleParticipantUpdated": {
@@ -3675,7 +3659,6 @@
   "coordinationSemanticBlockerCancelled": "Blocker cancelled",
   "coordinationMarkBlockerTitle": "Mark Blocker",
   "coordinationMarkBlockerHint": "What is blocked?",
-  "coordinationPromoteSheetTitle": "Promote message",
   "coordinationPromoteTitleHint": "Title (optional)",
   "coordinationPromoteBodyHint": "Text",
   "coordinationAskCardLabel": "Ask",
