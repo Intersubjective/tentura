@@ -147,6 +147,11 @@ type beacon {
   A computed field, executes function "beacon_get_is_pinned"
   """
   is_pinned: Boolean
+
+  """
+  A computed field, executes function "beacon_get_can_read_content"
+  """
+  can_read_content: Boolean
   lat: float8
   lineage_parent_beacon_id: String
   lineage_root_beacon_id: String
@@ -265,6 +270,7 @@ input beacon_bool_exp {
   id: String_comparison_exp
   beacon_images: beacon_image_bool_exp
   is_pinned: Boolean_comparison_exp
+  can_read_content: Boolean_comparison_exp
   lat: float8_comparison_exp
   long: float8_comparison_exp
   my_vote: Int_comparison_exp
@@ -1147,6 +1153,7 @@ input beacon_order_by {
   icon_code: order_by
   id: order_by
   is_pinned: order_by
+  can_read_content: order_by
   lat: order_by
   long: order_by
   my_vote: order_by

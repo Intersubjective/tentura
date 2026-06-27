@@ -8,10 +8,11 @@ query BeaconsFetchByUserId(
 ) {
   beacon(
     where: {
-      _and: {
-        user_id: {_eq: $user_id},
-        status: {_in: $active_states}
-      }
+      _and: [
+        { user_id: { _eq: $user_id } },
+        { status: { _in: $active_states } },
+        { can_read_content: { _eq: true } }
+      ]
     },
     order_by: {created_at: desc},
     offset: $offset,

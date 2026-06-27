@@ -634,7 +634,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
       late final Beacon beacon;
       try {
-        beacon = await _case.fetchBeaconById(beaconId);
+        beacon = await _fetchBeaconByIdOrRetry(beaconId);
       } on BeaconFetchException {
         if (isClosed) return;
         if (state.timeline.isEmpty && state.helpOffers.isEmpty) {
@@ -649,6 +649,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           _showSnackError(const BeaconFetchException());
         }
         return;
+      }
+
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            beacon: beacon,
+            beaconContentLoaded: true,
+            beaconUnavailable: false,
+            status: StateStatus.isSuccess,
+          ),
+        );
       }
 
       final results = await Future.wait([
@@ -792,11 +803,21 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       unawaited(_refreshYouResponsibility());
     } catch (e) {
       if (isClosed) return;
-      if (state.timeline.isEmpty && state.helpOffers.isEmpty) {
+      if (!state.beaconContentLoaded) {
         emit(state.copyWith(status: StateHasError(e)));
       } else {
         _showSnackError(e);
       }
+    }
+  }
+
+  /// One retry covers session-token refresh races on cold navigation to beacon view.
+  Future<Beacon> _fetchBeaconByIdOrRetry(String beaconId) async {
+    try {
+      return await _case.fetchBeaconById(beaconId);
+    } on BeaconFetchException {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      return _case.fetchBeaconById(beaconId);
     }
   }
 

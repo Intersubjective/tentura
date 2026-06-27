@@ -6,6 +6,7 @@ import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
@@ -23,6 +24,8 @@ import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.da
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
@@ -84,9 +87,20 @@ class FakeInvalidationService implements InvalidationService {
 class TrackingBeaconRepository implements BeaconRepository {
   final publishDraftCalls = <String>[];
   final refreshAndNotifyCalls = <String>[];
+  int fetchByIdCalls = 0;
+  Future<Beacon> Function(String id)? fetchByIdHandler;
 
   @override
   Stream<RepositoryEvent<Beacon>> get changes => const Stream.empty();
+
+  @override
+  Future<Beacon> fetchBeaconById(String id) async {
+    fetchByIdCalls++;
+    if (fetchByIdHandler != null) {
+      return fetchByIdHandler!(id);
+    }
+    throw UnimplementedError('fetchBeaconById');
+  }
 
   @override
   Future<void> publishDraft(String id) async {
@@ -139,11 +153,59 @@ class FakeBeaconViewArchiveRepository implements ArchiveRepository {
 }
 
 class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
+  FakeBeaconViewCoordinationRepository({
+    this.enrichmentDelay = Duration.zero,
+    this.enrichmentError,
+  });
+
+  final Duration enrichmentDelay;
+  final Object? enrichmentError;
+
+  @override
+  Future<
+    List<
+      ({
+        String beaconId,
+        String userId,
+        Profile user,
+        String message,
+        String? helpType,
+        int status,
+        String? withdrawReason,
+        DateTime createdAt,
+        DateTime updatedAt,
+        int? responseType,
+        DateTime? responseUpdatedAt,
+        String? responseAuthorUserId,
+        int? roomAccess,
+      })
+    >
+  >
+  fetchHelpOffersWithCoordination({required String beaconId}) async {
+    await Future<void>.delayed(enrichmentDelay);
+    if (enrichmentError != null) throw enrichmentError!;
+    return [];
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeBeaconViewInboxRepository implements InboxRepository {
+  @override
+  Future<
+    ({
+      InboxItemStatus? status,
+      InboxProvenance provenance,
+      String latestNotePreview,
+    })
+  >
+  fetchInboxContextForBeacon(String beaconId) async => (
+    status: null,
+    provenance: InboxProvenance.empty,
+    latestNotePreview: '',
+  );
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -200,19 +262,21 @@ BeaconViewCase buildTestBeaconViewCase({
   RoomReadWatermarkStore? watermarkStore,
   TrackingBeaconRepository? beaconRepo,
   FakeBeaconViewEvaluationRepository? evaluationRepo,
+  FakeBeaconViewCoordinationRepository? coordinationRepo,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final invalidationSvc = invalidation ?? FakeInvalidationService();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
   final beacon = beaconRepo ?? TrackingBeaconRepository();
   final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
+  final coordination = coordinationRepo ?? FakeBeaconViewCoordinationRepository();
 
   return BeaconViewCase(
     beacon,
     forwardRepo,
     evaluation,
     FakeBeaconViewArchiveRepository(),
-    FakeBeaconViewCoordinationRepository(),
+    coordination,
     FakeBeaconViewInboxRepository(),
     FakeBeaconViewFactCardRepository(),
     buildTestBeaconRoomCaseForView(watermark),
