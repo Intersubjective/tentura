@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
@@ -10,13 +9,6 @@ import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 import '../service/fcm_service.dart';
 
-@Singleton(
-  as: FcmRemoteRepositoryPort,
-  env: [
-    Environment.prod,
-  ],
-  order: 1,
-)
 ///
 /// A repository for sending Firebase Cloud Messaging (FCM) push notifications.
 ///

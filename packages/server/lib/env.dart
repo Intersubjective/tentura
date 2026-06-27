@@ -600,6 +600,20 @@ class Env {
 
   bool get isSentryEnabled => sentryDsn.isNotEmpty;
 
+  /// True when server-side FCM HTTP can authenticate and send
+  /// (`FcmService.generateAccessToken` / `FcmService.sendFcmMessage`).
+  bool get isFcmConfigured =>
+      fbProjectId.trim().isNotEmpty &&
+      fbClientEmail.trim().isNotEmpty &&
+      fbPrivateKey.trim().isNotEmpty;
+
+  /// Env var names missing for [isFcmConfigured] (empty when configured).
+  List<String> get missingFcmServerCreds => [
+    if (fbProjectId.trim().isEmpty) 'FB_PROJECT_ID',
+    if (fbClientEmail.trim().isEmpty) 'FB_CLIENT_EMAIL',
+    if (fbPrivateKey.trim().isEmpty) 'FB_PRIVATE_KEY',
+  ];
+
   //
   //
   static void _assertServingUrls({
