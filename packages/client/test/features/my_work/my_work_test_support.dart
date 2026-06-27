@@ -37,7 +37,7 @@ class FakeMyWorkRepository implements MyWorkRepository {
     helpOfferedArchived: const [],
   );
 
-  Object? fetchInitError;
+  Exception? fetchInitError;
 
   int fetchInitCallCount = 0;
 
@@ -63,8 +63,7 @@ class FakeMyWorkRepository implements MyWorkRepository {
   @override
   Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(
     List<String> beaconIds,
-  ) async =>
-      {};
+  ) async => {};
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -86,8 +85,8 @@ class FakeArchiveRepository implements ArchiveRepository {
 
 class FakeForwardRepository implements ForwardRepository {
   FakeForwardRepository()
-      : _helpOfferController = StreamController<HelpOfferEvent>.broadcast(),
-        _forwardCompletedController = StreamController<String>.broadcast();
+    : _helpOfferController = StreamController<HelpOfferEvent>.broadcast(),
+      _forwardCompletedController = StreamController<String>.broadcast();
 
   final StreamController<HelpOfferEvent> _helpOfferController;
   final StreamController<String> _forwardCompletedController;
@@ -103,6 +102,7 @@ class FakeForwardRepository implements ForwardRepository {
   void emitForwardCompleted(String beaconId) =>
       _forwardCompletedController.add(beaconId);
 
+  @override
   Future<void> dispose() async {
     await _helpOfferController.close();
     await _forwardCompletedController.close();
@@ -112,14 +112,13 @@ class FakeForwardRepository implements ForwardRepository {
   Future<bool> currentUserHasForwardedBeacon(String beaconId) async => false;
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeBeaconRepository implements BeaconRepository {
   FakeBeaconRepository()
-      : _changesController =
-            StreamController<RepositoryEvent<Beacon>>.broadcast();
+    : _changesController =
+          StreamController<RepositoryEvent<Beacon>>.broadcast();
 
   final StreamController<RepositoryEvent<Beacon>> _changesController;
 
@@ -129,52 +128,79 @@ class FakeBeaconRepository implements BeaconRepository {
   void emitChange(RepositoryEvent<Beacon> event) =>
       _changesController.add(event);
 
+  @override
   Future<void> dispose() async => _changesController.close();
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeCoordinationItemRepository implements CoordinationItemRepository {
+  Map<String, CoordinationResponsibility> responsibilityByBeaconId =
+      const <String, CoordinationResponsibility>{};
+
+  Object? fetchResponsibilityBatchError;
+
+  List<String>? fetchResponsibilityBatchBeaconIds;
+
   @override
   Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
     List<String> beaconIds,
-  ) async =>
-      {};
+  ) async {
+    fetchResponsibilityBatchBeaconIds = List<String>.from(beaconIds);
+    final error = fetchResponsibilityBatchError;
+    if (error is Exception) {
+      throw error;
+    }
+    if (error is Error) {
+      throw error;
+    }
+    return {
+      for (final beaconId in beaconIds)
+        if (responsibilityByBeaconId.containsKey(beaconId))
+          beaconId: responsibilityByBeaconId[beaconId]!,
+    };
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeRoomHints implements BeaconRoomHintsRepository {
+  Map<String, InboxRoomCardHints> hintsByBeaconId =
+      const <String, InboxRoomCardHints>{};
+
+  List<String>? fetchByBeaconIdsBeaconIds;
+
   @override
   Future<Map<String, InboxRoomCardHints>> fetchByBeaconIds(
     Iterable<String> beaconIds,
-  ) async =>
-      {};
+  ) async {
+    fetchByBeaconIdsBeaconIds = List<String>.from(beaconIds);
+    return {
+      for (final beaconId in beaconIds)
+        if (hintsByBeaconId.containsKey(beaconId))
+          beaconId: hintsByBeaconId[beaconId]!,
+    };
+  }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeBeaconRoomRepository implements BeaconRoomRepository {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeFactCardRepository implements BeaconFactCardRepository {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakePollingRepository implements PollingRepository {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 BeaconRoomCase buildTestBeaconRoomCase(
@@ -211,9 +237,12 @@ MyWorkCase buildTestMyWorkCase({
   FakeMyWorkDeskPreferencesPort? deskPreferences,
   FakeBeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
+  FakeCoordinationItemRepository? coordinationRepo,
+  FakeRoomHints? roomHints,
   RoomReadWatermarkStore? watermarkStore,
 }) {
-  final hints = FakeRoomHints();
+  final hints = roomHints ?? FakeRoomHints();
+  final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
   final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
   final beacon = beaconRepo ?? FakeBeaconRepository();
   final forward = forwardRepo ?? FakeForwardRepository();
@@ -223,7 +252,7 @@ MyWorkCase buildTestMyWorkCase({
     FakeArchiveRepository(),
     forward,
     beacon,
-    CoordinationItemCase(FakeCoordinationItemRepository()),
+    CoordinationItemCase(coordination),
     buildTestBeaconRoomCase(hints, watermarkStore: watermark),
     hints,
     prefs,
