@@ -1,0 +1,27 @@
+#
+### QA send FCM (dev/staging only — requires QA_AUTH_ENABLED + QA_AUTH_TOKEN)
+#
+POST {{base_url}}/_qa/send-fcm?_qa_token={{$dotenv QA_AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "userId": "U6fca01549512",
+  "title": "QA test",
+  "body": "Hello from Tentura",
+  "beaconId": "B220d88332b35"
+}
+
+###
+#
+### QA send FCM by explicit device token (Bearer auth)
+#
+POST {{base_url}}/_qa/send-fcm
+Authorization: Bearer {{$dotenv QA_AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "token": "YOUR_FCM_DEVICE_TOKEN",
+  "title": "QA test",
+  "body": "Direct token send",
+  "actionUrl": "https://dev.lvh.me:9443/"
+}

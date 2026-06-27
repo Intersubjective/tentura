@@ -139,6 +139,17 @@ flutter run -d chrome --web-port=8888 \
   --dart-define=IMAGE_SERVER=http://localhost:9000/tentura
 ```
 
+## QA endpoints
+
+When `QA_AUTH_ENABLED=true` and `QA_AUTH_TOKEN` is set (dev/staging only), the
+Tentura API exposes secret-gated `/_qa/*` routes for automated testing:
+
+- `GET /_qa/latest-email` — read captured magic-link payloads for QA email domains
+- `POST /_qa/send-fcm` — send a one-shot FCM push by `userId` or device `token`
+
+See [`docs/qa-push-testing.md`](docs/qa-push-testing.md) for FCM setup, curl
+examples, and troubleshooting.
+
 ## Codegen
 
 After modifying GraphQL queries, Freezed entities, Drift tables, Auto Route

@@ -17,6 +17,7 @@ import 'controllers/graphql_controller.dart';
 import 'controllers/invite_accept_existing_controller.dart';
 import 'controllers/invite_preview_controller.dart';
 import 'controllers/qa_email_sink_controller.dart';
+import 'controllers/qa_send_fcm_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
 import 'controllers/app_link_redirect_controller.dart';
@@ -42,6 +43,7 @@ class RootRouter {
     this._authGoogleController,
     this._authEmailController,
     this._qaEmailSinkController,
+    this._qaSendFcmController,
     this._unsubscribeController,
   );
 
@@ -76,6 +78,8 @@ class RootRouter {
   final AuthEmailController _authEmailController;
 
   final QaEmailSinkController _qaEmailSinkController;
+
+  final QaSendFcmController _qaSendFcmController;
 
   final UnsubscribeController _unsubscribeController;
 
@@ -170,6 +174,10 @@ class RootRouter {
       ..get(
         '/_qa/latest-email',
         _qaEmailSinkController.latestEmail,
+      )
+      ..post(
+        '/_qa/send-fcm',
+        _qaSendFcmController.sendFcm,
       )
       ..get(
         '/email/unsubscribe',
