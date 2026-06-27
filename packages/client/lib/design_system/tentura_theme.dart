@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'tentura_colors.dart';
@@ -114,6 +115,8 @@ abstract final class TenturaTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.primary,
         contentTextStyle: TextStyle(color: colorScheme.onPrimary),
+        dismissDirection:
+            kIsWeb ? DismissDirection.none : DismissDirection.down,
       ),
       dividerTheme: DividerThemeData(
         color: tokens.borderSubtle,
