@@ -193,7 +193,14 @@ Future<void> openRoomAttachmentImageAlbum(
     return;
   }
   final i = initialIndex.clamp(0, items.length - 1);
-  await Navigator.of(context).push<void>(
+  // useRootNavigator: true is required on Web.
+  //
+  // BeaconViewScreen wraps its room surface in PopScope(canPop: false) so
+  // browser back can be intercepted. Pushing the gallery on the same Navigator
+  // scope lets that sentinel win over the gallery route — back exits chat
+  // instead of closing the image. Root Navigator decouples the overlay (same
+  // pattern as room bottom sheets in beacon_room_body.dart).
+  await Navigator.of(context, rootNavigator: true).push<void>(
     MaterialPageRoute<void>(
       builder: (_) => RoomAttachmentFullscreenGallery(
         attachments: items,
@@ -254,7 +261,7 @@ class _RoomAttachmentFullscreenGalleryState
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
         ),
         title: items.length > 1
             ? Text(
