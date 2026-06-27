@@ -87,6 +87,20 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
+  final unreviewed =
+      input.hasUnreviewedOffers || beaconHasUnreviewedOffers(beacon);
+  if (unreviewed) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.offersAwaitingAuthor,
+      slot2Kind: BeaconPhaseSlot2Kind.freshness,
+      suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
+      rowHarmony: const BeaconPhaseRowHarmony(
+        suppressYouAwaitingAuthor: true,
+      ),
+      lastActivityAt: activityAt,
+    );
+  }
+
   if (status == BeaconStatus.needsMoreHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
@@ -107,22 +121,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
-  final unreviewed = input.hasUnreviewedOffers ||
-      beaconHasUnreviewedOffers(beacon);
-  if (unreviewed) {
-    return BeaconCoordinationPhaseResult(
-      phase: BeaconCoordinationPhase.offersAwaitingAuthor,
-      slot2Kind: BeaconPhaseSlot2Kind.freshness,
-      suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
-      rowHarmony: const BeaconPhaseRowHarmony(
-        suppressYouAwaitingAuthor: true,
-      ),
-      lastActivityAt: activityAt,
-    );
-  }
-
-  if (input.hasOpenRoomAsks ||
-      (beacon.helpOfferCount > 0 && !unreviewed)) {
+  if (input.hasOpenRoomAsks || (beacon.helpOfferCount > 0 && !unreviewed)) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
@@ -71,27 +72,34 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
       ),
     );
 
-    final responsibility = viewModel.youResponsibility;
+    final isHelpOffered = viewModel.role == MyWorkCardRole.helpOffered;
+    final isAuthorOrSteward = beacon.author.id == currentUserId;
+    final isAwaitingAuthorReview = viewerAwaitingAuthorHelpOfferReview(
+      isAuthorOrSteward: isAuthorOrSteward,
+      viewerHasActiveHelpOffer: isHelpOffered,
+      viewerOfferAuthorResponse: viewModel.authorResponseType,
+    );
+    final responsibility =
+        viewModel.youResponsibility ??
+        (isAwaitingAuthorReview ||
+                (isAuthorOrSteward && beacon.unansweredHelpOfferCount > 0)
+            ? CoordinationResponsibility(beaconId: beacon.id)
+            : null);
     if (responsibility != null) {
       final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
       final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
-      final isAuthorOrSteward = beacon.author.id == currentUserId;
-      final isAwaitingAuthorReview = viewerAwaitingAuthorHelpOfferReview(
-        isAuthorOrSteward: isAuthorOrSteward,
-        viewerHasActiveHelpOffer: viewModel.role == MyWorkCardRole.helpOffered,
-        viewerOfferAuthorResponse: viewModel.authorResponseType,
-      );
       final compactSurface = beaconYouCompactSurface(context, rowWidth);
-      if (isBeaconYouMetadataVisible(
+      final situationInput = buildMyWorkYouSituation(
         beacon: beacon,
+        viewModel: viewModel,
         responsibility: responsibility,
         isAuthorOrSteward: isAuthorOrSteward,
         compactSurface: compactSurface,
         isAwaitingAuthorReview: isAwaitingAuthorReview,
         phaseResult: phaseResult,
-        openBlocker: viewModel.roomOpenBlocker,
         viewerUserId: currentUserId,
-      )) {
+      );
+      if (isBeaconYouRowVisible(input: situationInput)) {
         entries.add(
           BeaconHudMetadataEntry(
             icon: BeaconHudRowIcons.you,
@@ -105,6 +113,9 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
               openBlocker: viewModel.roomOpenBlocker,
               phaseResult: phaseResult,
               isAwaitingAuthorReview: isAwaitingAuthorReview,
+              authorUnreviewedHelpOfferCount: isAuthorOrSteward
+                  ? beacon.unansweredHelpOfferCount
+                  : 0,
             ),
           ),
         );
@@ -181,21 +192,22 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
               editSemanticLabel: l10n.beaconHudEditNowLine,
             )
           : null,
-        body: HudLabeledMultiline(
-          leadingIcon: BeaconHudRowIcons.now,
-          semanticsLabel: l10n.beaconHudNowLabel,
-          text: nowDisplay.primaryText,
-          subline: nowDisplay.blockerText,
-          mutedColor: tt.textMuted,
-          isPlaceholder: nowDisplay.isPlaceholder,
-          includeLead: false,
-          primaryMaxLines: 1,
-          showTruncationHint: false,
-        ),
+      body: HudLabeledMultiline(
+        leadingIcon: BeaconHudRowIcons.now,
+        semanticsLabel: l10n.beaconHudNowLabel,
+        text: nowDisplay.primaryText,
+        subline: nowDisplay.blockerText,
+        mutedColor: tt.textMuted,
+        isPlaceholder: nowDisplay.isPlaceholder,
+        includeLead: false,
+        primaryMaxLines: 1,
+        showTruncationHint: false,
+      ),
     ),
   );
 
-  final youResponsibility = state.youResponsibility ??
+  final youResponsibility =
+      state.youResponsibility ??
       CoordinationResponsibility(beaconId: beacon.id);
   final phaseInput = beaconPhaseInputFromViewState(state);
   final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
@@ -206,17 +218,28 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
     viewerOfferAuthorResponse: state.myActiveHelpOffer?.coordinationResponse,
   );
   final compactSurface = beaconYouCompactSurface(context, rowWidth);
-
-  if (isBeaconYouMetadataVisible(
-    beacon: beacon,
-    responsibility: youResponsibility,
-    isAuthorOrSteward: state.isAuthorOrSteward,
-    compactSurface: compactSurface,
-    isAwaitingAuthorReview: isAwaitingAuthorReview,
+  final authorUnreviewedHelpOfferCount = state.isBeaconMine
+      ? state.unansweredHelpOffersCount
+      : 0;
+  final isViewerBlocked = shouldShowBlockedYouSegment(
     phaseResult: phaseResult,
     openBlocker: openBlocker,
     viewerUserId: viewerId,
-  )) {
+    responsibility: youResponsibility,
+  );
+  final situationInput = buildBeaconYouSituationInput(
+    beacon: beacon,
+    isAuthorOrSteward: state.isAuthorOrSteward,
+    othersOpenCount: youResponsibility.othersOpenCount,
+    compactSurface: compactSurface,
+    hasRoomObligations: youResponsibility.hasAny,
+    authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
+    viewerBlocked: isViewerBlocked,
+    isAwaitingAuthorReview: isAwaitingAuthorReview,
+    rowHarmony: phaseResult.rowHarmony,
+  );
+
+  if (isBeaconYouRowVisible(input: situationInput)) {
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.you,
@@ -231,10 +254,42 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
           openBlocker: openBlocker,
           phaseResult: phaseResult,
           isAwaitingAuthorReview: isAwaitingAuthorReview,
+          authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
         ),
       ),
     );
   }
 
   return entries;
+}
+
+BeaconYouSituationInput buildMyWorkYouSituation({
+  required Beacon beacon,
+  required MyWorkCardViewModel viewModel,
+  required CoordinationResponsibility responsibility,
+  required bool isAuthorOrSteward,
+  required bool compactSurface,
+  required bool isAwaitingAuthorReview,
+  required BeaconCoordinationPhaseResult phaseResult,
+  required String viewerUserId,
+}) {
+  final isViewerBlocked = shouldShowBlockedYouSegment(
+    phaseResult: phaseResult,
+    openBlocker: viewModel.roomOpenBlocker,
+    viewerUserId: viewerUserId,
+    responsibility: responsibility,
+  );
+  return buildBeaconYouSituationInput(
+    beacon: beacon,
+    isAuthorOrSteward: isAuthorOrSteward,
+    othersOpenCount: responsibility.othersOpenCount,
+    compactSurface: compactSurface,
+    hasRoomObligations: responsibility.hasAny,
+    authorUnreviewedHelpOfferCount: isAuthorOrSteward
+        ? beacon.unansweredHelpOfferCount
+        : 0,
+    viewerBlocked: isViewerBlocked,
+    isAwaitingAuthorReview: isAwaitingAuthorReview,
+    rowHarmony: phaseResult.rowHarmony,
+  );
 }

@@ -33,8 +33,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       score: i.scores?.firstOrNull?.dst_score ?? 0,
       images: [
-        for (final bi in i.beacon_images)
-          (bi.image as ImageModel).asEntity,
+        for (final bi in i.beacon_images) (bi.image as ImageModel).asEntity,
       ],
       tags: {
         if (i.tags.isNotEmpty) ...i.tags.split(','),
@@ -47,6 +46,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       reviewClosesAt: reviewWindow?.closes_at,
       reviewWindowStatus: reviewWindow?.status,
       helpOfferCount: i.help_offers_aggregate.aggregate?.count ?? 0,
+      unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
       iconCode: i.icon_code,
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
       lineageParentBeaconId: i.lineage_parent_beacon_id,

@@ -61,6 +61,7 @@ void main() {
         id: 'n',
         status: BeaconStatus.open,
         helpOfferCount: 2,
+        unansweredHelpOfferCount: 2,
         updatedAt: now,
       ),
     );

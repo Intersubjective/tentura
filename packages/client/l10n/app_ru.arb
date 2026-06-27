@@ -3698,7 +3698,7 @@
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",
   "beaconPhaseCtaResolveBlocker": "Снять блок",
   "beaconPhaseCtaReviewOffers": "Просмотреть предложения",
-  "beaconYouOfferSent": "Ждём решения автора",
+  "beaconYouOfferSent": "Ждём, пока автор рассмотрит ваше предложение",
   "forwardReasonAheadHint": "После выбора человека можно указать причину пересылки и добавить личную заметку.",
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."

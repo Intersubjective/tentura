@@ -46,5 +46,12 @@ fragment BeaconModel on beacon {
       count
     }
   }
+  unanswered_help_offers: help_offers_aggregate(
+    where: { status: { _eq: 0 }, coordination: { _is_null: true } }
+  ) {
+    aggregate {
+      count
+    }
+  }
   can_read_content
 }

@@ -3881,7 +3881,7 @@
   },
   "beaconPhaseCtaResolveBlocker": "Resolve blocker",
   "beaconPhaseCtaReviewOffers": "Review offers",
-  "beaconYouOfferSent": "Waiting for author's review",
+  "beaconYouOfferSent": "Waiting for author to review your offer",
   "forwardReasonAheadHint": "After selecting someone, you can explain why you're forwarding and add a personal note.",
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."

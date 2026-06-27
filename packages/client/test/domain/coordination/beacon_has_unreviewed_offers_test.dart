@@ -8,35 +8,55 @@ import 'package:tentura/domain/entity/profile.dart';
 Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
-}) =>
-    Beacon(
-      createdAt: DateTime.utc(2026),
-      updatedAt: DateTime.utc(2026),
-      id: 'b1',
-      title: 'Test',
-      author: const Profile(id: 'u1'),
-      status: status,
-      helpOfferCount: helpOfferCount,
-    );
+  int unansweredHelpOfferCount = 0,
+}) => Beacon(
+  createdAt: DateTime.utc(2026),
+  updatedAt: DateTime.utc(2026),
+  id: 'b1',
+  title: 'Test',
+  author: const Profile(id: 'u1'),
+  status: status,
+  helpOfferCount: helpOfferCount,
+  unansweredHelpOfferCount: unansweredHelpOfferCount,
+);
 
 void main() {
-  test('true when neutral coordination and help offers exist', () {
-    expect(
-      beaconHasUnreviewedOffers(_beacon(helpOfferCount: 2)),
-      isTrue,
-    );
-  });
-
-  test('false when no help offers', () {
-    expect(beaconHasUnreviewedOffers(_beacon()), isFalse);
-  });
-
-  test('false when coordination status is not neutral', () {
+  test('true when open-family and unanswered offers exist', () {
     expect(
       beaconHasUnreviewedOffers(
         _beacon(
           status: BeaconStatus.enoughHelp,
+          helpOfferCount: 2,
+          unansweredHelpOfferCount: 1,
+        ),
+      ),
+      isTrue,
+    );
+  });
+
+  test('false when no unanswered help offers', () {
+    expect(beaconHasUnreviewedOffers(_beacon()), isFalse);
+  });
+
+  test('false when helpOfferCount exists but all are reviewed', () {
+    expect(
+      beaconHasUnreviewedOffers(
+        _beacon(
           helpOfferCount: 3,
+          unansweredHelpOfferCount: 0,
+        ),
+      ),
+      isFalse,
+    );
+  });
+
+  test('false when lifecycle is not open-family', () {
+    expect(
+      beaconHasUnreviewedOffers(
+        _beacon(
+          status: BeaconStatus.reviewOpen,
+          helpOfferCount: 3,
+          unansweredHelpOfferCount: 2,
         ),
       ),
       isFalse,

@@ -6,7 +6,10 @@ void main() {
   group('deriveBeaconDisplayStatus', () {
     test('draft phase', () {
       final r = deriveBeaconDisplayStatus(
-        BeaconDisplayStatusInput(status: BeaconStatus.draft, tier: BeaconDisplayTier.coordination),
+        BeaconDisplayStatusInput(
+          status: BeaconStatus.draft,
+          tier: BeaconDisplayTier.coordination,
+        ),
       );
       expect(r.phase, BeaconDisplayPhase.draft);
     });
@@ -19,6 +22,31 @@ void main() {
         ),
       );
       expect(r.phase, BeaconDisplayPhase.needsMoreHelp);
+    });
+
+    test('enoughHelp with unreviewed offers is offersAwaitingAuthor', () {
+      final r = deriveBeaconDisplayStatus(
+        BeaconDisplayStatusInput(
+          status: BeaconStatus.enoughHelp,
+          tier: BeaconDisplayTier.coordination,
+          hasUnreviewedOffers: true,
+          helpOfferCount: 2,
+        ),
+      );
+      expect(r.phase, BeaconDisplayPhase.offersAwaitingAuthor);
+      expect(r.suggestedAction, BeaconDisplayPrimaryAction.reviewOffers);
+    });
+
+    test('enoughHelp with reviewed offers stays enoughHelpInMotion', () {
+      final r = deriveBeaconDisplayStatus(
+        BeaconDisplayStatusInput(
+          status: BeaconStatus.enoughHelp,
+          tier: BeaconDisplayTier.coordination,
+          hasUnreviewedOffers: false,
+          helpOfferCount: 2,
+        ),
+      );
+      expect(r.phase, BeaconDisplayPhase.enoughHelpInMotion);
     });
 
     test('blocked when open blocker signal', () {

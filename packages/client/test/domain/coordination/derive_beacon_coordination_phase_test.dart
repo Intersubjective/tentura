@@ -12,26 +12,30 @@ final _t = DateTime.utc(2026, 6, 20, 12);
 Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
-}) =>
-    Beacon.empty.copyWith(
-      id: 'b1',
-      title: 'Test',
-      status: status,
-      helpOfferCount: helpOfferCount,
-      createdAt: _t,
-      updatedAt: _t,
-    );
+  int unansweredHelpOfferCount = 0,
+}) => Beacon.empty.copyWith(
+  id: 'b1',
+  title: 'Test',
+  status: status,
+  helpOfferCount: helpOfferCount,
+  unansweredHelpOfferCount: unansweredHelpOfferCount,
+  createdAt: _t,
+  updatedAt: _t,
+);
 
 void main() {
-  test('authored open neutral with offers is offersAwaitingAuthor', () {
+  test('enoughHelp with unanswered offers is offersAwaitingAuthor', () {
+    final beacon = _beacon(
+      status: BeaconStatus.enoughHelp,
+      helpOfferCount: 3,
+      unansweredHelpOfferCount: 2,
+    );
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
-        beacon: _beacon(helpOfferCount: 3),
+        beacon: beacon,
         tier: BeaconVisibilityTier.coordination,
         now: _t,
-        hasUnreviewedOffers: beaconHasUnreviewedOffers(
-          _beacon(helpOfferCount: 3),
-        ),
+        hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
       ),
     );
     expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
@@ -40,21 +44,46 @@ void main() {
     expect(result.rowHarmony.suppressYouAwaitingAuthor, isTrue);
   });
 
-  test('offersAwaitingAuthor with stale activity uses freshness quiet days', () {
-    final now = DateTime.utc(2026, 6, 20, 12);
-    final updatedAt = now.subtract(const Duration(days: 3));
-    final beacon = _beacon(helpOfferCount: 2).copyWith(updatedAt: updatedAt);
+  test(
+    'offersAwaitingAuthor with stale activity uses freshness quiet days',
+    () {
+      final now = DateTime.utc(2026, 6, 20, 12);
+      final updatedAt = now.subtract(const Duration(days: 3));
+      final beacon = _beacon(
+        status: BeaconStatus.enoughHelp,
+        helpOfferCount: 2,
+        unansweredHelpOfferCount: 2,
+      ).copyWith(updatedAt: updatedAt);
+      final result = deriveBeaconCoordinationPhase(
+        BeaconCoordinationPhaseInput(
+          beacon: beacon,
+          tier: BeaconVisibilityTier.coordination,
+          now: now,
+          hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+        ),
+      );
+      expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
+      expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
+      expect(result.lastActivityAt, updatedAt);
+    },
+  );
+
+  test('enoughHelp with all offers reviewed stays enoughHelpInMotion', () {
+    final beacon = _beacon(
+      status: BeaconStatus.enoughHelp,
+      helpOfferCount: 3,
+      unansweredHelpOfferCount: 0,
+    );
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
         beacon: beacon,
         tier: BeaconVisibilityTier.coordination,
-        now: now,
+        now: _t,
         hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
       ),
     );
-    expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
-    expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
-    expect(result.lastActivityAt, updatedAt);
+    expect(result.phase, BeaconCoordinationPhase.enoughHelpInMotion);
+    expect(result.suggestedAction, BeaconPhasePrimaryAction.none);
   });
 
   test('open neutral zero offers is lookingForHelpers', () {

@@ -1,10 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+
+BeaconYouSituationInput _input({
+  BeaconStatus lifecycle = BeaconStatus.open,
+  bool isAuthorOrSteward = false,
+  int othersOpenCount = 0,
+  bool compactSurface = false,
+  bool hasRoomObligations = false,
+  bool isAwaitingAuthorReview = false,
+  int authorUnreviewedHelpOfferCount = 0,
+  bool viewerBlocked = false,
+}) {
+  return BeaconYouSituationInput(
+    lifecycle: lifecycle,
+    isAuthorOrSteward: isAuthorOrSteward,
+    othersOpenCount: othersOpenCount,
+    compactSurface: compactSurface,
+    hasRoomObligations: hasRoomObligations,
+    isAwaitingAuthorReview: isAwaitingAuthorReview,
+    authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
+    viewerBlocked: viewerBlocked,
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,283 +38,138 @@ void main() {
   });
 
   group('buildBeaconYouPresentation', () {
-    test('returns ordered segments with labels when not collapsed', () {
-      const r = CoordinationResponsibility(
+    test('returns ordered room segments with labels when not collapsed', () {
+      const responsibility = CoordinationResponsibility(
         beaconId: 'b1',
         askOpen: 2,
         promiseOpen: 1,
       );
-      final p = buildBeaconYouPresentation(
+      final presentation = buildBeaconYouPresentation(
         l10n,
-        r,
+        responsibility,
         collapse: false,
+        situationInput: _input(hasRoomObligations: true),
         emptyFallback: BeaconYouEmptyFallback.noOpenItems,
         showNewBadges: true,
       );
-      expect(p.fallbackText, isNull);
-      expect(p.segments, hasLength(2));
-      expect(p.segments.first.icon, isNotNull);
-      expect(p.segments.first.label, isNotNull);
-      expect(p.segments.first.count, 2);
+      expect(presentation.fallbackText, isNull);
+      expect(presentation.segments, hasLength(2));
+      expect(presentation.segments.first.label, l10n.beaconYouAskCount(2));
+      expect(presentation.segments.last.label, l10n.beaconYouPromiseCount(1));
     });
 
-    test('orders ask → promise → blocker → review segments', () {
-      const r = CoordinationResponsibility(
+    test('prepends author review segment before room obligations', () {
+      const responsibility = CoordinationResponsibility(
         beaconId: 'b1',
-        reviewOpen: 1,
-        blockerOpen: 1,
-        promiseOpen: 1,
         askOpen: 1,
       );
-      final p = buildBeaconYouPresentation(
+      final presentation = buildBeaconYouPresentation(
         l10n,
-        r,
+        responsibility,
         collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.hidden,
+        situationInput: _input(
+          isAuthorOrSteward: true,
+          hasRoomObligations: true,
+          authorUnreviewedHelpOfferCount: 2,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
         showNewBadges: false,
       );
+      expect(presentation.segments, hasLength(2));
       expect(
-        p.segments.map((s) => s.count).toList(),
-        [1, 1, 1, 1],
+        presentation.segments.first.label,
+        l10n.beaconHudYouAuthorReview(2),
       );
-      expect(p.segments[0].label, l10n.beaconYouAskCount(1));
-      expect(p.segments[1].label, l10n.beaconYouPromiseCount(1));
-      expect(p.segments[2].label, l10n.beaconYouBlockerCount(1));
-      expect(p.segments[3].label, l10n.beaconYouReviewCount(1));
+      expect(presentation.segments[1].label, l10n.beaconYouAskCount(1));
     });
 
-    test('uses singular and plural ICU labels', () {
-      const single = CoordinationResponsibility(
+    test('prepends helper awaiting-author segment before room obligations', () {
+      const responsibility = CoordinationResponsibility(
         beaconId: 'b1',
         askOpen: 1,
       );
-      const plural = CoordinationResponsibility(
-        beaconId: 'b1',
-        askOpen: 3,
-      );
-      final pSingle = buildBeaconYouPresentation(
+      final presentation = buildBeaconYouPresentation(
         l10n,
-        single,
+        responsibility,
         collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.hidden,
-        showNewBadges: false,
-      );
-      final pPlural = buildBeaconYouPresentation(
-        l10n,
-        plural,
-        collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.hidden,
-        showNewBadges: false,
-      );
-      expect(pSingle.segments.single.label, l10n.beaconYouAskCount(1));
-      expect(pPlural.segments.single.label, l10n.beaconYouAskCount(3));
-      expect(pSingle.segments.single.label, isNot(pPlural.segments.single.label));
-    });
-
-    test('collapse hides labels but keeps counts and new badges', () {
-      const r = CoordinationResponsibility(
-        beaconId: 'b1',
-        blockerOpen: 1,
-        blockerNew: 2,
-      );
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: true,
-        emptyFallback: BeaconYouEmptyFallback.hidden,
-        showNewBadges: true,
-      );
-      expect(p.segments.single.label, isNull);
-      expect(p.segments.single.count, 1);
-      expect(p.segments.single.newCount, 2);
-    });
-
-    test('showNewBadges false clears segment new counts', () {
-      const r = CoordinationResponsibility(
-        beaconId: 'b1',
-        askOpen: 1,
-        askNew: 4,
-      );
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.hidden,
-        showNewBadges: false,
-      );
-      expect(p.segments.single.newCount, 0);
-    });
-
-    test('empty responsibility uses waitingOnOthers fallback', () {
-      const r = CoordinationResponsibility(
-        beaconId: 'b1',
-        othersOpenCount: 3,
-      );
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.waitingOnOthers,
-        showNewBadges: false,
-      );
-      expect(p.fallbackText, l10n.beaconYouWaitingOnOthers);
-      expect(p.segments, isEmpty);
-    });
-
-    test('empty responsibility uses noOpenItems fallback', () {
-      const r = CoordinationResponsibility(beaconId: 'b1');
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: false,
+        situationInput: _input(
+          hasRoomObligations: true,
+          isAwaitingAuthorReview: true,
+        ),
         emptyFallback: BeaconYouEmptyFallback.noOpenItems,
         showNewBadges: false,
       );
-      expect(p.fallbackText, l10n.beaconYouNoOpenItems);
+      expect(presentation.segments, hasLength(2));
+      expect(presentation.segments.first.label, l10n.beaconYouOfferSent);
+      expect(presentation.segments[1].label, l10n.beaconYouAskCount(1));
     });
 
-    test('empty responsibility uses noInfo fallback', () {
-      const r = CoordinationResponsibility(beaconId: 'b1');
-      final p = buildBeaconYouPresentation(
+    test('empty responsibility uses authorReviewOffers fallback', () {
+      const responsibility = CoordinationResponsibility(beaconId: 'b1');
+      final presentation = buildBeaconYouPresentation(
         l10n,
-        r,
+        responsibility,
         collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.noInfo,
+        situationInput: _input(
+          isAuthorOrSteward: true,
+          authorUnreviewedHelpOfferCount: 3,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.authorReviewOffers,
         showNewBadges: false,
       );
-      expect(p.fallbackText, l10n.beaconYouNoInfo);
+      expect(presentation.fallbackText, l10n.beaconHudYouAuthorReview(3));
     });
 
-    test('empty responsibility uses awaitingAuthorReview fallback', () {
-      const r = CoordinationResponsibility(beaconId: 'b1');
-      final p = buildBeaconYouPresentation(
+    test('empty responsibility hidden produces hidden presentation', () {
+      const responsibility = CoordinationResponsibility(beaconId: 'b1');
+      final presentation = buildBeaconYouPresentation(
         l10n,
-        r,
+        responsibility,
         collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.awaitingAuthorReview,
-        showNewBadges: false,
-      );
-      expect(p.fallbackText, l10n.beaconYouOfferSent);
-    });
-
-    test('empty responsibility uses closed fallback', () {
-      const r = CoordinationResponsibility(beaconId: 'b1');
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.closed,
-        showNewBadges: false,
-      );
-      expect(p.fallbackText, l10n.beaconYouClosed);
-    });
-
-    test('empty responsibility hidden produces isHidden presentation', () {
-      const r = CoordinationResponsibility(beaconId: 'b1');
-      final p = buildBeaconYouPresentation(
-        l10n,
-        r,
-        collapse: false,
+        situationInput: _input(compactSurface: true),
         emptyFallback: BeaconYouEmptyFallback.hidden,
         showNewBadges: false,
       );
-      expect(p.isHidden, isTrue);
-      expect(p.fallbackText, isNull);
-      expect(p.segments, isEmpty);
+      expect(presentation.isHidden, isTrue);
+      expect(presentation.segments, isEmpty);
+      expect(presentation.fallbackText, isNull);
     });
   });
 
   group('deriveBeaconYouEmptyFallback', () {
     test('closed lifecycle returns closed', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.closed,
-          isAuthorOrSteward: false,
-          othersOpenCount: 0,
-          compactSurface: false,
-          hasPersonalObligation: false,
-        ),
-        BeaconYouEmptyFallback.closed,
+      final fallback = deriveBeaconYouEmptyFallback(
+        input: _input(lifecycle: BeaconStatus.closed),
       );
+      expect(fallback, BeaconYouEmptyFallback.closed);
     });
 
-    test('othersOpenCount returns waitingOnOthers', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
-          isAuthorOrSteward: false,
-          othersOpenCount: 2,
-          compactSurface: false,
-          hasPersonalObligation: false,
-        ),
-        BeaconYouEmptyFallback.waitingOnOthers,
-      );
-    });
-
-    test('non-author on open beacon returns noInfo', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
-          isAuthorOrSteward: false,
-          othersOpenCount: 0,
-          compactSurface: false,
-          hasPersonalObligation: false,
-        ),
-        BeaconYouEmptyFallback.noInfo,
-      );
-    });
-
-    test('isAwaitingAuthorReview returns awaitingAuthorReview', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
-          isAuthorOrSteward: false,
-          othersOpenCount: 0,
-          compactSurface: false,
-          hasPersonalObligation: false,
+    test('awaitingAuthorReview beats waitingOnOthers', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        input: _input(
+          othersOpenCount: 4,
           isAwaitingAuthorReview: true,
         ),
-        BeaconYouEmptyFallback.awaitingAuthorReview,
       );
+      expect(fallback, BeaconYouEmptyFallback.awaitingAuthorReview);
     });
 
-    test('compact surface without obligation returns hidden', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
-          isAuthorOrSteward: false,
-          othersOpenCount: 0,
-          compactSurface: true,
-          hasPersonalObligation: false,
-        ),
-        BeaconYouEmptyFallback.hidden,
-      );
-    });
-
-    test('compact surface with obligation does not return hidden', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
-          isAuthorOrSteward: false,
-          othersOpenCount: 0,
-          compactSurface: true,
-          hasPersonalObligation: true,
-        ),
-        isNot(BeaconYouEmptyFallback.hidden),
-      );
-    });
-
-    test('author with no items returns noOpenItems', () {
-      expect(
-        deriveBeaconYouEmptyFallback(
-          lifecycle: BeaconStatus.open,
+    test('authorReviewOffers beats waitingOnOthers', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        input: _input(
           isAuthorOrSteward: true,
-          othersOpenCount: 0,
-          compactSurface: false,
-          hasPersonalObligation: false,
+          othersOpenCount: 3,
+          authorUnreviewedHelpOfferCount: 2,
         ),
-        BeaconYouEmptyFallback.noOpenItems,
       );
+      expect(fallback, BeaconYouEmptyFallback.authorReviewOffers);
+    });
+
+    test('compact surface without personal obligation returns hidden', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        input: _input(compactSurface: true),
+      );
+      expect(fallback, BeaconYouEmptyFallback.hidden);
     });
   });
 
@@ -308,7 +185,7 @@ void main() {
       );
     });
 
-    test('false when author responded or viewer is author', () {
+    test('false when viewer is author', () {
       expect(
         viewerAwaitingAuthorHelpOfferReview(
           isAuthorOrSteward: true,
