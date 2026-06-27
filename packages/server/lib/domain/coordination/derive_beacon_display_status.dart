@@ -145,6 +145,15 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
     );
   }
 
+  if (input.hasUnreviewedOffers) {
+    return BeaconDisplayStatusResult(
+      phase: BeaconDisplayPhase.offersAwaitingAuthor,
+      slot2Kind: BeaconDisplaySlot2Kind.freshness,
+      suggestedAction: BeaconDisplayPrimaryAction.reviewOffers,
+      lastActivityAt: activityAt,
+    );
+  }
+
   if (input.status == BeaconStatus.needsMoreHelp) {
     return BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.needsMoreHelp,
@@ -159,15 +168,6 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
       phase: BeaconDisplayPhase.enoughHelpInMotion,
       slot2Kind: BeaconDisplaySlot2Kind.freshness,
       suggestedAction: BeaconDisplayPrimaryAction.none,
-      lastActivityAt: activityAt,
-    );
-  }
-
-  if (input.hasUnreviewedOffers) {
-    return BeaconDisplayStatusResult(
-      phase: BeaconDisplayPhase.offersAwaitingAuthor,
-      slot2Kind: BeaconDisplaySlot2Kind.freshness,
-      suggestedAction: BeaconDisplayPrimaryAction.reviewOffers,
       lastActivityAt: activityAt,
     );
   }

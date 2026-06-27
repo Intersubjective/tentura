@@ -46,6 +46,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Rows in `beacon_help_offer` for this beacon (from GraphQL aggregate when fetched).
     @Default(0) int helpOfferCount,
 
+    /// Active help offers with no author coordination response (list fetch aggregate).
+    @Default(0) int unansweredHelpOfferCount,
+
     /// Active help-offer user profiles when `help_offers` relation is fetched (My Work).
     @Default([]) List<Profile> helpOfferUsers,
 

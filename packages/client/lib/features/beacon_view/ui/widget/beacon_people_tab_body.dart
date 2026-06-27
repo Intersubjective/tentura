@@ -42,9 +42,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
     final focusUid = focusUserId?.trim();
     final hasFocus = focusUid != null && focusUid.isNotEmpty;
     Widget focusWrap(String userId, Widget child) => FocusFlashHighlight(
-          active: hasFocus && userId == focusUid,
-          child: child,
-        );
+      active: hasFocus && userId == focusUid,
+      child: child,
+    );
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
@@ -98,7 +98,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
         isAuthorView: state.isAuthorOrSteward,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
-        onAuthorTapCoordination: beacon.status == BeaconStatus.open &&
+        onAuthorTapCoordination:
+            beacon.status.isOpenFamily &&
                 !row.isAuthor &&
                 state.isAuthorOrSteward &&
                 !c.isWithdrawn &&
@@ -268,16 +269,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
                           helpOffered: state.involvementHelpOfferedIds,
                           watching: state.involvementWatchingIds,
                           onward: state.involvementOnwardForwarderIds,
-                          reasonSlugs: state.forwardReasonSlugs[
-                                  '${e.sender.id}__${e.recipient.id}'] ??
+                          reasonSlugs:
+                              state
+                                  .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
                               const [],
                         )
                       : UnifiedForwardRow.inbound(
                           sender: e.sender,
                           note: e.note,
                           viewerUserId: viewerId,
-                          reasonSlugs: state.forwardReasonSlugs[
-                                  '${e.sender.id}__${e.recipient.id}'] ??
+                          reasonSlugs:
+                              state
+                                  .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
                               const [],
                         ),
               ];

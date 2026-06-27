@@ -80,12 +80,14 @@ void main() {
         matching: find.byType(OverlappingPeopleAvatars),
       ),
     );
-    final scheduleX = tester.getTopLeft(
-      find.descendant(
-        of: strip,
-        matching: find.byIcon(Icons.event_outlined),
-      ),
-    ).dx;
+    final scheduleX = tester
+        .getTopLeft(
+          find.descendant(
+            of: strip,
+            matching: find.byIcon(Icons.event_outlined),
+          ),
+        )
+        .dx;
     expect(scheduleX, greaterThan(pileRect.right));
     expect(scheduleX, greaterThan(180));
   });
@@ -194,8 +196,9 @@ void main() {
 
     final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
     final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
-    final historyX =
-        tester.getTopLeft(find.byIcon(BeaconHudRowIcons.lastEvent)).dx;
+    final historyX = tester
+        .getTopLeft(find.byIcon(BeaconHudRowIcons.lastEvent))
+        .dx;
     expect(nowX, youX);
     expect(nowX, historyX);
   });
@@ -288,12 +291,14 @@ void main() {
         matching: find.byType(OverlappingPeopleAvatars),
       ),
     );
-    final scheduleX = tester.getTopLeft(
-      find.descendant(
-        of: strip,
-        matching: find.byIcon(Icons.event_outlined),
-      ),
-    ).dx;
+    final scheduleX = tester
+        .getTopLeft(
+          find.descendant(
+            of: strip,
+            matching: find.byIcon(Icons.event_outlined),
+          ),
+        )
+        .dx;
     expect(scheduleX, greaterThan(pileRect.right));
   });
 
@@ -365,4 +370,97 @@ void main() {
     expect(find.byType(MyWorkLastEventBody), findsNothing);
     expect(find.text('Pick up supplies at noon'), findsNothing);
   });
+
+  testWidgets('authored enoughHelp with unanswered offers shows review line', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-review-offers',
+      status: BeaconStatus.enoughHelp,
+      author: const Profile(id: 'viewer', displayName: 'Alice'),
+      helpOfferCount: 2,
+      unansweredHelpOfferCount: 2,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon),
+                  currentUserId: 'viewer',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+    expect(find.text('Review 2 commitment(s)'), findsOneWidget);
+  });
+
+  testWidgets(
+    'help-offered without room obligations still shows awaiting author',
+    (
+      tester,
+    ) async {
+      final beacon = Beacon.empty.copyWith(
+        id: 'b-help-await',
+        status: BeaconStatus.enoughHelp,
+        author: const Profile(id: 'author', displayName: 'Author'),
+        helpOfferCount: 1,
+      );
+      final viewModel = MyWorkCardViewModel(
+        beaconId: beacon.id,
+        role: MyWorkCardRole.helpOffered,
+        kind: MyWorkCardKind.helpOfferedActive,
+        beacon: beacon,
+        authorResponseType: null,
+        offerHelpMessage: 'I can help',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(360, 800)),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 360,
+                  child: MyWorkCardMetadataRow(
+                    beacon: beacon,
+                    viewModel: viewModel,
+                    currentUserId: 'viewer',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+      expect(
+        find.text('Waiting for author to review your offer'),
+        findsOneWidget,
+      );
+    },
+  );
 }

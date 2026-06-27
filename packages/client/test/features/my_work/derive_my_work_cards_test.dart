@@ -10,14 +10,15 @@ Beacon _b({
   required String id,
   required BeaconStatus status,
   int helpOfferCount = 0,
-}) =>
-    Beacon.empty.copyWith(
-      id: id,
-      updatedAt: DateTime(2025, 1, 2),
-      status: status,
-      helpOfferCount: helpOfferCount,
-      author: const Profile(id: 'auth', displayName: 'Author Co'),
-    );
+  int unansweredHelpOfferCount = 0,
+}) => Beacon.empty.copyWith(
+  id: id,
+  updatedAt: DateTime(2025, 1, 2),
+  status: status,
+  helpOfferCount: helpOfferCount,
+  unansweredHelpOfferCount: unansweredHelpOfferCount,
+  author: const Profile(id: 'auth', displayName: 'Author Co'),
+);
 
 void main() {
   test('buildNonArchivedViewModels maps draft as authoredDraft', () {
@@ -29,20 +30,43 @@ void main() {
     expect(vms.single.kind, MyWorkCardKind.authoredDraft);
   });
 
-  test('authored active shows Review commitments CTA when neutral with offers', () {
-    final authored = [
-      _b(
-        id: 'a',
-        status: BeaconStatus.open,
-        helpOfferCount: 2,
-      ),
-    ];
-    final vms = buildNonArchivedViewModels(
-      authoredNonArchived: authored,
-      helpOfferedNonArchived: const [],
-    );
-    expect(vms.single.showReviewHelpOffersCta, isTrue);
-  });
+  test(
+    'authored active shows Review commitments CTA when unanswered exist',
+    () {
+      final authored = [
+        _b(
+          id: 'a',
+          status: BeaconStatus.enoughHelp,
+          helpOfferCount: 2,
+          unansweredHelpOfferCount: 2,
+        ),
+      ];
+      final vms = buildNonArchivedViewModels(
+        authoredNonArchived: authored,
+        helpOfferedNonArchived: const [],
+      );
+      expect(vms.single.showReviewHelpOffersCta, isTrue);
+    },
+  );
+
+  test(
+    'authored active hides Review commitments CTA when all offers reviewed',
+    () {
+      final authored = [
+        _b(
+          id: 'a-reviewed',
+          status: BeaconStatus.enoughHelp,
+          helpOfferCount: 2,
+          unansweredHelpOfferCount: 0,
+        ),
+      ];
+      final vms = buildNonArchivedViewModels(
+        authoredNonArchived: authored,
+        helpOfferedNonArchived: const [],
+      );
+      expect(vms.single.showReviewHelpOffersCta, isFalse);
+    },
+  );
 
   test('committed active shows review CTA in reviewOpen', () {
     final row = (
@@ -134,28 +158,31 @@ void main() {
     expect(fromBeaconView, fromList);
   });
 
-  test('myWorkCardViewModelForBeaconView mirrors committed list derivation', () {
-    final b = _b(id: 'bv2', status: BeaconStatus.open);
-    final row = (
-      beacon: b,
-      offerHelpMessage: 'hi',
-      helpType: null,
-      authorResponseType: null,
-      forwarderSenders: const <Profile>[],
-      helpOfferRowUpdatedAt: DateTime(2025, 3),
-      authorCoordinationUpdatedAt: null,
-    );
-    final fromList = buildNonArchivedViewModels(
-      authoredNonArchived: const [],
-      helpOfferedNonArchived: [row],
-    ).single;
-    final fromBeaconView = myWorkCardViewModelForBeaconView(
-      beacon: b,
-      isBeaconMine: false,
-      isHelpOffered: true,
-      myOfferHelpMessage: 'hi',
-      myHelpOfferUpdatedAt: DateTime(2025, 3),
-    );
-    expect(fromBeaconView, fromList);
-  });
+  test(
+    'myWorkCardViewModelForBeaconView mirrors committed list derivation',
+    () {
+      final b = _b(id: 'bv2', status: BeaconStatus.open);
+      final row = (
+        beacon: b,
+        offerHelpMessage: 'hi',
+        helpType: null,
+        authorResponseType: null,
+        forwarderSenders: const <Profile>[],
+        helpOfferRowUpdatedAt: DateTime(2025, 3),
+        authorCoordinationUpdatedAt: null,
+      );
+      final fromList = buildNonArchivedViewModels(
+        authoredNonArchived: const [],
+        helpOfferedNonArchived: [row],
+      ).single;
+      final fromBeaconView = myWorkCardViewModelForBeaconView(
+        beacon: b,
+        isBeaconMine: false,
+        isHelpOffered: true,
+        myOfferHelpMessage: 'hi',
+        myHelpOfferUpdatedAt: DateTime(2025, 3),
+      );
+      expect(fromBeaconView, fromList);
+    },
+  );
 }

@@ -1,6 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-/// Author has help offers but has not moved past neutral open status.
+/// Author has active help offers without a coordination response (open-family).
 bool beaconHasUnreviewedOffers(Beacon beacon) =>
-    beacon.status == BeaconStatus.open && beacon.helpOfferCount > 0;
+    beacon.status.isOpenFamily && beacon.unansweredHelpOfferCount > 0;

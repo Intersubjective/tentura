@@ -59,7 +59,8 @@ final class BeaconDisplayCase extends UseCaseBase {
       final coords = await _coordinationRepository
           .coordinationResponseTypeByOfferUserId(beaconId);
 
-      final hasUnreviewed = beacon.status == BeaconStatus.open &&
+      final hasUnreviewed =
+          beacon.status.isOpenFamily &&
           activeOffers > 0 &&
           offers.any((o) => o.status == 0 && coords[o.userId] == null);
 

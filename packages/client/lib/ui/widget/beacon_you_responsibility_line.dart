@@ -15,6 +15,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     required this.beacon,
     required this.responsibility,
     required this.isAuthorOrSteward,
+    required this.authorUnreviewedHelpOfferCount,
     required this.tableRowWidth,
     this.showNewBadges = true,
     this.viewerUserId = '',
@@ -27,6 +28,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final Beacon beacon;
   final CoordinationResponsibility responsibility;
   final bool isAuthorOrSteward;
+  final int authorUnreviewedHelpOfferCount;
   final double tableRowWidth;
   final bool showNewBadges;
   final String viewerUserId;
@@ -41,21 +43,30 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     final theme = Theme.of(context);
 
     final collapse = beaconYouCompactSurface(context, tableRowWidth);
-    final blockedSegment = _buildBlockedSegment(context, l10n);
-    final emptyFallback = deriveBeaconYouEmptyFallbackFromBeacon(
-      beacon: beacon,
-      responsibility: responsibility,
-      isAuthorOrSteward: isAuthorOrSteward,
-      compactSurface: collapse,
+    final isViewerBlocked = shouldShowBlockedYouSegment(
       phaseResult: phaseResult,
       openBlocker: openBlocker,
       viewerUserId: viewerUserId,
-      isAwaitingAuthorReview: isAwaitingAuthorReview,
+      responsibility: responsibility,
     );
+    final situationInput = buildBeaconYouSituationInput(
+      beacon: beacon,
+      isAuthorOrSteward: isAuthorOrSteward,
+      othersOpenCount: responsibility.othersOpenCount,
+      compactSurface: collapse,
+      hasRoomObligations: responsibility.hasAny,
+      authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
+      viewerBlocked: isViewerBlocked,
+      isAwaitingAuthorReview: isAwaitingAuthorReview,
+      rowHarmony: phaseResult?.rowHarmony ?? BeaconPhaseRowHarmony.empty,
+    );
+    final blockedSegment = _buildBlockedSegment(context, l10n);
+    final emptyFallback = deriveBeaconYouEmptyFallback(input: situationInput);
     final presentation = buildBeaconYouPresentation(
       l10n,
       responsibility,
       collapse: collapse,
+      situationInput: situationInput,
       emptyFallback: emptyFallback,
       showNewBadges: showNewBadges,
       blockedSegment: blockedSegment,
@@ -99,12 +110,10 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
             bodyStyle: bodyStyle,
             mutedStyle: mutedStyle,
           ),
-          if (presentation.segments.isNotEmpty)
-            Text('·', style: mutedStyle),
+          if (presentation.segments.isNotEmpty) Text('·', style: mutedStyle),
         ],
         for (var i = 0; i < presentation.segments.length; i++) ...[
-          if (i > 0)
-            Text('·', style: mutedStyle),
+          if (i > 0) Text('·', style: mutedStyle),
           _SegmentChip(
             segment: presentation.segments[i],
             bodyStyle: bodyStyle,
@@ -181,9 +190,11 @@ class _BlockedSegmentRow extends StatelessWidget {
             Text(' · ', style: mutedStyle),
             Text(
               segment.elapsedLabel!,
-              style: bodyStyle?.copyWith(fontFeatures: const [
-                FontFeature.tabularFigures(),
-              ]),
+              style: bodyStyle?.copyWith(
+                fontFeatures: const [
+                  FontFeature.tabularFigures(),
+                ],
+              ),
             ),
           ],
         ],

@@ -63,13 +63,15 @@ Data / Server
 |----------|-------|-------|---------|
 | 1 | blocked | clearing needed | open + open blocker |
 | 2 | wrappingUp | review countdown | reviewOpen |
-| 3 | needsMoreHelp | freshness | open-family beacon status = more help needed |
-| 4 | enoughHelpInMotion | freshness | open-family beacon status = enough help in motion |
-| 5 | offersAwaitingAuthor | freshness | unreviewed offers |
+| 3 | offersAwaitingAuthor | freshness | unreviewed offers |
+| 4 | needsMoreHelp | freshness | open-family beacon status = more help needed |
+| 5 | enoughHelpInMotion | freshness | open-family beacon status = enough help in motion |
 | 6 | coordinating | freshness | reviewed / room asks |
 | 7 | lookingForHelpers | no offers yet | open + 0 offers |
 | terminal | closed / cancelled | lifecycle ended at | lifecycle terminal |
 | floor | draft / open | — | gap |
+
+Ordering aligns with product status quo section 8.2: new offers remain reviewable even when the beacon has enough help in motion.
 
 **Public tier** maps from `beacon.publicStatus` — never exposes `Offers awaiting author`.
 
@@ -80,7 +82,7 @@ Data / Server
 | Flag | Effect |
 |------|--------|
 | `suppressNowPlaceholder` | NOW row skips “no current line” placeholder |
-| `suppressYouAwaitingAuthor` | YOU hides author-awaiting copy when STATUS already says offers awaiting author |
+| `suppressYouAwaitingAuthor` | YOU hides duplicate author-awaiting copy; never map author to `Waiting on others` |
 | `preferBlockedYouSegment` | YOU shows generic blocked segment when viewer is personally responsible |
 | `showBlockedTitleInNowSubline` | Blocker title in NOW only, not STATUS |
 
