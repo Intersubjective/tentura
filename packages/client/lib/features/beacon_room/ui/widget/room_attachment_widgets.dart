@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/back_dismissible_fullscreen_overlay.dart';
 
 /// Default inline album height for [WindowClass.regular] (layout estimates).
 const double kRoomMessageInlineImageAlbumHeight = 220;
@@ -193,19 +194,11 @@ Future<void> openRoomAttachmentImageAlbum(
     return;
   }
   final i = initialIndex.clamp(0, items.length - 1);
-  // useRootNavigator: true is required on Web.
-  //
-  // BeaconViewScreen wraps its room surface in PopScope(canPop: false) so
-  // browser back can be intercepted. Pushing the gallery on the same Navigator
-  // scope lets that sentinel win over the gallery route — back exits chat
-  // instead of closing the image. Root Navigator decouples the overlay (same
-  // pattern as room bottom sheets in beacon_room_body.dart).
-  await Navigator.of(context, rootNavigator: true).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => RoomAttachmentFullscreenGallery(
-        attachments: items,
-        initialIndex: i,
-      ),
+  await pushBackDismissibleFullscreenOverlay<void>(
+    context,
+    RoomAttachmentFullscreenGallery(
+      attachments: items,
+      initialIndex: i,
     ),
   );
 }

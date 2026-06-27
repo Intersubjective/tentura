@@ -6,6 +6,8 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 
+import 'back_dismissible_fullscreen_overlay.dart';
+
 class BeaconGalleryViewer extends StatefulWidget {
   const BeaconGalleryViewer({
     required this.beacon,
@@ -21,12 +23,11 @@ class BeaconGalleryViewer extends StatefulWidget {
     required Beacon beacon,
     int initialIndex = 0,
   }) =>
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => BeaconGalleryViewer(
-            beacon: beacon,
-            initialIndex: initialIndex,
-          ),
+      pushBackDismissibleFullscreenOverlay<void>(
+        context,
+        BeaconGalleryViewer(
+          beacon: beacon,
+          initialIndex: initialIndex,
         ),
       );
 
