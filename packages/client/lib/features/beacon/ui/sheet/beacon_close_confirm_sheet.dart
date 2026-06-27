@@ -11,7 +11,8 @@ Future<bool> showBeaconCloseConfirmSheet({
   required BuildContext context,
   required BeaconClosureConfirmationSummary summary,
   required bool isLoading,
-  required Future<bool> Function(bool expectedRequiresReviewWindow) onCloseBeacon,
+  required Future<bool> Function(bool expectedRequiresReviewWindow)
+  onCloseBeacon,
   required VoidCallback onOpenPeople,
   VoidCallback? onResolveRoom,
 }) async {
@@ -22,50 +23,49 @@ Future<bool> showBeaconCloseConfirmSheet({
 
   final (title, body, branchPreview) = switch ((r, reviewBranch)) {
     (BeaconClosureReadiness.readyToClose, true) => (
-        l10n.beaconCloseSheetReadyReviewTitle,
-        l10n.beaconCloseSheetReadyReviewBody,
-        l10n.beaconCloseSheetBranchWrappingUp,
-      ),
+      l10n.beaconCloseSheetReadyReviewTitle,
+      l10n.beaconCloseSheetReadyReviewBody,
+      l10n.beaconCloseSheetBranchWrappingUp,
+    ),
     (BeaconClosureReadiness.readyToClose, false) => (
-        l10n.beaconCloseSheetReadyTitle,
-        l10n.beaconCloseSheetReadyImmediateBody,
-        l10n.beaconCloseSheetBranchClosedImmediate,
-      ),
+      l10n.beaconCloseSheetReadyTitle,
+      l10n.beaconCloseSheetReadyImmediateBody,
+      l10n.beaconCloseSheetBranchClosedImmediate,
+    ),
     (BeaconClosureReadiness.waitingForReview, _) => (
-        l10n.beaconCloseSheetReviewTitle,
-        reviewBranch
-            ? l10n.beaconCloseSheetReviewWrappingUpBody
-            : l10n.beaconCloseSheetReviewBody,
-        reviewBranch
-            ? l10n.beaconCloseSheetBranchWrappingUp
-            : l10n.beaconCloseSheetBranchClosedImmediate,
-      ),
+      l10n.beaconCloseSheetReviewTitle,
+      reviewBranch
+          ? l10n.beaconCloseSheetReviewWrappingUpBody
+          : l10n.beaconCloseSheetReviewBody,
+      reviewBranch
+          ? l10n.beaconCloseSheetBranchWrappingUp
+          : l10n.beaconCloseSheetBranchClosedImmediate,
+    ),
     (BeaconClosureReadiness.premature, _) => (
-        l10n.beaconCloseSheetPrematureTitle,
-        reviewBranch
-            ? l10n.beaconCloseSheetPrematureReviewBody
-            : l10n.beaconCloseSheetPrematureBody,
-        reviewBranch
-            ? l10n.beaconCloseSheetBranchWrappingUp
-            : l10n.beaconCloseSheetBranchClosedImmediate,
-      ),
+      l10n.beaconCloseSheetPrematureTitle,
+      reviewBranch
+          ? l10n.beaconCloseSheetPrematureReviewBody
+          : l10n.beaconCloseSheetPrematureBody,
+      reviewBranch
+          ? l10n.beaconCloseSheetBranchWrappingUp
+          : l10n.beaconCloseSheetBranchClosedImmediate,
+    ),
     (BeaconClosureReadiness.blocked, _) => (
-        l10n.beaconCloseSheetBlockedTitle,
-        l10n.beaconCloseSheetBlockedBody,
-        null,
-      ),
+      l10n.beaconCloseSheetBlockedTitle,
+      l10n.beaconCloseSheetBlockedBody,
+      null,
+    ),
     (BeaconClosureReadiness.notCloseable, _) => (
-        l10n.beaconCloseSheetPrematureTitle,
-        l10n.beaconCloseSheetPrematureBody,
-        reviewBranch
-            ? l10n.beaconCloseSheetBranchWrappingUp
-            : l10n.beaconCloseSheetBranchClosedImmediate,
-      ),
+      l10n.beaconCloseSheetPrematureTitle,
+      l10n.beaconCloseSheetPrematureBody,
+      reviewBranch
+          ? l10n.beaconCloseSheetBranchWrappingUp
+          : l10n.beaconCloseSheetBranchClosedImmediate,
+    ),
   };
 
   final evidence = <Widget>[
-    if (branchPreview != null)
-      _evidenceRow(scheme, branchPreview),
+    if (branchPreview != null) _evidenceRow(scheme, branchPreview),
     _evidenceRow(
       scheme,
       summary.hasOpenBlocker
@@ -98,18 +98,19 @@ Future<bool> showBeaconCloseConfirmSheet({
   ];
 
   var confirmed = false;
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     builder: (ctx) {
+      final tt = ctx.tt;
       return SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-            24,
-            8,
-            24,
-            16 + MediaQuery.paddingOf(ctx).bottom,
+            tt.screenHPadding,
+            tt.rowGap,
+            tt.screenHPadding,
+            tt.sectionGap + MediaQuery.paddingOf(ctx).bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -119,24 +120,24 @@ Future<bool> showBeaconCloseConfirmSheet({
                 title,
                 style: TenturaText.titleSmall(scheme.onSurface),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: tt.rowGap),
               Text(
                 body,
                 style: TenturaText.body(scheme.onSurfaceVariant),
               ),
               if (evidence.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: tt.sectionGap),
                 ...evidence,
               ],
               if (r == BeaconClosureReadiness.blocked &&
                   !kBeaconAllowForceCloseWhenBlocked) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: tt.rowGap),
                 Text(
                   l10n.beaconCloseSheetBlockedForceHint,
                   style: TenturaText.status(scheme.onSurfaceVariant),
                 ),
               ],
-              const SizedBox(height: 16),
+              SizedBox(height: tt.sectionGap),
               if (isLoading)
                 const Center(child: CircularProgressIndicator.adaptive())
               else ...[
@@ -223,24 +224,23 @@ Widget _evidenceRow(
   ColorScheme scheme,
   String text, {
   bool positive = true,
-}) =>
-    Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            positive ? Icons.check_circle_outline : Icons.info_outline,
-            size: 18,
-            color: positive ? scheme.primary : scheme.outline,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TenturaText.body(scheme.onSurfaceVariant),
-            ),
-          ),
-        ],
+}) => Padding(
+  padding: const EdgeInsets.only(bottom: 6),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        positive ? Icons.check_circle_outline : Icons.info_outline,
+        size: 18,
+        color: positive ? scheme.primary : scheme.outline,
       ),
-    );
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          text,
+          style: TenturaText.body(scheme.onSurfaceVariant),
+        ),
+      ),
+    ],
+  ),
+);

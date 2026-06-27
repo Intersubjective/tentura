@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 String _editSheetTitle(L10n l10n, CoordinationItem item) => switch (item.kind) {
-      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
-      CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
-      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-      CoordinationItemKind.plan => item.isPlanStep
-          ? l10n.coordinationPlanStepCardLabel
-          : l10n.coordinationPlanCardLabel,
-      CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
-    };
+  CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+  CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+  CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
+  CoordinationItemKind.plan =>
+    item.isPlanStep
+        ? l10n.coordinationPlanStepCardLabel
+        : l10n.coordinationPlanCardLabel,
+  CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
+};
 
 /// In-place edit for a published coordination item (open or accepted).
 Future<void> showCoordinationItemEditSheet(
@@ -24,7 +25,7 @@ Future<void> showCoordinationItemEditSheet(
 }) async {
   final l10n = L10n.of(context)!;
   final coordinationCase = GetIt.I<CoordinationItemCase>();
-  final ok = await showModalBottomSheet<bool>(
+  final ok = await showTenturaAdaptiveSheet<bool>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -77,15 +78,15 @@ class _CoordinationItemEditSheetBodyState
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    final canSubmit =
-        _titleController.text.trim().isNotEmpty && !_submitting;
+    final canSubmit = _titleController.text.trim().isNotEmpty && !_submitting;
     return Padding(
       padding: EdgeInsets.only(
-        left: kSpacingSmall,
-        right: kSpacingSmall,
-        top: kSpacingMedium,
-        bottom: bottom + kSpacingMedium,
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: bottom + tt.sectionGap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -95,7 +96,7 @@ class _CoordinationItemEditSheetBodyState
             _editSheetTitle(widget.l10n, widget.item),
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: kSpacingSmall),
+          SizedBox(height: tt.rowGap),
           TextField(
             controller: _titleController,
             onChanged: (_) => setState(() {}),
@@ -105,7 +106,7 @@ class _CoordinationItemEditSheetBodyState
             enabled: !_submitting,
             autofocus: true,
           ),
-          const SizedBox(height: kSpacingSmall),
+          SizedBox(height: tt.rowGap),
           TextField(
             controller: _bodyController,
             onChanged: (_) => setState(() {}),
@@ -113,7 +114,7 @@ class _CoordinationItemEditSheetBodyState
             minLines: 3,
             enabled: !_submitting,
           ),
-          const SizedBox(height: kSpacingMedium),
+          SizedBox(height: tt.sectionGap),
           FilledButton(
             onPressed: !canSubmit
                 ? null
@@ -121,10 +122,10 @@ class _CoordinationItemEditSheetBodyState
                     setState(() => _submitting = true);
                     try {
                       await widget.coordinationCase.updateItem(
-                            itemId: widget.item.id,
-                            title: _titleController.text.trim(),
-                            body: _bodyController.text.trim(),
-                          );
+                        itemId: widget.item.id,
+                        title: _titleController.text.trim(),
+                        body: _bodyController.text.trim(),
+                      );
                       if (context.mounted) {
                         Navigator.of(context).pop(true);
                       }

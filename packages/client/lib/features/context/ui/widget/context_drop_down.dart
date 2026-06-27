@@ -47,6 +47,10 @@ class ContextDropDown extends StatelessWidget {
                     ),
                     if (state.selected == e)
                       IconButton(
+                        constraints: const BoxConstraints(
+                          minWidth: kMinInteractiveDimension,
+                          minHeight: kMinInteractiveDimension,
+                        ),
                         icon: const Icon(Icons.delete_forever),
                         onPressed: () async {
                           final needDelete = await ContextRemoveDialog.show(

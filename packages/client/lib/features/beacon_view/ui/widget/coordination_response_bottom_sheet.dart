@@ -6,11 +6,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 
-typedef CoordinationSignalSheetSave = Future<void> Function({
-  required int responseTypeSmallint,
-  required bool inviteToRoom,
-  required bool removeFromRoom,
-});
+typedef CoordinationSignalSheetSave =
+    Future<void> Function({
+      required int responseTypeSmallint,
+      required bool inviteToRoom,
+      required bool removeFromRoom,
+    });
 
 bool _defaultInviteForCoordination(CoordinationResponseType t) =>
     t == CoordinationResponseType.useful ||
@@ -24,7 +25,7 @@ Future<void> showCoordinationResponseBottomSheet({
   required bool offerUserAdmittedToRoom,
   required CoordinationSignalSheetSave onSave,
 }) async {
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -64,7 +65,8 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   late CoordinationResponseType _selected =
       widget.initialResponse ?? CoordinationResponseType.useful;
 
-  late bool _admitToRoom = widget.offerUserAdmittedToRoom ||
+  late bool _admitToRoom =
+      widget.offerUserAdmittedToRoom ||
       _defaultInviteForCoordination(_selected);
 
   bool _admitTouched = false;
@@ -73,10 +75,8 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
     try {
       await widget.onSave(
         responseTypeSmallint: _selected.smallintValue,
-        inviteToRoom:
-            !widget.offerUserAdmittedToRoom && _admitToRoom,
-        removeFromRoom:
-            widget.offerUserAdmittedToRoom && !_admitToRoom,
+        inviteToRoom: !widget.offerUserAdmittedToRoom && _admitToRoom,
+        removeFromRoom: widget.offerUserAdmittedToRoom && !_admitToRoom,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -109,7 +109,12 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: EdgeInsets.fromLTRB(tt.screenHPadding, 8, tt.screenHPadding, 4),
+              padding: EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                8,
+                tt.screenHPadding,
+                4,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -189,16 +194,17 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                                 _admitToRoom
                                     ? tt.good
                                     : widget.offerUserAdmittedToRoom
-                                        ? tt.danger
-                                        : tt.textMuted,
+                                    ? tt.danger
+                                    : tt.textMuted,
                               ),
                             ),
                           ),
                           Theme(
                             data: Theme.of(context).copyWith(
                               checkboxTheme: CheckboxThemeData(
-                                fillColor:
-                                    WidgetStateProperty.resolveWith((states) {
+                                fillColor: WidgetStateProperty.resolveWith((
+                                  states,
+                                ) {
                                   if (states.contains(WidgetState.selected)) {
                                     return tt.good;
                                   }

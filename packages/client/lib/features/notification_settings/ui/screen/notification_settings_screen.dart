@@ -36,8 +36,9 @@ class NotificationSettingsScreen extends StatelessWidget
           }
           final cubit = context.read<NotificationSettingsCubit>();
           final s = state.settings;
-          return ListView(
-            children: [
+          return TenturaContentColumn(
+            child: ListView(
+              children: [
               _SectionHeader(label: l10n.notificationSettingsPush),
               for (final c in NotificationSettingsCategory.values)
                 SwitchListTile(
@@ -87,7 +88,8 @@ class NotificationSettingsScreen extends StatelessWidget
                 value: s.lockScreenSafe,
                 onChanged: cubit.setLockScreenSafe,
               ),
-            ],
+              ],
+            ),
           );
         },
       ),

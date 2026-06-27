@@ -247,7 +247,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         ),
       ),
       body: SafeArea(
-        child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+        child: TenturaContentColumn(
+          child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
           bloc: _beaconCreateCubit,
           buildWhen: (p, c) => p.status != c.status || p.draftId != c.draftId,
           builder: (context, state) {
@@ -369,6 +370,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
               ),
             );
           },
+          ),
         ),
       ),
     );

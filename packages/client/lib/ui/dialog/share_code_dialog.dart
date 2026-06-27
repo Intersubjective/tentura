@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
+
 import '../l10n/l10n.dart';
 import '../message/common_messages.dart';
 import '../utils/ui_utils.dart';
@@ -47,10 +49,11 @@ class ShareCodeDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
-    final qrSize = MediaQuery.sizeOf(context).shortestSide * 0.6;
+    final tt = context.tt;
     return AlertDialog.adaptive(
       alignment: Alignment.center,
       actionsAlignment: MainAxisAlignment.spaceBetween,
+      constraints: BoxConstraints(maxWidth: tt.contentMaxWidth ?? 560),
       titlePadding: kPaddingAll,
       contentPadding: kPaddingAll,
       backgroundColor: theme.colorScheme.surfaceBright,
@@ -64,25 +67,22 @@ class ShareCodeDialog extends StatelessWidget {
         style: theme.textTheme.headlineMedium,
       ),
 
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: SizedBox.square(
-              dimension: qrSize,
-              child: QrCode(data: link),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: QrCode(data: link)),
+            const SizedBox(height: kSpacingSmall),
+            SelectionArea(
+              child: Text(
+                link,
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          const SizedBox(height: kSpacingSmall),
-          SelectionArea(
-            child: Text(
-              link,
-              style: theme.textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
 
       // Buttons

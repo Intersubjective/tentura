@@ -45,7 +45,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
   );
   final rows = buildBeaconStatusMenuRows(menuInput);
 
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -80,32 +80,33 @@ Future<void> showBeaconViewUpdateStatusSheet(
                     isLoading: isLoading,
                     onTap: row.isEnabled && !isLoading
                         ? () => unawaited(
-                              _dispatchStatusMenuAction(
-                                ctx,
-                                action: row.action,
-                                state: liveState,
-                                cubit: beaconViewCubit,
-                                l10n: l10n,
-                                onOpenPeopleTab: onOpenPeopleTab,
-                                onEnterRoomSurface: onEnterRoomSurface,
-                              ),
-                            )
+                            _dispatchStatusMenuAction(
+                              ctx,
+                              action: row.action,
+                              state: liveState,
+                              cubit: beaconViewCubit,
+                              l10n: l10n,
+                              onOpenPeopleTab: onOpenPeopleTab,
+                              onEnterRoomSurface: onEnterRoomSurface,
+                            ),
+                          )
                         : null,
                     onSecondaryTap:
                         row.isSecondaryEnabled &&
-                            row.secondaryAction != BeaconStatusMenuAction.none &&
+                            row.secondaryAction !=
+                                BeaconStatusMenuAction.none &&
                             !isLoading
                         ? () => unawaited(
-                              _dispatchStatusMenuAction(
-                                ctx,
-                                action: row.secondaryAction,
-                                state: liveState,
-                                cubit: beaconViewCubit,
-                                l10n: l10n,
-                                onOpenPeopleTab: onOpenPeopleTab,
-                                onEnterRoomSurface: onEnterRoomSurface,
-                              ),
-                            )
+                            _dispatchStatusMenuAction(
+                              ctx,
+                              action: row.secondaryAction,
+                              state: liveState,
+                              cubit: beaconViewCubit,
+                              l10n: l10n,
+                              onOpenPeopleTab: onOpenPeopleTab,
+                              onEnterRoomSurface: onEnterRoomSurface,
+                            ),
+                          )
                         : null,
                   ),
                 if (isLoading)

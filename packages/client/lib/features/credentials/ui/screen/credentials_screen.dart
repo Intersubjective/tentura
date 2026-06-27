@@ -90,23 +90,16 @@ class _CredentialsScreenState extends State<CredentialsScreen>
         child: BlocBuilder<CredentialsCubit, CredentialsState>(
           builder: (context, state) {
             final itemCount = _listItemCount(state);
-            final maxW = tt.contentMaxWidth;
-            final listView = RefreshIndicator.adaptive(
-              onRefresh: () => context.read<CredentialsCubit>().fetch(),
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                itemCount: itemCount,
-                itemBuilder: (context, index) =>
-                    _listItemAt(context, l10n, theme, state, index),
-              ),
-            );
-            if (maxW == null) return listView;
-            return Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxW),
-                child: listView,
+            return TenturaContentColumn(
+              child: RefreshIndicator.adaptive(
+                onRefresh: () => context.read<CredentialsCubit>().fetch(),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+                  itemCount: itemCount,
+                  itemBuilder: (context, index) =>
+                      _listItemAt(context, l10n, theme, state, index),
+                ),
               ),
             );
           },
@@ -233,9 +226,10 @@ class _CredentialsScreenState extends State<CredentialsScreen>
 
   Future<void> _linkEmail(BuildContext context, L10n l10n) async {
     final controller = TextEditingController();
-    final email = await showModalBottomSheet<String>(
+    final email = await showTenturaAdaptiveSheet<String>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (sheetContext) {
         final tt = sheetContext.tt;
         return Padding(
@@ -243,7 +237,8 @@ class _CredentialsScreenState extends State<CredentialsScreen>
             left: tt.screenHPadding,
             right: tt.screenHPadding,
             top: tt.sectionGap,
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
+            bottom:
+                MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -262,7 +257,8 @@ class _CredentialsScreenState extends State<CredentialsScreen>
               ),
               SizedBox(height: tt.sectionGap),
               FilledButton(
-                onPressed: () => Navigator.of(sheetContext).pop(controller.text),
+                onPressed: () =>
+                    Navigator.of(sheetContext).pop(controller.text),
                 child: Text(l10n.linkEmailSend),
               ),
             ],
@@ -319,14 +315,22 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     _ => type,
   };
 
-  String _subtitle(BuildContext context, L10n l10n, CredentialEntity credential) {
+  String _subtitle(
+    BuildContext context,
+    L10n l10n,
+    CredentialEntity credential,
+  ) {
     final identifier = credential.identifier.length > 16
         ? '${credential.identifier.substring(0, 16)}…'
         : credential.identifier;
     final created = credential.createdAt;
     if (created == null) return identifier;
     final now = DateTime.now();
-    final relative = compactRelativeTimeAgo(when: created, now: now, l10n: l10n);
+    final relative = compactRelativeTimeAgo(
+      when: created,
+      now: now,
+      l10n: l10n,
+    );
     if (now.difference(created).inDays < 7) {
       return '$identifier · $relative';
     }

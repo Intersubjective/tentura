@@ -96,38 +96,39 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
         ),
       ),
       body: SafeArea(
-        child: BlocBuilder<EvaluationCubit, EvaluationState>(
-          builder: (context, state) {
-            if (state.isLoading && state.participants.isEmpty) {
-              return const Center(
-                child: CircularProgressIndicator.adaptive(),
-              );
-            }
-            if (state.participants.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: tt.cardPadding,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (state.beaconTitle.isNotEmpty) ...[
+        child: TenturaContentColumn(
+          child: BlocBuilder<EvaluationCubit, EvaluationState>(
+            builder: (context, state) {
+              if (state.isLoading && state.participants.isEmpty) {
+                return const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              }
+              if (state.participants.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: tt.cardPadding,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (state.beaconTitle.isNotEmpty) ...[
+                          Text(
+                            state.beaconTitle,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: tt.sectionGap),
+                        ],
                         Text(
-                          state.beaconTitle,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          l10n.evaluationEmptyTargets,
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: tt.sectionGap),
                       ],
-                      Text(
-                        l10n.evaluationEmptyTargets,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }
-          final listItems = _ReviewListItems.build(
+                );
+              }
+              final listItems = _ReviewListItems.build(
             context: context,
             l10n: l10n,
             state: state,
@@ -148,53 +149,54 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
               );
             },
           );
-            return Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: tt.cardPadding,
+                      itemCount: listItems.length,
+                      itemBuilder: listItems.itemBuilder,
+                    ),
+                  ),
+                  Padding(
                     padding: tt.cardPadding,
-                    itemCount: listItems.length,
-                    itemBuilder: listItems.itemBuilder,
-                  ),
-                ),
-                Padding(
-                  padding: tt.cardPadding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.evaluationProgress(
-                          state.reviewedCount,
-                          state.totalCount,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          l10n.evaluationProgress(
+                            state.reviewedCount,
+                            state.totalCount,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: tt.rowGap),
-                      FilledButton(
-                        style: actionButtonStyle,
-                        onPressed: state.isLoading
-                            ? null
-                            : () => draft
-                                ? cubit.finalize()
-                                : _onSubmitFinish(context, cubit, state),
-                        child: Text(
-                          draft
-                              ? l10n.evaluationDraftDone
-                              : l10n.evaluationSubmitFinish,
+                        SizedBox(height: tt.rowGap),
+                        FilledButton(
+                          style: actionButtonStyle,
+                          onPressed: state.isLoading
+                              ? null
+                              : () => draft
+                                  ? cubit.finalize()
+                                  : _onSubmitFinish(context, cubit, state),
+                          child: Text(
+                            draft
+                                ? l10n.evaluationDraftDone
+                                : l10n.evaluationSubmitFinish,
+                          ),
                         ),
-                      ),
-                      if (!draft) ...[
-                        TextButton(
-                          onPressed: state.isLoading ? null : cubit.skip,
-                          child: Text(l10n.evaluationSkipForNow),
-                        ),
+                        if (!draft) ...[
+                          TextButton(
+                            onPressed: state.isLoading ? null : cubit.skip,
+                            child: Text(l10n.evaluationSkipForNow),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

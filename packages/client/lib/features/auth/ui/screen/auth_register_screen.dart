@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -116,10 +117,11 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           ),
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
+      body: TenturaContentColumn(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Invite Code
@@ -229,7 +231,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

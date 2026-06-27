@@ -43,25 +43,27 @@ class NotificationCenterScreen extends StatelessWidget
           ),
         ],
       ),
-      body: BlocBuilder<NotificationCenterCubit, NotificationCenterState>(
-        builder: (context, state) {
-          if (state.isLoading && state.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.isEmpty) {
-            return _EmptyState(l10n: l10n);
-          }
-          return RefreshIndicator(
-            onRefresh: context.read<NotificationCenterCubit>().fetch,
-            child: ListView.separated(
-              itemCount: state.items.length,
-              separatorBuilder: (_, _) => const TenturaHairlineDivider(),
-              itemBuilder: (context, index) => _NotificationTile(
-                item: state.items[index],
+      body: TenturaContentColumn(
+        child: BlocBuilder<NotificationCenterCubit, NotificationCenterState>(
+          builder: (context, state) {
+            if (state.isLoading && state.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state.isEmpty) {
+              return _EmptyState(l10n: l10n);
+            }
+            return RefreshIndicator(
+              onRefresh: context.read<NotificationCenterCubit>().fetch,
+              child: ListView.separated(
+                itemCount: state.items.length,
+                separatorBuilder: (_, _) => const TenturaHairlineDivider(),
+                itemBuilder: (context, index) => _NotificationTile(
+                  item: state.items[index],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

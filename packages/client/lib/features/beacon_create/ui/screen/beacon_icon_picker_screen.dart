@@ -299,9 +299,10 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      body: TenturaContentColumn(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
             child: Semantics(
@@ -493,6 +494,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

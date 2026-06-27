@@ -122,11 +122,12 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
               ),
             ),
             body: SafeArea(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: EdgeInsets.all(tt.screenHPadding),
-                  children: [
+              child: TenturaContentColumn(
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: EdgeInsets.all(tt.screenHPadding),
+                    children: [
                     if (fixedType == null)
                       BlocSelector<
                         ComplaintCubit,
@@ -227,7 +228,8 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                         ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -126,9 +126,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       }
     }
 
-    await showModalBottomSheet<void>(
+    await showTenturaAdaptiveSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
           builder: (ctx, setModalState) {

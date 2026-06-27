@@ -155,10 +155,11 @@ class _BeaconScreenState extends State<BeaconScreen> {
       ),
       body: SafeArea(
         minimum: kPaddingSmallH,
-        child: BlocBuilder<BeaconCubit, BeaconState>(
-          bloc: _beaconCubit,
-          buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-          builder: (context, state) {
+        child: TenturaContentColumn(
+          child: BlocBuilder<BeaconCubit, BeaconState>(
+            bloc: _beaconCubit,
+            buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+            builder: (context, state) {
             if (state.isLoading && state.beacons.isEmpty) {
               return const Center(
                 child: CircularProgressIndicator.adaptive(),
@@ -235,10 +236,10 @@ class _BeaconScreenState extends State<BeaconScreen> {
                 },
               ),
             );
-          },
+            },
+          ),
         ),
       ),
     );
   }
 }
-

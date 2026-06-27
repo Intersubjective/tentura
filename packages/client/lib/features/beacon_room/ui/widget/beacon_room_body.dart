@@ -95,8 +95,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             if (id == null) return;
             WidgetsBinding.instance.addPostFrameCallback((_) async {
               if (!ctx.mounted) return;
-              final ok = await (_basicChatKey.currentState?.scrollToMessage(id) ??
-                  Future.value(false));
+              final ok =
+                  await (_basicChatKey.currentState?.scrollToMessage(id) ??
+                      Future.value(false));
               if (ctx.mounted && ok) {
                 ctx.read<RoomCubit>().clearScrollToMessageTarget();
               }
@@ -189,7 +190,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
-          final showPinnedNow = !isThreadMode &&
+          final showPinnedNow =
+              !isThreadMode &&
               beaconRoomShowsPinnedNow(
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
@@ -201,8 +203,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     state: state,
                     onEdit: _roomCanCreatePromise(cubit)
                         ? () => unawaited(
-                              _showPlanUpdateSheet(context, cubit, l10n),
-                            )
+                            _showPlanUpdateSheet(context, cubit, l10n),
+                          )
                         : null,
                   )
                 : null,
@@ -224,9 +226,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               isThreadMode: isThreadMode,
             ),
             onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
-                  messageId: messageId,
-                  emoji: emoji,
-                ),
+              messageId: messageId,
+              emoji: emoji,
+            ),
             onOpenFileAttachment: (a) => openRoomFileAttachment(
               context,
               l10n,
@@ -241,9 +243,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 ),
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
-                      body: body,
-                      uploads: uploads,
-                    )
+                    body: body,
+                    uploads: uploads,
+                  )
                 : null,
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
@@ -251,12 +253,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onOpenCoordinationItem: isThreadMode
                 ? null
                 : (item) => unawaited(
-                      openCoordinationItemFromRoom(
-                        context,
-                        item: item,
-                        roomCubit: cubit,
-                      ),
+                    openCoordinationItemFromRoom(
+                      context,
+                      item: item,
+                      roomCubit: cubit,
                     ),
+                  ),
           );
         },
       ),
@@ -315,7 +317,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     // Already-linked messages can be opened/resolved but never re-promoted;
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
-    final showTurnInto = !isThreadMode &&
+    final showTurnInto =
+        !isThreadMode &&
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
     final canCreatePromise = _roomCanCreatePromise(cubit);
@@ -423,7 +426,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       onTap: () {
                         Navigator.pop(ctx);
                         unawaited(
-                          _showMarkAskSheet(context, cubit, l10n, viewer, message),
+                          _showMarkAskSheet(
+                            context,
+                            cubit,
+                            l10n,
+                            viewer,
+                            message,
+                          ),
                         );
                       },
                     ),
@@ -669,8 +678,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
-  ) =>
-      showBeaconRoomUpdatePlanSheet(context, cubit, l10n);
+  ) => showBeaconRoomUpdatePlanSheet(context, cubit, l10n);
 
   Future<void> _showEditMessageSheet(
     BuildContext context,
@@ -678,7 +686,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     L10n l10n,
     RoomMessage message,
   ) async {
-    final newBody = await showModalBottomSheet<String>(
+    final newBody = await showTenturaAdaptiveSheet<String>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -705,7 +713,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message,
     String text,
   ) async {
-    await showModalBottomSheet<void>(
+    await showTenturaAdaptiveSheet<void>(
       context: context,
       showDragHandle: true,
       useRootNavigator: true,
@@ -715,7 +723,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: kPaddingH.add(kPaddingSmallT),
+              padding: EdgeInsets.only(
+                left: ctx.tt.screenHPadding,
+                right: ctx.tt.screenHPadding,
+                top: ctx.tt.rowGap,
+              ),
               child: Text(
                 l10n.beaconRoomPinFactTitle,
                 style: Theme.of(ctx).textTheme.titleMedium,
@@ -818,23 +830,27 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         .where((p) => p.userId == myUserId)
         .firstOrNull
         ?.role;
-    final isAuthorOrSteward = myParticipantRole ==
-            BeaconParticipantRoleBits.author ||
+    final isAuthorOrSteward =
+        myParticipantRole == BeaconParticipantRoleBits.author ||
         myParticipantRole == BeaconParticipantRoleBits.steward;
     return isAuthorOrSteward
         ? cubit.state.participants
-            .where((p) =>
-                p.roomAccess == RoomAccessBits.admitted ||
-                p.status == BeaconParticipantStatusBits.candidate ||
-                p.status == BeaconParticipantStatusBits.offeredHelp)
-            .toList()
+              .where(
+                (p) =>
+                    p.roomAccess == RoomAccessBits.admitted ||
+                    p.status == BeaconParticipantStatusBits.candidate ||
+                    p.status == BeaconParticipantStatusBits.offeredHelp,
+              )
+              .toList()
         : cubit.state.participants
-            .where((p) => p.roomAccess == RoomAccessBits.admitted)
-            .toList();
+              .where((p) => p.roomAccess == RoomAccessBits.admitted)
+              .toList();
   }
 
-  Future<({String title, String body, String targetUserId, int? staleAfterDays})?>
-      _showPromoteFieldsDialog({
+  Future<
+    ({String title, String body, String targetUserId, int? staleAfterDays})?
+  >
+  _showPromoteFieldsDialog({
     required BuildContext context,
     required L10n l10n,
     required Profile viewer,
@@ -911,8 +927,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     Text(
                       l10n.coordinationStalenessDefaultHint,
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ],
@@ -1034,7 +1050,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
     return p.userId.length <= 16 ? p.userId : '${p.userId.substring(0, 14)}…';
   }
-
 }
 
 /// Standalone "Update plan" text sheet — shared by the per-message edit affordance
@@ -1044,7 +1059,7 @@ Future<void> showBeaconRoomUpdatePlanSheet(
   RoomCubit cubit,
   L10n l10n,
 ) async {
-  final plan = await showModalBottomSheet<String>(
+  final plan = await showTenturaAdaptiveSheet<String>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -1078,7 +1093,8 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
       _BeaconRoomTextBottomSheetState();
 }
 
-class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> {
+class _BeaconRoomTextBottomSheetState
+    extends State<_BeaconRoomTextBottomSheet> {
   late final TextEditingController _controller;
 
   @override
@@ -1095,13 +1111,14 @@ class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> 
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
       padding: EdgeInsets.only(
-        left: kSpacingSmall,
-        right: kSpacingSmall,
-        top: kSpacingMedium,
-        bottom: bottom + kSpacingMedium,
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: bottom + tt.sectionGap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1111,7 +1128,7 @@ class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> 
             widget.title,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: kSpacingSmall),
+          SizedBox(height: tt.rowGap),
           TextField(
             controller: _controller,
             maxLines: widget.maxLength != null ? 2 : 6,
@@ -1121,7 +1138,7 @@ class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> 
               hintText: widget.hintText,
             ),
           ),
-          const SizedBox(height: kSpacingMedium),
+          SizedBox(height: tt.sectionGap),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
             child: Text(MaterialLocalizations.of(context).saveButtonLabel),

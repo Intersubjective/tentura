@@ -69,9 +69,10 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(tt.screenHPadding),
-          child: Column(
+        child: TenturaContentColumn(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(tt.screenHPadding),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: tt.sectionGap,
             children: [
@@ -90,7 +91,8 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                     maxLines: 2,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

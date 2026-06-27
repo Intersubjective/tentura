@@ -19,58 +19,65 @@ Future<void> showLineageSuggestionsPreviewSheet(
   if (!context.mounted) return;
   final l10n = L10n.of(context)!;
   final tt = context.tt;
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (ctx) {
       return BlocProvider.value(
         value: cubit,
-        child: BlocBuilder<LineageSuggestionsPreviewCubit,
-            LineageSuggestionsPreviewState>(
-          builder: (context, state) {
-            final maxH = MediaQuery.sizeOf(context).height * 0.85;
-            return SafeArea(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: maxH),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    tt.screenHPadding,
-                    tt.rowGap,
-                    tt.screenHPadding,
-                    tt.screenHPadding,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
+        child:
+            BlocBuilder<
+              LineageSuggestionsPreviewCubit,
+              LineageSuggestionsPreviewState
+            >(
+              builder: (context, state) {
+                final maxH = MediaQuery.sizeOf(context).height * 0.85;
+                return SafeArea(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxH),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        tt.screenHPadding,
+                        tt.rowGap,
+                        tt.screenHPadding,
+                        tt.screenHPadding,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(Icons.history, size: tt.iconSize, color: tt.textMuted),
-                          SizedBox(width: tt.rowGap * 0.5),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.history,
+                                size: tt.iconSize,
+                                color: tt.textMuted,
+                              ),
+                              SizedBox(width: tt.rowGap * 0.5),
+                              Expanded(
+                                child: Text(
+                                  l10n.beaconLineagePreviewTitle,
+                                  style: Theme.of(ctx).textTheme.titleMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: tt.rowGap * 0.5),
+                          Text(
+                            l10n.beaconLineagePreviewSubjectivity,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          ),
+                          SizedBox(height: tt.rowGap),
                           Expanded(
-                            child: Text(
-                              l10n.beaconLineagePreviewTitle,
-                              style: Theme.of(ctx).textTheme.titleMedium,
-                            ),
+                            child: _PreviewBody(state: state, l10n: l10n),
                           ),
                         ],
                       ),
-                      SizedBox(height: tt.rowGap * 0.5),
-                      Text(
-                        l10n.beaconLineagePreviewSubjectivity,
-                        style: TenturaText.bodySmall(tt.textMuted),
-                      ),
-                      SizedBox(height: tt.rowGap),
-                      Expanded(
-                        child: _PreviewBody(state: state, l10n: l10n),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
       );
     },
   );
@@ -108,7 +115,11 @@ class _PreviewBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history, size: context.tt.iconSize * 2, color: context.tt.textMuted),
+            Icon(
+              Icons.history,
+              size: context.tt.iconSize * 2,
+              color: context.tt.textMuted,
+            ),
             SizedBox(height: context.tt.rowGap),
             Text(
               l10n.beaconLineagePreviewEmpty,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -49,12 +50,12 @@ VoidCallback? _linkedCoordinationItemOnTap(
     };
   }
   return () => context.router.push(
-        ItemDiscussionRoute(
-          beaconId: item.beaconId,
-          itemId: item.id,
-          item: item,
-        ),
-      );
+    ItemDiscussionRoute(
+      beaconId: item.beaconId,
+      itemId: item.id,
+      item: item,
+    ),
+  );
 }
 
 class RoomMessageTile extends StatelessWidget {
@@ -347,8 +348,8 @@ class RoomMessageTile extends StatelessWidget {
 
     final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
     final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
-    final showCoordinationFooter = !hideCoordinationLifecycleFooter &&
-        showCoordinationItemFooter(message);
+    final showCoordinationFooter =
+        !hideCoordinationLifecycleFooter && showCoordinationItemFooter(message);
     final showMarkDone = showMarkDoneFooter(message);
 
     if (isFactPinNotification(message)) {
@@ -382,7 +383,8 @@ class RoomMessageTile extends StatelessWidget {
     if (isCoordinationTimelineNotifyRow(message)) {
       final srcId = coordinationTimelineAnchorMessageId(message);
       if (srcId != null) {
-        final kind = message.linkedCoordinationItem?.kind ??
+        final kind =
+            message.linkedCoordinationItem?.kind ??
             (message.linkedItemKind != null
                 ? CoordinationItemKind.fromInt(message.linkedItemKind!)
                 : null);
@@ -521,8 +523,9 @@ class RoomMessageTile extends StatelessWidget {
       selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
     );
 
-    final editedSuffix =
-        message.editedAt != null ? l10n.beaconRoomMessageEdited : null;
+    final editedSuffix = message.editedAt != null
+        ? l10n.beaconRoomMessageEdited
+        : null;
     final dateLine = [
       _formatMessageTime(message.editedAt ?? message.createdAt),
       ?editedSuffix,
@@ -717,18 +720,20 @@ class RoomMessageTile extends StatelessWidget {
       ),
     );
 
-    final actionsCb =
-        onActionsPressed == null ? null : () => onActionsPressed!(message);
+    final actionsCb = onActionsPressed == null
+        ? null
+        : () => onActionsPressed!(message);
     // Plain tap opens the linked item/thread (touch only, see
     // [_MessageBubbleInteraction]); quick-react toggles the heart emoji.
-    final openItemCb =
-        linkedCoord == null ? null : _coordinationItemTap(context, linkedCoord);
+    final openItemCb = linkedCoord == null
+        ? null
+        : _coordinationItemTap(context, linkedCoord);
     void quickReactCb() => unawaited(
-          onToggleReaction(
-            message.id,
-            BeaconRoomMessageReaction.quickPickerEmojis.first,
-          ),
-        );
+      onToggleReaction(
+        message.id,
+        BeaconRoomMessageReaction.quickPickerEmojis.first,
+      ),
+    );
 
     final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
     final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
@@ -753,9 +758,16 @@ class RoomMessageTile extends StatelessWidget {
 
     final measuredBubble = LayoutBuilder(
       builder: (context, constraints) {
-        final contentCap = shouldHug
-            ? constraints.maxWidth * kRoomMessageBubbleMaxWidthFraction
-            : constraints.maxWidth;
+        final proportionalCap =
+            constraints.maxWidth * kRoomMessageBubbleMaxWidthFraction;
+        final readableCap = switch (windowClassForWidth(constraints.maxWidth)) {
+          WindowClass.compact => proportionalCap,
+          WindowClass.regular =>
+            proportionalCap < 520 ? proportionalCap : 520.0,
+          WindowClass.expanded =>
+            proportionalCap < 640 ? proportionalCap : 640.0,
+        };
+        final contentCap = shouldHug ? readableCap : constraints.maxWidth;
         final cardPaddingH = tt.cardPadding.horizontal;
 
         double? tightTextWidth;
@@ -808,7 +820,8 @@ class RoomMessageTile extends StatelessWidget {
             color: scheme.onSurfaceVariant,
           );
           final hasItemTap = linkedCoord != null;
-          final threadMarkExtra = (linkedCoord != null &&
+          final threadMarkExtra =
+              (linkedCoord != null &&
                   RoomMessageTile.isThreadEntryKind(linkedCoord.kind))
               ? measureLifecycleThreadMarkWidth(
                   count: linkedCoord.messageCount,
@@ -863,7 +876,8 @@ class RoomMessageTile extends StatelessWidget {
             }
 
             final status = message.linkedItemStatus;
-            final isTerminal = status == CoordinationItemStatus.resolved.value ||
+            final isTerminal =
+                status == CoordinationItemStatus.resolved.value ||
                 status == CoordinationItemStatus.cancelled.value ||
                 status == CoordinationItemStatus.superseded.value;
             final skipResolutionWidth =
@@ -879,7 +893,8 @@ class RoomMessageTile extends StatelessWidget {
               final eventKind = last != null
                   ? CoordinationItemEventKind.fromInt(last.eventKind)
                   : null;
-              final at = last?.at ??
+              final at =
+                  last?.at ??
                   message.linkedItemResolvedAt ??
                   message.linkedItemUpdatedAt;
               if (eventKind != null && at != null) {
@@ -951,7 +966,9 @@ class RoomMessageTile extends StatelessWidget {
         }
 
         var hugContentCap = contentCap;
-        if (shouldHug && tightTextWidth != null && tightTextWidth > hugContentCap) {
+        if (shouldHug &&
+            tightTextWidth != null &&
+            tightTextWidth > hugContentCap) {
           hugContentCap = tightTextWidth.clamp(0, constraints.maxWidth);
         }
 
@@ -1202,15 +1219,17 @@ class _MessageLifecycleFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reactionEntries = RoomMessageTile._sortedReactionEntries(message);
-    final showReactionTimeRow =
-        reactionEntries.isNotEmpty || !hideTimestamp;
+    final showReactionTimeRow = reactionEntries.isNotEmpty || !hideTimestamp;
 
-    final promotionDate = message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
-    final showPromotionRow = showCoordinationFooter &&
+    final promotionDate =
+        message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
+    final showPromotionRow =
+        showCoordinationFooter &&
         message.isPromotedSourceMessage &&
         linkedCoord != null &&
         promotionDate != null;
-    final keepThreadMarkInsteadOfResolution = showPromotionRow &&
+    final keepThreadMarkInsteadOfResolution =
+        showPromotionRow &&
         linkedCoord != null &&
         RoomMessageTile.isThreadEntryKind(linkedCoord!.kind);
 
@@ -1225,11 +1244,15 @@ class _MessageLifecycleFooter extends StatelessWidget {
           ? CoordinationItemEventKind.fromInt(last.eventKind)
           : null;
       final actorId = last?.actorId ?? '';
-      final at = last?.at ?? message.linkedItemResolvedAt ?? message.linkedItemUpdatedAt;
+      final at =
+          last?.at ??
+          message.linkedItemResolvedAt ??
+          message.linkedItemUpdatedAt;
       if (eventKind != null && at != null) {
         resolutionRow = _lifecycleTapRow(
           context: context,
-          profile: RoomMessageTile.profileForUserId(actorId, participants) ??
+          profile:
+              RoomMessageTile.profileForUserId(actorId, participants) ??
               const Profile(),
           leading: coordinationCompoundEventIcon(
             kind: linkedCoord!.kind,
@@ -1270,7 +1293,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
             );
       promotionRow = _lifecycleTapRow(
         context: context,
-        profile: RoomMessageTile.profileForUserId(
+        profile:
+            RoomMessageTile.profileForUserId(
               message.linkedItemCreatorId ?? '',
               participants,
             ) ??
@@ -1313,7 +1337,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
             );
       eventRow = _lifecycleTapRow(
         context: context,
-        profile: RoomMessageTile.profileForUserId(
+        profile:
+            RoomMessageTile.profileForUserId(
               message.authorId,
               participants,
             ) ??
@@ -1343,7 +1368,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
 
     Widget? markDoneRow;
     if (showMarkDone) {
-      final actorProfile = RoomMessageTile.profileForUserId(
+      final actorProfile =
+          RoomMessageTile.profileForUserId(
             message.semanticActorId ?? '',
             participants,
           ) ??
@@ -1446,8 +1472,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
                                     emoji: entry.key,
                                     count: entry.value,
                                     reactors:
-                                        message.reactors[entry.key] ??
-                                        const [],
+                                        message.reactors[entry.key] ?? const [],
                                   ),
                                 ),
                               ),
@@ -1780,21 +1805,23 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction> {
         if (onActions != null)
           LongPressGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-            () => LongPressGestureRecognizer(supportedDevices: _touchOrStylus),
-            (r) => r.onLongPress = onActions,
-          ),
+                () => LongPressGestureRecognizer(
+                  supportedDevices: _touchOrStylus,
+                ),
+                (r) => r.onLongPress = onActions,
+              ),
         if (onOpenItem != null)
           TapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-            () => TapGestureRecognizer(supportedDevices: _touchOnly),
-            (r) => r.onTap = onOpenItem,
-          ),
+                () => TapGestureRecognizer(supportedDevices: _touchOnly),
+                (r) => r.onTap = onOpenItem,
+              ),
         if (onQuickReact != null)
           DoubleTapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
-            () => DoubleTapGestureRecognizer(supportedDevices: _touchOnly),
-            (r) => r.onDoubleTap = onQuickReact,
-          ),
+                () => DoubleTapGestureRecognizer(supportedDevices: _touchOnly),
+                (r) => r.onDoubleTap = onQuickReact,
+              ),
       },
       child: widget.child,
     );

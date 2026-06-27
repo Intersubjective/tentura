@@ -22,7 +22,10 @@ class BeaconPinnedFactCarousel extends StatefulWidget {
     this.onOpenFileAttachment,
     this.maxCarouselPageHeight = 280,
     super.key,
-  }) : assert(maxCarouselPageHeight > 0, 'maxCarouselPageHeight must be positive');
+  }) : assert(
+         maxCarouselPageHeight > 0,
+         'maxCarouselPageHeight must be positive',
+       );
 
   final List<BeaconFactCard> facts;
 
@@ -33,7 +36,7 @@ class BeaconPinnedFactCarousel extends StatefulWidget {
 
   /// Room: download/share (same attachment ids as room messages). Overview: usually omit.
   final Future<void> Function(RoomMessageAttachment attachment)?
-      onOpenFileAttachment;
+  onOpenFileAttachment;
 
   /// Long facts scroll inside a viewport no taller than this.
   final double maxCarouselPageHeight;
@@ -92,9 +95,8 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
     await cb(widget.facts[_currentPage]);
   }
 
-  static List<RoomMessageAttachment> _imageAtt(BeaconFactCard f) => f.attachments
-      .where((a) => a.isImage && a.imageId.isNotEmpty)
-      .toList();
+  static List<RoomMessageAttachment> _imageAtt(BeaconFactCard f) =>
+      f.attachments.where((a) => a.isImage && a.imageId.isNotEmpty).toList();
 
   static List<RoomMessageAttachment> _fileAtt(BeaconFactCard f) =>
       f.attachments.where((a) => a.isFile).toList();
@@ -168,8 +170,8 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
     }
 
     final att = _attachmentsHeightEstimate(f, contentWidth);
-    final gapBeforeAtt = att > 0 &&
-            (hasText || f.status == BeaconFactCardStatusBits.corrected)
+    final gapBeforeAtt =
+        att > 0 && (hasText || f.status == BeaconFactCardStatusBits.corrected)
         ? kSpacingSmall
         : 0.0;
     return h + gapBeforeAtt + att;
@@ -219,6 +221,7 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
     final items = widget.facts;
 
     if (items.isEmpty) {
@@ -258,7 +261,10 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                       IconButton(
                         tooltip: l10n.beaconPinnedFactCarouselPreviousTooltip,
                         icon: const Icon(Icons.chevron_left),
-                        visualDensity: VisualDensity.compact,
+                        constraints: BoxConstraints(
+                          minWidth: tt.buttonHeight,
+                          minHeight: tt.buttonHeight,
+                        ),
                         onPressed: _currentPage > 0
                             ? () => _goTo(_currentPage - 1)
                             : null,
@@ -306,12 +312,15 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                                 child: Semantics(
                                   label: l10n
                                       .beaconPinnedFactCarouselDotSemanticLabel(
-                                    index + 1,
-                                  ),
+                                        index + 1,
+                                      ),
                                   button: true,
                                   child: GestureDetector(
                                     onTap: () => _goTo(index),
-                                    child: dot,
+                                    child: SizedBox.square(
+                                      dimension: tt.buttonHeight,
+                                      child: Center(child: dot),
+                                    ),
                                   ),
                                 ),
                               );
@@ -324,7 +333,10 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                       IconButton(
                         tooltip: l10n.beaconPinnedFactCarouselNextTooltip,
                         icon: const Icon(Icons.chevron_right),
-                        visualDensity: VisualDensity.compact,
+                        constraints: BoxConstraints(
+                          minWidth: tt.buttonHeight,
+                          minHeight: tt.buttonHeight,
+                        ),
                         onPressed: _currentPage < items.length - 1
                             ? () => _goTo(_currentPage + 1)
                             : null,
@@ -335,7 +347,10 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                       IconButton(
                         tooltip: l10n.beaconRoomFactOverflowTooltip,
                         icon: const Icon(Icons.more_vert),
-                        visualDensity: VisualDensity.compact,
+                        constraints: BoxConstraints(
+                          minWidth: tt.buttonHeight,
+                          minHeight: tt.buttonHeight,
+                        ),
                         onPressed: () => unawaited(_onOverflowPressed()),
                       ),
                   ],

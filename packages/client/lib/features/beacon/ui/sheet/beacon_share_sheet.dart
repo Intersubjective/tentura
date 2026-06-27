@@ -21,10 +21,11 @@ Future<void> showBeaconShareSheet(
   required Beacon beacon,
 }) async {
   if (!beacon.allowsForward) return;
-  await showModalBottomSheet<void>(
+  await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
+    showDragHandle: false,
     builder: (_) => _BeaconShareSheet(beacon: beacon),
   );
 }
@@ -54,14 +55,14 @@ class _BeaconShareSheetState extends State<_BeaconShareSheet> {
     super.dispose();
   }
 
-  List<InvitationEntity> _pendingForBeacon(InvitationState state) =>
-      state.invitations
-          .where(
-            (i) =>
-                i.beaconId == widget.beacon.id &&
-                (i.invitedId == null || i.invitedId!.isEmpty),
-          )
-          .toList();
+  List<InvitationEntity> _pendingForBeacon(InvitationState state) => state
+      .invitations
+      .where(
+        (i) =>
+            i.beaconId == widget.beacon.id &&
+            (i.invitedId == null || i.invitedId!.isEmpty),
+      )
+      .toList();
 
   Future<void> _shareInvitation(
     BuildContext context,
@@ -193,8 +194,8 @@ class _BeaconShareSheetState extends State<_BeaconShareSheet> {
                             ...pending.map(
                               (invitation) {
                                 final addressee = invitation.addresseeName;
-                                final name = addressee == null ||
-                                        addressee.isEmpty
+                                final name =
+                                    addressee == null || addressee.isEmpty
                                     ? invitation.id
                                     : addressee;
                                 return ListTile(
