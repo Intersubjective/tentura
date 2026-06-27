@@ -12,6 +12,8 @@ Future<T?> showTenturaAdaptiveSheet<T>({
   bool showDragHandle = true,
   bool useRootNavigator = false,
   bool useSafeArea = true,
+  bool enableDrag = true,
+  bool isDismissible = true,
   double? maxWidth,
   double maxHeightFraction = 0.9,
 }) {
@@ -23,6 +25,8 @@ Future<T?> showTenturaAdaptiveSheet<T>({
       showDragHandle: showDragHandle,
       useRootNavigator: useRootNavigator,
       useSafeArea: useSafeArea,
+      enableDrag: enableDrag,
+      isDismissible: isDismissible,
       builder: builder,
     );
   }
