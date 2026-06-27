@@ -3,6 +3,7 @@
 
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
@@ -55,9 +56,9 @@ class ClearSnackBarsOnPushObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (previousRoute != null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => snackbarKey.currentState?.clearSnackBars(),
-      );
+      // Clear before the next pointer frame. A post-frame clear races Firefox
+      // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
+      snackbarKey.currentState?.clearSnackBars();
     }
   }
 }
@@ -116,7 +117,11 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       // Action and close icon coexist (M3); users can dismiss without using the action.
       showCloseIcon: true,
       margin: isFloating ? kPaddingAll : null,
-      dismissDirection: DismissDirection.horizontal,
+      // Web: horizontal Dismissible + PointerPanZoom (Firefox trackpad) can hit-test
+      // before the snack bar is laid out during route transitions (Sentry #7579576017).
+      dismissDirection: kIsWeb
+          ? DismissDirection.none
+          : DismissDirection.horizontal,
       behavior: isFloating ? SnackBarBehavior.floating : null,
       backgroundColor: isError
           ? theme.colorScheme.error
