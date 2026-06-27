@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -485,6 +486,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
   var _overlaySyncScheduled = false;
+  var _hasText = false;
 
   final List<RoomPendingUpload> _pending = [];
 
@@ -509,6 +511,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
 
   void _onTextChanged() {
     if (!mounted) return;
+    final hasText = _text.text.trim().isNotEmpty;
+    if (hasText != _hasText) {
+      setState(() => _hasText = hasText);
+    }
     _scheduleOverlaySync();
   }
 
@@ -749,6 +755,38 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return editable;
   }
 
+  Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
+    return PopupMenuButton<String>(
+      key: const ValueKey('attach'),
+      tooltip: l10n.beaconRoomAttachMenuTooltip,
+      enabled: !busy && _remainingSlots > 0,
+      onSelected: (v) async {
+        if (busy) {
+          return;
+        }
+        if (v == 'img') {
+          await _pickImages();
+        } else if (v == 'file') {
+          await _pickFiles();
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'img',
+          child: Text(l10n.beaconRoomAttachPickImages),
+        ),
+        PopupMenuItem(
+          value: 'file',
+          child: Text(l10n.beaconRoomAttachPickFiles),
+        ),
+      ],
+      icon: Icon(
+        Icons.attach_file_rounded,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
   Widget _pendingAttachmentPreview(
     BuildContext context,
     ThemeData theme,
@@ -817,6 +855,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final busy = widget.isSending;
+    final isCompact = context.windowClass == WindowClass.compact;
+    final showAttach = widget.enableAttachments && !(isCompact && _hasText);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -846,32 +886,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (widget.enableAttachments)
-              PopupMenuButton<String>(
-                tooltip: l10n.beaconRoomAttachMenuTooltip,
-                enabled: !busy && _remainingSlots > 0,
-                onSelected: (v) async {
-                  if (busy) {
-                    return;
-                  }
-                  if (v == 'img') {
-                    await _pickImages();
-                  } else if (v == 'file') {
-                    await _pickFiles();
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'img',
-                    child: Text(l10n.beaconRoomAttachPickImages),
-                  ),
-                  PopupMenuItem(
-                    value: 'file',
-                    child: Text(l10n.beaconRoomAttachPickFiles),
-                  ),
-                ],
-                icon: const Icon(Icons.attach_file_rounded),
-              ),
             Expanded(
               child: CompositedTransformTarget(
                 link: _layerLink,
@@ -880,6 +894,18 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   focusNode: _composerFocus,
                   decoration: InputDecoration(
                     hintText: l10n.beaconRoomMessageHint,
+                    suffixIcon: widget.enableAttachments
+                        ? AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            child: showAttach
+                                ? _attachMenuButton(l10n, theme, busy)
+                                : const SizedBox.shrink(
+                                    key: ValueKey('attach-hidden'),
+                                  ),
+                          )
+                        : null,
                   ),
                   minLines: 1,
                   maxLines: 4,
