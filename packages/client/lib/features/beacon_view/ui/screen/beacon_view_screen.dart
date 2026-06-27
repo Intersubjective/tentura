@@ -723,6 +723,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       screenCubit: screenCubit,
                       l10n: l10n,
                       inRoomSurface: _showRoomSurface,
+                      roomCubit: _showRoomSurface ? _roomCubit : null,
                       onItemsTabRefresh: _refreshItemsTab,
                       onAuthorManageStatus: () async {
                         await showBeaconViewUpdateStatusSheet(

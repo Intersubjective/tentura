@@ -40,8 +40,6 @@ class BasicChatBody extends StatefulWidget {
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
-    this.showPollButton = false,
-    this.onOpenPollSheet,
     this.header,
     this.emptyPlaceholder,
     this.imageRepository,
@@ -89,10 +87,6 @@ class BasicChatBody extends StatefulWidget {
 
   final Future<void> Function(String body, List<RoomPendingUpload> uploads)?
       onSend;
-
-  final bool showPollButton;
-
-  final Future<void> Function(BuildContext context)? onOpenPollSheet;
 
   final Widget? header;
 
@@ -427,7 +421,6 @@ class BasicChatBodyState extends State<BasicChatBody> {
   }
 
   Widget _buildComposerRow(BuildContext context) {
-    final l10n = L10n.of(context)!;
     final repo = widget.imageRepository;
     final onSend = widget.onSend;
     final canCompose = repo != null && onSend != null;
@@ -451,16 +444,6 @@ class BasicChatBodyState extends State<BasicChatBody> {
                       )
                     : const SizedBox.shrink(),
               ),
-              if (widget.showPollButton && widget.onOpenPollSheet != null)
-                IconButton(
-                  tooltip: l10n.beaconRoomCreatePoll,
-                  icon: const Icon(Icons.poll_outlined),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: widget.isLoading
-                      ? null
-                      : () => unawaited(widget.onOpenPollSheet!(context)),
-                ),
             ],
           ),
         ),
