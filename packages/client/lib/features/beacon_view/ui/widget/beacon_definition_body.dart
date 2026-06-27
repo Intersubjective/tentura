@@ -12,14 +12,18 @@ import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
-/// Beacon definition content for the Items tab foldable section.
+/// Beacon definition content (title, schedule, need, media, description).
 class BeaconDefinitionBody extends StatelessWidget {
   const BeaconDefinitionBody({
     required this.beacon,
+    this.includeNeedSummary = true,
     super.key,
   });
 
   final Beacon beacon;
+
+  /// When false, omits the need line (shown elsewhere, e.g. HUD collapsed row).
+  final bool includeNeedSummary;
 
   static const double _thumbSize = 52;
 
@@ -98,7 +102,9 @@ class BeaconDefinitionBody extends StatelessWidget {
             ),
           ),
         ],
-        if (beacon.hasNeedSummary && needText.isNotEmpty) ...[
+        if (includeNeedSummary &&
+            beacon.hasNeedSummary &&
+            needText.isNotEmpty) ...[
           SizedBox(height: tt.rowGap),
           _labeledWrap(
             label: l10n.beaconNeedBriefPrefix,

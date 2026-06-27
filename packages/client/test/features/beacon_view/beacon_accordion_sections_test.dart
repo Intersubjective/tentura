@@ -53,7 +53,7 @@ void main() {
       );
     });
 
-    test('falls through to definition', () {
+    test('falls through to null when no folds', () {
       expect(
         itemsTabAccordionSectionId(
           focusInDrafts: false,
@@ -63,7 +63,7 @@ void main() {
           showDrafts: false,
           showFacts: false,
         ),
-        BeaconItemsAccordionSection.definition,
+        isNull,
       );
     });
   });

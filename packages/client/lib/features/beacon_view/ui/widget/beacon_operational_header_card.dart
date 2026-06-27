@@ -9,7 +9,9 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
+import 'beacon_definition_hud_row.dart';
 import 'beacon_hud_action_button.dart';
 
 /// Compact HUD header: metadata strip, NOW/YOU, action rail.
@@ -73,6 +75,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               onEditNowLine: onEditNowLine,
             ),
           ),
+          const SizedBox(height: kBeaconHudRowGap),
+          BeaconDefinitionHudRow(beacon: state.beacon),
           if (state.beacon.status == BeaconStatus.reviewOpen)
             ReviewWindowBannerHost(
               beaconId: state.beacon.id,

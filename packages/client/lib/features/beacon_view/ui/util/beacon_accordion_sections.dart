@@ -6,7 +6,6 @@ abstract final class BeaconItemsAccordionSection {
   static const closed = 'closed';
   static const drafts = 'drafts';
   static const facts = 'facts';
-  static const definition = 'definition';
 }
 
 /// Stable accordion section ids for the beacon People tab.
@@ -44,7 +43,7 @@ String? itemsTabAccordionSectionId({
   if (showFacts) {
     return BeaconItemsAccordionSection.facts;
   }
-  return BeaconItemsAccordionSection.definition;
+  return null;
 }
 
 bool _sectionContainsUser(List<BeaconPeopleRow> rows, String userId) {

@@ -25,7 +25,6 @@ import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import '../bloc/beacon_view_state.dart';
 import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
-import 'beacon_definition_body.dart';
 import 'beacon_hud_action_button.dart';
 import 'coordination_item_composer_sheet.dart';
 
@@ -197,14 +196,15 @@ class ItemsTab extends StatelessWidget {
         final beaconId = state.beacon.id;
 
         final canCoordinate = state.canCoordinateInBeaconRoom;
+        final inRoom = state.canNavigateBeaconRoom || canCoordinate;
         final showCoordinationCtas = canCoordinate;
-        final showActiveFold = canCoordinate || openItems.isNotEmpty;
-        final showClosedFold = closedItems.isNotEmpty &&
-            (canCoordinate || openItems.isNotEmpty);
+        final showActiveFold =
+            inRoom && (canCoordinate || openItems.isNotEmpty);
+        final showClosedFold = inRoom && closedItems.isNotEmpty;
 
         final pinnedFacts = _pinnedFactsForCarousel(state.factCards);
         final showFacts = pinnedFacts.isNotEmpty;
-        final showDrafts = myDraftCount > 0;
+        final showDrafts = inRoom && myDraftCount > 0;
         final requestedSectionId = itemsTabAccordionSectionId(
           focusInDrafts: focusInDrafts,
           focusInClosed: focusInClosed,
@@ -221,7 +221,27 @@ class ItemsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!hasItems && !showActiveFold)
+              if (showCoordinationCtas)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: _ActiveCoordinationCtas(state: state),
+                ),
+              if (state.isRoomAdmissionBlocked)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: Center(
+                    child: Text(
+                      state.coordinationDeniesRoomAdmission
+                          ? l10n.beaconRoomNoAdmission
+                          : l10n.beaconRoomWaitingForApproval,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                )
+              else if (!hasItems && !showActiveFold)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: Center(
@@ -264,12 +284,6 @@ class ItemsTab extends StatelessWidget {
                           ),
                         ),
                         children: [
-                      if (showCoordinationCtas) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _ActiveCoordinationCtas(state: state),
-                        ),
-                      ],
                       if (activeForMeOnly &&
                           displayedOpenItems.isEmpty &&
                           openItems.isNotEmpty)
@@ -451,8 +465,6 @@ class ItemsTab extends StatelessWidget {
                         beaconId: beaconId,
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    _BeaconDefinitionSection(state: state),
                   ],
                 ),
               ),
@@ -623,36 +635,6 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
               )
             : const SizedBox.shrink(),
       ),
-    );
-  }
-}
-
-class _BeaconDefinitionSection extends StatelessWidget {
-  const _BeaconDefinitionSection({required this.state});
-
-  final BeaconViewState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final beacon = state.beacon;
-
-    return AccordionExpansionTile(
-      id: BeaconItemsAccordionSection.definition,
-      leading: const Icon(Icons.info_outline),
-      title: Text(
-        l10n.beaconDefinitionSectionTitle,
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: BeaconDefinitionBody(
-            key: ValueKey('items-def-${beacon.id}'),
-            beacon: beacon,
-          ),
-        ),
-      ],
     );
   }
 }
