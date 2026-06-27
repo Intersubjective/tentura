@@ -134,11 +134,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   bool _roomExitInProgress = false;
 
-  /// Set when [_enterRoomSurface] used [StackRouter.pushPath] for `?tab=room`.
-  /// Exit must [StackRouter.back] to drop that history entry — [replacePath]
-  /// would leave a duplicate beacon URL and force two pops to leave the beacon.
-  bool _roomEnteredViaPush = false;
-
   /// Ensures mark-seen on the previous visit finishes before re-open refresh.
   Future<void>? _pendingRoomExit;
 
@@ -262,12 +257,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (oldWidget.id != widget.id) {
       _userDismissedRoomSurface = false;
       _roomExitInProgress = false;
-      _roomEnteredViaPush = false;
     }
     final wasRoom = _roomFromRouteParams(oldWidget);
     final isRoom = _roomFromRouteParams(widget);
     if (wasRoom && !isRoom && _showRoomSurface) {
-      _roomEnteredViaPush = false;
       _exitRoomSurface(fromRouteSync: true);
     } else if (!wasRoom &&
         isRoom &&
@@ -391,20 +384,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
-    // Push a dedicated `?tab=room` route instead of also embedding room on the
-    // route below — otherwise back pops the top route but leaves a live
-    // [RoomCubit] + `_showRoomSurface` on the underlying beacon view.
-    if (!_roomFromRouteParams(widget)) {
-      _userDismissedRoomSurface = false;
-      _roomEnteredViaPush = true;
-      final roomPath = _beaconViewPath(viewTab: 'room');
-      // Push so browser history retains the operational beacon URL; exit via
-      // [StackRouter.back] (not replacePath) to avoid duplicate beacon entries.
-      _unfocusForRouteChange();
-      unawaited(context.router.pushPath(roomPath));
-      return;
-    }
-    _roomEnteredViaPush = false;
+    // Room is an in-route overlay ([PopScope.canPop] is false while open).
+    // Do not push or replace the URL here — that stacks duplicate beacon
+    // entries and breaks single-back from operational tabs.
+    _userDismissedRoomSurface = false;
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
@@ -436,7 +419,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_roomExitInProgress) return;
 
     if (fromRouteSync) {
-      _roomEnteredViaPush = false;
       if (_showRoomSurface) {
         _applyRoomSurfaceState(open: false, fromRouteSync: true);
       }
@@ -446,22 +428,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     _roomExitInProgress = true;
     if (_showRoomSurface) {
       _applyRoomSurfaceState(open: false);
-    }
-
-    // Room opened via pushPath: pop the `?tab=room` history entry. Using
-    // replacePath here duplicates `/beacon/view/:id` in the stack/history.
-    if (_roomEnteredViaPush) {
-      _roomEnteredViaPush = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          _roomExitInProgress = false;
-          return;
-        }
-        _unfocusForRouteChange();
-        context.router.back();
-        _roomExitInProgress = false;
-      });
-      return;
     }
 
     // Deep link / notification entry at `?tab=room` — strip query in place.
@@ -676,8 +642,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             canPop: !_showRoomSurface,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
-              // Browser/system back: URL sync only — do not maybePop (see
-              // [_exitRoomSurface]).
+              // Browser/system back while room is open: close overlay only
+              // ([_exitRoomSurface]); do not pop the beacon route.
               _exitRoomSurface();
             },
             child: Scaffold(
