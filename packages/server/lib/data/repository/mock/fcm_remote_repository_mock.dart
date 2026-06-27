@@ -7,7 +7,6 @@ import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 @Singleton(
   as: FcmRemoteRepositoryPort,
   env: [
-    Environment.dev,
     Environment.test,
   ],
   order: 1,
@@ -23,7 +22,7 @@ class FcmRemoteRepositoryMock implements FcmRemoteRepositoryPort {
     required FcmNotificationEntity message,
   }) async {
     _logger.info(
-      '[FCM] mock send (injectable dev/test — no Firebase HTTP) '
+      '[FCM] mock send (Firebase creds not configured — no HTTP) '
       'devices=${fcmTokens.length} title="${message.title}"',
     );
     return [];
