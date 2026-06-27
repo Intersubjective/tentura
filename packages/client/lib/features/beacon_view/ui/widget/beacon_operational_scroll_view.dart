@@ -223,6 +223,18 @@ class BeaconOperationalScrollView extends StatelessWidget {
                             state.beacon.allowsNewHelpOfferAsNonAuthor
                         ? () => _runOfferHelpFlow(context, l10n)
                         : null,
+                    onEditHelpOffer:
+                        !state.isBeaconMine &&
+                            state.isRoomAdmissionBlocked &&
+                            !state.coordinationDeniesRoomAdmission
+                        ? () => unawaited(
+                            beaconViewRunEditHelpOfferDialog(
+                              context,
+                              beaconViewCubit,
+                              l10n,
+                            ),
+                          )
+                        : null,
                     onForward: () => unawaited(
                       beaconViewOpenForwardThenMaybeNudgeOfferHelp(
                         context,

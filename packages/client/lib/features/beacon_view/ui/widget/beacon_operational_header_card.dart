@@ -21,6 +21,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     required this.onAuthorTap,
     this.onUpdateStatus,
     this.onOfferHelp,
+    this.onEditHelpOffer,
     this.onForward,
     this.onWatch,
     this.onStopWatching,
@@ -36,6 +37,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   final VoidCallback? onUpdateStatus;
   final VoidCallback? onOfferHelp;
+  final VoidCallback? onEditHelpOffer;
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -170,6 +172,33 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             icon: Icons.visibility_off_outlined,
             label: l10n.beaconHeaderStopWatching,
             onPressed: onStopWatching,
+            filled: false,
+          ),
+        );
+      }
+      return out.take(3).toList();
+    }
+
+    final canEditHelpOffer = openFamily &&
+        state.isRoomAdmissionBlocked &&
+        !state.coordinationDeniesRoomAdmission &&
+        onEditHelpOffer != null;
+
+    if (canEditHelpOffer) {
+      final out = <_HudActionSpec>[
+        _HudActionSpec(
+          icon: Icons.edit_outlined,
+          label: l10n.beaconCtaEditHelpOffer,
+          onPressed: onEditHelpOffer,
+          filled: true,
+        ),
+      ];
+      if (onForward != null) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.send_outlined,
+            label: l10n.labelForward,
+            onPressed: onForward,
             filled: false,
           ),
         );

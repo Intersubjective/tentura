@@ -83,6 +83,34 @@ void main() {
     );
     expect(notCommitted.canNavigateBeaconRoom, isFalse);
     expect(notCommitted.isRoomAdmissionBlocked, isFalse);
+    expect(notCommitted.showsRoomAccessUnavailableBanner, isTrue);
+  });
+
+  test('waiting help offerer suppresses room access unavailable banner', () {
+    final waiting = BeaconViewState(
+      beacon: beacon,
+      helpOffers: [_commitmentMe(me: me)],
+      isHelpOffered: true,
+      myProfile: me,
+    );
+    expect(waiting.isRoomAdmissionBlocked, isTrue);
+    expect(waiting.showsRoomAccessUnavailableBanner, isFalse);
+  });
+
+  test('rejected help offerer still shows room access unavailable banner', () {
+    final rejected = BeaconViewState(
+      beacon: beacon,
+      helpOffers: [
+        _commitmentMe(
+          me: me,
+          coordinationResponse: CoordinationResponseType.notSuitable,
+        ),
+      ],
+      isHelpOffered: true,
+      myProfile: me,
+    );
+    expect(rejected.coordinationDeniesRoomAdmission, isTrue);
+    expect(rejected.showsRoomAccessUnavailableBanner, isTrue);
   });
 
   test('beacon owner always has canNavigateBeaconRoom', () {

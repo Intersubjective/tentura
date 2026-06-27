@@ -19,6 +19,7 @@ import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
+import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -53,6 +54,33 @@ Future<void> beaconViewRunInitialHelpOfferDialog(
     await cubit.offerHelp(
       message: outcome.message,
       helpTypes: outcome.helpTypesWire,
+    );
+  }
+}
+
+/// Edit active help offer dialog + [BeaconViewCubit.offerHelp].
+Future<void> beaconViewRunEditHelpOfferDialog(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  if (!context.mounted) return;
+  final offer = cubit.state.myActiveHelpOffer;
+  if (offer == null) return;
+  final outcome = await HelpOfferMessageDialog.show(
+    context,
+    title: l10n.beaconHeaderUpdateHelpOffer,
+    hintText: l10n.hintOfferHelpMessage,
+    initialText: offer.message,
+    allowEmptyMessage: true,
+    showHelpTypeChips: true,
+    initialHelpTypeSlugs: helpOfferStoredHelpTypeSlugs(offer.helpType),
+    automaticSlugs: cubit.state.beacon.needs,
+  );
+  if (outcome != null && context.mounted) {
+    await cubit.offerHelp(
+      message: outcome.message,
+      helpTypes: normalizeOfferHelpTypesWire(outcome.helpTypesWire),
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -212,11 +214,24 @@ class FakeBeaconViewInboxRepository implements InboxRepository {
 
 class FakeBeaconViewActivityEventRepository
     implements BeaconActivityEventRepository {
+  FakeBeaconViewActivityEventRepository({this.listError});
+
+  final Object? listError;
+
+  @override
+  Future<List<BeaconActivityEvent>> list({required String beaconId}) async {
+    if (listError != null) throw listError!;
+    return [];
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
+  @override
+  Future<List<BeaconFactCard>> list({required String beaconId}) async => [];
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -263,6 +278,7 @@ BeaconViewCase buildTestBeaconViewCase({
   TrackingBeaconRepository? beaconRepo,
   FakeBeaconViewEvaluationRepository? evaluationRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
+  FakeBeaconViewActivityEventRepository? activityEventsRepo,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final invalidationSvc = invalidation ?? FakeInvalidationService();
@@ -270,6 +286,8 @@ BeaconViewCase buildTestBeaconViewCase({
   final beacon = beaconRepo ?? TrackingBeaconRepository();
   final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
   final coordination = coordinationRepo ?? FakeBeaconViewCoordinationRepository();
+  final activityEvents =
+      activityEventsRepo ?? FakeBeaconViewActivityEventRepository();
 
   return BeaconViewCase(
     beacon,
@@ -280,7 +298,7 @@ BeaconViewCase buildTestBeaconViewCase({
     FakeBeaconViewInboxRepository(),
     FakeBeaconViewFactCardRepository(),
     buildTestBeaconRoomCaseForView(watermark),
-    FakeBeaconViewActivityEventRepository(),
+    activityEvents,
     invalidationSvc,
     env: const Env(),
     logger: Logger('test'),

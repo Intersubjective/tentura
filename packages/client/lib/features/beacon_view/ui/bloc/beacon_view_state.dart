@@ -307,6 +307,11 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
       myActiveHelpOffer?.coordinationResponse ==
       CoordinationResponseType.notSuitable;
 
+  /// Room access-unavailable banner applies unless the viewer is waiting on
+  /// the author after offering help (Items tab shows waiting copy instead).
+  bool get showsRoomAccessUnavailableBanner =>
+      !isRoomAdmissionBlocked || coordinationDeniesRoomAdmission;
+
   int get unansweredHelpOffersCount => helpOffers
       .where((c) => !c.isWithdrawn && c.coordinationResponse == null)
       .length;
