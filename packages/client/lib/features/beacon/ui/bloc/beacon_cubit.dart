@@ -66,12 +66,13 @@ class BeaconCubit extends Cubit<BeaconState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final myAccountId = await _authLocalRepository.getCurrentAccountId();
+      final isMine = myAccountId == state.profileId;
       final lifecycleStates = state.filter == BeaconFilter.active
           ? [
               BeaconStatus.open.smallintValue,
               BeaconStatus.needsMoreHelp.smallintValue,
               BeaconStatus.enoughHelp.smallintValue,
-              BeaconStatus.draft.smallintValue,
+              if (isMine) BeaconStatus.draft.smallintValue,
               BeaconStatus.reviewOpen.smallintValue,
             ]
           : [
@@ -80,15 +81,16 @@ class BeaconCubit extends Cubit<BeaconState> {
               BeaconStatus.deleted.smallintValue,
             ];
       final offset = reset ? 0 : state.beacons.length;
-      final beacons = await _beaconRepository.fetchBeacons(
+      final fetched = await _beaconRepository.fetchBeacons(
         lifecycleStates: lifecycleStates,
         offset: offset,
         profileId: state.profileId,
       );
+      final beacons = fetched.where((b) => b.canReadContent).toList();
       emit(
         state.copyWith(
-          isMine: myAccountId == state.profileId,
-          beacons: reset ? beacons.toList() : (state.beacons..addAll(beacons)),
+          isMine: isMine,
+          beacons: reset ? beacons : (state.beacons..addAll(beacons)),
           hasReachedLast: beacons.length < kFetchWindowSize,
           status: StateStatus.isSuccess,
         ),

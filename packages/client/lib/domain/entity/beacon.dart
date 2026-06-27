@@ -60,6 +60,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Lineage fork: root beacon id (nullable).
     String? lineageRootBeaconId,
+
+    /// Hasura computed field: viewer may read beacon content (open / commit surfaces).
+    @Default(true) bool canReadContent,
   }) = _Beacon;
 
   const Beacon._();
@@ -69,6 +72,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   /// Non-closed listing (open-family, DRAFT, WRAPPING UP); profile filters and author controls.
   bool get isListed => status.isActiveSection;
+
+  /// Viewer may open this beacon (matches server `beacon_can_read_content`).
+  bool get canOpenAsViewer => canReadContent;
+
+  /// Viewer may commit (offer help) when readable and beacon is open-family.
+  bool get canCommitAsViewer => canReadContent && status.isOpenFamily;
 
   /// Non-author may offer help only when status is open-family (matches server).
   bool get allowsNewHelpOfferAsNonAuthor => status.isOpenFamily;
