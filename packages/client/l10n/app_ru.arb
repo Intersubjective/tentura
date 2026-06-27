@@ -1714,6 +1714,10 @@
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardReachExplainer": "Это люди, до которых вы можете дотянуться. Доступ к маяку появится только после принятия пересылки.",
+  "@forwardReachExplainer": {
+    "description": "Clarifies that forward-picker candidacy (reach) is not the same as read access."
+  },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"

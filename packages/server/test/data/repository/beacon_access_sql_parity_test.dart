@@ -14,6 +14,8 @@ import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 /// SQL ↔ Dart policy parity — skipped when Postgres or m0098 is unavailable.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
@@ -70,9 +72,9 @@ Future<void> main() async {
   }
 
   Future<void> seedUsers() async {
-    final keyA = '${'a' * 43}1';
-    final keyB = '${'b' * 43}2';
-    final keyC = '${'c' * 43}3';
+    final keyA = pgTestPublicKey('visparity', 1);
+    final keyB = pgTestPublicKey('visparity', 2);
+    final keyC = pgTestPublicKey('visparity', 3);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
@@ -80,7 +82,9 @@ VALUES
   ('Uvisparityauth', 'Author', $1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ('Uvisparityview', 'Viewer', $2, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ('Uvisparitypeer', 'Peer', $3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
-ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  public_key = EXCLUDED.public_key
 ''',
       [keyA, keyB, keyC],
     );

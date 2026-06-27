@@ -12,6 +12,8 @@ import 'package:tentura_server/data/repository/person_capability_event_repositor
 import 'package:tentura_server/domain/capability/capability_event_source.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 /// Postgres integration — skipped when DB or person_capability_event is unavailable.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
@@ -60,8 +62,8 @@ WHERE beacon_id = 'Bcapacktest1'
   }
 
   Future<void> seedFixture() async {
-    final observerKey = '${'c' * 43}1';
-    final subjectKey = '${'d' * 43}2';
+    final observerKey = pgTestPublicKey('capack', 1);
+    final subjectKey = pgTestPublicKey('capack', 2);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)

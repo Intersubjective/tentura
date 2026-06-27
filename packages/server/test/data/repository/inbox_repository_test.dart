@@ -14,6 +14,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/pg_test_public_keys.dart';
+
 const _beaconId = 'Binboxtest01';
 const _authorId = 'Uinboxtestauth';
 const _recipientId = 'Uinboxtestrecp';
@@ -84,11 +86,11 @@ Future<void> main() async {
   }
 
   Future<void> seedUsers() async {
-    final keyA = '${'a' * 43}1';
-    final keyB = '${'b' * 43}2';
-    final keyC = '${'c' * 43}3';
-    final keyD = '${'d' * 43}4';
-    final keyE = '${'e' * 43}5';
+    final keyA = pgTestPublicKey('inboxtest', 1);
+    final keyB = pgTestPublicKey('inboxtest', 2);
+    final keyC = pgTestPublicKey('inboxtest', 3);
+    final keyD = pgTestPublicKey('inboxtest', 4);
+    final keyE = pgTestPublicKey('inboxtest', 5);
     await db.customStatement(
       r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
@@ -98,7 +100,9 @@ VALUES
   ($5, 'Sender One', $6, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ($7, 'Sender Two', $8, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ($9, 'Watcher', $10, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
-ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  public_key = EXCLUDED.public_key
 ''',
       [
         _authorId,
@@ -376,11 +380,19 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       );
       expect(await inboxStatus(_watcherId), 3);
 
+      await db.customStatement(
+        r'''
+DELETE FROM public.inbox_item WHERE user_id = $1 AND beacon_id = $2
+''',
+        [_watcherId, _beaconId],
+      );
       await seedBeacon(status: BeaconStatus.deleted.smallintValue);
       await db.customStatement(
         r'''
-UPDATE public.inbox_item SET status = 1, before_response_terminal_at = NULL
-WHERE user_id = $1 AND beacon_id = $2
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, status, forward_count, latest_forward_at, latest_note_preview, rejection_message
+) VALUES ($1, $2, 1, 0, '2026-01-01T00:00:00Z', '', '')
+ON CONFLICT (user_id, beacon_id) DO NOTHING
 ''',
         [_watcherId, _beaconId],
       );

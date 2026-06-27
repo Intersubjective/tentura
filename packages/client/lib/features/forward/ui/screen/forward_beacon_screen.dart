@@ -351,6 +351,17 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                                 setState(() => _searchOverlayOpen = true);
                               },
                             ),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                left: tt.screenHPadding,
+                                right: tt.screenHPadding,
+                                bottom: tt.rowGap,
+                              ),
+                              child: Text(
+                                l10n.forwardReachExplainer,
+                                style: TenturaText.bodySmall(tt.textMuted),
+                              ),
+                            ),
                             const TenturaHairlineDivider(),
                             if (beacon != null && beacon.id.isNotEmpty) ...[
                               CompactBeaconContextStrip(
