@@ -2,11 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:http/http.dart' show MultipartFile;
-import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
@@ -335,11 +334,10 @@ class BeaconRoomRepository {
   }) async {
     final multipart = firstAttachment == null
         ? null
-        : MultipartFile.fromBytes(
-            'file',
-            firstAttachment.bytes,
-            contentType: MediaType.parse(firstAttachment.mimeType),
+        : TenturaV2Upload(
             filename: firstAttachment.fileName,
+            mimeType: firstAttachment.mimeType,
+            bytes: firstAttachment.bytes,
           );
     final r = await _remoteApiService
         .request(
@@ -361,11 +359,10 @@ class BeaconRoomRepository {
     required String messageId,
     required RoomPendingUpload upload,
   }) async {
-    final file = MultipartFile.fromBytes(
-      'file',
-      upload.bytes,
-      contentType: MediaType.parse(upload.mimeType),
+    final file = TenturaV2Upload(
       filename: upload.fileName,
+      mimeType: upload.mimeType,
+      bytes: upload.bytes,
     );
     await _remoteApiService
         .request(
