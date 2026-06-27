@@ -8,7 +8,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
@@ -115,7 +114,6 @@ class _SettingsCommandList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
     return BlocSelector<AuthCubit, AuthState, bool>(
       bloc: authCubit,
       selector: (state) => state.isLoading,
@@ -170,16 +168,6 @@ class _SettingsCommandList extends StatelessWidget {
               onPressed: isLoading
                   ? null
                   : () => MyProfileDeleteDialog.show(context),
-            ),
-            FilledButton.icon(
-              onPressed: isLoading ? null : () => confirmAndSignOut(context),
-              icon: const Icon(Icons.logout),
-              label: Text(l10n.logout),
-              style: FilledButton.styleFrom(
-                minimumSize: Size.fromHeight(tt.buttonHeight),
-                backgroundColor: scheme.error,
-                foregroundColor: scheme.onError,
-              ),
             ),
           ],
         );
