@@ -87,15 +87,17 @@ class ImageCropperPlugin extends ImageCropperPlatform {
     final cropperWidth = webSettings.size?.width ?? 500;
     final cropperHeight = webSettings.size?.height ?? 500;
 
-    final div = web.HTMLDivElement()
-      ..id = 'cropperView_${_nextIFrameId++}'
+    final overlayId = _nextIFrameId++;
+    final overlayDiv = web.HTMLDivElement()
+      ..id = 'cropperView_$overlayId'
       ..style.width = '100%'
-      ..style.height = '100%';
+      ..style.height = '100%'
+      ..style.overflow = 'hidden';
     final image = web.HTMLImageElement()
       ..src = sourcePath
       ..style.maxWidth = '100%'
       ..style.display = 'block';
-    div.appendChild(image);
+    overlayDiv.appendChild(image);
 
     final options = CropperOptions(
       dragMode:
@@ -128,21 +130,56 @@ class ImageCropperPlugin extends ImageCropperPlatform {
       minCropBoxHeight: webSettings.minCropBoxHeight ?? 0,
     );
     Cropper? cropper;
-    initializer() => Future.delayed(
+    var cropperInitialized = false;
+
+    void createCropper() {
+      if (cropperInitialized) {
+        return;
+      }
+      cropperInitialized = true;
+      assert(cropper == null, 'cropper was already initialized');
+      cropper = Cropper(image, options);
+    }
+
+    void initializer() {
+      if (cropperInitialized) {
+        return;
+      }
+      if (image.complete) {
+        createCropper();
+      } else {
+        image.addEventListener(
+          'load',
+          ((web.Event _) => createCropper()).toJS,
+        );
+      }
+    }
+
+    // Legacy HtmlElementView path for custom route/dialog builders only.
+    final legacyDiv = web.HTMLDivElement()
+      ..style.width = '100%'
+      ..style.height = '100%';
+    final legacyImage = web.HTMLImageElement()
+      ..src = sourcePath
+      ..style.maxWidth = '100%'
+      ..style.display = 'block';
+    legacyDiv.appendChild(legacyImage);
+
+    Cropper? legacyCropper;
+    legacyInitializer() => Future.delayed(
           const Duration(milliseconds: 200),
           () {
-            assert(cropper == null, 'cropper was already initialized');
-            cropper = Cropper(image, options);
+            assert(legacyCropper == null, 'cropper was already initialized');
+            legacyCropper = Cropper(legacyImage, options);
+            cropper = legacyCropper;
           },
         );
 
-    final viewType =
-        'plugins.hunghd.vn/cropper-view-${Uri.encodeComponent(sourcePath)}';
-
-    ui.platformViewRegistry.registerViewFactory(viewType, (int viewId) => div);
+    final viewType = 'plugins.hunghd.vn/cropper-view-$overlayId';
+    ui.platformViewRegistry.registerViewFactory(viewType, (int viewId) => legacyDiv);
 
     final cropperWidget = HtmlElementView(
-      key: ValueKey(sourcePath),
+      key: ValueKey('cropper-$overlayId'),
       viewType: viewType,
     );
 
@@ -198,20 +235,49 @@ class ImageCropperPlugin extends ImageCropperPlatform {
       cropper!.zoomTo(_webSliderZoomBaseRatio! * value);
     }
 
-    if (webSettings.presentStyle == WebPresentStyle.page) {
-      PageRoute<String> pageRoute;
-      if (webSettings.customRouteBuilder != null) {
-        pageRoute = webSettings.customRouteBuilder!(
-          cropperWidget,
-          initializer,
-          doCrop,
-          doRotate,
-          doScale,
-        );
+    try {
+      if (webSettings.presentStyle == WebPresentStyle.page) {
+        PageRoute<String> pageRoute;
+        if (webSettings.customRouteBuilder != null) {
+          pageRoute = webSettings.customRouteBuilder!(
+            cropperWidget,
+            legacyInitializer,
+            doCrop,
+            doRotate,
+            doScale,
+          );
+        } else {
+          pageRoute = MaterialPageRoute(
+            builder: (c) => CropperPage(
+              overlayElement: overlayDiv,
+              initCropper: initializer,
+              crop: doCrop,
+              rotate: doRotate,
+              scale: doScale,
+              cropperContainerWidth: cropperWidth * 1.0,
+              cropperContainerHeight: cropperHeight * 1.0,
+              translations:
+                  webSettings?.translations ?? const WebTranslations.en(),
+              themeData: webSettings?.themeData,
+            ),
+          );
+        }
+        final result = await Navigator.of(context).push<String>(pageRoute);
+
+        return result != null ? CroppedFile(result) : null;
       } else {
-        pageRoute = MaterialPageRoute(
-          builder: (c) => CropperPage(
-            cropper: cropperWidget,
+        Widget cropperDialog;
+        if (webSettings.customDialogBuilder != null) {
+          cropperDialog = webSettings.customDialogBuilder!(
+            cropperWidget,
+            legacyInitializer,
+            doCrop,
+            doRotate,
+            doScale,
+          );
+        } else {
+          cropperDialog = CropperDialog(
+            overlayElement: overlayDiv,
             initCropper: initializer,
             crop: doCrop,
             rotate: doRotate,
@@ -219,45 +285,23 @@ class ImageCropperPlugin extends ImageCropperPlatform {
             cropperContainerWidth: cropperWidth * 1.0,
             cropperContainerHeight: cropperHeight * 1.0,
             translations:
-                webSettings?.translations ?? const WebTranslations.en(),
-            themeData: webSettings?.themeData,
-          ),
+                webSettings.translations ?? const WebTranslations.en(),
+            themeData: webSettings.themeData,
+          );
+        }
+        final result = await showDialog<String?>(
+          context: context,
+          barrierColor: webSettings.barrierColor,
+          barrierDismissible: false,
+          builder: (_) => cropperDialog,
         );
-      }
-      final result = await Navigator.of(context).push<String>(pageRoute);
 
-      return result != null ? CroppedFile(result) : null;
-    } else {
-      Widget cropperDialog;
-      if (webSettings.customDialogBuilder != null) {
-        cropperDialog = webSettings.customDialogBuilder!(
-          cropperWidget,
-          initializer,
-          doCrop,
-          doRotate,
-          doScale,
-        );
-      } else {
-        cropperDialog = CropperDialog(
-          cropper: cropperWidget,
-          initCropper: initializer,
-          crop: doCrop,
-          rotate: doRotate,
-          scale: doScale,
-          cropperContainerWidth: cropperWidth * 1.0,
-          cropperContainerHeight: cropperHeight * 1.0,
-          translations: webSettings.translations ?? const WebTranslations.en(),
-          themeData: webSettings.themeData,
-        );
+        return result != null ? CroppedFile(result) : null;
       }
-      final result = await showDialog<String?>(
-        context: context,
-        barrierColor: webSettings.barrierColor,
-        barrierDismissible: false,
-        builder: (_) => cropperDialog,
-      );
-
-      return result != null ? CroppedFile(result) : null;
+    } finally {
+      cropper?.destroy();
+      cropper = null;
+      overlayDiv.remove();
     }
   }
 

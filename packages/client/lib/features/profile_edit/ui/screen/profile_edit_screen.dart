@@ -297,6 +297,8 @@ List<PlatformUiSettings> _avatarCropUiSettings(
       presentStyle: WebPresentStyle.page,
       size: CropperSize(width: webSide, height: webSide),
       viewwMode: WebViewMode.mode_1,
+      dragMode: WebDragMode.move,
+      checkCrossOrigin: false,
       translations: WebTranslations(
         title: l10n.titleCropAvatar,
         rotateLeftTooltip: l10n.cropRotateLeftTooltip,
