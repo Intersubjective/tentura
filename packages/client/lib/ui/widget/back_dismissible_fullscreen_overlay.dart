@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'back_dismissible_overlay_history.dart';
@@ -16,9 +17,13 @@ class BackDismissibleFullscreenOverlay extends StatefulWidget {
   final Widget child;
 
   static final List<VoidCallback> _popCallbacks = [];
+  static final ValueNotifier<int> _openOverlayCount = ValueNotifier<int>(0);
   static DateTime? _browserBackHandledAt;
 
   static bool get hasOpenOverlay => _popCallbacks.isNotEmpty;
+
+  static ValueListenable<int> get openOverlayCountListenable =>
+      _openOverlayCount;
 
   static bool consumeBrowserBackHandledByOverlay() {
     final handledAt = _browserBackHandledAt;
@@ -63,13 +68,17 @@ class _BackDismissibleFullscreenOverlayState
       onPop: () => _popOverlay(fromBrowserHistory: true),
     );
     BackDismissibleFullscreenOverlay._popCallbacks.add(_popOverlay);
+    BackDismissibleFullscreenOverlay._openOverlayCount.value =
+        BackDismissibleFullscreenOverlay._popCallbacks.length;
   }
 
   @override
   void dispose() {
     BackDismissibleFullscreenOverlay._popCallbacks.remove(_popOverlay);
+    BackDismissibleFullscreenOverlay._openOverlayCount.value =
+        BackDismissibleFullscreenOverlay._popCallbacks.length;
     BackDismissibleFullscreenOverlay._markBrowserBackHandledByOverlay();
-    _historySentinel.dispose();
+    _historySentinel.dispose(consumeGeneratedPop: true);
     super.dispose();
   }
 

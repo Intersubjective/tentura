@@ -746,16 +746,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   void _scheduleComposerKeyboardRequest() {
-    void requestKeyboard() {
-      if (!mounted || !_composerFocus.hasFocus) {
-        return;
-      }
-      _composerEditableText()?.requestKeyboard();
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      requestKeyboard();
-      WidgetsBinding.instance.addPostFrameCallback((_) => requestKeyboard());
+      _requestComposerKeyboard();
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _requestComposerKeyboard(),
+      );
     });
   }
 
@@ -763,7 +758,17 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (!_composerFocus.hasFocus) {
       _composerFocus.requestFocus();
     }
+    // Mobile browsers require text input to open from the user gesture itself;
+    // post-frame retries below only cover Flutter focus/EditableText timing.
+    _requestComposerKeyboard();
     _scheduleComposerKeyboardRequest();
+  }
+
+  void _requestComposerKeyboard() {
+    if (!mounted || !_composerFocus.hasFocus) {
+      return;
+    }
+    _composerEditableText()?.requestKeyboard();
   }
 
   /// Locates the [EditableTextState] rendered under [_composerFocus].
