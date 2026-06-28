@@ -15,7 +15,8 @@ import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_poll_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -236,12 +237,17 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
 }) {
   if (!inRoomSurface || !canShowCreatePromise(state)) return null;
   return () => unawaited(
-        showBeaconRoomPromiseSheet(
+        showCoordinationItemComposerSheet(
           context,
+          kind: CoordinationItemKind.promise,
           beaconId: beaconId,
           participants: state.roomParticipants,
+          beaconAuthorId: state.beacon.author.id,
           myUserId: state.myProfile.id,
           isAuthorOrSteward: state.isAuthorOrSteward,
+          useRootNavigator: true,
+          enableDrag: false,
+          isDismissible: false,
           onSaved: onSaved,
         ),
       );

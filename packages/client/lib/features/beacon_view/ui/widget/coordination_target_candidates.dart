@@ -33,6 +33,17 @@ List<String> askTargetUserIds({
   return ids.toList()..sort();
 }
 
+bool hasPublishedPromiseTargets({
+  required List<BeaconParticipant> participants,
+  required String myUserId,
+  required bool isAuthorOrSteward,
+}) =>
+    promiseTargetParticipants(
+      participants: participants,
+      myUserId: myUserId,
+      isAuthorOrSteward: isAuthorOrSteward,
+    ).isNotEmpty;
+
 /// Promise targets: admitted picker list excluding self.
 List<BeaconParticipant> promiseTargetParticipants({
   required List<BeaconParticipant> participants,
