@@ -2,6 +2,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
+import '../message/inbox_messages.dart';
 
 export 'package:tentura/ui/bloc/state_base.dart';
 
@@ -16,6 +17,8 @@ abstract class InboxState extends StateBase with _$InboxState {
 
     /// Used to hide the current user’s own beacons from the Watching tab.
     @Default('') String currentUserId,
+
+    InboxBeaconMovedMessage? pendingMovedNudge,
   }) = _InboxState;
 
   const InboxState._();

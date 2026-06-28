@@ -36,10 +36,10 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
          _ when id.startsWith('U') => ProfileViewState(
            profile: Profile(id: id),
          ),
-         _ => ProfileViewState(status: StateHasError('Wrong id: $id')),
+         _ => ProfileViewState(loadError: 'Wrong id: $id'),
        }) {
-    if (state.status case StateHasError(:final error)) {
-      _effects.emit(ShowError(error));
+    if (state.loadError != null) {
+      _effects.emit(ShowError(state.loadError!));
     }
     unawaited(fetch());
     _capabilitySub = _capabilityRepository.changes.listen(

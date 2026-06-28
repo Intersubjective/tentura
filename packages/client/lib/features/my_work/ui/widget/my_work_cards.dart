@@ -248,7 +248,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                         );
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString());
+                          showSnackBar(context, isError: true, text: e.toString(), error: e);
                         }
                       }
                     }
@@ -261,7 +261,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                         await evaluationRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString());
+                          showSnackBar(context, isError: true, text: e.toString(), error: e);
                         }
                       }
                     }
@@ -301,7 +301,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString());
+                      showSnackBar(context, isError: true, text: e.toString(), error: e);
                     }
                   }
                 }
@@ -449,7 +449,7 @@ class _DraftAuthoredCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString());
+                      showSnackBar(context, isError: true, text: e.toString(), error: e);
                     }
                   }
                 }
@@ -528,7 +528,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                         );
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString());
+                          showSnackBar(context, isError: true, text: e.toString(), error: e);
                         }
                       }
                     }
@@ -541,7 +541,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                         await evaluationRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString());
+                          showSnackBar(context, isError: true, text: e.toString(), error: e);
                         }
                       }
                     }
@@ -581,7 +581,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString());
+                      showSnackBar(context, isError: true, text: e.toString(), error: e);
                     }
                   }
                 }

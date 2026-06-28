@@ -14,7 +14,10 @@ abstract class BeaconState extends StateBase with _$BeaconState {
     @Default(false) bool hasReachedLast,
     @Default(BeaconFilter.active) BeaconFilter filter,
     @Default(StateIsSuccess()) StateStatus status,
+    Object? loadError,
   }) = _BeaconState;
 
   const BeaconState._();
+
+  bool get hasError => loadError != null;
 }

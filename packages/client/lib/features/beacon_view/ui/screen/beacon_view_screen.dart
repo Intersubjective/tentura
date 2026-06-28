@@ -90,21 +90,12 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   final String? coordinationItemId;
 
   @override
-  Widget wrappedRoute(_) => MultiBlocProvider(
-    providers: [
-      BlocProvider(
-        create: (_) => ScreenCubit.local(),
+  Widget wrappedRoute(_) => localScreenCubitScope(
+    child: BlocProvider(
+      create: (_) => BeaconViewCubit(
+        myProfile: GetIt.I<ProfileCubit>().state.profile,
+        id: id,
       ),
-      BlocProvider(
-        create: (_) => BeaconViewCubit(
-          myProfile: GetIt.I<ProfileCubit>().state.profile,
-          id: id,
-        ),
-      ),
-    ],
-    child: BlocListener<ScreenCubit, ScreenState>(
-      // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
-      listener: commonScreenBlocListener,
       child: this,
     ),
   );

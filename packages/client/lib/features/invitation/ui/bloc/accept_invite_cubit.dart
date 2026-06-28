@@ -190,9 +190,15 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     }
     emit(
       state.copyWith(
-        status: StateIsNavigating('$kPathSignUp/$code'),
+        status: const StateIsSuccess(),
         pendingInviter: null,
+        pendingSignupCode: code,
       ),
     );
+  }
+
+  void clearPendingSignupNavigation() {
+    if (state.pendingSignupCode == null) return;
+    emit(state.copyWith(pendingSignupCode: null));
   }
 }

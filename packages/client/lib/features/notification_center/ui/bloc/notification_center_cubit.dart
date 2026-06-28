@@ -1,3 +1,4 @@
+import 'package:logging/logging.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../data/repository/notification_center_repository.dart';
@@ -27,7 +28,10 @@ class NotificationCenterCubit extends Cubit<NotificationCenterState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      GetIt.I<Logger>().warning('NotificationCenter fetch failed', e);
+      if (!isClosed) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 

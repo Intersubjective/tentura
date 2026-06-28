@@ -10,7 +10,10 @@ abstract class ProfileViewState extends StateBase with _$ProfileViewState {
     @Default(Profile()) Profile profile,
     @Default(StateIsSuccess()) StateStatus status,
     @Default(PersonCapabilityCues.empty) PersonCapabilityCues cues,
+    Object? loadError,
   }) = _ProfileViewState;
 
   const ProfileViewState._();
+
+  bool get hasError => loadError != null;
 }

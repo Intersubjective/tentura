@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/notification_settings/data/repository/notification_settings_repository.dart';
 import 'package:tentura/features/notification_settings/domain/entity/notification_settings.dart';
 import 'package:tentura/features/notification_settings/ui/bloc/notification_settings_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _FakeRepo implements NotificationSettingsRepository {
   _FakeRepo(this._initial);
@@ -36,8 +39,14 @@ NotificationSettings base() => const NotificationSettings(
     );
 
 void main() {
+  NotificationSettingsCubit testCubit(NotificationSettingsRepository repo) =>
+      NotificationSettingsCubit(
+        repository: repo,
+        effects: FakeUiEffectPort(),
+      );
+
   test('fetch loads settings', () async {
-    final cubit = NotificationSettingsCubit(repository: _FakeRepo(base()));
+    final cubit = testCubit(_FakeRepo(base()));
     await cubit.fetch();
     expect(cubit.state.status, isA<StateIsSuccess>());
     expect(
@@ -49,7 +58,7 @@ void main() {
 
   test('enabling a push category persists optimistically', () async {
     final repo = _FakeRepo(base());
-    final cubit = NotificationSettingsCubit(repository: repo);
+    final cubit = testCubit(repo);
     await cubit.fetch();
 
     await cubit.setChannelCategory(
@@ -66,7 +75,7 @@ void main() {
   });
 
   test('setDigest updates cadence', () async {
-    final cubit = NotificationSettingsCubit(repository: _FakeRepo(base()));
+    final cubit = testCubit(_FakeRepo(base()));
     await cubit.fetch();
     await cubit.setDigest(NotificationDigestCadence.daily);
     expect(cubit.state.settings.emailDigest, NotificationDigestCadence.daily);
@@ -75,13 +84,18 @@ void main() {
 
   test('reverts to previous settings when the update fails', () async {
     final repo = _FakeRepo(base())..failUpdate = true;
-    final cubit = NotificationSettingsCubit(repository: repo);
+    final effects = FakeUiEffectPort();
+    final cubit = NotificationSettingsCubit(
+      repository: repo,
+      effects: effects,
+    );
     await cubit.fetch();
 
     await cubit.setLockScreenSafe(true);
     // Optimistic value rolled back.
     expect(cubit.state.settings.lockScreenSafe, isFalse);
-    expect(cubit.state.status, isA<StateHasError>());
+    expect(cubit.state.status, isA<StateIsSuccess>());
+    expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
     await cubit.close();
   });
 }

@@ -55,7 +55,7 @@ class _RenameContactDialogState extends State<RenameContactDialog>
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        showSnackBar(context, text: e.toString(), isError: true);
+        showSnackBar(context, text: e.toString(), isError: true, error: e);
       }
     }
   }

@@ -76,10 +76,11 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
         draftPromiseItems: draftPromises,
         draftBlockerItems: draftBlockers,
         currentCoordinationPlan: currentPlan,
+        loadError: null,
         status: const StateIsSuccess(),
       ));
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -93,7 +94,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.resolveBlocker(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -103,7 +104,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.cancelBlocker(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -113,7 +114,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.acceptAsk(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -123,7 +124,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.resolveAsk(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -133,7 +134,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.cancelAsk(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -143,7 +144,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.acceptPromise(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -153,7 +154,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.resolvePromise(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -163,7 +164,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.cancelPromise(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -173,7 +174,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.acceptResolution(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -183,7 +184,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.rejectResolution(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -193,7 +194,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.resolvePlanStep(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -211,7 +212,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       );
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 
@@ -221,7 +222,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       await _case.remindItem(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 

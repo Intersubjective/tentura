@@ -86,7 +86,7 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        showSnackBar(context, text: e.toString(), isError: true);
+        showSnackBar(context, text: e.toString(), isError: true, error: e);
       }
     }
   }

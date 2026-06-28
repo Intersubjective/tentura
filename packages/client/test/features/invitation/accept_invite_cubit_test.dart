@@ -53,14 +53,7 @@ void main() {
       await cubit.start('I806d29daebbe-');
       expect(repo.previewCalls, 1);
       expect(cubit.state.code, 'I806d29daebbe');
-      expect(
-        cubit.state.status,
-        isA<StateIsNavigating>().having(
-          (s) => s.path,
-          'path',
-          '/sign/up/I806d29daebbe',
-        ),
-      );
+      expect(cubit.state.pendingSignupCode, 'I806d29daebbe');
     });
 
     test('already-friends short-circuits without accept POST', () async {
@@ -154,14 +147,7 @@ void main() {
         callerStatus: InviteCallerStatus.anonymous,
       );
       await cubit.start('Iabc123');
-      expect(
-        cubit.state.status,
-        isA<StateIsNavigating>().having(
-          (s) => s.path,
-          'path',
-          '/sign/up/Iabc123',
-        ),
-      );
+      expect(cubit.state.pendingSignupCode, 'Iabc123');
     });
   });
 }

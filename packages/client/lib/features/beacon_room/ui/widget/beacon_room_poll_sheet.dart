@@ -83,7 +83,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
       if (mounted) Navigator.of(context).pop();
     } on Object catch (e) {
       if (mounted) {
-        showSnackBar(context, isError: true, text: e.toString());
+        showSnackBar(context, isError: true, text: e.toString(), error: e);
         setState(() => _sending = false);
       }
     }

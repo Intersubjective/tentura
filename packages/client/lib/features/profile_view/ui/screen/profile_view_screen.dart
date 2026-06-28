@@ -23,24 +23,19 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
   final String id;
 
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-    providers: [
-      BlocProvider(
-        create: (_) => ScreenCubit.local(),
-      ),
-      BlocProvider(
-        create: (_) => ProfileViewCubit(id: id),
-      ),
-      BlocProvider(
-        create: (_) => ProfileSharedBeaconsCubit(
-          meId: GetIt.I<ProfileCubit>().state.profile.id,
-          targetId: id,
+  Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
+    child: MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => ProfileViewCubit(id: id),
         ),
-      ),
-    ],
-    child: BlocListener<ScreenCubit, ScreenState>(
-      // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
-      listener: commonScreenBlocListener,
+        BlocProvider(
+          create: (_) => ProfileSharedBeaconsCubit(
+            meId: GetIt.I<ProfileCubit>().state.profile.id,
+            targetId: id,
+          ),
+        ),
+      ],
       child: this,
     ),
   );

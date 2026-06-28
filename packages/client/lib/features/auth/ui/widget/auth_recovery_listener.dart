@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/auth/domain/entity/auth_recovery_outcome.dart';
@@ -16,8 +17,7 @@ bool authRecoveryListenerShouldListen(
 ) =>
     previous.authRecoveryNeeded != current.authRecoveryNeeded ||
     previous.authSessionLossCount != current.authSessionLossCount ||
-    previous.pendingRecoveryNavigation != current.pendingRecoveryNavigation ||
-    (current.status is StateHasError && previous.status != current.status);
+    previous.pendingRecoveryNavigation != current.pendingRecoveryNavigation;
 
 /// App-root auth recovery banner, navigation, and session-loss handling.
 class AuthRecoveryListener extends StatelessWidget {
@@ -32,16 +32,9 @@ class AuthRecoveryListener extends StatelessWidget {
         listener: (context, state) {
           _handlePendingNavigation(context, state);
           _handleRecoveryBanner(context, state);
-          _handleAuthSessionLossError(context, state);
         },
         child: child,
       );
-
-  void _handleAuthSessionLossError(BuildContext context, AuthState state) {
-    if (state.status case StateHasError(:final error)) {
-      context.read<AuthCubit>().noteAuthSessionLoss(error);
-    }
-  }
 
   void _handlePendingNavigation(BuildContext context, AuthState state) {
     final pending = state.pendingRecoveryNavigation;

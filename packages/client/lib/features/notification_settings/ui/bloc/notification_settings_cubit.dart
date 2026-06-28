@@ -1,5 +1,9 @@
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import '../../data/repository/notification_settings_repository.dart';
 import '../../domain/entity/notification_settings.dart';
 import 'notification_settings_state.dart';
@@ -9,11 +13,22 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'notification_settings_state.dart';
 
 class NotificationSettingsCubit extends Cubit<NotificationSettingsState> {
-  NotificationSettingsCubit({NotificationSettingsRepository? repository})
-      : _repository = repository ?? GetIt.I<NotificationSettingsRepository>(),
+  NotificationSettingsCubit({
+    NotificationSettingsRepository? repository,
+    UiEffectPort? effects,
+  })  : _repository = repository ?? GetIt.I<NotificationSettingsRepository>(),
+        _effects = effects ?? GetIt.I<UiEffectPort>(),
         super(NotificationSettingsState());
 
   final NotificationSettingsRepository _repository;
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   Future<void> fetch() async {
     emit(state.copyWith(status: const StateIsLoading()));
@@ -21,7 +36,7 @@ class NotificationSettingsCubit extends Cubit<NotificationSettingsState> {
       final settings = await _repository.fetch();
       emit(state.copyWith(settings: settings, status: const StateIsSuccess()));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -92,7 +107,8 @@ class NotificationSettingsCubit extends Cubit<NotificationSettingsState> {
       emit(state.copyWith(settings: saved));
     } catch (e) {
       // Revert on failure.
-      emit(state.copyWith(settings: previous, status: StateHasError(e)));
+      emit(state.copyWith(settings: previous));
+      _emitSnackError(e);
     }
   }
 }

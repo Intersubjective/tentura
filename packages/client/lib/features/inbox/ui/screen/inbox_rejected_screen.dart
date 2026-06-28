@@ -66,30 +66,11 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
           builder: (context, _) {
             final newStuff = context.read<NewStuffCubit>();
             return BlocBuilder<InboxCubit, InboxState>(
-              buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+              buildWhen: (_, c) => c.isSuccess || c.isLoading,
               builder: (_, state) {
                 if (state.isLoading) {
                   return const Center(
                     child: CircularProgressIndicator.adaptive(),
-                  );
-                }
-                if (state.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: tt.iconSize * 2,
-                          color: scheme.error,
-                        ),
-                        SizedBox(height: tt.sectionGap),
-                        FilledButton(
-                          onPressed: () => unawaited(inboxCubit.fetch()),
-                          child: Text(l10n.myWorkRetry),
-                        ),
-                      ],
-                    ),
                   );
                 }
                 final items = state.rejected;

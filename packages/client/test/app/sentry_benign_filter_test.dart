@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/sentry/sentry_benign_filter.dart';
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 
 void main() {
@@ -32,6 +33,34 @@ void main() {
       expect(
         isBenignSentryThrowable(const RemoteApiException('server said no')),
         isFalse,
+      );
+    });
+
+    test('TitleTooShortException is benign', () {
+      expect(
+        isBenignSentryThrowable(const TitleTooShortException()),
+        isTrue,
+      );
+    });
+
+    test('InvitationCodeIsWrongException is benign', () {
+      expect(
+        isBenignSentryThrowable(const InvitationCodeIsWrongException()),
+        isTrue,
+      );
+    });
+
+    test('AuthSeedIsWrongException is benign', () {
+      expect(
+        isBenignSentryThrowable(const AuthSeedIsWrongException()),
+        isTrue,
+      );
+    });
+
+    test('PollingQuestionTooShortException is benign', () {
+      expect(
+        isBenignSentryThrowable(const PollingQuestionTooShortException()),
+        isTrue,
       );
     });
 

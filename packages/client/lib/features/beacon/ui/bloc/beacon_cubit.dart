@@ -92,15 +92,16 @@ class BeaconCubit extends Cubit<BeaconState> {
           isMine: isMine,
           beacons: reset ? beacons : (state.beacons..addAll(beacons)),
           hasReachedLast: beacons.length < kFetchWindowSize,
+          loadError: null,
           status: StateStatus.isSuccess,
         ),
       );
     } catch (e) {
       if (state.beacons.isEmpty) {
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       } else {
         _effects.emit(ShowError(e));
-        emit(state.copyWith(status: const StateIsSuccess()));
+        emit(state.copyWith(loadError: null, status: const StateIsSuccess()));
       }
     }
   }

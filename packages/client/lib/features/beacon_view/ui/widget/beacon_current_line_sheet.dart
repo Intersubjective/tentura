@@ -100,6 +100,7 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
             final Localizable l => l.toL10n(locale),
             _ => e.toString(),
           },
+          error: e,
         );
       }
     }

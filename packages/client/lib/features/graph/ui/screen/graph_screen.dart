@@ -24,22 +24,13 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
   final String focus;
 
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-    providers: [
-      BlocProvider(
-        create: (_) => ScreenCubit.local(),
+  Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
+    child: BlocProvider(
+      create: (context) => GraphCubit(
+        me: GetIt.I<ProfileCubit>().state.profile,
+        focus: focus,
+        edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
       ),
-      BlocProvider(
-        create: (context) => GraphCubit(
-          me: GetIt.I<ProfileCubit>().state.profile,
-          focus: focus,
-          edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
-        ),
-      ),
-    ],
-    child: BlocListener<ScreenCubit, ScreenState>(
-      // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
-      listener: commonScreenBlocListener,
       child: this,
     ),
   );

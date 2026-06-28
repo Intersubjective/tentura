@@ -74,9 +74,15 @@ abstract class StateBase {
 }
 ```
 
-**StateStatus**: Sealed class with `StateIsSuccess`, `StateIsLoading`, `StateHasError`, `StateIsNavigating`, `StateIsMessaging`.
+**StateStatus**: Sealed class with `StateIsSuccess` and `StateIsLoading` only (load lifecycle).
 
-**Rules**: All BLoC states extend `StateBase`, use sealed class for status, Freezed for immutability (see codegen.mdc), pattern matching for checks.
+**UI effects**: One-shot navigation, snackbars, and dialogs use `UiEffectPort` (`ShowError`, `ShowMessage`, `NavigatePush`, etc.) consumed by `UiEffectHandler` / `dispatchUiEffect`. Route-local screens use `localScreenCubitScope()` with a scoped `UiEffectBus`.
+
+**Persistent inline errors**: Nullable `Object? loadError` (or feature-specific fields) on state, with local `bool get hasError => loadError != null` where the UI needs it. Retry panels use `ScreenLoadErrorPanel` / `describeScreenLoadError`.
+
+**Screen-scoped one-shots**: Fields such as `pendingSignupCode` or `pendingMovedNudge` when root effects cannot handle the action (typed auth routes, tab-scoped snackbar actions).
+
+**Rules**: All BLoC states extend `StateBase`, use sealed class for status, Freezed for immutability (see codegen.mdc), pattern matching for checks. Do not encode navigation or messaging in `StateStatus`.
 
 ## 7. Repository Base Classes
 

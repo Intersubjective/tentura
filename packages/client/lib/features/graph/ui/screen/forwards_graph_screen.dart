@@ -37,28 +37,19 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   final String? helpOffererName;
 
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (_) => ScreenCubit.local(),
-          ),
-          BlocProvider(
-            create: (context) {
-              final me = GetIt.I<ProfileCubit>().state.profile;
-              return GraphCubit(
-                me: me,
-                focus: me.id,
-                graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
-                forwardsGraphBeaconId: focus,
-                helpOffererFocusUserId: helpOffererId,
-                edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
-              );
-            },
-          ),
-        ],
-        child: BlocListener<ScreenCubit, ScreenState>(
-          // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
-      listener: commonScreenBlocListener,
+  Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
+        child: BlocProvider(
+          create: (context) {
+            final me = GetIt.I<ProfileCubit>().state.profile;
+            return GraphCubit(
+              me: me,
+              focus: me.id,
+              graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
+              forwardsGraphBeaconId: focus,
+              helpOffererFocusUserId: helpOffererId,
+              edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
+            );
+          },
           child: this,
         ),
       );

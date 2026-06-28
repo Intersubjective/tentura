@@ -261,7 +261,7 @@ class _CoordinationItemComposerBodyState
     } on Object catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        showSnackBar(context, text: e.toString(), isError: true);
+        showSnackBar(context, text: e.toString(), isError: true, error: e);
       }
     }
   }

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
@@ -18,9 +20,11 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
     CoordinationItemCase? coordinationItemCase,
     InvalidationService? invalidationService,
     CoordinationItemRoomSync? coordinationItemRoomSync,
+    UiEffectPort? effects,
     bool listenToInvalidation = true,
   })  : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
         _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
+        _effects = effects ?? GetIt.I<UiEffectPort>(),
         super(ItemActionsState(item: item)) {
     if (listenToInvalidation) {
       _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
@@ -37,7 +41,15 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   final CoordinationItemCase _case;
   final CoordinationItemRoomSync _itemSync;
+  final UiEffectPort _effects;
   StreamSubscription<BeaconRoomInvalidation>? _invalidationSub;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   Future<void> _runItemMutation(
     Future<CoordinationItem> Function() mutate,
@@ -60,7 +72,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
       _itemSync.notifyItemUpdated(updated);
     } on Object catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
   }
@@ -77,7 +89,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
       }
     } on Object catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
   }
@@ -102,7 +114,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
         ),
       );
     } on Object catch (e) {
-      if (!isClosed) emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) _emitSnackError(e);
     }
   }
 
@@ -164,7 +176,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
       await _refreshItem();
     } on Object catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
   }

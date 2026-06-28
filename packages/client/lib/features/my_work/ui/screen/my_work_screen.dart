@@ -308,9 +308,9 @@ class _MyWorkBody extends StatelessWidget {
 
     return BlocListener<MyWorkCubit, MyWorkState>(
       listenWhen: (previous, current) =>
-          current.hasError && previous.status != current.status,
+          current.hasError && previous.loadError != current.loadError,
       listener: (context, state) {
-        final error = (state.status as StateHasError).error;
+        final error = state.loadError!;
         final details = describeScreenLoadError(error: error, l10n: l10n);
         logScreenLoadError(label: 'MyWork', error: error, details: details);
         if (error is AuthSessionLostException) {
@@ -326,7 +326,7 @@ class _MyWorkBody extends StatelessWidget {
             );
           }
           if (state.hasError) {
-            final error = (state.status as StateHasError).error;
+            final error = state.loadError!;
             final details = describeScreenLoadError(error: error, l10n: l10n);
             return ScreenLoadErrorPanel(
               details: details,

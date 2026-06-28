@@ -117,18 +117,18 @@ class InboxCubit extends Cubit<InboxState> {
 
     emit(
       state.copyWith(
-        status: StateIsMessaging(
-          InboxBeaconMovedMessage(
-            beaconId: beaconId,
-            toStatus: newStatus,
-            ownBeaconForward: ownBeaconForward,
-          ),
+        pendingMovedNudge: InboxBeaconMovedMessage(
+          beaconId: beaconId,
+          toStatus: newStatus,
+          ownBeaconForward: ownBeaconForward,
         ),
       ),
     );
-    if (!isClosed) {
-      emit(state.copyWith(status: const StateIsSuccess()));
-    }
+  }
+
+  void clearPendingMovedNudge() {
+    if (state.pendingMovedNudge == null) return;
+    emit(state.copyWith(pendingMovedNudge: null));
   }
 
   @override

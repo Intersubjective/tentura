@@ -12,6 +12,7 @@ abstract class AcceptInviteState extends StateBase with _$AcceptInviteState {
     @Default('') String code,
     Profile? pendingInviter,
     InvitePreviewBeacon? pendingBeacon,
+    String? pendingSignupCode,
   }) = _AcceptInviteState;
 
   const AcceptInviteState._();

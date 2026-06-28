@@ -194,9 +194,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         builder: (context, state) {
           final cubit = context.read<RoomCubit>();
           final isThreadMode = state.threadItemId != null;
-          final err = state.status is StateHasError
-              ? (state.status as StateHasError).error.toString()
-              : '';
+          final err = state.loadError?.toString() ?? '';
           final showPinnedNow =
               !isThreadMode &&
               beaconRoomShowsPinnedNow(

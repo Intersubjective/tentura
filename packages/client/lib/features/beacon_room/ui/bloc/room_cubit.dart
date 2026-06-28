@@ -72,7 +72,7 @@ class RoomCubit extends Cubit<RoomState> {
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {
-      emit(state.copyWith(status: const StateIsSuccess()));
+      emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
     }
   }
 
@@ -331,6 +331,7 @@ class RoomCubit extends Cubit<RoomState> {
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
             pendingMarkSeen: !_markSeenEmittedThisVisit,
+            loadError: null,
             status: const StateIsSuccess(),
           ),
         );
@@ -344,7 +345,7 @@ class RoomCubit extends Cubit<RoomState> {
     } on Object catch (e) {
       if (!isClosed) {
         if (state.messages.isEmpty) {
-          emit(state.copyWith(status: StateHasError(e)));
+          emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
         } else {
           _showSnackError(e);
         }

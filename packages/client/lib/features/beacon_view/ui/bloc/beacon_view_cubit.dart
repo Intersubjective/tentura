@@ -80,8 +80,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       cancelOnError: false,
     );
     unawaited(_fetchBeaconByIdWithTimeline());
-    if (state.status case StateHasError(:final error)) {
-      _effects.emit(ShowError(error));
+    if (state.loadError != null) {
+      _effects.emit(ShowError(state.loadError!));
     }
   }
 
@@ -94,7 +94,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {
-      emit(state.copyWith(status: const StateIsSuccess()));
+      emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
     }
   }
 
@@ -794,6 +794,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           forwardsLoaded: wasForwardsLoaded,
           beaconContentLoaded: true,
           beaconUnavailable: false,
+          loadError: null,
           status: StateStatus.isSuccess,
         ),
       );
@@ -804,7 +805,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     } catch (e) {
       if (isClosed) return;
       if (!state.beaconContentLoaded) {
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       } else {
         _showSnackError(e);
       }
@@ -920,7 +921,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         _ => BeaconViewState(
           beacon: _emptyBeacon,
-          status: StateHasError('Wrong id: $id'),
+          loadError: 'Wrong id: $id',
         ),
       };
 }
