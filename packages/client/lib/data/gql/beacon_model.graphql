@@ -47,7 +47,9 @@ fragment BeaconModel on beacon {
     }
   }
   unanswered_help_offers: help_offers_aggregate(
-    where: { status: { _eq: 0 }, coordination: { _is_null: true } }
+    # Hasura v2.48 exposes object relationships as nested bool expressions
+    # without relationship-level `_is_null`; check the related PK column instead.
+    where: { status: { _eq: 0 }, coordination: { offer_user_id: { _is_null: true } } }
   ) {
     aggregate {
       count
