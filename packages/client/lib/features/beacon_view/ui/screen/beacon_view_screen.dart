@@ -18,6 +18,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/ui/widget/back_dismissible_fullscreen_overlay.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -57,6 +58,7 @@ int _beaconViewTabIndex(String? viewTab) {
       return kBeaconTabItems;
   }
 }
+
 @RoutePage()
 class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
@@ -128,8 +130,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String? _bannerMessage;
 
   /// True after the user leaves the room surface until they open it again.
-  /// Prevents [didUpdateWidget] from re-opening room while `?tab=room` is still
-  /// on the URL briefly after [replacePath] / history sync.
+  /// Prevents `didUpdateWidget` from re-opening room while `?tab=room` is still
+  /// on the URL briefly after `replacePath` / history sync.
   bool _userDismissedRoomSurface = false;
 
   bool _roomExitInProgress = false;
@@ -295,7 +297,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       if (roomDenied) {
         _showRoomSurface = false;
         if (s.showsRoomAccessUnavailableBanner) {
-          _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
+          _bannerMessage = L10n.of(
+            context,
+          )!.beaconViewRoomAccessUnavailableBanner;
         } else {
           unawaited(_stripRoomFromUrl());
         }
@@ -335,8 +339,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   void _ensureEmbeddedRoomCubit() {
     if (_roomCubit != null && !_roomCubit!.isClosed) return;
-    final initialAnchor =
-        context.read<BeaconViewCubit>().roomReadThrough(widget.id);
+    final initialAnchor = context.read<BeaconViewCubit>().roomReadThrough(
+      widget.id,
+    );
     _roomCubit = RoomCubit(
       beaconId: widget.id,
       initialUnreadAnchorAt: initialAnchor,
@@ -388,9 +393,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
-    // Room is an in-route overlay ([PopScope.canPop] is false while open).
-    // Do not push or replace the URL here — that stacks duplicate beacon
-    // entries and breaks single-back from operational tabs.
+    // Room is an in-route overlay ([PopScope.canPop] is false while open), but
+    // keep it in the URL so browser history restoration after nested overlays
+    // (photo viewer) lands back in the room instead of the operational surface.
+    unawaited(context.router.replacePath(_beaconViewPath(viewTab: 'room')));
     _userDismissedRoomSurface = false;
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
@@ -435,8 +441,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
 
     // Deep link / notification entry at `?tab=room` — strip query in place.
-    final needsUrlSync =
-        _urlIndicatesRoom() || _roomFromRouteParams(widget);
+    final needsUrlSync = _urlIndicatesRoom() || _roomFromRouteParams(widget);
     if (!needsUrlSync) {
       _roomExitInProgress = false;
       return;
@@ -650,14 +655,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             canPop: !_showRoomSurface,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
-              // Imperative overlay (photo viewer) above this route: pop it first.
+              // Known fullscreen photo overlay above this route: pop it first.
+              // Other root routes, such as input sheets/dialogs, own their
+              // back handling. Returning here keeps mobile-web keyboard
+              // viewport/history noise from dismissing those modals or the room.
+              if (BackDismissibleFullscreenOverlay.hasOpenOverlay) {
+                BackDismissibleFullscreenOverlay.popTopOverlay();
+                return;
+              }
+              if (BackDismissibleFullscreenOverlay.consumeBrowserBackHandledByOverlay()) {
+                return;
+              }
               final route = ModalRoute.of(context);
               if (route != null && !route.isCurrent) {
-                final nav = Navigator.of(context, rootNavigator: true);
-                if (nav.canPop()) {
-                  nav.pop();
-                  return;
-                }
+                return;
               }
               // Browser/system back while room is open: close overlay only
               // ([_exitRoomSurface]); do not pop the beacon route.
@@ -713,8 +724,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           context,
                           state,
                           beaconViewCubit,
-                          onOpenPeopleTab: () =>
-                              _switchToTab(kBeaconTabPeople),
+                          onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
                           onEnterRoomSurface: _enterRoomSurface,
                         );
                       },
@@ -727,23 +737,23 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               ),
               body: SafeArea(
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_bannerMessage != null)
-                    MaterialBanner(
-                      content: Text(_bannerMessage!),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _bannerMessage = null),
-                          child: Text(l10n.beaconViewBannerDismiss),
-                        ),
-                      ],
-                    ),
-                  Expanded(child: body),
-                ],
-              ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_bannerMessage != null)
+                      MaterialBanner(
+                        content: Text(_bannerMessage!),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _bannerMessage = null),
+                            child: Text(l10n.beaconViewBannerDismiss),
+                          ),
+                        ],
+                      ),
+                    Expanded(child: body),
+                  ],
                 ),
+              ),
             ),
           );
         },
