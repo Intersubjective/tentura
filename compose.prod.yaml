@@ -107,7 +107,7 @@ services:
     <<: *common
     hostname: tentura
     container_name: tentura
-    image: ghcr.io/intersubjective/tentura-server:latest
+    image: ghcr.io/intersubjective/tentura:latest
     security_opt:
       - no-new-privileges:true
     depends_on:
