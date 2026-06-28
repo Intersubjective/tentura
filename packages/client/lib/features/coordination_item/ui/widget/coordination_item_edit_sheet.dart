@@ -29,6 +29,9 @@ Future<void> showCoordinationItemEditSheet(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    useRootNavigator: true,
+    enableDrag: false,
+    isDismissible: false,
     builder: (ctx) => _CoordinationItemEditSheetBody(
       item: item,
       l10n: l10n,

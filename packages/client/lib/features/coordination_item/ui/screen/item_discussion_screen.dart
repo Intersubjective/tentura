@@ -440,38 +440,100 @@ Future<void> _showProposeResolutionSheet(
   ItemActionsCubit cubit,
   L10n l10n,
 ) async {
-  final titleController = TextEditingController();
-  try {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.beaconRoomActionCreateResolution),
-        content: TextField(
-          controller: titleController,
-          decoration: InputDecoration(
-            hintText: l10n.coordinationMarkResolutionHint,
+  final title = await showTenturaAdaptiveSheet<String>(
+    context: context,
+    useRootNavigator: true,
+    enableDrag: false,
+    isDismissible: false,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (ctx) => _ProposeResolutionSheet(l10n: l10n),
+  );
+  if (title == null || !context.mounted) return;
+  final trimmed = title.trim();
+  if (trimmed.isEmpty) return;
+  await cubit.promoteResolution(title: trimmed);
+}
+
+class _ProposeResolutionSheet extends StatefulWidget {
+  const _ProposeResolutionSheet({required this.l10n});
+
+  final L10n l10n;
+
+  @override
+  State<_ProposeResolutionSheet> createState() =>
+      _ProposeResolutionSheetState();
+}
+
+class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _controller.text.trim();
+    if (title.isEmpty) return;
+    Navigator.of(context).pop(title);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final tt = context.tt;
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: bottom + tt.sectionGap,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.beaconRoomActionCreateResolution,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          maxLines: 3,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+          SizedBox(height: tt.rowGap),
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: l10n.coordinationMarkResolutionHint,
+            ),
+            maxLines: 3,
+            autofocus: true,
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+          SizedBox(height: tt.sectionGap),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  MaterialLocalizations.of(context).cancelButtonLabel,
+                ),
+              ),
+              FilledButton(
+                onPressed: _submit,
+                child: Text(MaterialLocalizations.of(context).okButtonLabel),
+              ),
+            ],
           ),
         ],
       ),
     );
-    if (ok == true && context.mounted) {
-      final title = titleController.text.trim();
-      if (title.isEmpty) return;
-      await cubit.promoteResolution(title: title);
-    }
-  } finally {
-    titleController.dispose();
   }
 }

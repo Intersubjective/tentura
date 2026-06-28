@@ -66,6 +66,7 @@ Future<void> confirmDeleteCoordinationDraft(
   final coordinationCase = GetIt.I<CoordinationItemCase>();
   final ok = await showDialog<bool>(
     context: context,
+    useRootNavigator: true,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.coordinationDeleteDraftTitle),
       content: Text(l10n.coordinationDeleteDraftBody),
