@@ -177,12 +177,6 @@ Supporting utility (not an entry point): `lib/ui/widget/unfocus_sheet_body.dart`
 | Mark done dialog | `beacon_room_body.dart` | `_showMarkDoneSheet` |
 | Remove fact confirm | `fact_actions_sheet.dart` | `_confirmRemoveFact` |
 
-#### Dialog-style overlay (transparent barrier)
-
-| Name | File | Description |
-|------|------|-------------|
-| **showRoomReactionPicker** | `lib/features/beacon_room/ui/widget/room_reaction_picker.dart` | Anchored emoji reaction strip (`showDialog`, transparent barrier) |
-
 ---
 
 ### Menus / Pickers / Other Overlays
@@ -312,7 +306,6 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 │       │   │          ReactionSenders]
 │       │   ├── [Dialog: delete message, unpin fact, promote fields, need-info,
 │       │   │          mark done, remove fact]
-│       │   ├── [Overlay: showRoomReactionPicker]
 │       │   ├── [Menu: room overflow → promise sheet; chat attach menu]
 │       │   └── [Push: RoomAttachmentFullscreenGallery]
 │       └── → ItemDiscussionScreen
