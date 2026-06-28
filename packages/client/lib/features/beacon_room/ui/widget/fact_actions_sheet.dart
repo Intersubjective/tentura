@@ -172,6 +172,7 @@ Future<void> _showEditFactSheet(
     isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
+    isDismissible: false,
     builder: (ctx) => _EditFactSheet(
       initialText: fact.factText,
       l10n: l10n,

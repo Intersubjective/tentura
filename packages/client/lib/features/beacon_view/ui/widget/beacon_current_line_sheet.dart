@@ -19,99 +19,138 @@ Future<void> showBeaconCurrentLineSheet(
 }) async {
   final l10n = L10n.of(context)!;
   final coordinationCase = GetIt.I<CoordinationItemCase>();
-  final titleController = TextEditingController(text: initialText);
-  try {
-    var submitting = false;
-    final savedLine = await showTenturaAdaptiveSheet<String>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setState) {
-            final tt = ctx.tt;
-            final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-            final canSubmit =
-                titleController.text.trim().isNotEmpty && !submitting;
-            return Padding(
-              padding: EdgeInsets.only(
-                left: tt.screenHPadding,
-                right: tt.screenHPadding,
-                top: tt.sectionGap,
-                bottom: bottom + tt.sectionGap,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l10n.beaconHudEditCurrentLineTitle,
-                    style: Theme.of(ctx).textTheme.titleMedium,
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  TextField(
-                    controller: titleController,
-                    decoration: InputDecoration(
-                      hintText: l10n.beaconRoomStripCurrentLineLabel,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    maxLength: kBeaconRoomCurrentLineMaxLength,
-                    maxLines: 2,
-                    minLines: 1,
-                    textInputAction: TextInputAction.done,
-                    enabled: !submitting,
-                    autofocus: true,
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  FilledButton(
-                    onPressed: !canSubmit
-                        ? null
-                        : () async {
-                            setState(() => submitting = true);
-                            try {
-                              final line = titleController.text.trim();
-                              await coordinationCase.updatePlan(
-                                beaconId: beaconId,
-                                title: line,
-                              );
-                              if (ctx.mounted) {
-                                Navigator.of(ctx).pop(line);
-                              }
-                            } on Object catch (e) {
-                              if (ctx.mounted) {
-                                setState(() => submitting = false);
-                                final locale = L10n.of(ctx)?.localeName;
-                                showSnackBar(
-                                  ctx,
-                                  isError: true,
-                                  text: switch (e) {
-                                    final Localizable l => l.toL10n(locale),
-                                    _ => e.toString(),
-                                  },
-                                );
-                              }
-                            }
-                          },
-                    child: submitting
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                  ),
-                ],
-              ),
-            );
+  final savedLine = await showTenturaAdaptiveSheet<String>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    enableDrag: false,
+    isDismissible: false,
+    builder: (ctx) => _BeaconCurrentLineSheetBody(
+      l10n: l10n,
+      beaconId: beaconId,
+      initialText: initialText,
+      coordinationCase: coordinationCase,
+    ),
+  );
+  if (savedLine != null && savedLine.isNotEmpty && context.mounted) {
+    onSaved?.call(savedLine);
+  }
+}
+
+class _BeaconCurrentLineSheetBody extends StatefulWidget {
+  const _BeaconCurrentLineSheetBody({
+    required this.l10n,
+    required this.beaconId,
+    required this.initialText,
+    required this.coordinationCase,
+  });
+
+  final L10n l10n;
+  final String beaconId;
+  final String initialText;
+  final CoordinationItemCase coordinationCase;
+
+  @override
+  State<_BeaconCurrentLineSheetBody> createState() =>
+      _BeaconCurrentLineSheetBodyState();
+}
+
+class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody> {
+  late final TextEditingController _controller;
+  var _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _canSubmit =>
+      _controller.text.trim().isNotEmpty && !_submitting;
+
+  Future<void> _save() async {
+    if (!_canSubmit) return;
+    setState(() => _submitting = true);
+    try {
+      final line = _controller.text.trim();
+      await widget.coordinationCase.updatePlan(
+        beaconId: widget.beaconId,
+        title: line,
+      );
+      if (mounted) {
+        Navigator.of(context).pop(line);
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        final locale = L10n.of(context)?.localeName;
+        showSnackBar(
+          context,
+          isError: true,
+          text: switch (e) {
+            final Localizable l => l.toL10n(locale),
+            _ => e.toString(),
           },
         );
-      },
-    );
-    if (savedLine != null && savedLine.isNotEmpty && context.mounted) {
-      onSaved?.call(savedLine);
+      }
     }
-  } finally {
-    titleController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final tt = context.tt;
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        top: tt.sectionGap,
+        bottom: bottom + tt.sectionGap,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.beaconHudEditCurrentLineTitle,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          SizedBox(height: tt.rowGap),
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: l10n.beaconRoomStripCurrentLineLabel,
+            ),
+            onChanged: (_) => setState(() {}),
+            maxLength: kBeaconRoomCurrentLineMaxLength,
+            maxLines: 2,
+            minLines: 1,
+            textInputAction: TextInputAction.done,
+            enabled: !_submitting,
+            autofocus: true,
+          ),
+          SizedBox(height: tt.sectionGap),
+          FilledButton(
+            onPressed: !_canSubmit ? null : _save,
+            child: _submitting
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
+    );
   }
 }

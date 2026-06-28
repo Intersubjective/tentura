@@ -627,6 +627,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
         content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
@@ -658,6 +659,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
         content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
