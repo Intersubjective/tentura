@@ -114,6 +114,12 @@ ALTER TABLE public."beacon"
   DROP COLUMN IF EXISTS blur_hash;
 ''',
     //
-    'DELETE FROM public."tasks";',
+    // tasks table only existed in old MeritRank schema; skip if absent (fresh install).
+    '''DO \$\$ BEGIN
+  IF EXISTS (
+    SELECT FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tasks'
+  ) THEN DELETE FROM public."tasks"; END IF;
+END \$\$;''',
   ],
 );
