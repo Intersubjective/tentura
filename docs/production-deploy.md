@@ -259,18 +259,22 @@ Under **Settings → Environments** in your GitHub repo, create two environments
 |---|---|
 | Secret `VPS_HOST` | server IP or hostname |
 | Secret `VPS_SSH_KEY` | private SSH key for the deploy user |
-| Secret `CLIENT_DART_DEFINES` | multiline `KEY=VALUE` blob — see format below |
-| Secret `LANDING_SENTRY_DSN` | DSN from the **landing** Sentry project; omit to disable landing Sentry |
+| Secret `CLIENT_DART_DEFINES` | Firebase-only `KEY=VALUE` blob — see format below |
 | Variable `CLIENT_SERVER_NAME` | `https://dev.tentura.io` (dev) / `https://tentura.io` (prod) |
 | Variable `IMAGE_SERVER` | `https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura` |
-| Variable `CLIENT_SENTRY_DSN` | DSN from the **client** Sentry project (public value, safe as a variable); omit to disable client Sentry |
+| Variable `CLIENT_SENTRY_DSN` | DSN from the **client** Sentry project; omit to disable client Sentry |
+| Variable `LANDING_SENTRY_DSN` | DSN from the **landing** Sentry project; omit to disable landing Sentry |
 | Variable `LANDING_GOOGLE_ENABLED` | `true` or `false` |
+
+All Sentry DSNs are public values — they end up compiled into client-side WASM/JS that any user can inspect, so plain variables (not secrets) are correct.
 
 CI also passes `SENTRY_ENVIRONMENT` (`dev` or `prod`), `SENTRY_RELEASE=tentura@<semver>`, and `SENTRY_DIST=<git-sha>` automatically on every build. The server's `SERVER_SENTRY_DSN` is set in the VPS `.env` and is not a CI secret.
 
 ### `CLIENT_DART_DEFINES` format
 
-Paste a plain multiline `KEY=VALUE` block into the secret textarea — one Firebase dart-define per line, no quotes, no trailing spaces:
+This secret contains **only Firebase (`FB_*`) keys**. Do not put `SERVER_NAME`, `IMAGE_SERVER`, or Sentry values here — those are injected separately by the pipeline via individual `--dart-define` flags and would conflict.
+
+Paste a plain multiline `KEY=VALUE` block into the secret textarea — one key per line, no quotes, no trailing spaces:
 
 ```
 FB_APP_ID=1:123456789:web:abcdef123456
