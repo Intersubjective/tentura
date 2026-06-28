@@ -13,6 +13,7 @@ RoomMessage _msg({
   int? linkedItemKind,
   int? linkedItemStatus,
   String? linkedItemCreatorId,
+  String? linkedItemTargetPersonId,
   int? semanticMarker,
 }) =>
     RoomMessage(
@@ -29,6 +30,7 @@ RoomMessage _msg({
       linkedItemStatus:
           linkedItemStatus ?? CoordinationItemStatus.open.value,
       linkedItemCreatorId: linkedItemCreatorId,
+      linkedItemTargetPersonId: linkedItemTargetPersonId,
       linkedItemCreatedAt: DateTime.utc(2026),
       linkedItemUpdatedAt: DateTime.utc(2026),
       semanticMarker: semanticMarker,
@@ -105,6 +107,18 @@ void main() {
         linkedItemCreatorId: 'u1',
       );
       expect(m.linkedCoordinationItem?.linkedMessageId, 'source');
+    });
+
+    test('linkedCoordinationItem includes targetPersonId from snapshot', () {
+      final m = _msg(
+        id: 'source',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+        linkedItemKind: CoordinationItemKind.ask.value,
+        linkedItemCreatorId: 'u1',
+        linkedItemTargetPersonId: 'u2',
+      );
+      expect(m.linkedCoordinationItem?.targetPersonId, 'u2');
     });
   });
 

@@ -5372,6 +5372,7 @@ type RoomMessageRow {
   linkedItemTitle: String
   linkedItemBody: String
   linkedItemCreatorId: String
+  linkedItemTargetPersonId: String
   linkedItemCreatedAt: String
   linkedItemUpdatedAt: String
   linkedItemLinkedMessageId: String

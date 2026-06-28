@@ -12,6 +12,15 @@ enum CoordinationItemKind {
   const CoordinationItemKind(this.value);
   final int value;
 
+  /// Ask, promise, and blocker items have directed source→target parties.
+  bool get hasDirectedParties => switch (this) {
+        CoordinationItemKind.ask ||
+        CoordinationItemKind.promise ||
+        CoordinationItemKind.blocker =>
+          true,
+        _ => false,
+      };
+
   static CoordinationItemKind fromInt(int v) => switch (v) {
         1 => plan,
         2 => ask,

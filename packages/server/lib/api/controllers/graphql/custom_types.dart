@@ -122,6 +122,7 @@ final gqlTypeRoomMessageRow =
         field('linkedItemTitle', graphQLString),
         field('linkedItemBody', graphQLString),
         field('linkedItemCreatorId', graphQLString),
+        field('linkedItemTargetPersonId', graphQLString),
         field('linkedItemCreatedAt', graphQLString),
         field('linkedItemUpdatedAt', graphQLString),
         field('linkedItemLinkedMessageId', graphQLString),

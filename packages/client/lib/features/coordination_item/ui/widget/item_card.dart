@@ -155,9 +155,9 @@ class _ItemCardState extends State<ItemCard> {
       source: widget.creatorParticipant,
       target: widget.targetParticipant,
     );
-    final hasAvatarTrail =
-        widget.creatorParticipant != null ||
-        widget.targetParticipant != null;
+    final hasAvatarTrail = item.kind.hasDirectedParties &&
+        (widget.creatorParticipant != null ||
+            widget.targetParticipant != null);
     final staleCountdown = _formatStaleRemaining(item);
     final staleOverdueLabel = _formatStaleOverdue(item, l10n);
     final contentPreview = item.contentPreview;

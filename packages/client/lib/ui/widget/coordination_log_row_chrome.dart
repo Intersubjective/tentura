@@ -29,10 +29,18 @@ Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
           : null,
     );
 
-Widget coordinationLogParticipantAvatar(BeaconParticipant participant) =>
-    TenturaAvatar.tiny(
-      profile: profileFromBeaconParticipant(participant),
-    );
+Widget coordinationLogParticipantAvatar(
+  BeaconParticipant participant, {
+  double? size,
+}) =>
+    size != null
+        ? TenturaAvatar.tiny(
+            profile: profileFromBeaconParticipant(participant),
+            size: size,
+          )
+        : TenturaAvatar.tiny(
+            profile: profileFromBeaconParticipant(participant),
+          );
 
 /// Log tab leading segment: `[src avatar] [icon] [dst avatar?]`.
 Widget coordinationLogTabLeadRow({

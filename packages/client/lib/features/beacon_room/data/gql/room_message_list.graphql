@@ -25,6 +25,7 @@ query RoomMessageList(
     linkedItemTitle
     linkedItemBody
     linkedItemCreatorId
+    linkedItemTargetPersonId
     linkedItemCreatedAt
     linkedItemUpdatedAt
     linkedItemLinkedMessageId

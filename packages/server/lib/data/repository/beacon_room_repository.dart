@@ -362,6 +362,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
           'linkedItemTitle': linkedRow.title,
           'linkedItemBody': linkedRow.body,
           'linkedItemCreatorId': linkedRow.creatorId,
+          'linkedItemTargetPersonId': linkedRow.targetPersonId,
           'linkedItemCreatedAt':
               linkedRow.createdAt.dateTime.toUtc().toIso8601String(),
           'linkedItemUpdatedAt':

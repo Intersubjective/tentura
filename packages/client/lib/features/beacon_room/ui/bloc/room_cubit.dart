@@ -273,9 +273,7 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
       );
-      final participants = inThread
-          ? const <BeaconParticipant>[]
-          : await _case.fetchParticipants(state.beaconId);
+      final participants = await _case.fetchParticipants(state.beaconId);
       final roomState = inThread
           ? null
           : await _case.fetchBeaconRoomState(state.beaconId);
