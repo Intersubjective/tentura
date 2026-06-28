@@ -412,6 +412,52 @@ void main() {
   });
 
   testWidgets(
+    'authored enoughHelp with help offers but zero unanswered shows no open items',
+    (tester) async {
+      final beacon = Beacon.empty.copyWith(
+        id: 'b-all-reviewed',
+        status: BeaconStatus.enoughHelp,
+        author: const Profile(id: 'viewer', displayName: 'Alice'),
+        helpOfferCount: 2,
+        unansweredHelpOfferCount: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(360, 800)),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 360,
+                  child: MyWorkCardMetadataRow(
+                    beacon: beacon,
+                    viewModel: _viewModel(beacon).copyWith(
+                      youResponsibility: CoordinationResponsibility(
+                        beaconId: beacon.id,
+                      ),
+                    ),
+                    currentUserId: 'viewer',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+      expect(find.text('No open items'), findsOneWidget);
+      expect(find.textContaining('Review'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'help-offered without room obligations still shows awaiting author',
     (
       tester,

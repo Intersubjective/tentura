@@ -34,6 +34,40 @@ void main() {
     );
   });
 
+  test(
+    'false on enoughHelp when helpOfferCount > 0 but unanswered is 0 '
+    '(broken aggregate: all offers reviewed)',
+    () {
+      expect(
+        beaconHasUnreviewedOffers(
+          _beacon(
+            status: BeaconStatus.enoughHelp,
+            helpOfferCount: 2,
+            unansweredHelpOfferCount: 0,
+          ),
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'true on enoughHelp when unanswered count is positive '
+    '(fixed aggregate)',
+    () {
+      expect(
+        beaconHasUnreviewedOffers(
+          _beacon(
+            status: BeaconStatus.enoughHelp,
+            helpOfferCount: 2,
+            unansweredHelpOfferCount: 1,
+          ),
+        ),
+        isTrue,
+      );
+    },
+  );
+
   test('false when no unanswered help offers', () {
     expect(beaconHasUnreviewedOffers(_beacon()), isFalse);
   });
