@@ -33,9 +33,12 @@ abstract class RoomState extends StateBase with _$RoomState {
 
     /// Cleared after mark-seen is flushed (`markSeenNowIfNeeded`) this session.
     @Default(true) bool pendingMarkSeen,
+    Object? loadError,
   }) = _RoomState;
 
   const RoomState._();
+
+  bool get hasError => loadError != null;
 
   bool _isUnreadForViewer(RoomMessage m, DateTime? anchor) {
     if (myUserId.isNotEmpty && m.authorId == myUserId) {

@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/data/service/web_redirect.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
-
 import '../bloc/accept_invite_cubit.dart';
 import '../dialog/invitation_accept_dialog.dart';
 
@@ -50,8 +49,9 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
         unawaited(_runConfirmation(context, state));
         return;
       }
-      if (state.status is StateIsNavigating) {
-        unawaited(_handleNavigation(context, state));
+      final signupCode = state.pendingSignupCode;
+      if (signupCode != null && signupCode.isNotEmpty) {
+        unawaited(_handleSignupNavigation(context, state, signupCode));
       }
     },
     builder: (context, state) => Scaffold(
@@ -91,21 +91,24 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     }
   }
 
-  Future<void> _handleNavigation(
+  Future<void> _handleSignupNavigation(
     BuildContext context,
     AcceptInviteState state,
+    String code,
   ) async {
-    final path = (state.status as StateIsNavigating).path;
-    if (path.startsWith(kPathSignUp)) {
-      if (goToLanding(invitePath: '/invite/${state.code}')) {
-        return;
-      }
-      if (!context.mounted) {
-        return;
-      }
-      await context.router.replaceAll([
-        AuthRegisterRoute(id: state.code),
-      ]);
+    if (goToLanding(invitePath: '/invite/$code')) {
+      context.read<AcceptInviteCubit>().clearPendingSignupNavigation();
+      return;
     }
+    if (!context.mounted) {
+      return;
+    }
+    await context.router.replaceAll([
+      AuthRegisterRoute(id: code),
+    ]);
+    if (!context.mounted) {
+      return;
+    }
+    context.read<AcceptInviteCubit>().clearPendingSignupNavigation();
   }
 }

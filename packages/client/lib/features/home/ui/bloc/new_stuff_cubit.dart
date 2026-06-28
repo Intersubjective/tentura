@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
+import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -62,7 +64,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
       );
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        GetIt.I<Logger>().warning('NewStuff hydrate failed', e);
       }
     }
   }
@@ -118,7 +120,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
       emit(state.copyWith(inboxLastSeenMs: ms));
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        GetIt.I<Logger>().warning('NewStuff inbox seen persist failed', e);
       }
     }
   }
@@ -130,7 +132,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
       emit(state.copyWith(myWorkLastSeenMs: ms));
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        GetIt.I<Logger>().warning('NewStuff my work seen persist failed', e);
       }
     }
   }

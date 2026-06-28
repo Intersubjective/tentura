@@ -132,7 +132,9 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
     } catch (e, st) {
       fcmLog('FcmCubit: account FCM setup failed: $e');
       fcmLog('FcmCubit: stack: $st');
-      emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 

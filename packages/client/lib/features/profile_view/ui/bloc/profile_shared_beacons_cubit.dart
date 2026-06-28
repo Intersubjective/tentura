@@ -22,9 +22,12 @@ abstract class ProfileSharedBeaconsState extends StateBase
   const factory ProfileSharedBeaconsState({
     @Default(StateIsSuccess()) StateStatus status,
     ProfileSharedBeaconsData? data,
+    Object? loadError,
   }) = _ProfileSharedBeaconsState;
 
   const ProfileSharedBeaconsState._();
+
+  bool get hasError => loadError != null;
 }
 
 class ProfileSharedBeaconsCubit extends Cubit<ProfileSharedBeaconsState> {
@@ -45,9 +48,9 @@ class ProfileSharedBeaconsCubit extends Cubit<ProfileSharedBeaconsState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final data = await _repository.fetch(meId: _meId, targetId: _targetId);
-      emit(state.copyWith(status: StateStatus.isSuccess, data: data));
+      emit(state.copyWith(status: StateStatus.isSuccess, data: data, loadError: null));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 }

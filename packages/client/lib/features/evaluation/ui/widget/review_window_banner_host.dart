@@ -81,7 +81,7 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
       }
     } catch (e) {
       if (mounted) {
-        showSnackBar(context, isError: true, text: e.toString());
+        showSnackBar(context, isError: true, text: e.toString(), error: e);
       }
     }
   }
@@ -113,7 +113,7 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
       }
     } catch (e) {
       if (mounted) {
-        showSnackBar(context, isError: true, text: e.toString());
+        showSnackBar(context, isError: true, text: e.toString(), error: e);
       }
     }
   }
@@ -127,7 +127,7 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
       }
     } catch (e) {
       if (mounted) {
-        showSnackBar(context, isError: true, text: e.toString());
+        showSnackBar(context, isError: true, text: e.toString(), error: e);
       }
     }
   }

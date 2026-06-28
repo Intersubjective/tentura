@@ -14,9 +14,12 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
     CoordinationItem? currentCoordinationPlan,
     @Default(false) bool activeForMeOnly,
     @Default(StateIsSuccess()) StateStatus status,
+    Object? loadError,
   }) = _ItemsTabState;
 
   const ItemsTabState._();
+
+  bool get hasError => loadError != null;
 
   int get unreadDiscussionCount => openItems.fold(
         0,

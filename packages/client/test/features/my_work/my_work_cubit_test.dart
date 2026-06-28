@@ -39,7 +39,7 @@ void main() {
     await cubit.close();
   });
 
-  test('fetch error emits StateHasError', () async {
+    test('fetch error sets loadError', () async {
     final repo = FakeMyWorkRepository()..fetchInitError = Exception('boom');
     final cubit = MyWorkCubit(
       userId: 'user-1',
@@ -47,7 +47,7 @@ void main() {
     );
 
     await cubit.stream.firstWhere((s) => s.hasError);
-    expect(cubit.state.status, isA<StateHasError>());
+    expect(cubit.state.loadError, isNotNull);
 
     await cubit.close();
   });

@@ -239,9 +239,13 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// Server returned no readable beacon (gated `beacon_by_pk` null).
     @Default(false) bool beaconUnavailable,
+
+    Object? loadError,
   }) = _BeaconViewState;
 
   const BeaconViewState._();
+
+  bool get hasError => loadError != null;
 
   bool get isBeaconMine => beacon.author.id == myProfile.id;
   bool get isBeaconNotMine => beacon.author.id != myProfile.id;

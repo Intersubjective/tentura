@@ -35,10 +35,7 @@ Widget _itemDiscussionProviders({
         create: (_) => ItemActionsCubit(item: item),
       ),
     ],
-    child: BlocListener<ItemActionsCubit, ItemActionsState>(
-      listener: commonScreenBlocListener,
-      child: child,
-    ),
+    child: child,
   );
 }
 

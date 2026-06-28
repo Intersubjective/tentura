@@ -46,7 +46,7 @@ class FriendRemoveDialog extends StatelessWidget {
               await remove();
             } catch (e) {
               if (context.mounted) {
-                showSnackBar(context, isError: true, text: e.toString());
+                showSnackBar(context, isError: true, text: e.toString(), error: e);
               }
             }
             if (context.mounted) Navigator.of(context).pop();

@@ -62,13 +62,11 @@ class _InboxScreenState extends State<InboxScreen> {
           },
           child: BlocListener<InboxCubit, InboxState>(
             listenWhen: (prev, curr) =>
-                curr.status is StateIsMessaging &&
-                (curr.status as StateIsMessaging).message
-                    is InboxBeaconMovedMessage,
+                curr.pendingMovedNudge != null &&
+                prev.pendingMovedNudge != curr.pendingMovedNudge,
             listener: (context, state) {
-              final msg =
-                  (state.status as StateIsMessaging).message
-                      as InboxBeaconMovedMessage;
+              final msg = state.pendingMovedNudge;
+              if (msg == null) return;
               final l10n = L10n.of(context)!;
               showSnackBar(
                 context,
@@ -84,9 +82,10 @@ class _InboxScreenState extends State<InboxScreen> {
                   },
                 ),
               );
+              context.read<InboxCubit>().clearPendingMovedNudge();
             },
             child: BlocBuilder<InboxCubit, InboxState>(
-              buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+              buildWhen: (_, c) => c.isSuccess || c.isLoading,
               builder: (_, state) {
                 final theme = Theme.of(context);
                 final scheme = theme.colorScheme;

@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura_root/domain/entity/localizable.dart';
+
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
-import '../bloc/state_base.dart';
 import '../l10n/l10n.dart';
 import '../message/action_message_base.dart';
 import '../utils/ui_utils.dart';
@@ -88,48 +89,15 @@ void dispatchUiEffect(
             context,
             isError: true,
             text: e.toL10n(localeName),
+            error: error is AuthSessionLostException ? null : error,
           );
         default:
           showSnackBar(
             context,
             isError: true,
             text: error.toString(),
+            error: error is AuthSessionLostException ? null : error,
           );
       }
-  }
-}
-
-/// Legacy adapter: maps [StateBase] status to [UiEffect] and dispatches.
-void dispatchStateBaseEffects(
-  BuildContext context,
-  StateBase state, {
-  bool listenNavigatingState = true,
-  bool listenMessagingState = true,
-  bool listenHasErrorState = true,
-  String? localeName,
-}) {
-  localeName ??= L10n.of(context)?.localeName;
-  final status = state.status;
-  switch (status) {
-    case StateIsNavigating s when listenNavigatingState:
-      if (s.path == kPathBack) {
-        dispatchUiEffect(context, const NavigateBack(), localeName: localeName);
-      } else {
-        dispatchUiEffect(context, NavigatePush(s.path), localeName: localeName);
-      }
-    case StateIsMessaging s when listenMessagingState:
-      dispatchUiEffect(
-        context,
-        ShowMessage(s.message),
-        localeName: localeName,
-      );
-    case StateHasError s when listenHasErrorState:
-      dispatchUiEffect(
-        context,
-        ShowError(s.error),
-        localeName: localeName,
-      );
-    default:
-      break;
   }
 }

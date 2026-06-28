@@ -97,6 +97,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
+          loadError: null,
           nonArchivedCards: merged,
           archivedCountHint: init.archivedCountHint,
           finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
@@ -114,7 +115,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         return;
       }
       if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       }
     }
   }
@@ -180,6 +181,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           archivedFetchInProgress: false,
           archivedDataFetched: true,
           archivedCards: archived.archivedCards,
+          loadError: null,
           status: const StateIsSuccess(),
         ),
       );
@@ -190,9 +192,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       emit(
         state.copyWith(
           archivedFetchInProgress: false,
-          status: _shouldShowArchivedLoadError()
-              ? StateHasError(e)
-              : const StateIsSuccess(),
+          loadError: _shouldShowArchivedLoadError() ? e : null,
+          status: const StateIsSuccess(),
         ),
       );
     }

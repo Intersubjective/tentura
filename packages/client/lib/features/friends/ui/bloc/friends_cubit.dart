@@ -88,15 +88,16 @@ class FriendsCubit extends Cubit<FriendsState> {
         FriendsState(
           friends: friendsById,
           friendContexts: friendContexts,
+          loadError: null,
         ),
       );
       _presenceRepository.watch('friends', friendsById.keys.toSet());
     } catch (e) {
       if (state.friends.isEmpty) {
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       } else {
         _effects.emit(ShowError(e));
-        emit(state.copyWith(status: const StateIsSuccess()));
+        emit(state.copyWith(loadError: null, status: const StateIsSuccess()));
       }
     }
   }

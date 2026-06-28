@@ -120,6 +120,7 @@ class ProfileViewBody extends StatelessWidget {
                                   context,
                                   text: e.toString(),
                                   isError: true,
+                                  error: e,
                                 );
                               }
                             }),

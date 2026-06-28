@@ -1,6 +1,7 @@
 // DEPRECATED scope: prefer `context.tt` (TenturaTokens) for new layout; do not add
 // new `kPadding*` / spacing constants here — use design-system tokens instead.
 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
@@ -8,14 +9,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
-import '../bloc/state_base.dart';
-import '../effect/ui_effect_dispatcher.dart';
+import '../bloc/screen_cubit.dart';
+import '../effect/ui_effect_bus.dart';
+import '../effect/ui_effect_handler.dart';
 import '../l10n/l10n.dart';
+
+/// Provides a route-local [ScreenCubit] and [UiEffectHandler] subtree.
+Widget localScreenCubitScope({required Widget child}) {
+  final effects = UiEffectBus();
+  return MultiBlocProvider(
+    providers: [
+      BlocProvider(create: (_) => ScreenCubit(effects)),
+    ],
+    child: UiEffectHandler(effects: effects, child: child),
+  );
+}
 
 const kSpacingSmall = 8.0;
 const kSpacingMedium = 16.0;
@@ -78,6 +92,8 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   SnackBarAction? action,
   List<TextSpan>? textSpans,
   Duration? duration,
+  Object? error,
+  StackTrace? stackTrace,
 }) {
   // Errors linger longer so the message can be read and the Copy button tapped.
   duration ??= Duration(seconds: isError ? 15 : kSnackBarDuration);
@@ -94,9 +110,10 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   ].join();
 
   if (isError) {
-    // Report the full error so it always lands in the logs/console regardless
-    // of the configured log level (the default debug level hides `fine`).
-    GetIt.I<Logger>().severe(fullText);
+    if (error != null) {
+      reportUserFacingError(error, stackTrace: stackTrace);
+    }
+    GetIt.I<Logger>().severe(fullText, error, stackTrace);
   }
 
   // Errors get a Copy action so the (often cryptic) server message can be
@@ -145,21 +162,3 @@ Widget separatorBuilder(_, _) => const Divider(
   endIndent: kSpacingMedium,
   indent: kSpacingMedium,
 );
-
-void commonScreenBlocListener(
-  BuildContext context,
-  StateBase state, {
-  bool listenNavigatingState = true,
-  bool listenMessagingState = true,
-  bool listenHasErrorState = true,
-  String? localeName,
-}) {
-  dispatchStateBaseEffects(
-    context,
-    state,
-    listenNavigatingState: listenNavigatingState,
-    listenMessagingState: listenMessagingState,
-    listenHasErrorState: listenHasErrorState,
-    localeName: localeName,
-  );
-}

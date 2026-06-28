@@ -2,6 +2,7 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 
 /// Whether [error] is an expected, user-facing failure that should not
@@ -12,7 +13,18 @@ bool isBenignSentryThrowable(Object? error) {
   }
   if (error is ConnectionUplinkException ||
       error is AuthSessionLostException ||
-      error is AuthenticationNoKeyException) {
+      error is AuthenticationNoKeyException ||
+      error is SessionAuthRejectedException) {
+    return true;
+  }
+  if (error is UserInputException || error is PollingInputExceptions) {
+    return true;
+  }
+  if (error is AuthSeedIsWrongException ||
+      error is InvitationCodeIsWrongException ||
+      error is AuthIdIsWrongException ||
+      error is AuthIdNotFoundException ||
+      error is AuthSeedExistsException) {
     return true;
   }
   return isBenignSentryExceptionText(error.toString());

@@ -23,9 +23,12 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     @Default(MyWorkSort.recent) MyWorkSort sort,
     @Default(false) bool finishedArchiveHintDismissed,
     @Default(StateIsLoading()) StateStatus status,
+    Object? loadError,
   }) = _MyWorkState;
 
   const MyWorkState._();
+
+  bool get hasError => loadError != null;
 
   /// Visible cards for the selected [filter], ordered by tier then [sort].
   List<MyWorkCardViewModel> get visibleCards => visibleMyWorkCardsForDesk(

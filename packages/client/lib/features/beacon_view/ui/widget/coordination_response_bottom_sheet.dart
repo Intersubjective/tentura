@@ -81,7 +81,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (_) {
-      // BeaconViewCubit emits StateHasError; keep sheet open.
+      // BeaconViewCubit emits ShowError; keep sheet open.
     }
   }
 

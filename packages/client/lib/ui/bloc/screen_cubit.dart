@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/consts.dart';
 
 import '../effect/ui_effect.dart';
+import '../effect/ui_effect_bus.dart';
 import '../effect/ui_effect_port.dart';
 import 'screen_state.dart';
 
@@ -18,21 +19,17 @@ class ScreenCubit extends Cubit<ScreenState> {
   @factoryMethod
   ScreenCubit(UiEffectPort effects)
       : _effects = effects,
-        _local = false,
         super(const ScreenState());
 
-  /// Route-local bus: emits [StateIsNavigating] for nested-router listeners.
-  ScreenCubit.local()
-      : _effects = null,
-        _local = true,
-        super(const ScreenState());
+  /// Route-local bus for screens that provide their own [UiEffectHandler].
+  factory ScreenCubit.local([UiEffectPort? effects]) =>
+      ScreenCubit(effects ?? UiEffectBus());
 
-  final UiEffectPort? _effects;
-  final bool _local;
+  final UiEffectPort _effects;
 
-  void back() => _local
-      ? emit(state.navigateBack())
-      : _effects!.emit(const NavigateBack());
+  UiEffectPort get effects => _effects;
+
+  void back() => _effects.emit(const NavigateBack());
 
   void showGraphFor(String id) => _navigateTo('$kPathGraph/$id');
 
@@ -85,18 +82,8 @@ class ScreenCubit extends Cubit<ScreenState> {
   );
 
   void showMessaging(LocalizableMessage message) {
-    if (_local) {
-      emit(state.messaging(message));
-    } else {
-      _effects!.emit(ShowMessage(message));
-    }
+    _effects.emit(ShowMessage(message));
   }
 
-  void _navigateTo(String path) {
-    if (_local) {
-      emit(state.navigateTo(path));
-    } else {
-      _effects!.emit(NavigatePush(path));
-    }
-  }
+  void _navigateTo(String path) => _effects.emit(NavigatePush(path));
 }

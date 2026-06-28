@@ -22,10 +22,11 @@ class LineageSuggestionsPreviewCubit extends Cubit<LineageSuggestionsPreviewStat
         state.copyWith(
           rows: rows,
           status: StateStatus.isSuccess,
+          clearLoadError: true,
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }
   }
 }
