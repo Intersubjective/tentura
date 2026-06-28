@@ -52,10 +52,12 @@ awk 'NR==1{printf "%s",$0} NR>1{printf "\\n%s",$0} END{print ""}' jwt_public.pem
 | **Resend** | Email magic-link auth | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
 | **Google Cloud** | OAuth login | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | **Firebase** | Push notifications (FCM) | `FB_PROJECT_ID`, `FB_CLIENT_EMAIL`, `FB_PRIVATE_KEY`, etc. |
+| **Sentry** | Error monitoring (server + client) | Two projects: `server` and `client` (landing is a third, separate) |
 
 - **DO Spaces**: create a Space, generate an access key pair under API → Spaces Keys. Endpoint is `<region>.digitaloceanspaces.com`. Use `S3_PATH_STYLE=false` and `S3_USE_SSL=true` (unlike local MinIO defaults).
 - **Google OAuth**: in Google Cloud Console add `https://YOUR_DOMAIN/api/auth/google/callback` as an authorized redirect URI.
 - **Firebase**: create a service account, download the JSON, extract `project_id`, `client_email`, and `private_key` from it.
+- **Sentry**: create two projects — one for the server (Dart/Other), one for the client (Flutter). Copy the DSN from each project's Settings → Client Keys. The server DSN goes in `.env`; the client DSN is compiled into the web build as a `--dart-define` (it is a public value, safe to embed). `SENTRY_RELEASE` and `SENTRY_DIST` are baked into the server image by CI automatically; you only need to configure the DSN and optionally the sample rate.
 
 ---
 
@@ -127,9 +129,12 @@ FB_STORAGE_BUCKET=your-firebase-project.appspot.com
 FB_API_KEY=AIza...
 FB_APP_ID=1:123456789:web:abc...   # Web App ID from Firebase console, NOT the API key
 
-# === OPTIONAL: Sentry ===
-# SERVER_SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz
-# SENTRY_TRACES_SAMPLE_RATE=0.1
+# === SENTRY (server) ===
+# DSN from Sentry project Settings → Client Keys (the "server" project, not "client").
+# When unset, Sentry is fully disabled — no overhead.
+# SENTRY_RELEASE and SENTRY_DIST are baked into the image by CI; do not set them here.
+SERVER_SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz
+SENTRY_TRACES_SAMPLE_RATE=1.0   # reduce (e.g. 0.1) once traffic grows
 EOF
 
 chmod 600 .env
@@ -211,6 +216,10 @@ bash scripts/hasura_apply_metadata.sh
 Build locally, then upload:
 
 ```bash
+# Get the client semver for SENTRY_RELEASE
+CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+GIT_SHA=$(git rev-parse HEAD)
+
 cd packages/client
 flutter build web --wasm \
   --dart-define=SERVER_NAME=https://dev.tentura.io \
@@ -221,7 +230,12 @@ flutter build web --wasm \
   --dart-define=FB_PROJECT_ID=your-firebase-project \
   --dart-define=FB_AUTH_DOMAIN=your-firebase-project.firebaseapp.com \
   --dart-define=FB_STORAGE_BUCKET=your-firebase-project.appspot.com \
-  --dart-define=FB_VAPID_KEY=<your-vapid-key>
+  --dart-define=FB_VAPID_KEY=<your-vapid-key> \
+  --dart-define=SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz \
+  --dart-define=SENTRY_ENVIRONMENT=prod \
+  --dart-define="SENTRY_RELEASE=tentura@${CLIENT_VERSION}" \
+  --dart-define="SENTRY_DIST=${GIT_SHA}"
+# Omit the SENTRY_DSN line entirely to disable client Sentry (not an empty string — omit it).
 
 cd ../..
 tar -czf /tmp/web-$(date +%Y%m%d).tar.gz -C packages/client/build/web .
@@ -248,6 +262,9 @@ Under **Settings → Environments** in your GitHub repo, create a `dev` environm
 | Secret `CLIENT_DART_DEFINES` | multiline blob with all `FB_*` + `FB_VAPID_KEY` values |
 | Variable `CLIENT_SERVER_NAME` | `https://dev.tentura.io` |
 | Variable `IMAGE_SERVER` | `https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura` |
+| Variable `CLIENT_SENTRY_DSN` | DSN from the **client** Sentry project (public value, safe as a variable not secret); omit to disable client Sentry |
+
+CI also passes `SENTRY_ENVIRONMENT=dev`, `SENTRY_RELEASE=tentura@<semver>`, and `SENTRY_DIST=<git-sha>` automatically on every build. The server's `SERVER_SENTRY_DSN` is set in the VPS `.env` and is not a CI secret.
 
 Push to `main` will then automatically build the server image, build the web client, and run `deploy.sh` on the VPS via SSH.
 
