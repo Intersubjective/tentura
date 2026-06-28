@@ -346,7 +346,7 @@ void main() {
   });
 
   group('BeaconViewScreen navigation', () {
-    testWidgets('in-app room entry does not push a new route', (tester) async {
+    testWidgets('in-app room entry does not mutate the route', (tester) async {
       _registerRoomGetIt();
       final router = _TrackingStackRouter();
       _stubRouter(
@@ -368,7 +368,7 @@ void main() {
       await tester.pump();
 
       expect(router.pushPathCount, 0);
-      expect(router.replacePathCount, 1);
+      expect(router.replacePathCount, 0);
     });
 
     testWidgets('room back closes overlay and stays on beacon', (tester) async {

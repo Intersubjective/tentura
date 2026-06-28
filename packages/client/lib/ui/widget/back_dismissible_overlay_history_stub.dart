@@ -5,5 +5,5 @@ class BackDismissibleOverlayHistorySentinel {
 
   void markHandledByBack() {}
 
-  void dispose() {}
+  void dispose({bool consumeGeneratedPop = false}) {}
 }
