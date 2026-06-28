@@ -253,20 +253,43 @@ OVERRIDE_FILE=compose.override.yaml ./deploy.sh /tmp/web-*.tar.gz
 
 ## 10. Wire up GitHub Actions CI/CD
 
-Under **Settings → Environments** in your GitHub repo, create a `dev` environment and add:
+Under **Settings → Environments** in your GitHub repo, create two environments — `dev` (triggered by pushes to `main`) and `prod` (triggered by pushes to `release`) — each with:
 
 | Secret / Variable | Value |
 |---|---|
 | Secret `VPS_HOST` | server IP or hostname |
 | Secret `VPS_SSH_KEY` | private SSH key for the deploy user |
-| Secret `CLIENT_DART_DEFINES` | multiline blob with all `FB_*` + `FB_VAPID_KEY` values |
-| Variable `CLIENT_SERVER_NAME` | `https://dev.tentura.io` |
+| Secret `CLIENT_DART_DEFINES` | multiline `KEY=VALUE` blob — see format below |
+| Secret `LANDING_SENTRY_DSN` | DSN from the **landing** Sentry project; omit to disable landing Sentry |
+| Variable `CLIENT_SERVER_NAME` | `https://dev.tentura.io` (dev) / `https://tentura.io` (prod) |
 | Variable `IMAGE_SERVER` | `https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura` |
-| Variable `CLIENT_SENTRY_DSN` | DSN from the **client** Sentry project (public value, safe as a variable not secret); omit to disable client Sentry |
+| Variable `CLIENT_SENTRY_DSN` | DSN from the **client** Sentry project (public value, safe as a variable); omit to disable client Sentry |
+| Variable `LANDING_GOOGLE_ENABLED` | `true` or `false` |
 
-CI also passes `SENTRY_ENVIRONMENT=dev`, `SENTRY_RELEASE=tentura@<semver>`, and `SENTRY_DIST=<git-sha>` automatically on every build. The server's `SERVER_SENTRY_DSN` is set in the VPS `.env` and is not a CI secret.
+CI also passes `SENTRY_ENVIRONMENT` (`dev` or `prod`), `SENTRY_RELEASE=tentura@<semver>`, and `SENTRY_DIST=<git-sha>` automatically on every build. The server's `SERVER_SENTRY_DSN` is set in the VPS `.env` and is not a CI secret.
 
-Push to `main` will then automatically build the server image, build the web client, and run `deploy.sh` on the VPS via SSH.
+### `CLIENT_DART_DEFINES` format
+
+Paste a plain multiline `KEY=VALUE` block into the secret textarea — one Firebase dart-define per line, no quotes, no trailing spaces:
+
+```
+FB_APP_ID=1:123456789:web:abcdef123456
+FB_API_KEY=AIzaSy...
+FB_PROJECT_ID=your-firebase-project
+FB_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
+FB_STORAGE_BUCKET=your-firebase-project.appspot.com
+FB_SENDER_ID=123456789
+FB_VAPID_KEY=BNmB...
+```
+
+All values come from Firebase Console → Project Settings:
+- **`FB_APP_ID`** — Web App ID under "Your apps" (`1:…:web:…`). This is **not** the API key. Wrong value causes `firebaseinstallations` HTTP 400 in the browser.
+- **`FB_VAPID_KEY`** — Web Push certificate key under Cloud Messaging → Web Push certificates.
+- The rest come from the Firebase SDK config snippet.
+
+GitHub preserves newlines in multiline secrets, so paste the block as-is. CI writes it to a file and passes it to `flutter build web --dart-define-from-file`.
+
+Push to `main` → deploys to `dev`. Push to `release` → deploys to `prod`.
 
 ---
 
