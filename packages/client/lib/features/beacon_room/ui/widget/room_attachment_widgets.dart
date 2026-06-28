@@ -9,7 +9,6 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/back_dismissible_fullscreen_overlay.dart';
 
 /// Default inline album height for [WindowClass.regular] (layout estimates).
 const double kRoomMessageInlineImageAlbumHeight = 220;
@@ -194,11 +193,12 @@ Future<void> openRoomAttachmentImageAlbum(
     return;
   }
   final i = initialIndex.clamp(0, items.length - 1);
-  await pushBackDismissibleFullscreenOverlay<void>(
-    context,
-    RoomAttachmentFullscreenGallery(
-      attachments: items,
-      initialIndex: i,
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => RoomAttachmentFullscreenGallery(
+        attachments: items,
+        initialIndex: i,
+      ),
     ),
   );
 }
@@ -254,7 +254,7 @@ class _RoomAttachmentFullscreenGalleryState
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: items.length > 1
             ? Text(
