@@ -734,10 +734,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   /// Once the composer gains focus, ensure the platform text input connection
-  /// opens on the next frame (after layout). Poll sliders used to hold primary
-  /// focus and leave the composer with a cursor but no keyboard; `ExcludeFocus`
-  /// on `RoomPollCard` voting controls prevents that, and this covers any
-  /// remaining focus→connection timing gap (EditableText #126312).
+  /// opens on the next frame (after layout). Poll voting controls must not
+  /// keep primary focus after interaction; `ExcludeFocus` on `RoomPollCard`
+  /// handles that, and this covers any remaining focus→connection timing gap
+  /// (EditableText #126312).
   void _onComposerFocusChange() {
     if (!_composerFocus.hasFocus) {
       return;
