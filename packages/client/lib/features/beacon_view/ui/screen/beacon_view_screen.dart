@@ -649,7 +649,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       listener: (ctx, roomState) {
                         if (mounted) setState(() {});
                       },
-                      child: const BeaconRoomSurface(),
+                      child: BeaconRoomSurface(
+                        beaconAuthorId: state.beacon.author.id,
+                        onCoordinationSaved: _refreshItemsTab,
+                      ),
                     ),
                   );
           } else {

@@ -22,6 +22,9 @@ Future<void> showCoordinationItemComposerSheet(
   required VoidCallback onSaved,
   CoordinationItem? existingDraft,
   AskComposerSeed? seed,
+  bool useRootNavigator = false,
+  bool enableDrag = true,
+  bool isDismissible = true,
 }) async {
   final l10n = L10n.of(context)!;
   final coordinationCase = GetIt.I<CoordinationItemCase>();
@@ -32,6 +35,9 @@ Future<void> showCoordinationItemComposerSheet(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    useRootNavigator: useRootNavigator,
+    enableDrag: enableDrag,
+    isDismissible: isDismissible,
     builder: (ctx) => _CoordinationItemComposerBody(
       kind: kind,
       beaconId: beaconId,
@@ -190,6 +196,11 @@ class _CoordinationItemComposerBodyState
           : null;
     } else {
       _selectedTargetId = _singleLegalTargetId;
+      if (_selectedTargetId == null &&
+          seed?.linkedMessageId != null &&
+          _isValidTarget(widget.myUserId)) {
+        _selectedTargetId = widget.myUserId;
+      }
     }
     _selectedStaleDays = CoordinationStalenessPicker.seedFromDraft(
       widget.existingDraft?.staleAfterDays,
@@ -242,8 +253,13 @@ class _CoordinationItemComposerBodyState
     if (_isAskOrPromise) {
       return AskComposerFields.canSubmit(_bodyController, false);
     }
-    return _titleController.text.trim().isNotEmpty;
+    final title = _titleController.text.trim();
+    if (title.isNotEmpty) return true;
+    return _linkedMessageId != null && _bodyController.text.trim().isNotEmpty;
   }
+
+  String _effectiveTitle(String title, String body) =>
+      title.isNotEmpty ? title : body;
 
   Future<void> _onSubmit() async {
     if (!_canSubmitContent) return;
@@ -261,8 +277,8 @@ class _CoordinationItemComposerBodyState
   }
 
   Future<void> _persist() async {
-    final title = _titleController.text.trim();
     final body = _bodyController.text.trim();
+    final title = _effectiveTitle(_titleController.text.trim(), body);
     final target = _willPublish ? _selectedTargetId : null;
     final existing = widget.existingDraft;
     final c = widget.coordinationCase;
@@ -348,6 +364,7 @@ class _CoordinationItemComposerBodyState
             title: title,
             body: body.isEmpty ? null : body,
             targetPersonId: target,
+            linkedMessageId: _linkedMessageId,
             staleAfterDays: staleDays,
           );
         } else if (existing == null) {
