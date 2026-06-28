@@ -72,8 +72,7 @@ class _TrackingStackRouter extends Mock implements StackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      true;
+  }) => true;
 
   @override
   String get currentUrl => currentUrlValue;
@@ -85,6 +84,7 @@ class _TrackingStackRouter extends Mock implements StackRouter {
     OnNavigationFailure? onFailure,
   }) {
     replacePathCount++;
+    currentUrlValue = path;
     return Future<T?>.value(null);
   }
 
@@ -134,8 +134,9 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   final String _userId;
 
   @override
-  ProfileState get state =>
-      ProfileState(profile: Profile(id: _userId, displayName: 'Author'));
+  ProfileState get state => ProfileState(
+    profile: Profile(id: _userId, displayName: 'Author'),
+  );
 
   @override
   Stream<ProfileState> get stream => Stream.value(state);
@@ -154,8 +155,7 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
     required String beaconId,
     String? beforeIso,
     String? threadItemId,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
@@ -183,8 +183,7 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
     required String beaconId,
     required DateTime readThroughAt,
     String? threadItemId,
-  }) async =>
-      readThroughAt;
+  }) async => readThroughAt;
 }
 
 class _FakeBeaconFactCardRepository extends Fake
@@ -352,7 +351,8 @@ void main() {
       final router = _TrackingStackRouter();
       _stubRouter(
         router,
-        currentUrl: '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
+        currentUrl:
+            '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
       );
       final cubit = _TestBeaconViewCubit.loading();
       addTearDown(cubit.close);
@@ -368,6 +368,7 @@ void main() {
       await tester.pump();
 
       expect(router.pushPathCount, 0);
+      expect(router.replacePathCount, 1);
     });
 
     testWidgets('room back closes overlay and stays on beacon', (tester) async {
@@ -375,7 +376,8 @@ void main() {
       final router = _TrackingStackRouter();
       _stubRouter(
         router,
-        currentUrl: '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
+        currentUrl:
+            '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
       );
       final cubit = _TestBeaconViewCubit.loading();
       addTearDown(cubit.close);
@@ -401,12 +403,62 @@ void main() {
       expect(find.text('Log'), findsOneWidget);
     });
 
+    testWidgets('root modal back closes modal without exiting room', (
+      tester,
+    ) async {
+      _registerRoomGetIt();
+      final router = _TrackingStackRouter();
+      _stubRouter(
+        router,
+        currentUrl:
+            '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
+      );
+      final cubit = _TestBeaconViewCubit.loading();
+      addTearDown(cubit.close);
+
+      await _pumpLoadedBeaconView(
+        tester,
+        router: router,
+        cubit: cubit,
+        entry: kBeaconEntryMyWork,
+      );
+
+      await tester.tap(find.text('Log'));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.forum_rounded));
+      await tester.pump();
+      expect(find.byType(TextField), findsOneWidget);
+
+      final context = tester.element(find.byType(BeaconViewScreen));
+      unawaited(
+        showDialog<void>(
+          context: context,
+          builder: (_) => const AlertDialog(
+            content: Text('root modal'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('root modal'), findsOneWidget);
+
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(handled, isTrue);
+      expect(find.text('root modal'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(router.backCount, 0);
+    });
+
     testWidgets('operational back pops beacon route once', (tester) async {
       _registerCommonGetIt();
       final router = _TrackingStackRouter();
       _stubRouter(
         router,
-        currentUrl: '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
+        currentUrl:
+            '$kPathBeaconView/$_kBeaconId?$kQueryBeaconEntry=$kBeaconEntryMyWork',
       );
       final cubit = _TestBeaconViewCubit.loading();
       addTearDown(cubit.close);
@@ -428,32 +480,35 @@ void main() {
       expect(router.maybePopTopCount, 1);
     });
 
-    testWidgets('deep-link room exit strips room from URL without popping route', (
-      tester,
-    ) async {
-      _registerRoomGetIt();
-      final router = _TrackingStackRouter();
-      final roomUrl =
-          '$kPathBeaconView/$_kBeaconId?$kQueryBeaconViewTab=room&$kQueryBeaconEntry=$kBeaconEntryDeepLink';
-      _stubRouter(router, currentUrl: roomUrl);
-      final cubit = _TestBeaconViewCubit.loading();
-      addTearDown(cubit.close);
-
-      await _pumpLoadedBeaconView(
+    testWidgets(
+      'deep-link room exit strips room from URL without popping route',
+      (
         tester,
-        router: router,
-        cubit: cubit,
-        viewTab: 'room',
-        entry: kBeaconEntryDeepLink,
-      );
+      ) async {
+        _registerRoomGetIt();
+        final router = _TrackingStackRouter();
+        final roomUrl =
+            '$kPathBeaconView/$_kBeaconId?$kQueryBeaconViewTab=room&$kQueryBeaconEntry=$kBeaconEntryDeepLink';
+        _stubRouter(router, currentUrl: roomUrl);
+        final cubit = _TestBeaconViewCubit.loading();
+        addTearDown(cubit.close);
 
-      await tester.tap(find.byType(BackButton));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await _pumpLoadedBeaconView(
+          tester,
+          router: router,
+          cubit: cubit,
+          viewTab: 'room',
+          entry: kBeaconEntryDeepLink,
+        );
 
-      expect(router.backCount, 0);
-      expect(router.replacePathCount, 1);
-      expect(find.text('Items'), findsOneWidget);
-    });
+        await tester.tap(find.byType(BackButton));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(router.backCount, 0);
+        expect(router.replacePathCount, 1);
+        expect(find.text('Items'), findsOneWidget);
+      },
+    );
   });
 }
