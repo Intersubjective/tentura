@@ -39,7 +39,7 @@ class AskComposerSeed {
       );
 }
 
-/// Title (optional) + body (required) fields for self-ask and draft ask sheets.
+/// Title (optional) + body (required) fields for ask and draft ask sheets.
 class AskComposerFields extends StatelessWidget {
   const AskComposerFields({
     required this.l10n,

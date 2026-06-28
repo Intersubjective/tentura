@@ -46,6 +46,11 @@ final class CreateDraftAskCase extends UseCaseBase {
       userId: userId,
     );
     final target = targetPersonId?.trim();
+    if (target != null && target.isNotEmpty && target == userId) {
+      throw const BeaconCreateException(
+        description: 'Ask cannot target yourself',
+      );
+    }
     return _itemRepository.createDraftAsk(
       beaconId: beaconId,
       creatorId: userId,

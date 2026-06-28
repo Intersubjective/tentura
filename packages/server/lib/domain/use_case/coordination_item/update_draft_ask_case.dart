@@ -51,6 +51,14 @@ final class UpdateDraftAskCase extends UseCaseBase {
     if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
+    if (updateTargetPersonId) {
+      final target = targetPersonId?.trim() ?? '';
+      if (target.isNotEmpty && target == userId) {
+        throw const BeaconCreateException(
+          description: 'Ask cannot target yourself',
+        );
+      }
+    }
     return _itemRepository.updateDraftAsk(
       id: itemId,
       actorId: userId,

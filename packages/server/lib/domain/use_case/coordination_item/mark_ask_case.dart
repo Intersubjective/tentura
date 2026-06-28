@@ -38,9 +38,15 @@ final class MarkAskCase extends UseCaseBase {
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(description: 'Ask title is required');
     }
-    if (targetPersonId.trim().isEmpty) {
+    final target = targetPersonId.trim();
+    if (target.isEmpty) {
       throw const BeaconCreateException(
         description: 'Ask target person is required',
+      );
+    }
+    if (target == userId) {
+      throw const BeaconCreateException(
+        description: 'Ask cannot target yourself',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
@@ -53,17 +59,17 @@ final class MarkAskCase extends UseCaseBase {
       creatorId: userId,
       title: trimmed,
       body: body.trim(),
-      targetPersonId: targetPersonId,
+      targetPersonId: target,
       linkedMessageId: linkedMessageId,
       staleAfterDays: staleAfterDays,
     );
-    final target = item.targetPersonId;
-    if (target != null && target.isNotEmpty && target != userId) {
+    final notifyTarget = item.targetPersonId;
+    if (notifyTarget != null && notifyTarget.isNotEmpty) {
       unawaited(
         _push.notifyNeedsMe(
           beaconId: beaconId,
           actorUserId: userId,
-          targetUserId: target,
+          targetUserId: notifyTarget,
           excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
           coordinationItemId: item.id,
         ),

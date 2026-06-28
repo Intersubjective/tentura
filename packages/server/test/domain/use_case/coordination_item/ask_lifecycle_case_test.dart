@@ -374,6 +374,31 @@ void main() {
         throwsA(isA<BeaconCreateException>()),
       );
     });
+
+    test('self-target rejected when target provided', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          beaconId: beaconId,
+          title: 'Need help',
+          body: 'Details',
+          targetPersonId: ownerId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastCreateBeaconId, null);
+    });
+
+    test('draft without target still allowed', () async {
+      final out = await sut.call(
+        userId: ownerId,
+        beaconId: beaconId,
+        title: 'Need help',
+        body: 'Details',
+      );
+      expect(out.id, itemId);
+      expect(items.lastCreateBeaconId, beaconId);
+    });
   });
 
   group('PublishDraftAskCase', () {
@@ -470,6 +495,18 @@ void main() {
         throwsA(isA<BeaconCreateException>()),
       );
     });
+
+    test('rejects self-target', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          targetPersonId: ownerId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastPublishId, null);
+    });
   });
 
   group('MarkAskCase', () {
@@ -542,6 +579,19 @@ void main() {
         ),
         throwsA(isA<BeaconCreateException>()),
       );
+    });
+
+    test('rejects self-target', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          beaconId: beaconId,
+          title: 'Need help',
+          targetPersonId: ownerId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastMarkTarget, null);
     });
   });
 
@@ -773,6 +823,21 @@ void main() {
       );
       expect(items.lastUpdateDraftTitle, null);
     });
+
+    test('rejects self-target when updating target', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          title: 'Updated',
+          body: 'details',
+          updateTargetPersonId: true,
+          targetPersonId: ownerId,
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastUpdateDraftTitle, null);
+    });
   });
 
   group('DeleteDraftAskCase', () {
@@ -960,6 +1025,18 @@ void main() {
           userId: ownerId,
           itemId: itemId,
           newTargetPersonId: '  ',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+      expect(items.lastRedirectTarget, null);
+    });
+
+    test('rejects self-target', () async {
+      await expectLater(
+        () => sut.call(
+          userId: ownerId,
+          itemId: itemId,
+          newTargetPersonId: ownerId,
         ),
         throwsA(isA<BeaconCreateException>()),
       );
