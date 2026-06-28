@@ -189,24 +189,11 @@ docker compose -f compose.prod.yaml logs -f
 
 Wait until Postgres logs `database system is ready to accept connections` and Tentura logs `Worker #0 web server listen`.
 
----
-
-## 7. Apply database triggers
-
-The custom Postgres image (`vbulavintsev/postgres-tentura`) ships with the base schema. Apply the trigger layer once after first start:
-
-```bash
-# from local dev machine
-scp sql/triggers.sql root@YOUR_SERVER:/tmp/triggers.sql
-
-# on server
-docker cp /tmp/triggers.sql postgres:/tmp/triggers.sql
-docker exec postgres psql -U postgres -d postgres -f /tmp/triggers.sql
-```
+The Tentura server runs all 104 SQL migrations on startup. This creates the full schema, all triggers, and all functions. **Do not apply `sql/triggers.sql` manually** — everything in it is already inside the migrations.
 
 ---
 
-## 8. Apply Hasura metadata
+## 7. Apply Hasura metadata
 
 Run once after first start (and after any schema changes):
 
