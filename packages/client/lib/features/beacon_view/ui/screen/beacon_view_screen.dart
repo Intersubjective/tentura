@@ -18,8 +18,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/ui/widget/back_dismissible_fullscreen_overlay.dart';
-import 'package:tentura/ui/widget/back_dismissible_overlay_history.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -59,7 +57,6 @@ int _beaconViewTabIndex(String? viewTab) {
       return kBeaconTabItems;
   }
 }
-
 @RoutePage()
 class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
@@ -131,19 +128,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String? _bannerMessage;
 
   /// True after the user leaves the room surface until they open it again.
-  /// Prevents `didUpdateWidget` from re-opening room while `?tab=room` is still
-  /// on the URL briefly after `replacePath` / history sync.
+  /// Prevents [didUpdateWidget] from re-opening room while `?tab=room` is still
+  /// on the URL briefly after [replacePath] / history sync.
   bool _userDismissedRoomSurface = false;
 
   bool _roomExitInProgress = false;
 
+  /// Set when [_enterRoomSurface] used [StackRouter.pushPath] for `?tab=room`.
+  /// Exit must [StackRouter.back] to drop that history entry — [replacePath]
+  /// would leave a duplicate beacon URL and force two pops to leave the beacon.
+  bool _roomEnteredViaPush = false;
+
   /// Ensures mark-seen on the previous visit finishes before re-open refresh.
   Future<void>? _pendingRoomExit;
-
-  // Browser Back needs a same-URL sentinel while the in-route room surface is
-  // open.  Changing the visible route here makes beacon Back skip the detail
-  // screen, but relying on PopScope alone lets Chrome consume the beacon entry.
-  BackDismissibleOverlayHistorySentinel? _roomHistorySentinel;
 
   void _unfocusForRouteChange() {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -265,10 +262,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (oldWidget.id != widget.id) {
       _userDismissedRoomSurface = false;
       _roomExitInProgress = false;
+      _roomEnteredViaPush = false;
     }
     final wasRoom = _roomFromRouteParams(oldWidget);
     final isRoom = _roomFromRouteParams(widget);
     if (wasRoom && !isRoom && _showRoomSurface) {
+      _roomEnteredViaPush = false;
       _exitRoomSurface(fromRouteSync: true);
     } else if (!wasRoom &&
         isRoom &&
@@ -291,9 +290,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void dispose() {
     unawaited(_releaseEmbeddedRoomCubit());
     unawaited(_itemsTabCubit?.close());
-    _roomHistorySentinel?.markHandledByBack();
-    _roomHistorySentinel?.dispose();
-    _roomHistorySentinel = null;
     super.dispose();
   }
 
@@ -301,19 +297,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!s.isSuccess || _didApplyFetchResolution) return;
 
     final roomDenied = _showRoomSurface && !s.canNavigateBeaconRoom;
-    if (roomDenied) {
-      _disposeRoomHistorySentinel();
-    } else if (_showRoomSurface && s.canNavigateBeaconRoom) {
-      _ensureRoomHistorySentinel();
-    }
 
     setState(() {
       if (roomDenied) {
         _showRoomSurface = false;
         if (s.showsRoomAccessUnavailableBanner) {
-          _bannerMessage = L10n.of(
-            context,
-          )!.beaconViewRoomAccessUnavailableBanner;
+          _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
         } else {
           unawaited(_stripRoomFromUrl());
         }
@@ -334,7 +323,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     bool fromRouteSync = false,
   }) {
     if (open) {
-      _ensureRoomHistorySentinel();
       setState(() {
         _userDismissedRoomSurface = false;
         _showRoomSurface = true;
@@ -346,36 +334,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       if (!fromRouteSync) {
         _userDismissedRoomSurface = true;
       }
-      _disposeRoomHistorySentinel();
       setState(() => _showRoomSurface = false);
       _pendingRoomExit = _exitRoomAndSyncUnread();
       unawaited(_pendingRoomExit);
     }
   }
 
-  void _ensureRoomHistorySentinel() {
-    _roomHistorySentinel ??= BackDismissibleOverlayHistorySentinel(
-      onPop: _onRoomHistoryPop,
-    );
-  }
-
-  void _disposeRoomHistorySentinel() {
-    final sentinel = _roomHistorySentinel;
-    _roomHistorySentinel = null;
-    sentinel?.dispose();
-  }
-
-  void _onRoomHistoryPop() {
-    _roomHistorySentinel = null;
-    if (!mounted || !_showRoomSurface) return;
-    _exitRoomSurface();
-  }
-
   void _ensureEmbeddedRoomCubit() {
     if (_roomCubit != null && !_roomCubit!.isClosed) return;
-    final initialAnchor = context.read<BeaconViewCubit>().roomReadThrough(
-      widget.id,
-    );
+    final initialAnchor =
+        context.read<BeaconViewCubit>().roomReadThrough(widget.id);
     _roomCubit = RoomCubit(
       beaconId: widget.id,
       initialUnreadAnchorAt: initialAnchor,
@@ -427,10 +395,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
-    // Room is an in-route overlay ([PopScope.canPop] is false while open).
-    // Do not push or replace the URL here: operational beacon back behavior
-    // depends on a single beacon history entry.
-    _userDismissedRoomSurface = false;
+    // Push a dedicated `?tab=room` route instead of also embedding room on the
+    // route below — otherwise back pops the top route but leaves a live
+    // [RoomCubit] + `_showRoomSurface` on the underlying beacon view.
+    if (!_roomFromRouteParams(widget)) {
+      _userDismissedRoomSurface = false;
+      _roomEnteredViaPush = true;
+      final roomPath = _beaconViewPath(viewTab: 'room');
+      // Push so browser history retains the operational beacon URL; exit via
+      // [StackRouter.back] (not replacePath) to avoid duplicate beacon entries.
+      _unfocusForRouteChange();
+      unawaited(context.router.pushPath(roomPath));
+      return;
+    }
+    _roomEnteredViaPush = false;
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
@@ -462,6 +440,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_roomExitInProgress) return;
 
     if (fromRouteSync) {
+      _roomEnteredViaPush = false;
       if (_showRoomSurface) {
         _applyRoomSurfaceState(open: false, fromRouteSync: true);
       }
@@ -473,8 +452,25 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _applyRoomSurfaceState(open: false);
     }
 
+    // Room opened via pushPath: pop the `?tab=room` history entry. Using
+    // replacePath here duplicates `/beacon/view/:id` in the stack/history.
+    if (_roomEnteredViaPush) {
+      _roomEnteredViaPush = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          _roomExitInProgress = false;
+          return;
+        }
+        _unfocusForRouteChange();
+        context.router.back();
+        _roomExitInProgress = false;
+      });
+      return;
+    }
+
     // Deep link / notification entry at `?tab=room` — strip query in place.
-    final needsUrlSync = _urlIndicatesRoom() || _roomFromRouteParams(widget);
+    final needsUrlSync =
+        _urlIndicatesRoom() || _roomFromRouteParams(widget);
     if (!needsUrlSync) {
       _roomExitInProgress = false;
       return;
@@ -684,113 +680,95 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             );
           }
 
-          return ValueListenableBuilder<int>(
-            valueListenable:
-                BackDismissibleFullscreenOverlay.openOverlayCountListenable,
-            builder: (context, fullscreenOverlayCount, _) => PopScope(
-              canPop: !_showRoomSurface || fullscreenOverlayCount > 0,
-              onPopInvokedWithResult: (didPop, _) {
-                if (didPop) return;
-                // Known fullscreen photo overlay above this route: pop it
-                // first. Other root routes, such as input sheets/dialogs, own
-                // their back handling.
-                if (BackDismissibleFullscreenOverlay.hasOpenOverlay) {
-                  BackDismissibleFullscreenOverlay.popTopOverlay();
-                  return;
-                }
-                if (BackDismissibleFullscreenOverlay.consumeBrowserBackHandledByOverlay()) {
-                  return;
-                }
-                final route = ModalRoute.of(context);
-                if (route != null && !route.isCurrent) {
-                  return;
-                }
-                // Browser/system back while room is open: close overlay only
-                // ([_exitRoomSurface]); do not pop the beacon route.
-                _exitRoomSurface();
-              },
-              child: Scaffold(
-                appBar: AppBar(
-                  backgroundColor: scheme.surface,
-                  surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  toolbarHeight: kToolbarHeight,
-                  leadingWidth: kToolbarHeight,
-                  foregroundColor: scheme.onSurface,
-                  titleTextStyle: theme.textTheme.titleLarge!.copyWith(
-                    color: scheme.onSurface,
-                  ),
-                  titleSpacing: 8,
-                  leading: _showRoomSurface
-                      ? BackButton(onPressed: _exitRoomSurface)
-                      : AutoLeadingWithFallback(
-                          fallbackPath: kPathMyWork,
-                          onFallback: () => _leaveBeaconView(context),
-                        ),
-                  title: BeaconViewAppBarTitle(
-                    beacon: state.beacon,
-                    showBeaconContent: showBeaconContent,
-                    statusLine: appBarStatusLine,
-                    statusTone: appBarStatusTone,
-                    l10n: l10n,
-                  ),
-                  actions: [
-                    if (showBeaconContent &&
-                        !showInitialLoading &&
-                        !_showRoomSurface &&
-                        state.canNavigateBeaconRoom)
-                      BeaconViewRoomAppBarButton(
-                        state: state,
-                        onPressed: _enterRoomSurface,
-                      ),
-                    if (showBeaconContent)
-                      beaconViewAppBarOverflow(
-                        context: context,
-                        state: state,
-                        cubit: beaconViewCubit,
-                        screenCubit: screenCubit,
-                        l10n: l10n,
-                        inRoomSurface: _showRoomSurface,
-                        roomCubit: _showRoomSurface ? _roomCubit : null,
-                        onItemsTabRefresh: _refreshItemsTab,
-                        onAuthorManageStatus: () async {
-                          await showBeaconViewUpdateStatusSheet(
-                            context,
-                            state,
-                            beaconViewCubit,
-                            onOpenPeopleTab: () =>
-                                _switchToTab(kBeaconTabPeople),
-                            onEnterRoomSurface: _enterRoomSurface,
-                          );
-                        },
-                      ),
-                  ],
-                  bottom: PreferredSize(
-                    preferredSize: LinearPiActive.size,
-                    child: LinearPiActive.builder(context, state.isLoading),
-                  ),
+          return PopScope(
+            canPop: !_showRoomSurface,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              // Browser/system back: URL sync only — do not maybePop (see
+              // [_exitRoomSurface]).
+              _exitRoomSurface();
+            },
+            child: Scaffold(
+              appBar: AppBar(
+                backgroundColor: scheme.surface,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                toolbarHeight: kToolbarHeight,
+                leadingWidth: kToolbarHeight,
+                foregroundColor: scheme.onSurface,
+                titleTextStyle: theme.textTheme.titleLarge!.copyWith(
+                  color: scheme.onSurface,
                 ),
-                body: SafeArea(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_bannerMessage != null)
-                        MaterialBanner(
-                          content: Text(_bannerMessage!),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  setState(() => _bannerMessage = null),
-                              child: Text(l10n.beaconViewBannerDismiss),
-                            ),
-                          ],
-                        ),
-                      Expanded(child: body),
-                    ],
-                  ),
+                titleSpacing: 8,
+                leading: _showRoomSurface
+                    ? BackButton(onPressed: _exitRoomSurface)
+                    : AutoLeadingWithFallback(
+                        fallbackPath: kPathMyWork,
+                        onFallback: () => _leaveBeaconView(context),
+                      ),
+                title: BeaconViewAppBarTitle(
+                  beacon: state.beacon,
+                  showBeaconContent: showBeaconContent,
+                  statusLine: appBarStatusLine,
+                  statusTone: appBarStatusTone,
+                  l10n: l10n,
+                ),
+                actions: [
+                  if (showBeaconContent &&
+                      !showInitialLoading &&
+                      !_showRoomSurface &&
+                      state.canNavigateBeaconRoom)
+                    BeaconViewRoomAppBarButton(
+                      state: state,
+                      onPressed: _enterRoomSurface,
+                    ),
+                  if (showBeaconContent)
+                    beaconViewAppBarOverflow(
+                      context: context,
+                      state: state,
+                      cubit: beaconViewCubit,
+                      screenCubit: screenCubit,
+                      l10n: l10n,
+                      inRoomSurface: _showRoomSurface,
+                      roomCubit: _showRoomSurface ? _roomCubit : null,
+                      onItemsTabRefresh: _refreshItemsTab,
+                      onAuthorManageStatus: () async {
+                        await showBeaconViewUpdateStatusSheet(
+                          context,
+                          state,
+                          beaconViewCubit,
+                          onOpenPeopleTab: () =>
+                              _switchToTab(kBeaconTabPeople),
+                          onEnterRoomSurface: _enterRoomSurface,
+                        );
+                      },
+                    ),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: LinearPiActive.size,
+                  child: LinearPiActive.builder(context, state.isLoading),
                 ),
               ),
+              body: SafeArea(
+                child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_bannerMessage != null)
+                    MaterialBanner(
+                      content: Text(_bannerMessage!),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _bannerMessage = null),
+                          child: Text(l10n.beaconViewBannerDismiss),
+                        ),
+                      ],
+                    ),
+                  Expanded(child: body),
+                ],
+              ),
+                ),
             ),
           );
         },
