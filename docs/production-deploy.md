@@ -52,12 +52,14 @@ awk 'NR==1{printf "%s",$0} NR>1{printf "\\n%s",$0} END{print ""}' jwt_public.pem
 | **Resend** | Email magic-link auth | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
 | **Google Cloud** | OAuth login | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | **Firebase** | Push notifications (FCM) | `FB_PROJECT_ID`, `FB_CLIENT_EMAIL`, `FB_PRIVATE_KEY`, etc. |
-| **Sentry** | Error monitoring (server + client) | Two projects: `server` and `client` (landing is a third, separate) |
+| **Sentry** | Error monitoring (server + client + landing) | Three projects: `server`, `client`, `landing` |
 
 - **DO Spaces**: create a Space, generate an access key pair under API → Spaces Keys. Endpoint is `<region>.digitaloceanspaces.com`. Use `S3_PATH_STYLE=false` and `S3_USE_SSL=true` (unlike local MinIO defaults).
-- **Google OAuth**: in Google Cloud Console add `https://YOUR_DOMAIN/api/auth/google/callback` as an authorized redirect URI.
-- **Firebase**: create a service account, download the JSON, extract `project_id`, `client_email`, and `private_key` from it.
-- **Sentry**: create two projects — one for the server (Dart/Other), one for the client (Flutter). Copy the DSN from each project's Settings → Client Keys. The server DSN goes in `.env`; the client DSN is compiled into the web build as a `--dart-define` (it is a public value, safe to embed). `SENTRY_RELEASE` and `SENTRY_DIST` are baked into the server image by CI automatically; you only need to configure the DSN and optionally the sample rate.
+- **Google OAuth**: in Google Cloud Console, create an OAuth 2.0 **Web application** client. Add `https://YOUR_DOMAIN/api/auth/google/callback` as an authorized redirect URI. The resulting **Web Client ID** (`xxxx.apps.googleusercontent.com`) is used in two places: the VPS `.env` (server-side token validation) and `CLIENT_DART_DEFINES` (client-side OAuth init) — same value both places.
+- **Firebase**: you need two separate credential sets from the same Firebase project:
+  - **Admin SDK** (server push notifications) — create a service account, download the JSON, extract `project_id`, `client_email`, and `private_key`. These go in VPS `.env` only.
+  - **Web SDK** (client FCM + app config) — from Firebase Console → Project Settings → Your apps → Web app SDK config snippet. These go in `CLIENT_DART_DEFINES` only. Also grab the VAPID key from Cloud Messaging → Web Push certificates.
+- **Sentry**: create three projects — `server` (Dart/Other), `client` (Flutter), `landing` (Browser JS). Copy the DSN from each project's Settings → Client Keys. The server DSN goes in VPS `.env` only; the client and landing DSNs are public values compiled into the web build and go in GH Environment variables. `SENTRY_RELEASE` and `SENTRY_DIST` are baked in by CI automatically.
 
 ---
 
@@ -119,18 +121,16 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
 OAUTH_PRELOAD_ENABLED=true
 
-# === FIREBASE FCM (server push) ===
+# === FIREBASE FCM (server Admin SDK — push notifications only) ===
+# These are server-side credentials from the service account JSON.
+# Client-side Web SDK values (FB_API_KEY, FB_APP_ID, etc.) go in CLIENT_DART_DEFINES, not here.
 FB_PROJECT_ID=your-firebase-project
 FB_CLIENT_EMAIL=firebase-adminsdk-xxx@your-firebase-project.iam.gserviceaccount.com
 FB_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
-FB_SENDER_ID=123456789
-FB_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
-FB_STORAGE_BUCKET=your-firebase-project.appspot.com
-FB_API_KEY=AIza...
-FB_APP_ID=1:123456789:web:abc...   # Web App ID from Firebase console, NOT the API key
 
 # === SENTRY (server) ===
-# DSN from Sentry project Settings → Client Keys (the "server" project, not "client").
+# DSN from the "server" Sentry project → Settings → Client Keys.
+# Client and landing DSNs are public values — they go in GH Environment variables, not here.
 # When unset, Sentry is fully disabled — no overhead.
 # SENTRY_RELEASE and SENTRY_DIST are baked into the image by CI; do not set them here.
 SERVER_SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz
@@ -222,7 +222,7 @@ GIT_SHA=$(git rev-parse HEAD)
 
 cd packages/client
 flutter build web --wasm \
-  --dart-define=SERVER_NAME=https://dev.tentura.io \
+  --dart-define=SERVER_NAME=https://tentura.io \
   --dart-define=IMAGE_SERVER=https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura \
   --dart-define=FB_APP_ID=1:123456789:web:abc... \
   --dart-define=FB_API_KEY=AIza... \
@@ -231,6 +231,7 @@ flutter build web --wasm \
   --dart-define=FB_AUTH_DOMAIN=your-firebase-project.firebaseapp.com \
   --dart-define=FB_STORAGE_BUCKET=your-firebase-project.appspot.com \
   --dart-define=FB_VAPID_KEY=<your-vapid-key> \
+  --dart-define=GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com \
   --dart-define=SENTRY_DSN=https://xxx@oyyy.ingest.sentry.io/zzz \
   --dart-define=SENTRY_ENVIRONMENT=prod \
   --dart-define="SENTRY_RELEASE=tentura@${CLIENT_VERSION}" \
@@ -284,12 +285,13 @@ FB_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
 FB_STORAGE_BUCKET=your-firebase-project.appspot.com
 FB_SENDER_ID=123456789
 FB_VAPID_KEY=BNmB...
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 ```
 
-All values come from Firebase Console → Project Settings:
-- **`FB_APP_ID`** — Web App ID under "Your apps" (`1:…:web:…`). This is **not** the API key. Wrong value causes `firebaseinstallations` HTTP 400 in the browser.
-- **`FB_VAPID_KEY`** — Web Push certificate key under Cloud Messaging → Web Push certificates.
-- The rest come from the Firebase SDK config snippet.
+All Firebase values come from Firebase Console → Project Settings → Your apps → Web app SDK config snippet:
+- **`FB_APP_ID`** — Web App ID (`1:…:web:…`). This is **not** the API key. Wrong value causes `firebaseinstallations` HTTP 400 in the browser.
+- **`FB_VAPID_KEY`** — Web Push certificate key from Cloud Messaging → Web Push certificates.
+- **`GOOGLE_CLIENT_ID`** — the OAuth 2.0 Web Client ID from Google Cloud Console (same value as in VPS `.env`). Used by the client to initiate Google sign-in.
 
 GitHub preserves newlines in multiline secrets, so paste the block as-is. CI writes it to a file and passes it to `flutter build web --dart-define-from-file`.
 
