@@ -31,7 +31,6 @@ Future<void> showCoordinationItemEditSheet(
     isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
-    isDismissible: false,
     builder: (ctx) => _CoordinationItemEditSheetBody(
       item: item,
       l10n: l10n,
@@ -79,12 +78,19 @@ class _CoordinationItemEditSheetBodyState
     super.dispose();
   }
 
+  bool get _isDirty =>
+      _titleController.text.trim() != widget.item.title.trim() ||
+      _bodyController.text.trim() != widget.item.body.trim();
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final canSubmit = _titleController.text.trim().isNotEmpty && !_submitting;
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -148,6 +154,7 @@ class _CoordinationItemEditSheetBodyState
           ),
         ],
       ),
+    ),
     );
   }
 }

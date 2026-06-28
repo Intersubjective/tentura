@@ -40,7 +40,6 @@ class HelpOfferMessageDialog extends StatefulWidget {
     isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
-    isDismissible: false,
     builder: (_) => HelpOfferMessageDialog(
       title: title,
       hintText: hintText,
@@ -104,23 +103,11 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
     return false;
   }
 
-  Future<void> _requestClose(L10n l10n) async {
-    if (!_isDirty) {
-      Navigator.of(context).pop();
-      return;
-    }
-    final confirmed = await TenturaConfirmDialog.show(
-      context: context,
-      title: l10n.composerDiscardTitle,
-      content: l10n.composerDiscardBody,
-      confirmLabel: l10n.composerDiscardConfirm,
-      cancelLabel: l10n.composerDiscardKeepEditing,
-      useRootNavigator: true,
-    );
-    if ((confirmed ?? false) && mounted) {
-      Navigator.of(context).pop();
-    }
-  }
+  Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(
+    context,
+    isDirty: _isDirty,
+    useRootNavigator: true,
+  );
 
   void _submit(L10n l10n) {
     if (!_canSubmit) return;
@@ -249,12 +236,9 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    return PopScope(
-      canPop: !_isDirty,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        await _requestClose(l10n);
-      },
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
       child: Padding(
         padding: EdgeInsets.only(
           left: tt.screenHPadding,
@@ -276,7 +260,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
             ),
             SizedBox(height: tt.sectionGap),
             TextButton(
-              onPressed: () => _requestClose(l10n),
+              onPressed: _requestClose,
               child: Text(l10n.buttonCancel),
             ),
             SizedBox(

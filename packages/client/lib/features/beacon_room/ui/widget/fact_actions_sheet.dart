@@ -172,7 +172,6 @@ Future<void> _showEditFactSheet(
     isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
-    isDismissible: false,
     builder: (ctx) => _EditFactSheet(
       initialText: fact.factText,
       l10n: l10n,
@@ -211,6 +210,9 @@ class _EditFactSheetState extends State<_EditFactSheet> {
     super.dispose();
   }
 
+  bool get _isDirty =>
+      _controller.text.trim() != widget.initialText.trim();
+
   void _save() {
     final t = _controller.text.trim();
     if (t.isEmpty) return;
@@ -221,7 +223,10 @@ class _EditFactSheetState extends State<_EditFactSheet> {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -245,6 +250,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
             decoration: InputDecoration(
               hintText: widget.l10n.beaconRoomFactCardEditHint,
             ),
+            onChanged: (_) => setState(() {}),
           ),
           SizedBox(height: tt.sectionGap),
           FilledButton(
@@ -253,6 +259,7 @@ class _EditFactSheetState extends State<_EditFactSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }

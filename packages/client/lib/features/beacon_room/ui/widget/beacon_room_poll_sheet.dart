@@ -15,8 +15,6 @@ Future<void> showBeaconRoomPollSheet(
     context: context,
     useRootNavigator: true,
     enableDrag: false,
-    // Keep the composer modal stable while the soft keyboard changes inset.
-    isDismissible: false,
     builder: (_) => _PollCreateSheet(cubit: cubit),
   );
 }
@@ -37,6 +35,32 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   bool _isAnonymous = true;
   bool _allowRevote = true;
   bool _sending = false;
+
+  late final String _initialQuestion;
+  late final List<String> _initialVariants;
+  late final String _initialPollType;
+  late final bool _initialIsAnonymous;
+  late final bool _initialAllowRevote;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialQuestion = _question;
+    _initialVariants = List<String>.from(_variants);
+    _initialPollType = _pollType;
+    _initialIsAnonymous = _isAnonymous;
+    _initialAllowRevote = _allowRevote;
+  }
+
+  bool get _isDirty =>
+      _question != _initialQuestion ||
+      _variants.length != _initialVariants.length ||
+      !_variants.asMap().entries.every(
+        (e) => e.value == _initialVariants[e.key],
+      ) ||
+      _pollType != _initialPollType ||
+      _isAnonymous != _initialIsAnonymous ||
+      _allowRevote != _initialAllowRevote;
 
   Future<void> _send() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -70,7 +94,10 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -91,7 +118,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               SizedBox(height: tt.sectionGap),
               PollingQuestionInput(
                 labelText: l10n.pollQuestionFieldLabel,
-                onChanged: (v) => _question = v,
+                onChanged: (v) => setState(() => _question = v),
               ),
               SizedBox(height: tt.sectionGap),
               Text(
@@ -107,7 +134,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                     padding: EdgeInsets.only(bottom: tt.rowGap),
                     child: PollingVariantInput(
                       labelText: l10n.optionLabel(idx + 1),
-                      onChanged: (v) => _variants[idx] = v,
+                      onChanged: (v) => setState(() => _variants[idx] = v),
                       onRemove: _variants.length > 2
                           ? () => setState(() => _variants.removeAt(idx))
                           : () {},
@@ -177,6 +204,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -5,6 +5,7 @@ export 'components/tentura_avatar.dart';
 export 'components/tentura_adaptive_sheet.dart';
 export 'components/tentura_command_button.dart';
 export 'components/tentura_confirm_dialog.dart';
+export 'components/tentura_sheet_dismiss_guard.dart';
 export 'components/tentura_count_badge.dart';
 export 'components/tentura_hairline_divider.dart';
 export 'components/tentura_vertical_hairline.dart';

@@ -25,7 +25,6 @@ Future<void> showBeaconCurrentLineSheet(
     isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
-    isDismissible: false,
     builder: (ctx) => _BeaconCurrentLineSheetBody(
       l10n: l10n,
       beaconId: beaconId,
@@ -75,6 +74,9 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
   bool get _canSubmit =>
       _controller.text.trim().isNotEmpty && !_submitting;
 
+  bool get _isDirty =>
+      _controller.text.trim() != widget.initialText.trim();
+
   Future<void> _save() async {
     if (!_canSubmit) return;
     setState(() => _submitting = true);
@@ -109,7 +111,10 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
     final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -151,6 +156,7 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
           ),
         ],
       ),
+    ),
     );
   }
 }

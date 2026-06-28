@@ -64,6 +64,10 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
     _selected = Set.from(widget.initialSlugs);
   }
 
+  bool get _isDirty =>
+      _selected.length != widget.initialSlugs.length ||
+      !_selected.containsAll(widget.initialSlugs);
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -90,7 +94,9 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    return DraggableScrollableSheet(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      child: DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.75,
       minChildSize: 0.4,
@@ -134,6 +140,7 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
           ),
         ],
       ),
+    ),
     );
   }
 }

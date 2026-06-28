@@ -232,37 +232,46 @@ class _CredentialsScreenState extends State<CredentialsScreen>
       showDragHandle: true,
       builder: (sheetContext) {
         final tt = sheetContext.tt;
-        return Padding(
-          padding: EdgeInsets.only(
-            left: tt.screenHPadding,
-            right: tt.screenHPadding,
-            top: tt.sectionGap,
-            bottom:
-                MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.linkEmailTitle,
-                style: Theme.of(sheetContext).textTheme.titleMedium,
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final isDirty = controller.text.trim().isNotEmpty;
+            return TenturaSheetDismissGuard(
+              isDirty: isDirty,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  top: tt.sectionGap,
+                  bottom:
+                      MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.linkEmailTitle,
+                      style: Theme.of(sheetContext).textTheme.titleMedium,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      decoration: InputDecoration(hintText: l10n.linkEmailHint),
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(sheetContext).pop(controller.text),
+                      child: Text(l10n.linkEmailSend),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(height: tt.rowGap),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                decoration: InputDecoration(hintText: l10n.linkEmailHint),
-              ),
-              SizedBox(height: tt.sectionGap),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(sheetContext).pop(controller.text),
-                child: Text(l10n.linkEmailSend),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

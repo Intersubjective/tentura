@@ -26,7 +26,6 @@ Future<void> showEvaluationDetailSheet({
     isScrollControlled: true,
     showDragHandle: true,
     enableDrag: false,
-    isDismissible: false,
     builder: (ctx) => _EvaluationDetailSheetBody(
       l10n: l10n,
       participant: participant,
@@ -62,6 +61,9 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
   late final List<String> _tags;
   final _ackTags = <String>{};
   late final TextEditingController _noteController;
+  late final EvaluationValue _initialValue;
+  late final List<String> _initialTags;
+  late final String _initialNote;
 
   @override
   void initState() {
@@ -69,6 +71,9 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
     _value = widget.participant.currentValue ?? EvaluationValue.noBasis;
     _tags = List<String>.from(widget.participant.reasonTags);
     _noteController = TextEditingController(text: widget.participant.note);
+    _initialValue = _value;
+    _initialTags = List<String>.from(_tags);
+    _initialNote = widget.participant.note;
   }
 
   @override
@@ -140,6 +145,13 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
     };
   }
 
+  bool get _isDirty =>
+      _value != _initialValue ||
+      _tags.length != _initialTags.length ||
+      !_tags.every(_initialTags.contains) ||
+      _noteController.text != _initialNote ||
+      _ackTags.isNotEmpty;
+
   Future<void> _save() async {
     final needs = _value.requiresReasonTag;
     if (needs && _tags.isEmpty) {
@@ -165,7 +177,9 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
     final allowTags = _value.allowsReasonTag;
     final pool = allowTags ? _allowedTags(_value) : <String>[];
 
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -250,6 +264,7 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
               ),
               maxLines: 3,
               maxLength: 280,
+              onChanged: (_) => setState(() {}),
             ),
             EvaluationPrivacyInfoRow(
               shortLabel: l10n.evaluationPrivacyShort,
@@ -263,6 +278,7 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
           ],
         ),
       ),
+    ),
     );
   }
 }
