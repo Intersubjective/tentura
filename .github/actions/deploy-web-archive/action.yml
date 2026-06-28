@@ -54,11 +54,11 @@ runs:
         set -euo pipefail
         
         # Use -o LogLevel=ERROR to suppress verbose output that might expose sensitive info
-        DEPLOY_CMD="chmod +x /srv/tentura_server/deploy.sh &&"
+        DEPLOY_CMD="chmod +x /opt/tentura/deploy.sh &&"
         if [ -n "${{ inputs.landing-archive-name }}" ]; then
           DEPLOY_CMD="$DEPLOY_CMD LANDING_ARCHIVE=/tmp/${{ inputs.landing-archive-name }}"
         fi
-        DEPLOY_CMD="$DEPLOY_CMD /srv/tentura_server/deploy.sh /tmp/${{ inputs.archive-name }}"
+        DEPLOY_CMD="$DEPLOY_CMD /opt/tentura/deploy.sh /tmp/${{ inputs.archive-name }}"
 
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \

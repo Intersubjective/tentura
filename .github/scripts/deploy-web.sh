@@ -29,7 +29,7 @@ scp -o StrictHostKeyChecking=accept-new "$ARCHIVE_NAME" deploy@"$VPS_HOST":/tmp/
 # Deploy via SSH (SSH agent handles authentication)
 ARCHIVE_FILENAME=$(basename "$ARCHIVE_NAME")
 ssh -o StrictHostKeyChecking=accept-new deploy@"$VPS_HOST" \
-    "chmod +x /srv/tentura_server/deploy.sh && /srv/tentura_server/deploy.sh /tmp/$ARCHIVE_FILENAME $ENVIRONMENT"
+    "chmod +x /opt/tentura/deploy.sh && /opt/tentura/deploy.sh /tmp/$ARCHIVE_FILENAME $ENVIRONMENT"
 
 # Clean up archive from /tmp after successful deployment
 ssh -o StrictHostKeyChecking=accept-new deploy@"$VPS_HOST" \

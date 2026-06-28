@@ -14,16 +14,16 @@ docker compose version          # must say v2+
 ## 1. Create deployment directory and copy config files
 
 ```bash
-sudo mkdir -p /srv/tentura_server
-sudo chown $USER:$USER /srv/tentura_server
-cd /srv/tentura_server
+sudo mkdir -p /opt/tentura
+sudo chown $USER:$USER /opt/tentura
+cd /opt/tentura
 ```
 
 Copy these files from your local repo to the server:
 
 ```bash
-scp compose.prod.yaml Caddyfile deploy.sh root@YOUR_SERVER:/srv/tentura_server/
-ssh root@YOUR_SERVER "chmod +x /srv/tentura_server/deploy.sh"
+scp compose.prod.yaml Caddyfile deploy.sh root@YOUR_SERVER:/opt/tentura/
+ssh root@YOUR_SERVER "chmod +x /opt/tentura/deploy.sh"
 ```
 
 ---
@@ -66,7 +66,7 @@ awk 'NR==1{printf "%s",$0} NR>1{printf "\\n%s",$0} END{print ""}' jwt_public.pem
 ## 4. Create `.env` on the server
 
 ```bash
-cd /srv/tentura_server
+cd /opt/tentura
 cat > .env << 'EOF'
 # === POSTGRES ===
 POSTGRES_PASSWORD=<strong-random-password>
@@ -148,13 +148,13 @@ For per-host structural overrides. Copy the example and edit:
 
 ```bash
 # from local dev machine
-scp examples/compose.override.example.yaml root@YOUR_SERVER:/srv/tentura_server/compose.override.yaml
+scp examples/compose.override.example.yaml root@YOUR_SERVER:/opt/tentura/compose.override.yaml
 ```
 
 Minimum useful production override:
 
 ```yaml
-# /srv/tentura_server/compose.override.yaml
+# /opt/tentura/compose.override.yaml
 services:
   proxy:
     environment:
@@ -182,7 +182,7 @@ services:
 ## 6. First deploy — start the stack
 
 ```bash
-cd /srv/tentura_server
+cd /opt/tentura
 mkdir -p web landing pg_data
 
 docker compose -f compose.prod.yaml -f compose.override.yaml pull
@@ -246,7 +246,7 @@ scp /tmp/web-*.tar.gz root@YOUR_SERVER:/tmp/
 Then on the server:
 
 ```bash
-cd /srv/tentura_server
+cd /opt/tentura
 OVERRIDE_FILE=compose.override.yaml ./deploy.sh /tmp/web-*.tar.gz
 ```
 
