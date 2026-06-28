@@ -23,12 +23,13 @@ import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.da
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
+import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
+import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
@@ -195,9 +196,7 @@ class RoomMessageTile extends StatelessWidget {
 
   @visibleForTesting
   static bool isThreadEntryKind(CoordinationItemKind kind) =>
-      kind == CoordinationItemKind.ask ||
-      kind == CoordinationItemKind.promise ||
-      kind == CoordinationItemKind.blocker;
+      kind.hasDirectedParties;
 
   /// Ask / promise / blocker marks stay vivid on cards so thread access matches open items.
   @visibleForTesting
@@ -209,24 +208,7 @@ class RoomMessageTile extends StatelessWidget {
     List<BeaconParticipant> participants,
   ) {
     if (userId.isEmpty) return null;
-    for (final p in participants) {
-      if (p.userId == userId) {
-        return Profile(
-          id: p.userId,
-          displayName: p.userTitle,
-          image: p.userHasPicture && p.userImageId.isNotEmpty
-              ? ImageEntity(
-                  id: p.userImageId,
-                  authorId: p.userId,
-                  blurHash: p.userBlurHash,
-                  height: p.userPicHeight,
-                  width: p.userPicWidth,
-                )
-              : null,
-        );
-      }
-    }
-    return Profile(id: userId);
+    return profileForParticipant(participants, userId);
   }
 
   static String _coordKindShortLabel(L10n l10n, CoordinationItemKind? k) =>
@@ -431,6 +413,15 @@ class RoomMessageTile extends StatelessWidget {
             bottomPad / 2,
           ),
           icon: Icons.push_pin_outlined,
+          leadingAvatarTrail: kind != null && kind.hasDirectedParties
+              ? coordinationDirectedAvatarTrailForItem(
+                  creatorId: message.linkedItemCreatorId ?? '',
+                  targetPersonId:
+                      message.linkedItemTargetPersonId ??
+                      message.linkedCoordinationItem?.targetPersonId,
+                  participants: participants,
+                )
+              : null,
           leading: isCreated
               ? null
               : coordinationCompoundEventIcon(
@@ -1087,11 +1078,13 @@ class _CenteredTimelineBar extends StatelessWidget {
     required this.theme,
     required this.iconTextGap,
     this.leading,
+    this.leadingAvatarTrail,
   });
 
   final EdgeInsets padding;
   final IconData icon;
   final Widget? leading;
+  final Widget? leadingAvatarTrail;
   final String Function(String authorName) lineBuilder;
   final Profile author;
   final VoidCallback? onTap;
@@ -1126,6 +1119,10 @@ class _CenteredTimelineBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (leadingAvatarTrail != null) ...[
+                  leadingAvatarTrail!,
+                  SizedBox(width: iconTextGap / 2),
+                ],
                 leading ??
                     Icon(
                       icon,
@@ -1291,6 +1288,11 @@ class _MessageLifecycleFooter extends StatelessWidget {
               kind,
               CoordinationItemEventKind.created,
             );
+      final targetId =
+          message.linkedItemTargetPersonId ?? linkedCoord!.targetPersonId;
+      final targetProfile = targetId != null && targetId.trim().isNotEmpty
+          ? profileForParticipant(participants, targetId.trim())
+          : null;
       promotionRow = _lifecycleTapRow(
         context: context,
         profile:
@@ -1299,6 +1301,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
               participants,
             ) ??
             const Profile(),
+        targetProfile: targetProfile,
         leading: coordinationCompoundEventIcon(
           kind: kind,
           eventKind: CoordinationItemEventKind.created,
@@ -1522,16 +1525,24 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required String time,
     required VoidCallback? onTap,
     CoordinationItemKind? kind,
+    Profile? targetProfile,
     int messageCount = 0,
     bool hasUnread = false,
   }) {
     // Ask/promise/blocker open a real sub-thread → forum mark (+ reply count /
     // unread dot) and a chevron. Plan only scrolls to its anchor → jump glyph.
-    final isThread = kind != null && RoomMessageTile.isThreadEntryKind(kind);
+    final isThread = kind != null && kind.hasDirectedParties;
+    final avatarLeading = isThread
+        ? coordinationItemProfileAvatarTrail(
+            source: profile,
+            target: targetProfile,
+            avatarSize: _avatarSize,
+          )
+        : TenturaAvatar.tiny(profile: profile, size: _avatarSize);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TenturaAvatar.tiny(profile: profile, size: _avatarSize),
+        avatarLeading,
         SizedBox(width: tokens.iconTextGap / 4),
         leading,
         SizedBox(width: tokens.iconTextGap / 4),

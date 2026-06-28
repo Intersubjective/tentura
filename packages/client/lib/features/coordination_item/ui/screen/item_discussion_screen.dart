@@ -12,6 +12,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
+import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
 import '../bloc/item_actions_cubit.dart';
 import '../bloc/item_actions_state.dart';
@@ -308,20 +309,40 @@ class _ItemDiscussionHeader extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Row(
-            children: [
-              headerIcon,
-              SizedBox(width: tt.iconTextGap),
-              Text(
-                kindLabel,
-                style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
-              ),
-              SizedBox(width: tt.rowGap),
-              Text(
-                coordinationItemStatusLabel(l10n, item.status),
-                style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
-              ),
-            ],
+          subtitle: BlocBuilder<RoomCubit, RoomState>(
+            buildWhen: (p, c) => p.participants != c.participants,
+            builder: (context, roomState) {
+              final avatarTrail = item.kind.hasDirectedParties
+                  ? coordinationDirectedAvatarTrailForItem(
+                      creatorId: item.creatorId,
+                      targetPersonId: item.targetPersonId,
+                      participants: roomState.participants,
+                    )
+                  : null;
+              return Row(
+                children: [
+                  if (avatarTrail != null) ...[
+                    avatarTrail,
+                    SizedBox(width: tt.rowGap),
+                  ],
+                  headerIcon,
+                  SizedBox(width: tt.iconTextGap),
+                  Text(
+                    kindLabel,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: statusColor,
+                    ),
+                  ),
+                  SizedBox(width: tt.rowGap),
+                  Text(
+                    coordinationItemStatusLabel(l10n, item.status),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           children: [
             Padding(

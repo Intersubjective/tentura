@@ -200,6 +200,7 @@ class BeaconRoomRepository {
           linkedItemTitle: m.linkedItemTitle,
           linkedItemBody: m.linkedItemBody,
           linkedItemCreatorId: m.linkedItemCreatorId,
+          linkedItemTargetPersonId: m.linkedItemTargetPersonId,
           linkedItemCreatedAt: m.linkedItemCreatedAt != null
               ? DateTime.parse(m.linkedItemCreatedAt!)
               : null,

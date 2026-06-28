@@ -25,6 +25,19 @@ CoordinationItem _item({
     );
 
 void main() {
+  group('hasDirectedParties', () {
+    test('ask promise blocker are directed', () {
+      expect(CoordinationItemKind.ask.hasDirectedParties, isTrue);
+      expect(CoordinationItemKind.promise.hasDirectedParties, isTrue);
+      expect(CoordinationItemKind.blocker.hasDirectedParties, isTrue);
+    });
+
+    test('plan resolution are not directed', () {
+      expect(CoordinationItemKind.plan.hasDirectedParties, isFalse);
+      expect(CoordinationItemKind.resolution.hasDirectedParties, isFalse);
+    });
+  });
+
   group('directInvolvementAsSourceOrTarget', () {
     test('ask creator matches', () {
       final item = _item(id: 'a1', kind: CoordinationItemKind.ask);
