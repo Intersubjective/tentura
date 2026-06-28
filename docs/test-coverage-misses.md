@@ -725,7 +725,7 @@ cd packages/client && flutter test --dart-define=ENV=test --dart-define-from-fil
 | **Status** | done |
 | **Source** | CI: `dart test --exclude-tags pg` |
 | **Gap** | Repository parity tests only run locally/with Postgres. |
-| **Recommended** | Document in PR template; optional nightly workflow with service container. |
+| **Recommended** | Document in PR template; run locally with compose Postgres. |
 
 ---
 

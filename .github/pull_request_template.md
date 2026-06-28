@@ -11,7 +11,6 @@
   docker compose up -d meritrank postgres
   cd packages/server && dart test --tags pg
   ```
-  Nightly workflow [pg-integration-nightly.yml](.github/workflows/pg-integration-nightly.yml) runs these on `main` (03:00 UTC) and via **workflow_dispatch**.
 
 ## Coverage backlog
 

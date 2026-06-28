@@ -9,11 +9,9 @@ Most server tests use mocked repository ports and need no database.
 
 A small set of **Postgres integration tests** (tagged `pg`) exercise real Drift
 `customSelect` / `customStatement` against a live database. PR CI runs
-`dart test --exclude-tags pg`; a **nightly** GitHub Actions job
-(`.github/workflows/pg-integration-nightly.yml`) runs `dart test --tags pg`
-against `vbulavintsev/postgres-tentura` + MeritRank service containers.
-Locally use `dart test` (skipped when Postgres is not reachable) or
-`dart test --tags pg` for integration only (`docker compose up -d meritrank postgres`).
+`dart test --exclude-tags pg`. Locally use `dart test` (skipped when Postgres is
+not reachable) or `dart test --tags pg` for integration only
+(`docker compose up -d meritrank postgres`).
 Postgres defaults to `127.0.0.1:5432` (override via `POSTGRES_HOST` /
 `POSTGRES_PORT` / `POSTGRES_PASSWORD`).
 
