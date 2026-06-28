@@ -51,24 +51,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.on_public_user_update()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-DECLARE
-  _new record;
-BEGIN
-  _new := NEW;
-  _new."updated_at" = NOW();
-  IF NEW.has_picture = false THEN
-    _new.blur_hash = '';
-    _new.pic_height = 0;
-    _new.pic_width = 0;
-  END IF;
-  RETURN _new;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION public.on_user_created()
   RETURNS trigger
   LANGUAGE plpgsql
@@ -95,9 +77,9 @@ $$;
 -- Triggers
 DROP TRIGGER IF EXISTS notify_meritrank_vote_user_mutation ON public.vote_user;
 
-CREATE OR REPLACE TRIGGER on_public_user_update
+CREATE OR REPLACE TRIGGER set_public_user_updated_at
   BEFORE UPDATE ON public."user"
-  FOR EACH ROW EXECUTE FUNCTION public.on_public_user_update();
+  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
 
 CREATE OR REPLACE TRIGGER on_user_created
   AFTER INSERT ON public."user"
