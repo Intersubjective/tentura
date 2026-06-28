@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 import 'package:image_cropper_for_web/src/cropper_actionbar.dart';
 import 'package:image_cropper_platform_interface/image_cropper_platform_interface.dart';
 
+import 'cropper_overlay_anchor.dart';
+
 class CropperDialog extends StatefulWidget {
-  final Widget cropper;
+  final web.HTMLDivElement overlayElement;
   final Function() initCropper;
   final Future<String?> Function() crop;
   final void Function(RotationAngle) rotate;
@@ -15,7 +18,7 @@ class CropperDialog extends StatefulWidget {
 
   const CropperDialog({
     super.key,
-    required this.cropper,
+    required this.overlayElement,
     required this.initCropper,
     required this.crop,
     required this.rotate,
@@ -32,12 +35,6 @@ class CropperDialog extends StatefulWidget {
 
 class _CropperDialogState extends State<CropperDialog> {
   bool _processing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.initCropper();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,8 +95,11 @@ class _CropperDialogState extends State<CropperDialog> {
         SizedBox(
           width: widget.cropperContainerWidth,
           height: widget.cropperContainerHeight,
-          child: ClipRect(
-            child: widget.cropper,
+          child: CropperOverlayAnchor(
+            overlayElement: widget.overlayElement,
+            width: widget.cropperContainerWidth,
+            height: widget.cropperContainerHeight,
+            onLayoutReady: widget.initCropper,
           ),
         ),
         Padding(
