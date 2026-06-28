@@ -13,9 +13,10 @@ Future<void> showBeaconRoomPollSheet(
 }) async {
   await showTenturaAdaptiveSheet<void>(
     context: context,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
+    // Keep the composer modal stable while the soft keyboard changes inset.
+    isDismissible: false,
     builder: (_) => _PollCreateSheet(cubit: cubit),
   );
 }

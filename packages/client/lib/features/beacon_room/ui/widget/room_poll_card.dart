@@ -8,7 +8,6 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-
 class RoomPollCard extends StatefulWidget {
   const RoomPollCard({
     required this.poll,
@@ -76,35 +75,38 @@ class _RoomPollCardState extends State<RoomPollCard> {
         ),
       );
 
-  Widget _buildMultipleUnvoted(ThemeData theme, String variantId, String label) =>
-      InkWell(
-        onTap: () => setState(() {
-          if (_pendingMultiple.contains(variantId)) {
-            _pendingMultiple.remove(variantId);
-          } else {
-            _pendingMultiple.add(variantId);
-          }
-        }),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-          child: Row(
-            children: [
-              Icon(
-                _pendingMultiple.contains(variantId)
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: _pendingMultiple.contains(variantId)
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outline,
-              ),
-              const SizedBox(width: kSpacingSmall),
-              Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-            ],
+  Widget _buildMultipleUnvoted(
+    ThemeData theme,
+    String variantId,
+    String label,
+  ) => InkWell(
+    onTap: () => setState(() {
+      if (_pendingMultiple.contains(variantId)) {
+        _pendingMultiple.remove(variantId);
+      } else {
+        _pendingMultiple.add(variantId);
+      }
+    }),
+    borderRadius: BorderRadius.circular(8),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Row(
+        children: [
+          Icon(
+            _pendingMultiple.contains(variantId)
+                ? Icons.check_box
+                : Icons.check_box_outline_blank,
+            size: 20,
+            color: _pendingMultiple.contains(variantId)
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
           ),
-        ),
-      );
+          const SizedBox(width: kSpacingSmall),
+          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildRangeUnvoted(ThemeData theme, String variantId, String label) {
     final score = _pendingRange[variantId];
@@ -120,7 +122,10 @@ class _RoomPollCardState extends State<RoomPollCard> {
               ),
               if (score != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -184,7 +189,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
             children: [
               if (poll.pollType == PollType.single)
                 Icon(
-                  isMine ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  isMine
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
                   size: 20,
                   color: isMine ? cs.primary : cs.outline,
                 )
@@ -354,20 +361,26 @@ class _RoomPollCardState extends State<RoomPollCard> {
             ),
             const SizedBox(height: kSpacingSmall),
 
-            // Voting controls (sliders, option rows, submit) stay out of the focus
-            // tree so they do not hold primary focus after interaction. A focused
-            // Slider FocusNode leaves the room composer with a cursor but no soft
-            // keyboard when the user taps the message field.
+            // Poll controls stay out of the focus tree so they do not hold
+            // primary focus after interaction. A focused Slider FocusNode can
+            // leave the composer with a cursor but no soft keyboard on mobile.
             if (voted)
-              ...poll.variants.map(
-                (v) => Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: _buildVotedRow(
-                    theme,
-                    v,
-                    showVoters,
-                    participantsByUserId,
-                  ),
+              ExcludeFocus(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...poll.variants.map(
+                      (v) => Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: _buildVotedRow(
+                          theme,
+                          v,
+                          showVoters,
+                          participantsByUserId,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               )
             else
@@ -435,17 +448,21 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 Expanded(
                   child: Text(
                     l10n.beaconRoomPollVotesCount(poll.totalVotes),
-                    style: theme.textTheme.bodySmall?.copyWith(color: cs.outline),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.outline,
+                    ),
                   ),
                 ),
                 if (voted && poll.allowRevote && widget.onVote != null)
-                  TextButton(
-                    onPressed: () => setState(() {
-                      _revoting = true;
-                      _pendingMultiple = poll.myVariantIds.toSet();
-                      _pendingRange = {};
-                    }),
-                    child: const Text('Change answer'),
+                  ExcludeFocus(
+                    child: TextButton(
+                      onPressed: () => setState(() {
+                        _revoting = true;
+                        _pendingMultiple = poll.myVariantIds.toSet();
+                        _pendingRange = {};
+                      }),
+                      child: const Text('Change answer'),
+                    ),
                   ),
               ],
             ),

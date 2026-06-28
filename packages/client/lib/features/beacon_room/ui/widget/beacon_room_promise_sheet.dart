@@ -90,10 +90,11 @@ Future<void> showBeaconRoomPromiseSheet(
     var submitting = false;
     final ok = await showTenturaAdaptiveSheet<bool>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
       useRootNavigator: true,
       enableDrag: false,
+      // Promise composition needs the same keyboard-stable modal behavior as
+      // the edit/create sheets above.
+      isDismissible: false,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
@@ -114,78 +115,79 @@ Future<void> showBeaconRoomPromiseSheet(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                  Text(
-                    l10n.coordinationCreatePromiseSheetPrompt,
-                    style: Theme.of(ctx).textTheme.titleMedium,
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  AskComposerFields(
-                    l10n: l10n,
-                    titleController: titleController,
-                    bodyController: bodyController,
-                    submitting: submitting,
-                    messagePreview: messagePreview,
-                    onChanged: () => setState(() {}),
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey<String>(targetUserId),
-                    initialValue: targetUserId,
-                    decoration: InputDecoration(
-                      labelText: l10n.coordinationPromiseTargetPickerLabel,
+                    Text(
+                      l10n.coordinationCreatePromiseSheetPrompt,
+                      style: Theme.of(ctx).textTheme.titleMedium,
                     ),
-                    items: [
-                      for (final p in targets)
-                        DropdownMenuItem(
-                          value: p.userId,
-                          child: Text(_targetLabel(l10n, p)),
-                        ),
-                    ],
-                    onChanged: submitting
-                        ? null
-                        : (v) =>
-                              setState(() => targetUserId = v ?? targetUserId),
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  CoordinationStalenessPicker(
-                    l10n: l10n,
-                    selectedDays: staleDays,
-                    enabled: !submitting,
-                    onSelected: (days) => setState(() => staleDays = days),
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  FilledButton(
-                    onPressed: !canSubmit
-                        ? null
-                        : () async {
-                            setState(() => submitting = true);
-                            try {
-                              await roomCase.createPromise(
-                                beaconId: beaconId,
-                                title: titleController.text.trim(),
-                                body: bodyController.text.trim(),
-                                targetPersonId: targetUserId,
-                                linkedMessageId: linkedMessageId,
-                                staleAfterDays: staleDays,
-                              );
-                              if (ctx.mounted) {
-                                Navigator.of(ctx).pop(true);
+                    SizedBox(height: tt.rowGap),
+                    AskComposerFields(
+                      l10n: l10n,
+                      titleController: titleController,
+                      bodyController: bodyController,
+                      submitting: submitting,
+                      messagePreview: messagePreview,
+                      onChanged: () => setState(() {}),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey<String>(targetUserId),
+                      initialValue: targetUserId,
+                      decoration: InputDecoration(
+                        labelText: l10n.coordinationPromiseTargetPickerLabel,
+                      ),
+                      items: [
+                        for (final p in targets)
+                          DropdownMenuItem(
+                            value: p.userId,
+                            child: Text(_targetLabel(l10n, p)),
+                          ),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (v) => setState(
+                              () => targetUserId = v ?? targetUserId,
+                            ),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    CoordinationStalenessPicker(
+                      l10n: l10n,
+                      selectedDays: staleDays,
+                      enabled: !submitting,
+                      onSelected: (days) => setState(() => staleDays = days),
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                    FilledButton(
+                      onPressed: !canSubmit
+                          ? null
+                          : () async {
+                              setState(() => submitting = true);
+                              try {
+                                await roomCase.createPromise(
+                                  beaconId: beaconId,
+                                  title: titleController.text.trim(),
+                                  body: bodyController.text.trim(),
+                                  targetPersonId: targetUserId,
+                                  linkedMessageId: linkedMessageId,
+                                  staleAfterDays: staleDays,
+                                );
+                                if (ctx.mounted) {
+                                  Navigator.of(ctx).pop(true);
+                                }
+                              } on Object catch (_) {
+                                if (ctx.mounted) {
+                                  setState(() => submitting = false);
+                                }
                               }
-                            } on Object catch (_) {
-                              if (ctx.mounted) {
-                                setState(() => submitting = false);
-                              }
-                            }
-                          },
-                    child: submitting
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                  ),
-                ],
+                            },
+                      child: submitting
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(MaterialLocalizations.of(ctx).saveButtonLabel),
+                    ),
+                  ],
                 ),
               ),
             );

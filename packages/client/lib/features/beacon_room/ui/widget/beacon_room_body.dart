@@ -620,7 +620,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
-      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
         content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
@@ -652,7 +651,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
-      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
         content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
@@ -690,10 +688,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final newBody = await showTenturaAdaptiveSheet<String>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
       useRootNavigator: true,
       enableDrag: false,
+      // Keep this sheet modal while the keyboard animates; barrier dismissal
+      // here is the path that was collapsing the editor on mobile.
+      isDismissible: false,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
@@ -718,7 +717,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     await showTenturaAdaptiveSheet<void>(
       context: context,
-      showDragHandle: true,
       useRootNavigator: true,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -876,7 +874,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     try {
       final ok = await showDialog<bool>(
         context: context,
-        useRootNavigator: true,
+        barrierDismissible: false,
         builder: (ctx) {
           final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
           return StatefulBuilder(
@@ -928,7 +926,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         CoordinationStalenessPicker(
                           l10n: l10n,
                           selectedDays: staleDays,
-                          onSelected: (days) => setState(() => staleDays = days),
+                          onSelected: (days) =>
+                              setState(() => staleDays = days),
                         ),
                       ] else ...[
                         const SizedBox(height: kSpacingSmall),
@@ -945,7 +944,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+                    child: Text(
+                      MaterialLocalizations.of(ctx).cancelButtonLabel,
+                    ),
                   ),
                   FilledButton(
                     onPressed: () => Navigator.pop(ctx, true),
@@ -1071,10 +1072,10 @@ Future<void> showBeaconRoomUpdatePlanSheet(
 ) async {
   final plan = await showTenturaAdaptiveSheet<String>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
     useRootNavigator: true,
     enableDrag: false,
+    // The edit sheet must stay open across keyboard resize on mobile.
+    isDismissible: false,
     builder: (ctx) => _BeaconRoomTextBottomSheet(
       title: l10n.beaconRoomActionUpdatePlan,
       hintText: l10n.beaconRoomStripCurrentLineLabel,
@@ -1152,7 +1153,8 @@ class _BeaconRoomTextBottomSheetState
             ),
             SizedBox(height: tt.sectionGap),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(_controller.text.trim()),
               child: Text(MaterialLocalizations.of(context).saveButtonLabel),
             ),
           ],
