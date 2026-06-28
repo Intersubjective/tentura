@@ -46,6 +46,18 @@ void main() {
     expect(find.byType(HelpOfferMessageDialog), findsNothing);
   });
 
+  testWidgets('Barrier tap with no input closes immediately (no confirm)', (
+    tester,
+  ) async {
+    await _pumpDialog(tester);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.byType(HelpOfferMessageDialog), findsNothing);
+  });
+
   testWidgets(
     'Cancel with unsaved text prompts to discard and can keep editing',
     (
