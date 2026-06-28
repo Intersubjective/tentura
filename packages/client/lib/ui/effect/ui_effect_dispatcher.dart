@@ -35,11 +35,7 @@ void dispatchUiEffect(
         onFailure: GetIt.I<Logger>().fine,
       );
     case NavigateBack(:final result):
-      if (result != null) {
-        unawaited(router.maybePop(result));
-      } else {
-        router.back();
-      }
+      unawaited(_maybePopOrReplaceWithHome(router, result));
     case NavigateReplace(:final target):
       switch (target) {
         case NavigateReplaceTarget.home:
@@ -99,5 +95,26 @@ void dispatchUiEffect(
             error: error is AuthSessionLostException ? null : error,
           );
       }
+  }
+}
+
+Future<void> _maybePopOrReplaceWithHome(
+  RootRouter router,
+  Object? result,
+) => maybePopOrReplaceWithHomeForTesting(
+  result: result,
+  maybePop: (popResult) => router.maybePop(popResult),
+  replaceWithHome: () => router.replaceAll([const HomeRoute()]),
+);
+
+@visibleForTesting
+Future<void> maybePopOrReplaceWithHomeForTesting({
+  required Future<bool> Function(Object? result) maybePop,
+  required Future<void> Function() replaceWithHome,
+  Object? result,
+}) async {
+  final didPop = await maybePop(result);
+  if (!didPop) {
+    await replaceWithHome();
   }
 }
