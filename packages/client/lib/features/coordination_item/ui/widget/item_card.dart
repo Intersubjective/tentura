@@ -53,6 +53,18 @@ String? _formatStaleRemaining(CoordinationItem item) {
   return '${diff.inMinutes}m';
 }
 
+String? _formatStaleOverdue(CoordinationItem item, L10n l10n) {
+  final overdue = item.staleOverdueDuration();
+  if (overdue == null) return null;
+  if (overdue.inDays >= 1) {
+    return l10n.itemStaleDays(overdue.inDays);
+  }
+  if (overdue.inHours >= 1) {
+    return l10n.itemStaleHours(overdue.inHours);
+  }
+  return l10n.itemStaleMinutes(item.staleOverdueLabelAmount()!);
+}
+
 class ItemCard extends StatefulWidget {
   const ItemCard({
     required this.item,
@@ -147,7 +159,7 @@ class _ItemCardState extends State<ItemCard> {
         widget.creatorParticipant != null ||
         widget.targetParticipant != null;
     final staleCountdown = _formatStaleRemaining(item);
-    final showNeedsAttention = item.isActive && item.isStale;
+    final staleOverdueLabel = _formatStaleOverdue(item, l10n);
     final contentPreview = item.contentPreview;
     final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
 
@@ -183,7 +195,7 @@ class _ItemCardState extends State<ItemCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (showNeedsAttention) ...[
+                        if (staleOverdueLabel != null) ...[
                           const SizedBox(width: 6),
                           Icon(
                             Icons.notification_important_outlined,
@@ -192,7 +204,7 @@ class _ItemCardState extends State<ItemCard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            l10n.itemNeedsAttention,
+                            staleOverdueLabel,
                             style: textTheme.labelSmall?.copyWith(
                               color: tt.warn,
                             ),

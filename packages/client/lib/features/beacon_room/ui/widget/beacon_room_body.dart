@@ -698,9 +698,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       context: context,
       useRootNavigator: true,
       enableDrag: false,
-      // Keep this sheet modal while the keyboard animates; barrier dismissal
-      // here is the path that was collapsing the editor on mobile.
-      isDismissible: false,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
@@ -824,7 +821,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         ),
         useRootNavigator: true,
         enableDrag: false,
-        isDismissible: false,
         onSaved: () {
           unawaited(cubit.load());
           widget.onCoordinationSaved?.call();
@@ -888,7 +884,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       context: context,
       useRootNavigator: true,
       enableDrag: false,
-      isDismissible: false,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (ctx) => _PromoteFieldsSheet(
@@ -967,6 +962,10 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
   late final TextEditingController _bodyController;
   late String _targetUserId;
   late int _staleDays;
+  late final String _initialTitle;
+  late final String _initialBody;
+  late final String _initialTargetUserId;
+  late final int _initialStaleDays;
 
   @override
   void initState() {
@@ -978,6 +977,10 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
       _targetUserId = widget.admitted.first.userId;
     }
     _staleDays = CoordinationItem.defaultStaleDays;
+    _initialTitle = _titleController.text;
+    _initialBody = _bodyController.text;
+    _initialTargetUserId = _targetUserId;
+    _initialStaleDays = _staleDays;
   }
 
   @override
@@ -986,6 +989,12 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
     _bodyController.dispose();
     super.dispose();
   }
+
+  bool get _isDirty =>
+      _titleController.text != _initialTitle ||
+      _bodyController.text != _initialBody ||
+      _targetUserId != _initialTargetUserId ||
+      _staleDays != _initialStaleDays;
 
   void _submit() {
     final body = _bodyController.text.trim();
@@ -1007,7 +1016,10 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final scheme = Theme.of(context).colorScheme;
 
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -1030,6 +1042,7 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
                 hintText: l10n.coordinationPromoteTitleHint,
               ),
               textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
             ),
             SizedBox(height: tt.rowGap),
             TextField(
@@ -1039,6 +1052,7 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
               ),
               maxLines: 4,
               autofocus: widget.messageBody.isEmpty,
+              onChanged: (_) => setState(() {}),
             ),
             SizedBox(height: tt.rowGap),
             DropdownButtonFormField<String>(
@@ -1077,7 +1091,11 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
                   child: Text(
                     MaterialLocalizations.of(context).cancelButtonLabel,
                   ),
@@ -1093,11 +1111,12 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }
 
-/// Standalone "Update plan" text sheet — shared by the per-message edit affordance
+/// Standalone "Update plan" text sheet
 /// on the pinned-now strip and the beacon app-bar overflow menu.
 Future<void> showBeaconRoomUpdatePlanSheet(
   BuildContext context,
@@ -1108,8 +1127,6 @@ Future<void> showBeaconRoomUpdatePlanSheet(
     context: context,
     useRootNavigator: true,
     enableDrag: false,
-    // The edit sheet must stay open across keyboard resize on mobile.
-    isDismissible: false,
     builder: (ctx) => _BeaconRoomTextBottomSheet(
       title: l10n.beaconRoomActionUpdatePlan,
       hintText: l10n.beaconRoomStripCurrentLineLabel,
@@ -1155,11 +1172,17 @@ class _BeaconRoomTextBottomSheetState
     super.dispose();
   }
 
+  bool get _isDirty =>
+      _controller.text.trim() != widget.initialText.trim();
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -1184,6 +1207,7 @@ class _BeaconRoomTextBottomSheetState
               decoration: InputDecoration(
                 hintText: widget.hintText,
               ),
+              onChanged: (_) => setState(() {}),
             ),
             SizedBox(height: tt.sectionGap),
             FilledButton(
@@ -1194,6 +1218,7 @@ class _BeaconRoomTextBottomSheetState
           ],
         ),
       ),
+    ),
     );
   }
 }

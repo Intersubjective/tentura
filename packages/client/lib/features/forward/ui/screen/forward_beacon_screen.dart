@@ -122,6 +122,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     List<String> currentSlugs,
   ) async {
     final l10n = L10n.of(context)!;
+    final baseline = Set<String>.from(currentSlugs);
     var selected = Set<String>.from(currentSlugs);
 
     // Fetch existing subjective capabilities for this recipient so we can
@@ -146,7 +147,12 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
         child: StatefulBuilder(
           builder: (ctx, setModalState) {
             final modalTt = ctx.tt;
-            return DraggableScrollableSheet(
+            final isDirty =
+                selected.length != baseline.length ||
+                !selected.containsAll(baseline);
+            return TenturaSheetDismissGuard(
+              isDirty: isDirty,
+              child: DraggableScrollableSheet(
               expand: false,
               initialChildSize: 0.7,
               minChildSize: 0.4,
@@ -201,6 +207,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                   ),
                 ],
               ),
+            ),
             );
           },
         ),

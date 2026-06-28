@@ -444,7 +444,6 @@ Future<void> _showProposeResolutionSheet(
     context: context,
     useRootNavigator: true,
     enableDrag: false,
-    isDismissible: false,
     showDragHandle: true,
     isScrollControlled: true,
     builder: (ctx) => _ProposeResolutionSheet(l10n: l10n),
@@ -480,6 +479,8 @@ class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
     super.dispose();
   }
 
+  bool get _isDirty => _controller.text.trim().isNotEmpty;
+
   void _submit() {
     final title = _controller.text.trim();
     if (title.isEmpty) return;
@@ -492,7 +493,10 @@ class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
     final tt = context.tt;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: true,
+      child: Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
         right: tt.screenHPadding,
@@ -515,13 +519,18 @@ class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
             ),
             maxLines: 3,
             autofocus: true,
+            onChanged: (_) => setState(() {}),
           ),
           SizedBox(height: tt.sectionGap),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => TenturaSheetDismissGuard.requestClose(
+                  context,
+                  isDirty: _isDirty,
+                  useRootNavigator: true,
+                ),
                 child: Text(
                   MaterialLocalizations.of(context).cancelButtonLabel,
                 ),
@@ -534,6 +543,7 @@ class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -247,7 +247,6 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
           isAuthorOrSteward: state.isAuthorOrSteward,
           useRootNavigator: true,
           enableDrag: false,
-          isDismissible: false,
           onSaved: onSaved,
         ),
       );

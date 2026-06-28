@@ -118,10 +118,49 @@ abstract class CoordinationItem with _$CoordinationItem {
   static const remindCooldownHours = 24;
 
   /// Derived stale state — must match server isItemStale rules.
-  bool get isStale {
+  bool isStaleAt([DateTime? now]) {
     final at = staleAt;
     if (at == null || !isActive) return false;
-    return !at.toUtc().isAfter(DateTime.now().toUtc());
+    return !at.toUtc().isAfter((now ?? DateTime.now()).toUtc());
+  }
+
+  bool get isStale => isStaleAt();
+
+  /// Elapsed time since [staleAt] when [isStaleAt]; null otherwise.
+  Duration? staleOverdueDuration([DateTime? now]) {
+    final at = staleAt;
+    if (at == null || !isActive) return null;
+    final n = (now ?? DateTime.now()).toUtc();
+    final staleUtc = at.toUtc();
+    if (staleUtc.isAfter(n)) return null;
+    final overdue = n.difference(staleUtc);
+    return overdue.isNegative ? Duration.zero : overdue;
+  }
+
+  /// When the stale overdue card label next changes; null when not applicable.
+  DateTime? nextStaleOverdueLabelChangeAt([DateTime? now]) {
+    if (!isActive) return null;
+    final at = staleAt?.toUtc();
+    if (at == null) return null;
+    final n = (now ?? DateTime.now()).toUtc();
+    if (at.isAfter(n)) return at;
+    final overdue = n.difference(at);
+    if (overdue.inDays >= 1) {
+      return at.add(Duration(days: overdue.inDays + 1));
+    }
+    if (overdue.inHours >= 1) {
+      return at.add(Duration(hours: overdue.inHours + 1));
+    }
+    return at.add(Duration(minutes: overdue.inMinutes + 1));
+  }
+
+  /// Minutes/hours/days value for the stale overdue card label.
+  int? staleOverdueLabelAmount([DateTime? now]) {
+    final overdue = staleOverdueDuration(now);
+    if (overdue == null) return null;
+    if (overdue.inDays >= 1) return overdue.inDays;
+    if (overdue.inHours >= 1) return overdue.inHours;
+    return overdue.inMinutes < 1 ? 1 : overdue.inMinutes;
   }
 
   bool isRemindInCooldown([DateTime? now]) {

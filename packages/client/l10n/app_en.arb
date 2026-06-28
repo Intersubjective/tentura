@@ -3741,7 +3741,34 @@
   },
   "itemNeedsAttention": "Needs attention",
   "@itemNeedsAttention": {
-    "description": "Label when a coordination item staleAt deadline has passed (non-managerial wording)"
+    "description": "Remind menu fallback when the responsible person has no display name"
+  },
+  "itemStaleMinutes": "Stale {minutes}m",
+  "@itemStaleMinutes": {
+    "description": "Coordination item card label when stale for less than one hour",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "itemStaleHours": "Stale {hours}h",
+  "@itemStaleHours": {
+    "description": "Coordination item card label when stale for at least one hour but less than one day",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "itemStaleDays": "{days, plural, one{Stale 1 day} other{Stale {days} days}}",
+  "@itemStaleDays": {
+    "description": "Coordination item card label when stale for at least one day",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "itemStaleOverdue": "Needs attention",
   "@itemStaleOverdue": {

@@ -743,8 +743,8 @@ class _MyDraftItemRow extends StatelessWidget {
   }
 }
 
-/// Rebuilds when the nearest active-item [CoordinationItem.staleAt] passes so
-/// stale chips and remind actions appear without leaving the Items tab.
+/// Rebuilds when the nearest active-item stale deadline or overdue label bucket
+/// changes so stale labels and remind actions update without leaving the Items tab.
 class _StaleDeadlineTicker extends StatefulWidget {
   const _StaleDeadlineTicker({
     required this.items,
@@ -779,10 +779,9 @@ class _StaleDeadlineTickerState extends State<_StaleDeadlineTicker> {
     DateTime? nearest;
     for (final item in widget.items) {
       if (!item.isActive) continue;
-      final at = item.staleAt;
-      if (at == null || item.isStale) continue;
-      final utc = at.toUtc();
-      if (!utc.isAfter(now)) continue;
+      final next = item.nextStaleOverdueLabelChangeAt(now);
+      if (next == null) continue;
+      final utc = next.toUtc();
       if (nearest == null || utc.isBefore(nearest)) {
         nearest = utc;
       }
