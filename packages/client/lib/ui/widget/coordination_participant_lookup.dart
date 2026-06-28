@@ -15,9 +15,15 @@ BeaconParticipant? participantForUserId(
 
 Profile profileForParticipant(
   List<BeaconParticipant> participants,
-  String userId,
-) {
+  String userId, {
+  Profile? viewerProfile,
+}) {
   if (userId.isEmpty) return const Profile();
+  if (viewerProfile != null &&
+      viewerProfile.id.isNotEmpty &&
+      viewerProfile.id == userId) {
+    return viewerProfile;
+  }
   for (final p in participants) {
     if (p.userId == userId) {
       return Profile(
@@ -37,3 +43,13 @@ Profile profileForParticipant(
   }
   return Profile(id: userId);
 }
+
+Profile profileForBeaconParticipant(
+  BeaconParticipant participant, {
+  Profile? viewerProfile,
+}) =>
+    profileForParticipant(
+      [participant],
+      participant.userId,
+      viewerProfile: viewerProfile,
+    );

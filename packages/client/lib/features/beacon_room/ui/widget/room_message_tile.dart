@@ -205,10 +205,15 @@ class RoomMessageTile extends StatelessWidget {
 
   static Profile? profileForUserId(
     String userId,
-    List<BeaconParticipant> participants,
-  ) {
+    List<BeaconParticipant> participants, {
+    Profile? viewerProfile,
+  }) {
     if (userId.isEmpty) return null;
-    return profileForParticipant(participants, userId);
+    return profileForParticipant(
+      participants,
+      userId,
+      viewerProfile: viewerProfile,
+    );
   }
 
   static String _coordKindShortLabel(L10n l10n, CoordinationItemKind? k) =>
@@ -1215,6 +1220,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final viewerProfile = context.read<ProfileCubit>().state.profile;
     final reactionEntries = RoomMessageTile._sortedReactionEntries(message);
     final showReactionTimeRow = reactionEntries.isNotEmpty || !hideTimestamp;
 
@@ -1249,8 +1255,13 @@ class _MessageLifecycleFooter extends StatelessWidget {
         resolutionRow = _lifecycleTapRow(
           context: context,
           profile:
-              RoomMessageTile.profileForUserId(actorId, participants) ??
+              RoomMessageTile.profileForUserId(
+                actorId,
+                participants,
+                viewerProfile: viewerProfile,
+              ) ??
               const Profile(),
+          viewerProfile: viewerProfile,
           leading: coordinationCompoundEventIcon(
             kind: linkedCoord!.kind,
             eventKind: eventKind,
@@ -1291,17 +1302,23 @@ class _MessageLifecycleFooter extends StatelessWidget {
       final targetId =
           message.linkedItemTargetPersonId ?? linkedCoord!.targetPersonId;
       final targetProfile = targetId != null && targetId.trim().isNotEmpty
-          ? profileForParticipant(participants, targetId.trim())
-          : null;
-      promotionRow = _lifecycleTapRow(
-        context: context,
-        profile:
-            RoomMessageTile.profileForUserId(
-              message.linkedItemCreatorId ?? '',
+          ? profileForParticipant(
               participants,
-            ) ??
-            const Profile(),
-        targetProfile: targetProfile,
+              targetId.trim(),
+              viewerProfile: viewerProfile,
+            )
+          : null;
+        promotionRow = _lifecycleTapRow(
+          context: context,
+          profile:
+              RoomMessageTile.profileForUserId(
+                message.linkedItemCreatorId ?? '',
+                participants,
+                viewerProfile: viewerProfile,
+              ) ??
+              const Profile(),
+          targetProfile: targetProfile,
+          viewerProfile: viewerProfile,
         leading: coordinationCompoundEventIcon(
           kind: kind,
           eventKind: CoordinationItemEventKind.created,
@@ -1344,8 +1361,10 @@ class _MessageLifecycleFooter extends StatelessWidget {
             RoomMessageTile.profileForUserId(
               message.authorId,
               participants,
+              viewerProfile: viewerProfile,
             ) ??
             message.author,
+        viewerProfile: viewerProfile,
         leading: coordinationCompoundEventIcon(
           kind: kind,
           eventKind: linkedEventKind!,
@@ -1519,6 +1538,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   Widget _lifecycleTapRow({
     required BuildContext context,
     required Profile profile,
+    required Profile viewerProfile,
     required Widget leading,
     required Color accent,
     required String label,
@@ -1537,6 +1557,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
             source: profile,
             target: targetProfile,
             avatarSize: _avatarSize,
+            viewerProfile: viewerProfile,
           )
         : TenturaAvatar.tiny(profile: profile, size: _avatarSize);
     final row = Row(
