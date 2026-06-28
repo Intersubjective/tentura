@@ -77,17 +77,18 @@ class BasicChatBody extends StatefulWidget {
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
   final Future<void> Function(RoomMessageAttachment attachment)?
-      onOpenFileAttachment;
+  onOpenFileAttachment;
 
   final Future<void> Function(
     String messageId,
     String pollingId,
     List<String> variantIds, {
     int? score,
-  })? onVotePoll;
+  })?
+  onVotePoll;
 
   final Future<void> Function(String body, List<RoomPendingUpload> uploads)?
-      onSend;
+  onSend;
 
   final Widget? header;
 
@@ -234,7 +235,11 @@ class BasicChatBodyState extends State<BasicChatBody> {
       if (pass < 24) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!mounted) return;
-          await _viewportScrollAttempt(firstUnreadMessageId, messagesEmpty, pass + 1);
+          await _viewportScrollAttempt(
+            firstUnreadMessageId,
+            messagesEmpty,
+            pass + 1,
+          );
         });
       }
       return;
@@ -263,7 +268,11 @@ class BasicChatBodyState extends State<BasicChatBody> {
     if (pass < 24) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        await _viewportScrollAttempt(firstUnreadMessageId, messagesEmpty, pass + 1);
+        await _viewportScrollAttempt(
+          firstUnreadMessageId,
+          messagesEmpty,
+          pass + 1,
+        );
       });
     }
   }
@@ -315,106 +324,105 @@ class BasicChatBodyState extends State<BasicChatBody> {
           child: !showListContent
               ? Center(child: Text(widget.errorText))
               : widget.isLoading && messages.isEmpty
-                  ? const Center(
-                      child: CircularProgressIndicator.adaptive(),
-                    )
+              ? const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                )
               : messages.isEmpty && widget.emptyPlaceholder != null
-                  ? widget.emptyPlaceholder!
-                  : Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ListView.builder(
-                          controller: _scrollController,
-                          // Small gap so the last bubble (notably a full-width
-                          // poll) doesn't sit flush against the composer, which
-                          // made its tap target compete with the text field.
-                          padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                          itemCount: messages.length,
-                          itemBuilder: (context, i) {
-                            final m = messages[i];
-                            final prev =
-                                i == 0 ? null : messages[i - 1];
-                            final next = i + 1 >= messages.length
-                                ? null
-                                : messages[i + 1];
-                            final dateChanged = prev == null ||
-                                !roomMessageSameLocalDay(
-                                  prev.createdAt,
-                                  m.createdAt,
-                                );
-                            final idxUnread = widget.firstUnreadIndex;
-                            final unreads = widget.unreadCount;
-                            final showUnreadBand = unreads > 0 &&
-                                idxUnread >= 0 &&
-                                i == idxUnread;
-
-                            final toggle = widget.onToggleReaction;
-                            final vote = widget.onVotePoll;
-                            final messageTile = RoomMessageTile(
-                              key: _messageKey(m.id),
-                              message: m,
-                              myProfile: widget.myProfile,
-                              previousMessage: prev,
-                              nextMessage: next,
-                              breakGroupAbove: dateChanged || showUnreadBand,
-                              onActionsPressed: widget.onMessageActions,
-                              onToggleReaction:
-                                  toggle ?? ((_, _) async {}),
-                              onOpenFileAttachment: widget.onOpenFileAttachment,
-                              participants: widget.participants,
-                              onVotePoll: vote == null
-                                  ? null
-                                  : (pollingId, variantIds, {score}) => vote(
-                                        m.id,
-                                        pollingId,
-                                        variantIds,
-                                        score: score,
-                                      ),
-                              onScrollToPromoteSource: widget.onScrollToPromoteSource,
-                              onOpenCoordinationItem: widget.onOpenCoordinationItem,
-                              hideCoordinationLifecycleFooter:
-                                  widget.hideCoordinationLifecycleFooter,
+              ? widget.emptyPlaceholder!
+              : Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ListView.builder(
+                      controller: _scrollController,
+                      // Small gap so the last bubble (notably a full-width
+                      // poll) doesn't sit flush against the composer, which
+                      // made its tap target compete with the text field.
+                      padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                      itemCount: messages.length,
+                      itemBuilder: (context, i) {
+                        final m = messages[i];
+                        final prev = i == 0 ? null : messages[i - 1];
+                        final next = i + 1 >= messages.length
+                            ? null
+                            : messages[i + 1];
+                        final dateChanged =
+                            prev == null ||
+                            !roomMessageSameLocalDay(
+                              prev.createdAt,
+                              m.createdAt,
                             );
+                        final idxUnread = widget.firstUnreadIndex;
+                        final unreads = widget.unreadCount;
+                        final showUnreadBand =
+                            unreads > 0 && idxUnread >= 0 && i == idxUnread;
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (dateChanged)
-                                  RoomDateSeparator(date: m.createdAt),
-                                if (showUnreadBand)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    child: RoomUnreadDivider(
-                                      unreadCount: unreads,
-                                    ),
-                                  ),
-                                messageTile,
-                              ],
-                            );
-                          },
-                        ),
-                        if (_showJumpFab)
-                          Positioned(
-                            right: 12,
-                            bottom: 8,
-                            child: Badge(
-                              isLabelVisible: widget.unreadCount > 0,
-                              label: Text('${widget.unreadCount}'),
-                              child: FloatingActionButton.small(
-                                heroTag: widget.jumpFabHeroTag,
-                                tooltip: l10n.beaconRoomScrollToLatestTooltip,
-                                onPressed: () => unawaited(_jumpToLatest()),
-                                child: const Icon(
-                                  Icons.arrow_downward_rounded,
+                        final toggle = widget.onToggleReaction;
+                        final vote = widget.onVotePoll;
+                        final messageTile = RoomMessageTile(
+                          key: _messageKey(m.id),
+                          message: m,
+                          myProfile: widget.myProfile,
+                          previousMessage: prev,
+                          nextMessage: next,
+                          breakGroupAbove: dateChanged || showUnreadBand,
+                          onActionsPressed: widget.onMessageActions,
+                          onToggleReaction: toggle ?? ((_, _) async {}),
+                          onOpenFileAttachment: widget.onOpenFileAttachment,
+                          participants: widget.participants,
+                          onVotePoll: vote == null
+                              ? null
+                              : (pollingId, variantIds, {score}) => vote(
+                                  m.id,
+                                  pollingId,
+                                  variantIds,
+                                  score: score,
+                                ),
+                          onScrollToPromoteSource:
+                              widget.onScrollToPromoteSource,
+                          onOpenCoordinationItem: widget.onOpenCoordinationItem,
+                          hideCoordinationLifecycleFooter:
+                              widget.hideCoordinationLifecycleFooter,
+                        );
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (dateChanged)
+                              RoomDateSeparator(date: m.createdAt),
+                            if (showUnreadBand)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: RoomUnreadDivider(
+                                  unreadCount: unreads,
                                 ),
                               ),
+                            messageTile,
+                          ],
+                        );
+                      },
+                    ),
+                    if (_showJumpFab)
+                      Positioned(
+                        right: 12,
+                        bottom: 8,
+                        child: Badge(
+                          isLabelVisible: widget.unreadCount > 0,
+                          label: Text('${widget.unreadCount}'),
+                          child: FloatingActionButton.small(
+                            heroTag: widget.jumpFabHeroTag,
+                            tooltip: l10n.beaconRoomScrollToLatestTooltip,
+                            onPressed: () => unawaited(_jumpToLatest()),
+                            child: const Icon(
+                              Icons.arrow_downward_rounded,
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                  ],
+                ),
         ),
         _buildComposerRow(context),
       ],
@@ -425,6 +433,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
     final repo = widget.imageRepository;
     final onSend = widget.onSend;
     final canCompose = repo != null && onSend != null;
+    final initialLoadInProgress = widget.isLoading && widget.messages.isEmpty;
 
     return SafeArea(
       child: Material(
@@ -437,7 +446,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                 child: canCompose
                     ? BeaconRoomComposer(
                         imageRepository: repo,
-                        isSending: widget.isLoading,
+                        isSending: initialLoadInProgress,
                         onSend: onSend,
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
@@ -469,7 +478,7 @@ class BeaconRoomComposer extends StatefulWidget {
   final bool isSending;
 
   final Future<void> Function(String body, List<RoomPendingUpload> uploads)
-      onSend;
+  onSend;
 
   final bool enableAttachments;
 
@@ -487,6 +496,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   List<BeaconParticipant> _overlaySuggestions = const [];
   var _overlaySyncScheduled = false;
   var _hasText = false;
+  var _submitting = false;
 
   final List<RoomPendingUpload> _pending = [];
 
@@ -671,9 +681,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       );
       return;
     }
-    final result = await FilePicker.pickFiles(
-      
-    );
+    final result = await FilePicker.pickFiles();
     if (!mounted || result == null || result.files.isEmpty) {
       return;
     }
@@ -700,11 +708,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) {
+      return;
+    }
     final body = _text.text;
     final uploads = List<RoomPendingUpload>.from(_pending);
     if (body.trim().isEmpty && uploads.isEmpty) {
       return;
     }
+    setState(() => _submitting = true);
     try {
       await widget.onSend(body, uploads);
       if (!mounted) {
@@ -713,24 +725,45 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       _text.clear();
       setState(_pending.clear);
-    } on Object catch (_) {}
+    } on Object catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   /// Once the composer gains focus, ensure the platform text input connection
   /// opens on the next frame (after layout). Poll sliders used to hold primary
-  /// focus and leave the composer with a cursor but no keyboard; [ExcludeFocus]
-  /// on [RoomPollCard] voting controls prevents that, and this covers any
+  /// focus and leave the composer with a cursor but no keyboard; `ExcludeFocus`
+  /// on `RoomPollCard` voting controls prevents that, and this covers any
   /// remaining focus→connection timing gap (EditableText #126312).
   void _onComposerFocusChange() {
     if (!_composerFocus.hasFocus) {
       return;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _scheduleComposerKeyboardRequest();
+  }
+
+  void _scheduleComposerKeyboardRequest() {
+    void requestKeyboard() {
       if (!mounted || !_composerFocus.hasFocus) {
         return;
       }
       _composerEditableText()?.requestKeyboard();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      requestKeyboard();
+      WidgetsBinding.instance.addPostFrameCallback((_) => requestKeyboard());
     });
+  }
+
+  void _requestComposerKeyboardFromTap() {
+    if (!_composerFocus.hasFocus) {
+      _composerFocus.requestFocus();
+    }
+    _scheduleComposerKeyboardRequest();
   }
 
   /// Locates the [EditableTextState] rendered under [_composerFocus].
@@ -854,7 +887,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final busy = widget.isSending;
+    final busy = widget.isSending || _submitting;
     final isCompact = context.windowClass == WindowClass.compact;
     final showAttach = widget.enableAttachments && !(isCompact && _hasText);
 
@@ -911,6 +944,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
                   enabled: !busy,
+                  onTapAlwaysCalled: true,
+                  onTap: _requestComposerKeyboardFromTap,
                   onSubmitted: (_) => unawaited(_submit()),
                   onTapOutside: (_) {
                     _removeOverlay();
