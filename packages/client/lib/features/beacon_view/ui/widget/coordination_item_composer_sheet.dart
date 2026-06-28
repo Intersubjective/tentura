@@ -49,6 +49,7 @@ Future<void> showCoordinationItemComposerSheet(
       seed: resolvedSeed,
       coordinationCase: coordinationCase,
       l10n: l10n,
+      useRootNavigator: useRootNavigator,
     ),
   );
   if (ok == true && context.mounted) {
@@ -108,6 +109,7 @@ class _CoordinationItemComposerBody extends StatefulWidget {
     required this.seed,
     required this.coordinationCase,
     required this.l10n,
+    required this.useRootNavigator,
   });
 
   final CoordinationItemKind kind;
@@ -120,6 +122,7 @@ class _CoordinationItemComposerBody extends StatefulWidget {
   final AskComposerSeed? seed;
   final CoordinationItemCase coordinationCase;
   final L10n l10n;
+  final bool useRootNavigator;
 
   @override
   State<_CoordinationItemComposerBody> createState() =>
@@ -243,6 +246,7 @@ class _CoordinationItemComposerBodyState
       content: l10n.composerDiscardBody,
       confirmLabel: l10n.composerDiscardConfirm,
       cancelLabel: l10n.composerDiscardKeepEditing,
+      useRootNavigator: widget.useRootNavigator,
     );
     if ((confirmed ?? false) && mounted) {
       Navigator.of(context).pop();

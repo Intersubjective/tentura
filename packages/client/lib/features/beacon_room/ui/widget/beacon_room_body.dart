@@ -30,7 +30,6 @@ import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
 import 'room_file_attachment_open.dart';
-import 'room_reaction_picker.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
@@ -374,7 +373,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       spacing: kSpacingSmall,
                       runSpacing: kSpacingSmall,
                       children: [
-                        for (final emoji in kBeaconRoomReactionPickerEmojis)
+                        for (final emoji in BeaconRoomMessageReaction.quickPickerEmojis)
                           InkWell(
                             customBorder: const CircleBorder(),
                             onTap: () {

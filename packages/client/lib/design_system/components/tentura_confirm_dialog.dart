@@ -23,9 +23,11 @@ class TenturaConfirmDialog extends StatelessWidget {
     required String content,
     String? confirmLabel,
     String? cancelLabel,
+    bool useRootNavigator = false,
   }) =>
       showAdaptiveDialog<bool>(
         context: context,
+        useRootNavigator: useRootNavigator,
         builder: (_) => TenturaConfirmDialog(
           title: title,
           content: content,
