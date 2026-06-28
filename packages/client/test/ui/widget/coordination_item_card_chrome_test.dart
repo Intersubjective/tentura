@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
+
+class _TestProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: 'u1', displayName: 'Alice'),
+  );
+
+  @override
+  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
 
 void main() {
   testWidgets('directed avatar trail shows arrow between two participants', (
@@ -38,13 +52,16 @@ void main() {
     ];
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        home: Scaffold(
-          body: coordinationDirectedAvatarTrailForItem(
-            participants: participants,
-            creatorId: 'u1',
-            targetPersonId: 'u2',
+      BlocProvider<ProfileCubit>.value(
+        value: _TestProfileCubit(),
+        child: MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: coordinationDirectedAvatarTrailForItem(
+              participants: participants,
+              creatorId: 'u1',
+              targetPersonId: 'u2',
+            ),
           ),
         ),
       ),
