@@ -6,7 +6,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
-import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 
 class ProfileBody extends StatelessWidget {
   const ProfileBody({
@@ -71,18 +70,6 @@ class ProfileBody extends StatelessWidget {
               icon: const Icon(Icons.settings),
               label: Text(l10n.labelSettings),
               onPressed: screenCubit.showSettings,
-            ),
-          ),
-          Padding(
-            padding: sectionTop,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.logout),
-              label: Text(l10n.logout),
-              onPressed: () => confirmAndSignOut(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-                side: BorderSide(color: theme.colorScheme.error),
-              ),
             ),
           ),
         ],
