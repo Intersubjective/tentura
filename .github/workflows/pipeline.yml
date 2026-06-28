@@ -280,7 +280,7 @@ jobs:
       # Static landing at /invite/* on same origin — plain files, no build/npm.
       - name: Package static landing
         env:
-          LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
+          LANDING_SENTRY_DSN: ${{ vars.LANDING_SENTRY_DSN }}
           LANDING_GOOGLE_ENABLED: ${{ vars.LANDING_GOOGLE_ENABLED }}
         run: |
           set -euo pipefail
