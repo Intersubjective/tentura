@@ -1,0 +1,393 @@
+name: Pipeline Prod
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+    inputs:
+      collect_coverage:
+        description: Collect test coverage and upload lcov artifacts
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/intersubjective/tentura
+  BUILDER_IMAGE: ghcr.io/intersubjective/tentura-builder
+
+jobs:
+  test-shards:
+    name: test-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: true
+      matrix:
+        target:
+          - lints
+          - server
+          - client
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Run ${{ matrix.target }} checks in builder container
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          if [ "$target" = "client" ]; then
+            bash scripts/test_resolve_deploy_web_config.sh
+          fi
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            --env TEST_TARGET="$target" \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              git config --global --add safe.directory "*"
+              case "$TEST_TARGET" in
+                lints)
+                  dart pub get
+                  cd packages/tentura_lints
+                  dart test
+                  ;;
+                server)
+                  dart pub get
+                  cd packages/server
+                  dart run build_runner build -d
+                  dart analyze --no-fatal-warnings
+                  dart test --exclude-tags pg
+                  ! rg "package:tentura_server/data/repository" lib/domain
+                  ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
+                  ! rg "package:tentura_server/data/" lib/domain
+                  ;;
+                client)
+                  flutter pub get
+                  cd packages/client
+                  flutter gen-l10n
+                  dart run build_runner build -d
+                  flutter analyze --no-fatal-warnings --no-fatal-infos
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+                  ;;
+                *)
+                  echo "Unknown test target: $TEST_TARGET" >&2
+                  exit 1
+                  ;;
+              esac
+            '
+
+  build-web:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    environment: prod
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Determine versions
+        id: versions
+        run: |
+          set -euo pipefail
+          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          VERSION_CLEAN=${VERSION_LINE//+/-}
+          VERSION_CLEAN=${VERSION_CLEAN//\//-}
+          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Cache client codegen state
+        uses: actions/cache@v5
+        with:
+          path: |
+            packages/client/.dart_tool/build
+            packages/client/.dart_tool/build_resolvers
+          key: client-codegen-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/l10n/**', 'packages/client/web/**', 'packages/client/hook/**') }}
+          restore-keys: client-codegen-${{ runner.os }}-
+
+      # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
+      - name: Write client dart-define file
+        env:
+          CLIENT_DART_DEFINES: ${{ secrets.CLIENT_DART_DEFINES }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLIENT_DART_DEFINES}" ]; then
+            echo "CLIENT_DART_DEFINES not set on prod environment; web build will omit Firebase dart-defines."
+            exit 0
+          fi
+          printf '%s\n' "$CLIENT_DART_DEFINES" > .env
+          bash scripts/validate_client_firebase_env.sh .env
+          echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
+
+      # Required prod vars: CLIENT_SERVER_NAME, IMAGE_SERVER (single public origin).
+      - name: Resolve deploy web config
+        id: webcfg
+        env:
+          CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
+          IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
+        run: bash scripts/resolve_deploy_web_config.sh --github-output "$GITHUB_OUTPUT"
+
+      # WASM app + landing on same origin (base-href /).
+      # VPS .env SERVER_NAME = Caddy site hostname; CLIENT_SERVER_NAME = full public origin URL.
+      - name: Build prod web in builder container
+        env:
+          CLIENT_SENTRY_DSN: ${{ vars.CLIENT_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
+            --env CLIENT_VERSION="${{ steps.versions.outputs.client_version }}" \
+            --env WEB_BUILD_ID="${{ github.sha }}" \
+            --env BUILD_DATE="${BUILD_DATE}" \
+            --env IMAGE_SERVER="${{ steps.webcfg.outputs.image_server }}" \
+            --env CLIENT_SERVER_NAME="${{ steps.webcfg.outputs.client_server_name }}" \
+            --env CLIENT_SENTRY_DSN="${CLIENT_SENTRY_DSN:-}" \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c "
+              set -euo pipefail
+              git config --global --add safe.directory \"*\"
+              flutter pub get
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d
+              SENTRY_RELEASE=\"tentura@\${CLIENT_VERSION}\"
+              SENTRY_DIST=\"\${WEB_BUILD_ID}\"
+              SENTRY_ENVIRONMENT=\"prod\"
+              SENTRY_DART_DEFINES=\"--dart-define=SENTRY_ENVIRONMENT=\${SENTRY_ENVIRONMENT} --dart-define=SENTRY_RELEASE=\${SENTRY_RELEASE} --dart-define=SENTRY_DIST=\${SENTRY_DIST}\"
+              if [ -n \"\${CLIENT_SENTRY_DSN:-}\" ]; then
+                SENTRY_DART_DEFINES=\"\${SENTRY_DART_DEFINES} --dart-define=SENTRY_DSN=\${CLIENT_SENTRY_DSN}\"
+              fi
+              if [ -f /app/.env ]; then
+                flutter build web \\
+                  --release \\
+                  --wasm \\
+                  --pwa-strategy=none \\
+                  --source-maps \\
+                  --base-href=/ \\
+                  --dart-define-from-file=/app/.env \\
+                  --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
+                  --dart-define=NEED_INVITE_CODE=true \\
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\
+                  --dart-define=BUILD_GIT_SHA=\${WEB_BUILD_ID} \\
+                  --dart-define=BUILD_DATE=\${BUILD_DATE} \\
+                  \${SENTRY_DART_DEFINES}
+              else
+                flutter build web \\
+                  --release \\
+                  --wasm \\
+                  --pwa-strategy=none \\
+                  --source-maps \\
+                  --base-href=/ \\
+                  --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
+                  --dart-define=NEED_INVITE_CODE=true \\
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\
+                  --dart-define=BUILD_GIT_SHA=\${WEB_BUILD_ID} \\
+                  --dart-define=BUILD_DATE=\${BUILD_DATE} \\
+                  \${SENTRY_DART_DEFINES}
+              fi
+              # Trim dead-weight, then preload manifest + cache SW from FINISHED
+              # build/web (the build hook ran too early on fresh checkouts).
+              dart run tool/trim_web_deploy_artifact.dart
+              dart run tool/apply_versioned_web_assets.dart
+              dart run tool/generate_wasm_preload_artifacts.dart
+              grep -q 'wasmPreload' build/web/wasm-preload-manifest.json
+              python3 -c \"import json; m=json.load(open('build/web/wasm-preload-manifest.json')); assert 'preload' not in m\"
+              python3 -c \"import json, pathlib; v=json.load(open('build/web/wasm-preload-manifest.json'))['version']; assert pathlib.Path(f'build/web/app-assets/{v}/main.dart.js').is_file()\"
+              # Block deploy if index.html / manifest / preload manifest / SW
+              # disagree on the cache-busting build version (stale-asset guard).
+              dart run tool/verify_web_version_consistency.dart
+              cd build/web && tar -czf /app/web-prod-\${SERVER_VERSION}.tar.gz . && cd ../..
+            "
+
+      # Static landing at /invite/* on same origin — plain files, no build/npm.
+      - name: Package static landing
+        env:
+          LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
+          LANDING_GOOGLE_ENABLED: ${{ vars.LANDING_GOOGLE_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
+            sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
+          fi
+          sed -i "s|sentryEnvironment: ''|sentryEnvironment: 'prod'|" packages/landing/config.js
+          sed -i "s|sentryRelease: ''|sentryRelease: 'landing@${{ steps.versions.outputs.server_version }}'|" packages/landing/config.js
+          if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
+            sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
+          fi
+          tar -czf landing-prod-${{ steps.versions.outputs.server_version }}.tar.gz \
+            -C packages/landing \
+            index.html config.js config.local.js main.js app_preload.js browser_compatibility.js invite_entry.js preview.js webview.js analytics.js auth.js onboarding.js styles.css
+
+      - name: Test static landing
+        run: node --test packages/landing/test/*.mjs
+
+      - name: Upload web archive artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-archives-prod
+          path: |
+            web-prod-*.tar.gz
+            landing-prod-*.tar.gz
+          retention-days: 7
+
+      - name: Save web archive to cache
+        run: |
+          mkdir -p web-build-output
+          cp web-prod-*.tar.gz web-build-output/web-prod.tar.gz
+          cp landing-prod-*.tar.gz web-build-output/landing-prod.tar.gz
+
+      # Unique key per commit: GitHub refuses to overwrite an existing cache key, so a
+      # static key would never pick up newer web builds after the first save.
+      - name: Cache web build for deploy
+        uses: actions/cache/save@v5
+        with:
+          path: web-build-output
+          key: web-build-prod-${{ github.sha }}
+
+  build-server:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine versions
+        id: versions
+        run: |
+          set -euo pipefail
+          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          VERSION_CLEAN=${VERSION_LINE//+/-}
+          VERSION_CLEAN=${VERSION_CLEAN//\//-}
+          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: packages/server/Dockerfile_build
+          push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            SERVER_VERSION=${{ steps.versions.outputs.server_version }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:prod
+            ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print version summary
+        run: |
+          echo "### Versions built" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Server  | ${{ steps.versions.outputs.server_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Client  | ${{ steps.versions.outputs.client_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Set **\`MIN_CLIENT_VERSION\`** in the \`prod\` GitHub Environment variable" \
+               "(and on the VPS \`.env\`) when this release requires clients to update." >> $GITHUB_STEP_SUMMARY
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: [test-shards, build-web, build-server]
+    if: |
+      always() &&
+      !cancelled() &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          needs.test-shards.result == 'success' &&
+          needs.build-web.result == 'success' &&
+          needs.build-server.result == 'success'
+        )
+      )
+    permissions:
+      contents: read
+      packages: write
+    environment: prod
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      # Prefer tarball built for this exact commit; fall back to latest web-build-prod-* entry.
+      - name: Restore web build from cache
+        uses: actions/cache/restore@v5
+        with:
+          path: web-build-output
+          key: web-build-prod-${{ github.sha }}
+          restore-keys: |
+            web-build-prod-
+
+      - name: Prepare web archive for deploy
+        id: archive-name
+        run: |
+          set -euo pipefail
+          CACHED='web-build-output/web-prod.tar.gz'
+          if [ ! -f "$CACHED" ]; then
+            echo "Error: No cached web archive found. Run a push to release first to build and cache." >&2
+            exit 1
+          fi
+          cp "$CACHED" web-prod.tar.gz
+          echo "archive_name=web-prod.tar.gz" >> $GITHUB_OUTPUT
+          if [ -f web-build-output/landing-prod.tar.gz ]; then
+            cp web-build-output/landing-prod.tar.gz landing-prod.tar.gz
+            echo "landing_archive_name=landing-prod.tar.gz" >> $GITHUB_OUTPUT
+          else
+            echo "landing_archive_name=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup SSH
+        id: setup-ssh
+        uses: ./.github/actions/setup-ssh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Deploy web archive
+        uses: ./.github/actions/deploy-web-archive
+        env:
+          VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
+        with:
+          archive-name: ${{ steps.archive-name.outputs.archive_name }}
+          landing-archive-name: ${{ steps.archive-name.outputs.landing_archive_name }}
