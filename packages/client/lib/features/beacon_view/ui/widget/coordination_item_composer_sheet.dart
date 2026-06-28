@@ -8,6 +8,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'coordination_target_candidates.dart';
 
@@ -150,6 +151,7 @@ class _CoordinationItemComposerBodyState
   List<String> get _askTargetIds => askTargetUserIds(
     beaconAuthorId: widget.beaconAuthorId,
     participants: widget.participants,
+    myUserId: widget.myUserId,
   );
 
   List<BeaconParticipant> get _promiseTargets => promiseTargetParticipants(
@@ -200,11 +202,6 @@ class _CoordinationItemComposerBodyState
           : null;
     } else {
       _selectedTargetId = _singleLegalTargetId;
-      if (_selectedTargetId == null &&
-          seed?.linkedMessageId != null &&
-          _isValidTarget(widget.myUserId)) {
-        _selectedTargetId = widget.myUserId;
-      }
     }
     _selectedStaleDays = CoordinationStalenessPicker.seedFromDraft(
       widget.existingDraft?.staleAfterDays,
@@ -234,24 +231,11 @@ class _CoordinationItemComposerBodyState
       (_titleController.text.trim() != _initialTitle ||
           _bodyController.text.trim() != _initialBody);
 
-  Future<void> _requestClose() async {
-    if (!_isDirty) {
-      Navigator.of(context).pop();
-      return;
-    }
-    final l10n = widget.l10n;
-    final confirmed = await TenturaConfirmDialog.show(
-      context: context,
-      title: l10n.composerDiscardTitle,
-      content: l10n.composerDiscardBody,
-      confirmLabel: l10n.composerDiscardConfirm,
-      cancelLabel: l10n.composerDiscardKeepEditing,
-      useRootNavigator: widget.useRootNavigator,
-    );
-    if ((confirmed ?? false) && mounted) {
-      Navigator.of(context).pop();
-    }
-  }
+  Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(
+    context,
+    isDirty: _isDirty,
+    useRootNavigator: widget.useRootNavigator,
+  );
 
   bool get _canSubmitContent {
     if (_submitting) return false;
@@ -274,9 +258,10 @@ class _CoordinationItemComposerBodyState
       if (mounted) {
         Navigator.of(context).pop(true);
       }
-    } on Object catch (_) {
+    } on Object catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
+        showSnackBar(context, text: e.toString(), isError: true);
       }
     }
   }
@@ -409,12 +394,9 @@ class _CoordinationItemComposerBodyState
     final scheme = Theme.of(context).colorScheme;
     final existing = widget.existingDraft;
 
-    return PopScope(
-      canPop: !_isDirty,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        await _requestClose();
-      },
+    return TenturaSheetDismissGuard(
+      isDirty: _isDirty,
+      useRootNavigator: widget.useRootNavigator,
       child: Padding(
         padding: EdgeInsets.only(
           left: tt.screenHPadding,

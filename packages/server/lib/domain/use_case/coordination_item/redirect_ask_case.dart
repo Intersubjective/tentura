@@ -32,15 +32,21 @@ final class RedirectAskCase extends UseCaseBase {
     if (item.status != coordinationItemStatusOpen) {
       throw const BeaconCreateException(description: 'Ask is not open');
     }
-    if (newTargetPersonId.trim().isEmpty) {
+    final target = newTargetPersonId.trim();
+    if (target.isEmpty) {
       throw const BeaconCreateException(
         description: 'New target person is required',
+      );
+    }
+    if (target == userId) {
+      throw const BeaconCreateException(
+        description: 'Ask cannot target yourself',
       );
     }
     return _itemRepository.redirectTarget(
       id: itemId,
       actorId: userId,
-      newTargetPersonId: newTargetPersonId,
+      newTargetPersonId: target,
     );
   }
 }

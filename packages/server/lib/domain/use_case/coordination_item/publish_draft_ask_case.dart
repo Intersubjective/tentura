@@ -37,6 +37,11 @@ final class PublishDraftAskCase extends UseCaseBase {
         description: 'Ask target person is required',
       );
     }
+    if (target == userId) {
+      throw const BeaconCreateException(
+        description: 'Ask cannot target yourself',
+      );
+    }
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
       throw const BeaconCreateException(description: 'Ask not found');
@@ -67,17 +72,15 @@ final class PublishDraftAskCase extends UseCaseBase {
       targetPersonId: target,
       staleAfterDays: staleAfterDays,
     );
-    if (target != userId) {
-      unawaited(
-        _push.notifyNeedsMe(
-          beaconId: item.beaconId,
-          actorUserId: userId,
-          targetUserId: target,
-          excerpt: item.title,
-          coordinationItemId: item.id,
-        ),
-      );
-    }
+    unawaited(
+      _push.notifyNeedsMe(
+        beaconId: item.beaconId,
+        actorUserId: userId,
+        targetUserId: target,
+        excerpt: item.title,
+        coordinationItemId: item.id,
+      ),
+    );
     return item;
   }
 }

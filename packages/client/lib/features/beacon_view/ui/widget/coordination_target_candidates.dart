@@ -21,17 +21,30 @@ List<BeaconParticipant> participantsForCoordinationTargetPicker({
           .toList();
 }
 
-/// Sorted user ids for ask targets (author + participants).
+/// Sorted user ids for ask targets (author + participants), excluding self.
 List<String> askTargetUserIds({
   required String beaconAuthorId,
   required List<BeaconParticipant> participants,
+  required String myUserId,
 }) {
   final ids = <String>{beaconAuthorId};
   for (final p in participants) {
     ids.add(p.userId);
   }
+  ids.remove(myUserId);
   return ids.toList()..sort();
 }
+
+bool hasPublishedAskTargets({
+  required String beaconAuthorId,
+  required List<BeaconParticipant> participants,
+  required String myUserId,
+}) =>
+    askTargetUserIds(
+      beaconAuthorId: beaconAuthorId,
+      participants: participants,
+      myUserId: myUserId,
+    ).isNotEmpty;
 
 bool hasPublishedPromiseTargets({
   required List<BeaconParticipant> participants,
