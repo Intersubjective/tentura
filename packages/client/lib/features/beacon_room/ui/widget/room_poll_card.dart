@@ -31,6 +31,7 @@ class RoomPollCard extends StatefulWidget {
 class _RoomPollCardState extends State<RoomPollCard> {
   static const _kVoterAvatarSize = 18.0;
   static const _kMaxShownVoterAvatars = 8;
+  static const _kRangeScores = [1, 2, 3, 4, 5];
 
   // For multiple: currently selected variant IDs (pending submit)
   late Set<String> _pendingMultiple;
@@ -140,12 +141,25 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
             ],
           ),
-          Slider(
-            value: (score ?? 0).toDouble(),
-            max: 5,
-            onChanged: (v) => setState(
-              () => _pendingRange[variantId] = v.round(),
-            ),
+          const SizedBox(height: 6),
+          // Flutter Web's mobile semantics for Slider can create empty
+          // full-screen hit-test nodes that swallow taps on the chat composer.
+          // Range votes are already integer 1-5 scores, so use explicit chips.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final value in _kRangeScores)
+                ChoiceChip(
+                  label: Text('$value'),
+                  selected: score == value,
+                  onSelected: (_) => setState(
+                    () => _pendingRange[variantId] = value,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+            ],
           ),
         ],
       ),
