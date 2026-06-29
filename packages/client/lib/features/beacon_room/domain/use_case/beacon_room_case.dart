@@ -13,6 +13,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_room_repository.dart';
+import '../entity/beacon_room_invalidation.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_unread_snapshot.dart';
 import '../room_read_watermark_store.dart';
@@ -44,7 +45,30 @@ final class BeaconRoomCase extends UseCaseBase {
 
   final CoordinationItemCase _coordinationItemCase;
 
+  static const _deskRelevantEntityTypes = {
+    BeaconRoomEntityType.roomMessage,
+    BeaconRoomEntityType.activityEvent,
+    BeaconRoomEntityType.participant,
+    BeaconRoomEntityType.factCard,
+    BeaconRoomEntityType.blocker,
+    BeaconRoomEntityType.coordinationItem,
+  };
+
   Stream<String> get readWatermarkChanges => _watermark.changes;
+
+  Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
+      _room.beaconRoomInvalidations;
+
+  Stream<String> get deskRelevantChanges => beaconRoomInvalidations
+      .where((inv) => _deskRelevantEntityTypes.contains(inv.entityType))
+      .map((inv) => inv.beaconId);
+
+  void notifyLocalChange({
+    required String beaconId,
+    required BeaconRoomEntityType entityType,
+  }) {
+    _room.notifyLocalChange(beaconId: beaconId, entityType: entityType);
+  }
 
   DateTime? readThrough(String beaconId) => _watermark.readThrough(beaconId);
 
@@ -55,12 +79,11 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required int serverCount,
     required DateTime? serverSeenAt,
-  }) =>
-      _watermark.resolveUnread(
-        beaconId: beaconId,
-        serverCount: serverCount,
-        serverSeenAt: serverSeenAt,
-      );
+  }) => _watermark.resolveUnread(
+    beaconId: beaconId,
+    serverCount: serverCount,
+    serverSeenAt: serverSeenAt,
+  );
 
   Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) async {
     try {
@@ -81,12 +104,11 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     String? beforeIso,
     String? threadItemId,
-  }) =>
-      _room.fetchMessages(
-        beaconId: beaconId,
-        beforeIso: beforeIso,
-        threadItemId: threadItemId,
-      );
+  }) => _room.fetchMessages(
+    beaconId: beaconId,
+    beforeIso: beforeIso,
+    threadItemId: threadItemId,
+  );
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
@@ -102,8 +124,9 @@ final class BeaconRoomCase extends UseCaseBase {
       return;
     }
     final first = uploads.isNotEmpty ? uploads.first : null;
-    final extras =
-        uploads.length > 1 ? uploads.sublist(1) : const <RoomPendingUpload>[];
+    final extras = uploads.length > 1
+        ? uploads.sublist(1)
+        : const <RoomPendingUpload>[];
     final messageId = await _room.createMessage(
       beaconId: beaconId,
       body: body,
@@ -124,21 +147,19 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String messageId,
     required String body,
-  }) =>
-      _room.editMessage(
-        beaconId: beaconId,
-        messageId: messageId,
-        body: body,
-      );
+  }) => _room.editMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    body: body,
+  );
 
   Future<void> deleteMessage({
     required String beaconId,
     required String messageId,
-  }) =>
-      _room.deleteMessage(
-        beaconId: beaconId,
-        messageId: messageId,
-      );
+  }) => _room.deleteMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+  );
 
   Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
       _room.downloadRoomAttachmentBytes(attachmentId);
@@ -146,31 +167,27 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<bool> participantOfferHelp({
     required String beaconId,
     required String note,
-  }) =>
-      _room.participantOfferHelp(beaconId: beaconId, note: note);
+  }) => _room.participantOfferHelp(beaconId: beaconId, note: note);
 
   Future<bool> admit({
     required String beaconId,
     required String participantUserId,
-  }) =>
-      _room.admit(beaconId: beaconId, participantUserId: participantUserId);
+  }) => _room.admit(beaconId: beaconId, participantUserId: participantUserId);
 
   Future<bool> promoteSteward({
     required String beaconId,
     required String stewardUserId,
-  }) =>
-      _room.promoteSteward(beaconId: beaconId, stewardUserId: stewardUserId);
+  }) => _room.promoteSteward(beaconId: beaconId, stewardUserId: stewardUserId);
 
   Future<bool> toggleReaction({
     required String beaconId,
     required String messageId,
     required String emoji,
-  }) =>
-      _room.toggleReaction(
-        beaconId: beaconId,
-        messageId: messageId,
-        emoji: emoji,
-      );
+  }) => _room.toggleReaction(
+    beaconId: beaconId,
+    messageId: messageId,
+    emoji: emoji,
+  );
 
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) =>
       _room.fetchBeaconRoomState(beaconId);
@@ -191,22 +208,19 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<List<CoordinationItem>> fetchCoordinationItems(String beaconId) =>
       _coordinationItemCase.listByBeacon(beaconId);
 
-  Future<void> updateRoomPlan({
+  Future<CoordinationItem> updateRoomPlan({
     required String beaconId,
     required String currentLine,
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
-  }) =>
-      _coordinationItemCase
-          .updatePlan(
-            beaconId: beaconId,
-            title: currentLine,
-            body: body,
-            targetPersonId: targetPersonId,
-            linkedMessageId: linkedMessageId,
-          )
-          .then((_) {});
+  }) => _coordinationItemCase.updatePlan(
+    beaconId: beaconId,
+    title: currentLine,
+    body: body,
+    targetPersonId: targetPersonId,
+    linkedMessageId: linkedMessageId,
+  );
 
   Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) =>
       _coordinationItemCase.fetchCurrentRootPlan(beaconId);
@@ -219,45 +233,42 @@ final class BeaconRoomCase extends UseCaseBase {
     required String factText,
     required int visibility,
     String? sourceMessageId,
-  }) =>
-      _factCards.pin(
-        beaconId: beaconId,
-        factText: factText,
-        visibility: visibility,
-        sourceMessageId: sourceMessageId,
-      );
+  }) => _factCards.pin(
+    beaconId: beaconId,
+    factText: factText,
+    visibility: visibility,
+    sourceMessageId: sourceMessageId,
+  );
 
   Future<void> correctFact({
     required String beaconId,
     required String factCardId,
     required String newText,
-  }) =>
-      _factCards.correct(
-        beaconId: beaconId,
-        factCardId: factCardId,
-        newText: newText,
-      );
+  }) => _factCards.correct(
+    beaconId: beaconId,
+    factCardId: factCardId,
+    newText: newText,
+  );
 
   Future<void> removeFact({
     required String beaconId,
     required String factCardId,
-  }) =>
-      _factCards.remove(beaconId: beaconId, factCardId: factCardId);
+  }) => _factCards.remove(beaconId: beaconId, factCardId: factCardId);
 
   Future<void> setFactVisibility({
     required String beaconId,
     required String factCardId,
     required int visibility,
-  }) =>
-      _factCards.setVisibility(
-        beaconId: beaconId,
-        factCardId: factCardId,
-        visibility: visibility,
-      );
+  }) => _factCards.setVisibility(
+    beaconId: beaconId,
+    factCardId: factCardId,
+    visibility: visibility,
+  );
 
   Future<RoomSeenOutcome> markRoomSeenIfAllowed({
     required String beaconId,
-    required DateTime readThroughAt, String? threadItemId,
+    required DateTime readThroughAt,
+    String? threadItemId,
   }) async {
     try {
       final persistedAt = await _room.markRoomSeen(
@@ -272,73 +283,62 @@ final class BeaconRoomCase extends UseCaseBase {
     }
   }
 
-  Future<void> markAskFromMessage({
+  Future<CoordinationItem> markAskFromMessage({
     required String beaconId,
     required String messageId,
     required String title,
     required String targetPersonId,
     String body = '',
     int? staleAfterDays,
-  }) =>
-      _coordinationItemCase
-          .markAsk(
-            beaconId: beaconId,
-            title: title,
-            targetPersonId: targetPersonId,
-            body: body,
-            linkedMessageId: messageId,
-            staleAfterDays: staleAfterDays,
-          )
-          .then((_) {});
+  }) => _coordinationItemCase.markAsk(
+    beaconId: beaconId,
+    title: title,
+    targetPersonId: targetPersonId,
+    body: body,
+    linkedMessageId: messageId,
+    staleAfterDays: staleAfterDays,
+  );
 
-  Future<void> markBlockerFromMessage({
+  Future<CoordinationItem> markBlockerFromMessage({
     required String beaconId,
     required String messageId,
     required String title,
     String body = '',
     String? targetPersonId,
     int? staleAfterDays,
-  }) =>
-      _coordinationItemCase
-          .markBlocker(
-            beaconId: beaconId,
-            title: title,
-            body: body,
-            targetPersonId: targetPersonId,
-            linkedMessageId: messageId,
-            staleAfterDays: staleAfterDays,
-          )
-          .then((_) {});
+  }) => _coordinationItemCase.markBlocker(
+    beaconId: beaconId,
+    title: title,
+    body: body,
+    targetPersonId: targetPersonId,
+    linkedMessageId: messageId,
+    staleAfterDays: staleAfterDays,
+  );
 
-  Future<void> createPromise({
+  Future<CoordinationItem> createPromise({
     required String beaconId,
     required String title,
     required String targetPersonId,
     String body = '',
     String? linkedMessageId,
     int? staleAfterDays,
-  }) =>
-      _coordinationItemCase
-          .createPromise(
-            beaconId: beaconId,
-            title: title,
-            targetPersonId: targetPersonId,
-            body: body,
-            linkedMessageId: linkedMessageId,
-            staleAfterDays: staleAfterDays,
-          )
-          .then((_) {});
+  }) => _coordinationItemCase.createPromise(
+    beaconId: beaconId,
+    title: title,
+    targetPersonId: targetPersonId,
+    body: body,
+    linkedMessageId: linkedMessageId,
+    staleAfterDays: staleAfterDays,
+  );
 
-  Future<void> resolveCoordinationBlocker({required String itemId}) =>
-      _coordinationItemCase.resolveBlocker(itemId: itemId).then((_) {});
+  Future<CoordinationItem> resolveCoordinationBlocker({
+    required String itemId,
+  }) => _coordinationItemCase.resolveBlocker(itemId: itemId);
 
-  Future<void> markMessageSemanticDone({
+  Future<bool> markMessageSemanticDone({
     required String beaconId,
     required String messageId,
-  }) =>
-      _room
-          .markMessageSemanticDone(beaconId: beaconId, messageId: messageId)
-          .then((_) {});
+  }) => _room.markMessageSemanticDone(beaconId: beaconId, messageId: messageId);
 
   Future<void> votePoll({
     required String pollingId,
@@ -354,13 +354,12 @@ final class BeaconRoomCase extends UseCaseBase {
     String pollType = 'single',
     bool isAnonymous = true,
     bool allowRevote = true,
-  }) =>
-      _room.createPoll(
-        beaconId: beaconId,
-        question: question,
-        variants: variants,
-        pollType: pollType,
-        isAnonymous: isAnonymous,
-        allowRevote: allowRevote,
-      );
+  }) => _room.createPoll(
+    beaconId: beaconId,
+    question: question,
+    variants: variants,
+    pollType: pollType,
+    isAnonymous: isAnonymous,
+    allowRevote: allowRevote,
+  );
 }

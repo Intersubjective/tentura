@@ -42,8 +42,14 @@ class InboxCubit extends Cubit<InboxState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
+    _deskRelevantChanges = _inboxCase.deskRelevantChanges.listen(
+      _onDeskRelevantChanged,
+      cancelOnError: false,
+    );
     unawaited(fetch());
   }
+
+  static const _deskRelevantDebounce = Duration(milliseconds: 100);
 
   final String _userId;
   final InboxCase _inboxCase;
@@ -52,9 +58,12 @@ class InboxCubit extends Cubit<InboxState> {
 
   final UiEffectPort _effects;
 
+  final _deskRelevantTimers = <String, Timer>{};
+
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
+  late final StreamSubscription<String> _deskRelevantChanges;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -64,11 +73,10 @@ class InboxCubit extends Cubit<InboxState> {
   }
 
   void _onHelpOfferChanged(HelpOfferEvent event) => switch (event) {
-        HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
-        HelpOfferWithdrawn() ||
-        HelpOfferInvalidated() =>
-          unawaited(fetch(showLoading: false)),
-      };
+    HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
+    HelpOfferWithdrawn() ||
+    HelpOfferInvalidated() => unawaited(fetch(showLoading: false)),
+  };
 
   void _removeInboxItem(String beaconId) {
     if (isClosed) return;
@@ -91,11 +99,23 @@ class InboxCubit extends Cubit<InboxState> {
     _newStuffCubit.reportInboxActivity(maxMs);
   }
 
+  void _onDeskRelevantChanged(String beaconId) {
+    if (isClosed || beaconId.isEmpty) return;
+    _deskRelevantTimers.remove(beaconId)?.cancel();
+    _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
+      _deskRelevantTimers.remove(beaconId);
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false));
+      }
+    });
+  }
+
   Future<void> _fetchAndNotifyIfMoved(String beaconId) async {
     if (isClosed) return;
     final previousIdx = state.items.indexWhere((e) => e.beaconId == beaconId);
-    final previousStatus =
-        previousIdx >= 0 ? state.items[previousIdx].status : null;
+    final previousStatus = previousIdx >= 0
+        ? state.items[previousIdx].status
+        : null;
 
     final ok = await fetch(showLoading: false);
 
@@ -112,7 +132,8 @@ class InboxCubit extends Cubit<InboxState> {
     }
 
     final item = state.items[newIdx];
-    final ownBeaconForward = newStatus == InboxItemStatus.watching &&
+    final ownBeaconForward =
+        newStatus == InboxItemStatus.watching &&
         item.beacon?.author.id == _userId;
 
     emit(
@@ -133,9 +154,14 @@ class InboxCubit extends Cubit<InboxState> {
 
   @override
   Future<void> close() async {
+    for (final timer in _deskRelevantTimers.values) {
+      timer.cancel();
+    }
+    _deskRelevantTimers.clear();
     await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
     await _inboxLocalMutations.cancel();
+    await _deskRelevantChanges.cancel();
     return super.close();
   }
 
@@ -160,8 +186,7 @@ class InboxCubit extends Cubit<InboxState> {
     try {
       final raw = await _inboxCase.fetch(userId: _userId);
       final items = [
-        for (final item in raw)
-          _withResolvedRoomUnread(item),
+        for (final item in raw) _withResolvedRoomUnread(item),
       ];
       emit(
         state.copyWith(

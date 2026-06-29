@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -19,17 +18,20 @@ void main() {
     late FakeBeaconRepository beaconRepo;
     late FakeForwardRepository forwardRepo;
     late RoomReadWatermarkStore watermarkStore;
+    late FakeBeaconRoomRepository roomRepo;
 
     setUp(() {
       beaconRepo = FakeBeaconRepository();
       forwardRepo = FakeForwardRepository();
       watermarkStore = RoomReadWatermarkStore.testing();
+      roomRepo = FakeBeaconRoomRepository();
     });
 
     tearDown(() async {
       await beaconRepo.dispose();
       await forwardRepo.dispose();
       await watermarkStore.dispose();
+      await roomRepo.dispose();
     });
 
     test('beaconChanges forwards beacon repository events', () async {
@@ -37,6 +39,7 @@ void main() {
         beaconRepo: beaconRepo,
         forwardRepo: forwardRepo,
         watermarkStore: watermarkStore,
+        roomRepo: roomRepo,
       );
       final events = <RepositoryEvent<Beacon>>[];
       final sub = case_.beaconChanges.listen(events.add);
@@ -57,6 +60,7 @@ void main() {
         beaconRepo: beaconRepo,
         forwardRepo: forwardRepo,
         watermarkStore: watermarkStore,
+        roomRepo: roomRepo,
       );
       final events = <HelpOfferEvent>[];
       final sub = case_.helpOfferChanges.listen(events.add);
@@ -71,28 +75,33 @@ void main() {
       await sub.cancel();
     });
 
-    test('forwardCompleted forwards beacon ids from forward repository', () async {
-      final case_ = buildTestMyWorkCase(
-        beaconRepo: beaconRepo,
-        forwardRepo: forwardRepo,
-        watermarkStore: watermarkStore,
-      );
-      final ids = <String>[];
-      final sub = case_.forwardCompleted.listen(ids.add);
+    test(
+      'forwardCompleted forwards beacon ids from forward repository',
+      () async {
+        final case_ = buildTestMyWorkCase(
+          beaconRepo: beaconRepo,
+          forwardRepo: forwardRepo,
+          watermarkStore: watermarkStore,
+          roomRepo: roomRepo,
+        );
+        final ids = <String>[];
+        final sub = case_.forwardCompleted.listen(ids.add);
 
-      forwardRepo.emitForwardCompleted('b3');
-      await Future<void>.delayed(Duration.zero);
+        forwardRepo.emitForwardCompleted('b3');
+        await Future<void>.delayed(Duration.zero);
 
-      expect(ids, ['b3']);
+        expect(ids, ['b3']);
 
-      await sub.cancel();
-    });
+        await sub.cancel();
+      },
+    );
 
     test('readWatermarkChanges forwards watermark store changes', () async {
       final case_ = buildTestMyWorkCase(
         beaconRepo: beaconRepo,
         forwardRepo: forwardRepo,
         watermarkStore: watermarkStore,
+        roomRepo: roomRepo,
       );
       final ids = <String>[];
       final sub = case_.readWatermarkChanges.listen(ids.add);
@@ -104,18 +113,43 @@ void main() {
 
       await sub.cancel();
     });
+
+    test('deskRelevantChanges forwards room invalidation beacon ids', () async {
+      final case_ = buildTestMyWorkCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        watermarkStore: watermarkStore,
+        roomRepo: roomRepo,
+      );
+      final ids = <String>[];
+      final sub = case_.deskRelevantChanges.listen(ids.add);
+
+      roomRepo.emitRoomInvalidation(
+        const BeaconRoomInvalidation(
+          beaconId: 'b5',
+          entityType: BeaconRoomEntityType.coordinationItem,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ids, ['b5']);
+
+      await sub.cancel();
+    });
   });
 
   group('MyWorkCubit stream invalidation', () {
     late FakeBeaconRepository beaconRepo;
     late FakeForwardRepository forwardRepo;
     late RoomReadWatermarkStore watermarkStore;
+    late FakeBeaconRoomRepository roomRepo;
     late FakeMyWorkRepository repo;
 
     setUp(() {
       beaconRepo = FakeBeaconRepository();
       forwardRepo = FakeForwardRepository();
       watermarkStore = RoomReadWatermarkStore.testing();
+      roomRepo = FakeBeaconRoomRepository();
       repo = FakeMyWorkRepository()
         ..initResult = (
           authoredNonArchived: [
@@ -135,14 +169,30 @@ void main() {
       await beaconRepo.dispose();
       await forwardRepo.dispose();
       await watermarkStore.dispose();
+      await roomRepo.dispose();
     });
 
     MyWorkCase buildCase() => buildTestMyWorkCase(
-          repo: repo,
-          beaconRepo: beaconRepo,
-          forwardRepo: forwardRepo,
-          watermarkStore: watermarkStore,
-        );
+      repo: repo,
+      beaconRepo: beaconRepo,
+      forwardRepo: forwardRepo,
+      watermarkStore: watermarkStore,
+      roomRepo: roomRepo,
+    );
+
+    Future<void> waitForFetchCount(int expected) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (DateTime.now().isBefore(deadline)) {
+        if (repo.fetchInitCallCount >= expected) {
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      fail(
+        'Expected at least $expected desk init fetches, '
+        'got ${repo.fetchInitCallCount}.',
+      );
+    }
 
     test('beacon invalidate triggers desk refetch', () async {
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
@@ -195,7 +245,7 @@ void main() {
       await cubit.stream.firstWhere((s) => s.isSuccess);
 
       forwardRepo.emitHelpOffer(const HelpOfferCreated('b1'));
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+      await waitForFetchCount(2);
       expect(repo.fetchInitCallCount, 2);
 
       await cubit.close();
@@ -206,7 +256,7 @@ void main() {
       await cubit.stream.firstWhere((s) => s.isSuccess);
 
       forwardRepo.emitForwardCompleted('b1');
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+      await waitForFetchCount(2);
       expect(repo.fetchInitCallCount, 2);
 
       await cubit.close();
@@ -217,26 +267,55 @@ void main() {
       await cubit.stream.firstWhere((s) => s.isSuccess);
 
       watermarkStore.observeReadThrough('b1', DateTime.utc(2026));
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+      await waitForFetchCount(2);
       expect(repo.fetchInitCallCount, 2);
 
       await cubit.close();
     });
 
+    test(
+      'desk-relevant room changes debounce per beacon before refetch',
+      () async {
+        final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+        await cubit.stream.firstWhere((s) => s.isSuccess);
+        expect(repo.fetchInitCallCount, 1);
+
+        roomRepo
+          ..emitRoomInvalidation(
+            const BeaconRoomInvalidation(
+              beaconId: 'b1',
+              entityType: BeaconRoomEntityType.roomMessage,
+            ),
+          )
+          ..emitRoomInvalidation(
+            const BeaconRoomInvalidation(
+              beaconId: 'b1',
+              entityType: BeaconRoomEntityType.coordinationItem,
+            ),
+          );
+
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(repo.fetchInitCallCount, 2);
+
+        await cubit.close();
+      },
+    );
+
     test('overlapping refetches keep only the latest result', () async {
-      repo.fetchInitDelay = const Duration(milliseconds: 50);
-      repo.initResult = (
-        authoredNonArchived: [
-          Beacon.empty.copyWith(
-            id: 'stale',
-            status: BeaconStatus.open,
-            updatedAt: DateTime(2025, 1),
-          ),
-        ],
-        helpOfferedNonArchived: const [],
-        archivedCountHint: 0,
-        lastItemDiscussionMessageAtByBeaconId: const {},
-      );
+      repo
+        ..fetchInitDelay = const Duration(milliseconds: 50)
+        ..initResult = (
+          authoredNonArchived: [
+            Beacon.empty.copyWith(
+              id: 'stale',
+              updatedAt: DateTime(2025),
+            ),
+          ],
+          helpOfferedNonArchived: const [],
+          archivedCountHint: 0,
+          lastItemDiscussionMessageAtByBeaconId: const {},
+        );
 
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
       await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -254,28 +333,31 @@ void main() {
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
 
-      beaconRepo.emitChange(
-        RepositoryEventInvalidate(Beacon.empty.copyWith(id: 'x1')),
-      );
-      beaconRepo.emitChange(
-        RepositoryEventInvalidate(Beacon.empty.copyWith(id: 'x2')),
-      );
+      beaconRepo
+        ..emitChange(
+          RepositoryEventInvalidate(Beacon.empty.copyWith(id: 'x1')),
+        )
+        ..emitChange(
+          RepositoryEventInvalidate(Beacon.empty.copyWith(id: 'x2')),
+        );
 
       await cubit.stream.firstWhere(
         (s) =>
-            s.isSuccess &&
-            s.nonArchivedCards.any((c) => c.beaconId == 'fresh'),
+            s.isSuccess && s.nonArchivedCards.any((c) => c.beaconId == 'fresh'),
       );
       expect(
         cubit.state.nonArchivedCards.map((c) => c.beaconId),
         ['fresh'],
       );
-      expect(cubit.state.nonArchivedCards.single.kind, MyWorkCardKind.authoredActive);
+      expect(
+        cubit.state.nonArchivedCards.single.kind,
+        MyWorkCardKind.authoredActive,
+      );
 
       await cubit.close();
     });
 
-    Beacon _authoredBeacon(String id, {DateTime? updatedAt}) =>
+    Beacon authoredBeacon(String id, {DateTime? updatedAt}) =>
         Beacon.empty.copyWith(
           id: id,
           author: const Profile(id: 'u1'),
@@ -283,28 +365,34 @@ void main() {
           updatedAt: updatedAt ?? DateTime(2025, 8),
         );
 
-    test('create event shows beacon in visibleCards before fetch completes',
-        () async {
-      repo.fetchInitDelay = const Duration(milliseconds: 100);
-      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
-      await cubit.stream.firstWhere((s) => s.isSuccess);
-      final callsAfterInit = repo.fetchInitCallCount;
+    test(
+      'create event shows beacon in visibleCards before fetch completes',
+      () async {
+        repo.fetchInitDelay = const Duration(milliseconds: 100);
+        final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+        await cubit.stream.firstWhere((s) => s.isSuccess);
+        final callsAfterInit = repo.fetchInitCallCount;
 
-      beaconRepo.emitChange(
-        RepositoryEventCreate(_authoredBeacon('b-new')),
-      );
-      await Future<void>.delayed(Duration.zero);
+        beaconRepo.emitChange(
+          RepositoryEventCreate(authoredBeacon('b-new')),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      expect(
-        cubit.state.visibleCards.map((c) => c.beaconId),
-        contains('b-new'),
-      );
-      expect(cubit.state.visibleCards.singleWhere((c) => c.beaconId == 'b-new').kind,
-          MyWorkCardKind.authoredActive);
-      expect(repo.fetchInitCallCount, greaterThan(callsAfterInit));
+        expect(
+          cubit.state.visibleCards.map((c) => c.beaconId),
+          contains('b-new'),
+        );
+        expect(
+          cubit.state.visibleCards
+              .singleWhere((c) => c.beaconId == 'b-new')
+              .kind,
+          MyWorkCardKind.authoredActive,
+        );
+        expect(repo.fetchInitCallCount, greaterThan(callsAfterInit));
 
-      await cubit.close();
-    });
+        await cubit.close();
+      },
+    );
 
     test('stale fetch preserves optimistic authored card', () async {
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
@@ -313,7 +401,7 @@ void main() {
       final callsAfterInit = repo.fetchInitCallCount;
 
       beaconRepo.emitChange(
-        RepositoryEventCreate(_authoredBeacon('b-new')),
+        RepositoryEventCreate(authoredBeacon('b-new')),
       );
       await cubit.stream.firstWhere(
         (s) => s.nonArchivedCards.any((c) => c.beaconId == 'b-new'),
@@ -330,38 +418,41 @@ void main() {
       await cubit.close();
     });
 
-    test('server fetch with pending beacon clears duplicate local row', () async {
-      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+    test(
+      'server fetch with pending beacon clears duplicate local row',
+      () async {
+        final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+        await cubit.stream.firstWhere((s) => s.isSuccess);
 
-      repo.initResult = (
-        authoredNonArchived: [
-          Beacon.empty.copyWith(
-            id: 'b1',
-            status: BeaconStatus.open,
-            updatedAt: DateTime(2025, 6),
-          ),
-          _authoredBeacon('b-new', updatedAt: DateTime(2025, 9)),
-        ],
-        helpOfferedNonArchived: const [],
-        archivedCountHint: 0,
-        lastItemDiscussionMessageAtByBeaconId: const {},
-      );
+        repo.initResult = (
+          authoredNonArchived: [
+            Beacon.empty.copyWith(
+              id: 'b1',
+              status: BeaconStatus.open,
+              updatedAt: DateTime(2025, 6),
+            ),
+            authoredBeacon('b-new', updatedAt: DateTime(2025, 9)),
+          ],
+          helpOfferedNonArchived: const [],
+          archivedCountHint: 0,
+          lastItemDiscussionMessageAtByBeaconId: const {},
+        );
 
-      beaconRepo.emitChange(
-        RepositoryEventCreate(_authoredBeacon('b-new')),
-      );
-      await cubit.stream.firstWhere(
-        (s) =>
-            s.isSuccess &&
-            s.nonArchivedCards.map((c) => c.beaconId).toSet().containsAll({
-              'b1',
-              'b-new',
-            }),
-      );
-      expect(cubit.state.nonArchivedCards, hasLength(2));
+        beaconRepo.emitChange(
+          RepositoryEventCreate(authoredBeacon('b-new')),
+        );
+        await cubit.stream.firstWhere(
+          (s) =>
+              s.isSuccess &&
+              s.nonArchivedCards.map((c) => c.beaconId).toSet().containsAll({
+                'b1',
+                'b-new',
+              }),
+        );
+        expect(cubit.state.nonArchivedCards, hasLength(2));
 
-      await cubit.close();
-    });
+        await cubit.close();
+      },
+    );
   });
 }

@@ -25,21 +25,26 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       cancelOnError: false,
     );
     _helpOfferChanges = _myWorkCase.helpOfferChanges.listen(
-      (_) => unawaited(fetch()),
+      (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
     _forwardCompleted = _myWorkCase.forwardCompleted.listen(
-      (_) => unawaited(fetch()),
+      (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
     _readWatermarkSub = _myWorkCase.readWatermarkChanges.listen(
-      (_) => unawaited(fetch()),
+      (_) => unawaited(fetch(showLoading: false)),
+      cancelOnError: false,
+    );
+    _deskRelevantChanges = _myWorkCase.deskRelevantChanges.listen(
+      _onDeskRelevantChanged,
       cancelOnError: false,
     );
     unawaited(fetch());
   }
 
   static const _pendingRetryDelay = Duration(milliseconds: 400);
+  static const _deskRelevantDebounce = Duration(milliseconds: 100);
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -52,6 +57,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   Timer? _pendingRetryTimer;
 
+  final _deskRelevantTimers = <String, Timer>{};
+
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
   late final StreamSubscription<dynamic> _helpOfferChanges;
@@ -60,14 +67,32 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<String> _readWatermarkSub;
 
+  late final StreamSubscription<String> _deskRelevantChanges;
+
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
+    for (final timer in _deskRelevantTimers.values) {
+      timer.cancel();
+    }
+    _deskRelevantTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
     await _readWatermarkSub.cancel();
+    await _deskRelevantChanges.cancel();
     return super.close();
+  }
+
+  void _onDeskRelevantChanged(String beaconId) {
+    if (isClosed || beaconId.isEmpty) return;
+    _deskRelevantTimers.remove(beaconId)?.cancel();
+    _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
+      _deskRelevantTimers.remove(beaconId);
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false));
+      }
+    });
   }
 
   Future<void> fetch({bool showLoading = true}) async {

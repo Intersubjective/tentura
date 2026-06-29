@@ -39,10 +39,10 @@ void main() {
       expect(events, [event]);
     });
 
-    test('beaconRoomInvalidations forwards invalidation service events', () async {
-      final invalidation = FakeInvalidationService();
-      addTearDown(invalidation.dispose);
-      final case_ = buildTestBeaconViewCase(invalidation: invalidation);
+    test('beaconRoomInvalidations forwards room case events', () async {
+      final room = FakeBeaconViewRoomRepository();
+      addTearDown(room.dispose);
+      final case_ = buildTestBeaconViewCase(roomRepo: room);
 
       final events = <BeaconRoomInvalidation>[];
       final sub = case_.beaconRoomInvalidations.listen(events.add);
@@ -52,26 +52,29 @@ void main() {
         beaconId: 'B3',
         entityType: BeaconRoomEntityType.roomMessage,
       );
-      invalidation.emitRoomInvalidation(inv);
+      room.emitRoomInvalidation(inv);
       await Future<void>.delayed(Duration.zero);
 
       expect(events, [inv]);
     });
 
-    test('readWatermarkChanges forwards beacon room watermark stream', () async {
-      final watermark = RoomReadWatermarkStore.testing();
-      addTearDown(watermark.dispose);
-      final case_ = buildTestBeaconViewCase(watermarkStore: watermark);
+    test(
+      'readWatermarkChanges forwards beacon room watermark stream',
+      () async {
+        final watermark = RoomReadWatermarkStore.testing();
+        addTearDown(watermark.dispose);
+        final case_ = buildTestBeaconViewCase(watermarkStore: watermark);
 
-      final ids = <String>[];
-      final sub = case_.readWatermarkChanges.listen(ids.add);
-      addTearDown(sub.cancel);
+        final ids = <String>[];
+        final sub = case_.readWatermarkChanges.listen(ids.add);
+        addTearDown(sub.cancel);
 
-      watermark.observeReadThrough('B4', DateTime.utc(2026));
-      await Future<void>.delayed(Duration.zero);
+        watermark.observeReadThrough('B4', DateTime.utc(2026));
+        await Future<void>.delayed(Duration.zero);
 
-      expect(ids, ['B4']);
-    });
+        expect(ids, ['B4']);
+      },
+    );
   });
 
   group('BeaconViewCase refetch after lifecycle mutations', () {
@@ -122,6 +125,73 @@ void main() {
 
       expect(beacon.refreshAndNotifyCalls, ['B5']);
     });
+
+    test('setBeaconStatus refreshes beacon after mutation', () async {
+      final beacon = TrackingBeaconRepository();
+      final coordination = FakeBeaconViewCoordinationRepository();
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: beacon,
+        coordinationRepo: coordination,
+      );
+
+      await case_.setBeaconStatus(beaconId: 'B-status', status: 2);
+
+      expect(coordination.setBeaconStatusCalls, [
+        (beaconId: 'B-status', status: 2),
+      ]);
+      expect(beacon.refreshAndNotifyCalls, ['B-status']);
+    });
+
+    test(
+      'setCoordinationResponse emits help, participant, and beacon refresh',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final forward = FakeBeaconViewForwardRepository();
+        addTearDown(forward.dispose);
+        final coordination = FakeBeaconViewCoordinationRepository();
+        final room = FakeBeaconViewRoomRepository();
+        addTearDown(room.dispose);
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          forward: forward,
+          coordinationRepo: coordination,
+          roomRepo: room,
+        );
+
+        await case_.setCoordinationResponse(
+          beaconId: 'B-response',
+          offerUserId: 'u-offer',
+          responseType: 1,
+          inviteToRoom: true,
+          removeFromRoom: false,
+        );
+
+        expect(coordination.setCoordinationResponseCalls, [
+          (
+            beaconId: 'B-response',
+            offerUserId: 'u-offer',
+            responseType: 1,
+            inviteToRoom: true,
+            removeFromRoom: false,
+          ),
+        ]);
+        expect(
+          forward.notifiedHelpOfferEvents.single,
+          isA<HelpOfferInvalidated>().having(
+            (e) => e.beaconId,
+            'beaconId',
+            'B-response',
+          ),
+        );
+        expect(room.localChanges, [
+          const BeaconRoomInvalidation(
+            beaconId: 'B-response',
+            entityType: BeaconRoomEntityType.participant,
+          ),
+        ]);
+        expect(beacon.refreshAndNotifyCalls, ['B-response']);
+      },
+    );
 
     test('publishBeacon publishes draft then refreshes beacon', () async {
       final beacon = TrackingBeaconRepository();

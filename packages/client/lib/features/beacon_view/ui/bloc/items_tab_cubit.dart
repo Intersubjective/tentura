@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -16,12 +16,12 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
   ItemsTabCubit({
     required String beaconId,
     CoordinationItemCase? coordinationItemCase,
-    InvalidationService? invalidationService,
-  })  : _beaconId = beaconId,
-        _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
-        super(const ItemsTabState()) {
-    _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
-        .beaconRoomInvalidations
+    BeaconRoomCase? beaconRoomCase,
+  }) : _beaconId = beaconId,
+       _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
+       _beaconRoomCase = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
+       super(const ItemsTabState()) {
+    _invalidationSub = _beaconRoomCase.beaconRoomInvalidations
         .where(
           (e) =>
               e.beaconId == beaconId &&
@@ -36,6 +36,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   final String _beaconId;
   final CoordinationItemCase _case;
+  final BeaconRoomCase _beaconRoomCase;
   late final StreamSubscription<BeaconRoomInvalidation> _invalidationSub;
 
   Future<void> fetch({bool silent = false}) async {
@@ -69,16 +70,18 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
           closed.add(item);
         }
       }
-      emit(state.copyWith(
-        openItems: open,
-        closedItems: closed,
-        draftAskItems: draftAsks,
-        draftPromiseItems: draftPromises,
-        draftBlockerItems: draftBlockers,
-        currentCoordinationPlan: currentPlan,
-        loadError: null,
-        status: const StateIsSuccess(),
-      ));
+      emit(
+        state.copyWith(
+          openItems: open,
+          closedItems: closed,
+          draftAskItems: draftAsks,
+          draftPromiseItems: draftPromises,
+          draftBlockerItems: draftBlockers,
+          currentCoordinationPlan: currentPlan,
+          loadError: null,
+          status: const StateIsSuccess(),
+        ),
+      );
     } on Object catch (e) {
       emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
     }

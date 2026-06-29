@@ -22,7 +22,6 @@ import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.dart';
@@ -42,8 +41,7 @@ final class BeaconViewCase extends UseCaseBase {
     this._inboxRepository,
     this._factCards,
     this._beaconRoomCase,
-    this._activityEvents,
-    this._invalidationService, {
+    this._activityEvents, {
     required super.env,
     required super.logger,
   });
@@ -66,15 +64,13 @@ final class BeaconViewCase extends UseCaseBase {
 
   final BeaconActivityEventRepository _activityEvents;
 
-  final InvalidationService _invalidationService;
-
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
 
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
-      _invalidationService.beaconRoomInvalidations;
+      _beaconRoomCase.beaconRoomInvalidations;
 
   /// Emits beacon ids when session read-through or synced watermark changes.
   Stream<String> get readWatermarkChanges =>
@@ -181,21 +177,33 @@ final class BeaconViewCase extends UseCaseBase {
     required int responseType,
     required bool inviteToRoom,
     required bool removeFromRoom,
-  }) => _coordinationRepository.setCoordinationResponse(
-    beaconId: beaconId,
-    offerUserId: offerUserId,
-    responseType: responseType,
-    inviteToRoom: inviteToRoom,
-    removeFromRoom: removeFromRoom,
-  );
+  }) async {
+    final result = await _coordinationRepository.setCoordinationResponse(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      responseType: responseType,
+      inviteToRoom: inviteToRoom,
+      removeFromRoom: removeFromRoom,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    _beaconRoomCase.notifyLocalChange(
+      beaconId: beaconId,
+      entityType: BeaconRoomEntityType.participant,
+    );
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
 
   Future<void> setBeaconStatus({
     required String beaconId,
     required int status,
-  }) => _coordinationRepository.setBeaconStatus(
-    beaconId: beaconId,
-    status: status,
-  );
+  }) async {
+    await _coordinationRepository.setBeaconStatus(
+      beaconId: beaconId,
+      status: status,
+    );
+    await _beaconRepository.refreshAndNotify(beaconId);
+  }
 
   Future<Beacon> fetchBeaconById(String beaconId) =>
       _beaconRepository.fetchBeaconById(beaconId);
