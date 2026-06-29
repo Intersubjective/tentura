@@ -56,7 +56,10 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.only(left: kBeaconHudRowLeadWidth),
+            padding: EdgeInsets.only(
+              left: kBeaconHudRowLeadWidth,
+              top: tt.tightGap,
+            ),
             child: BeaconDefinitionBody(
               key: ValueKey('hud-def-${beacon.id}'),
               beacon: beacon,
@@ -164,8 +167,7 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
 
   bool _hasExpandableDefinitionContent(Beacon beacon) {
     final doneWhen = beacon.successCriteria?.trim();
-    return beacon.title.trim().isNotEmpty ||
-        beacon.startAt != null ||
+    return beacon.startAt != null ||
         beacon.endAt != null ||
         (beacon.coordinates?.isNotEmpty ?? false) ||
         (doneWhen != null && doneWhen.isNotEmpty) ||

@@ -12,7 +12,7 @@ import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
-/// Beacon definition content (title, schedule, need, media, description).
+/// Beacon definition content for the HUD fold (schedule, need, media, description).
 class BeaconDefinitionBody extends StatelessWidget {
   const BeaconDefinitionBody({
     required this.beacon,
@@ -25,16 +25,17 @@ class BeaconDefinitionBody extends StatelessWidget {
   /// When false, omits the need line (shown elsewhere, e.g. HUD collapsed row).
   final bool includeNeedSummary;
 
-  static const double _thumbSize = 52;
+  static const double _metaIconSize = 18;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
-    final bodyStyle = TenturaText.body(scheme.onSurfaceVariant);
-    final labelStyle = TenturaText.typeLabel(scheme.onSurface);
+    final textStyle = TenturaText.bodySmall(scheme.onSurface).copyWith(
+      height: 1.25,
+    );
+    final metaIconColor = scheme.onSurfaceVariant;
 
     final needText = beacon.needSummary?.trim() ?? '';
     final doneWhen = beacon.successCriteria?.trim();
@@ -43,31 +44,28 @@ class BeaconDefinitionBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _titleRow(context, theme, scheme),
         if (beacon.startAt != null || beacon.endAt != null) ...[
-          SizedBox(height: tt.rowGap / 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 TenturaIcons.calendar,
-                size: 18,
-                color: scheme.onSurfaceVariant,
+                size: _metaIconSize,
+                color: metaIconColor,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: tt.iconTextGap),
               Expanded(
                 child: Text(
                   '${dateFormatYMD(beacon.startAt)} - ${dateFormatYMD(beacon.endAt)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: textStyle,
                 ),
               ),
             ],
           ),
         ],
         if (beacon.coordinates?.isNotEmpty ?? false) ...[
-          SizedBox(height: tt.rowGap / 2),
+          if (beacon.startAt != null || beacon.endAt != null)
+            SizedBox(height: tt.rowGap / 2),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -79,21 +77,14 @@ class BeaconDefinitionBody extends StatelessWidget {
               ),
               icon: Icon(
                 TenturaIcons.location,
-                size: 18,
-                color: scheme.onSurfaceVariant,
+                size: _metaIconSize,
+                color: metaIconColor,
               ),
               label: kIsWeb
-                  ? Text(
-                      l10n.showOnMap,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    )
+                  ? Text(l10n.showOnMap, style: textStyle)
                   : PlaceNameText(
                       coords: beacon.coordinates!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                      style: textStyle,
                     ),
               onPressed: () => ChooseLocationDialog.show(
                 context,
@@ -105,26 +96,30 @@ class BeaconDefinitionBody extends StatelessWidget {
         if (includeNeedSummary &&
             beacon.hasNeedSummary &&
             needText.isNotEmpty) ...[
-          SizedBox(height: tt.rowGap),
-          _labeledWrap(
+          if (beacon.startAt != null ||
+              beacon.endAt != null ||
+              (beacon.coordinates?.isNotEmpty ?? false))
+            SizedBox(height: tt.rowGap / 2),
+          _labeledLine(
             label: l10n.beaconNeedBriefPrefix,
             body: needText,
-            labelStyle: labelStyle,
-            bodyStyle: bodyStyle,
+            style: textStyle,
           ),
         ],
         if (doneWhen != null && doneWhen.isNotEmpty) ...[
           SizedBox(height: tt.rowGap / 2),
-          _labeledWrap(
+          _labeledLine(
             label: '${l10n.beaconDoneWhenTitle}:',
             body: doneWhen,
-            labelStyle: labelStyle,
-            bodyStyle: bodyStyle,
+            style: textStyle,
           ),
         ],
         if (requirementTags.isNotEmpty) ...[
           SizedBox(height: tt.rowGap / 2),
-          CapabilityRequirementTags(tags: requirementTags),
+          CapabilityRequirementTags(
+            tags: requirementTags,
+            showHeading: false,
+          ),
         ],
         if (beacon.hasPicture) ...[
           SizedBox(height: tt.rowGap),
@@ -132,51 +127,12 @@ class BeaconDefinitionBody extends StatelessWidget {
         ],
         if (beacon.description.trim().isNotEmpty) ...[
           SizedBox(height: tt.rowGap),
-          Text(
+          ShowMoreText(
             beacon.description.trim(),
-            style: ShowMoreText.buildTextStyle(context),
+            style: textStyle,
+            colorClickableText: scheme.primary,
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _titleRow(
-    BuildContext context,
-    ThemeData theme,
-    ColorScheme scheme,
-  ) {
-    final titleStyle = theme.textTheme.titleSmall!.copyWith(
-      color: scheme.onSurface,
-      decoration: TextDecoration.none,
-    );
-
-    final titleText = Text(
-      beacon.title,
-      style: titleStyle,
-      softWrap: true,
-    );
-
-    if (!beacon.hasPicture) {
-      return titleText;
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-          child: SizedBox(
-            width: _thumbSize,
-            height: _thumbSize,
-            child: BeaconImage(
-              beacon: beacon,
-              enableGalleryTap: true,
-            ),
-          ),
-        ),
-        SizedBox(width: context.tt.rowGap),
-        Expanded(child: titleText),
       ],
     );
   }
@@ -245,18 +201,17 @@ class _BeaconDefinitionMediaBand extends StatelessWidget {
   }
 }
 
-Widget _labeledWrap({
+Widget _labeledLine({
   required String label,
   required String body,
-  required TextStyle labelStyle,
-  required TextStyle bodyStyle,
+  required TextStyle style,
 }) {
   return SelectableText.rich(
     TextSpan(
       children: [
-        TextSpan(text: label, style: labelStyle),
+        TextSpan(text: label, style: style),
         const TextSpan(text: ' '),
-        TextSpan(text: body, style: bodyStyle),
+        TextSpan(text: body, style: style),
       ],
     ),
   );
