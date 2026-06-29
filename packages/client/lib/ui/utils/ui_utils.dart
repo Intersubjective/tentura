@@ -1,6 +1,8 @@
 // DEPRECATED scope: prefer `context.tt` (TenturaTokens) for new layout; do not add
 // new `kPadding*` / spacing constants here — use design-system tokens instead.
 
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
@@ -72,7 +74,7 @@ class ClearSnackBarsOnPushObserver extends NavigatorObserver {
     if (previousRoute != null) {
       // Clear before the next pointer frame. A post-frame clear races Firefox
       // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
-      snackbarKey.currentState?.clearSnackBars();
+      scheduleMicrotask(() => snackbarKey.currentState?.clearSnackBars());
     }
   }
 }
