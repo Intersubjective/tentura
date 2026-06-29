@@ -9,9 +9,15 @@ final class MentionTextController extends TextEditingController {
   TextRange? _activeMentionRange;
 
   /// `null` = no active mention at cursor, `''` = user typed `@` but no query.
-  String? get activeMentionQuery => _activeMentionQuery;
+  String? get activeMentionQuery {
+    _recompute();
+    return _activeMentionQuery;
+  }
 
-  TextRange? get activeMentionRange => _activeMentionRange;
+  TextRange? get activeMentionRange {
+    _recompute();
+    return _activeMentionRange;
+  }
 
   @override
   set value(TextEditingValue newValue) {
@@ -23,11 +29,11 @@ final class MentionTextController extends TextEditingController {
     _activeMentionQuery = null;
     _activeMentionRange = null;
 
-    final cursor = selection.baseOffset;
-    if (cursor < 0) return;
-
     final text = this.text;
     if (text.isEmpty) return;
+
+    final selectionOffset = selection.baseOffset;
+    final cursor = selectionOffset < 0 ? text.length : selectionOffset;
     if (cursor > text.length) return;
 
     // Walk left to the beginning of the current token.
