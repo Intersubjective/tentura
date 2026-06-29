@@ -143,8 +143,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   DateTime? roomReadThrough(String beaconId) => _case.readThrough(beaconId);
 
   /// Re-fetches server unread snapshot for the current beacon (e.g. after invalidation).
-  Future<void> refreshRoomUnreadCount() =>
-      _refreshRoomUnread(state.beacon.id);
+  Future<void> refreshRoomUnreadCount() => _refreshRoomUnread(state.beacon.id);
 
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
@@ -512,15 +511,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     if (isClosed) return;
     try {
       final beaconId = state.beacon.id;
-      final responsibility =
-          await _coordinationItemCase.fetchResponsibility(beaconId);
+      final responsibility = await _coordinationItemCase.fetchResponsibility(
+        beaconId,
+      );
       if (isClosed) return;
       emit(
         state.copyWith(
           youResponsibility: responsibility.withNewCountsCleared(),
         ),
       );
-      unawaited(_coordinationItemCase.markItemsSeen(beaconId));
+      await _coordinationItemCase.markItemsSeen(beaconId);
     } on Object catch (_) {
       // YOU line is supplementary; do not fail the screen.
     }
@@ -575,24 +575,24 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         String? responseAuthorUserId,
         int? roomAccess,
       })
-    > helpOffers,
-  ) =>
-      [
-        for (final c in helpOffers)
-          TimelineHelpOffer(
-            user: c.user,
-            message: c.message,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-            isWithdrawn: c.status == 1,
-            helpType: c.helpType,
-            coordinationResponse: CoordinationResponseType.tryFromInt(
-              c.responseType,
-            ),
-            withdrawReason: c.withdrawReason,
-            roomAccess: c.roomAccess,
-          ),
-      ];
+    >
+    helpOffers,
+  ) => [
+    for (final c in helpOffers)
+      TimelineHelpOffer(
+        user: c.user,
+        message: c.message,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        isWithdrawn: c.status == 1,
+        helpType: c.helpType,
+        coordinationResponse: CoordinationResponseType.tryFromInt(
+          c.responseType,
+        ),
+        withdrawReason: c.withdrawReason,
+        roomAccess: c.roomAccess,
+      ),
+  ];
 
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
@@ -609,7 +609,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final cue = state.beaconRoomCue;
       emit(
         state.copyWith(
-          beaconRoomCue: cue?.copyWith(currentLine: trimmed) ??
+          beaconRoomCue:
+              cue?.copyWith(currentLine: trimmed) ??
               BeaconRoomState(
                 beaconId: state.beacon.id,
                 updatedAt: DateTime.now().toUtc(),
@@ -767,8 +768,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       ReviewWindowInfo? reviewWindowInfo;
       if (beacon.status == BeaconStatus.reviewOpen) {
         try {
-          reviewWindowInfo =
-              await _case.fetchReviewWindowStatusIfReviewOpen(beaconId);
+          reviewWindowInfo = await _case.fetchReviewWindowStatusIfReviewOpen(
+            beaconId,
+          );
         } on Object catch (_) {
           reviewWindowInfo = null;
         }

@@ -77,7 +77,8 @@ final class BeaconViewCase extends UseCaseBase {
       _invalidationService.beaconRoomInvalidations;
 
   /// Emits beacon ids when session read-through or synced watermark changes.
-  Stream<String> get readWatermarkChanges => _beaconRoomCase.readWatermarkChanges;
+  Stream<String> get readWatermarkChanges =>
+      _beaconRoomCase.readWatermarkChanges;
 
   DateTime? readThrough(String beaconId) =>
       _beaconRoomCase.readThrough(beaconId);
@@ -86,12 +87,11 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
     required int serverCount,
     required DateTime? serverSeenAt,
-  }) =>
-      _beaconRoomCase.resolveUnread(
-        beaconId: beaconId,
-        serverCount: serverCount,
-        serverSeenAt: serverSeenAt,
-      );
+  }) => _beaconRoomCase.resolveUnread(
+    beaconId: beaconId,
+    serverCount: serverCount,
+    serverSeenAt: serverSeenAt,
+  );
 
   Future<void> setInboxStatus({
     required String beaconId,
@@ -139,13 +139,13 @@ final class BeaconViewCase extends UseCaseBase {
     await _beaconRepository.refreshAndNotify(beaconId);
   }
 
-  Future<void> archiveBeacon(String beaconId) => _archiveRepository.archive(beaconId);
+  Future<void> archiveBeacon(String beaconId) =>
+      _archiveRepository.archive(beaconId);
 
   Future<void> unarchiveBeacon({
     required String beaconId,
     required String userId,
-  }) =>
-      _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
+  }) => _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
 
   /// True when the viewer has at least one draft evaluation participant (open beacon).
   Future<bool> beaconHasDraftEvaluationTargets(String beaconId) async {
@@ -175,8 +175,7 @@ final class BeaconViewCase extends UseCaseBase {
     withdrawReason: withdrawReason,
   );
 
-  Future<({BeaconStatus status, DateTime? updatedAt})>
-  setCoordinationResponse({
+  Future<({BeaconStatus status, DateTime? updatedAt})> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
     required int responseType,
@@ -201,8 +200,13 @@ final class BeaconViewCase extends UseCaseBase {
   Future<Beacon> fetchBeaconById(String beaconId) =>
       _beaconRepository.fetchBeaconById(beaconId);
 
-  Future<List<BeaconFactCard>> fetchFactCards(String beaconId) =>
-      _factCards.list(beaconId: beaconId);
+  Future<List<BeaconFactCard>> fetchFactCards(String beaconId) async {
+    try {
+      return await _factCards.list(beaconId: beaconId);
+    } on Object catch (_) {
+      return [];
+    }
+  }
 
   /// Room API; returns empty when caller is not allowed (e.g. no room access).
   Future<List<BeaconParticipant>> fetchRoomParticipants(String beaconId) async {
@@ -214,8 +218,15 @@ final class BeaconViewCase extends UseCaseBase {
   }
 
   /// Latest private room state slice; `null` when the viewer cannot use the room API.
-  Future<CoordinationItem?> fetchOpenCoordinationBlocker(String beaconId) =>
-      _beaconRoomCase.fetchOpenCoordinationBlocker(beaconId);
+  Future<CoordinationItem?> fetchOpenCoordinationBlocker(
+    String beaconId,
+  ) async {
+    try {
+      return await _beaconRoomCase.fetchOpenCoordinationBlocker(beaconId);
+    } on Object catch (_) {
+      return null;
+    }
+  }
 
   Future<BeaconRoomState?> fetchRoomStateIfAllowed(String beaconId) async {
     try {

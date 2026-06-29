@@ -85,37 +85,40 @@ void main() {
       expect(cubit.state.beaconUnavailable, isFalse);
     });
 
-    test('surfaces enrichment failure without clearing loaded beacon', () async {
-      final effects = FakeUiEffectPort();
-      final beaconRepo = TrackingBeaconRepository();
-      beaconRepo.fetchByIdHandler = (_) async => readableBeacon();
-      final case_ = buildTestBeaconViewCase(
-        beaconRepo: beaconRepo,
-        coordinationRepo: FakeBeaconViewCoordinationRepository(
-          enrichmentError: StateError('coordination timeout'),
-        ),
-      );
-      final cubit = BeaconViewCubit(
-        id: beaconId,
-        myProfile: myProfile,
-        beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
-        effects: effects,
-      );
-      addTearDown(cubit.close);
+    test(
+      'surfaces enrichment failure without clearing loaded beacon',
+      () async {
+        final effects = FakeUiEffectPort();
+        final beaconRepo = TrackingBeaconRepository();
+        beaconRepo.fetchByIdHandler = (_) async => readableBeacon();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          coordinationRepo: FakeBeaconViewCoordinationRepository(
+            enrichmentError: StateError('coordination timeout'),
+          ),
+        );
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: case_,
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
 
-      await pumpUntil(
-        cubit.stream,
-        () => cubit.state.beaconContentLoaded,
-      );
-      await pumpUntilEffects(
-        () => effects.emitted.any((e) => e is ShowError),
-      );
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContentLoaded,
+        );
+        await pumpUntilEffects(
+          () => effects.emitted.any((e) => e is ShowError),
+        );
 
-      expect(cubit.state.beacon.id, beaconId);
-      expect(cubit.state.beaconContentLoaded, isTrue);
-      expect(cubit.state.status, isA<StateIsSuccess>());
-    });
+        expect(cubit.state.beacon.id, beaconId);
+        expect(cubit.state.beaconContentLoaded, isTrue);
+        expect(cubit.state.status, isA<StateIsSuccess>());
+      },
+    );
 
     test(
       'room activity fetch denial does not surface error for loaded beacon',
@@ -148,6 +151,74 @@ void main() {
         expect(cubit.state.beaconContentLoaded, isTrue);
         expect(cubit.state.status, isA<StateIsSuccess>());
         expect(cubit.state.roomActivityEvents, isEmpty);
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      },
+    );
+
+    test(
+      'fact card fetch denial does not surface error for loaded beacon',
+      () async {
+        final effects = FakeUiEffectPort();
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          factCardsRepo: FakeBeaconViewFactCardRepository(
+            listError: const RemoteApiException('Room access required'),
+          ),
+        );
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: case_,
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContentLoaded,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(cubit.state.beacon.id, beaconId);
+        expect(cubit.state.beaconContentLoaded, isTrue);
+        expect(cubit.state.status, isA<StateIsSuccess>());
+        expect(cubit.state.factCards, isEmpty);
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      },
+    );
+
+    test(
+      'responsibility mark-seen denial does not surface error for loaded beacon',
+      () async {
+        final effects = FakeUiEffectPort();
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon();
+        final case_ = buildTestBeaconViewCase(beaconRepo: beaconRepo);
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: case_,
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(
+            markItemsSeenException: RemoteApiException(
+              'You must be an admitted beacon participant',
+            ),
+          ),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContentLoaded,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(cubit.state.beacon.id, beaconId);
+        expect(cubit.state.beaconContentLoaded, isTrue);
+        expect(cubit.state.status, isA<StateIsSuccess>());
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
       },
     );
