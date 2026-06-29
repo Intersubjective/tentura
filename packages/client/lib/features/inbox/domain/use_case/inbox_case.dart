@@ -25,9 +25,11 @@ final class InboxCase extends UseCaseBase {
 
   /// Inbox list refresh after local writes or session read-watermark changes.
   Stream<void> get localMutations => MergeStream<void>([
-        _repository.localMutations,
-        _beaconRoomCase.readWatermarkChanges.map((_) {}),
-      ]);
+    _repository.localMutations,
+    _beaconRoomCase.readWatermarkChanges.map((_) {}),
+  ]);
+
+  Stream<String> get deskRelevantChanges => _beaconRoomCase.deskRelevantChanges;
 
   Future<List<InboxItem>> fetch({required String userId}) =>
       _repository.fetch(userId: userId);
@@ -36,30 +38,27 @@ final class InboxCase extends UseCaseBase {
     required String beaconId,
     required InboxItemStatus status,
     String rejectionMessage = '',
-  }) =>
-      _repository.setStatus(
-        beaconId: beaconId,
-        status: status,
-        rejectionMessage: rejectionMessage,
-      );
+  }) => _repository.setStatus(
+    beaconId: beaconId,
+    status: status,
+    rejectionMessage: rejectionMessage,
+  );
 
   Future<void> dismissTombstone({
     required String beaconId,
     DateTime? dismissedAt,
-  }) =>
-      _repository.dismissTombstone(
-        beaconId: beaconId,
-        dismissedAt: dismissedAt,
-      );
+  }) => _repository.dismissTombstone(
+    beaconId: beaconId,
+    dismissedAt: dismissedAt,
+  );
 
   int resolveRoomUnread({
     required String beaconId,
     required int serverCount,
     required DateTime? serverSeenAt,
-  }) =>
-      _beaconRoomCase.resolveUnread(
-        beaconId: beaconId,
-        serverCount: serverCount,
-        serverSeenAt: serverSeenAt,
-      );
+  }) => _beaconRoomCase.resolveUnread(
+    beaconId: beaconId,
+    serverCount: serverCount,
+    serverSeenAt: serverSeenAt,
+  );
 }

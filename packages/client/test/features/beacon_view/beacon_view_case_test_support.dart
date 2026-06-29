@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:logging/logging.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -47,9 +47,20 @@ typedef FakeHelpOfferCoordinationRow = ({
   int? roomAccess,
 });
 
+Never _throwTestError(Object error) {
+  if (error is Exception) {
+    throw error;
+  }
+  if (error is Error) {
+    throw error;
+  }
+  throw StateError(error.toString());
+}
+
 class FakeBeaconViewForwardRepository implements ForwardRepository {
   final _forwardCompleted = StreamController<String>.broadcast();
   final _helpOfferChanges = StreamController<HelpOfferEvent>.broadcast();
+  final notifiedHelpOfferEvents = <HelpOfferEvent>[];
 
   @override
   Stream<String> get forwardCompleted => _forwardCompleted.stream;
@@ -62,40 +73,16 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
   void emitHelpOfferChange(HelpOfferEvent event) =>
       _helpOfferChanges.add(event);
 
-  Future<void> dispose() async {
-    await _forwardCompleted.close();
-    await _helpOfferChanges.close();
+  @override
+  void notifyHelpOfferChanged(HelpOfferEvent event) {
+    notifiedHelpOfferEvents.add(event);
+    emitHelpOfferChange(event);
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class FakeInvalidationService implements InvalidationService {
-  final _beaconRoomController =
-      StreamController<BeaconRoomInvalidation>.broadcast();
-
-  void emitRoomInvalidation(BeaconRoomInvalidation invalidation) =>
-      _beaconRoomController.add(invalidation);
-
-  @override
-  Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
-      _beaconRoomController.stream;
-
-  @override
-  Stream<String> get beaconInvalidations => const Stream.empty();
-
-  @override
-  Stream<String> get helpOfferInvalidations => const Stream.empty();
-
-  @override
-  Stream<String> get forwardInvalidations => const Stream.empty();
-
-  @override
-  Stream<String> get capabilityInvalidations => const Stream.empty();
-
   Future<void> dispose() async {
-    await _beaconRoomController.close();
+    await _forwardCompleted.close();
+    await _helpOfferChanges.close();
   }
 
   @override
@@ -179,14 +166,52 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
   final Duration enrichmentDelay;
   final Object? enrichmentError;
   final List<FakeHelpOfferCoordinationRow> rows;
+  final setBeaconStatusCalls = <({String beaconId, int status})>[];
+  final setCoordinationResponseCalls =
+      <
+        ({
+          String beaconId,
+          String offerUserId,
+          int responseType,
+          bool inviteToRoom,
+          bool removeFromRoom,
+        })
+      >[];
 
   @override
   Future<List<FakeHelpOfferCoordinationRow>> fetchHelpOffersWithCoordination({
     required String beaconId,
   }) async {
     await Future<void>.delayed(enrichmentDelay);
-    if (enrichmentError != null) throw enrichmentError!;
+    if (enrichmentError != null) _throwTestError(enrichmentError!);
     return rows;
+  }
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> setBeaconStatus({
+    required String beaconId,
+    required int status,
+  }) async {
+    setBeaconStatusCalls.add((beaconId: beaconId, status: status));
+    return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
+  }
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> setCoordinationResponse({
+    required String beaconId,
+    required String offerUserId,
+    required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
+  }) async {
+    setCoordinationResponseCalls.add((
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      responseType: responseType,
+      inviteToRoom: inviteToRoom,
+      removeFromRoom: removeFromRoom,
+    ));
+    return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
   }
 
   @override
@@ -220,7 +245,7 @@ class FakeBeaconViewActivityEventRepository
 
   @override
   Future<List<BeaconActivityEvent>> list({required String beaconId}) async {
-    if (listError != null) throw listError!;
+    if (listError != null) _throwTestError(listError!);
     return [];
   }
 
@@ -235,7 +260,7 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
 
   @override
   Future<List<BeaconFactCard>> list({required String beaconId}) async {
-    if (listError != null) throw listError!;
+    if (listError != null) _throwTestError(listError!);
     return [];
   }
 
@@ -244,6 +269,39 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
 }
 
 class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
+  final _roomInvalidations =
+      StreamController<BeaconRoomInvalidation>.broadcast();
+
+  final localChanges = <BeaconRoomInvalidation>[];
+
+  @override
+  Stream<String> get beaconRoomRefresh =>
+      _roomInvalidations.stream.map((e) => e.beaconId);
+
+  @override
+  Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
+      _roomInvalidations.stream;
+
+  void emitRoomInvalidation(BeaconRoomInvalidation invalidation) {
+    _roomInvalidations.add(invalidation);
+  }
+
+  @override
+  void notifyLocalChange({
+    required String beaconId,
+    required BeaconRoomEntityType entityType,
+  }) {
+    final invalidation = BeaconRoomInvalidation(
+      beaconId: beaconId,
+      entityType: entityType,
+    );
+    localChanges.add(invalidation);
+    emitRoomInvalidation(invalidation);
+  }
+
+  @override
+  Future<void> dispose() => _roomInvalidations.close();
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -265,9 +323,10 @@ class FakeBeaconViewCoordinationItemRepository
 }
 
 BeaconRoomCase buildTestBeaconRoomCaseForView(
-  RoomReadWatermarkStore watermark,
-) => BeaconRoomCase(
-  FakeBeaconViewRoomRepository(),
+  RoomReadWatermarkStore watermark, {
+  FakeBeaconViewRoomRepository? room,
+}) => BeaconRoomCase(
+  room ?? FakeBeaconViewRoomRepository(),
   FakeBeaconViewFactCardRepository(),
   FakeBeaconViewPollingRepository(),
   FakeBeaconViewRoomHintsRepository(),
@@ -279,16 +338,15 @@ BeaconRoomCase buildTestBeaconRoomCaseForView(
 
 BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewForwardRepository? forward,
-  FakeInvalidationService? invalidation,
   RoomReadWatermarkStore? watermarkStore,
   TrackingBeaconRepository? beaconRepo,
   FakeBeaconViewEvaluationRepository? evaluationRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
   FakeBeaconViewFactCardRepository? factCardsRepo,
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
+  FakeBeaconViewRoomRepository? roomRepo,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
-  final invalidationSvc = invalidation ?? FakeInvalidationService();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
   final beacon = beaconRepo ?? TrackingBeaconRepository();
   final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
@@ -306,9 +364,8 @@ BeaconViewCase buildTestBeaconViewCase({
     coordination,
     FakeBeaconViewInboxRepository(),
     factCards,
-    buildTestBeaconRoomCaseForView(watermark),
+    buildTestBeaconRoomCaseForView(watermark, room: roomRepo),
     activityEvents,
-    invalidationSvc,
     env: const Env(),
     logger: Logger('test'),
   );

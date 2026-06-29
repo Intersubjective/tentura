@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 import 'item_actions_state.dart';
@@ -18,17 +17,15 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   ItemActionsCubit({
     required CoordinationItem item,
     CoordinationItemCase? coordinationItemCase,
-    InvalidationService? invalidationService,
-    CoordinationItemRoomSync? coordinationItemRoomSync,
+    BeaconRoomCase? beaconRoomCase,
     UiEffectPort? effects,
     bool listenToInvalidation = true,
-  })  : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
-        _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
-        _effects = effects ?? GetIt.I<UiEffectPort>(),
-        super(ItemActionsState(item: item)) {
+  }) : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
+       _beaconRoomCase = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
+       super(ItemActionsState(item: item)) {
     if (listenToInvalidation) {
-      _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
-          .beaconRoomInvalidations
+      _invalidationSub = _beaconRoomCase.beaconRoomInvalidations
           .where(
             (e) =>
                 e.beaconId == item.beaconId &&
@@ -40,7 +37,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   }
 
   final CoordinationItemCase _case;
-  final CoordinationItemRoomSync _itemSync;
+  final BeaconRoomCase _beaconRoomCase;
   final UiEffectPort _effects;
   StreamSubscription<BeaconRoomInvalidation>? _invalidationSub;
 
@@ -69,7 +66,6 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
           status: const StateIsSuccess(),
         ),
       );
-      _itemSync.notifyItemUpdated(updated);
     } on Object catch (e) {
       if (!isClosed) {
         _emitSnackError(e);

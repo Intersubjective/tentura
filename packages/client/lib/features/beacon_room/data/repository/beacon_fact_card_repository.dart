@@ -3,6 +3,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_room/domain/beacon_room_local_change_bus.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
 import '../gql/_g/beacon_fact_card_correct.req.gql.dart';
 import '../gql/_g/beacon_fact_card_list.data.gql.dart';
@@ -13,11 +15,20 @@ import '../gql/_g/beacon_fact_card_set_visibility.req.gql.dart';
 
 @lazySingleton
 class BeaconFactCardRepository {
-  BeaconFactCardRepository(this._remoteApiService);
+  BeaconFactCardRepository(this._remoteApiService, this._localChangeBus);
 
   final RemoteApiService _remoteApiService;
 
+  final BeaconRoomLocalChangeBus _localChangeBus;
+
   static const _label = 'BeaconFactCard';
+
+  void _notifyFactCardChanged(String beaconId) {
+    _localChangeBus.notifyBeaconChanged(
+      beaconId: beaconId,
+      entityType: BeaconRoomEntityType.factCard,
+    );
+  }
 
   BeaconFactCard _mapRow(GBeaconFactCardListData_BeaconFactCardList row) =>
       BeaconFactCard(
@@ -29,8 +40,9 @@ class BeaconFactCardRepository {
         createdAt: DateTime.parse(row.createdAt),
         status: row.status,
         sourceMessageId: row.sourceMessageId,
-        updatedAt:
-            row.updatedAt != null ? DateTime.parse(row.updatedAt!) : null,
+        updatedAt: row.updatedAt != null
+            ? DateTime.parse(row.updatedAt!)
+            : null,
         pinnedByTitle: row.pinnedByTitle,
         attachments: parseRoomMessageAttachmentsJson(row.attachmentsJson),
       );
@@ -61,6 +73,7 @@ class BeaconFactCardRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardPin);
+    _notifyFactCardChanged(beaconId);
   }
 
   Future<void> correct({
@@ -79,6 +92,7 @@ class BeaconFactCardRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardCorrect);
+    _notifyFactCardChanged(beaconId);
   }
 
   Future<void> remove({
@@ -95,6 +109,7 @@ class BeaconFactCardRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardRemove);
+    _notifyFactCardChanged(beaconId);
   }
 
   Future<void> setVisibility({
@@ -113,5 +128,6 @@ class BeaconFactCardRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardSetVisibility);
+    _notifyFactCardChanged(beaconId);
   }
 }

@@ -62,6 +62,8 @@ final class MyWorkCase extends UseCaseBase {
   Stream<String> get readWatermarkChanges =>
       _beaconRoomCase.readWatermarkChanges;
 
+  Stream<String> get deskRelevantChanges => _beaconRoomCase.deskRelevantChanges;
+
   Future<MyWorkInitResult> fetchInit({required String userId}) =>
       _repository.fetchInit(userId: userId);
 

@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart' show RoomCubit;
 
-/// Notifies main-room [RoomCubit] instances when a coordination item changes
-/// (e.g. resolve in item thread) so the timeline can patch before WS echo.
+/// Notifies main-room consumers when a coordination item changes so timelines can
+/// patch item snapshots before WS echo.
 @lazySingleton
 class CoordinationItemRoomSync {
   final _controller = StreamController<CoordinationItem>.broadcast();

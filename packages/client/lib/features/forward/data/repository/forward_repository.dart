@@ -54,12 +54,11 @@ class ForwardRepository {
     this._beaconRepository,
     InvalidationService invalidationService,
   ) {
-    _helpOfferInvalidationSub =
-        invalidationService.helpOfferInvalidations.listen(
-      (id) => _helpOfferController.add(HelpOfferInvalidated(id)),
-    );
-    _forwardInvalidationSub =
-        invalidationService.forwardInvalidations.listen(
+    _helpOfferInvalidationSub = invalidationService.helpOfferInvalidations
+        .listen(
+          (id) => _helpOfferController.add(HelpOfferInvalidated(id)),
+        );
+    _forwardInvalidationSub = invalidationService.forwardInvalidations.listen(
       (id) {
         if (!_forwardCompletedController.isClosed) {
           _forwardCompletedController.add(id);
@@ -74,11 +73,14 @@ class ForwardRepository {
   late final StreamSubscription<String> _helpOfferInvalidationSub;
   late final StreamSubscription<String> _forwardInvalidationSub;
 
-  final _helpOfferController =
-      StreamController<HelpOfferEvent>.broadcast();
+  final _helpOfferController = StreamController<HelpOfferEvent>.broadcast();
 
-  Stream<HelpOfferEvent> get helpOfferChanges =>
-      _helpOfferController.stream;
+  Stream<HelpOfferEvent> get helpOfferChanges => _helpOfferController.stream;
+
+  void notifyHelpOfferChanged(HelpOfferEvent event) {
+    if (_helpOfferController.isClosed) return;
+    _helpOfferController.add(event);
+  }
 
   final _forwardCompletedController = StreamController<String>.broadcast();
 
@@ -112,8 +114,8 @@ class ForwardRepository {
               ..vars.note = note
               ..vars.context = context
               ..vars.parentEdgeId = parentEdgeId
-              ..vars.perRecipientNotes = perRecipientNotes == null ||
-                      perRecipientNotes.isEmpty
+              ..vars.perRecipientNotes =
+                  perRecipientNotes == null || perRecipientNotes.isEmpty
                   ? null
                   : jsonEncode(perRecipientNotes);
             if (recipientReasons != null && recipientReasons.isNotEmpty) {
@@ -194,8 +196,9 @@ class ForwardRepository {
       for (final r in inv.myForwardedRecipients!) {
         myForwardedRecipientNotes[r.recipientId] = r.note;
         myForwardedRecipientEdgeIds[r.recipientId] = r.edgeId;
-        myForwardedRecipientReadAts[r.recipientId] =
-            r.readAt != null ? DateTime.parse(r.readAt!) : null;
+        myForwardedRecipientReadAts[r.recipientId] = r.readAt != null
+            ? DateTime.parse(r.readAt!)
+            : null;
       }
     }
 
@@ -229,26 +232,25 @@ class ForwardRepository {
   Future<List<ForwardEdge>> fetchMyForwardEdges({
     required String beaconId,
     required String myUserId,
-  }) => fetchEdges(beaconId: beaconId)
-      .then((edges) => edges.where((e) => e.sender.id == myUserId).toList());
+  }) => fetchEdges(
+    beaconId: beaconId,
+  ).then((edges) => edges.where((e) => e.sender.id == myUserId).toList());
 
   /// Returns capability tags keyed by `'${senderId}__${recipientId}'` for all
   /// forward-reason events on [beaconId] involving the current viewer.
   Future<Map<String, List<String>>> fetchReasonsByBeacon({
     required String beaconId,
-  }) =>
-      _remoteApiService
-          .request(
-            GForwardReasonsFetchReq((r) => r..vars.beaconId = beaconId),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => {
-              for (final row
-                  in r.dataOrThrow(label: _label).forwardReasonsByBeacon)
-                '${row.senderId}__${row.recipientId}': row.slugs.toList(),
-            },
-          );
+  }) => _remoteApiService
+      .request(
+        GForwardReasonsFetchReq((r) => r..vars.beaconId = beaconId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => {
+          for (final row in r.dataOrThrow(label: _label).forwardReasonsByBeacon)
+            '${row.senderId}__${row.recipientId}': row.slugs.toList(),
+        },
+      );
 
   /// Fetches the forwards-graph payload for a beacon (V2 `beaconForwardGraph`).
   ///
@@ -357,38 +359,40 @@ class ForwardRepository {
           );
 
   Future<
-          List<
-              ({
-                Profile user,
-                String message,
-                String? helpType,
-                String? withdrawReason,
-                DateTime createdAt,
-                DateTime updatedAt,
-                bool isWithdrawn,
-              })>>
-      fetchHelpOffers({required String beaconId}) => _remoteApiService
-          .request(
-            GHelpOffersFetchReq((r) => r..vars.beaconId = beaconId),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .beacon_help_offer
-                .map(
-                  (e) => (
-                    user: (e.user as UserModel).toEntity(),
-                    message: e.message,
-                    helpType: e.help_type,
-                    withdrawReason: e.withdraw_reason,
-                    createdAt: e.created_at,
-                    updatedAt: e.updated_at,
-                    isWithdrawn: e.status == 1,
-                  ),
-                )
-                .toList(),
-          );
+    List<
+      ({
+        Profile user,
+        String message,
+        String? helpType,
+        String? withdrawReason,
+        DateTime createdAt,
+        DateTime updatedAt,
+        bool isWithdrawn,
+      })
+    >
+  >
+  fetchHelpOffers({required String beaconId}) => _remoteApiService
+      .request(
+        GHelpOffersFetchReq((r) => r..vars.beaconId = beaconId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => r
+            .dataOrThrow(label: _label)
+            .beacon_help_offer
+            .map(
+              (e) => (
+                user: (e.user as UserModel).toEntity(),
+                message: e.message,
+                helpType: e.help_type,
+                withdrawReason: e.withdraw_reason,
+                createdAt: e.created_at,
+                updatedAt: e.updated_at,
+                isWithdrawn: e.status == 1,
+              ),
+            )
+            .toList(),
+      );
 
   Future<bool> cancelForward(String edgeId) => _remoteApiService
       .request(GForwardCancelReq((r) => r..vars.id = edgeId))
@@ -433,7 +437,7 @@ class ForwardRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconOfferHelp);
     if (ok && notifyHelpOfferListeners) {
-      _helpOfferController.add(HelpOfferCreated(beaconId));
+      notifyHelpOfferChanged(HelpOfferCreated(beaconId));
     }
     return ok;
   }
@@ -455,24 +459,24 @@ class ForwardRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
     if (ok) {
-      _helpOfferController.add(HelpOfferWithdrawn(beaconId));
+      notifyHelpOfferChanged(HelpOfferWithdrawn(beaconId));
     }
     return ok;
   }
 
   Future<LineageForwardSuggestions> fetchLineageForwardSuggestions({
     required String beaconId,
-  }) =>
-      _remoteApiService
-          .request(
-            GBeaconLineageForwardSuggestionsReq((r) => r..vars.id = beaconId),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).beaconLineageForwardSuggestions)
-          .then(_mapLineageSuggestions);
+  }) => _remoteApiService
+      .request(
+        GBeaconLineageForwardSuggestionsReq((r) => r..vars.id = beaconId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconLineageForwardSuggestions)
+      .then(_mapLineageSuggestions);
 
   LineageForwardSuggestions _mapLineageSuggestions(
-    GBeaconLineageForwardSuggestionsData_beaconLineageForwardSuggestions payload,
+    GBeaconLineageForwardSuggestionsData_beaconLineageForwardSuggestions
+    payload,
   ) {
     final suggestions = <LineageForwardSuggestion>[];
     for (final row in payload.suggestions) {

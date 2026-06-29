@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
@@ -189,6 +190,39 @@ class FakeRoomHints implements BeaconRoomHintsRepository {
 }
 
 class FakeBeaconRoomRepository implements BeaconRoomRepository {
+  FakeBeaconRoomRepository()
+    : _roomInvalidations = StreamController<BeaconRoomInvalidation>.broadcast();
+
+  final StreamController<BeaconRoomInvalidation> _roomInvalidations;
+
+  @override
+  Stream<String> get beaconRoomRefresh =>
+      _roomInvalidations.stream.map((e) => e.beaconId);
+
+  @override
+  Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
+      _roomInvalidations.stream;
+
+  void emitRoomInvalidation(BeaconRoomInvalidation invalidation) {
+    _roomInvalidations.add(invalidation);
+  }
+
+  @override
+  void notifyLocalChange({
+    required String beaconId,
+    required BeaconRoomEntityType entityType,
+  }) {
+    emitRoomInvalidation(
+      BeaconRoomInvalidation(
+        beaconId: beaconId,
+        entityType: entityType,
+      ),
+    );
+  }
+
+  @override
+  Future<void> dispose() => _roomInvalidations.close();
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -206,9 +240,10 @@ class FakePollingRepository implements PollingRepository {
 BeaconRoomCase buildTestBeaconRoomCase(
   FakeRoomHints hints, {
   RoomReadWatermarkStore? watermarkStore,
+  FakeBeaconRoomRepository? roomRepo,
 }) {
   return BeaconRoomCase(
-    FakeBeaconRoomRepository(),
+    roomRepo ?? FakeBeaconRoomRepository(),
     FakeFactCardRepository(),
     FakePollingRepository(),
     hints,
@@ -240,6 +275,7 @@ MyWorkCase buildTestMyWorkCase({
   FakeCoordinationItemRepository? coordinationRepo,
   FakeRoomHints? roomHints,
   RoomReadWatermarkStore? watermarkStore,
+  FakeBeaconRoomRepository? roomRepo,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
@@ -253,7 +289,11 @@ MyWorkCase buildTestMyWorkCase({
     forward,
     beacon,
     CoordinationItemCase(coordination),
-    buildTestBeaconRoomCase(hints, watermarkStore: watermark),
+    buildTestBeaconRoomCase(
+      hints,
+      watermarkStore: watermark,
+      roomRepo: roomRepo,
+    ),
     hints,
     prefs,
     env: const Env(),
