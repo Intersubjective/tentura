@@ -167,6 +167,45 @@ void main() {
     expect(find.text(status), findsOneWidget);
   });
 
+  testWidgets('header tolerates very narrow split-pane constraints', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+      id: 'b-narrow-header',
+      title: 'Narrow constrained beacon title',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(900, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 31,
+                child: BeaconCardHeaderRow(
+                  beacon: beacon,
+                  menu: const SizedBox(
+                    width: 32,
+                    height: 40,
+                    child: Placeholder(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('metadata block aligns updated line with author name column', (
     tester,
   ) async {
@@ -231,5 +270,51 @@ void main() {
       isTrue,
       reason: 'author and updated should share the same left edge',
     );
+  });
+
+  testWidgets('metadata block tolerates very narrow split-pane constraints', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: const MediaQuery(
+          data: MediaQueryData(size: Size(900, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 31,
+                child: BeaconCardMetadataBlock(
+                  author: Profile(id: 'a1', displayName: 'Alice'),
+                  name: 'Alice',
+                  nameStyle: TextStyle(
+                    color: Color(0xFF111111),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  baseStyle: TextStyle(
+                    color: Color(0xFF666666),
+                    fontSize: 11,
+                    height: 1.15,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  updatedLineStyle: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                    height: 1.15,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  category: 'General',
+                  updatedLine: 'Updated 2025-04-18 17:06',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }
