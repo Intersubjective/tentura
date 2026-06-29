@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
@@ -56,6 +57,59 @@ void main() {
       expect(cubit.state.beaconUnavailable, isFalse);
       expect(cubit.state.beacon.id, beaconId);
       expect(cubit.state.beacon.title, 'Mutual friend beacon');
+    });
+
+    test('room admission waits for beacon context enrichment', () async {
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon();
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: beaconRepo,
+        coordinationRepo: FakeBeaconViewCoordinationRepository(
+          enrichmentDelay: const Duration(milliseconds: 500),
+          rows: [
+            (
+              beaconId: beaconId,
+              userId: myProfile.id,
+              user: myProfile,
+              message: 'I can help',
+              helpType: null,
+              status: 0,
+              withdrawReason: null,
+              createdAt: DateTime.utc(2026),
+              updatedAt: DateTime.utc(2026),
+              responseType: null,
+              responseUpdatedAt: null,
+              responseAuthorUserId: null,
+              roomAccess: RoomAccessBits.admitted,
+            ),
+          ],
+        ),
+      );
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: case_,
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.beaconContentLoaded,
+      );
+
+      expect(cubit.state.beaconContextLoaded, isFalse);
+      expect(cubit.state.isHelpOffered, isFalse);
+      expect(cubit.state.canNavigateBeaconRoom, isFalse);
+
+      await pumpUntil(
+        cubit.stream,
+        () =>
+            cubit.state.beaconContextLoaded &&
+            cubit.state.isHelpOffered &&
+            cubit.state.canNavigateBeaconRoom,
+      );
     });
 
     test('retries once when first fetch returns unavailable', () async {

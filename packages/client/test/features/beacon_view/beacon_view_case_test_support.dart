@@ -31,6 +31,22 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
+typedef FakeHelpOfferCoordinationRow = ({
+  String beaconId,
+  String userId,
+  Profile user,
+  String message,
+  String? helpType,
+  int status,
+  String? withdrawReason,
+  DateTime createdAt,
+  DateTime updatedAt,
+  int? responseType,
+  DateTime? responseUpdatedAt,
+  String? responseAuthorUserId,
+  int? roomAccess,
+});
+
 class FakeBeaconViewForwardRepository implements ForwardRepository {
   final _forwardCompleted = StreamController<String>.broadcast();
   final _helpOfferChanges = StreamController<HelpOfferEvent>.broadcast();
@@ -157,35 +173,20 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
   FakeBeaconViewCoordinationRepository({
     this.enrichmentDelay = Duration.zero,
     this.enrichmentError,
-  });
+    List<FakeHelpOfferCoordinationRow>? rows,
+  }) : rows = rows ?? const [];
 
   final Duration enrichmentDelay;
   final Object? enrichmentError;
+  final List<FakeHelpOfferCoordinationRow> rows;
 
   @override
-  Future<
-    List<
-      ({
-        String beaconId,
-        String userId,
-        Profile user,
-        String message,
-        String? helpType,
-        int status,
-        String? withdrawReason,
-        DateTime createdAt,
-        DateTime updatedAt,
-        int? responseType,
-        DateTime? responseUpdatedAt,
-        String? responseAuthorUserId,
-        int? roomAccess,
-      })
-    >
-  >
-  fetchHelpOffersWithCoordination({required String beaconId}) async {
+  Future<List<FakeHelpOfferCoordinationRow>> fetchHelpOffersWithCoordination({
+    required String beaconId,
+  }) async {
     await Future<void>.delayed(enrichmentDelay);
     if (enrichmentError != null) throw enrichmentError!;
-    return [];
+    return rows;
   }
 
   @override
