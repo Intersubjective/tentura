@@ -123,8 +123,7 @@ class FakeBeaconViewEvaluationRepository implements EvaluationRepository {
   Future<BeaconCloseResult> beaconClose({
     required String beaconId,
     required bool expectedRequiresReviewWindow,
-  }) async =>
-      BeaconCloseResult(beaconId: beaconId, state: 1);
+  }) async => BeaconCloseResult(beaconId: beaconId, state: 1);
 
   @override
   Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) async =>
@@ -229,8 +228,15 @@ class FakeBeaconViewActivityEventRepository
 }
 
 class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
+  FakeBeaconViewFactCardRepository({this.listError});
+
+  final Object? listError;
+
   @override
-  Future<List<BeaconFactCard>> list({required String beaconId}) async => [];
+  Future<List<BeaconFactCard>> list({required String beaconId}) async {
+    if (listError != null) throw listError!;
+    return [];
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -259,17 +265,16 @@ class FakeBeaconViewCoordinationItemRepository
 
 BeaconRoomCase buildTestBeaconRoomCaseForView(
   RoomReadWatermarkStore watermark,
-) =>
-    BeaconRoomCase(
-      FakeBeaconViewRoomRepository(),
-      FakeBeaconViewFactCardRepository(),
-      FakeBeaconViewPollingRepository(),
-      FakeBeaconViewRoomHintsRepository(),
-      watermark,
-      CoordinationItemCase(FakeBeaconViewCoordinationItemRepository()),
-      env: const Env(),
-      logger: Logger('test'),
-    );
+) => BeaconRoomCase(
+  FakeBeaconViewRoomRepository(),
+  FakeBeaconViewFactCardRepository(),
+  FakeBeaconViewPollingRepository(),
+  FakeBeaconViewRoomHintsRepository(),
+  watermark,
+  CoordinationItemCase(FakeBeaconViewCoordinationItemRepository()),
+  env: const Env(),
+  logger: Logger('test'),
+);
 
 BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewForwardRepository? forward,
@@ -278,6 +283,7 @@ BeaconViewCase buildTestBeaconViewCase({
   TrackingBeaconRepository? beaconRepo,
   FakeBeaconViewEvaluationRepository? evaluationRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
+  FakeBeaconViewFactCardRepository? factCardsRepo,
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
@@ -285,7 +291,9 @@ BeaconViewCase buildTestBeaconViewCase({
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
   final beacon = beaconRepo ?? TrackingBeaconRepository();
   final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
-  final coordination = coordinationRepo ?? FakeBeaconViewCoordinationRepository();
+  final coordination =
+      coordinationRepo ?? FakeBeaconViewCoordinationRepository();
+  final factCards = factCardsRepo ?? FakeBeaconViewFactCardRepository();
   final activityEvents =
       activityEventsRepo ?? FakeBeaconViewActivityEventRepository();
 
@@ -296,7 +304,7 @@ BeaconViewCase buildTestBeaconViewCase({
     FakeBeaconViewArchiveRepository(),
     coordination,
     FakeBeaconViewInboxRepository(),
-    FakeBeaconViewFactCardRepository(),
+    factCards,
     buildTestBeaconRoomCaseForView(watermark),
     activityEvents,
     invalidationSvc,
