@@ -18,7 +18,9 @@ String? _validateRequired(String? value, String message) {
 }
 
 String? _validateEmail(String? value, String message) {
-  if (value == null || !isValidFeedbackEmail(value)) return message;
+  final email = value?.trim() ?? '';
+  if (email.isEmpty) return null;
+  if (!isValidFeedbackEmail(email)) return message;
   return null;
 }
 
@@ -128,106 +130,106 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                   child: ListView(
                     padding: EdgeInsets.all(tt.screenHPadding),
                     children: [
-                    if (fixedType == null)
-                      BlocSelector<
-                        ComplaintCubit,
-                        ComplaintState,
-                        (ComplaintType, bool)
-                      >(
-                        selector: (state) => (state.type, state.isLoading),
-                        builder: (_, state) {
-                          final (type, isLoading) = state;
-                          return DropdownButtonFormField<ComplaintType>(
-                            initialValue: type,
-                            items: [
-                              DropdownMenuItem(
-                                value: ComplaintType.violatesCsaePolicy,
-                                child: Text(l10n.violatesCSAE),
+                      if (fixedType == null)
+                        BlocSelector<
+                          ComplaintCubit,
+                          ComplaintState,
+                          (ComplaintType, bool)
+                        >(
+                          selector: (state) => (state.type, state.isLoading),
+                          builder: (_, state) {
+                            final (type, isLoading) = state;
+                            return DropdownButtonFormField<ComplaintType>(
+                              initialValue: type,
+                              items: [
+                                DropdownMenuItem(
+                                  value: ComplaintType.violatesCsaePolicy,
+                                  child: Text(l10n.violatesCSAE),
+                                ),
+                                DropdownMenuItem(
+                                  value: ComplaintType.violatesPlatformRules,
+                                  child: Text(l10n.violatesPlatformRules),
+                                ),
+                              ],
+                              onChanged: isLoading ? null : cubit.setType,
+                              decoration: InputDecoration(
+                                labelText: l10n.labelComplaintType,
+                                border: const OutlineInputBorder(),
                               ),
-                              DropdownMenuItem(
-                                value: ComplaintType.violatesPlatformRules,
-                                child: Text(l10n.violatesPlatformRules),
-                              ),
-                            ],
-                            onChanged: isLoading ? null : cubit.setType,
-                            decoration: InputDecoration(
-                              labelText: l10n.labelComplaintType,
-                              border: const OutlineInputBorder(),
-                            ),
-                          );
-                        },
-                      ),
-
-                    if (fixedType == null) SizedBox(height: tt.sectionGap),
-
-                    // Details
-                    BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                      selector: (state) => state.isLoading,
-                      builder: (_, isLoading) => TextFormField(
-                        controller: _detailsController,
-                        maxLines: 5,
-                        autofocus: true,
-                        enabled: !isLoading,
-                        decoration: InputDecoration(
-                          labelText: l10n.detailsRequired,
-                          border: const OutlineInputBorder(),
-                          alignLabelWithHint: true,
+                            );
+                          },
                         ),
-                        validator: (v) =>
-                            _validateRequired(v, l10n.provideDetails),
-                        onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                        onChanged: cubit.setDetails,
-                      ),
-                    ),
 
-                    SizedBox(height: tt.sectionGap),
+                      if (fixedType == null) SizedBox(height: tt.sectionGap),
 
-                    // Email
-                    BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                      selector: (state) => state.isLoading,
-                      builder: (_, isLoading) => TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
-                        enabled: !isLoading,
-                        decoration: InputDecoration(
-                          labelText: l10n.feedbackEmail,
-                          border: const OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            _validateEmail(v, l10n.emailValidationError),
-                        onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                        onChanged: cubit.setEmail,
-                        onFieldSubmitted: (_) {
-                          if (_formKey.currentState?.validate() ?? false) {
-                            unawaited(cubit.submit());
-                          }
-                        },
-                      ),
-                    ),
-
-                    SizedBox(height: tt.sectionGap),
-
-                    // Submit
-                    BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                      selector: (state) => state.isLoading,
-                      builder: (_, isLoading) => FilledButton(
-                        style: submitButtonStyle,
-                        onPressed: isLoading
-                            ? null
-                            : () async {
-                                if (_formKey.currentState?.validate() ??
-                                    false) {
-                                  await cubit.submit();
-                                }
-                              },
-                        child: Text(
-                          isAccountDeletionRequest
-                              ? l10n.buttonSubmitAccountDeletionRequest
-                              : l10n.buttonSubmitComplaint,
+                      // Details
+                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                        selector: (state) => state.isLoading,
+                        builder: (_, isLoading) => TextFormField(
+                          controller: _detailsController,
+                          maxLines: 5,
+                          autofocus: true,
+                          enabled: !isLoading,
+                          decoration: InputDecoration(
+                            labelText: l10n.detailsRequired,
+                            border: const OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                          ),
+                          validator: (v) =>
+                              _validateRequired(v, l10n.provideDetails),
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          onChanged: cubit.setDetails,
                         ),
                       ),
-                    ),
+
+                      SizedBox(height: tt.sectionGap),
+
+                      // Email
+                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                        selector: (state) => state.isLoading,
+                        builder: (_, isLoading) => TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.done,
+                          enabled: !isLoading,
+                          decoration: InputDecoration(
+                            labelText: l10n.feedbackEmail,
+                            border: const OutlineInputBorder(),
+                          ),
+                          validator: (v) =>
+                              _validateEmail(v, l10n.emailValidationError),
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          onChanged: cubit.setEmail,
+                          onFieldSubmitted: (_) {
+                            if (_formKey.currentState?.validate() ?? false) {
+                              unawaited(cubit.submit());
+                            }
+                          },
+                        ),
+                      ),
+
+                      SizedBox(height: tt.sectionGap),
+
+                      // Submit
+                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                        selector: (state) => state.isLoading,
+                        builder: (_, isLoading) => FilledButton(
+                          style: submitButtonStyle,
+                          onPressed: isLoading
+                              ? null
+                              : () async {
+                                  if (_formKey.currentState?.validate() ??
+                                      false) {
+                                    await cubit.submit();
+                                  }
+                                },
+                          child: Text(
+                            isAccountDeletionRequest
+                                ? l10n.buttonSubmitAccountDeletionRequest
+                                : l10n.buttonSubmitComplaint,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
