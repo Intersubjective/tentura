@@ -28,6 +28,9 @@
 #
 # Client version gate: set MIN_CLIENT_VERSION in .env to test the update banner locally.
 # The locally-run server reads it from the environment; 0.0.0 (default) disables the check.
+#
+# Invite genealogy (optional locally): set GENEALOGY_NODE_KEY_SECRET in .env if you need
+# stable G… node keys across restarts/backfills. Unset → dev fallback (see .env.example).
 
 name: tentura
 

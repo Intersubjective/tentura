@@ -1,6 +1,6 @@
 ## Installation
 
-1. Copy `.env.example` → `.env` and set **all secrets** (JWT, Postgres, Hasura admin, S3, OAuth, Resend, Firebase, etc.). `compose.prod.yaml` passes variable names through from `.env`.
+1. Copy `.env.example` → `.env` and set **all secrets** (JWT, Postgres, Hasura admin, S3, OAuth, Resend, Firebase, HMAC signing secrets, etc.). `compose.prod.yaml` passes variable names through from `.env`.
 2. **VPS / staging only:** copy `examples/compose.override.example.yaml` → `compose.override.yaml` and adjust **non-secret** per-host settings (dev Hasura console, image tag, postgres tuning, pgAdmin). Never put secrets in the override file.
 3. **Local dev (infra in Docker, Tentura API on the host):** `docker compose up -d` (includes `compose.dev.yaml`) — then run the server from `packages/server`. **Production / VPS:** `docker compose -f compose.prod.yaml up -d` (auto-merges `compose.override.yaml` when present), or `./deploy.sh`.
 4. After changing `.env`, recreate affected containers: `docker compose up -d --force-recreate tentura hasura` (env is baked in at container create time).
@@ -20,6 +20,8 @@
   `openssl genpkey -algorithm ed25519 -out jwt_private.pem`
 
   `openssl pkey -in jwt_private.pem -pubout -out jwt_public.pem`
+
+  `openssl rand -base64 32` — use for `UNSUBSCRIBE_SIGNING_SECRET` and `GENEALOGY_NODE_KEY_SECRET` (separate values recommended)
 
 ## Development
 

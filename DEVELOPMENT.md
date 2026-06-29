@@ -68,6 +68,16 @@ backend services (configured in `packages/client/web_dev_config.yaml`):
 Copy `.env.example` to `.env`. The defaults work out of the box for local
 development (test JWT keys, `NEED_INVITE=false`, debug mode on).
 
+Optional HMAC env vars (see `.env.example` for full notes):
+
+| Variable | Purpose |
+|----------|---------|
+| `UNSUBSCRIBE_SIGNING_SECRET` | Email notification one-click unsubscribe tokens |
+| `GENEALOGY_NODE_KEY_SECRET` | Opaque `G…` ids for invite-genealogy graph nodes |
+
+Local dev can omit both (genealogy falls back to a dev default). Staging/production
+should set dedicated values in `.env`; Docker prod passes them via `compose.prod.yaml`.
+
 ### 2. Docker Compose
 
 ```bash
