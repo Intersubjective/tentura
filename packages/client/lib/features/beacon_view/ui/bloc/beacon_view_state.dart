@@ -47,6 +47,7 @@ class TimelineHelpOffer {
   final String? helpType;
   final CoordinationResponseType? coordinationResponse;
   final String? withdrawReason;
+
   /// `beacon_participants.room_access` for this helpOfferer when known.
   final int? roomAccess;
 
@@ -63,18 +64,17 @@ class TimelineHelpOffer {
     CoordinationResponseType? coordinationResponse,
     String? withdrawReason,
     int? roomAccess,
-  }) =>
-      TimelineHelpOffer(
-        user: user ?? this.user,
-        message: message ?? this.message,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        isWithdrawn: isWithdrawn ?? this.isWithdrawn,
-        helpType: helpType ?? this.helpType,
-        coordinationResponse: coordinationResponse ?? this.coordinationResponse,
-        withdrawReason: withdrawReason ?? this.withdrawReason,
-        roomAccess: roomAccess ?? this.roomAccess,
-      );
+  }) => TimelineHelpOffer(
+    user: user ?? this.user,
+    message: message ?? this.message,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isWithdrawn: isWithdrawn ?? this.isWithdrawn,
+    helpType: helpType ?? this.helpType,
+    coordinationResponse: coordinationResponse ?? this.coordinationResponse,
+    withdrawReason: withdrawReason ?? this.withdrawReason,
+    roomAccess: roomAccess ?? this.roomAccess,
+  );
 }
 
 /// Help offerer offered help at [createdAt].
@@ -237,6 +237,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// True after a successful beacon content fetch (title, status, etc.).
     @Default(false) bool beaconContentLoaded,
 
+    /// True after the secondary beacon context fetches complete
+    /// (help offers, room participants, room state, fact cards, inbox context).
+    @Default(false) bool beaconContextLoaded,
+
     /// Server returned no readable beacon (gated `beacon_by_pk` null).
     @Default(false) bool beaconUnavailable,
 
@@ -324,9 +328,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
       .where(
         (c) =>
             !c.isWithdrawn &&
-            c.coordinationResponse ==
-                CoordinationResponseType.needCoordination,
+            c.coordinationResponse == CoordinationResponseType.needCoordination,
       )
       .length;
-
 }

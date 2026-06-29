@@ -57,6 +57,7 @@ int _beaconViewTabIndex(String? viewTab) {
       return kBeaconTabItems;
   }
 }
+
 @RoutePage()
 class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
@@ -91,12 +92,20 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(_) => localScreenCubitScope(
-    child: BlocProvider(
-      create: (_) => BeaconViewCubit(
-        myProfile: GetIt.I<ProfileCubit>().state.profile,
-        id: id,
-      ),
-      child: this,
+    child: BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (previous, current) =>
+          previous.profile.id != current.profile.id,
+      builder: (context, profileState) {
+        final myProfile = profileState.profile;
+        return BlocProvider(
+          key: ValueKey('BeaconViewCubit:$id:${myProfile.id}'),
+          create: (_) => BeaconViewCubit(
+            myProfile: myProfile,
+            id: id,
+          ),
+          child: this,
+        );
+      },
     ),
   );
 
@@ -288,12 +297,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!s.isSuccess || _didApplyFetchResolution) return;
 
     final roomDenied = _showRoomSurface && !s.canNavigateBeaconRoom;
+    if (roomDenied && (!s.beaconContextLoaded || s.myProfile.id.isEmpty)) {
+      return;
+    }
 
     setState(() {
       if (roomDenied) {
         _showRoomSurface = false;
         if (s.showsRoomAccessUnavailableBanner) {
-          _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
+          _bannerMessage = L10n.of(
+            context,
+          )!.beaconViewRoomAccessUnavailableBanner;
         } else {
           unawaited(_stripRoomFromUrl());
         }
@@ -333,8 +347,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   void _ensureEmbeddedRoomCubit() {
     if (_roomCubit != null && !_roomCubit!.isClosed) return;
-    final initialAnchor =
-        context.read<BeaconViewCubit>().roomReadThrough(widget.id);
+    final initialAnchor = context.read<BeaconViewCubit>().roomReadThrough(
+      widget.id,
+    );
     _roomCubit = RoomCubit(
       beaconId: widget.id,
       initialUnreadAnchorAt: initialAnchor,
@@ -460,8 +475,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
 
     // Deep link / notification entry at `?tab=room` — strip query in place.
-    final needsUrlSync =
-        _urlIndicatesRoom() || _roomFromRouteParams(widget);
+    final needsUrlSync = _urlIndicatesRoom() || _roomFromRouteParams(widget);
     if (!needsUrlSync) {
       _roomExitInProgress = false;
       return;
@@ -537,12 +551,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       listenWhen: (p, c) =>
           (!p.isSuccess && c.isSuccess) ||
           (_showRoomSurface &&
+              !p.canNavigateBeaconRoom &&
+              c.canNavigateBeaconRoom) ||
+          (_showRoomSurface &&
               p.canNavigateBeaconRoom &&
               !c.canNavigateBeaconRoom),
       listener: (ctx, s) {
         if (!s.isSuccess) return;
         if (!ctx.mounted) return;
         if (_showRoomSurface && !s.canNavigateBeaconRoom) {
+          if (!s.beaconContextLoaded) return;
+          if (s.myProfile.id.isEmpty) return;
           unawaited(_releaseEmbeddedRoomCubit());
           setState(() {
             _showRoomSurface = false;
@@ -565,6 +584,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             c.isLoading ||
             c.hasError ||
             p.beaconContentLoaded != c.beaconContentLoaded ||
+            p.beaconContextLoaded != c.beaconContextLoaded ||
             p.beaconUnavailable != c.beaconUnavailable ||
             p.beacon != c.beacon ||
             p.helpOffers != c.helpOffers ||
@@ -732,8 +752,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           context,
                           state,
                           beaconViewCubit,
-                          onOpenPeopleTab: () =>
-                              _switchToTab(kBeaconTabPeople),
+                          onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
                           onEnterRoomSurface: _enterRoomSurface,
                         );
                       },
@@ -746,23 +765,23 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               ),
               body: SafeArea(
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_bannerMessage != null)
-                    MaterialBanner(
-                      content: Text(_bannerMessage!),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _bannerMessage = null),
-                          child: Text(l10n.beaconViewBannerDismiss),
-                        ),
-                      ],
-                    ),
-                  Expanded(child: body),
-                ],
-              ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_bannerMessage != null)
+                      MaterialBanner(
+                        content: Text(_bannerMessage!),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _bannerMessage = null),
+                            child: Text(l10n.beaconViewBannerDismiss),
+                          ),
+                        ],
+                      ),
+                    Expanded(child: body),
+                  ],
                 ),
+              ),
             ),
           );
         },

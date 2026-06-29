@@ -79,7 +79,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onReadWatermarkChanged,
       cancelOnError: false,
     );
-    unawaited(_fetchBeaconByIdWithTimeline());
+    unawaited(_runFetchWithGate());
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
     }
@@ -642,6 +642,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           emit(
             state.copyWith(
               beaconContentLoaded: false,
+              beaconContextLoaded: false,
               beaconUnavailable: true,
               status: const StateIsSuccess(),
             ),
@@ -657,6 +658,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           state.copyWith(
             beacon: beacon,
             beaconContentLoaded: true,
+            beaconContextLoaded: false,
             beaconUnavailable: false,
             status: StateStatus.isSuccess,
           ),
@@ -795,6 +797,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           roomUnreadCount: roomUnreadCount,
           forwardsLoaded: wasForwardsLoaded,
           beaconContentLoaded: true,
+          beaconContextLoaded: true,
           beaconUnavailable: false,
           loadError: null,
           status: StateStatus.isSuccess,
