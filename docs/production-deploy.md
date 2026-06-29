@@ -115,6 +115,10 @@ S3_USE_SSL=true
 # === EMAIL (Resend) ===
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=Tentura <auth@yourdomain.com>
+# HMAC secrets (email unsubscribe links; invite-genealogy opaque node keys).
+# Use dedicated random values; keep GENEALOGY_NODE_KEY_SECRET stable after first deploy.
+UNSUBSCRIBE_SIGNING_SECRET=<openssl rand -base64 32>
+GENEALOGY_NODE_KEY_SECRET=<openssl rand -base64 32>
 
 # === GOOGLE OAUTH ===
 GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com

@@ -48,7 +48,7 @@ services:
       - POSTGRES_MAXCONN
       # Full public origin URL (OAuth, OG URLs). Differs from proxy SERVER_NAME hostname.
       - "SERVER_NAME=https://dev.example.com"
-      # S3, Firebase, OAuth, Resend: set in .env — passed through compose.prod.yaml
+      # S3, Firebase, OAuth, Resend, HMAC secrets: set in .env — passed through compose.prod.yaml
 
   pgadmin:
     image: dpage/pgadmin4
