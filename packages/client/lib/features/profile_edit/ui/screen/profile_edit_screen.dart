@@ -18,9 +18,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../bloc/profile_edit_cubit.dart';
 
 @RoutePage()
-class ProfileEditScreen extends StatelessWidget
-    with StringInputValidator
-    implements AutoRouteWrapper {
+class ProfileEditScreen extends StatefulWidget implements AutoRouteWrapper {
   const ProfileEditScreen({super.key});
 
   @override
@@ -30,6 +28,21 @@ class ProfileEditScreen extends StatelessWidget
     ),
     child: this,
   );
+
+  @override
+  State<ProfileEditScreen> createState() => _ProfileEditScreenState();
+}
+
+class _ProfileEditScreenState extends State<ProfileEditScreen>
+    with StringInputValidator {
+  final _formKey = GlobalKey<FormState>();
+
+  void _save(ProfileEditCubit cubit) {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    unawaited(cubit.save());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,215 +56,227 @@ class ProfileEditScreen extends StatelessWidget
       unawaited(cubit.pickImage(cropUiSettings));
     }
 
-    return Scaffold(
-      // Header
-      appBar: AppBar(
-        title: Text(l10n.profileOverflowEdit),
-        actions: [
-          // Save Button
-          BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
-            selector: (state) => (state.hasChanges, state.isLoading),
-            builder: (_, state) {
-              final (hasChanges, isLoading) = state;
-              return TextButton(
-                onPressed: hasChanges && !isLoading ? cubit.save : null,
-                child: Text(l10n.buttonSave),
-              );
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(LinearPiActive.height),
-          child: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-          ),
-        ),
-      ),
-      resizeToAvoidBottomInset: false,
-
-      // Form
-      body: SafeArea(
-        child: TenturaContentColumn(
-          child: Column(
-        children: [
-          // Avatar
-          Center(
-            child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
-            buildWhen: (p, c) =>
-                p.image != c.image ||
-                p.willDropImage != c.willDropImage ||
-                p.isLoading != c.isLoading,
-            builder: (_, state) {
-              final avatarSize =
-                  tt.avatarSize * (kTenturaAvatarBigSize / kTenturaAvatarDefaultMedium);
-              // Global [iconTheme] uses [ColorScheme.primary], same as
-              // [secondaryContainer] on filled tonal buttons — icons would be
-              // invisible without an explicit on-container foreground.
-              final overlayIconStyle = IconButton.styleFrom(
-                foregroundColor: Theme.of(
-                  context,
-                ).colorScheme.onSecondaryContainer,
-                iconSize: tt.iconSize,
-              );
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (state.hasNoImage && state.canDropImage)
-                    // Original Avatar
-                    SelfAwareAvatar.big(
-                      profile: cubit.state.original,
-                    )
-                  else
-                    SizedBox.square(
-                      dimension: avatarSize,
-                      child: ClipOval(
-                        child: state.hasNoImage || state.willDropImage
-                            ? TenturaAvatar.avatarPlaceholder()
-                            // New Avatar
-                            : Image.memory(
-                                state.image!.imageBytes!,
-                                fit: BoxFit.cover,
-                              ),
-                      ),
-                    ),
-
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: state.canDropImage
-                        ? state.hasNoImage
-                              // Current server avatar: change + remove
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton.filledTonal(
-                                      style: overlayIconStyle,
-                                      tooltip: l10n.buttonRemove,
-                                      icon: const Icon(
-                                        Icons.highlight_remove_outlined,
-                                      ),
-                                      onPressed: state.isLoading
-                                          ? null
-                                          : cubit.clearImage,
-                                    ),
-                                    IconButton.filledTonal(
-                                      style: overlayIconStyle,
-                                      tooltip: l10n.titleCropAvatar,
-                                      icon: const Icon(Icons.edit_outlined),
-                                      onPressed: state.isLoading
-                                          ? null
-                                          : pickAvatar,
-                                    ),
-                                  ],
-                                )
-                              // New pick in memory: remove draft only
-                              : IconButton.filledTonal(
-                                  style: overlayIconStyle,
-                                  tooltip: l10n.buttonRemove,
-                                  icon: const Icon(
-                                    Icons.highlight_remove_outlined,
-                                  ),
-                                  onPressed: state.isLoading
-                                      ? null
-                                      : cubit.clearImage,
-                                )
-                        // No avatar yet: pick first picture
-                        : IconButton.filledTonal(
-                            style: overlayIconStyle,
-                            tooltip: l10n.titleCropAvatar,
-                            icon: const Icon(Icons.add_a_photo_outlined),
-                            onPressed: state.isLoading ? null : pickAvatar,
-                          ),
-                  ),
-                ],
-              );
-            },
-          ),
-          ),
-
-          // Username
-          Padding(
-            padding: fieldPadding,
-            child: TextFormField(
-              autovalidateMode: AutovalidateMode.onUnfocus,
-              decoration: InputDecoration(
-                labelText: l10n.labelDisplayName,
-                hintText: l10n.pleaseFillDisplayName,
-              ),
-              initialValue: cubit.state.displayName,
-              maxLength: kTitleMaxLength,
-              style: textTheme.headlineLarge,
-              onChanged: cubit.setDisplayName,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => displayNameValidator(l10n, text),
-            ),
-          ),
-
-          // Handle (optional)
-          Padding(
-            padding: fieldPadding,
-            child: TextFormField(
-              autovalidateMode: AutovalidateMode.onUnfocus,
-              decoration: InputDecoration(
-                labelText: l10n.labelUserHandle,
-                hintText: l10n.userHandleHint,
-              ),
-              initialValue: cubit.state.handle,
-              maxLength: kUserHandleMaxLength,
-              keyboardType: TextInputType.text,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
-              ],
-              style: textTheme.bodyLarge,
-              onChanged: cubit.setHandle,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) {
-                final t = (text ?? '').trim().toLowerCase();
-                if (t.isEmpty) return null;
-                if (!isValidUserHandleFormat(t)) {
-                  return l10n.userHandleInvalidFormat;
-                }
-                return null;
+    return Form(
+      key: _formKey,
+      child: Scaffold(
+        // Header
+        appBar: AppBar(
+          title: Text(l10n.profileOverflowEdit),
+          actions: [
+            // Save Button
+            BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
+              selector: (state) => (state.hasChanges, state.isLoading),
+              builder: (_, state) {
+                final (hasChanges, isLoading) = state;
+                return TextButton(
+                  onPressed: hasChanges && !isLoading
+                      ? () => _save(cubit)
+                      : null,
+                  child: Text(l10n.buttonSave),
+                );
               },
             ),
-          ),
-
-          // User Description
-          Expanded(
-            child: Padding(
-              padding: fieldPadding,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final textStyle = textTheme.bodyMedium!;
-                  final painter = TextPainter(
-                    text: TextSpan(text: 'A', style: textStyle),
-                    maxLines: 1,
-                    textDirection: TextDirection.ltr,
-                  )..layout();
-                  return TextFormField(
-                    maxLines: constraints.maxHeight > 0
-                        ? (constraints.maxHeight / painter.height).floor()
-                        : 1,
-                    minLines: 1,
-                    maxLength: kDescriptionMaxLength,
-                    keyboardType: TextInputType.multiline,
-                    initialValue: cubit.state.description,
-                    autovalidateMode: AutovalidateMode.onUnfocus,
-                    decoration: InputDecoration(
-                      labelText: l10n.labelDescription,
-                      labelStyle: textTheme.bodyMedium,
-                    ),
-                    style: textStyle,
-                    onChanged: cubit.setDescription,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                    validator: (text) => descriptionValidator(l10n, text),
-                  );
-                },
-              ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(LinearPiActive.height),
+            child: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+              selector: (state) => state.isLoading,
+              builder: LinearPiActive.builder,
             ),
           ),
-        ],
+        ),
+        resizeToAvoidBottomInset: false,
+
+        // Form
+        body: SafeArea(
+          child: TenturaContentColumn(
+            child: Column(
+              children: [
+                // Avatar
+                Center(
+                  child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
+                    buildWhen: (p, c) =>
+                        p.image != c.image ||
+                        p.willDropImage != c.willDropImage ||
+                        p.isLoading != c.isLoading,
+                    builder: (_, state) {
+                      final avatarSize =
+                          tt.avatarSize *
+                          (kTenturaAvatarBigSize / kTenturaAvatarDefaultMedium);
+                      // Global [iconTheme] uses [ColorScheme.primary], same as
+                      // [secondaryContainer] on filled tonal buttons — icons would be
+                      // invisible without an explicit on-container foreground.
+                      final overlayIconStyle = IconButton.styleFrom(
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onSecondaryContainer,
+                        iconSize: tt.iconSize,
+                      );
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (state.hasNoImage && state.canDropImage)
+                            // Original Avatar
+                            SelfAwareAvatar.big(
+                              profile: cubit.state.original,
+                            )
+                          else
+                            SizedBox.square(
+                              dimension: avatarSize,
+                              child: ClipOval(
+                                child: state.hasNoImage || state.willDropImage
+                                    ? TenturaAvatar.avatarPlaceholder()
+                                    // New Avatar
+                                    : Image.memory(
+                                        state.image!.imageBytes!,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: state.canDropImage
+                                ? state.hasNoImage
+                                      // Current server avatar: change + remove
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton.filledTonal(
+                                              style: overlayIconStyle,
+                                              tooltip: l10n.buttonRemove,
+                                              icon: const Icon(
+                                                Icons.highlight_remove_outlined,
+                                              ),
+                                              onPressed: state.isLoading
+                                                  ? null
+                                                  : cubit.clearImage,
+                                            ),
+                                            IconButton.filledTonal(
+                                              style: overlayIconStyle,
+                                              tooltip: l10n.titleCropAvatar,
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                              ),
+                                              onPressed: state.isLoading
+                                                  ? null
+                                                  : pickAvatar,
+                                            ),
+                                          ],
+                                        )
+                                      // New pick in memory: remove draft only
+                                      : IconButton.filledTonal(
+                                          style: overlayIconStyle,
+                                          tooltip: l10n.buttonRemove,
+                                          icon: const Icon(
+                                            Icons.highlight_remove_outlined,
+                                          ),
+                                          onPressed: state.isLoading
+                                              ? null
+                                              : cubit.clearImage,
+                                        )
+                                // No avatar yet: pick first picture
+                                : IconButton.filledTonal(
+                                    style: overlayIconStyle,
+                                    tooltip: l10n.titleCropAvatar,
+                                    icon: const Icon(
+                                      Icons.add_a_photo_outlined,
+                                    ),
+                                    onPressed: state.isLoading
+                                        ? null
+                                        : pickAvatar,
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+                // Username
+                Padding(
+                  padding: fieldPadding,
+                  child: TextFormField(
+                    autovalidateMode: AutovalidateMode.onUnfocus,
+                    decoration: InputDecoration(
+                      labelText: l10n.labelDisplayName,
+                      hintText: l10n.pleaseFillDisplayName,
+                    ),
+                    initialValue: cubit.state.displayName,
+                    maxLength: kTitleMaxLength,
+                    style: textTheme.headlineLarge,
+                    onChanged: cubit.setDisplayName,
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    validator: (text) => displayNameValidator(l10n, text),
+                  ),
+                ),
+
+                // Handle (optional)
+                Padding(
+                  padding: fieldPadding,
+                  child: TextFormField(
+                    autovalidateMode: AutovalidateMode.onUnfocus,
+                    decoration: InputDecoration(
+                      labelText: l10n.labelUserHandle,
+                      hintText: l10n.userHandleHint,
+                    ),
+                    initialValue: cubit.state.handle,
+                    maxLength: kUserHandleMaxLength,
+                    keyboardType: TextInputType.text,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
+                    ],
+                    style: textTheme.bodyLarge,
+                    onChanged: cubit.setHandle,
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    validator: (text) {
+                      final t = (text ?? '').trim().toLowerCase();
+                      if (t.isEmpty) return null;
+                      if (!isValidUserHandleFormat(t)) {
+                        return l10n.userHandleInvalidFormat;
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+
+                // User Description
+                Expanded(
+                  child: Padding(
+                    padding: fieldPadding,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final textStyle = textTheme.bodyMedium!;
+                        final painter = TextPainter(
+                          text: TextSpan(text: 'A', style: textStyle),
+                          maxLines: 1,
+                          textDirection: TextDirection.ltr,
+                        )..layout();
+                        return TextFormField(
+                          maxLines: constraints.maxHeight > 0
+                              ? (constraints.maxHeight / painter.height).floor()
+                              : 1,
+                          minLines: 1,
+                          maxLength: kDescriptionMaxLength,
+                          keyboardType: TextInputType.multiline,
+                          initialValue: cubit.state.description,
+                          autovalidateMode: AutovalidateMode.onUnfocus,
+                          decoration: InputDecoration(
+                            labelText: l10n.labelDescription,
+                            labelStyle: textTheme.bodyMedium,
+                          ),
+                          style: textStyle,
+                          onChanged: cubit.setDescription,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          validator: (text) => descriptionValidator(l10n, text),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

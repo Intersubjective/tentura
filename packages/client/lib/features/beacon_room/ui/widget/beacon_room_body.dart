@@ -178,13 +178,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.participants
                     .map(
                       (e) =>
-                          '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
+                          '${e.userId}|${e.userTitle}|${e.handle}|${e.roomAccess}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
                     )
                     .join() !=
                 c.participants
                     .map(
                       (e) =>
-                          '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
+                          '${e.userId}|${e.userTitle}|${e.handle}|${e.roomAccess}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
                     )
                     .join() ||
             p.unreadAnchorAt != c.unreadAnchorAt ||

@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
@@ -14,7 +15,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_text_controller.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_date_separator.dart';
@@ -448,6 +448,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         imageRepository: repo,
                         isSending: initialLoadInProgress,
                         onSend: onSend,
+                        participants: widget.participants,
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
                             widget.enableParticipantMentions,
@@ -468,6 +469,7 @@ class BeaconRoomComposer extends StatefulWidget {
     required this.imageRepository,
     required this.isSending,
     required this.onSend,
+    required this.participants,
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
     super.key,
@@ -480,6 +482,8 @@ class BeaconRoomComposer extends StatefulWidget {
   final Future<void> Function(String body, List<RoomPendingUpload> uploads)
   onSend;
 
+  final List<BeaconParticipant> participants;
+
   final bool enableAttachments;
 
   final bool enableParticipantMentions;
@@ -490,8 +494,8 @@ class BeaconRoomComposer extends StatefulWidget {
 
 class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   final _text = MentionTextController();
-  final _composerFocus = FocusNode();
-  final _layerLink = LayerLink();
+  late final FocusNode _composerFocus;
+  final _composerAnchorKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
   var _overlaySyncScheduled = false;
@@ -503,8 +507,29 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   @override
   void initState() {
     super.initState();
+    _composerFocus = FocusNode(onKeyEvent: _handleComposerKeyEvent);
     _text.addListener(_onTextChanged);
     _composerFocus.addListener(_onComposerFocusChange);
+  }
+
+  KeyEventResult _handleComposerKeyEvent(FocusNode node, KeyEvent event) {
+    final isEnter =
+        event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter;
+    if (!isEnter || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (_overlaySuggestions.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+    final participant = _overlaySuggestions.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _acceptMentionSuggestion(participant);
+    });
+    return KeyEventResult.handled;
   }
 
   @override
@@ -517,6 +542,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     _text.dispose();
     _composerFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant BeaconRoomComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.participants != widget.participants ||
+        oldWidget.enableParticipantMentions !=
+            widget.enableParticipantMentions) {
+      _scheduleOverlaySync();
+    }
   }
 
   void _onTextChanged() {
@@ -548,12 +583,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       return;
     }
-    final cubit = context.read<RoomCubit>();
-    final suggestions = cubit.state
-        .participantsMatchingQuery(query)
-        .where((p) => p.handle.isNotEmpty)
+    final suggestions = _participantsMatchingQuery(query)
         .take(5)
-        .toList(growable: false);
+        .toList(
+          growable: false,
+        );
     if (suggestions.isEmpty) {
       _removeOverlay();
       return;
@@ -561,10 +595,58 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     _showOverlay(suggestions);
   }
 
+  List<BeaconParticipant> _participantsMatchingQuery(String query) {
+    final q = query.trim().toLowerCase();
+    return widget.participants
+        .where(
+          (p) =>
+              p.roomAccess == RoomAccessBits.admitted &&
+              p.handle.isNotEmpty &&
+              (q.isEmpty || p.handle.toLowerCase().contains(q)),
+        )
+        .toList(growable: false);
+  }
+
   void _removeOverlay() {
     _overlaySuggestions = const [];
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  Rect? _composerAnchorRect() {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final overlayRender = overlay?.context.findRenderObject();
+    final targetRender = _composerAnchorKey.currentContext?.findRenderObject();
+    if (overlayRender is! RenderBox || targetRender is! RenderBox) {
+      return null;
+    }
+    if (!overlayRender.attached || !targetRender.attached) {
+      return null;
+    }
+
+    final topLeft = targetRender.localToGlobal(
+      Offset.zero,
+      ancestor: overlayRender,
+    );
+    return topLeft & targetRender.size;
+  }
+
+  bool _acceptMentionSuggestion(BeaconParticipant participant) {
+    final inserted = _text.insertMention(participant.handle.toLowerCase());
+    _removeOverlay();
+    if (inserted) {
+      if (!_composerFocus.hasFocus) {
+        _composerFocus.requestFocus();
+      }
+    }
+    return inserted;
+  }
+
+  bool _acceptFirstMentionSuggestion() {
+    if (_overlaySuggestions.isEmpty) {
+      return false;
+    }
+    return _acceptMentionSuggestion(_overlaySuggestions.first);
   }
 
   void _showOverlay(List<BeaconParticipant> suggestions) {
@@ -577,14 +659,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       builder: (_) {
         final list = _overlaySuggestions;
         if (list.isEmpty) return const SizedBox.shrink();
+        final anchor = _composerAnchorRect();
+        if (anchor == null) return const SizedBox.shrink();
         return MentionSuggestionsOverlay(
           suggestions: list,
-          layerLink: _layerLink,
+          anchor: anchor,
           onDismiss: _removeOverlay,
-          onSelect: (p) {
-            _text.insertMention(p.handle.toLowerCase());
-            _removeOverlay();
-          },
+          onSelect: _acceptMentionSuggestion,
         );
       },
     );
@@ -733,13 +814,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
   }
 
-  /// Once the composer gains focus, ensure the platform text input connection
-  /// opens on the next frame (after layout). Poll voting controls must not
-  /// keep primary focus after interaction; `ExcludeFocus` on `RoomPollCard`
-  /// handles that, and this covers any remaining focus→connection timing gap
-  /// (EditableText #126312).
+  /// Once the composer gains focus on native platforms, ensure the platform
+  /// text input connection opens on the next frame (after layout). Poll voting
+  /// controls must not keep primary focus after interaction; `ExcludeFocus` on
+  /// `RoomPollCard` handles that, and this covers any remaining
+  /// focus->connection timing gap (EditableText #126312).
   void _onComposerFocusChange() {
-    if (!_composerFocus.hasFocus) {
+    if (kIsWeb || !_composerFocus.hasFocus) {
       return;
     }
     _scheduleComposerKeyboardRequest();
@@ -758,14 +839,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (!_composerFocus.hasFocus) {
       _composerFocus.requestFocus();
     }
-    // Mobile browsers require text input to open from the user gesture itself;
-    // post-frame retries below only cover Flutter focus/EditableText timing.
     _requestComposerKeyboard();
-    _scheduleComposerKeyboardRequest();
+    if (!kIsWeb) {
+      _scheduleComposerKeyboardRequest();
+    }
   }
 
   void _requestComposerKeyboard() {
-    if (!mounted || !_composerFocus.hasFocus) {
+    if (kIsWeb || !mounted || !_composerFocus.hasFocus) {
       return;
     }
     _composerEditableText()?.requestKeyboard();
@@ -925,8 +1006,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: CompositedTransformTarget(
-                link: _layerLink,
+              child: KeyedSubtree(
+                key: _composerAnchorKey,
                 child: TextField(
                   controller: _text,
                   focusNode: _composerFocus,
@@ -951,7 +1032,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   enabled: !busy,
                   onTapAlwaysCalled: true,
                   onTap: _requestComposerKeyboardFromTap,
-                  onSubmitted: (_) => unawaited(_submit()),
+                  onSubmitted: (_) {
+                    if (_acceptFirstMentionSuggestion()) {
+                      return;
+                    }
+                    unawaited(_submit());
+                  },
                   onTapOutside: (_) {
                     _removeOverlay();
                     // Only dismiss our own keyboard; don't yank focus from
