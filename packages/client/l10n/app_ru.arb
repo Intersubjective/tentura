@@ -815,6 +815,14 @@
   "@showConnections": {
     "context": "Profile"
   },
+  "showInviteGenealogy": "Генеалогия приглашений",
+  "@showInviteGenealogy": {
+    "context": "Profile"
+  },
+  "inviteGenealogyAnonymousNode": "Бывший участник",
+  "@inviteGenealogyAnonymousNode": {
+    "context": "Profile"
+  },
   "showBeacons": "Показать маяки",
   "@showBeacons": {
     "context": "Profile"

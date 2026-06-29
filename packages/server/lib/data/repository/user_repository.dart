@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
@@ -32,12 +33,14 @@ class UserRepository implements UserRepositoryPort {
     this._env,
     this._database,
     this._trustEdgeRepository,
+    this._inviteGenealogyRepository,
   );
 
   final Env _env;
 
   final TenturaDb _database;
   final UserTrustEdgeRepositoryPort _trustEdgeRepository;
+  final InviteGenealogyRepositoryPort _inviteGenealogyRepository;
 
   //
   //
@@ -179,6 +182,17 @@ class UserRepository implements UserRepositoryPort {
         description: 'Can`t update invitation!',
       );
     }
+
+    final ancestorUser = await _database.managers.users
+        .filter((e) => e.id(invitation.userId))
+        .getSingle();
+    await _inviteGenealogyRepository.recordSignupEdge(
+      ancestorUserId: invitation.userId,
+      ancestorUserCreatedAt: ancestorUser.createdAt.dateTime,
+      descendantUserId: user.id,
+      descendantUserCreatedAt: user.createdAt.dateTime,
+      invitationId: invitationId,
+    );
 
     await _database.managers.voteUsers.bulkCreate(
       (o) => [
@@ -324,6 +338,20 @@ class UserRepository implements UserRepositoryPort {
         description: 'Can`t update invitation!',
       );
     }
+
+    final ancestorUser = await _database.managers.users
+        .filter((e) => e.id(invitation.userId))
+        .getSingle();
+    final descendantUser = await _database.managers.users
+        .filter((e) => e.id(user.id))
+        .getSingle();
+    await _inviteGenealogyRepository.recordSignupEdge(
+      ancestorUserId: invitation.userId,
+      ancestorUserCreatedAt: ancestorUser.createdAt.dateTime,
+      descendantUserId: user.id,
+      descendantUserCreatedAt: descendantUser.createdAt.dateTime,
+      invitationId: invitationId,
+    );
 
     await _database.managers.voteUsers.bulkCreate(
       (o) => [

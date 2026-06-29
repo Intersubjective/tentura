@@ -49,6 +49,7 @@ import 'table/complaints.dart';
 import 'table/fcm_tokens.dart';
 import 'table/images.dart';
 import 'table/inbox_items.dart';
+import 'table/invite_genealogy.dart';
 import 'table/invitations.dart';
 import 'table/pollings.dart';
 import 'table/polling_acts.dart';
@@ -97,6 +98,7 @@ part 'tentura_db.g.dart';
     FcmTokens,
     Images,
     InboxItems,
+    InviteGenealogy,
     Invitations,
     PersonCapabilityEvents,
     Pollings,

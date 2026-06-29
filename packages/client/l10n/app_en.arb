@@ -815,6 +815,14 @@
   "@showConnections": {
     "context": "Profile"
   },
+  "showInviteGenealogy": "Invite genealogy",
+  "@showInviteGenealogy": {
+    "context": "Profile"
+  },
+  "inviteGenealogyAnonymousNode": "Former member",
+  "@inviteGenealogyAnonymousNode": {
+    "context": "Profile"
+  },
   "showBeacons": "Show Beacons",
   "@showBeacons": {
     "context": "Profile"

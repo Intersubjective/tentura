@@ -54,6 +54,15 @@ class ProfileBody extends StatelessWidget {
             ),
           ),
 
+          Padding(
+            padding: sectionTop,
+            child: OutlinedButton.icon(
+              onPressed: screenCubit.showInviteGenealogy,
+              icon: const Icon(Icons.device_hub_outlined),
+              label: Text(l10n.showInviteGenealogy),
+            ),
+          ),
+
           // Show Beacons
           Padding(
             padding: sectionTop,

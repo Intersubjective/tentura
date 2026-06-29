@@ -167,3 +167,104 @@ final class BeaconNode extends NodeDetails {
     size: size,
   );
 }
+
+/// Live user in the invite-genealogy graph. [id] is the opaque [nodeKey], not
+/// the account id, so deleted endpoints cannot be reidentified from graph ids.
+final class GenealogyUserNode extends NodeDetails {
+  const GenealogyUserNode({
+    required this.nodeKey,
+    required this.user,
+    super.pinned,
+    super.size,
+    super.positionHint,
+  });
+
+  final String nodeKey;
+  final Profile user;
+
+  @override
+  String get userId => user.id;
+
+  @override
+  String get id => nodeKey;
+
+  @override
+  String get label => user.shownName;
+
+  @override
+  bool get hasImage => user.hasAvatar;
+
+  @override
+  double get score => user.score;
+
+  @override
+  double get rScore => user.rScore;
+
+  @override
+  GenealogyUserNode copyWithPinned(bool isPinned) => GenealogyUserNode(
+    nodeKey: nodeKey,
+    user: user,
+    pinned: isPinned,
+    size: size,
+    positionHint: positionHint,
+  );
+
+  @override
+  GenealogyUserNode copyWithPositionHint(int? positionHint) =>
+      GenealogyUserNode(
+        nodeKey: nodeKey,
+        user: user,
+        pinned: pinned,
+        size: size,
+        positionHint: positionHint,
+      );
+}
+
+/// Anonymized endpoint after account deletion.
+final class GenealogyDeletedNode extends NodeDetails {
+  const GenealogyDeletedNode({
+    required this.nodeKey,
+    required this.label,
+    super.pinned,
+    super.size,
+    super.positionHint,
+  });
+
+  final String nodeKey;
+  @override
+  final String label;
+
+  @override
+  String get userId => nodeKey;
+
+  @override
+  String get id => nodeKey;
+
+  @override
+  bool get hasImage => false;
+
+  @override
+  double get score => 0;
+
+  @override
+  double get rScore => 0;
+
+  @override
+  GenealogyDeletedNode copyWithPinned(bool isPinned) => GenealogyDeletedNode(
+    nodeKey: nodeKey,
+    label: label,
+    pinned: isPinned,
+    size: size,
+    positionHint: positionHint,
+  );
+
+  @override
+  GenealogyDeletedNode copyWithPositionHint(int? positionHint) =>
+      GenealogyDeletedNode(
+        nodeKey: nodeKey,
+        label: label,
+        pinned: pinned,
+        size: size,
+        positionHint: positionHint,
+      );
+}

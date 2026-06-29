@@ -48,6 +48,19 @@ class GraphNodeWidget extends StatelessWidget {
         final BeaconNode beaconNode => BeaconImage(
           beacon: beaconNode.beacon,
         ),
+        final GenealogyUserNode genealogyUser => TenturaAvatar(
+          profile: genealogyUser.user,
+          size: nodeDetails.size,
+          withRating: withRating,
+          isSelf: false,
+        ),
+        final GenealogyDeletedNode _ => CircleAvatar(
+          radius: nodeDetails.size / 2,
+          child: Icon(
+            Icons.person_off_outlined,
+            size: nodeDetails.size * 0.45,
+          ),
+        ),
       },
     );
     return onTap == null

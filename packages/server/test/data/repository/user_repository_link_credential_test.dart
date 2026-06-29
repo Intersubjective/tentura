@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura_server/data/repository/mock/user_trust_edge_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
@@ -37,7 +38,12 @@ Future<void> main() async {
         isDebugModeOn: false,
       );
       db = TenturaDb(env);
-      repo = UserRepository(env, db, const UserTrustEdgeRepositoryMock());
+      repo = UserRepository(
+        env,
+        db,
+        const UserTrustEdgeRepositoryMock(),
+        InviteGenealogyRepository(env, db),
+      );
     });
 
     tearDownAll(() async {

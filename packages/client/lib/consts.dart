@@ -17,6 +17,7 @@ const kPathHome = '/home';
 const kPathFriends = '/home/friends';
 const kPathProfile = '/home/profile';
 const kPathGraph = '/graph';
+const kPathInviteGenealogy = '/invite-genealogy';
 const kPathForwardsGraph = '/graph/forwards';
 const kPathRating = '/rating';
 const kPathSignIn = '/sign/in';

@@ -75,8 +75,12 @@ class GraphBodyState extends State<GraphBody>
       switch (node) {
         case final UserNode n:
           _screenCubit.showProfile(n.id);
+        case final GenealogyUserNode n:
+          _screenCubit.showProfile(n.user.id);
         case final BeaconNode n:
           _screenCubit.showBeacon(n.id);
+        case GenealogyDeletedNode():
+          break;
       }
       return;
     }
@@ -174,6 +178,24 @@ class GraphBodyState extends State<GraphBody>
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.labelSmall(
                   Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              final GenealogyUserNode node => Text(
+                key: ValueKey(node),
+                node.label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              final GenealogyDeletedNode node => Text(
+                key: ValueKey(node),
+                node.label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               _ => const SizedBox.shrink(),

@@ -371,6 +371,12 @@ class RootRouter extends RootStackRouter {
       //
     ),
 
+    AutoRoute(
+      usesPathAsKey: true,
+      page: InviteGenealogyRoute.page,
+      path: kPathInviteGenealogy,
+    ),
+
     // Graph — register `/graph/forwards/:id` before `/graph/:id` so
     // `pushPath('/graph/forwards/B…')` does not match the trust graph route
     // with id `forwards` (which would leave an empty graph when popping back).
