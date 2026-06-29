@@ -6,6 +6,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Owner CTA row stacks vertically below this width (`BeaconOperationalHeaderCard` chips).
 const double kCardTriageActionRowNarrowMaxWidth = 380;
+const double _kCardTriageActionRowIconOnlyMaxWidth = 96;
 
 /// Triage actions for beacon cards: Offer Help primary, Forward outlined, optional
 /// tertiary action on the right.
@@ -41,9 +42,6 @@ class CardTriageActionRow extends StatelessWidget {
     final hasSecondary =
         onSecondary != null &&
         (secondaryLabel != null || secondaryIcon != null);
-
-    final offerHelpFlex = hasSecondary ? 5 : 1;
-    final forwardFlex = hasSecondary ? 4 : 1;
 
     final forwardBtn = Tooltip(
       message: l10n.forwardActionTooltip,
@@ -143,35 +141,122 @@ class CardTriageActionRow extends StatelessWidget {
       }
     }
 
-    final wide = context.windowClass != WindowClass.compact;
-
-    return Row(
-      children: [
-        if (hasOfferHelp) ...[
-          if (wide)
-            offerHelpBtn
-          else
-            Expanded(
-              flex: offerHelpFlex,
-              child: offerHelpBtn,
+    Widget compactLayout() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasOfferHelp) ...[
+            offerHelpBtn,
+            SizedBox(height: tt.tightGap),
+          ],
+          forwardBtn,
+          if (hasSecondary && tertiary != null) ...[
+            SizedBox(height: tt.tightGap),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: tertiary,
             ),
-          const SizedBox(width: kSpacingSmall),
-          if (wide)
-            forwardBtn
-          else
-            Expanded(
-              flex: forwardFlex,
-              child: forwardBtn,
-            ),
-        ] else if (wide)
-          forwardBtn
-        else
-          Expanded(child: forwardBtn),
-        if (hasSecondary && tertiary != null) ...[
-          const SizedBox(width: kSpacingSmall),
-          tertiary,
+          ],
         ],
-      ],
+      );
+    }
+
+    Widget wideLayout() {
+      return Row(
+        children: [
+          if (hasOfferHelp) ...[
+            offerHelpBtn,
+            const SizedBox(width: kSpacingSmall),
+            forwardBtn,
+          ] else
+            forwardBtn,
+          if (hasSecondary && tertiary != null) ...[
+            const SizedBox(width: kSpacingSmall),
+            tertiary,
+          ],
+        ],
+      );
+    }
+
+    Widget iconButton({
+      required IconData icon,
+      required String tooltip,
+      required Color color,
+      required VoidCallback onPressed,
+    }) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: IconButton(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 20),
+          tooltip: tooltip,
+          style: IconButton.styleFrom(
+            foregroundColor: color,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    }
+
+    Widget iconOnlyLayout() {
+      final tip = secondaryTooltip?.trim();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasOfferHelp) ...[
+            iconButton(
+              icon: Icons.volunteer_activism_outlined,
+              tooltip: l10n.labelOfferHelp,
+              color: scheme.primary,
+              onPressed: () async {
+                await onOfferHelp?.call();
+              },
+            ),
+            SizedBox(height: tt.tightGap),
+          ],
+          iconButton(
+            icon: Icons.send,
+            tooltip: l10n.forwardActionTooltip,
+            color: tt.info,
+            onPressed: onForward,
+          ),
+          if (hasSecondary && tertiary != null) ...[
+            SizedBox(height: tt.tightGap),
+            iconButton(
+              icon: secondaryIcon ?? Icons.more_horiz,
+              tooltip: tip != null && tip.isNotEmpty
+                  ? tip
+                  : secondaryLabel ?? '',
+              color: scheme.onSurfaceVariant,
+              onPressed: () async {
+                await onSecondary?.call();
+              },
+            ),
+          ],
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        if (maxWidth.isFinite &&
+            maxWidth < _kCardTriageActionRowIconOnlyMaxWidth) {
+          return iconOnlyLayout();
+        }
+
+        final useWide =
+            context.windowClass != WindowClass.compact &&
+            (!maxWidth.isFinite ||
+                maxWidth > kCardTriageActionRowNarrowMaxWidth);
+
+        return useWide ? wideLayout() : compactLayout();
+      },
     );
   }
 }

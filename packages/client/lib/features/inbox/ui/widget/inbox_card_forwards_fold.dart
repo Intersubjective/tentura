@@ -23,6 +23,8 @@ Profile _senderProfile(InboxForwardSender s) => Profile(
       : null,
 );
 
+const double _kInboxForwardFoldCompactHeaderWidth = 120;
+
 /// Collapsed: “Forwarded by” + mini avatars + chevron (no note text).
 /// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar (full-width rows).
 class InboxCardForwardsFold extends StatefulWidget {
@@ -73,38 +75,42 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
     );
-    final headerRight = senders.isEmpty
-        ? null
-        : Semantics(
-            expanded: _expanded,
-            child: GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
-              behavior: HitTestBehavior.translucent,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.inboxForwardedByLabel,
-                    style: labelStyle,
-                  ),
-                  const SizedBox(width: 6),
-                  CompactForwarderAvatars(
-                    profiles: profiles,
-                    overflowCount: overflow,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                ],
-              ),
-            ),
-          );
+
+    Widget? headerRight({required bool compact}) {
+      if (senders.isEmpty) return null;
+      final chevron = Icon(
+        _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+        size: 18,
+        color: scheme.primary,
+      );
+
+      return Semantics(
+        expanded: _expanded,
+        child: GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          behavior: HitTestBehavior.translucent,
+          child: compact
+              ? chevron
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      l10n.inboxForwardedByLabel,
+                      style: labelStyle,
+                    ),
+                    const SizedBox(width: 6),
+                    CompactForwarderAvatars(
+                      profiles: profiles,
+                      overflowCount: overflow,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    chevron,
+                  ],
+                ),
+        ),
+      );
+    }
 
     final deadlineMeta = beaconCardCalendarDeadlineStatus(
       l10n,
@@ -136,50 +142,73 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
           );
 
     Widget headerRow() {
-      final right = headerRight;
-      if (deadlineChild == null && right == null) {
-        return const SizedBox.shrink();
-      }
-      if (right == null) {
-        return Row(
-          children: [
-            Flexible(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: deadlineChild,
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxWidth.isFinite &&
+              constraints.maxWidth < _kInboxForwardFoldCompactHeaderWidth;
+          final right = headerRight(compact: compact);
+          if (deadlineChild == null && right == null) {
+            return const SizedBox.shrink();
+          }
+          if (right == null) {
+            return Row(
+              children: [
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: deadlineChild,
+                  ),
+                ),
+              ],
+            );
+          }
+          if (deadlineChild == null) {
+            return Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: right,
+                  ),
+                ),
+              ],
+            );
+          }
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: deadlineChild,
+                ),
+                SizedBox(height: context.tt.tightGap),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: right,
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: deadlineChild,
+                ),
               ),
-            ),
-          ],
-        );
-      }
-      if (deadlineChild == null) {
-        return Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: right,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: right,
+                ),
               ),
-            ),
-          ],
-        );
-      }
-      return Row(
-        children: [
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: deadlineChild,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: right,
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       );
     }
 

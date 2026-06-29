@@ -313,6 +313,47 @@ void main() {
 
       expect(buttonWidth, greaterThan(rowWidth * 0.7));
     });
+
+    testWidgets('uses parent constraints on expanded viewport', (
+      tester,
+    ) async {
+      const viewportWidth = 900.0;
+
+      await tester.binding.setSurfaceSize(
+        const Size(viewportWidth, 800),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(viewportWidth, 800)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: Center(
+                  child: SizedBox(
+                    width: 31,
+                    child: CardTriageActionRow(
+                      onOfferHelp: () async {},
+                      onForward: () {},
+                      secondaryIcon: Icons.delete_outline,
+                      secondaryTooltip: 'Remove',
+                      onSecondary: () async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('showTenturaAdaptiveSheet', () {

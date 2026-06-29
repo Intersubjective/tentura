@@ -17,6 +17,7 @@ const double kBeaconCardBodyMinHeight = 104;
 const double kBeaconCardHeaderIconSize = 40;
 const double kBeaconCardMenuSlotWidth = 32;
 const double kBeaconCardMenuSlotHeight = 40;
+const double _kBeaconCardMinInlineTextWidth = 24;
 
 /// Visual tie-in under the small metadata avatar; matches forwarder note bars.
 const double kBeaconCardMetadataAttributionBarWidth = 2;
@@ -229,66 +230,98 @@ class BeaconCardMetadataBlock extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final metaAvatar = context.tt.metadataAvatarSize;
     final updated = updatedLine?.trim() ?? '';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
+
+    Widget authorLine() {
+      return Text.rich(
+        TextSpan(
+          style: baseStyle,
           children: [
-            SelfAwareAvatar.small(
-              profile: author,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  style: baseStyle,
-                  children: [
-                    TextSpan(text: name, style: nameStyle),
-                    if (kShowBeaconCardContextCategory) ...[
-                      TextSpan(text: ' · ', style: baseStyle),
-                      TextSpan(text: category),
-                    ],
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            TextSpan(text: name, style: nameStyle),
+            if (kShowBeaconCardContextCategory) ...[
+              TextSpan(text: ' · ', style: baseStyle),
+              TextSpan(text: category),
+            ],
           ],
         ),
-        if (updated.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Row(
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    Widget updatedText() {
+      return Text(
+        updated,
+        style: updatedLineStyle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final omitFixedChrome =
+            constraints.maxWidth.isFinite &&
+            constraints.maxWidth <
+                metaAvatar + 6 + _kBeaconCardMinInlineTextWidth;
+
+        if (omitFixedChrome) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: metaAvatar,
-                child: Center(
-                  child: ExcludeSemantics(
-                    child: Container(
-                      width: kBeaconCardMetadataAttributionBarWidth,
-                      height: kBeaconCardMetadataAttributionBarHeight,
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(1),
+              authorLine(),
+              if (updated.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                updatedText(),
+              ],
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                SelfAwareAvatar.small(
+                  profile: author,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: authorLine(),
+                ),
+              ],
+            ),
+            if (updated.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  SizedBox(
+                    width: metaAvatar,
+                    child: Center(
+                      child: ExcludeSemantics(
+                        child: Container(
+                          width: kBeaconCardMetadataAttributionBarWidth,
+                          height: kBeaconCardMetadataAttributionBarHeight,
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  updated,
-                  style: updatedLineStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: updatedText(),
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -424,21 +457,60 @@ class BeaconCardHeaderRow extends StatelessWidget {
       ],
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        BeaconIdentityTile(beacon: beacon, size: identitySize),
-        const SizedBox(width: kSpacingSmall),
-        Expanded(child: titleColumn),
-        SizedBox(
-          width: kBeaconCardMenuSlotWidth,
-          height: kBeaconCardMenuSlotHeight,
-          child: Align(
-            alignment: Alignment.topRight,
-            child: menu,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final omitFixedChrome =
+            constraints.maxWidth.isFinite &&
+            constraints.maxWidth <
+                identitySize +
+                    kSpacingSmall +
+                    kBeaconCardMenuSlotWidth +
+                    _kBeaconCardMinInlineTextWidth;
+
+        if (omitFixedChrome) {
+          final showMenu =
+              constraints.maxWidth.isFinite &&
+              constraints.maxWidth >=
+                  kBeaconCardMenuSlotWidth +
+                      kSpacingSmall +
+                      _kBeaconCardMinInlineTextWidth;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleColumn),
+              if (showMenu) ...[
+                const SizedBox(width: kSpacingSmall),
+                SizedBox(
+                  width: kBeaconCardMenuSlotWidth,
+                  height: kBeaconCardMenuSlotHeight,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: menu,
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            BeaconIdentityTile(beacon: beacon, size: identitySize),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(child: titleColumn),
+            SizedBox(
+              width: kBeaconCardMenuSlotWidth,
+              height: kBeaconCardMenuSlotHeight,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: menu,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
