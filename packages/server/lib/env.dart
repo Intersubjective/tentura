@@ -42,6 +42,7 @@ class Env {
     String? qaAuthToken,
     List<String>? qaEmailDomains,
     String? unsubscribeSigningSecret,
+    String? genealogyNodeKeySecret,
     Duration? emailNotifCooldown,
     int? emailDigestHour,
     Duration? emailAuthTtl,
@@ -152,6 +153,9 @@ class Env {
                .toList(),
        unsubscribeSigningSecret = unsubscribeSigningSecret ??
            _env['UNSUBSCRIBE_SIGNING_SECRET'] ??
+           '',
+       genealogyNodeKeySecret = genealogyNodeKeySecret ??
+           _env['GENEALOGY_NODE_KEY_SECRET'] ??
            '',
        emailNotifCooldown = emailNotifCooldown ??
            Duration(
@@ -419,6 +423,10 @@ class Env {
 
   /// HMAC secret for one-click email unsubscribe tokens.
   final String unsubscribeSigningSecret;
+
+  /// HMAC secret for opaque invite-genealogy node keys. Falls back to
+  /// [unsubscribeSigningSecret] when unset (see [InviteGenealogyNodeKey]).
+  final String genealogyNodeKeySecret;
 
   /// Minimum gap between immediate notification emails per recipient+category.
   final Duration emailNotifCooldown;

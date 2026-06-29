@@ -8,6 +8,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldUpload.type,
   gqlTypeAuthResponse,
   gqlTypeInvitation,
+  gqlTypeInviteGenealogy,
+  gqlTypeInviteGenealogyNode,
+  gqlTypeInviteGenealogyEdge,
   gqlTypeProfile,
   gqlTypeBeacon,
   gqlTypeMyForwardRecipient,
@@ -408,6 +411,38 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),
+  ]);
+
+final gqlTypeInviteGenealogyNode =
+    GraphQLObjectType('InviteGenealogyNode', null)
+      ..fields.addAll([
+        field('node_key', graphQLString.nonNullable()),
+        field('user', gqlTypeUserPublic),
+        field('deleted_at', graphQLString),
+        field('user_created_at', graphQLString),
+      ]);
+
+final gqlTypeInviteGenealogyEdge =
+    GraphQLObjectType('InviteGenealogyEdge', null)
+      ..fields.addAll([
+        field('ancestor_node_key', graphQLString.nonNullable()),
+        field('descendant_node_key', graphQLString.nonNullable()),
+        field('ancestor_user_created_at', graphQLString.nonNullable()),
+        field('descendant_user_created_at', graphQLString.nonNullable()),
+        field('created_at', graphQLString.nonNullable()),
+      ]);
+
+final gqlTypeInviteGenealogy = GraphQLObjectType('InviteGenealogy', null)
+  ..fields.addAll([
+    field('viewer_node_key', graphQLString.nonNullable()),
+    field(
+      'nodes',
+      GraphQLListType(gqlTypeInviteGenealogyNode.nonNullable()),
+    ),
+    field(
+      'edges',
+      GraphQLListType(gqlTypeInviteGenealogyEdge.nonNullable()),
+    ),
   ]);
 
 /// Per-viewer private contact name (subjective profiles). Viewer-scoped:

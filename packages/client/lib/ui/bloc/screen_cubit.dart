@@ -73,6 +73,8 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showProfileCreator() => _navigateTo('$kPathSignUp/ ');
 
+  void showInviteGenealogy() => _navigateTo(kPathInviteGenealogy);
+
   void showSettings() => _navigateTo(kPathSettings);
 
   void showComplaint(String id) => _navigateTo('$kPathComplaint/$id');

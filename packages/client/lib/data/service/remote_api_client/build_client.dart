@@ -178,6 +178,7 @@ class _V2RoutingLink extends Link {
     'InvitationUpdate',
     'InvitationAccept',
     'InvitationById',
+    'InviteGenealogy',
     'InvitationDeleteById',
     'MyContacts',
     'ContactSet',

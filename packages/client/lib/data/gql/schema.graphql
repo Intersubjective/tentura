@@ -3343,6 +3343,27 @@ type NotificationPreferences {
   locale: String!
 }
 
+type InviteGenealogyNode {
+  node_key: String!
+  user: user
+  deleted_at: String
+  user_created_at: String
+}
+
+type InviteGenealogyEdge {
+  ancestor_node_key: String!
+  descendant_node_key: String!
+  ancestor_user_created_at: String!
+  descendant_user_created_at: String!
+  created_at: String!
+}
+
+type InviteGenealogy {
+  viewer_node_key: String!
+  nodes: [InviteGenealogyNode!]!
+  edges: [InviteGenealogyEdge!]!
+}
+
 type query_root {
   notificationsFeed(limit: Int, before: String): [NotificationItem!]!
   notificationsUnreadCount: Int!
@@ -3672,6 +3693,9 @@ type query_root {
     where: invitation_bool_exp
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
+
+  """V2: invite signup genealogy for the signed-in viewer."""
+  inviteGenealogy: InviteGenealogy
 
   """V2: mutual friends (MeritRank intersection) for viewer and [id]."""
   mutualFriends(id: String!): [user!]!

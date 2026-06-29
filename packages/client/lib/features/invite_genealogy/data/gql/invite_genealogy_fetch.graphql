@@ -1,0 +1,22 @@
+# import '/data/gql/user_public_model.graphql'
+
+query InviteGenealogy {
+  inviteGenealogy {
+    viewer_node_key
+    nodes {
+      node_key
+      deleted_at
+      user_created_at
+      user {
+        ...UserPublicModel
+      }
+    }
+    edges {
+      ancestor_node_key
+      descendant_node_key
+      ancestor_user_created_at
+      descendant_user_created_at
+      created_at
+    }
+  }
+}

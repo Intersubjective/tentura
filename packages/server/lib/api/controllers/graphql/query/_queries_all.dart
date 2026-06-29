@@ -11,6 +11,7 @@ import 'query_evaluation.dart';
 import 'query_fact_card.dart';
 import 'query_forward_graph.dart';
 import 'query_forward_reasons.dart';
+import 'query_invite_genealogy.dart';
 import 'query_invitation.dart';
 import 'query_mutual_friends.dart';
 import 'query_coordination_item.dart';
@@ -22,6 +23,7 @@ import 'query_version.dart';
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryBeaconDisplay().all,
   ...QueryInvitation().all,
+  ...QueryInviteGenealogy().all,
   ...QueryBeaconInvolvement().all,
   ...QueryBeaconRoom().all,
   ...QueryCapability().all,
