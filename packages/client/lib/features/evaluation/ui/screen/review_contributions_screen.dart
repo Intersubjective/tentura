@@ -20,7 +20,8 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 @RoutePage()
-class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrapper {
+class ReviewContributionsScreen extends StatelessWidget
+    implements AutoRouteWrapper {
   const ReviewContributionsScreen({
     @PathParam('id') this.id = '',
     @QueryParam('draft') this.draft = false,
@@ -32,16 +33,16 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
-        create: (_) {
-          final c = EvaluationCubit.fromGetIt(
-            beaconId: id,
-            isDraftMode: draft,
-          );
-          unawaited(c.loadParticipantsOnly());
-          return c;
-        },
-        child: this,
+    create: (_) {
+      final c = EvaluationCubit.fromGetIt(
+        beaconId: id,
+        isDraftMode: draft,
       );
+      unawaited(c.loadParticipantsOnly());
+      return c;
+    },
+    child: this,
+  );
 
   Future<void> _onSubmitFinish(
     BuildContext context,
@@ -49,7 +50,8 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
     EvaluationState state,
   ) async {
     final l10n = L10n.of(context)!;
-    final allNoBasis = state.participants.isNotEmpty &&
+    final allNoBasis =
+        state.participants.isNotEmpty &&
         state.participants.every(
           (p) => p.currentValue == EvaluationValue.noBasis,
         );
@@ -86,117 +88,133 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
               ? l10n.evaluationAcknowledgeTitleDraft
               : l10n.evaluationAcknowledgeTitle,
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(LinearPiActive.height),
-          child: BlocSelector<EvaluationCubit, EvaluationState, bool>(
-            bloc: cubit,
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-          ),
-        ),
       ),
       body: SafeArea(
-        child: TenturaContentColumn(
-          child: BlocBuilder<EvaluationCubit, EvaluationState>(
-            builder: (context, state) {
-              if (state.isLoading && state.participants.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              if (state.participants.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: tt.cardPadding,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (state.beaconTitle.isNotEmpty) ...[
-                          Text(
-                            state.beaconTitle,
-                            style: Theme.of(context).textTheme.titleMedium,
-                            textAlign: TextAlign.center,
+        child: Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: LinearPiActive.height,
+              child: BlocSelector<EvaluationCubit, EvaluationState, bool>(
+                bloc: cubit,
+                selector: (state) => state.isLoading,
+                builder: LinearPiActive.builder,
+              ),
+            ),
+            Expanded(
+              child: TenturaContentColumn(
+                child: BlocBuilder<EvaluationCubit, EvaluationState>(
+                  builder: (context, state) {
+                    if (state.isLoading && state.participants.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      );
+                    }
+                    if (state.participants.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: tt.cardPadding,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (state.beaconTitle.isNotEmpty) ...[
+                                Text(
+                                  state.beaconTitle,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: tt.sectionGap),
+                              ],
+                              Text(
+                                l10n.evaluationEmptyTargets,
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
-                          SizedBox(height: tt.sectionGap),
-                        ],
-                        Text(
-                          l10n.evaluationEmptyTargets,
-                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    final listItems = _ReviewListItems.build(
+                      context: context,
+                      l10n: l10n,
+                      state: state,
+                      draft: draft,
+                      onOpen: (p) async {
+                        await showEvaluationDetailSheet(
+                          context: context,
+                          participant: p,
+                          onSave: (v, tags, note, ackTags) =>
+                              context.read<EvaluationCubit>().submitOne(
+                                evaluatedUserId: p.userId,
+                                value: v,
+                                reasonTags: tags,
+                                note: note,
+                                acknowledgedHelpTags: ackTags.isEmpty
+                                    ? null
+                                    : ackTags,
+                              ),
+                        );
+                      },
+                    );
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            padding: tt.cardPadding,
+                            itemCount: listItems.length,
+                            itemBuilder: listItems.itemBuilder,
+                          ),
+                        ),
+                        Padding(
+                          padding: tt.cardPadding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                l10n.evaluationProgress(
+                                  state.reviewedCount,
+                                  state.totalCount,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: tt.rowGap),
+                              FilledButton(
+                                style: actionButtonStyle,
+                                onPressed: state.isLoading
+                                    ? null
+                                    : () => draft
+                                          ? cubit.finalize()
+                                          : _onSubmitFinish(
+                                              context,
+                                              cubit,
+                                              state,
+                                            ),
+                                child: Text(
+                                  draft
+                                      ? l10n.evaluationDraftDone
+                                      : l10n.evaluationSubmitFinish,
+                                ),
+                              ),
+                              if (!draft) ...[
+                                TextButton(
+                                  onPressed: state.isLoading
+                                      ? null
+                                      : cubit.skip,
+                                  child: Text(l10n.evaluationSkipForNow),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-                );
-              }
-              final listItems = _ReviewListItems.build(
-            context: context,
-            l10n: l10n,
-            state: state,
-            draft: draft,
-            onOpen: (p) async {
-              await showEvaluationDetailSheet(
-                context: context,
-                participant: p,
-                onSave: (v, tags, note, ackTags) => context
-                    .read<EvaluationCubit>()
-                    .submitOne(
-                      evaluatedUserId: p.userId,
-                      value: v,
-                      reasonTags: tags,
-                      note: note,
-                      acknowledgedHelpTags: ackTags.isEmpty ? null : ackTags,
-                    ),
-              );
-            },
-          );
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      padding: tt.cardPadding,
-                      itemCount: listItems.length,
-                      itemBuilder: listItems.itemBuilder,
-                    ),
-                  ),
-                  Padding(
-                    padding: tt.cardPadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          l10n.evaluationProgress(
-                            state.reviewedCount,
-                            state.totalCount,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: tt.rowGap),
-                        FilledButton(
-                          style: actionButtonStyle,
-                          onPressed: state.isLoading
-                              ? null
-                              : () => draft
-                                  ? cubit.finalize()
-                                  : _onSubmitFinish(context, cubit, state),
-                          child: Text(
-                            draft
-                                ? l10n.evaluationDraftDone
-                                : l10n.evaluationSubmitFinish,
-                          ),
-                        ),
-                        if (!draft) ...[
-                          TextButton(
-                            onPressed: state.isLoading ? null : cubit.skip,
-                            child: Text(l10n.evaluationSkipForNow),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -359,8 +377,8 @@ class _ParticipantTile extends StatelessWidget {
     final status = participant.currentValue == null
         ? l10n.evaluationNotReviewed
         : (participant.currentValue == EvaluationValue.noBasis
-            ? l10n.evaluationNoBasisLabel
-            : l10n.evaluationReviewed);
+              ? l10n.evaluationNoBasisLabel
+              : l10n.evaluationReviewed);
     final profile = Profile(
       id: participant.userId,
       displayName: participant.displayName,
@@ -377,34 +395,34 @@ class _ParticipantTile extends StatelessWidget {
       child: Semantics(
         label: '$displayName. $status',
         child: ListTile(
-        leading: SelfAwareAvatar.small(
-          profile: profile,
+          leading: SelfAwareAvatar.small(
+            profile: profile,
+          ),
+          title: BlocBuilder<ProfileCubit, ProfileState>(
+            buildWhen: (p, c) => p.profile.id != c.profile.id,
+            builder: (context, state) {
+              return Text(
+                SelfUserHighlight.displayName(
+                  l10n,
+                  profile,
+                  state.profile.id,
+                ),
+                style: SelfUserHighlight.nameStyle(
+                  Theme.of(context),
+                  Theme.of(context).textTheme.bodyLarge,
+                  SelfUserHighlight.profileIsSelf(profile, state.profile.id),
+                ),
+              );
+            },
+          ),
+          subtitle: Text(
+            '${participant.contributionSummary}\n${participant.causalHint}',
+            maxLines: 3,
+          ),
+          isThreeLine: true,
+          trailing: Text(status, style: Theme.of(context).textTheme.labelSmall),
+          onTap: onTap,
         ),
-        title: BlocBuilder<ProfileCubit, ProfileState>(
-          buildWhen: (p, c) => p.profile.id != c.profile.id,
-          builder: (context, state) {
-            return Text(
-              SelfUserHighlight.displayName(
-                l10n,
-                profile,
-                state.profile.id,
-              ),
-              style: SelfUserHighlight.nameStyle(
-                Theme.of(context),
-                Theme.of(context).textTheme.bodyLarge,
-                SelfUserHighlight.profileIsSelf(profile, state.profile.id),
-              ),
-            );
-          },
-        ),
-        subtitle: Text(
-          '${participant.contributionSummary}\n${participant.causalHint}',
-          maxLines: 3,
-        ),
-        isThreeLine: true,
-        trailing: Text(status, style: Theme.of(context).textTheme.labelSmall),
-        onTap: onTap,
-      ),
       ),
     );
   }
