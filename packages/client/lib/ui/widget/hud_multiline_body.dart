@@ -30,10 +30,8 @@ class HudMultilineBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final textColor =
         isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
-    final primaryStyle = TenturaText.bodySmall(textColor).copyWith(height: 1.25);
-    final showMoreStyle = TenturaText.bodySmall(scheme.primary).copyWith(
-      height: 1.25,
-    );
+    final primaryStyle = TenturaText.hudBodySmall(textColor);
+    final showMoreStyle = TenturaText.hudBodySmall(scheme.primary);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -65,9 +63,7 @@ class HudMultilineBody extends StatelessWidget {
                 subline!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TenturaText.bodySmall(scheme.error).copyWith(
-                  height: 1.25,
-                ),
+                style: TenturaText.hudBodySmall(scheme.error),
               ),
             ],
           ],

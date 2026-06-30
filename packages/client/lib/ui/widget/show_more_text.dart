@@ -14,10 +14,10 @@ class ShowMoreText extends ReadMoreText {
     );
   }
 
-  const ShowMoreText(
+  ShowMoreText(
     super.data, {
     super.key,
-    super.style,
+    TextStyle? style,
     super.colorClickableText,
     super.annotations,
     super.trimCollapsedText,
@@ -25,5 +25,8 @@ class ShowMoreText extends ReadMoreText {
     super.trimLines = kMaxLines,
     super.trimMode = TrimMode.Line,
     super.textAlign = TextAlign.left,
-  });
+  }) : super(
+          // readmore only merges [style] when inherit is true.
+          style: style?.copyWith(inherit: true),
+        );
 }

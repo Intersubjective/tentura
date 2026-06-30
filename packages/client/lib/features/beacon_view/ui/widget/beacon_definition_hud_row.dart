@@ -34,12 +34,10 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
     final hasNeed = needText.isNotEmpty;
     final primaryText =
         hasNeed ? needText : l10n.beaconDefinitionSectionTitle;
-    final primaryStyle = TenturaText.bodySmall(
+    final primaryStyle = TenturaText.hudBodySmall(
       hasNeed ? scheme.onSurface : tt.textMuted,
-    ).copyWith(height: 1.25);
-    final showMoreStyle = TenturaText.bodySmall(scheme.primary).copyWith(
-      height: 1.25,
     );
+    final showMoreStyle = TenturaText.hudBodySmall(scheme.primary);
 
     if (_expanded) {
       return Column(
