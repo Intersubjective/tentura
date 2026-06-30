@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
+import 'package:tentura/app/sentry/report_sentry_message.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
@@ -66,7 +67,9 @@ void logScreenLoadError({
     buffer.writeln('detail=${details.detail}');
   }
   buffer.write('error=$error');
-  GetIt.I<Logger>().severe(buffer.toString());
+  final message = buffer.toString();
+  GetIt.I<Logger>().warning(message);
+  reportSentryMessage(message);
 }
 
 ScreenLoadErrorKind _classifyLoadError(Object error) {
@@ -183,59 +186,59 @@ class ScreenLoadErrorPanel extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            Icon(
-              Icons.error_outline,
-              size: tt.iconSize * 2,
-              color: scheme.error,
-            ),
-            SizedBox(height: tt.sectionGap),
-            Text(
-              details.title,
-              style: TenturaText.title(scheme.onSurface),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: tt.rowGap),
-            Text(
-              details.message,
-              style: TenturaText.bodyMedium(scheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            if (details.detail != null &&
-                details.detail != details.message) ...[
-              SizedBox(height: tt.tightGap),
+              Icon(
+                Icons.error_outline,
+                size: tt.iconSize * 2,
+                color: scheme.error,
+              ),
+              SizedBox(height: tt.sectionGap),
               Text(
-                details.detail!,
-                style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                details.title,
+                style: TenturaText.title(scheme.onSurface),
                 textAlign: TextAlign.center,
               ),
-            ],
-            SizedBox(height: tt.sectionGap),
-            Text(
-              l10n.screenLoadErrorSupportRef(details.supportRef),
-              style: TenturaText.bodySmall(scheme.outline),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: tt.sectionGap),
-            FilledButton(
-              onPressed: onRetry,
-              child: Text(l10n.myWorkRetry),
-            ),
-            if (showSignIn) ...[
               SizedBox(height: tt.rowGap),
-              TextButton(
-                onPressed: onSignInAgain,
-                child: Text(l10n.authSessionProblemFixAction),
+              Text(
+                details.message,
+                style: TenturaText.bodyMedium(scheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
               ),
-            ],
-            SizedBox(height: tt.tightGap),
-            TextButton(
-              onPressed: () => Clipboard.setData(
-                ClipboardData(
-                  text: _clipboardText(l10n),
+              if (details.detail != null &&
+                  details.detail != details.message) ...[
+                SizedBox(height: tt.tightGap),
+                Text(
+                  details.detail!,
+                  style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
                 ),
+              ],
+              SizedBox(height: tt.sectionGap),
+              Text(
+                l10n.screenLoadErrorSupportRef(details.supportRef),
+                style: TenturaText.bodySmall(scheme.outline),
+                textAlign: TextAlign.center,
               ),
-              child: Text(l10n.copyToClipboard),
-            ),
+              SizedBox(height: tt.sectionGap),
+              FilledButton(
+                onPressed: onRetry,
+                child: Text(l10n.myWorkRetry),
+              ),
+              if (showSignIn) ...[
+                SizedBox(height: tt.rowGap),
+                TextButton(
+                  onPressed: onSignInAgain,
+                  child: Text(l10n.authSessionProblemFixAction),
+                ),
+              ],
+              SizedBox(height: tt.tightGap),
+              TextButton(
+                onPressed: () => Clipboard.setData(
+                  ClipboardData(
+                    text: _clipboardText(l10n),
+                  ),
+                ),
+                child: Text(l10n.copyToClipboard),
+              ),
             ],
           ),
         ),

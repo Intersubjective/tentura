@@ -16,11 +16,11 @@ Tentura uses three Sentry projects: **server**, **client** (this ADR), and **lan
 
 2. **Release vs dist**: `SENTRY_RELEASE` is `tentura@<clientVersion>` only; `SENTRY_DIST` is the commit SHA. Do **not** encode SHA in the release string as `+sha` — the `sentry_dart_plugin` treats the suffix after `+` as `dist`, which would mismatch SDK-only `release` assignment.
 
-3. **SDK options**: `sendDefaultPii=true`, `tracesSampleRate=1.0` (revisit when traffic grows), `captureFailedRequests=false` (API failures flow through the classified `Logger` SEVERE bridge instead of duplicate HTTP auto-capture). Benign drops: `ConnectionUplinkException`, `AuthSessionLostException`, `SocketException`.
+3. **SDK options**: `sendDefaultPii=true`, `tracesSampleRate=1.0` (revisit when traffic grows), `captureFailedRequests=false` (API failures flow through explicit classified reporters instead of duplicate HTTP auto-capture). Benign drops: `ConnectionUplinkException`, `AuthSessionLostException`, `SocketException`.
 
 4. **User scope**: `AuthCubit` listener sets `SentryUser(id: currentAccountId)`; cleared on sign-out.
 
-5. **Log bridge** (non-debug): `Logger.root` SEVERE+ → `captureException` / `captureMessage` (filtered); INFO/WARNING → breadcrumbs. Structured Sentry Logs (`enableLogs`) off.
+5. **Explicit issue reporting, breadcrumb log bridge** (non-debug): `reportUserFacingError` and explicit Sentry message reporters create Issues. `Logger.root` records INFO/WARNING/SEVERE logs as breadcrumbs only; log severity does not create Issues. This keeps logging diagnostic and makes Sentry issue ownership explicit at user-facing/error-boundary call sites.
 
 6. **SentryWidget** wraps the root only on the Sentry-initialized path (not debug overlay path).
 
@@ -32,7 +32,7 @@ Tentura uses three Sentry projects: **server**, **client** (this ADR), and **lan
 
 - Deployed WASM builds report to the **client** Sentry project when `CLIENT_SENTRY_DSN` is set; without it, Sentry is fully disabled (no SDK overhead from empty DSN init).
 - Stack traces in Issues are minified on WASM until symbol upload is enabled via dart2js or future WASM support.
-- Some code paths both `log.severe` and rethrow may double-report (bridge + auto integration); acceptable for now.
+- Sentry Issues are created only by explicit reporters. Logs enrich Issues as breadcrumbs, so callers do not need to know hidden `Logger.severe` side effects.
 - Enabling source maps later requires `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, matching `SENTRY_RELEASE`/`SENTRY_DIST` on SDK and plugin, and verifying `url_prefix` against deployed asset paths.
 
 ## Enabling source-map upload later (dart2js path)

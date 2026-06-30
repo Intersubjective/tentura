@@ -3,18 +3,14 @@
 
 import 'dart:async';
 
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/consts.dart';
 
-import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../bloc/screen_cubit.dart';
@@ -115,7 +111,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
     if (error != null) {
       reportUserFacingError(error, stackTrace: stackTrace);
     }
-    GetIt.I<Logger>().severe(fullText, error, stackTrace);
+    GetIt.I<Logger>().warning(fullText);
   }
 
   // Errors get a Copy action so the (often cryptic) server message can be
