@@ -9,6 +9,8 @@ import 'package:tentura_server/env.dart';
 
 class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   String? lastUserId;
+  String? lastBetweenViewerId;
+  String? lastBetweenTargetId;
 
   @override
   Future<void> recordSignupEdge({
@@ -26,6 +28,21 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     lastUserId = userId;
     return const InviteGenealogyGraphEntity(
       viewerNodeKey: 'Gviewer',
+      nodes: [],
+      edges: [],
+    );
+  }
+
+  @override
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  }) async {
+    lastBetweenViewerId = viewerId;
+    lastBetweenTargetId = targetId;
+    return const InviteGenealogyGraphEntity(
+      viewerNodeKey: 'Gviewer',
+      targetNodeKey: 'Gtarget',
       nodes: [],
       edges: [],
     );
@@ -51,5 +68,16 @@ void main() {
     final result = await case_.fetchLineage(viewerId: viewerId);
     expect(result.viewerNodeKey, 'Gviewer');
     expect(repo.lastUserId, viewerId);
+  });
+
+  test('fetchLineageBetween delegates viewer and target', () async {
+    const targetId = 'Utarget1';
+    final result = await case_.fetchLineageBetween(
+      viewerId: viewerId,
+      targetId: targetId,
+    );
+    expect(result.targetNodeKey, 'Gtarget');
+    expect(repo.lastBetweenViewerId, viewerId);
+    expect(repo.lastBetweenTargetId, targetId);
   });
 }

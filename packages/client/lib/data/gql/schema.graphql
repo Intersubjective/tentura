@@ -3360,6 +3360,8 @@ type InviteGenealogyEdge {
 
 type InviteGenealogy {
   viewer_node_key: String!
+  target_node_key: String
+  common_ancestor_node_key: String
   nodes: [InviteGenealogyNode!]!
   edges: [InviteGenealogyEdge!]!
 }
@@ -3696,6 +3698,9 @@ type query_root {
 
   """V2: invite signup genealogy for the signed-in viewer."""
   inviteGenealogy: InviteGenealogy
+
+  """V2: shared invite genealogy between the viewer and [target_id]."""
+  inviteGenealogyBetween(target_id: String!): InviteGenealogy
 
   """V2: mutual friends (MeritRank intersection) for viewer and [id]."""
   mutualFriends(id: String!): [user!]!

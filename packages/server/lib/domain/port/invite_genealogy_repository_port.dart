@@ -12,4 +12,9 @@ abstract class InviteGenealogyRepositoryPort {
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String userId,
   });
+
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  });
 }

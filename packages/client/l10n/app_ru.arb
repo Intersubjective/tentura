@@ -823,6 +823,10 @@
   "@inviteGenealogyAnonymousNode": {
     "context": "Profile"
   },
+  "inviteGenealogyBetweenTitle": "Общая линия приглашений",
+  "@inviteGenealogyBetweenTitle": {
+    "context": "Profile"
+  },
   "showBeacons": "Показать маяки",
   "@showBeacons": {
     "context": "Profile"

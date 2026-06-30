@@ -19,4 +19,13 @@ final class InviteGenealogyCase extends UseCaseBase {
     required String viewerId,
   }) =>
       _repository.fetchLineage(userId: viewerId);
+
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  }) =>
+      _repository.fetchLineageBetween(
+        viewerId: viewerId,
+        targetId: targetId,
+      );
 }

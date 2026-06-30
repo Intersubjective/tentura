@@ -145,6 +145,18 @@ class ProfileViewBody extends StatelessWidget {
               ),
             ),
 
+            // Shared invite genealogy between the viewer and this person.
+            Padding(
+              padding: kPaddingSmallT,
+              child: OutlinedButton.icon(
+                onPressed: () => context
+                    .read<ScreenCubit>()
+                    .showInviteGenealogyWith(profile.id),
+                icon: const Icon(Icons.device_hub_outlined),
+                label: Text(l10n.showInviteGenealogy),
+              ),
+            ),
+
             // Show Beacons — only meaningful for vote-mutual friends, who can
             // read all of this person's non-draft beacons (ADR 0008). One-way
             // friends would otherwise land on an empty list (QA trap 2).

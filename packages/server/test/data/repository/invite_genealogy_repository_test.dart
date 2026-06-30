@@ -52,6 +52,9 @@ Future<void> main() async {
         "DELETE FROM public.invite_genealogy WHERE invitation_id = '$invitationId'",
       );
       await db.customStatement(
+        "DELETE FROM public.invitation WHERE id = '$invitationId'",
+      );
+      await db.customStatement(
         '''DELETE FROM public."user" WHERE id IN ('$ancestorId', '$descendantId')''',
       );
     });
@@ -77,6 +80,15 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at
 ''',
       [ancestorKey, descendantKey],
+    );
+
+    // recordSignupEdge writes invitation_id, which has an FK to invitation.
+    await db.customStatement(
+      '''
+INSERT INTO public.invitation (id, user_id, created_at, updated_at)
+VALUES ('$invitationId', '$ancestorId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
     );
 
     await repo.recordSignupEdge(

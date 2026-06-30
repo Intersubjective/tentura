@@ -435,6 +435,8 @@ final gqlTypeInviteGenealogyEdge =
 final gqlTypeInviteGenealogy = GraphQLObjectType('InviteGenealogy', null)
   ..fields.addAll([
     field('viewer_node_key', graphQLString.nonNullable()),
+    field('target_node_key', graphQLString),
+    field('common_ancestor_node_key', graphQLString),
     field(
       'nodes',
       GraphQLListType(gqlTypeInviteGenealogyNode.nonNullable()),

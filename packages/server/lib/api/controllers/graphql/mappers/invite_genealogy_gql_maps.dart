@@ -8,6 +8,8 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
 }) => {
   'viewer_node_key': graph.viewerNodeKey,
+  'target_node_key': graph.targetNodeKey,
+  'common_ancestor_node_key': graph.commonAncestorNodeKey,
   'nodes': [
     for (final node in graph.nodes)
       inviteGenealogyNodeToGqlMap(

@@ -47,4 +47,11 @@ class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
     required String userId,
   }) async =>
       lineage;
+
+  @override
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  }) async =>
+      lineage;
 }

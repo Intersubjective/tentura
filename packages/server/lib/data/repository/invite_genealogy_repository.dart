@@ -62,27 +62,10 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     final viewerNodeKey = await _resolveViewerNodeKey(userId);
     final edgeRows = await _fetchEdgeRows(viewerNodeKey);
     if (edgeRows.isEmpty) {
-      final userRow = await _database.managers.users
-          .filter((e) => e.id(userId))
-          .getSingleOrNull();
-      final viewer = userRow == null
-          ? null
-          : userModelToEntity(
-              userRow,
-              image: userRow.imageId == null
-                  ? null
-                  : await _database.managers.images
-                      .filter((e) => e.id(userRow.imageId))
-                      .getSingleOrNull(),
-            );
       return InviteGenealogyGraphEntity(
         viewerNodeKey: viewerNodeKey,
         nodes: [
-          InviteGenealogyNodeEntity(
-            nodeKey: viewerNodeKey,
-            user: viewer,
-            userCreatedAt: userRow?.createdAt.dateTime,
-          ),
+          await _loadSingleUserNode(userId: userId, nodeKey: viewerNodeKey),
         ],
         edges: const [],
       );
@@ -100,7 +83,7 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
         )
         .toList();
 
-    final nodes = await _buildNodes(edgeRows: edgeRows, viewerNodeKey: viewerNodeKey);
+    final nodes = await _buildNodes(edgeRows: edgeRows, seedNodeKeys: {viewerNodeKey});
     return InviteGenealogyGraphEntity(
       viewerNodeKey: viewerNodeKey,
       nodes: nodes,
@@ -108,12 +91,127 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     );
   }
 
+  @override
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  }) async {
+    final viewerNodeKey = await _resolveViewerNodeKey(viewerId);
+    final targetNodeKey = await _resolveViewerNodeKey(targetId);
+
+    final viewerEdges = await _fetchAncestorEdgeRows(viewerNodeKey);
+    final targetEdges = await _fetchAncestorEdgeRows(targetNodeKey);
+
+    final viewerChain = _ancestorChain(viewerNodeKey, viewerEdges);
+    final targetChainSet = _ancestorChain(targetNodeKey, targetEdges).toSet();
+
+    String? commonAncestorNodeKey;
+    for (final key in viewerChain) {
+      if (targetChainSet.contains(key)) {
+        commonAncestorNodeKey = key;
+        break;
+      }
+    }
+
+    // Union both upward chains, deduped by descendant edge (single-parent).
+    final edgeByDescendant = <String, _EdgeRow>{};
+    for (final row in [...viewerEdges, ...targetEdges]) {
+      edgeByDescendant.putIfAbsent(row.descendantNodeKey, () => row);
+    }
+    final edgeRows = edgeByDescendant.values.toList();
+
+    final edges = edgeRows
+        .map(
+          (row) => InviteGenealogyEdgeEntity(
+            ancestorNodeKey: row.ancestorNodeKey,
+            descendantNodeKey: row.descendantNodeKey,
+            ancestorUserCreatedAt: row.ancestorUserCreatedAt,
+            descendantUserCreatedAt: row.descendantUserCreatedAt,
+            createdAt: row.createdAt,
+          ),
+        )
+        .toList();
+
+    // Seed only from edges: a viewer/target that is itself a root has no
+    // ancestor edge, so it is loaded with its real profile by the fallback
+    // below instead of appearing as an anonymous seeded node.
+    final nodes = await _buildNodes(
+      edgeRows: edgeRows,
+      seedNodeKeys: const {},
+    );
+
+    // Seed users (no ancestor edge) are absent from the edge-derived nodes;
+    // load them directly so both endpoints always render.
+    final builtKeys = nodes.map((n) => n.nodeKey).toSet();
+    final extraNodes = <InviteGenealogyNodeEntity>[];
+    if (!builtKeys.contains(viewerNodeKey)) {
+      extraNodes.add(
+        await _loadSingleUserNode(userId: viewerId, nodeKey: viewerNodeKey),
+      );
+    }
+    if (targetNodeKey != viewerNodeKey && !builtKeys.contains(targetNodeKey)) {
+      extraNodes.add(
+        await _loadSingleUserNode(userId: targetId, nodeKey: targetNodeKey),
+      );
+    }
+
+    return InviteGenealogyGraphEntity(
+      viewerNodeKey: viewerNodeKey,
+      targetNodeKey: targetNodeKey,
+      commonAncestorNodeKey: commonAncestorNodeKey,
+      nodes: [...nodes, ...extraNodes],
+      edges: edges,
+    );
+  }
+
+  /// Ordered chain of node keys from [startNodeKey] up to its root, following
+  /// the single-parent `descendant → ancestor` edges.
+  List<String> _ancestorChain(String startNodeKey, List<_EdgeRow> edges) {
+    final parentOf = <String, String>{
+      for (final row in edges) row.descendantNodeKey: row.ancestorNodeKey,
+    };
+    final chain = <String>[startNodeKey];
+    final seen = <String>{startNodeKey};
+    var current = startNodeKey;
+    var parent = parentOf[current];
+    while (parent != null && seen.add(parent)) {
+      chain.add(parent);
+      current = parent;
+      parent = parentOf[current];
+    }
+    return chain;
+  }
+
+  Future<InviteGenealogyNodeEntity> _loadSingleUserNode({
+    required String userId,
+    required String nodeKey,
+  }) async {
+    final userRow = await _database.managers.users
+        .filter((e) => e.id(userId))
+        .getSingleOrNull();
+    final user = userRow == null
+        ? null
+        : userModelToEntity(
+            userRow,
+            image: userRow.imageId == null
+                ? null
+                : await _database.managers.images
+                    .filter((e) => e.id(userRow.imageId))
+                    .getSingleOrNull(),
+          );
+    return InviteGenealogyNodeEntity(
+      nodeKey: nodeKey,
+      user: user,
+      userCreatedAt: userRow?.createdAt.dateTime,
+    );
+  }
+
   Future<String> _resolveViewerNodeKey(String userId) async {
     final existing = await _database.customSelect(
-      '''
+      r'''
 SELECT descendant_node_key AS node_key
 FROM invite_genealogy
-WHERE descendant_user_id = @userId
+WHERE descendant_user_id = $1
 LIMIT 1
 ''',
       variables: [Variable<String>(userId)],
@@ -127,7 +225,7 @@ LIMIT 1
 
   Future<List<_EdgeRow>> _fetchEdgeRows(String viewerNodeKey) async {
     final rows = await _database.customSelect(
-      '''
+      r'''
 WITH RECURSIVE ancestors AS (
   SELECT
     ancestor_node_key,
@@ -140,7 +238,7 @@ WITH RECURSIVE ancestors AS (
     descendant_deleted_at,
     created_at
   FROM invite_genealogy
-  WHERE descendant_node_key = @viewerNodeKey
+  WHERE descendant_node_key = $1
   UNION
   SELECT
     ig.ancestor_node_key,
@@ -167,7 +265,7 @@ descendants AS (
     descendant_deleted_at,
     created_at
   FROM invite_genealogy
-  WHERE ancestor_node_key = @viewerNodeKey
+  WHERE ancestor_node_key = $1
   UNION
   SELECT
     ig.ancestor_node_key,
@@ -192,11 +290,50 @@ SELECT * FROM descendants
     return rows.map(_EdgeRow.fromQueryRow).toList();
   }
 
+  /// Upward-only walk: every edge from [nodeKey] up to its root.
+  Future<List<_EdgeRow>> _fetchAncestorEdgeRows(String nodeKey) async {
+    final rows = await _database.customSelect(
+      r'''
+WITH RECURSIVE ancestors AS (
+  SELECT
+    ancestor_node_key,
+    descendant_node_key,
+    ancestor_user_id,
+    descendant_user_id,
+    ancestor_user_created_at,
+    descendant_user_created_at,
+    ancestor_deleted_at,
+    descendant_deleted_at,
+    created_at
+  FROM invite_genealogy
+  WHERE descendant_node_key = $1
+  UNION
+  SELECT
+    ig.ancestor_node_key,
+    ig.descendant_node_key,
+    ig.ancestor_user_id,
+    ig.descendant_user_id,
+    ig.ancestor_user_created_at,
+    ig.descendant_user_created_at,
+    ig.ancestor_deleted_at,
+    ig.descendant_deleted_at,
+    ig.created_at
+  FROM invite_genealogy ig
+  INNER JOIN ancestors a ON ig.descendant_node_key = a.ancestor_node_key
+)
+SELECT * FROM ancestors
+''',
+      variables: [Variable<String>(nodeKey)],
+      readsFrom: {_database.inviteGenealogy},
+    ).get();
+    return rows.map(_EdgeRow.fromQueryRow).toList();
+  }
+
   Future<List<InviteGenealogyNodeEntity>> _buildNodes({
     required List<_EdgeRow> edgeRows,
-    required String viewerNodeKey,
+    required Set<String> seedNodeKeys,
   }) async {
-    final nodeKeys = <String>{viewerNodeKey};
+    final nodeKeys = <String>{...seedNodeKeys};
     for (final row in edgeRows) {
       nodeKeys.add(row.ancestorNodeKey);
       nodeKeys.add(row.descendantNodeKey);
@@ -305,12 +442,27 @@ final class _EdgeRow {
     descendantNodeKey: row.read<String>('descendant_node_key'),
     ancestorUserId: row.readNullable<String>('ancestor_user_id'),
     descendantUserId: row.readNullable<String>('descendant_user_id'),
-    ancestorUserCreatedAt: row.read<PgDateTime>('ancestor_user_created_at').dateTime,
-    descendantUserCreatedAt:
-        row.read<PgDateTime>('descendant_user_created_at').dateTime,
-    ancestorDeletedAt: row.readNullable<PgDateTime>('ancestor_deleted_at')?.dateTime,
-    descendantDeletedAt:
-        row.readNullable<PgDateTime>('descendant_deleted_at')?.dateTime,
-    createdAt: row.read<PgDateTime>('created_at').dateTime,
+    ancestorUserCreatedAt: _readTs(row, 'ancestor_user_created_at')!,
+    descendantUserCreatedAt: _readTs(row, 'descendant_user_created_at')!,
+    ancestorDeletedAt: _readTs(row, 'ancestor_deleted_at'),
+    descendantDeletedAt: _readTs(row, 'descendant_deleted_at'),
+    createdAt: _readTs(row, 'created_at')!,
   );
+
+  /// Reads a `timestamptz` from a raw [customSelect] row. The postgres driver
+  /// returns these as a `DateTime` directly or as an ISO/space-separated text
+  /// (the latter when a recursive-CTE `SELECT *` drops the column type oid).
+  static DateTime? _readTs(QueryRow row, String column) {
+    final value = row.data[column];
+    if (value == null) {
+      return null;
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is PgDateTime) {
+      return value.dateTime;
+    }
+    return DateTime.parse(value.toString());
+  }
 }

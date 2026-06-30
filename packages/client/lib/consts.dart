@@ -18,6 +18,10 @@ const kPathFriends = '/home/friends';
 const kPathProfile = '/home/profile';
 const kPathGraph = '/graph';
 const kPathInviteGenealogy = '/invite-genealogy';
+
+/// When set, [kPathInviteGenealogy] shows the pairwise lineage between the
+/// viewer and this target user id (else the viewer's own genealogy).
+const kQueryGenealogyWith = 'with';
 const kPathForwardsGraph = '/graph/forwards';
 const kPathRating = '/rating';
 const kPathSignIn = '/sign/in';
