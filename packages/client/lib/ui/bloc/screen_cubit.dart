@@ -75,6 +75,10 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showInviteGenealogy() => _navigateTo(kPathInviteGenealogy);
 
+  void showInviteGenealogyWith(String id) => _navigateTo(
+    '$kPathInviteGenealogy?$kQueryGenealogyWith=${Uri.encodeQueryComponent(id)}',
+  );
+
   void showSettings() => _navigateTo(kPathSettings);
 
   void showComplaint(String id) => _navigateTo('$kPathComplaint/$id');

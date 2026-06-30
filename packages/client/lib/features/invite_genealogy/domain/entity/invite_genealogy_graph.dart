@@ -5,9 +5,13 @@ class InviteGenealogyGraph {
     required this.viewerNodeKey,
     required this.nodes,
     required this.edges,
+    this.targetNodeKey,
+    this.commonAncestorNodeKey,
   });
 
   final String viewerNodeKey;
+  final String? targetNodeKey;
+  final String? commonAncestorNodeKey;
   final List<InviteGenealogyNode> nodes;
   final List<InviteGenealogyEdge> edges;
 }

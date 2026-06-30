@@ -17,7 +17,13 @@ import 'package:tentura/features/invite_genealogy/ui/widget/invite_genealogy_gra
 
 @RoutePage()
 class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper {
-  const InviteGenealogyScreen({super.key});
+  const InviteGenealogyScreen({
+    @QueryParam(kQueryGenealogyWith) this.targetId,
+    super.key,
+  });
+
+  /// When non-null, shows the pairwise lineage between the viewer and this user.
+  final String? targetId;
 
   @override
   Widget wrappedRoute(BuildContext context) {
@@ -28,6 +34,7 @@ class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper 
           repository: GetIt.I<InviteGenealogyRepository>(),
           edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
           anonymousNodeLabel: l10n.inviteGenealogyAnonymousNode,
+          targetId: (targetId?.isEmpty ?? true) ? null : targetId,
         ),
         child: this,
       ),
@@ -37,10 +44,15 @@ class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final isBetween = !(targetId?.isEmpty ?? true);
     return Scaffold(
       appBar: AppBar(
         leading: const AutoLeadingWithFallback(fallbackPath: kPathProfile),
-        title: Text(l10n.showInviteGenealogy),
+        title: Text(
+          isBetween
+              ? l10n.inviteGenealogyBetweenTitle
+              : l10n.showInviteGenealogy,
+        ),
         bottom: PreferredSize(
           preferredSize: LinearPiActive.size,
           child: BlocBuilder<InviteGenealogyGraphCubit, InviteGenealogyGraphState>(

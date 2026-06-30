@@ -31,5 +31,7 @@ abstract class InviteGenealogyGraphEntity with _$InviteGenealogyGraphEntity {
     required String viewerNodeKey,
     required List<InviteGenealogyNodeEntity> nodes,
     required List<InviteGenealogyEdgeEntity> edges,
+    String? targetNodeKey,
+    String? commonAncestorNodeKey,
   }) = _InviteGenealogyGraphEntity;
 }

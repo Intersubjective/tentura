@@ -10,6 +10,8 @@ abstract class InviteGenealogyGraphState extends StateBase
   const factory InviteGenealogyGraphState({
     @Default(StateIsSuccess()) StateStatus status,
     @Default('') String viewerNodeKey,
+    @Default('') String targetNodeKey,
+    @Default('') String commonAncestorNodeKey,
     @Default(<String>[]) List<String> nodeKeys,
   }) = _InviteGenealogyGraphState;
 

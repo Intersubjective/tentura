@@ -9,15 +9,20 @@ final class GraphEdgeColors {
     required this.negative,
     required this.ego,
     required this.neutral,
+    required this.target,
   });
 
   final Color negative;
   final Color ego;
   final Color neutral;
 
+  /// Branch leading to the focused/target user in a pairwise lineage view.
+  final Color target;
+
   factory GraphEdgeColors.fromTokens(TenturaTokens tt) => GraphEdgeColors(
         negative: tt.danger,
         ego: tt.warn,
         neutral: tt.info,
+        target: tt.good,
       );
 }

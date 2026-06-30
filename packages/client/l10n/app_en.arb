@@ -823,6 +823,10 @@
   "@inviteGenealogyAnonymousNode": {
     "context": "Profile"
   },
+  "inviteGenealogyBetweenTitle": "Shared invite lineage",
+  "@inviteGenealogyBetweenTitle": {
+    "context": "Profile"
+  },
   "showBeacons": "Show Beacons",
   "@showBeacons": {
     "context": "Profile"

@@ -12,7 +12,15 @@ final class QueryInviteGenealogy extends GqlNodeBase {
 
   final InviteGenealogyCase _inviteGenealogyCase;
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [inviteGenealogy];
+  static final _targetId = GraphQLFieldInput(
+    'target_id',
+    graphQLString.nonNullable(),
+  );
+
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    inviteGenealogy,
+    inviteGenealogyBetween,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get inviteGenealogy =>
       GraphQLObjectField(
@@ -22,6 +30,24 @@ final class QueryInviteGenealogy extends GqlNodeBase {
           final jwt = getCredentials(args);
           final graph = await _inviteGenealogyCase.fetchLineage(
             viewerId: jwt.sub,
+          );
+          return inviteGenealogyGraphToGqlMap(
+            graph,
+            userPublicToGqlMap: userPublicToGqlMap,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get inviteGenealogyBetween =>
+      GraphQLObjectField(
+        'inviteGenealogyBetween',
+        gqlTypeInviteGenealogy,
+        arguments: [_targetId],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          final graph = await _inviteGenealogyCase.fetchLineageBetween(
+            viewerId: jwt.sub,
+            targetId: args['target_id'] as String,
           );
           return inviteGenealogyGraphToGqlMap(
             graph,
