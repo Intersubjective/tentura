@@ -14,7 +14,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -352,262 +351,295 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         builder: (ctx) {
           final theme = Theme.of(ctx);
           final tt = ctx.tt;
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: kPaddingH.add(kPaddingSmallT),
-                    child: Text(
-                      l10n.beaconRoomMessageActionsTitle,
-                      style: Theme.of(ctx).textTheme.titleMedium,
-                    ),
-                  ),
-                  Padding(
-                    padding: kPaddingH,
-                    child: Wrap(
-                      spacing: kSpacingSmall,
-                      runSpacing: kSpacingSmall,
-                      children: [
-                        for (final emoji in BeaconRoomMessageReaction.quickPickerEmojis)
-                          InkWell(
-                            customBorder: const CircleBorder(),
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: tt.contentMaxWidth ?? double.infinity,
+              ),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: tt.screenHPadding,
+                          right: tt.screenHPadding,
+                          top: tt.rowGap,
+                        ),
+                        child: Text(
+                          l10n.beaconRoomMessageActionsTitle,
+                          style: Theme.of(ctx).textTheme.titleMedium,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tt.screenHPadding,
+                        ),
+                        child: Wrap(
+                          spacing: tt.rowGap,
+                          runSpacing: tt.rowGap,
+                          children: [
+                            for (final emoji
+                                in BeaconRoomMessageReaction.quickPickerEmojis)
+                              InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  unawaited(
+                                    cubit.toggleReaction(
+                                      messageId: message.id,
+                                      emoji: emoji,
+                                    ),
+                                  );
+                                },
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: viewerReactions.contains(emoji)
+                                          ? tt.skyBorder
+                                          : Colors.transparent,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(tt.rowGap),
+                                    child: Text(
+                                      emoji,
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      // ── Coordination: turn a plain message into an item … ──
+                      if (showTurnInto) ...[
+                        Padding(
+                          padding: EdgeInsets.only(
+                            left: tt.screenHPadding,
+                            right: tt.screenHPadding,
+                            top: tt.rowGap,
+                          ),
+                          child: Text(
+                            l10n.beaconRoomActionTurnInto,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        if (canCreatePromise)
+                          ListTile(
+                            leading: const Icon(Icons.front_hand_outlined),
+                            title: Text(
+                              l10n.coordinationCreatePromiseFromMessage,
+                            ),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _openCoordinationComposerFromMessage(
+                                context,
+                                cubit,
+                                message,
+                                CoordinationItemKind.promise,
+                              );
+                            },
+                          ),
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: Text(l10n.beaconRoomActionMarkAsk),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _openCoordinationComposerFromMessage(
+                              context,
+                              cubit,
+                              message,
+                              CoordinationItemKind.ask,
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.report_problem_outlined),
+                          title: Text(l10n.beaconRoomActionMarkBlocker),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _openCoordinationComposerFromMessage(
+                              context,
+                              cubit,
+                              message,
+                              CoordinationItemKind.blocker,
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.edit_note_outlined),
+                          title: Text(
+                            l10n.beaconRoomActionUpdatePlanFromMessage,
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              _showUpdatePlanFromMessageSheet(
+                                context,
+                                cubit,
+                                l10n,
+                                viewer,
+                                message,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                      // ── …or open / resolve an already-linked item. ──
+                      if (linkedItem != null && !isThreadMode) ...[
+                        ListTile(
+                          leading: Icon(
+                            planItemSuppressesItemDiscussion(linkedItem)
+                                ? Icons.subdirectory_arrow_left_outlined
+                                : Icons.forum_outlined,
+                          ),
+                          title: Text(
+                            planItemSuppressesItemDiscussion(linkedItem)
+                                ? l10n.beaconRoomActionJumpToPlan
+                                : l10n.beaconRoomActionOpenThread,
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              openCoordinationItemFromRoom(
+                                context,
+                                item: linkedItem,
+                                roomCubit: cubit,
+                              ),
+                            );
+                          },
+                        ),
+                        if (linkedItem.kind == CoordinationItemKind.blocker &&
+                            linkedItem.status == CoordinationItemStatus.open)
+                          ListTile(
+                            leading: const Icon(Icons.task_alt_outlined),
+                            title: Text(l10n.beaconRoomActionResolveBlocker),
                             onTap: () {
                               Navigator.pop(ctx);
                               unawaited(
-                                cubit.toggleReaction(
-                                  messageId: message.id,
-                                  emoji: emoji,
+                                cubit.resolveCoordinationBlocker(
+                                  itemId: linkedItem.id,
                                 ),
                               );
                             },
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: viewerReactions.contains(emoji)
-                                      ? tt.skyBorder
-                                      : Colors.transparent,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  emoji,
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                              ),
-                            ),
                           ),
                       ],
-                    ),
-                  ),
-                  // ── Coordination: turn a plain message into an item … ──
-                  if (showTurnInto) ...[
-                    Padding(
-                      padding: kPaddingH.add(kPaddingSmallT),
-                      child: Text(
-                        l10n.beaconRoomActionTurnInto,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                      // ── Fact pin (state-aware). ──
+                      if (showFactInMenu && pf == null)
+                        ListTile(
+                          leading: const Icon(Icons.fact_check_outlined),
+                          title: Text(l10n.beaconRoomActionPinFact),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              _pinOrManageFactForMessage(
+                                context,
+                                cubit,
+                                l10n,
+                                message,
+                                null,
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                    if (canCreatePromise)
-                      ListTile(
-                        leading: const Icon(Icons.front_hand_outlined),
-                        title: Text(l10n.coordinationCreatePromiseFromMessage),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _openCoordinationComposerFromMessage(
-                            context,
-                            cubit,
-                            message,
-                            CoordinationItemKind.promise,
-                          );
-                        },
-                      ),
-                    ListTile(
-                      leading: const Icon(Icons.help_outline),
-                      title: Text(l10n.beaconRoomActionMarkAsk),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _openCoordinationComposerFromMessage(
-                          context,
-                          cubit,
-                          message,
-                          CoordinationItemKind.ask,
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.report_problem_outlined),
-                      title: Text(l10n.beaconRoomActionMarkBlocker),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _openCoordinationComposerFromMessage(
-                          context,
-                          cubit,
-                          message,
-                          CoordinationItemKind.blocker,
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.edit_note_outlined),
-                      title: Text(l10n.beaconRoomActionUpdatePlanFromMessage),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          _showUpdatePlanFromMessageSheet(
-                            context,
-                            cubit,
-                            l10n,
-                            viewer,
-                            message,
+                      if (showFactInMenu && pf != null)
+                        ListTile(
+                          leading: const Icon(Icons.fact_check_outlined),
+                          title: Text(l10n.beaconRoomActionViewPinnedFact),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              showFactActionsSheet(
+                                context,
+                                cubit: cubit,
+                                fact: pf,
+                              ),
+                            );
+                          },
+                        ),
+                      if (showFactInMenu && pf != null)
+                        ListTile(
+                          leading: Icon(
+                            Icons.push_pin_outlined,
+                            color: theme.colorScheme.error,
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                  // ── …or open / resolve an already-linked item. ──
-                  if (linkedItem != null && !isThreadMode) ...[
-                    ListTile(
-                      leading: Icon(
-                        planItemSuppressesItemDiscussion(linkedItem)
-                            ? Icons.subdirectory_arrow_left_outlined
-                            : Icons.forum_outlined,
-                      ),
-                      title: Text(
-                        planItemSuppressesItemDiscussion(linkedItem)
-                            ? l10n.beaconRoomActionJumpToPlan
-                            : l10n.beaconRoomActionOpenThread,
-                      ),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          openCoordinationItemFromRoom(
-                            context,
-                            item: linkedItem,
-                            roomCubit: cubit,
+                          title: Text(
+                            l10n.beaconRoomFactCardActionRemove,
+                            style: TextStyle(color: theme.colorScheme.error),
                           ),
-                        );
-                      },
-                    ),
-                    if (linkedItem.kind == CoordinationItemKind.blocker &&
-                        linkedItem.status == CoordinationItemStatus.open)
-                      ListTile(
-                        leading: const Icon(Icons.task_alt_outlined),
-                        title: Text(l10n.beaconRoomActionResolveBlocker),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          unawaited(
-                            cubit.resolveCoordinationBlocker(
-                              itemId: linkedItem.id,
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                  // ── Fact pin (state-aware). ──
-                  if (showFactInMenu && pf == null)
-                    ListTile(
-                      leading: const Icon(Icons.fact_check_outlined),
-                      title: Text(l10n.beaconRoomActionPinFact),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          _pinOrManageFactForMessage(
-                            context,
-                            cubit,
-                            l10n,
-                            message,
-                            null,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              _confirmUnpinFactFromMessage(
+                                context,
+                                cubit,
+                                l10n,
+                                pf,
+                              ),
+                            );
+                          },
+                        ),
+                      // ── Generic utilities. ──
+                      if (hasBodyText)
+                        ListTile(
+                          leading: const Icon(Icons.copy_outlined),
+                          title: Text(l10n.beaconRoomActionCopyText),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(_copyMessageText(context, l10n, message));
+                          },
+                        ),
+                      // ── Destructive (own message), divided off and last. ──
+                      if (isOwnMessage && showFactInMenu) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.edit_outlined),
+                          title: Text(l10n.beaconRoomActionEditMessage),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              _showEditMessageSheet(
+                                context,
+                                cubit,
+                                l10n,
+                                message,
+                              ),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: Icon(
+                            Icons.delete_outline,
+                            color: theme.colorScheme.error,
                           ),
-                        );
-                      },
-                    ),
-                  if (showFactInMenu && pf != null)
-                    ListTile(
-                      leading: const Icon(Icons.fact_check_outlined),
-                      title: Text(l10n.beaconRoomActionViewPinnedFact),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          showFactActionsSheet(
-                            context,
-                            cubit: cubit,
-                            fact: pf,
+                          title: Text(
+                            l10n.beaconRoomActionDeleteMessage,
+                            style: TextStyle(color: theme.colorScheme.error),
                           ),
-                        );
-                      },
-                    ),
-                  if (showFactInMenu && pf != null)
-                    ListTile(
-                      leading: Icon(
-                        Icons.push_pin_outlined,
-                        color: theme.colorScheme.error,
-                      ),
-                      title: Text(
-                        l10n.beaconRoomFactCardActionRemove,
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          _confirmUnpinFactFromMessage(
-                            context,
-                            cubit,
-                            l10n,
-                            pf,
-                          ),
-                        );
-                      },
-                    ),
-                  // ── Generic utilities. ──
-                  if (hasBodyText)
-                    ListTile(
-                      leading: const Icon(Icons.copy_outlined),
-                      title: Text(l10n.beaconRoomActionCopyText),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(_copyMessageText(context, l10n, message));
-                      },
-                    ),
-                  // ── Destructive (own message), divided off and last. ──
-                  if (isOwnMessage && showFactInMenu) ...[
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.edit_outlined),
-                      title: Text(l10n.beaconRoomActionEditMessage),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          _showEditMessageSheet(context, cubit, l10n, message),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        Icons.delete_outline,
-                        color: theme.colorScheme.error,
-                      ),
-                      title: Text(
-                        l10n.beaconRoomActionDeleteMessage,
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        unawaited(
-                          _confirmDeleteMessage(context, cubit, l10n, message),
-                        );
-                      },
-                    ),
-                  ],
-                ],
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(
+                              _confirmDeleteMessage(
+                                context,
+                                cubit,
+                                l10n,
+                                message,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           );
@@ -878,7 +910,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     if (admitted.isEmpty) return null;
 
     return showTenturaAdaptiveSheet<
-        ({String title, String body, String targetUserId, int? staleAfterDays})?>(
+      ({String title, String body, String targetUserId, int? staleAfterDays})?
+    >(
       context: context,
       useRootNavigator: true,
       enableDrag: false,
@@ -1018,98 +1051,99 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: bottom + tt.sectionGap,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.dialogTitle,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: tt.rowGap),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                hintText: l10n.coordinationPromoteTitleHint,
-              ),
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
-            ),
-            SizedBox(height: tt.rowGap),
-            TextField(
-              controller: _bodyController,
-              decoration: InputDecoration(
-                hintText: l10n.coordinationPromoteBodyHint,
-              ),
-              maxLines: 4,
-              autofocus: widget.messageBody.isEmpty,
-              onChanged: (_) => setState(() {}),
-            ),
-            SizedBox(height: tt.rowGap),
-            DropdownButtonFormField<String>(
-              key: ValueKey<String>(_targetUserId),
-              initialValue: _targetUserId,
-              decoration: InputDecoration(
-                labelText: l10n.beaconRoomNeedInfoPickTarget,
-              ),
-              items: [
-                for (final p in widget.admitted)
-                  DropdownMenuItem(
-                    value: p.userId,
-                    child: Text(widget.targetLabel(p)),
-                  ),
-              ],
-              onChanged: (v) => setState(() => _targetUserId = v ?? _targetUserId),
-            ),
-            if (widget.includeStalenessPicker) ...[
-              SizedBox(height: tt.rowGap),
-              CoordinationStalenessPicker(
-                l10n: l10n,
-                selectedDays: _staleDays,
-                onSelected: (days) => setState(() => _staleDays = days),
-              ),
-            ] else ...[
-              SizedBox(height: tt.rowGap),
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
-                l10n.coordinationStalenessDefaultHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+                widget.dialogTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  hintText: l10n.coordinationPromoteTitleHint,
                 ),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
+              ),
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: _bodyController,
+                decoration: InputDecoration(
+                  hintText: l10n.coordinationPromoteBodyHint,
+                ),
+                maxLines: 4,
+                autofocus: widget.messageBody.isEmpty,
+                onChanged: (_) => setState(() {}),
+              ),
+              SizedBox(height: tt.rowGap),
+              DropdownButtonFormField<String>(
+                key: ValueKey<String>(_targetUserId),
+                initialValue: _targetUserId,
+                decoration: InputDecoration(
+                  labelText: l10n.beaconRoomNeedInfoPickTarget,
+                ),
+                items: [
+                  for (final p in widget.admitted)
+                    DropdownMenuItem(
+                      value: p.userId,
+                      child: Text(widget.targetLabel(p)),
+                    ),
+                ],
+                onChanged: (v) =>
+                    setState(() => _targetUserId = v ?? _targetUserId),
+              ),
+              if (widget.includeStalenessPicker) ...[
+                SizedBox(height: tt.rowGap),
+                CoordinationStalenessPicker(
+                  l10n: l10n,
+                  selectedDays: _staleDays,
+                  onSelected: (days) => setState(() => _staleDays = days),
+                ),
+              ] else ...[
+                SizedBox(height: tt.rowGap),
+                Text(
+                  l10n.coordinationStalenessDefaultHint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              SizedBox(height: tt.sectionGap),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => TenturaSheetDismissGuard.requestClose(
+                      context,
+                      isDirty: _isDirty,
+                      useRootNavigator: true,
+                    ),
+                    child: Text(
+                      MaterialLocalizations.of(context).cancelButtonLabel,
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: _submit,
+                    child: Text(
+                      MaterialLocalizations.of(context).okButtonLabel,
+                    ),
+                  ),
+                ],
               ),
             ],
-            SizedBox(height: tt.sectionGap),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => TenturaSheetDismissGuard.requestClose(
-                    context,
-                    isDirty: _isDirty,
-                    useRootNavigator: true,
-                  ),
-                  child: Text(
-                    MaterialLocalizations.of(context).cancelButtonLabel,
-                  ),
-                ),
-                FilledButton(
-                  onPressed: _submit,
-                  child: Text(
-                    MaterialLocalizations.of(context).okButtonLabel,
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -1170,8 +1204,7 @@ class _BeaconRoomTextBottomSheetState
     super.dispose();
   }
 
-  bool get _isDirty =>
-      _controller.text.trim() != widget.initialText.trim();
+  bool get _isDirty => _controller.text.trim() != widget.initialText.trim();
 
   @override
   Widget build(BuildContext context) {
@@ -1181,42 +1214,42 @@ class _BeaconRoomTextBottomSheetState
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: bottom + tt.sectionGap,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: tt.rowGap),
-            TextField(
-              controller: _controller,
-              maxLines: widget.maxLength != null ? 2 : 6,
-              minLines: widget.maxLength != null ? 1 : 3,
-              maxLength: widget.maxLength,
-              decoration: InputDecoration(
-                hintText: widget.hintText,
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            SizedBox(height: tt.sectionGap),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_controller.text.trim()),
-              child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-            ),
-          ],
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: _controller,
+                maxLines: widget.maxLength != null ? 2 : 6,
+                minLines: widget.maxLength != null ? 1 : 3,
+                maxLength: widget.maxLength,
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              SizedBox(height: tt.sectionGap),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_controller.text.trim()),
+                child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
