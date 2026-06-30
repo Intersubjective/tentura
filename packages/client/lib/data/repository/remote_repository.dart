@@ -1,3 +1,4 @@
+import 'package:ferry/ferry.dart' as gql show ServerException;
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/exception/server_exception.dart';
@@ -26,18 +27,18 @@ abstract class RemoteRepository {
 
     if (response.hasErrors) {
       if (response.linkException != null) {
-        final linkError = response.linkException!;
-        if (mapRemoteFailure(linkError) is! AuthSessionLostException) {
-          log.severe('GraphQL link error', linkError);
-        }
-        throwClassifiedRemoteFailure(linkError);
+        _failFromRemote(
+          response.linkException!,
+          kind: 'link error',
+          label: label,
+        );
       }
       if (response.graphqlErrors != null) {
-        final gqlErrors = response.graphqlErrors!;
-        if (mapRemoteFailure(gqlErrors) is! AuthSessionLostException) {
-          log.severe('GraphQL errors', gqlErrors);
-        }
-        throwClassifiedRemoteFailure(gqlErrors);
+        _failFromRemote(
+          response.graphqlErrors!,
+          kind: 'errors',
+          label: label,
+        );
       }
     }
 
@@ -46,5 +47,39 @@ abstract class RemoteRepository {
     } else {
       return response.data!;
     }
+  }
+
+  Never _failFromRemote(
+    Object raw, {
+    required String kind,
+    required String? label,
+  }) {
+    final mapped = mapRemoteFailure(raw);
+    if (mapped is! AuthSessionLostException) {
+      final effectiveLabel = label == null || label.isEmpty
+          ? 'No label'
+          : label;
+      log.warning('[$effectiveLabel] GraphQL $kind: $mapped');
+    }
+
+    final failure = _failureException(mapped);
+    final stackTrace = _stackTraceFromRaw(raw);
+    if (stackTrace != null) {
+      Error.throwWithStackTrace(failure, stackTrace);
+    }
+    throw failure;
+  }
+
+  Exception _failureException(Object mapped) =>
+      mapped is Exception ? mapped : Exception(mapped.toString());
+
+  StackTrace? _stackTraceFromRaw(Object raw) {
+    if (raw is gql.ServerException) {
+      final originalStackTrace = raw.originalStackTrace;
+      if (originalStackTrace is StackTrace) {
+        return originalStackTrace;
+      }
+    }
+    return null;
   }
 }

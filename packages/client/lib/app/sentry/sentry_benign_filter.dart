@@ -1,5 +1,3 @@
-import 'package:logging/logging.dart';
-
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
@@ -42,19 +40,6 @@ bool isBenignSentryExceptionText(String text) {
   // FCM push SW: CDN/importScripts timeouts, privacy browsers, offline, etc.
   if (lower.contains('failed to register a serviceworker') ||
       lower.contains('timed out while trying to start the service worker')) {
-    return true;
-  }
-  return false;
-}
-
-bool _isBenignSentryMessage(String message) =>
-    isBenignSentryExceptionText(message);
-
-bool isBenignSentryLogRecord(LogRecord record) {
-  if (isBenignSentryThrowable(record.error)) {
-    return true;
-  }
-  if (_isBenignSentryMessage(record.message)) {
     return true;
   }
   return false;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
@@ -6,6 +8,7 @@ import 'package:geocoding/geocoding.dart'
     if (dart.library.js_interop) '../service/geocoding_web_service.dart'
     hide Location;
 
+import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 
@@ -29,7 +32,7 @@ class GeoRepository {
     // Web: skip eager geolocation — geolocator_web checkPermission() calls
     // navigator.permissions.query which throws Illegal invocation in Chrome.
     if (kIsWeb) return;
-    getMyCoords();
+    unawaited(getMyCoords());
   }
 
   Future<Place?> getPlaceNameByCoords(
@@ -74,7 +77,8 @@ class GeoRepository {
           long: position.longitude,
         );
       } catch (e) {
-        _logger.severe(e);
+        _logger.warning('Failed to read current location: $e');
+        reportUserFacingError(e);
       }
     }
     return null;

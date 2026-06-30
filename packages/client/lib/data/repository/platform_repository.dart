@@ -40,7 +40,7 @@ class PlatformRepository implements PlatformRepositoryPort {
     try {
       await url.launchUrl(uri);
     } catch (e) {
-      _log.severe(e);
+      _log.warning('Failed to launch URI: $e');
       throw const UnknownPlatformException();
     }
   }
