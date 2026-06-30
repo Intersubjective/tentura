@@ -24,17 +24,14 @@ class TrailingMetaMetrics {
 bool shouldUseInlineTrailingMeta({
   required bool hasDisplayText,
   required Map<String, int> reactionCounts,
-}) =>
-    hasDisplayText && reactionCounts.isEmpty;
+}) => hasDisplayText && reactionCounts.isEmpty;
 
 bool shouldHugBubbleWidth({
   required bool hasMediaOrPoll,
   required bool hasDisplayText,
   required bool hasReactions,
   required bool hasFooterContent,
-}) =>
-    !hasMediaOrPoll &&
-    (hasDisplayText || hasReactions || hasFooterContent);
+}) => hasMediaOrPoll || hasDisplayText || hasReactions || hasFooterContent;
 
 TrailingMetaMetrics computeTrailingMetaMetrics({
   required String dateLine,

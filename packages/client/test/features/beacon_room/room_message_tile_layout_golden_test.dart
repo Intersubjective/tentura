@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
@@ -99,18 +100,17 @@ void main() {
     Map<String, int> reactionCounts = const {},
     Map<String, List<Profile>> reactors = const {},
     List<RoomMessageAttachment> attachments = const [],
-  }) =>
-      RoomMessage(
-        id: id,
-        beaconId: 'b1',
-        authorId: authorId,
-        body: body,
-        createdAt: createdAt,
-        author: author,
-        reactionCounts: reactionCounts,
-        reactors: reactors,
-        attachments: attachments,
-      );
+  }) => RoomMessage(
+    id: id,
+    beaconId: 'b1',
+    authorId: authorId,
+    body: body,
+    createdAt: createdAt,
+    author: author,
+    reactionCounts: reactionCounts,
+    reactors: reactors,
+    attachments: attachments,
+  );
 
   group('room message layout goldens', () {
     testWidgets('short_text_mine_inline_meta', (tester) async {
@@ -214,6 +214,70 @@ void main() {
   }, skip: 'Goldens disabled');
 
   group('room message layout', () {
+    testWidgets('image album caps to readable media width on wide viewport', (
+      tester,
+    ) async {
+      const wideSize = Size(1400, 900);
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: wideSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: SizedBox(
+                    width: wideSize.width,
+                    child: RoomMessageTile(
+                      message: textMessage(
+                        id: 'm8',
+                        authorId: 'me',
+                        author: me,
+                        body: '',
+                        attachments: const [
+                          RoomMessageAttachment(
+                            id: 'img1',
+                            kind: BeaconRoomMessageAttachmentKind.image,
+                            position: 0,
+                            mime: 'image/jpeg',
+                            sizeBytes: 4096,
+                            imageId: 'image-1',
+                            imageAuthorId: 'me',
+                            width: 1200,
+                            height: 900,
+                          ),
+                        ],
+                      ),
+                      myProfile: me,
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        tester.getSize(find.byType(RoomMessageInlineImageAlbum)).width,
+        520,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('angry_reaction_with_reactors_no_layout_overflow', (
       tester,
     ) async {

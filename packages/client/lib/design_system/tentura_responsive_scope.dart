@@ -56,6 +56,36 @@ class TenturaContentColumn extends StatelessWidget {
   }
 }
 
+/// Centers room-chat surfaces only after the chat panel reaches wide mode.
+///
+/// Unlike [TenturaContentColumn], regular-width chat stays full panel width so
+/// compact and tablet layouts preserve the existing mobile-first behavior.
+class TenturaChatColumn extends StatelessWidget {
+  const TenturaChatColumn({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.maxWidth.isFinite ||
+            constraints.maxWidth < tt.chatWideWidth) {
+          return child;
+        }
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: tt.chatColumnMaxWidth),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// Expands [child] to the full viewport width.
 ///
 /// Kept for graph routes; a no-op when the app root is already full width.
