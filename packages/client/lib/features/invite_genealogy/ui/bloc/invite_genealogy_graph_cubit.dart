@@ -54,11 +54,14 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
     return super.close();
   }
 
-  void jumpToViewer() {
-    final viewer = _nodes[state.viewerNodeKey];
-    if (viewer != null) {
-      graphController.jumpToNode(viewer);
+  Future<void> jumpToViewer() async {
+    final viewer = _controllerNode(state.viewerNodeKey);
+    if (viewer == null ||
+        !graphController.canLayout ||
+        !graphController.layout.hasPosition(viewer)) {
+      return;
     }
+    await Future.value(graphController.jumpToNode(viewer));
   }
 
   Future<void> _fetch() async {
@@ -80,7 +83,7 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
         ),
       );
       _updateGraph(graph);
-      jumpToViewer();
+      await jumpToViewer();
     } catch (e) {
       _effects.emit(ShowError(e));
       emit(state.copyWith(status: const StateIsSuccess()));
@@ -99,7 +102,8 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
     final nodes = <String, NodeDetails>{};
     for (var i = 0; i < sorted.length; i++) {
       final node = sorted[i];
-      final isEndpoint = node.nodeKey == graph.viewerNodeKey ||
+      final isEndpoint =
+          node.nodeKey == graph.viewerNodeKey ||
           node.nodeKey == graph.targetNodeKey;
       if (node.profile != null && node.deletedAt == null) {
         nodes[node.nodeKey] = GenealogyUserNode(
@@ -126,13 +130,19 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
     // In pairwise mode, color the two branches that meet at the closest common
     // ancestor (LCA): viewer→LCA in [ego], target→LCA in [target], the shared
     // trunk above the LCA (and any other edge) in [neutral].
-    final viewerBranch =
-        _isBetween ? _branchBelowLca(graph, graph.viewerNodeKey) : const <String>{};
+    final viewerBranch = _isBetween
+        ? _branchBelowLca(graph, graph.viewerNodeKey)
+        : const <String>{};
     final targetBranch = _isBetween && graph.targetNodeKey != null
         ? _branchBelowLca(graph, graph.targetNodeKey!)
         : const <String>{};
 
     graphController.mutate((mutator) {
+      for (final node in _nodes.values) {
+        if (!mutator.controller.nodes.contains(node)) {
+          mutator.addNode(node);
+        }
+      }
       for (final edge in graph.edges) {
         final src = _nodes[edge.ancestorNodeKey];
         final dst = _nodes[edge.descendantNodeKey];
@@ -154,8 +164,8 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
             strokeWidth = 2;
           }
         } else {
-          final touchesViewer = src.id == state.viewerNodeKey ||
-              dst.id == state.viewerNodeKey;
+          final touchesViewer =
+              src.id == state.viewerNodeKey || dst.id == state.viewerNodeKey;
           color = touchesViewer ? _edgeColors.ego : _edgeColors.neutral;
           strokeWidth = touchesViewer ? 3 : 2;
         }
@@ -166,11 +176,20 @@ class InviteGenealogyGraphCubit extends Cubit<InviteGenealogyGraphState> {
           strokeWidth: strokeWidth,
           color: color,
         );
-        mutator.addNode(src);
-        mutator.addNode(dst);
-        mutator.addEdge(graphEdge);
+        if (src.id != dst.id && !mutator.controller.edges.contains(graphEdge)) {
+          mutator.addEdge(graphEdge);
+        }
       }
     });
+  }
+
+  NodeDetails? _controllerNode(String nodeKey) {
+    for (final node in graphController.nodes) {
+      if (node.id == nodeKey) {
+        return node;
+      }
+    }
+    return null;
   }
 
   /// Node keys on the upward chain from [start] up to — but excluding — the

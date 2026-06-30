@@ -179,6 +179,7 @@ class _V2RoutingLink extends Link {
     'InvitationAccept',
     'InvitationById',
     'InviteGenealogy',
+    'InviteGenealogyBetween',
     'InvitationDeleteById',
     'MyContacts',
     'ContactSet',
@@ -263,7 +264,9 @@ class _V2RoutingLink extends Link {
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
-    if (_tenturaDirectOperationNames.contains(request.operation.operationName)) {
+    if (_tenturaDirectOperationNames.contains(
+      request.operation.operationName,
+    )) {
       return tenturaV2Link.request(request, forward);
     }
     return hasuraLink.request(request, forward);
