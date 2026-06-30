@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 
 /// Room surface embedded under beacon detail (chat only).
@@ -7,8 +8,8 @@ import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 /// NOW/YOU coordination context lives on the beacon Items tab.
 class BeaconRoomSurface extends StatelessWidget {
   const BeaconRoomSurface({
-    super.key,
     required this.beaconAuthorId,
+    super.key,
     this.onCoordinationSaved,
   });
 
@@ -17,9 +18,11 @@ class BeaconRoomSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BeaconRoomBody(
-      beaconAuthorId: beaconAuthorId,
-      onCoordinationSaved: onCoordinationSaved,
+    return TenturaChatColumn(
+      child: BeaconRoomBody(
+        beaconAuthorId: beaconAuthorId,
+        onCoordinationSaved: onCoordinationSaved,
+      ),
     );
   }
 }

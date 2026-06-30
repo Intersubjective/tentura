@@ -534,6 +534,13 @@ class RoomMessageTile extends StatelessWidget {
         imageAttachments.isNotEmpty ||
         fileAttachments.isNotEmpty ||
         message.linkedPollingId != null;
+    double? mediaContentWidth;
+    for (final attachment in imageAttachments) {
+      if (attachment.width > 0 &&
+          (mediaContentWidth == null || attachment.width > mediaContentWidth)) {
+        mediaContentWidth = attachment.width.toDouble();
+      }
+    }
     final bodyStyle = ShowMoreText.buildTextStyle(context);
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
     final trailingGap = tt.iconTextGap / 2;
@@ -763,7 +770,14 @@ class RoomMessageTile extends StatelessWidget {
           WindowClass.expanded =>
             proportionalCap < 640 ? proportionalCap : 640.0,
         };
-        final contentCap = shouldHug ? readableCap : constraints.maxWidth;
+        final mediaCap = readableCap < tt.mediaMaxWidth
+            ? readableCap
+            : tt.mediaMaxWidth;
+        final contentCap = shouldHug
+            ? hasMediaOrPoll
+                  ? mediaCap
+                  : readableCap
+            : constraints.maxWidth;
         final cardPaddingH = tt.cardPadding.horizontal;
 
         double? tightTextWidth;
@@ -973,6 +987,8 @@ class RoomMessageTile extends StatelessWidget {
           cardPaddingH: cardPaddingH,
           tightTextWidth: shouldHug ? tightTextWidth : null,
           hasMediaOrPoll: hasMediaOrPoll,
+          mediaContentWidth: mediaContentWidth,
+          bubbleMinWidth: tt.bubbleMinWidth,
         ).innerWidth;
 
         return Align(
@@ -991,14 +1007,6 @@ class RoomMessageTile extends StatelessWidget {
       },
     );
 
-    final bubbleSlot = Padding(
-      padding: EdgeInsets.only(
-        right: isMine ? 0 : kSpacingSmall,
-        left: isMine ? kSpacingSmall : 0,
-      ),
-      child: measuredBubble,
-    );
-
     final row = isMine
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1006,7 +1014,7 @@ class RoomMessageTile extends StatelessWidget {
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: bubbleSlot,
+                  child: measuredBubble,
                 ),
               ),
             ],
@@ -1015,7 +1023,7 @@ class RoomMessageTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               SizedBox(
-                width: kTenturaAvatarDefaultMedium + kSpacingSmall,
+                width: tt.avatarGutter,
                 child: isGroupEnd
                     ? GestureDetector(
                         onTap: () => context.read<ScreenCubit>().showProfile(
@@ -1027,6 +1035,7 @@ class RoomMessageTile extends StatelessWidget {
                             PresenceAvatar.medium(
                               profile: message.author,
                               userId: message.author.id,
+                              size: tt.avatarGutter,
                             ),
                             if (authorCapabilityIcons.isNotEmpty) ...[
                               const SizedBox(height: 1),
@@ -1052,8 +1061,7 @@ class RoomMessageTile extends StatelessWidget {
                       )
                     : const SizedBox.shrink(),
               ),
-              SizedBox(width: tt.avatarTextGap / 2),
-              Expanded(child: bubbleSlot),
+              Expanded(child: measuredBubble),
             ],
           );
 
@@ -1061,7 +1069,7 @@ class RoomMessageTile extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
         topPad,
-        tt.screenHPadding,
+        isMine ? tt.bubbleFarGutter : tt.screenHPadding,
         bottomPad,
       ),
       child: row,
@@ -1308,17 +1316,17 @@ class _MessageLifecycleFooter extends StatelessWidget {
               viewerProfile: viewerProfile,
             )
           : null;
-        promotionRow = _lifecycleTapRow(
-          context: context,
-          profile:
-              RoomMessageTile.profileForUserId(
-                message.linkedItemCreatorId ?? '',
-                participants,
-                viewerProfile: viewerProfile,
-              ) ??
-              const Profile(),
-          targetProfile: targetProfile,
-          viewerProfile: viewerProfile,
+      promotionRow = _lifecycleTapRow(
+        context: context,
+        profile:
+            RoomMessageTile.profileForUserId(
+              message.linkedItemCreatorId ?? '',
+              participants,
+              viewerProfile: viewerProfile,
+            ) ??
+            const Profile(),
+        targetProfile: targetProfile,
+        viewerProfile: viewerProfile,
         leading: coordinationCompoundEventIcon(
           kind: kind,
           eventKind: CoordinationItemEventKind.created,

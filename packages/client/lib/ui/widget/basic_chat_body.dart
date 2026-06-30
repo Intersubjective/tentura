@@ -316,116 +316,119 @@ class BasicChatBodyState extends State<BasicChatBody> {
     final messages = widget.messages;
     final showListContent = !widget.hasError || messages.isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.header != null) widget.header!,
-        Expanded(
-          child: !showListContent
-              ? Center(child: Text(widget.errorText))
-              : widget.isLoading && messages.isEmpty
-              ? const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                )
-              : messages.isEmpty && widget.emptyPlaceholder != null
-              ? widget.emptyPlaceholder!
-              : Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ListView.builder(
-                      controller: _scrollController,
-                      // Small gap so the last bubble (notably a full-width
-                      // poll) doesn't sit flush against the composer, which
-                      // made its tap target compete with the text field.
-                      padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                      itemCount: messages.length,
-                      itemBuilder: (context, i) {
-                        final m = messages[i];
-                        final prev = i == 0 ? null : messages[i - 1];
-                        final next = i + 1 >= messages.length
-                            ? null
-                            : messages[i + 1];
-                        final dateChanged =
-                            prev == null ||
-                            !roomMessageSameLocalDay(
-                              prev.createdAt,
-                              m.createdAt,
-                            );
-                        final idxUnread = widget.firstUnreadIndex;
-                        final unreads = widget.unreadCount;
-                        final showUnreadBand =
-                            unreads > 0 && idxUnread >= 0 && i == idxUnread;
-
-                        final toggle = widget.onToggleReaction;
-                        final vote = widget.onVotePoll;
-                        final messageTile = RoomMessageTile(
-                          key: _messageKey(m.id),
-                          message: m,
-                          myProfile: widget.myProfile,
-                          previousMessage: prev,
-                          nextMessage: next,
-                          breakGroupAbove: dateChanged || showUnreadBand,
-                          onActionsPressed: widget.onMessageActions,
-                          onToggleReaction: toggle ?? ((_, _) async {}),
-                          onOpenFileAttachment: widget.onOpenFileAttachment,
-                          participants: widget.participants,
-                          onVotePoll: vote == null
+    return TenturaChatColumn(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.header != null) widget.header!,
+          Expanded(
+            child: !showListContent
+                ? Center(child: Text(widget.errorText))
+                : widget.isLoading && messages.isEmpty
+                ? const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  )
+                : messages.isEmpty && widget.emptyPlaceholder != null
+                ? widget.emptyPlaceholder!
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ListView.builder(
+                        controller: _scrollController,
+                        // Small gap so the last bubble (notably a full-width
+                        // poll) doesn't sit flush against the composer, which
+                        // made its tap target compete with the text field.
+                        padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                        itemCount: messages.length,
+                        itemBuilder: (context, i) {
+                          final m = messages[i];
+                          final prev = i == 0 ? null : messages[i - 1];
+                          final next = i + 1 >= messages.length
                               ? null
-                              : (pollingId, variantIds, {score}) => vote(
-                                  m.id,
-                                  pollingId,
-                                  variantIds,
-                                  score: score,
-                                ),
-                          onScrollToPromoteSource:
-                              widget.onScrollToPromoteSource,
-                          onOpenCoordinationItem: widget.onOpenCoordinationItem,
-                          hideCoordinationLifecycleFooter:
-                              widget.hideCoordinationLifecycleFooter,
-                        );
+                              : messages[i + 1];
+                          final dateChanged =
+                              prev == null ||
+                              !roomMessageSameLocalDay(
+                                prev.createdAt,
+                                m.createdAt,
+                              );
+                          final idxUnread = widget.firstUnreadIndex;
+                          final unreads = widget.unreadCount;
+                          final showUnreadBand =
+                              unreads > 0 && idxUnread >= 0 && i == idxUnread;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (dateChanged)
-                              RoomDateSeparator(date: m.createdAt),
-                            if (showUnreadBand)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
+                          final toggle = widget.onToggleReaction;
+                          final vote = widget.onVotePoll;
+                          final messageTile = RoomMessageTile(
+                            key: _messageKey(m.id),
+                            message: m,
+                            myProfile: widget.myProfile,
+                            previousMessage: prev,
+                            nextMessage: next,
+                            breakGroupAbove: dateChanged || showUnreadBand,
+                            onActionsPressed: widget.onMessageActions,
+                            onToggleReaction: toggle ?? ((_, _) async {}),
+                            onOpenFileAttachment: widget.onOpenFileAttachment,
+                            participants: widget.participants,
+                            onVotePoll: vote == null
+                                ? null
+                                : (pollingId, variantIds, {score}) => vote(
+                                    m.id,
+                                    pollingId,
+                                    variantIds,
+                                    score: score,
+                                  ),
+                            onScrollToPromoteSource:
+                                widget.onScrollToPromoteSource,
+                            onOpenCoordinationItem:
+                                widget.onOpenCoordinationItem,
+                            hideCoordinationLifecycleFooter:
+                                widget.hideCoordinationLifecycleFooter,
+                          );
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (dateChanged)
+                                RoomDateSeparator(date: m.createdAt),
+                              if (showUnreadBand)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: RoomUnreadDivider(
+                                    unreadCount: unreads,
+                                  ),
                                 ),
-                                child: RoomUnreadDivider(
-                                  unreadCount: unreads,
-                                ),
+                              messageTile,
+                            ],
+                          );
+                        },
+                      ),
+                      if (_showJumpFab)
+                        Positioned(
+                          right: 12,
+                          bottom: 8,
+                          child: Badge(
+                            isLabelVisible: widget.unreadCount > 0,
+                            label: Text('${widget.unreadCount}'),
+                            child: FloatingActionButton.small(
+                              heroTag: widget.jumpFabHeroTag,
+                              tooltip: l10n.beaconRoomScrollToLatestTooltip,
+                              onPressed: () => unawaited(_jumpToLatest()),
+                              child: const Icon(
+                                Icons.arrow_downward_rounded,
                               ),
-                            messageTile,
-                          ],
-                        );
-                      },
-                    ),
-                    if (_showJumpFab)
-                      Positioned(
-                        right: 12,
-                        bottom: 8,
-                        child: Badge(
-                          isLabelVisible: widget.unreadCount > 0,
-                          label: Text('${widget.unreadCount}'),
-                          child: FloatingActionButton.small(
-                            heroTag: widget.jumpFabHeroTag,
-                            tooltip: l10n.beaconRoomScrollToLatestTooltip,
-                            onPressed: () => unawaited(_jumpToLatest()),
-                            child: const Icon(
-                              Icons.arrow_downward_rounded,
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-        ),
-        _buildComposerRow(context),
-      ],
+                    ],
+                  ),
+          ),
+          _buildComposerRow(context),
+        ],
+      ),
     );
   }
 

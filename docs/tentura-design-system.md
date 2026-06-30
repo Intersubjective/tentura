@@ -56,7 +56,7 @@ Width drives layout density, **not** font size:
 
 `TenturaResponsiveScope` selects `TenturaTokens` preset per class. **TextTheme sizes stay identical** across classes; only padding, gaps, icon sizes, avatar sizes, button heights, app bar / bottom nav heights, and max content width change.
 
-On **regular** and **expanded**, tab and standalone route bodies use [`TenturaContentColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart) to center content at `contentMaxWidth` **560** / **720** logical px respectively. **Compact** has no cap (`TenturaContentColumn` is a no-op). [`TenturaResponsiveScope`](../packages/client/lib/design_system/tentura_responsive_scope.dart) at the app root applies token density only — it does **not** cap layout width globally (avoids clipping the nav rail or graph canvas).
+On **regular** and **expanded**, tab and standalone route bodies use [`TenturaContentColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart) to center content at `contentMaxWidth` **560** / **720** logical px respectively. **Compact** has no cap (`TenturaContentColumn` is a no-op). Room chat uses [`TenturaChatColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart): it stays full-panel below `chatWideWidth` **840** and centers list/composer content at `chatColumnMaxWidth` **720** once the chat panel is wide. [`TenturaResponsiveScope`](../packages/client/lib/design_system/tentura_responsive_scope.dart) at the app root applies token density only — it does **not** cap layout width globally (avoids clipping the nav rail or graph canvas).
 
 ### Full-bleed routes
 
@@ -65,7 +65,7 @@ Some surfaces must use the **full viewport width**, not the centered column:
 | Surface | Route / widget |
 |---------|----------------|
 | Graph canvas | [`graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/graph_screen.dart), [`forwards_graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/forwards_graph_screen.dart) |
-| Beacon room (chat) | [`BeaconRoomSurface`](../packages/client/lib/features/beacon_view/ui/widget/beacon_room_surface.dart) — not wrapped when operational detail uses `TenturaContentColumn |
+| Beacon room (chat) | Full-panel on compact/regular; centered wide chat column at ≥840 via [`TenturaChatColumn`](../packages/client/lib/design_system/tentura_responsive_scope.dart) |
 
 [`TenturaFullBleed`](../packages/client/lib/design_system/tentura_responsive_scope.dart) remains available for graph routes; it is currently a pass-through when the app root is already full width.
 

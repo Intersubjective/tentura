@@ -35,10 +35,9 @@ double reactorAvatarStripWidth(int reactorCount) {
     return 0;
   }
   const step = kReactorAvatarStripSize - kReactorAvatarStripOverlap;
-  final overflow =
-      reactorCount > kReactorAvatarStripMaxVisible
-          ? reactorCount - kReactorAvatarStripMaxVisible.toInt()
-          : 0;
+  final overflow = reactorCount > kReactorAvatarStripMaxVisible
+      ? reactorCount - kReactorAvatarStripMaxVisible.toInt()
+      : 0;
   final visible = reactorCount > kReactorAvatarStripMaxVisible
       ? kReactorAvatarStripMaxVisible.toInt()
       : reactorCount;
@@ -198,9 +197,7 @@ double ensureHugWidthFitsReactionFooter({
   }
 
   if (width - timeBand < chipsWidth) {
-    width = chipsWidth.ceilToDouble() +
-        timeBand +
-        kReactionChipLayoutEpsilon;
+    width = chipsWidth.ceilToDouble() + timeBand + kReactionChipLayoutEpsilon;
   }
 
   return width.ceilToDouble();
@@ -316,13 +313,23 @@ RoomMessageBubbleMeasureResult measureBubble({
   required double cardPaddingH,
   required double? tightTextWidth,
   required bool hasMediaOrPoll,
+  double? mediaContentWidth,
+  double bubbleMinWidth = 0,
 }) {
-  final cappedContent = contentMaxWidth + cardPaddingH;
-  if (hasMediaOrPoll || tightTextWidth == null) {
-    return RoomMessageBubbleMeasureResult(innerWidth: cappedContent);
-  }
-  final hugged = tightTextWidth + cardPaddingH;
+  final cappedContentWidth = contentMaxWidth + cardPaddingH;
+  final minContentWidth = bubbleMinWidth + cardPaddingH;
+  final mediaContent = (mediaContentWidth ?? contentMaxWidth)
+      .clamp(0, contentMaxWidth)
+      .toDouble();
+  final measuredWidth = hasMediaOrPoll
+      ? mediaContent + cardPaddingH
+      : tightTextWidth == null
+      ? cappedContentWidth
+      : (tightTextWidth + cardPaddingH);
+  final cappedWidth = measuredWidth < cappedContentWidth
+      ? measuredWidth
+      : cappedContentWidth;
   return RoomMessageBubbleMeasureResult(
-    innerWidth: hugged < cappedContent ? hugged : cappedContent,
+    innerWidth: cappedWidth < minContentWidth ? minContentWidth : cappedWidth,
   );
 }

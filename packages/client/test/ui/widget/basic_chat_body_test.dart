@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -34,15 +33,81 @@ class _TestPresenceCubit extends Mock implements PresenceCubit {
 }
 
 void main() {
+  Future<void> pumpBasicChatBody(
+    WidgetTester tester, {
+    required double width,
+  }) async {
+    final message = RoomMessage(
+      id: 'm1',
+      beaconId: 'b1',
+      authorId: 'other',
+      author: const Profile(id: 'other', displayName: 'Alex'),
+      body: 'A wide room message',
+      createdAt: DateTime.utc(2026, 6, 30, 12),
+    );
+
+    await tester.binding.setSurfaceSize(Size(width, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(width, 720)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BasicChatBody(
+                  messages: [message],
+                  myProfile: const Profile(id: 'me', displayName: 'Me'),
+                  participants: const [],
+                  isLoading: false,
+                  imageRepository: ImageRepository(),
+                  enableComposerAttachments: false,
+                  enableParticipantMentions: false,
+                  onSend: (_, _) async {},
+                  onToggleReaction: (_, _) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  testWidgets('wide windows center chat list and composer in a 720px column', (
+    tester,
+  ) async {
+    await pumpBasicChatBody(tester, width: 1400);
+
+    expect(tester.getSize(find.byType(ListView)).width, 720);
+    expect(tester.getTopLeft(find.byType(TextField)).dx, greaterThan(340));
+  });
+
+  testWidgets('regular windows keep chat full panel width', (tester) async {
+    await pumpBasicChatBody(tester, width: 720);
+
+    expect(tester.getSize(find.byType(ListView)).width, 720);
+  });
+
   testWidgets(
     'composer stays keyboard-enabled during visible room refresh with unvoted poll',
     (tester) async {
-      final poll = RoomPollData(
+      const poll = RoomPollData(
         id: 'poll-1',
         question: 'Where should we meet?',
         totalVotes: 0,
-        myVariantIds: const [],
-        variants: const [
+        myVariantIds: [],
+        variants: [
           RoomPollVariant(
             id: 'a',
             description: 'Option A',

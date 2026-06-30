@@ -33,6 +33,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.appBarHeight,
     required this.bottomNavHeight,
     required this.contentMaxWidth,
+    required this.chatWideWidth,
+    required this.chatColumnMaxWidth,
+    required this.bubbleMinWidth,
+    required this.avatarGutter,
+    required this.bubbleFarGutter,
+    required this.mediaMaxWidth,
+    required this.albumGridGap,
     required this.cardPadding,
     required this.cardGap,
     required this.screenHPadding,
@@ -74,6 +81,27 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// When non-null, root content is constrained (desktop / tablet). `null` = full width.
   final double? contentMaxWidth;
 
+  /// Chat panel width at which room surfaces switch to a centered column.
+  final double chatWideWidth;
+
+  /// Max width for the centered room-chat column in wide chat mode.
+  final double chatColumnMaxWidth;
+
+  /// Minimum text/media content width for message bubbles.
+  final double bubbleMinWidth;
+
+  /// Incoming message avatar strip width, kept even when the avatar is hidden.
+  final double avatarGutter;
+
+  /// Far-side gutter for outgoing message bubbles.
+  final double bubbleFarGutter;
+
+  /// Max content width for media and poll bubbles.
+  final double mediaMaxWidth;
+
+  /// Gap for compact album/grid media arrangements.
+  final double albumGridGap;
+
   final EdgeInsets cardPadding;
   final double cardGap;
   final double screenHPadding;
@@ -108,6 +136,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     appBarHeight: 56,
     bottomNavHeight: 64,
     contentMaxWidth: null,
+    chatWideWidth: 840,
+    chatColumnMaxWidth: 720,
+    bubbleMinWidth: 160,
+    avatarGutter: 40,
+    bubbleFarGutter: 56,
+    mediaMaxWidth: 520,
+    albumGridGap: 4,
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
@@ -141,6 +176,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     appBarHeight: 56,
     bottomNavHeight: 64,
     contentMaxWidth: null,
+    chatWideWidth: 840,
+    chatColumnMaxWidth: 720,
+    bubbleMinWidth: 160,
+    avatarGutter: 40,
+    bubbleFarGutter: 56,
+    mediaMaxWidth: 520,
+    albumGridGap: 4,
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
@@ -170,6 +212,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           avatarTinySize: 18,
           appBarHeight: 56,
           bottomNavHeight: 64,
+          chatWideWidth: 840,
+          chatColumnMaxWidth: 720,
+          bubbleMinWidth: 160,
+          avatarGutter: 40,
+          bubbleFarGutter: 56,
+          mediaMaxWidth: 520,
+          albumGridGap: 4,
           cardPadding: TenturaSpacing.cardPaddingAll,
           cardGap: TenturaSpacing.cardGap,
           screenHPadding: TenturaSpacing.screenH,
@@ -190,6 +239,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 560,
+          chatWideWidth: 840,
+          chatColumnMaxWidth: 720,
+          bubbleMinWidth: 160,
+          avatarGutter: 40,
+          bubbleFarGutter: 56,
+          mediaMaxWidth: 520,
+          albumGridGap: 4,
           cardPadding: const EdgeInsets.all(14),
           cardGap: 11,
           screenHPadding: 20,
@@ -210,6 +266,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 720,
+          chatWideWidth: 840,
+          chatColumnMaxWidth: 720,
+          bubbleMinWidth: 160,
+          avatarGutter: 40,
+          bubbleFarGutter: 56,
+          mediaMaxWidth: 640,
+          albumGridGap: 4,
           cardPadding: const EdgeInsets.all(16),
           cardGap: 12,
           screenHPadding: 24,
@@ -247,6 +310,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? appBarHeight,
     double? bottomNavHeight,
     double? contentMaxWidth,
+    double? chatWideWidth,
+    double? chatColumnMaxWidth,
+    double? bubbleMinWidth,
+    double? avatarGutter,
+    double? bubbleFarGutter,
+    double? mediaMaxWidth,
+    double? albumGridGap,
     bool refreshContentMaxWidth = false,
     EdgeInsets? cardPadding,
     double? cardGap,
@@ -282,6 +352,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       contentMaxWidth: refreshContentMaxWidth
           ? contentMaxWidth
           : this.contentMaxWidth,
+      chatWideWidth: chatWideWidth ?? this.chatWideWidth,
+      chatColumnMaxWidth: chatColumnMaxWidth ?? this.chatColumnMaxWidth,
+      bubbleMinWidth: bubbleMinWidth ?? this.bubbleMinWidth,
+      avatarGutter: avatarGutter ?? this.avatarGutter,
+      bubbleFarGutter: bubbleFarGutter ?? this.bubbleFarGutter,
+      mediaMaxWidth: mediaMaxWidth ?? this.mediaMaxWidth,
+      albumGridGap: albumGridGap ?? this.albumGridGap,
       cardPadding: cardPadding ?? this.cardPadding,
       cardGap: cardGap ?? this.cardGap,
       screenHPadding: screenHPadding ?? this.screenHPadding,
@@ -330,6 +407,21 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       appBarHeight: lerpDouble(appBarHeight, other.appBarHeight, t)!,
       bottomNavHeight: lerpDouble(bottomNavHeight, other.bottomNavHeight, t)!,
       contentMaxWidth: _lerpMaxWidth(contentMaxWidth, other.contentMaxWidth, t),
+      chatWideWidth: lerpDouble(chatWideWidth, other.chatWideWidth, t)!,
+      chatColumnMaxWidth: lerpDouble(
+        chatColumnMaxWidth,
+        other.chatColumnMaxWidth,
+        t,
+      )!,
+      bubbleMinWidth: lerpDouble(bubbleMinWidth, other.bubbleMinWidth, t)!,
+      avatarGutter: lerpDouble(avatarGutter, other.avatarGutter, t)!,
+      bubbleFarGutter: lerpDouble(
+        bubbleFarGutter,
+        other.bubbleFarGutter,
+        t,
+      )!,
+      mediaMaxWidth: lerpDouble(mediaMaxWidth, other.mediaMaxWidth, t)!,
+      albumGridGap: lerpDouble(albumGridGap, other.albumGridGap, t)!,
       cardPadding: EdgeInsets.lerp(cardPadding, other.cardPadding, t)!,
       cardGap: lerpDouble(cardGap, other.cardGap, t)!,
       screenHPadding: lerpDouble(screenHPadding, other.screenHPadding, t)!,

@@ -10,7 +10,6 @@ import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
@@ -128,32 +127,34 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           final actionsCubit = context.read<ItemActionsCubit>();
           final pendingResolution = actionsState.pendingResolution;
           final actionsBusy = actionsState.isLoading;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _ItemDiscussionHeader(
-                item: actionsState.item,
-                theme: theme,
-                l10n: l10n,
-              ),
-              if (pendingResolution != null)
-                _PendingResolutionBanner(
-                  resolution: pendingResolution,
+          return TenturaChatColumn(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ItemDiscussionHeader(
+                  item: actionsState.item,
                   theme: theme,
                   l10n: l10n,
-                  onAccept: actionsBusy
-                      ? null
-                      : () => unawaited(actionsCubit.acceptResolution()),
-                  onReject: actionsBusy
-                      ? null
-                      : () => unawaited(actionsCubit.rejectResolution()),
                 ),
-              Expanded(
-                child: BeaconRoomBody(
-                  enableComposer: pendingResolution == null,
+                if (pendingResolution != null)
+                  _PendingResolutionBanner(
+                    resolution: pendingResolution,
+                    theme: theme,
+                    l10n: l10n,
+                    onAccept: actionsBusy
+                        ? null
+                        : () => unawaited(actionsCubit.acceptResolution()),
+                    onReject: actionsBusy
+                        ? null
+                        : () => unawaited(actionsCubit.rejectResolution()),
+                  ),
+                Expanded(
+                  child: BeaconRoomBody(
+                    enableComposer: pendingResolution == null,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -177,7 +178,8 @@ class _ItemDiscussionHydrateLoader extends StatefulWidget {
       _ItemDiscussionHydrateLoaderState();
 }
 
-class _ItemDiscussionHydrateLoaderState extends State<_ItemDiscussionHydrateLoader> {
+class _ItemDiscussionHydrateLoaderState
+    extends State<_ItemDiscussionHydrateLoader> {
   late final Future<CoordinationItem?> _itemFuture;
 
   @override
@@ -274,9 +276,10 @@ class _ItemDiscussionHeader extends StatelessWidget {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
       CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-      CoordinationItemKind.plan => item.isPlanStep
-          ? l10n.coordinationPlanStepCardLabel
-          : l10n.coordinationPlanCardLabel,
+      CoordinationItemKind.plan =>
+        item.isPlanStep
+            ? l10n.coordinationPlanStepCardLabel
+            : l10n.coordinationPlanCardLabel,
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
     final headerIcon = coordinationCompoundStatusIcon(
@@ -422,8 +425,9 @@ class _PendingResolutionBanner extends StatelessWidget {
                   SizedBox(width: tt.iconTextGap),
                   Text(
                     l10n.coordinationSemanticResolutionOpened,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: colorScheme.primary),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.primary,
+                    ),
                   ),
                 ],
               ),
@@ -515,53 +519,53 @@ class _ProposeResolutionSheetState extends State<_ProposeResolutionSheet> {
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: bottom + tt.sectionGap,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            l10n.beaconRoomActionCreateResolution,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          SizedBox(height: tt.rowGap),
-          TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: l10n.coordinationMarkResolutionHint,
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.beaconRoomActionCreateResolution,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            maxLines: 3,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          SizedBox(height: tt.sectionGap),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => TenturaSheetDismissGuard.requestClose(
-                  context,
-                  isDirty: _isDirty,
-                  useRootNavigator: true,
-                ),
-                child: Text(
-                  MaterialLocalizations.of(context).cancelButtonLabel,
-                ),
+            SizedBox(height: tt.rowGap),
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: l10n.coordinationMarkResolutionHint,
               ),
-              FilledButton(
-                onPressed: _submit,
-                child: Text(MaterialLocalizations.of(context).okButtonLabel),
-              ),
-            ],
-          ),
-        ],
+              maxLines: 3,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+            ),
+            SizedBox(height: tt.sectionGap),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
+                  child: Text(
+                    MaterialLocalizations.of(context).cancelButtonLabel,
+                  ),
+                ),
+                FilledButton(
+                  onPressed: _submit,
+                  child: Text(MaterialLocalizations.of(context).okButtonLabel),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

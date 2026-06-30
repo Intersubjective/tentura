@@ -8,7 +8,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const textDirection = TextDirection.ltr;
-  const textScaler = TextScaler.linear(1);
+  const textScaler = TextScaler.noScaling;
 
   const bodyStyle = TextStyle(fontSize: 15, height: 1.4);
   const metaStyle = TextStyle(fontSize: 12, height: 1.2);
@@ -58,7 +58,7 @@ void main() {
       );
     });
 
-    test('false when media present', () {
+    test('true when media or poll needs a capped bubble', () {
       expect(
         shouldHugBubbleWidth(
           hasMediaOrPoll: true,
@@ -66,7 +66,7 @@ void main() {
           hasReactions: true,
           hasFooterContent: false,
         ),
-        isFalse,
+        isTrue,
       );
     });
 
@@ -419,6 +419,30 @@ void main() {
         hasMediaOrPoll: true,
       );
       expect(r.innerWidth, contentMax + cardPaddingH);
+    });
+
+    test('with media uses natural content width when it is under cap', () {
+      const contentMax = 300.0;
+      const cardPaddingH = 24.0;
+      final r = measureBubble(
+        contentMaxWidth: contentMax,
+        cardPaddingH: cardPaddingH,
+        tightTextWidth: null,
+        hasMediaOrPoll: true,
+        mediaContentWidth: 180,
+      );
+      expect(r.innerWidth, 180 + cardPaddingH);
+    });
+
+    test('does not allow tiny text bubbles below the minimum width', () {
+      final r = measureBubble(
+        contentMaxWidth: 300,
+        cardPaddingH: 24,
+        tightTextWidth: 18,
+        hasMediaOrPoll: false,
+        bubbleMinWidth: 160,
+      );
+      expect(r.innerWidth, 184);
     });
 
     test('clamps text width to content max plus padding', () {
