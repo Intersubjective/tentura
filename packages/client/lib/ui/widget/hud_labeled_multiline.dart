@@ -59,7 +59,7 @@ class HudLabeledMultiline extends StatelessWidget {
     final textColor =
         isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
     final semanticsText = subline == null ? text : '$text\n$subline';
-    final primaryStyle = TenturaText.bodySmall(textColor).copyWith(height: 1.25);
+    final primaryStyle = TenturaText.hudBodySmall(textColor);
 
     Widget buildBody(double bodyMaxWidth) {
       return HudMultilineBody(

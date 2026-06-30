@@ -32,9 +32,8 @@ class BeaconDefinitionBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
-    final textStyle = TenturaText.bodySmall(scheme.onSurface).copyWith(
-      height: 1.25,
-    );
+    final textStyle = TenturaText.hudBodySmall(scheme.onSurface);
+    final mutedHudStyle = TenturaText.hudBodySmall(tt.textMuted);
     final metaIconColor = scheme.onSurfaceVariant;
 
     final needText = beacon.needSummary?.trim() ?? '';
@@ -119,6 +118,7 @@ class BeaconDefinitionBody extends StatelessWidget {
           CapabilityRequirementTags(
             tags: requirementTags,
             showHeading: false,
+            labelStyle: mutedHudStyle,
           ),
         ],
         if (beacon.hasPicture) ...[

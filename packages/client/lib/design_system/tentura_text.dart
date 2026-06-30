@@ -36,6 +36,10 @@ abstract final class TenturaText {
   static TextStyle bodySmall(Color color) =>
       _style(color, fontSize: 13, fontWeight: FontWeight.w500, height: 1.35);
 
+  /// Dense metadata for HUD multiline rows (NOW / definition fold).
+  static TextStyle hudBodySmall(Color color) =>
+      bodySmall(color).copyWith(height: 1.25);
+
   /// Status line on cards; prefer `TenturaStatusText` for semantic color only.
   static TextStyle status(Color color) =>
       _style(color, fontSize: 13, fontWeight: FontWeight.w500, height: 1.35);

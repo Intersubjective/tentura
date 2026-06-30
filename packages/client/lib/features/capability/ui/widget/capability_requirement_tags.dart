@@ -22,6 +22,7 @@ class CapabilityRequirementTags extends StatelessWidget {
   const CapabilityRequirementTags({
     required this.tags,
     this.showHeading = true,
+    this.labelStyle,
     super.key,
   });
 
@@ -39,6 +40,7 @@ class CapabilityRequirementTags extends StatelessWidget {
 
   final List<CapabilityTag> tags;
   final bool showHeading;
+  final TextStyle? labelStyle;
 
   static const double _iconSize = 18;
 
@@ -51,7 +53,7 @@ class CapabilityRequirementTags extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
-    final labelStyle = TenturaText.bodySmall(tt.textMuted);
+    final labelStyle = this.labelStyle ?? TenturaText.bodySmall(tt.textMuted);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
