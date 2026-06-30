@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../../domain/entity/invite_genealogy_graph.dart';
@@ -35,7 +35,7 @@ class InviteGenealogyRepository extends RemoteRepository {
             nodeKey: node.node_key,
             profile: node.user == null
                 ? null
-                : (node.user! as UserModel).toEntity(),
+                : (node.user! as UserPublicModel).toEntity(),
             deletedAt: _parseDate(node.deleted_at),
             userCreatedAt: _parseDate(node.user_created_at),
           ),
@@ -77,7 +77,7 @@ class InviteGenealogyRepository extends RemoteRepository {
             nodeKey: node.node_key,
             profile: node.user == null
                 ? null
-                : (node.user! as UserModel).toEntity(),
+                : (node.user! as UserPublicModel).toEntity(),
             deletedAt: _parseDate(node.deleted_at),
             userCreatedAt: _parseDate(node.user_created_at),
           ),
