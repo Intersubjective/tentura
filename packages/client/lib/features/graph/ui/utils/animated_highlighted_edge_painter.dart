@@ -10,7 +10,6 @@ class AnimatedHighlightedEdgePainter
     implements AnimatedEdgePainter<NodeDetails, EdgeDetails<NodeDetails>> {
   const AnimatedHighlightedEdgePainter({
     required this.animation,
-    required this.highlightColor,
     required this.highlightRadius,
     this.isAnimated = true,
   });
@@ -19,8 +18,21 @@ class AnimatedHighlightedEdgePainter
   final Animation<double> animation;
 
   final bool isAnimated;
-  final Color highlightColor;
   final double highlightRadius;
+
+  /// Derives the traveling highlight from the edge's own color instead of a
+  /// single fixed accent: a constant highlight (e.g. `ColorScheme.primary`)
+  /// can land perceptually too close to a given edge color in some themes
+  /// (light theme's `primary` and the "neutral"/info edge color are both
+  /// muted blues of similar lightness), making the pulse invisible even
+  /// though it animates correctly.
+  static Color _highlightFor(Color base) {
+    final hsl = HSLColor.fromColor(base);
+    return hsl
+        .withLightness((hsl.lightness + 0.3).clamp(0.0, 1.0))
+        .withSaturation((hsl.saturation * 0.7).clamp(0.0, 1.0))
+        .toColor();
+  }
 
   @override
   void paint(
@@ -42,7 +54,7 @@ class AnimatedHighlightedEdgePainter
           ..shader = ui.Gradient.linear(
             src,
             dst,
-            [edge.color, highlightColor, edge.color],
+            [edge.color, _highlightFor(edge.color), edge.color],
             [0, highlightRadius, 2 * highlightRadius],
             TileMode.clamp,
             Matrix4.translationValues(

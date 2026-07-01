@@ -151,71 +151,69 @@ class GraphBodyState extends State<GraphBody>
     },
   );
 
-  Widget _buildGraphView() {
-    final scheme = Theme.of(context).colorScheme;
-    return GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-      controller: _graphCubit.graphController,
-      canvasSize: widget.canvasSize,
-      minScale: widget.scaleRange.dx,
-      maxScale: widget.scaleRange.dy,
-      layoutAlgorithm: widget.layoutAlgorithm,
-      edgePainter: AnimatedHighlightedEdgePainter(
-        animation: CurvedAnimation(
-          parent: _animationController,
-          curve: const EaseInOutReynolds(),
-        ),
-        highlightRadius: 0.15,
-        highlightColor: scheme.primary,
-        isAnimated: _graphCubit.state.isAnimated,
+  Widget _buildGraphView() => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+    controller: _graphCubit.graphController,
+    canvasSize: widget.canvasSize,
+    minScale: widget.scaleRange.dx,
+    maxScale: widget.scaleRange.dy,
+    layoutAlgorithm: widget.layoutAlgorithm,
+    edgePainter: AnimatedHighlightedEdgePainter(
+      animation: CurvedAnimation(
+        parent: _animationController,
+        curve: const EaseInOutReynolds(),
       ),
-      labelBuilder: widget.isLabeled
-          ? BottomLabelBuilder(
-              labelSize: widget.labelSize,
-              builder: (_, node) => switch (node) {
-                final UserNode node => Text(
-                  key: ValueKey(node),
-                  node.label,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.labelSmall(
-                    Theme.of(context).colorScheme.onSurface,
-                  ),
+      highlightRadius: 0.15,
+      isAnimated: _graphCubit.state.isAnimated,
+    ),
+    labelBuilder: widget.isLabeled
+        ? BottomLabelBuilder(
+            labelSize: widget.labelSize,
+            builder: (_, node) => switch (node) {
+              final UserNode node => Text(
+                key: ValueKey(node),
+                node.label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
                 ),
-                final GenealogyUserNode node => Text(
-                  key: ValueKey(node),
-                  node.label,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.labelSmall(
-                    Theme.of(context).colorScheme.onSurface,
-                  ),
+              ),
+              final GenealogyUserNode node => Text(
+                key: ValueKey(node),
+                node.label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
                 ),
-                final GenealogyDeletedNode node => Text(
-                  key: ValueKey(node),
-                  node.label,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.labelSmall(
-                    Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              ),
+              final GenealogyDeletedNode node => Text(
+                key: ValueKey(node),
+                node.label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                _ => const SizedBox.shrink(),
-              },
-            )
-          : null,
-      nodeBuilder: (_, node) => GraphNodeWidget(
-        key: ValueKey(node),
-        nodeDetails: node,
-        withRating:
-            node is GenealogyUserNode ||
-            graphNodeShowsMeritRankRating(
-              nodeId: node.id,
-              viewerId: _graphCubit.state.me.id,
-            ),
-        onTap: () => _onNodeTap(node),
-      ),
-    );
-  }
+              ),
+              _ => const SizedBox.shrink(),
+            },
+          )
+        : null,
+    nodeBuilder: (_, node) => GraphNodeWidget(
+      key: ValueKey(node),
+      nodeDetails: node,
+      withRating:
+          node is GenealogyUserNode ||
+          graphNodeShowsMeritRankRating(
+            nodeId: node.id,
+            viewerId: _graphCubit.state.me.id,
+          ),
+      isSelf:
+          node is GenealogyUserNode && node.id == _graphCubit.state.egoNodeId,
+      onTap: () => _onNodeTap(node),
+    ),
+  );
 }
 
 class _GraphSideControls extends StatelessWidget {
