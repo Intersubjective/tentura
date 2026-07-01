@@ -35,3 +35,12 @@ abstract class InviteGenealogyGraphEntity with _$InviteGenealogyGraphEntity {
     String? commonAncestorNodeKey,
   }) = _InviteGenealogyGraphEntity;
 }
+
+@freezed
+abstract class InviteGenealogyChildrenPageEntity
+    with _$InviteGenealogyChildrenPageEntity {
+  const factory InviteGenealogyChildrenPageEntity({
+    required List<InviteGenealogyNodeEntity> nodes,
+    required List<InviteGenealogyEdgeEntity> edges,
+  }) = _InviteGenealogyChildrenPageEntity;
+}

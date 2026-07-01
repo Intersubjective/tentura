@@ -17,4 +17,11 @@ abstract class InviteGenealogyRepositoryPort {
     required String viewerId,
     required String targetId,
   });
+
+  Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String nodeKey,
+    required int limit,
+    DateTime? afterCreatedAt,
+    String? afterNodeKey,
+  });
 }

@@ -60,15 +60,16 @@ Future<void> main() async {
     });
   }
 
-  test('recordSignupEdge persists chronology and survives descendant delete',
-      () async {
-    if (skipReason != false) {
-      return;
-    }
-    final ancestorKey = '${'a' * 43}1';
-    final descendantKey = '${'b' * 43}2';
-    await db.customStatement(
-      '''
+  test(
+    'recordSignupEdge persists chronology and survives descendant delete',
+    () async {
+      if (skipReason != false) {
+        return;
+      }
+      final ancestorKey = '${'a' * 43}1';
+      final descendantKey = '${'b' * 43}2';
+      await db.customStatement(
+        '''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES
   ('$ancestorId', 'Ancestor', \$1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
@@ -79,39 +80,48 @@ ON CONFLICT (id) DO UPDATE SET
   created_at = EXCLUDED.created_at,
   updated_at = EXCLUDED.updated_at
 ''',
-      [ancestorKey, descendantKey],
-    );
+        [ancestorKey, descendantKey],
+      );
 
-    // recordSignupEdge writes invitation_id, which has an FK to invitation.
-    await db.customStatement(
-      '''
+      // recordSignupEdge writes invitation_id, which has an FK to invitation.
+      await db.customStatement(
+        '''
 INSERT INTO public.invitation (id, user_id, created_at, updated_at)
 VALUES ('$invitationId', '$ancestorId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
-    );
+      );
 
-    await repo.recordSignupEdge(
-      ancestorUserId: ancestorId,
-      ancestorUserCreatedAt: DateTime.utc(2026, 1, 1),
-      descendantUserId: descendantId,
-      descendantUserCreatedAt: DateTime.utc(2026, 2, 1),
-      invitationId: invitationId,
-    );
+      await repo.recordSignupEdge(
+        ancestorUserId: ancestorId,
+        ancestorUserCreatedAt: DateTime.utc(2026),
+        descendantUserId: descendantId,
+        descendantUserCreatedAt: DateTime.utc(2026, 2),
+        invitationId: invitationId,
+      );
 
-    await db.customStatement(
-      '''DELETE FROM public."user" WHERE id = '$descendantId' ''',
-    );
+      await db.customStatement(
+        '''DELETE FROM public."user" WHERE id = '$descendantId' ''',
+      );
 
-    final graph = await repo.fetchLineage(userId: ancestorId);
-    expect(graph.edges, hasLength(1));
-    final node = graph.nodes.singleWhere(
-      (n) => n.nodeKey == graph.edges.single.descendantNodeKey,
-    );
-    expect(node.user, isNull);
-    expect(node.deletedAt, isNotNull);
-    expect(node.userCreatedAt, DateTime.utc(2026, 2, 1));
-  }, skip: skipReason);
+      final lineage = await repo.fetchLineage(userId: ancestorId);
+      expect(lineage.edges, isEmpty);
+      expect(lineage.nodes.map((n) => n.user?.id), [ancestorId]);
+
+      final children = await repo.fetchChildren(
+        nodeKey: InviteGenealogyNodeKey.derive(userId: ancestorId, env: env),
+        limit: 10,
+      );
+      expect(children.edges, hasLength(1));
+      final node = children.nodes.singleWhere(
+        (n) => n.nodeKey == children.edges.single.descendantNodeKey,
+      );
+      expect(node.user, isNull);
+      expect(node.deletedAt, isNotNull);
+      expect(node.userCreatedAt, DateTime.utc(2026, 2));
+    },
+    skip: skipReason,
+  );
 
   test('reverse chronology insert violates CHECK', () async {
     if (skipReason != false) {

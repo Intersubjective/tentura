@@ -16,6 +16,11 @@ class InviteGenealogyGraph {
   final List<InviteGenealogyEdge> edges;
 }
 
+typedef InviteGenealogyChildrenPage = ({
+  List<InviteGenealogyNode> nodes,
+  List<InviteGenealogyEdge> edges,
+});
+
 class InviteGenealogyNode {
   const InviteGenealogyNode({
     required this.nodeKey,

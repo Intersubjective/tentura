@@ -1,8 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:get_it/get_it.dart';
-
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -10,13 +8,15 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
+import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
-import 'package:tentura/features/invite_genealogy/ui/bloc/invite_genealogy_graph_cubit.dart';
-import 'package:tentura/features/invite_genealogy/ui/widget/invite_genealogy_graph_body.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 @RoutePage()
-class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper {
+class InviteGenealogyScreen extends StatelessWidget
+    implements AutoRouteWrapper {
   const InviteGenealogyScreen({
     @QueryParam(kQueryGenealogyWith) this.targetId,
     super.key,
@@ -30,11 +30,13 @@ class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper 
     final l10n = L10n.of(context)!;
     return localScreenCubitScope(
       child: BlocProvider(
-        create: (context) => InviteGenealogyGraphCubit(
-          repository: GetIt.I<InviteGenealogyRepository>(),
+        create: (context) => GraphCubit(
+          me: GetIt.I<ProfileCubit>().state.profile,
+          graphSourceRepository: GetIt.I<InviteGenealogyRepository>(),
+          genealogyMode: true,
+          genealogyTargetId: (targetId?.isEmpty ?? true) ? null : targetId,
+          genealogyAnonymousNodeLabel: l10n.inviteGenealogyAnonymousNode,
           edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
-          anonymousNodeLabel: l10n.inviteGenealogyAnonymousNode,
-          targetId: (targetId?.isEmpty ?? true) ? null : targetId,
         ),
         child: this,
       ),
@@ -55,7 +57,7 @@ class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper 
         ),
         bottom: PreferredSize(
           preferredSize: LinearPiActive.size,
-          child: BlocBuilder<InviteGenealogyGraphCubit, InviteGenealogyGraphState>(
+          child: BlocBuilder<GraphCubit, GraphState>(
             buildWhen: (previous, current) =>
                 previous.isLoading != current.isLoading,
             builder: (context, state) =>
@@ -63,7 +65,7 @@ class InviteGenealogyScreen extends StatelessWidget implements AutoRouteWrapper 
           ),
         ),
       ),
-      body: const TenturaFullBleed(child: InviteGenealogyGraphBody()),
+      body: const TenturaFullBleed(child: GraphBody()),
     );
   }
 }

@@ -1,0 +1,31 @@
+# import '/data/gql/user_public_model.graphql'
+
+query InviteGenealogyChildren(
+  $nodeKey: String!
+  $afterCreatedAt: String
+  $afterNodeKey: String
+  $limit: Int = 10
+) {
+  inviteGenealogyChildren(
+    node_key: $nodeKey
+    after_created_at: $afterCreatedAt
+    after_node_key: $afterNodeKey
+    limit: $limit
+  ) {
+    nodes {
+      node_key
+      deleted_at
+      user_created_at
+      user {
+        ...UserPublicModel
+      }
+    }
+    edges {
+      ancestor_node_key
+      descendant_node_key
+      ancestor_user_created_at
+      descendant_user_created_at
+      created_at
+    }
+  }
+}

@@ -17,15 +17,25 @@ final class InviteGenealogyCase extends UseCaseBase {
 
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String viewerId,
-  }) =>
-      _repository.fetchLineage(userId: viewerId);
+  }) => _repository.fetchLineage(userId: viewerId);
 
   Future<InviteGenealogyGraphEntity> fetchLineageBetween({
     required String viewerId,
     required String targetId,
-  }) =>
-      _repository.fetchLineageBetween(
-        viewerId: viewerId,
-        targetId: targetId,
-      );
+  }) => _repository.fetchLineageBetween(
+    viewerId: viewerId,
+    targetId: targetId,
+  );
+
+  Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String nodeKey,
+    required int limit,
+    DateTime? afterCreatedAt,
+    String? afterNodeKey,
+  }) => _repository.fetchChildren(
+    nodeKey: nodeKey,
+    limit: limit,
+    afterCreatedAt: afterCreatedAt,
+    afterNodeKey: afterNodeKey,
+  );
 }

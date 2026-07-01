@@ -3366,6 +3366,11 @@ type InviteGenealogy {
   edges: [InviteGenealogyEdge!]!
 }
 
+type InviteGenealogyChildrenPage {
+  nodes: [InviteGenealogyNode!]!
+  edges: [InviteGenealogyEdge!]!
+}
+
 type query_root {
   notificationsFeed(limit: Int, before: String): [NotificationItem!]!
   notificationsUnreadCount: Int!
@@ -3701,6 +3706,9 @@ type query_root {
 
   """V2: shared invite genealogy between the viewer and [target_id]."""
   inviteGenealogyBetween(target_id: String!): InviteGenealogy
+
+  """V2: one bounded page of direct invite-genealogy children."""
+  inviteGenealogyChildren(node_key: String!, after_created_at: String, after_node_key: String, limit: Int): InviteGenealogyChildrenPage
 
   """V2: mutual friends (MeritRank intersection) for viewer and [id]."""
   mutualFriends(id: String!): [user!]!
@@ -6369,4 +6377,3 @@ type MyWorkLastActivityEventRow {
   createdAt: String
   diffJson: String
 }
-

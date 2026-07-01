@@ -9,7 +9,6 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
-import '../../domain/forward_graph_focus_rules.dart';
 import '../utils/animated_highlighted_edge_painter.dart';
 import '../utils/initial_position_extractor.dart';
 import '../utils/ease_in_out_reynolds.dart';
@@ -128,7 +127,9 @@ class GraphBodyState extends State<GraphBody>
                 ),
               ),
               _GraphSideControls(
-                showFilterToggle: windowClass == WindowClass.expanded,
+                showFilterToggle:
+                    windowClass == WindowClass.expanded &&
+                    !_graphCubit.genealogyMode,
               ),
             ],
           );
@@ -153,65 +154,67 @@ class GraphBodyState extends State<GraphBody>
   Widget _buildGraphView() {
     final scheme = Theme.of(context).colorScheme;
     return GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-    controller: _graphCubit.graphController,
-    canvasSize: widget.canvasSize,
-    minScale: widget.scaleRange.dx,
-    maxScale: widget.scaleRange.dy,
-    layoutAlgorithm: widget.layoutAlgorithm,
-    edgePainter: AnimatedHighlightedEdgePainter(
-      animation: CurvedAnimation(
-        parent: _animationController,
-        curve: const EaseInOutReynolds(),
+      controller: _graphCubit.graphController,
+      canvasSize: widget.canvasSize,
+      minScale: widget.scaleRange.dx,
+      maxScale: widget.scaleRange.dy,
+      layoutAlgorithm: widget.layoutAlgorithm,
+      edgePainter: AnimatedHighlightedEdgePainter(
+        animation: CurvedAnimation(
+          parent: _animationController,
+          curve: const EaseInOutReynolds(),
+        ),
+        highlightRadius: 0.15,
+        highlightColor: scheme.primary,
+        isAnimated: _graphCubit.state.isAnimated,
       ),
-      highlightRadius: 0.15,
-      highlightColor: scheme.primary,
-      isAnimated: _graphCubit.state.isAnimated,
-    ),
-    labelBuilder: widget.isLabeled
-        ? BottomLabelBuilder(
-            labelSize: widget.labelSize,
-            builder: (_, node) => switch (node) {
-              final UserNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurface,
+      labelBuilder: widget.isLabeled
+          ? BottomLabelBuilder(
+              labelSize: widget.labelSize,
+              builder: (_, node) => switch (node) {
+                final UserNode node => Text(
+                  key: ValueKey(node),
+                  node.label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
-              ),
-              final GenealogyUserNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurface,
+                final GenealogyUserNode node => Text(
+                  key: ValueKey(node),
+                  node.label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
-              ),
-              final GenealogyDeletedNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurfaceVariant,
+                final GenealogyDeletedNode node => Text(
+                  key: ValueKey(node),
+                  node.label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              _ => const SizedBox.shrink(),
-            },
-          )
-        : null,
-    nodeBuilder: (_, node) => GraphNodeWidget(
-      key: ValueKey(node),
-      nodeDetails: node,
-      withRating: graphNodeShowsMeritRankRating(
-        nodeId: node.id,
-        viewerId: _graphCubit.state.me.id,
+                _ => const SizedBox.shrink(),
+              },
+            )
+          : null,
+      nodeBuilder: (_, node) => GraphNodeWidget(
+        key: ValueKey(node),
+        nodeDetails: node,
+        withRating:
+            node is GenealogyUserNode ||
+            graphNodeShowsMeritRankRating(
+              nodeId: node.id,
+              viewerId: _graphCubit.state.me.id,
+            ),
+        onTap: () => _onNodeTap(node),
       ),
-      onTap: () => _onNodeTap(node),
-    ),
-  );
+    );
   }
 }
 

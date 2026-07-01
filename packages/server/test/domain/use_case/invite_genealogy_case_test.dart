@@ -11,6 +11,10 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   String? lastUserId;
   String? lastBetweenViewerId;
   String? lastBetweenTargetId;
+  String? lastChildrenNodeKey;
+  DateTime? lastChildrenAfterCreatedAt;
+  String? lastChildrenAfterNodeKey;
+  int? lastChildrenLimit;
 
   @override
   Future<void> recordSignupEdge({
@@ -47,6 +51,20 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
       edges: [],
     );
   }
+
+  @override
+  Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String nodeKey,
+    required int limit,
+    DateTime? afterCreatedAt,
+    String? afterNodeKey,
+  }) async {
+    lastChildrenNodeKey = nodeKey;
+    lastChildrenAfterCreatedAt = afterCreatedAt;
+    lastChildrenAfterNodeKey = afterNodeKey;
+    lastChildrenLimit = limit;
+    return const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
+  }
 }
 
 void main() {
@@ -79,5 +97,20 @@ void main() {
     expect(result.targetNodeKey, 'Gtarget');
     expect(repo.lastBetweenViewerId, viewerId);
     expect(repo.lastBetweenTargetId, targetId);
+  });
+
+  test('fetchChildren delegates node key, cursor and limit', () async {
+    final afterCreatedAt = DateTime.utc(2026, 2);
+    final result = await case_.fetchChildren(
+      nodeKey: 'Gnode',
+      afterCreatedAt: afterCreatedAt,
+      afterNodeKey: 'Gafter',
+      limit: 10,
+    );
+    expect(result.edges, isEmpty);
+    expect(repo.lastChildrenNodeKey, 'Gnode');
+    expect(repo.lastChildrenAfterCreatedAt, afterCreatedAt);
+    expect(repo.lastChildrenAfterNodeKey, 'Gafter');
+    expect(repo.lastChildrenLimit, 10);
   });
 }
