@@ -4,8 +4,8 @@ import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
 
 void main() {
   test('first acquire allowed, second within window denied', () {
-    final limiter = DebugSendRateLimiter(
-      cooldown: const Duration(seconds: 10),
+    final limiter = DebugSendRateLimiter.withCooldown(
+      const Duration(seconds: 10),
     );
 
     expect(limiter.tryAcquire('u1', DebugSendChannel.fcm), isTrue);
@@ -13,8 +13,8 @@ void main() {
   });
 
   test('fcm and email channels are independent', () {
-    final limiter = DebugSendRateLimiter(
-      cooldown: const Duration(seconds: 10),
+    final limiter = DebugSendRateLimiter.withCooldown(
+      const Duration(seconds: 10),
     );
 
     expect(limiter.tryAcquire('u1', DebugSendChannel.fcm), isTrue);
@@ -24,8 +24,8 @@ void main() {
   });
 
   test('allowed again after cooldown', () async {
-    final limiter = DebugSendRateLimiter(
-      cooldown: const Duration(milliseconds: 50),
+    final limiter = DebugSendRateLimiter.withCooldown(
+      const Duration(milliseconds: 50),
     );
 
     expect(limiter.tryAcquire('u1', DebugSendChannel.email), isTrue);

@@ -9,8 +9,10 @@ enum DebugSendChannel {
 /// Per-user, per-channel throttle for debug test sends (in-memory, per process).
 @singleton
 final class DebugSendRateLimiter {
-  DebugSendRateLimiter({Duration? cooldown})
-      : _cooldown = cooldown ?? const Duration(seconds: 10);
+  DebugSendRateLimiter() : _cooldown = const Duration(seconds: 10);
+
+  @visibleForTesting
+  DebugSendRateLimiter.withCooldown(Duration cooldown) : _cooldown = cooldown;
 
   final Duration _cooldown;
 
