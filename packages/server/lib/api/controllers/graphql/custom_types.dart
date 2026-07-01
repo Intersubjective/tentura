@@ -55,6 +55,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconLineageForwardSuggestions,
   gqlTypeNotificationPreferences,
   gqlTypeNotificationItem,
+  gqlTypeFcmTestSendResult,
+  gqlTypeEmailTestSendResult,
 ];
 
 /// One durable Notification Center row.
@@ -793,3 +795,21 @@ final gqlTypeBeaconLineageForwardSuggestions =
           ).nonNullable(),
         ),
       ]);
+
+/// Result of a debug FCM test push to all registered devices.
+final gqlTypeFcmTestSendResult = GraphQLObjectType('FcmTestSendResult', null)
+  ..fields.addAll([
+    field('ok', graphQLBoolean.nonNullable()),
+    field('devices', graphQLInt.nonNullable()),
+    field('sent', graphQLInt.nonNullable()),
+    field('mock', graphQLBoolean.nonNullable()),
+    field('reason', graphQLString),
+  ]);
+
+/// Result of a debug email test send to the verified primary email.
+final gqlTypeEmailTestSendResult = GraphQLObjectType('EmailTestSendResult', null)
+  ..fields.addAll([
+    field('ok', graphQLBoolean.nonNullable()),
+    field('mock', graphQLBoolean.nonNullable()),
+    field('reason', graphQLString),
+  ]);

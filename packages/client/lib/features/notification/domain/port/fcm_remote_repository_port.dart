@@ -1,3 +1,5 @@
+import '../entity/fcm_test_send_result.dart';
+
 abstract class FcmRemoteRepositoryPort {
   Future<void> registerToken({
     required String appId,
@@ -6,4 +8,6 @@ abstract class FcmRemoteRepositoryPort {
   });
 
   Future<void> deleteToken({required String appId});
+
+  Future<FcmTestSendResult> sendTestNotification();
 }

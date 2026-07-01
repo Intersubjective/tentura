@@ -139,6 +139,17 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
+    AutoRoute(
+      page: DebugSettingsRoute.page,
+      path: kPathDebugSettings,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
     // Intro (native only — web onboarding is on the static landing)
     AutoRoute(
       keepHistory: false,

@@ -939,6 +939,43 @@
   "@settingsRequestProfileDeletion": {
     "context": "SettingsScreen"
   },
+  "settingsDebug": "Отладка",
+  "@settingsDebug": {
+    "context": "SettingsScreen"
+  },
+  "settingsFcmRegistration": "Регистрация FCM",
+  "settingsFcmToken": "Токен FCM",
+  "settingsFcmTokenUnavailable": "Недоступен (проверьте разрешение на уведомления и конфигурацию Firebase)",
+  "settingsFcmAppId": "ID приложения",
+  "settingsFcmPlatform": "Платформа",
+  "settingsFcmPermission": "Разрешение на уведомления",
+  "settingsFcmPermissionGranted": "Выдано",
+  "settingsFcmPermissionDenied": "Отклонено",
+  "settingsFcmServerSynced": "Зарегистрировано на сервере",
+  "settingsFcmServerSyncedYes": "Да",
+  "settingsFcmServerSyncedNo": "Нет",
+  "settingsRefresh": "Обновить",
+  "settingsNotificationsTest": "Тест уведомлений",
+  "settingsEmailTest": "Тест email",
+  "settingsNotificationsTestSent": "Отправлено на {sent} из {devices} устройств",
+  "@settingsNotificationsTestSent": {
+    "placeholders": {
+      "sent": {
+        "type": "int"
+      },
+      "devices": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsNotificationsTestNoDevices": "Нет зарегистрированных устройств",
+  "settingsNotificationsTestRateLimited": "Подождите 10 секунд перед повторной тестовой push-рассылкой",
+  "settingsNotificationsTestMock": "FCM на сервере не настроен (режим mock)",
+  "settingsEmailTestSent": "Тестовое письмо отправлено",
+  "settingsEmailTestNoEmail": "Нет подтверждённой почты в этом аккаунте",
+  "settingsEmailTestRateLimited": "Подождите 10 секунд перед повторной тестовой рассылкой",
+  "settingsEmailTestMock": "Почта на сервере не настроена",
+  "settingsEmailTestFailed": "Не удалось отправить тестовое письмо",
   "signInMethods": "Способы входа",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"

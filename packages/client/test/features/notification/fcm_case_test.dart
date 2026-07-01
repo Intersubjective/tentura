@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
 import 'package:tentura/features/notification/domain/port/fcm_local_repository_port.dart';
@@ -252,6 +253,43 @@ void main() {
       expect(local.requestPermissionCalls, 1);
     });
   });
+  group('getRegistrationInfo', () {
+    test('reports serverSynced when last registration matches', () async {
+      local.token = tokenT;
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+
+      final info = await case_.getRegistrationInfo(
+        accountId: accountA,
+        permissionGranted: true,
+        platform: 'web',
+      );
+
+      expect(info.token, tokenT);
+      expect(info.appId, appId);
+      expect(info.platform, 'web');
+      expect(info.permissionGranted, isTrue);
+      expect(info.serverSynced, isTrue);
+    });
+
+    test('reports not synced when token missing', () async {
+      local.token = null;
+
+      final info = await case_.getRegistrationInfo(
+        accountId: accountA,
+        permissionGranted: false,
+        platform: 'android',
+      );
+
+      expect(info.token, isNull);
+      expect(info.serverSynced, isFalse);
+    });
+  });
 }
 
 class FakeFcmLocal implements FcmLocalRepositoryPort {
@@ -303,6 +341,16 @@ class FakeFcmRemote implements FcmRemoteRepositoryPort {
     if (deleteThrows != null) {
       throw deleteThrows!;
     }
+  }
+
+  @override
+  Future<FcmTestSendResult> sendTestNotification() async {
+    return const FcmTestSendResult(
+      ok: true,
+      devices: 1,
+      sent: 1,
+      mock: false,
+    );
   }
 }
 

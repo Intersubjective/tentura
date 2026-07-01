@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/use_case/fcm_case.dart';
 
+import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -11,6 +12,7 @@ final class MutationFcm extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     registerFcmToken,
     deleteFcmToken,
+    sendTestNotification,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get registerFcmToken =>
@@ -40,6 +42,15 @@ final class MutationFcm extends GqlNodeBase {
         resolve: (_, args) => _fcmCase.deleteToken(
           userId: getCredentials(args).sub,
           appId: _appIdInput.fromArgsNonNullable(args),
+        ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get sendTestNotification =>
+      GraphQLObjectField(
+        'fcmSendTestNotification',
+        gqlTypeFcmTestSendResult.nonNullable(),
+        resolve: (_, args) => _fcmCase.sendTestNotification(
+          userId: getCredentials(args).sub,
         ),
       );
 

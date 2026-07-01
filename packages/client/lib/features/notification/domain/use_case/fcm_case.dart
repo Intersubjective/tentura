@@ -4,6 +4,8 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 
+import '../entity/fcm_registration_info.dart';
+import '../entity/fcm_test_send_result.dart';
 import '../entity/last_fcm_registration.dart';
 import '../port/fcm_local_repository_port.dart';
 import '../port/fcm_remote_repository_port.dart';
@@ -104,6 +106,35 @@ class FcmCase {
     }
     await _settingsRepository.setLastFcmRegistration(null);
   }
+
+  Future<FcmRegistrationInfo> getRegistrationInfo({
+    required String accountId,
+    required bool permissionGranted,
+    required String platform,
+  }) async {
+    final token = await _fcmLocalRepository.getToken();
+    final appId = await _settingsRepository.getAppId();
+    final last = await _settingsRepository.getLastFcmRegistration();
+    final serverSynced = token != null &&
+        token.isNotEmpty &&
+        appId != null &&
+        (last?.matches(
+              accountId: accountId,
+              appId: appId,
+              token: token,
+            ) ??
+            false);
+    return FcmRegistrationInfo(
+      token: token,
+      appId: appId,
+      platform: platform,
+      permissionGranted: permissionGranted,
+      serverSynced: serverSynced,
+    );
+  }
+
+  Future<FcmTestSendResult> sendTestNotification() =>
+      _fcmRemoteRepository.sendTestNotification();
 
   Future<String> _ensureAppId() async {
     var appId = await _settingsRepository.getAppId();

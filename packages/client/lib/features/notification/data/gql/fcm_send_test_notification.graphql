@@ -1,0 +1,9 @@
+mutation FcmSendTestNotification {
+  fcmSendTestNotification {
+    ok
+    devices
+    sent
+    mock
+    reason
+  }
+}

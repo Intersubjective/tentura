@@ -1,0 +1,7 @@
+mutation EmailSendTest {
+  emailSendTest {
+    ok
+    mock
+    reason
+  }
+}
