@@ -2356,6 +2356,8 @@ type mutation_root {
   evaluationSubmit(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
   fcmTokenDelete(appId: String!): Boolean!
+  fcmSendTestNotification: FcmTestSendResult!
+  emailSendTest: EmailTestSendResult!
   notificationsMarkRead(ids: [String!]!): Int!
   notificationsMarkAllRead: Int!
   notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
@@ -5476,6 +5478,20 @@ type BeaconRoomSeenResult {
   beaconId: String!
   threadItemId: String
   seenAt: String!
+}
+
+type FcmTestSendResult {
+  ok: Boolean!
+  devices: Int!
+  sent: Int!
+  mock: Boolean!
+  reason: String
+}
+
+type EmailTestSendResult {
+  ok: Boolean!
+  mock: Boolean!
+  reason: String
 }
 
 type BeaconParticipantRow {

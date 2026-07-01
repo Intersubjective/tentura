@@ -18,6 +18,7 @@ import 'mutation_notification_center.dart';
 import 'mutation_notification_preferences.dart';
 import 'mutation_polling.dart';
 import 'mutation_coordination_item.dart';
+import 'mutation_debug.dart';
 import 'mutation_user.dart';
 import 'mutation_user_vote.dart';
 
@@ -40,6 +41,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationUser().all,
   ...MutationUserVote().all,
   ...MutationFcm().all,
+  ...MutationDebug().all,
   ...MutationNotificationCenter().all,
   ...MutationNotificationPreferences().all,
 ];

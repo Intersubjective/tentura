@@ -939,6 +939,43 @@
   "@settingsRequestProfileDeletion": {
     "context": "SettingsScreen"
   },
+  "settingsDebug": "Debug",
+  "@settingsDebug": {
+    "context": "SettingsScreen"
+  },
+  "settingsFcmRegistration": "FCM registration",
+  "settingsFcmToken": "FCM token",
+  "settingsFcmTokenUnavailable": "Not available (check notification permission and Firebase config)",
+  "settingsFcmAppId": "App ID",
+  "settingsFcmPlatform": "Platform",
+  "settingsFcmPermission": "Notification permission",
+  "settingsFcmPermissionGranted": "Granted",
+  "settingsFcmPermissionDenied": "Denied",
+  "settingsFcmServerSynced": "Registered on server",
+  "settingsFcmServerSyncedYes": "Yes",
+  "settingsFcmServerSyncedNo": "No",
+  "settingsRefresh": "Refresh",
+  "settingsNotificationsTest": "Notifications test",
+  "settingsEmailTest": "Email test",
+  "settingsNotificationsTestSent": "Sent to {sent} of {devices} device(s)",
+  "@settingsNotificationsTestSent": {
+    "placeholders": {
+      "sent": {
+        "type": "int"
+      },
+      "devices": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsNotificationsTestNoDevices": "No registered devices",
+  "settingsNotificationsTestRateLimited": "Please wait 10 seconds before sending another test notification",
+  "settingsNotificationsTestMock": "Server FCM not configured (mock mode)",
+  "settingsEmailTestSent": "Test email sent",
+  "settingsEmailTestNoEmail": "No verified email on this account",
+  "settingsEmailTestRateLimited": "Please wait 10 seconds before sending another test email",
+  "settingsEmailTestMock": "Server email not configured",
+  "settingsEmailTestFailed": "Failed to send test email",
   "signInMethods": "Sign-in methods",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"

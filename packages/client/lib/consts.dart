@@ -38,6 +38,7 @@ const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
+const kPathDebugSettings = '/settings/debug';
 const kPathMyWork = '/home/work';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';

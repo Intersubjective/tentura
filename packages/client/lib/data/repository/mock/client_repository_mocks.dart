@@ -39,6 +39,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
 
 import 'package:tentura/features/rating/data/repository/rating_repository.dart';
+import 'package:tentura/features/settings/domain/port/email_test_remote_repository_port.dart';
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 
 @Injectable(as: ComplaintRepository, env: [Environment.test], order: 1)
@@ -123,6 +124,10 @@ class MutualFriendsRepositoryMock extends Mock implements MutualFriendsRepositor
 
 @Injectable(as: FcmRemoteRepositoryPort, env: [Environment.test], order: 1)
 class FcmRemoteRepositoryMock extends Mock implements FcmRemoteRepositoryPort {}
+
+@Injectable(as: EmailTestRemoteRepositoryPort, env: [Environment.test], order: 1)
+class EmailTestRemoteRepositoryMock extends Mock
+    implements EmailTestRemoteRepositoryPort {}
 
 @Injectable(as: CoordinationItemRepository, env: [Environment.test], order: 1)
 class CoordinationItemRepositoryMock extends Mock implements CoordinationItemRepository {}
