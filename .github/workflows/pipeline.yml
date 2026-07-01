@@ -25,7 +25,6 @@ jobs:
   test-shards:
     name: test-${{ matrix.target }}
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     strategy:
       fail-fast: true
       matrix:
@@ -145,7 +144,6 @@ jobs:
 
   build-web:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
@@ -324,7 +322,6 @@ jobs:
 
   build-server:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -383,15 +380,9 @@ jobs:
     if: |
       always() &&
       !cancelled() &&
-      (
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'push' &&
-          needs.test-shards.result == 'success' &&
-          needs.build-web.result == 'success' &&
-          needs.build-server.result == 'success'
-        )
-      )
+      needs.test-shards.result == 'success' &&
+      needs.build-web.result == 'success' &&
+      needs.build-server.result == 'success'
     permissions:
       contents: read
       packages: write
