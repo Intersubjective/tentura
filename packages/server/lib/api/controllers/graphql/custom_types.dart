@@ -10,6 +10,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInvitation,
   gqlTypeInviteGenealogy,
   gqlTypeInviteGenealogyChildrenPage,
+  gqlTypeInviteGenealogyChildCount,
   gqlTypeInviteGenealogyNode,
   gqlTypeInviteGenealogyEdge,
   gqlTypeProfile,
@@ -457,6 +458,13 @@ final gqlTypeInviteGenealogyChildrenPage =
         ),
       ]);
 
+final gqlTypeInviteGenealogyChildCount =
+    GraphQLObjectType('InviteGenealogyChildCount', null)
+      ..fields.addAll([
+        field('node_key', graphQLString.nonNullable()),
+        field('total_children', graphQLInt.nonNullable()),
+      ]);
+
 /// Per-viewer private contact name (subjective profiles). Viewer-scoped:
 /// only ever returned for the authenticated caller as viewer.
 final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
@@ -807,9 +815,10 @@ final gqlTypeFcmTestSendResult = GraphQLObjectType('FcmTestSendResult', null)
   ]);
 
 /// Result of a debug email test send to the verified primary email.
-final gqlTypeEmailTestSendResult = GraphQLObjectType('EmailTestSendResult', null)
-  ..fields.addAll([
-    field('ok', graphQLBoolean.nonNullable()),
-    field('mock', graphQLBoolean.nonNullable()),
-    field('reason', graphQLString),
-  ]);
+final gqlTypeEmailTestSendResult =
+    GraphQLObjectType('EmailTestSendResult', null)
+      ..fields.addAll([
+        field('ok', graphQLBoolean.nonNullable()),
+        field('mock', graphQLBoolean.nonNullable()),
+        field('reason', graphQLString),
+      ]);

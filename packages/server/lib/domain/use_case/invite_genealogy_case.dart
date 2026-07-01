@@ -38,4 +38,8 @@ final class InviteGenealogyCase extends UseCaseBase {
     afterCreatedAt: afterCreatedAt,
     afterNodeKey: afterNodeKey,
   );
+
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) => _repository.fetchChildCounts(nodeKeys: nodeKeys);
 }

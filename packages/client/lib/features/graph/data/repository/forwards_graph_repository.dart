@@ -47,6 +47,8 @@ class ForwardsGraphRepository implements GraphSourceRepository {
           weight: _weight,
           node: null,
           branch: null,
+          srcTotalNeighborCount: null,
+          dstTotalNeighborCount: null,
         ),
     };
 
@@ -81,6 +83,8 @@ class ForwardsGraphRepository implements GraphSourceRepository {
           weight: _weight,
           node: null,
           branch: null,
+          srcTotalNeighborCount: null,
+          dstTotalNeighborCount: null,
         ),
     };
 

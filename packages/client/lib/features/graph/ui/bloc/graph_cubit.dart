@@ -122,6 +122,8 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _genealogyChildrenCursors = <String, (DateTime, String)>{};
 
+  final _totalNeighborCounts = <String, int>{};
+
   final _addedEdgeEndpoints = <(String, String)>{};
 
   late final Map<String, NodeDetails> _nodes = genealogyMode
@@ -172,7 +174,14 @@ class GraphCubit extends Cubit<GraphState> {
     if (forwardsGraphBeaconId != null || genealogyMode) {
       return Future.value();
     }
-    emit(state.copyWith(context: context ?? '', focus: ''));
+    _totalNeighborCounts.clear();
+    emit(
+      state.copyWith(
+        context: context ?? '',
+        focus: '',
+        hiddenNeighborCounts: const {},
+      ),
+    );
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
@@ -185,7 +194,14 @@ class GraphCubit extends Cubit<GraphState> {
     if (forwardsGraphBeaconId != null || genealogyMode) {
       return;
     }
-    emit(state.copyWith(positiveOnly: !state.positiveOnly, focus: ''));
+    _totalNeighborCounts.clear();
+    emit(
+      state.copyWith(
+        positiveOnly: !state.positiveOnly,
+        focus: '',
+        hiddenNeighborCounts: const {},
+      ),
+    );
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
@@ -277,6 +293,10 @@ class GraphCubit extends Cubit<GraphState> {
             );
           }
           _preloadGenealogyNodes(graph.nodes);
+          await _fetchGenealogyChildCounts(
+            source,
+            graph.nodes.map((node) => node.nodeKey),
+          );
           rawEdges = _genealogyEdgesFromGraph(graph);
         } else {
           final cursor = _genealogyChildrenCursors[fetchFocus];
@@ -294,6 +314,13 @@ class GraphCubit extends Cubit<GraphState> {
             );
           }
           _preloadGenealogyNodes(page.nodes);
+          await _fetchGenealogyChildCounts(
+            source,
+            {
+              fetchFocus,
+              for (final edge in page.edges) edge.descendantNodeKey,
+            },
+          );
           rawEdges = [
             for (final e in page.edges)
               (
@@ -302,6 +329,8 @@ class GraphCubit extends Cubit<GraphState> {
                 weight: 0.0,
                 node: null,
                 branch: null,
+                srcTotalNeighborCount: null,
+                dstTotalNeighborCount: null,
               ),
           ];
         }
@@ -498,6 +527,8 @@ class GraphCubit extends Cubit<GraphState> {
                     ? GenealogyEdgeBranch.target
                     : GenealogyEdgeBranch.neutral
               : null,
+          srcTotalNeighborCount: null,
+          dstTotalNeighborCount: null,
         ),
     ];
   }
@@ -531,71 +562,157 @@ class GraphCubit extends Cubit<GraphState> {
     }
   }
 
-  ///
-  ///
-  void _updateGraph(Set<EdgeDirected> edges) => graphController.mutate((
-    mutator,
-  ) {
-    final egoOrGenealogyEgoNode = genealogyMode
-        ? _nodes[state.egoNodeId]
-        : _egoNode;
-    for (final e in edges) {
-      if (state.positiveOnly && e.weight < 0) {
-        continue;
+  Future<void> _fetchGenealogyChildCounts(
+    InviteGenealogyRepository source,
+    Iterable<String> nodeKeys,
+  ) async {
+    final keys = nodeKeys.where((key) => key.isNotEmpty).toSet();
+    if (keys.isEmpty) {
+      return;
+    }
+    final counts = await source.fetchChildCounts(nodeKeys: keys.toList());
+    _totalNeighborCounts.addAll(counts);
+  }
+
+  void _captureEndpointTotals(Set<EdgeDirected> edges) {
+    if (genealogyMode) {
+      return;
+    }
+    for (final edge in edges) {
+      final srcTotal = edge.srcTotalNeighborCount;
+      if (srcTotal != null) {
+        _totalNeighborCounts[edge.src] = srcTotal;
       }
-      final src = _nodes[e.src];
-      if (src == null) {
-        continue;
+      final dstTotal = edge.dstTotalNeighborCount;
+      if (dstTotal != null) {
+        _totalNeighborCounts[edge.dst] = dstTotal;
       }
-      final dst = _nodes[e.dst];
-      if (dst == null) {
-        continue;
-      }
-      final branchHighlighted =
-          e.branch == GenealogyEdgeBranch.ego ||
-          e.branch == GenealogyEdgeBranch.target;
-      final touchesEgo =
-          src == egoOrGenealogyEgoNode || dst == egoOrGenealogyEgoNode;
-      final edge = EdgeDetails<NodeDetails>(
-        source: src,
-        destination: dst,
-        strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
-        color: switch (e.branch) {
-          GenealogyEdgeBranch.ego => _edgeColors.ego,
-          GenealogyEdgeBranch.target => _edgeColors.target,
-          GenealogyEdgeBranch.neutral => _edgeColors.neutral,
-          null =>
-            e.weight < 0
-                ? _edgeColors.negative
-                : touchesEgo
-                ? _edgeColors.ego
-                : _edgeColors.neutral,
-        },
-      );
-      if (!mutator.controller.nodes.contains(src)) {
-        mutator.addNode(src);
-      }
-      if (!mutator.controller.nodes.contains(dst)) {
-        mutator.addNode(dst);
-      }
-      final endpointKey = (src.id, dst.id);
-      if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
-        mutator.addEdge(edge);
+    }
+  }
+
+  void _emitHiddenNeighborCounts() {
+    final hidden = _deriveHiddenNeighborCounts();
+    if (!_sameHiddenCounts(state.hiddenNeighborCounts, hidden)) {
+      emit(state.copyWith(hiddenNeighborCounts: hidden));
+    }
+  }
+
+  Map<String, int> _deriveHiddenNeighborCounts() {
+    if (_totalNeighborCounts.isEmpty) {
+      return const {};
+    }
+    final visibleCounts = <String, int>{};
+    for (final edge in graphController.edges) {
+      if (genealogyMode) {
+        visibleCounts.update(
+          edge.source.id,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
+      } else {
+        visibleCounts.update(
+          edge.source.id,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
+        visibleCounts.update(
+          edge.destination.id,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
       }
     }
 
-    if (genealogyMode) {
-      for (final node in _nodes.values) {
-        if (!mutator.controller.nodes.contains(node)) {
-          mutator.addNode(node);
+    final hidden = <String, int>{};
+    for (final entry in _totalNeighborCounts.entries) {
+      final hiddenCount = entry.value - (visibleCounts[entry.key] ?? 0);
+      if (hiddenCount > 0) {
+        hidden[entry.key] = hiddenCount;
+      }
+    }
+    return hidden;
+  }
+
+  static bool _sameHiddenCounts(Map<String, int> a, Map<String, int> b) {
+    if (identical(a, b)) {
+      return true;
+    }
+    if (a.length != b.length) {
+      return false;
+    }
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _updateGraph(Set<EdgeDirected> edges) {
+    _captureEndpointTotals(edges);
+    graphController.mutate((mutator) {
+      final egoOrGenealogyEgoNode = genealogyMode
+          ? _nodes[state.egoNodeId]
+          : _egoNode;
+      for (final e in edges) {
+        if (state.positiveOnly && e.weight < 0) {
+          continue;
+        }
+        final src = _nodes[e.src];
+        if (src == null) {
+          continue;
+        }
+        final dst = _nodes[e.dst];
+        if (dst == null) {
+          continue;
+        }
+        final branchHighlighted =
+            e.branch == GenealogyEdgeBranch.ego ||
+            e.branch == GenealogyEdgeBranch.target;
+        final touchesEgo =
+            src == egoOrGenealogyEgoNode || dst == egoOrGenealogyEgoNode;
+        final edge = EdgeDetails<NodeDetails>(
+          source: src,
+          destination: dst,
+          strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
+          color: switch (e.branch) {
+            GenealogyEdgeBranch.ego => _edgeColors.ego,
+            GenealogyEdgeBranch.target => _edgeColors.target,
+            GenealogyEdgeBranch.neutral => _edgeColors.neutral,
+            null =>
+              e.weight < 0
+                  ? _edgeColors.negative
+                  : touchesEgo
+                  ? _edgeColors.ego
+                  : _edgeColors.neutral,
+          },
+        );
+        if (!mutator.controller.nodes.contains(src)) {
+          mutator.addNode(src);
+        }
+        if (!mutator.controller.nodes.contains(dst)) {
+          mutator.addNode(dst);
+        }
+        final endpointKey = (src.id, dst.id);
+        if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
+          mutator.addEdge(edge);
         }
       }
-    } else if (!mutator.controller.nodes.contains(_egoNode)) {
-      mutator.addNode(_egoNode);
-    }
-    final focusNode = _nodes[state.focus];
-    if (focusNode != null && !mutator.controller.nodes.contains(focusNode)) {
-      mutator.addNode(focusNode);
-    }
-  });
+
+      if (genealogyMode) {
+        for (final node in _nodes.values) {
+          if (!mutator.controller.nodes.contains(node)) {
+            mutator.addNode(node);
+          }
+        }
+      } else if (!mutator.controller.nodes.contains(_egoNode)) {
+        mutator.addNode(_egoNode);
+      }
+      final focusNode = _nodes[state.focus];
+      if (focusNode != null && !mutator.controller.nodes.contains(focusNode)) {
+        mutator.addNode(focusNode);
+      }
+    });
+    _emitHiddenNeighborCounts();
+  }
 }

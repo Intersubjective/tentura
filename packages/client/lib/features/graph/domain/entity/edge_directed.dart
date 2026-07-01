@@ -14,4 +14,6 @@ typedef EdgeDirected = ({
   double weight,
   NodeDetails? node,
   GenealogyEdgeBranch? branch,
+  int? srcTotalNeighborCount,
+  int? dstTotalNeighborCount,
 });

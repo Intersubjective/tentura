@@ -175,6 +175,37 @@ LIMIT $2
   }
 
   @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async {
+    final keys = nodeKeys.where((key) => key.isNotEmpty).toSet();
+    if (keys.isEmpty) {
+      return const {};
+    }
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT ancestor_node_key, COUNT(*)::int AS total_children
+FROM invite_genealogy
+WHERE ancestor_node_key = ANY($1::text[])
+GROUP BY ancestor_node_key
+''',
+          variables: [Variable<List<String>>(keys.toList(), PgTypes.textArray)],
+          readsFrom: {_database.inviteGenealogy},
+        )
+        .get();
+    final counts = {
+      for (final key in keys) key: 0,
+    };
+    for (final row in rows) {
+      counts[row.read<String>('ancestor_node_key')] = row.read<int>(
+        'total_children',
+      );
+    }
+    return counts;
+  }
+
+  @override
   Future<InviteGenealogyGraphEntity> fetchLineageBetween({
     required String viewerId,
     required String targetId,

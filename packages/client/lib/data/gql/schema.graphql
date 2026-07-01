@@ -2866,6 +2866,96 @@ input mutual_score_stream_cursor_value_input {
 }
 
 """
+columns and relationships of "graph_score"
+"""
+type graph_score {
+  """An object relationship"""
+  beacon: beacon
+  dst: String
+  dst_score: float8
+  dst_total_neighbor_count: Int
+  src: String
+  src_score: float8
+  src_total_neighbor_count: Int
+
+  """An object relationship"""
+  user: user
+}
+
+"""
+Boolean expression to filter rows from the table "graph_score". All fields are combined with a logical 'AND'.
+"""
+input graph_score_bool_exp {
+  _and: [graph_score_bool_exp!]
+  _not: graph_score_bool_exp
+  _or: [graph_score_bool_exp!]
+  beacon: beacon_bool_exp
+  dst: String_comparison_exp
+  dst_score: float8_comparison_exp
+  dst_total_neighbor_count: Int_comparison_exp
+  src: String_comparison_exp
+  src_score: float8_comparison_exp
+  src_total_neighbor_count: Int_comparison_exp
+  user: user_bool_exp
+}
+
+"""Ordering options when selecting data from "graph_score"."""
+input graph_score_order_by {
+  beacon: beacon_order_by
+  dst: order_by
+  dst_score: order_by
+  dst_total_neighbor_count: order_by
+  src: order_by
+  src_score: order_by
+  src_total_neighbor_count: order_by
+  user: user_order_by
+}
+
+"""
+select columns of table "graph_score"
+"""
+enum graph_score_select_column {
+  """column name"""
+  dst
+
+  """column name"""
+  dst_score
+
+  """column name"""
+  dst_total_neighbor_count
+
+  """column name"""
+  src
+
+  """column name"""
+  src_score
+
+  """column name"""
+  src_total_neighbor_count
+}
+
+"""
+Streaming cursor of the table "graph_score"
+"""
+input graph_score_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: graph_score_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input graph_score_stream_cursor_value_input {
+  dst: String
+  dst_score: float8
+  dst_total_neighbor_count: Int
+  src: String
+  src_score: float8
+  src_total_neighbor_count: Int
+}
+
+"""
 order by sum() on columns of table "mutual_score"
 """
 input mutual_score_sum_order_by {
@@ -3373,6 +3463,11 @@ type InviteGenealogyChildrenPage {
   edges: [InviteGenealogyEdge!]!
 }
 
+type InviteGenealogyChildCount {
+  node_key: String!
+  total_children: Int!
+}
+
 type query_root {
   notificationsFeed(limit: Int, before: String): [NotificationItem!]!
   notificationsUnreadCount: Int!
@@ -3612,7 +3707,7 @@ type query_root {
   personFriendContextBatch(subjectUserIds: [String!]!): [v2_PersonFriendContext!]!
 
   """
-  execute function "graph" which returns "mutual_score"
+  execute function "graph" which returns "graph_score"
   """
   graph(
     """
@@ -3621,7 +3716,7 @@ type query_root {
     args: graph_args!
 
     """distinct select on columns"""
-    distinct_on: [mutual_score_select_column!]
+    distinct_on: [graph_score_select_column!]
 
     """limit the number of rows returned"""
     limit: Int
@@ -3630,11 +3725,11 @@ type query_root {
     offset: Int
 
     """sort the rows by one or more columns"""
-    order_by: [mutual_score_order_by!]
+    order_by: [graph_score_order_by!]
 
     """filter the rows returned"""
-    where: mutual_score_bool_exp
-  ): [mutual_score!]!
+    where: graph_score_bool_exp
+  ): [graph_score!]!
 
   """
   fetch data from the table: "image"
@@ -3708,6 +3803,9 @@ type query_root {
 
   """V2: shared invite genealogy between the viewer and [target_id]."""
   inviteGenealogyBetween(target_id: String!): InviteGenealogy
+
+  """V2: total direct invite-genealogy children for each node key."""
+  inviteGenealogyChildCounts(node_keys: [String!]): [InviteGenealogyChildCount!]!
 
   """V2: one bounded page of direct invite-genealogy children."""
   inviteGenealogyChildren(node_key: String!, after_created_at: String, after_node_key: String, limit: Int): InviteGenealogyChildrenPage
@@ -4380,7 +4478,7 @@ type subscription_root {
   ): [edge!]!
 
   """
-  execute function "graph" which returns "mutual_score"
+  execute function "graph" which returns "graph_score"
   """
   graph(
     """
@@ -4389,7 +4487,7 @@ type subscription_root {
     args: graph_args!
 
     """distinct select on columns"""
-    distinct_on: [mutual_score_select_column!]
+    distinct_on: [graph_score_select_column!]
 
     """limit the number of rows returned"""
     limit: Int
@@ -4398,11 +4496,11 @@ type subscription_root {
     offset: Int
 
     """sort the rows by one or more columns"""
-    order_by: [mutual_score_order_by!]
+    order_by: [graph_score_order_by!]
 
     """filter the rows returned"""
-    where: mutual_score_bool_exp
-  ): [mutual_score!]!
+    where: graph_score_bool_exp
+  ): [graph_score!]!
 
   """
   fetch data from the table: "image"

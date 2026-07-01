@@ -29,6 +29,8 @@ class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
   InviteGenealogyChildrenPageEntity childrenPage =
       const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
 
+  Map<String, int> childCounts = const {};
+
   @override
   Future<void> recordSignupEdge({
     required String ancestorUserId,
@@ -66,4 +68,11 @@ class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
     DateTime? afterCreatedAt,
     String? afterNodeKey,
   }) async => childrenPage;
+
+  @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async => {
+    for (final nodeKey in nodeKeys) nodeKey: childCounts[nodeKey] ?? 0,
+  };
 }

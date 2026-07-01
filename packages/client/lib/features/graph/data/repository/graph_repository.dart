@@ -55,6 +55,8 @@ class GraphRepository extends RemoteRepository
             weight: weight,
             node: BeaconNode(beacon: (beacon as BeaconModel).toEntity()),
             branch: null,
+            srcTotalNeighborCount: e.src_total_neighbor_count,
+            dstTotalNeighborCount: e.dst_total_neighbor_count,
           ));
         }
       } else {
@@ -64,6 +66,8 @@ class GraphRepository extends RemoteRepository
           weight: weight,
           node: UserNode(user: (user as UserModel).toEntity()),
           branch: null,
+          srcTotalNeighborCount: e.src_total_neighbor_count,
+          dstTotalNeighborCount: e.dst_total_neighbor_count,
         ));
       }
     }

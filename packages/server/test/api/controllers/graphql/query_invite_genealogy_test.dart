@@ -49,6 +49,11 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     DateTime? afterCreatedAt,
     String? afterNodeKey,
   }) async => const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
+
+  @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async => {for (final nodeKey in nodeKeys) nodeKey: 0};
 }
 
 class _FakeMeritScoreLookup implements MeritScoreLookupPort {
@@ -105,6 +110,16 @@ void main() {
     });
   }
 
+  Future<Object?> resolveChildCounts(List<String> nodeKeys) async {
+    final field = query.all.singleWhere(
+      (field) => field.name == 'inviteGenealogyChildCounts',
+    );
+    return field.resolve!(null, {
+      kContextJwtKey: const JwtEntity(sub: 'Uviewer'),
+      'node_keys': nodeKeys,
+    });
+  }
+
   test('inviteGenealogyChildren rejects a cursor with only created_at', () {
     expect(
       () => resolveChildren({
@@ -137,4 +152,26 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
   });
+
+  test('inviteGenealogyChildCounts validates every node key', () {
+    expect(
+      () => resolveChildCounts(['not-a-node-key']),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test(
+    'inviteGenealogyChildCounts returns rows for requested node keys',
+    () async {
+      final result = await resolveChildCounts([
+        'G${'a' * 43}',
+        'G${'b' * 43}',
+      ]);
+
+      expect(result, [
+        {'node_key': 'G${'a' * 43}', 'total_children': 0},
+        {'node_key': 'G${'b' * 43}', 'total_children': 0},
+      ]);
+    },
+  );
 }

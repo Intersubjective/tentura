@@ -16,6 +16,7 @@ abstract class GraphState extends StateBase with _$GraphState {
     @Default('') String egoNodeId,
     @Default('') String genealogyTargetNodeKey,
     ForwardsGraphViewerRole? helpOffererViewerRole,
+    @Default(<String, int>{}) Map<String, int> hiddenNeighborCounts,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _GraphState;
 

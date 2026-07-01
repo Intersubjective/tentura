@@ -7,6 +7,7 @@ import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 
 import '../../domain/entity/invite_genealogy_graph.dart';
 import '../gql/_g/invite_genealogy_between_fetch.req.gql.dart';
+import '../gql/_g/invite_genealogy_child_counts_fetch.req.gql.dart';
 import '../gql/_g/invite_genealogy_children_fetch.req.gql.dart';
 import '../gql/_g/invite_genealogy_fetch.req.gql.dart';
 
@@ -155,6 +156,28 @@ class InviteGenealogyRepository extends RemoteRepository
           ),
       ],
     );
+  }
+
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async {
+    final distinctNodeKeys = nodeKeys
+        .where((nodeKey) => nodeKey.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (distinctNodeKeys.isEmpty) {
+      return const {};
+    }
+    final data = await requestDataOnlineOrThrow(
+      GInviteGenealogyChildCountsReq(
+        (b) => b..vars.nodeKeys.replace(distinctNodeKeys),
+      ),
+      label: _label,
+    );
+    return {
+      for (final row in data.inviteGenealogyChildCounts)
+        row.node_key: row.total_children,
+    };
   }
 
   @override

@@ -15,6 +15,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   DateTime? lastChildrenAfterCreatedAt;
   String? lastChildrenAfterNodeKey;
   int? lastChildrenLimit;
+  List<String>? lastChildCountNodeKeys;
 
   @override
   Future<void> recordSignupEdge({
@@ -65,6 +66,14 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     lastChildrenLimit = limit;
     return const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
   }
+
+  @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async {
+    lastChildCountNodeKeys = nodeKeys;
+    return {for (final nodeKey in nodeKeys) nodeKey: nodeKey.length};
+  }
 }
 
 void main() {
@@ -112,5 +121,14 @@ void main() {
     expect(repo.lastChildrenAfterCreatedAt, afterCreatedAt);
     expect(repo.lastChildrenAfterNodeKey, 'Gafter');
     expect(repo.lastChildrenLimit, 10);
+  });
+
+  test('fetchChildCounts delegates node keys to repository', () async {
+    final result = await case_.fetchChildCounts(
+      nodeKeys: ['Gparent', 'Gchild'],
+    );
+
+    expect(result, {'Gparent': 7, 'Gchild': 6});
+    expect(repo.lastChildCountNodeKeys, ['Gparent', 'Gchild']);
   });
 }

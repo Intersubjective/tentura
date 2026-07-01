@@ -24,6 +24,8 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepository {
     nodes: [],
     edges: [],
   );
+  final childCounts = <String, int>{};
+  final childCountCalls = <Set<String>>[];
   final childrenPages = <InviteGenealogyChildrenPage>[];
   final childrenCalls =
       <
@@ -69,6 +71,17 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepository {
   }
 
   @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async {
+    childCountCalls.add(nodeKeys.toSet());
+    return {
+      for (final key in nodeKeys)
+        if (childCounts.containsKey(key)) key: childCounts[key]!,
+    };
+  }
+
+  @override
   Future<Set<EdgeDirected>> fetch({
     bool positiveOnly = true,
     String context = '',
@@ -87,6 +100,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepository {
 
 class _FakeGraphSourceRepository implements GraphSourceRepository {
   int calls = 0;
+  Set<EdgeDirected> Function()? fetchResult;
 
   @override
   Future<Set<EdgeDirected>> fetch({
@@ -98,15 +112,18 @@ class _FakeGraphSourceRepository implements GraphSourceRepository {
     String? viewerUserId,
   }) async {
     calls += 1;
-    return {
-      (
-        src: _viewer.id,
-        dst: _friend.id,
-        weight: 1,
-        node: const UserNode(user: _friend),
-        branch: null,
-      ),
-    };
+    return fetchResult?.call() ??
+        {
+          (
+            src: _viewer.id,
+            dst: _friend.id,
+            weight: 1,
+            node: const UserNode(user: _friend),
+            branch: null,
+            srcTotalNeighborCount: null,
+            dstTotalNeighborCount: null,
+          ),
+        };
   }
 }
 
@@ -316,6 +333,114 @@ void main() {
   });
 
   test(
+    'genealogy bootstrap populates hidden child counts for lineage nodes',
+    () async {
+      final rootAt = DateTime.utc(2026);
+      final viewerAt = DateTime.utc(2026, 2);
+      final targetAt = DateTime.utc(2026, 3);
+      final repo = _FakeInviteGenealogyRepository()
+        ..bootstrapGraph = InviteGenealogyGraph(
+          viewerNodeKey: 'Gviewer',
+          targetNodeKey: 'Gtarget',
+          nodes: [
+            _node(
+              'Groot',
+              const Profile(id: 'Uroot', displayName: 'Root'),
+              rootAt,
+            ),
+            _node('Gviewer', _viewer, viewerAt),
+            _node('Gtarget', _target, targetAt),
+          ],
+          edges: [
+            _edge('Groot', 'Gviewer', rootAt, viewerAt),
+            _edge('Groot', 'Gtarget', rootAt, targetAt),
+          ],
+        )
+        ..childCounts.addAll({
+          'Groot': 3,
+          'Gviewer': 1,
+          'Gtarget': 0,
+        });
+      final cubit = _cubit(repo: repo, targetId: _target.id);
+
+      await _settleCubitFetch();
+
+      expect(repo.childCountCalls, [
+        {'Groot', 'Gviewer', 'Gtarget'},
+      ]);
+      expect(cubit.state.hiddenNeighborCounts, {
+        'Groot': 1,
+        'Gviewer': 1,
+      });
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'genealogy child expansion decreases hidden count to zero across pages',
+    () async {
+      final rootAt = DateTime.utc(2026);
+      final child1At = DateTime.utc(2026, 2);
+      final child2At = DateTime.utc(2026, 3);
+      final repo = _FakeInviteGenealogyRepository()
+        ..bootstrapGraph = InviteGenealogyGraph(
+          viewerNodeKey: 'Groot',
+          nodes: [_node('Groot', _viewer, rootAt)],
+          edges: [],
+        )
+        ..childCounts.addAll({
+          'Groot': 2,
+          'Gchild1': 1,
+          'Gchild2': 0,
+        })
+        ..childrenPages.addAll([
+          (
+            nodes: [
+              _node('Groot', _viewer, rootAt),
+              _node('Gchild1', _friend, child1At),
+            ],
+            edges: [_edge('Groot', 'Gchild1', rootAt, child1At)],
+          ),
+          (
+            nodes: [
+              _node('Groot', _viewer, rootAt),
+              _node('Gchild2', _target, child2At),
+            ],
+            edges: [_edge('Groot', 'Gchild2', rootAt, child2At)],
+          ),
+        ]);
+      final cubit = _cubit(repo: repo);
+      await _settleCubitFetch();
+      final root = cubit.graphController.nodes.singleWhere(
+        (n) => n.id == 'Groot',
+      );
+
+      expect(cubit.state.hiddenNeighborCounts, {'Groot': 2});
+
+      cubit.setFocus(root);
+      await _settleCubitFetch();
+
+      expect(cubit.state.hiddenNeighborCounts, {
+        'Groot': 1,
+        'Gchild1': 1,
+      });
+
+      cubit.setFocus(root);
+      await _settleCubitFetch();
+
+      expect(cubit.state.hiddenNeighborCounts, {'Gchild1': 1});
+      expect(repo.childCountCalls, [
+        {'Groot'},
+        {'Groot', 'Gchild1'},
+        {'Groot', 'Gchild2'},
+      ]);
+
+      await cubit.close();
+    },
+  );
+
+  test(
     'child expansion does not duplicate an existing bootstrap edge',
     () async {
       final rootAt = DateTime.utc(2026);
@@ -446,6 +571,39 @@ void main() {
 
       expect(source.calls, greaterThanOrEqualTo(2));
       expect(cubit.graphController.edges, hasLength(1));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'regular graph derives hidden counts from endpoint total degrees',
+    () async {
+      final source = _FakeGraphSourceRepository()
+        ..fetchResult = () => {
+          (
+            src: _viewer.id,
+            dst: _friend.id,
+            weight: 1,
+            node: const UserNode(user: _friend),
+            branch: null,
+            srcTotalNeighborCount: 3,
+            dstTotalNeighborCount: 1,
+          ),
+        };
+      final cubit = GraphCubit(
+        me: _viewer,
+        graphSourceRepository: source,
+        edgeColors: _edgeColors,
+        beaconRepository: _FakeBeaconRepository(),
+        profileRepository: _FakeProfileRepository(),
+        effects: FakeUiEffectPort(),
+      );
+
+      await _settleCubitFetch();
+
+      expect(cubit.graphController.edges, hasLength(1));
+      expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 2});
 
       await cubit.close();
     },
