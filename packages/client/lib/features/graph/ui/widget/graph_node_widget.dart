@@ -11,11 +11,13 @@ class GraphNodeWidget extends StatelessWidget {
   const GraphNodeWidget({
     required this.nodeDetails,
     this.withRating = false,
+    this.isSelf = false,
     this.onTap,
     super.key,
   });
 
   final bool withRating;
+  final bool isSelf;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
@@ -51,8 +53,10 @@ class GraphNodeWidget extends StatelessWidget {
         final GenealogyUserNode genealogyUser => TenturaAvatar(
           profile: genealogyUser.user,
           size: nodeDetails.size,
-          withRating: withRating,
-          isSelf: false,
+          // Self never gets the eye/mutual-friend or rating overlay — those
+          // are relative-to-viewer signals that don't apply to one's own node.
+          withRating: withRating && !isSelf,
+          isSelf: isSelf,
         ),
         final GenealogyDeletedNode _ => CircleAvatar(
           radius: nodeDetails.size / 2,

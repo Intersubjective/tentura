@@ -30,4 +30,30 @@ void main() {
     expect(avatar.profile.id, profile.id);
     expect(avatar.withRating, isTrue);
   });
+
+  testWidgets('self genealogy node suppresses rating/contact chrome', (
+    tester,
+  ) async {
+    const profile = Profile(
+      id: 'Uviewer',
+      displayName: 'Viewer',
+      score: 3,
+      rScore: 3,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: const GraphNodeWidget(
+          nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: profile),
+          withRating: true,
+          isSelf: true,
+        ),
+      ),
+    );
+
+    final avatar = tester.widget<TenturaAvatar>(find.byType(TenturaAvatar));
+    expect(avatar.withRating, isFalse);
+    expect(avatar.withContactBadge, isFalse);
+    expect(avatar.isSelf, isTrue);
+  });
 }
