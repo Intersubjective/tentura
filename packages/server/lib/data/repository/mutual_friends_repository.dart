@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
@@ -24,6 +25,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
     this._database,
     this._userPresenceRepository,
     this._voteUserFriendshipLookup,
+    this._meritScoreLookup,
   );
 
   final TenturaDb _database;
@@ -31,6 +33,8 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
   final UserPresenceRepositoryPort _userPresenceRepository;
 
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
+
+  final MeritScoreLookupPort _meritScoreLookup;
 
   /// Mutual friends of [aliceId] and [bobId] in [context], as domain records
   /// (same fields as `gqlTypeUserPublic`).
@@ -57,7 +61,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           peerIds: rows.map((r) => r.data['id']! as String),
         );
 
-    final peerScores = await _fetchPeerScoresForViewer(
+    final peerScores = await _meritScoreLookup.reciprocalScoresForViewer(
       viewerId: aliceId,
       context: context,
     );
@@ -95,16 +99,9 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
 
       final presence = await _userPresenceRepository.get(id);
       final peerScore = peerScores[id];
-      // Align with Hasura `UserModel` / `gqlTypeMutualScore`: `dst_score` →
-      // Profile.score (viewer→peer), `src_score` → Profile.rScore (peer→viewer).
       final scores = peerScore == null
           ? const <MutualScoreRecord>[]
-          : [
-              MutualScoreRecord(
-                srcScore: peerScore.rev,
-                dstScore: peerScore.fwd,
-              ),
-            ];
+          : [peerScore];
       final userPresence = presence == null
           ? null
           : UserPresenceRecord(
@@ -126,64 +123,4 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
     }
     return out;
   }
-
-  /// Alice→peer (fwd) and peer→Alice (rev) from `mr_mutual_scores`, same
-  /// semantics as `mutual_friends` SQL (`alice_peers` CTE).
-  Future<Map<String, _PeerMrScores>> _fetchPeerScoresForViewer({
-    required String viewerId,
-    required String context,
-  }) async {
-    final scoreRows = await _database
-        .customSelect(
-          r'''
-SELECT
-  CASE WHEN ms.src = $1 THEN ms.dst::text ELSE ms.src::text END AS peer_id,
-  CASE WHEN ms.src = $1 THEN ms.score_value_of_dst
-       ELSE ms.score_value_of_src END AS fwd_alice,
-  CASE WHEN ms.src = $1 THEN ms.score_value_of_src
-       ELSE ms.score_value_of_dst END AS rev_alice
-FROM mr_mutual_scores($1, $2) ms
-WHERE (ms.src = $1 OR ms.dst = $1)
-  AND ms.score_value_of_src > 0::double precision
-  AND ms.score_value_of_dst > 0::double precision
-''',
-          variables: [
-            Variable<String>(viewerId),
-            Variable<String>(context),
-          ],
-        )
-        .get();
-
-    final out = <String, _PeerMrScores>{};
-    for (final row in scoreRows) {
-      final peerId = row.data['peer_id']! as String;
-      out[peerId] = _PeerMrScores(
-        fwd: _asDouble(row.data['fwd_alice']),
-        rev: _asDouble(row.data['rev_alice']),
-      );
-    }
-    return out;
-  }
-
-  static double _asDouble(Object? value) {
-    if (value == null) {
-      return 0;
-    }
-    if (value is num) {
-      return value.toDouble();
-    }
-    throw StateError('Expected num, got ${value.runtimeType}');
-  }
-}
-
-/// Forward (viewer→peer) and reverse (peer→viewer) MeritRank scores for one
-/// peer of `viewerId`.
-class _PeerMrScores {
-  const _PeerMrScores({
-    required this.fwd,
-    required this.rev,
-  });
-
-  final double fwd;
-  final double rev;
 }

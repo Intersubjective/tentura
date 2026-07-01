@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -6,6 +7,8 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 Map<String, dynamic> inviteGenealogyGraphToGqlMap(
   InviteGenealogyGraphEntity graph, {
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
+  Map<String, MutualScoreRecord> scoresByUserId = const {},
+  Set<String> mutualFriendUserIds = const {},
 }) => {
   'viewer_node_key': graph.viewerNodeKey,
   'target_node_key': graph.targetNodeKey,
@@ -15,6 +18,8 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
       inviteGenealogyNodeToGqlMap(
         node,
         userPublicToGqlMap: userPublicToGqlMap,
+        scoresByUserId: scoresByUserId,
+        mutualFriendUserIds: mutualFriendUserIds,
       ),
   ],
   'edges': [
@@ -25,12 +30,16 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
 Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
   InviteGenealogyChildrenPageEntity page, {
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
+  Map<String, MutualScoreRecord> scoresByUserId = const {},
+  Set<String> mutualFriendUserIds = const {},
 }) => {
   'nodes': [
     for (final node in page.nodes)
       inviteGenealogyNodeToGqlMap(
         node,
         userPublicToGqlMap: userPublicToGqlMap,
+        scoresByUserId: scoresByUserId,
+        mutualFriendUserIds: mutualFriendUserIds,
       ),
   ],
   'edges': [
@@ -41,13 +50,23 @@ Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
 Map<String, dynamic> inviteGenealogyNodeToGqlMap(
   InviteGenealogyNodeEntity node, {
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
+  Map<String, MutualScoreRecord> scoresByUserId = const {},
+  Set<String> mutualFriendUserIds = const {},
 }) {
   final user = node.user;
   return {
     'node_key': node.nodeKey,
     'deleted_at': node.deletedAt?.toUtc().toIso8601String(),
     'user_created_at': node.userCreatedAt?.toUtc().toIso8601String(),
-    'user': user == null ? null : userPublicToGqlMap(_userToPublic(user)),
+    'user': user == null
+        ? null
+        : userPublicToGqlMap(
+            _userToPublic(
+              user,
+              score: scoresByUserId[user.id],
+              isMutualFriend: mutualFriendUserIds.contains(user.id),
+            ),
+          ),
   };
 }
 
@@ -65,13 +84,19 @@ Map<String, dynamic> inviteGenealogyEdgeToGqlMap(
   'created_at': edge.createdAt.toUtc().toIso8601String(),
 };
 
-UserPublicRecord _userToPublic(UserEntity user) {
+UserPublicRecord _userToPublic(
+  UserEntity user, {
+  required bool isMutualFriend,
+  MutualScoreRecord? score,
+}) {
   final image = user.image;
   return UserPublicRecord(
     id: user.id,
     displayName: user.displayName,
     handle: user.handle.trim().isEmpty ? null : user.handle.trim(),
     description: user.description,
+    isMutualFriend: isMutualFriend,
+    scores: score == null ? const [] : [score],
     image: image == null
         ? null
         : ImagePublicRecord(
