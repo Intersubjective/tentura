@@ -74,6 +74,7 @@ ON CONFLICT (subject, object) DO UPDATE SET
       await trustEdge(aliceId, bobId, 1);
       await trustEdge(aliceId, charlieId, -1);
       await trustEdge(bobId, charlieId, 1);
+      await trustEdge(charlieId, bobId, 1);
     });
 
     tearDownAll(() async {
@@ -113,6 +114,26 @@ DELETE FROM public.user_trust_edge WHERE subject IN ($idList)
       expect(aliceAll, 2);
       expect(alicePositive, 1);
       expect(bobPositive, 2);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'user_trust_edge_degree counts distinct neighbors, not directed rows, '
+    'for a fully mutual relationship',
+    () async {
+      if (skipReason != false) return;
+
+      // bob<->charlie is mutual (two directed rows, one neighbor): a naive
+      // COUNT(*) over rows would report 3 for bob (alice, ->charlie,
+      // charlie->), double-counting charlie.
+      final bobAll = await _degree(
+        db,
+        nodeId: bobId,
+        positiveOnly: false,
+      );
+
+      expect(bobAll, 2);
     },
     skip: skipReason,
   );

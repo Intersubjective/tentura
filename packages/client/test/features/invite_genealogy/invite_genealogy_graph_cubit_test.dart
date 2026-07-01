@@ -609,6 +609,74 @@ void main() {
     },
   );
 
+  test(
+    'regular graph hidden count is stable when an unrelated focus tap '
+    'later surfaces the reverse edge of an already-mutual relationship',
+    () async {
+      const stranger = Profile(id: 'Ustranger', displayName: 'Stranger');
+      final fetches = <Set<EdgeDirected>>[
+        {
+          (
+            src: _viewer.id,
+            dst: _friend.id,
+            weight: 1,
+            node: const UserNode(user: _friend),
+            branch: null,
+            srcTotalNeighborCount: 3,
+            dstTotalNeighborCount: 1,
+          ),
+          (
+            src: _viewer.id,
+            dst: stranger.id,
+            weight: 1,
+            node: const UserNode(user: stranger),
+            branch: null,
+            srcTotalNeighborCount: 3,
+            dstTotalNeighborCount: 0,
+          ),
+        },
+        // MeritRank reports a mutual relationship as two directed rows.
+        // This is the reverse direction of the *same* viewer<->friend
+        // relationship above, surfaced only because `stranger` — an
+        // unrelated node — was tapped.
+        {
+          (
+            src: _friend.id,
+            dst: _viewer.id,
+            weight: 1,
+            node: const UserNode(user: _viewer),
+            branch: null,
+            srcTotalNeighborCount: 1,
+            dstTotalNeighborCount: 3,
+          ),
+        },
+      ];
+      final source = _FakeGraphSourceRepository()
+        ..fetchResult = () => fetches.removeAt(0);
+      final cubit = GraphCubit(
+        me: _viewer,
+        graphSourceRepository: source,
+        edgeColors: _edgeColors,
+        beaconRepository: _FakeBeaconRepository(),
+        profileRepository: _FakeProfileRepository(),
+        effects: FakeUiEffectPort(),
+      );
+
+      await _settleCubitFetch();
+      expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 1});
+
+      final strangerNode = cubit.graphController.nodes.singleWhere(
+        (n) => n.id == stranger.id,
+      );
+      cubit.setFocus(strangerNode);
+      await _settleCubitFetch();
+
+      expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 1});
+
+      await cubit.close();
+    },
+  );
+
   test('generic repository fetch adapter fails loudly', () async {
     final remote = RemoteApiService(const Env());
     final repository = InviteGenealogyRepository(

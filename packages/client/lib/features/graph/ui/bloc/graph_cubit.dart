@@ -601,31 +601,32 @@ class GraphCubit extends Cubit<GraphState> {
     if (_totalNeighborCounts.isEmpty) {
       return const {};
     }
-    final visibleCounts = <String, int>{};
+    // Count distinct neighbor ids, not edges: a mutual relationship is
+    // reported by MeritRank as two directed rows (one per direction), which
+    // would otherwise double-count a single neighbor — and since either
+    // direction can arrive from a *different* focus query, that miscount
+    // could shift a node's badge as a side effect of tapping an unrelated
+    // node, once the other direction of an already-known neighbor loads.
+    final visibleNeighborIds = <String, Set<String>>{};
     for (final edge in graphController.edges) {
       if (genealogyMode) {
-        visibleCounts.update(
-          edge.source.id,
-          (value) => value + 1,
-          ifAbsent: () => 1,
-        );
+        visibleNeighborIds
+            .putIfAbsent(edge.source.id, () => <String>{})
+            .add(edge.destination.id);
       } else {
-        visibleCounts.update(
-          edge.source.id,
-          (value) => value + 1,
-          ifAbsent: () => 1,
-        );
-        visibleCounts.update(
-          edge.destination.id,
-          (value) => value + 1,
-          ifAbsent: () => 1,
-        );
+        visibleNeighborIds
+            .putIfAbsent(edge.source.id, () => <String>{})
+            .add(edge.destination.id);
+        visibleNeighborIds
+            .putIfAbsent(edge.destination.id, () => <String>{})
+            .add(edge.source.id);
       }
     }
 
     final hidden = <String, int>{};
     for (final entry in _totalNeighborCounts.entries) {
-      final hiddenCount = entry.value - (visibleCounts[entry.key] ?? 0);
+      final visibleCount = visibleNeighborIds[entry.key]?.length ?? 0;
+      final hiddenCount = entry.value - visibleCount;
       if (hiddenCount > 0) {
         hidden[entry.key] = hiddenCount;
       }
