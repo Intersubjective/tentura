@@ -22,6 +22,22 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
   ],
 };
 
+Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
+  InviteGenealogyChildrenPageEntity page, {
+  required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
+}) => {
+  'nodes': [
+    for (final node in page.nodes)
+      inviteGenealogyNodeToGqlMap(
+        node,
+        userPublicToGqlMap: userPublicToGqlMap,
+      ),
+  ],
+  'edges': [
+    for (final edge in page.edges) inviteGenealogyEdgeToGqlMap(edge),
+  ],
+};
+
 Map<String, dynamic> inviteGenealogyNodeToGqlMap(
   InviteGenealogyNodeEntity node, {
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
@@ -40,10 +56,12 @@ Map<String, dynamic> inviteGenealogyEdgeToGqlMap(
 ) => {
   'ancestor_node_key': edge.ancestorNodeKey,
   'descendant_node_key': edge.descendantNodeKey,
-  'ancestor_user_created_at':
-      edge.ancestorUserCreatedAt.toUtc().toIso8601String(),
-  'descendant_user_created_at':
-      edge.descendantUserCreatedAt.toUtc().toIso8601String(),
+  'ancestor_user_created_at': edge.ancestorUserCreatedAt
+      .toUtc()
+      .toIso8601String(),
+  'descendant_user_created_at': edge.descendantUserCreatedAt
+      .toUtc()
+      .toIso8601String(),
   'created_at': edge.createdAt.toUtc().toIso8601String(),
 };
 

@@ -1,5 +1,7 @@
 import 'node_details.dart';
 
+enum GenealogyEdgeBranch { ego, target, neutral }
+
 /// One directed edge for the graph view.
 ///
 /// `node` is an optional payload describing the destination node (the source
@@ -11,4 +13,5 @@ typedef EdgeDirected = ({
   String dst,
   double weight,
   NodeDetails? node,
+  GenealogyEdgeBranch? branch,
 });

@@ -9,6 +9,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeAuthResponse,
   gqlTypeInvitation,
   gqlTypeInviteGenealogy,
+  gqlTypeInviteGenealogyChildrenPage,
   gqlTypeInviteGenealogyNode,
   gqlTypeInviteGenealogyEdge,
   gqlTypeProfile,
@@ -57,23 +58,22 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
 ];
 
 /// One durable Notification Center row.
-final gqlTypeNotificationItem =
-    GraphQLObjectType('NotificationItem', null)
-      ..fields.addAll([
-        field('id', graphQLString.nonNullable()),
-        field('category', graphQLString.nonNullable()),
-        field('kind', graphQLString.nonNullable()),
-        field('priority', graphQLString.nonNullable()),
-        field('title', graphQLString.nonNullable()),
-        field('body', graphQLString.nonNullable()),
-        field('actionUrl', graphQLString.nonNullable()),
-        field('createdAt', graphQLString.nonNullable()),
-        field('readAt', graphQLString),
-        field('collapsedCount', graphQLInt.nonNullable()),
-        field('beaconId', graphQLString),
-        field('coordinationItemId', graphQLString),
-        field('actorUserId', graphQLString),
-      ]);
+final gqlTypeNotificationItem = GraphQLObjectType('NotificationItem', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('category', graphQLString.nonNullable()),
+    field('kind', graphQLString.nonNullable()),
+    field('priority', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('body', graphQLString.nonNullable()),
+    field('actionUrl', graphQLString.nonNullable()),
+    field('createdAt', graphQLString.nonNullable()),
+    field('readAt', graphQLString),
+    field('collapsedCount', graphQLInt.nonNullable()),
+    field('beaconId', graphQLString),
+    field('coordinationItemId', graphQLString),
+    field('actorUserId', graphQLString),
+  ]);
 
 /// Account notification preferences (channel × category matrix + controls).
 final gqlTypeNotificationPreferences =
@@ -105,62 +105,60 @@ final gqlTypeRoomMessageCreatePayload =
       ]);
 
 /// V2 room chat message row (minimal projection).
-final gqlTypeRoomMessageRow =
-    GraphQLObjectType('RoomMessageRow', null)
-      ..fields.addAll([
-        field('id', graphQLString.nonNullable()),
-        field('beaconId', graphQLString.nonNullable()),
-        field('authorId', graphQLString.nonNullable()),
-        field('body', graphQLString.nonNullable()),
-        field('createdAt', graphQLString.nonNullable()),
-        field('editedAt', graphQLString),
-        field('semanticMarker', graphQLInt),
-        field('linkedBlockerId', graphQLString),
-        field('linkedFactCardId', graphQLString),
-        field('linkedPollingId', graphQLString),
-        field('linkedItemId', graphQLString),
-        field('linkedEventKind', graphQLInt),
-        field('linkedItemKind', graphQLInt),
-        field('linkedItemStatus', graphQLInt),
-        field('linkedItemTitle', graphQLString),
-        field('linkedItemBody', graphQLString),
-        field('linkedItemCreatorId', graphQLString),
-        field('linkedItemTargetPersonId', graphQLString),
-        field('linkedItemCreatedAt', graphQLString),
-        field('linkedItemUpdatedAt', graphQLString),
-        field('linkedItemLinkedMessageId', graphQLString),
-        field('linkedItemResolvedAt', graphQLString),
-        field('pollDataJson', graphQLString),
-        field('systemPayloadJson', graphQLString),
-        field('authorTitle', graphQLString.nonNullable()),
-        field('authorHasPicture', graphQLBoolean.nonNullable()),
-        field('authorPicHeight', graphQLInt.nonNullable()),
-        field('authorPicWidth', graphQLInt.nonNullable()),
-        field('authorBlurHash', graphQLString.nonNullable()),
-        field('authorImageId', graphQLString.nonNullable()),
-        field('reactionsJson', graphQLString),
-        field('myReaction', graphQLString),
-        field('reactorsJson', graphQLString),
-        field('attachmentsJson', graphQLString.nonNullable()),
-        field(
-          'mentions',
-          GraphQLListType(graphQLString.nonNullable()),
-        ),
-        field('threadItemId', graphQLString),
-      ]);
+final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('body', graphQLString.nonNullable()),
+    field('createdAt', graphQLString.nonNullable()),
+    field('editedAt', graphQLString),
+    field('semanticMarker', graphQLInt),
+    field('linkedBlockerId', graphQLString),
+    field('linkedFactCardId', graphQLString),
+    field('linkedPollingId', graphQLString),
+    field('linkedItemId', graphQLString),
+    field('linkedEventKind', graphQLInt),
+    field('linkedItemKind', graphQLInt),
+    field('linkedItemStatus', graphQLInt),
+    field('linkedItemTitle', graphQLString),
+    field('linkedItemBody', graphQLString),
+    field('linkedItemCreatorId', graphQLString),
+    field('linkedItemTargetPersonId', graphQLString),
+    field('linkedItemCreatedAt', graphQLString),
+    field('linkedItemUpdatedAt', graphQLString),
+    field('linkedItemLinkedMessageId', graphQLString),
+    field('linkedItemResolvedAt', graphQLString),
+    field('pollDataJson', graphQLString),
+    field('systemPayloadJson', graphQLString),
+    field('authorTitle', graphQLString.nonNullable()),
+    field('authorHasPicture', graphQLBoolean.nonNullable()),
+    field('authorPicHeight', graphQLInt.nonNullable()),
+    field('authorPicWidth', graphQLInt.nonNullable()),
+    field('authorBlurHash', graphQLString.nonNullable()),
+    field('authorImageId', graphQLString.nonNullable()),
+    field('reactionsJson', graphQLString),
+    field('myReaction', graphQLString),
+    field('reactorsJson', graphQLString),
+    field('attachmentsJson', graphQLString.nonNullable()),
+    field(
+      'mentions',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field('threadItemId', graphQLString),
+  ]);
 
 /// `beacon_room_state` row — one per beacon.
-final gqlTypeBeaconRoomStateRow =
-    GraphQLObjectType('BeaconRoomStateRow', null)
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('currentLine', graphQLString.nonNullable()),
-        field('openBlockerId', graphQLString),
-        field('openBlockerTitle', graphQLString),
-        field('lastRoomMeaningfulChange', graphQLString),
-        field('updatedAt', graphQLString.nonNullable()),
-        field('updatedBy', graphQLString),
-      ]);
+final gqlTypeBeaconRoomStateRow = GraphQLObjectType('BeaconRoomStateRow', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('currentLine', graphQLString.nonNullable()),
+    field('openBlockerId', graphQLString),
+    field('openBlockerTitle', graphQLString),
+    field('lastRoomMeaningfulChange', graphQLString),
+    field('updatedAt', graphQLString.nonNullable()),
+    field('updatedBy', graphQLString),
+  ]);
 
 /// Participant row for BeaconParticipantList (selection via V2 only).
 final gqlTypeBeaconParticipantRow =
@@ -191,21 +189,20 @@ final gqlTypeBeaconParticipantRow =
       ]);
 
 /// `beacon_fact_card` projection for BeaconFactCardList (V2 only).
-final gqlTypeBeaconFactCardRow =
-    GraphQLObjectType('BeaconFactCardRow', null)
-      ..fields.addAll([
-        field('id', graphQLString.nonNullable()),
-        field('beaconId', graphQLString.nonNullable()),
-        field('factText', graphQLString.nonNullable()),
-        field('visibility', graphQLInt.nonNullable()),
-        field('pinnedBy', graphQLString.nonNullable()),
-        field('pinnedByTitle', graphQLString.nonNullable()),
-        field('sourceMessageId', graphQLString),
-        field('status', graphQLInt.nonNullable()),
-        field('createdAt', graphQLString.nonNullable()),
-        field('updatedAt', graphQLString),
-        field('attachmentsJson', graphQLString.nonNullable()),
-      ]);
+final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('factText', graphQLString.nonNullable()),
+    field('visibility', graphQLInt.nonNullable()),
+    field('pinnedBy', graphQLString.nonNullable()),
+    field('pinnedByTitle', graphQLString.nonNullable()),
+    field('sourceMessageId', graphQLString),
+    field('status', graphQLInt.nonNullable()),
+    field('createdAt', graphQLString.nonNullable()),
+    field('updatedAt', graphQLString),
+    field('attachmentsJson', graphQLString.nonNullable()),
+  ]);
 
 /// `beacon_activity_event` projection for BeaconActivityEventList (V2).
 final gqlTypeBeaconActivityEventRow =
@@ -271,14 +268,13 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
   ]);
 
 /// Per-recipient forward record from the current user's perspective.
-final gqlTypeMyForwardRecipient =
-    GraphQLObjectType('MyForwardRecipient', null)
-      ..fields.addAll([
-        field('edgeId', graphQLString.nonNullable()),
-        field('recipientId', graphQLString.nonNullable()),
-        field('note', graphQLString.nonNullable()),
-        field('readAt', graphQLString),
-      ]);
+final gqlTypeMyForwardRecipient = GraphQLObjectType('MyForwardRecipient', null)
+  ..fields.addAll([
+    field('edgeId', graphQLString.nonNullable()),
+    field('recipientId', graphQLString.nonNullable()),
+    field('note', graphQLString.nonNullable()),
+    field('readAt', graphQLString),
+  ]);
 
 /// V2-only: forward-screen involvement id sets (see `beaconInvolvement` query).
 /// List fields are nullable in GraphQL to match Hasura remote-schema merge; resolver always returns lists.
@@ -330,21 +326,20 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
 /// only for `beaconHelpOffererForwardPath` (so the client can derive whether the
 /// viewer is the beacon author, the focused help offerer, or an "involved
 /// other"). Callers of the older `beaconForwardGraph` ignore the field.
-final gqlTypeForwardGraphResult =
-    GraphQLObjectType('ForwardGraphResult', null)
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('authorId', graphQLString.nonNullable()),
-        field('viewerId', graphQLString),
-        field(
-          'helpOffererIds',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-        ),
-        field(
-          'edges',
-          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
-        ),
-      ]);
+final gqlTypeForwardGraphResult = GraphQLObjectType('ForwardGraphResult', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('viewerId', graphQLString),
+    field(
+      'helpOffererIds',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
+    field(
+      'edges',
+      GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
+    ),
+  ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).
 final gqlTypeProfile = GraphQLObjectType('User', null)
@@ -447,6 +442,19 @@ final gqlTypeInviteGenealogy = GraphQLObjectType('InviteGenealogy', null)
     ),
   ]);
 
+final gqlTypeInviteGenealogyChildrenPage =
+    GraphQLObjectType('InviteGenealogyChildrenPage', null)
+      ..fields.addAll([
+        field(
+          'nodes',
+          GraphQLListType(gqlTypeInviteGenealogyNode.nonNullable()),
+        ),
+        field(
+          'edges',
+          GraphQLListType(gqlTypeInviteGenealogyEdge.nonNullable()),
+        ),
+      ]);
+
 /// Per-viewer private contact name (subjective profiles). Viewer-scoped:
 /// only ever returned for the authenticated caller as viewer.
 final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
@@ -457,140 +465,148 @@ final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
   ]);
 
 /// `beaconClose` result.
-final gqlTypeBeaconCloseReviewResult = GraphQLObjectType(
-  'BeaconCloseReviewResult',
-  null,
-)
-  ..fields.addAll([
-    field('id', graphQLString.nonNullable()),
-    field('status', graphQLInt.nonNullable()),
-    field('closesAt', graphQLString),
-  ]);
+final gqlTypeBeaconCloseReviewResult =
+    GraphQLObjectType(
+        'BeaconCloseReviewResult',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('closesAt', graphQLString),
+      ]);
 
-final gqlTypeEvaluationParticipant = GraphQLObjectType(
-  'EvaluationParticipant',
-  null,
-)
-  ..fields.addAll([
-    field('userId', graphQLString.nonNullable()),
-    field('displayName', graphQLString.nonNullable()),
-    field('imageId', graphQLString.nonNullable()),
-    field('role', graphQLInt.nonNullable()),
-    field('contributionSummary', graphQLString.nonNullable()),
-    field('causalHint', graphQLString.nonNullable()),
-    field('value', graphQLInt),
-    field(
-      'reasonTags',
-      GraphQLListType(graphQLString.nonNullable()),
-    ),
-    field('note', graphQLString.nonNullable()),
-    field('promptVariant', graphQLString.nonNullable()),
-  ]);
+final gqlTypeEvaluationParticipant =
+    GraphQLObjectType(
+        'EvaluationParticipant',
+        null,
+      )
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('imageId', graphQLString.nonNullable()),
+        field('role', graphQLInt.nonNullable()),
+        field('contributionSummary', graphQLString.nonNullable()),
+        field('causalHint', graphQLString.nonNullable()),
+        field('value', graphQLInt),
+        field(
+          'reasonTags',
+          GraphQLListType(graphQLString.nonNullable()),
+        ),
+        field('note', graphQLString.nonNullable()),
+        field('promptVariant', graphQLString.nonNullable()),
+      ]);
 
 /// One saved draft row for `evaluationDrafts` query.
-final gqlTypeEvaluationDraftRow = GraphQLObjectType(
-  'EvaluationDraftRow',
-  null,
-)
-  ..fields.addAll([
-    field('evaluatedUserId', graphQLString.nonNullable()),
-    field('value', graphQLInt.nonNullable()),
-    field(
-      'reasonTags',
-      GraphQLListType(graphQLString.nonNullable()),
-    ),
-    field('note', graphQLString.nonNullable()),
-  ]);
+final gqlTypeEvaluationDraftRow =
+    GraphQLObjectType(
+        'EvaluationDraftRow',
+        null,
+      )
+      ..fields.addAll([
+        field('evaluatedUserId', graphQLString.nonNullable()),
+        field('value', graphQLInt.nonNullable()),
+        field(
+          'reasonTags',
+          GraphQLListType(graphQLString.nonNullable()),
+        ),
+        field('note', graphQLString.nonNullable()),
+      ]);
 
-final gqlTypeReviewWindowStatus = GraphQLObjectType(
-  'ReviewWindowStatus',
-  null,
-)
-  ..fields.addAll([
-    field('beaconId', graphQLString.nonNullable()),
-    field('hasWindow', graphQLBoolean.nonNullable()),
-    field('beaconTitle', graphQLString.nonNullable()),
-    field('openedAt', graphQLString),
-    field('closesAt', graphQLString),
-    field('windowComplete', graphQLBoolean),
-    field('userReviewStatus', graphQLInt),
-    field('reviewedCount', graphQLInt),
-    field('totalCount', graphQLInt),
-    field('extensionsUsed', graphQLInt),
-    field('canCloseNow', graphQLBoolean),
-  ]);
+final gqlTypeReviewWindowStatus =
+    GraphQLObjectType(
+        'ReviewWindowStatus',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('hasWindow', graphQLBoolean.nonNullable()),
+        field('beaconTitle', graphQLString.nonNullable()),
+        field('openedAt', graphQLString),
+        field('closesAt', graphQLString),
+        field('windowComplete', graphQLBoolean),
+        field('userReviewStatus', graphQLInt),
+        field('reviewedCount', graphQLInt),
+        field('totalCount', graphQLInt),
+        field('extensionsUsed', graphQLInt),
+        field('canCloseNow', graphQLBoolean),
+      ]);
 
-final gqlTypeEvaluationSummary = GraphQLObjectType(
-  'EvaluationSummary',
-  null,
-)
-  ..fields.addAll([
-    field('suppressed', graphQLBoolean.nonNullable()),
-    field('tone', graphQLString.nonNullable()),
-    field('message', graphQLString.nonNullable()),
-    field(
-      'topReasonTags',
-      GraphQLListType(graphQLString.nonNullable()),
-    ),
-    field('neg2', graphQLInt),
-    field('neg1', graphQLInt),
-    field('zero', graphQLInt),
-    field('pos1', graphQLInt),
-    field('pos2', graphQLInt),
-    field('roleSummaryLine', graphQLString.nonNullable()),
-  ]);
+final gqlTypeEvaluationSummary =
+    GraphQLObjectType(
+        'EvaluationSummary',
+        null,
+      )
+      ..fields.addAll([
+        field('suppressed', graphQLBoolean.nonNullable()),
+        field('tone', graphQLString.nonNullable()),
+        field('message', graphQLString.nonNullable()),
+        field(
+          'topReasonTags',
+          GraphQLListType(graphQLString.nonNullable()),
+        ),
+        field('neg2', graphQLInt),
+        field('neg1', graphQLInt),
+        field('zero', graphQLInt),
+        field('pos1', graphQLInt),
+        field('pos2', graphQLInt),
+        field('roleSummaryLine', graphQLString.nonNullable()),
+      ]);
 
 /// Result of coordination/status mutations (V2).
-final gqlTypeBeaconStatusResult = GraphQLObjectType(
-  'BeaconStatusResult',
-  null,
-)
-  ..fields.addAll([
-    field('beaconId', graphQLString.nonNullable()),
-    field('status', graphQLInt.nonNullable()),
-    field('statusChangedAt', graphQLString),
-  ]);
+final gqlTypeBeaconStatusResult =
+    GraphQLObjectType(
+        'BeaconStatusResult',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('statusChangedAt', graphQLString),
+      ]);
 
 /// Server-derived display projection per beacon (V2).
-final gqlTypeBeaconDisplayStatus = GraphQLObjectType(
-  'BeaconDisplayStatus',
-  null,
-)
-  ..fields.addAll([
-    field('beaconId', graphQLString.nonNullable()),
-    field('status', graphQLInt.nonNullable()),
-    field('phase', graphQLString.nonNullable()),
-    field('suggestedAction', graphQLString.nonNullable()),
-    field('slot2Kind', graphQLString.nonNullable()),
-    field('tier', graphQLString.nonNullable()),
-    field('reviewClosesAt', graphQLString),
-    field('lastActivityAt', graphQLString),
-    field('lifecycleEndedAt', graphQLString),
-  ]);
+final gqlTypeBeaconDisplayStatus =
+    GraphQLObjectType(
+        'BeaconDisplayStatus',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('phase', graphQLString.nonNullable()),
+        field('suggestedAction', graphQLString.nonNullable()),
+        field('slot2Kind', graphQLString.nonNullable()),
+        field('tier', graphQLString.nonNullable()),
+        field('reviewClosesAt', graphQLString),
+        field('lastActivityAt', graphQLString),
+        field('lifecycleEndedAt', graphQLString),
+      ]);
 
 /// Result of `setCoordinationResponse` (V2) — legacy name retained for compat.
 final gqlTypeCoordinationStatusResult = gqlTypeBeaconStatusResult;
 
 /// One help offer row with optional author coordination response (V2).
-final gqlTypeHelpOfferWithCoordinationRow = GraphQLObjectType(
-  'HelpOfferWithCoordinationRow',
-  null,
-)
-  ..fields.addAll([
-    field('beaconId', graphQLString.nonNullable()),
-    field('userId', graphQLString.nonNullable()),
-    field('message', graphQLString.nonNullable()),
-    field('helpType', graphQLString),
-    field('status', graphQLInt.nonNullable()),
-    field('withdrawReason', graphQLString),
-    field('createdAt', graphQLString.nonNullable()),
-    field('updatedAt', graphQLString.nonNullable()),
-    field('responseType', graphQLInt),
-    field('responseUpdatedAt', graphQLString),
-    field('responseAuthorUserId', graphQLString),
-    field('roomAccess', graphQLInt),
-    field('user', gqlTypeUserPublic.nonNullable()),
-  ]);
+final gqlTypeHelpOfferWithCoordinationRow =
+    GraphQLObjectType(
+        'HelpOfferWithCoordinationRow',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('userId', graphQLString.nonNullable()),
+        field('message', graphQLString.nonNullable()),
+        field('helpType', graphQLString),
+        field('status', graphQLInt.nonNullable()),
+        field('withdrawReason', graphQLString),
+        field('createdAt', graphQLString.nonNullable()),
+        field('updatedAt', graphQLString.nonNullable()),
+        field('responseType', graphQLInt),
+        field('responseUpdatedAt', graphQLString),
+        field('responseAuthorUserId', graphQLString),
+        field('roomAccess', graphQLInt),
+        field('user', gqlTypeUserPublic.nonNullable()),
+      ]);
 
 /// Top-N capabilities for one subject user (batch hint result).
 final gqlTypePersonTopCapabilities =
@@ -612,16 +628,15 @@ final gqlTypePersonFriendContext =
       ]);
 
 /// Forward-reason slugs for one (sender, recipient) pair on a beacon.
-final gqlTypeForwardReasonRow =
-    GraphQLObjectType('v2_ForwardReasonRow', null)
-      ..fields.addAll([
-        field('senderId', graphQLString.nonNullable()),
-        field('recipientId', graphQLString.nonNullable()),
-        field(
-          'slugs',
-          GraphQLListType(graphQLString.nonNullable()),
-        ),
-      ]);
+final gqlTypeForwardReasonRow = GraphQLObjectType('v2_ForwardReasonRow', null)
+  ..fields.addAll([
+    field('senderId', graphQLString.nonNullable()),
+    field('recipientId', graphQLString.nonNullable()),
+    field(
+      'slugs',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+  ]);
 
 /// One capability visible to a specific viewer, with source metadata.
 final gqlTypeCapabilityForViewer =
@@ -773,7 +788,8 @@ final gqlTypeBeaconLineageForwardSuggestions =
         field('suggestedNote', graphQLString.nonNullable()),
         field(
           'suggestions',
-          GraphQLListType(gqlTypeBeaconLineageSuggestion.nonNullable())
-              .nonNullable(),
+          GraphQLListType(
+            gqlTypeBeaconLineageSuggestion.nonNullable(),
+          ).nonNullable(),
         ),
       ]);

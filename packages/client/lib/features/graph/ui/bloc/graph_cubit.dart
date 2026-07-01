@@ -14,6 +14,8 @@ import 'package:tentura/ui/message/common_messages.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
+import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forwards_graph_repository.dart';
@@ -37,8 +39,10 @@ class GraphCubit extends Cubit<GraphState> {
   // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
   GraphCubit({
     required Profile me,
+    required GraphEdgeColors edgeColors,
     String? focus,
     GraphSourceRepository? graphSourceRepository,
+
     /// When set, [GraphCubit] always loads forwards for this beacon id and
     /// does not refetch on node focus changes (forwards graph is static).
     this.forwardsGraphBeaconId,
@@ -48,11 +52,21 @@ class GraphCubit extends Cubit<GraphState> {
     /// of the broader `beaconForwardGraph`. Focus auto-rotates onto the
     /// help offerer (or the author when the viewer IS the help offerer — case 3).
     this.helpOffererFocusUserId,
+    this.genealogyMode = false,
+    this.genealogyTargetId,
+    this.genealogyAnonymousNodeLabel,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
     UiEffectPort? effects,
-    required GraphEdgeColors edgeColors,
-  }) : _edgeColors = edgeColors,
+  }) : assert(
+         !genealogyMode || forwardsGraphBeaconId == null,
+         'genealogyMode is mutually exclusive with forwardsGraphBeaconId',
+       ),
+       assert(
+         !genealogyMode || helpOffererFocusUserId == null,
+         'genealogyMode is mutually exclusive with helpOffererFocusUserId',
+       ),
+       _edgeColors = edgeColors,
        _egoNode = UserNode(
          user: me.copyWith(displayName: 'Me', score: 2),
          pinned: true,
@@ -61,7 +75,8 @@ class GraphCubit extends Cubit<GraphState> {
        ),
        _graphSource = graphSourceRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
+       _profileRepository =
+           profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          GraphState(
@@ -77,6 +92,12 @@ class GraphCubit extends Cubit<GraphState> {
   final String? forwardsGraphBeaconId;
 
   final String? helpOffererFocusUserId;
+
+  final bool genealogyMode;
+
+  final String? genealogyTargetId;
+
+  final String? genealogyAnonymousNodeLabel;
 
   final BeaconRepository _beaconRepository;
 
@@ -99,9 +120,13 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _fetchLimits = <String, int>{};
 
-  late final Map<String, NodeDetails> _nodes = <String, NodeDetails>{
-    _egoNode.id: _egoNode,
-  };
+  final _genealogyChildrenCursors = <String, (DateTime, String)>{};
+
+  final _addedEdgeEndpoints = <(String, String)>{};
+
+  late final Map<String, NodeDetails> _nodes = genealogyMode
+      ? <String, NodeDetails>{}
+      : <String, NodeDetails>{_egoNode.id: _egoNode};
 
   /// Active help offerers for [forwardsGraphBeaconId] (forwards graph only).
   /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
@@ -115,17 +140,26 @@ class GraphCubit extends Cubit<GraphState> {
 
   ///
   ///
-  void jumpToEgo() => graphController.jumpToNode(_egoNode);
+  void jumpToEgo() {
+    final node = genealogyMode ? _nodes[state.egoNodeId] : _egoNode;
+    if (node == null) return;
+    if (!graphController.canLayout ||
+        !graphController.layout.hasPosition(node)) {
+      return;
+    }
+    unawaited(Future.value(graphController.jumpToNode(node)));
+  }
 
   ///
   ///
   void setFocus(NodeDetails node) {
     if (state.focus != node.id) {
       emit(state.copyWith(focus: node.id));
-      graphController
-        ..setPinned(node, true)
-        // ignore: discarded_futures //
-        ..jumpToNode(node);
+      graphController.setPinned(node, true);
+      if (graphController.canLayout &&
+          graphController.layout.hasPosition(node)) {
+        unawaited(Future.value(graphController.jumpToNode(node)));
+      }
     }
     if (forwardsGraphBeaconId == null) {
       unawaited(_fetch());
@@ -135,24 +169,26 @@ class GraphCubit extends Cubit<GraphState> {
   ///
   ///
   Future<void> setContext(String? context) {
-    if (forwardsGraphBeaconId != null) {
+    if (forwardsGraphBeaconId != null || genealogyMode) {
       return Future.value();
     }
     emit(state.copyWith(context: context ?? '', focus: ''));
     graphController.clear();
     _fetchLimits.clear();
+    _addedEdgeEndpoints.clear();
     return _fetch();
   }
 
   ///
   ///
   void togglePositiveOnly() {
-    if (forwardsGraphBeaconId != null) {
+    if (forwardsGraphBeaconId != null || genealogyMode) {
       return;
     }
     emit(state.copyWith(positiveOnly: !state.positiveOnly, focus: ''));
     graphController.clear();
     _fetchLimits.clear();
+    _addedEdgeEndpoints.clear();
     unawaited(_fetch());
   }
 
@@ -220,11 +256,60 @@ class GraphCubit extends Cubit<GraphState> {
         noPathHelpOffererId = !hasHelpOffererEndpoint ? helpOffererId : null;
       } else if (forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
-        final payload =
-            await source.fetchForwardsGraph(beaconId: forwardsGraphBeaconId!);
+        final payload = await source.fetchForwardsGraph(
+          beaconId: forwardsGraphBeaconId!,
+        );
         edges = payload.edges;
         _helpOffererIds = payload.helpOffererIds;
         forwardsAuthorId = payload.authorId;
+      } else if (genealogyMode && source is InviteGenealogyRepository) {
+        List<EdgeDirected> rawEdges;
+        if (fetchFocus.isEmpty) {
+          final graph = await source.fetchGenealogyBootstrap(
+            targetId: genealogyTargetId,
+          );
+          if (state.egoNodeId.isEmpty) {
+            emit(
+              state.copyWith(
+                egoNodeId: graph.viewerNodeKey,
+                genealogyTargetNodeKey: graph.targetNodeKey ?? '',
+              ),
+            );
+          }
+          _preloadGenealogyNodes(graph.nodes);
+          rawEdges = _genealogyEdgesFromGraph(graph);
+        } else {
+          final cursor = _genealogyChildrenCursors[fetchFocus];
+          final page = await source.fetchChildren(
+            nodeKey: fetchFocus,
+            afterCreatedAt: cursor?.$1,
+            afterNodeKey: cursor?.$2,
+            limit: kFetchWindowSize,
+          );
+          if (page.edges.isNotEmpty) {
+            final last = page.edges.last;
+            _genealogyChildrenCursors[fetchFocus] = (
+              last.descendantUserCreatedAt,
+              last.descendantNodeKey,
+            );
+          }
+          _preloadGenealogyNodes(page.nodes);
+          rawEdges = [
+            for (final e in page.edges)
+              (
+                src: e.ancestorNodeKey,
+                dst: e.descendantNodeKey,
+                weight: 0.0,
+                node: null,
+                branch: null,
+              ),
+          ];
+        }
+        edges = rawEdges.toSet();
+      } else if (genealogyMode) {
+        throw StateError(
+          'GraphCubit(genealogyMode: true) requires InviteGenealogyRepository',
+        );
       } else {
         edges = await _graphSource.fetch(
           positiveOnly: state.positiveOnly,
@@ -365,6 +450,75 @@ class GraphCubit extends Cubit<GraphState> {
     return null;
   }
 
+  void _preloadGenealogyNodes(List<InviteGenealogyNode> nodes) {
+    for (final n in nodes) {
+      _nodes.putIfAbsent(n.nodeKey, () {
+        final isEndpoint =
+            n.nodeKey == state.egoNodeId ||
+            n.nodeKey == state.genealogyTargetNodeKey;
+        if (n.profile != null && n.deletedAt == null) {
+          return GenealogyUserNode(
+            nodeKey: n.nodeKey,
+            user: n.profile!,
+            pinned: isEndpoint,
+            size: isEndpoint ? 72 : 48,
+            positionHint: _nodes.length,
+          );
+        }
+        return GenealogyDeletedNode(
+          nodeKey: n.nodeKey,
+          label: genealogyAnonymousNodeLabel ?? '',
+          pinned: isEndpoint,
+          size: isEndpoint ? 72 : 48,
+          positionHint: _nodes.length,
+        );
+      });
+    }
+  }
+
+  List<EdgeDirected> _genealogyEdgesFromGraph(InviteGenealogyGraph graph) {
+    final isBetween = graph.targetNodeKey != null;
+    final viewerBranch = isBetween
+        ? _genealogyBranchBelowLca(graph, graph.viewerNodeKey)
+        : const <String>{};
+    final targetBranch = isBetween
+        ? _genealogyBranchBelowLca(graph, graph.targetNodeKey!)
+        : const <String>{};
+    return [
+      for (final e in graph.edges)
+        (
+          src: e.ancestorNodeKey,
+          dst: e.descendantNodeKey,
+          weight: 0.0,
+          node: null,
+          branch: isBetween
+              ? viewerBranch.contains(e.descendantNodeKey)
+                    ? GenealogyEdgeBranch.ego
+                    : targetBranch.contains(e.descendantNodeKey)
+                    ? GenealogyEdgeBranch.target
+                    : GenealogyEdgeBranch.neutral
+              : null,
+        ),
+    ];
+  }
+
+  Set<String> _genealogyBranchBelowLca(
+    InviteGenealogyGraph graph,
+    String start,
+  ) {
+    final parentOf = <String, String>{
+      for (final edge in graph.edges)
+        edge.descendantNodeKey: edge.ancestorNodeKey,
+    };
+    final lca = graph.commonAncestorNodeKey;
+    final branch = <String>{};
+    String? current = start;
+    while (current != null && current != lca && branch.add(current)) {
+      current = parentOf[current];
+    }
+    return branch;
+  }
+
   /// Stamps `isHelpOfferer` on every help offerer's [UserNode] currently in
   /// [_nodes]. Called after each fetch so late-arriving nodes pick up the flag.
   void _applyHelpOffererHighlights() {
@@ -382,6 +536,9 @@ class GraphCubit extends Cubit<GraphState> {
   void _updateGraph(Set<EdgeDirected> edges) => graphController.mutate((
     mutator,
   ) {
+    final egoOrGenealogyEgoNode = genealogyMode
+        ? _nodes[state.egoNodeId]
+        : _egoNode;
     for (final e in edges) {
       if (state.positiveOnly && e.weight < 0) {
         continue;
@@ -394,15 +551,26 @@ class GraphCubit extends Cubit<GraphState> {
       if (dst == null) {
         continue;
       }
+      final branchHighlighted =
+          e.branch == GenealogyEdgeBranch.ego ||
+          e.branch == GenealogyEdgeBranch.target;
+      final touchesEgo =
+          src == egoOrGenealogyEgoNode || dst == egoOrGenealogyEgoNode;
       final edge = EdgeDetails<NodeDetails>(
         source: src,
         destination: dst,
-        strokeWidth: (src == _egoNode || dst == _egoNode) ? 3 : 2,
-        color: e.weight < 0
-            ? _edgeColors.negative
-            : src == _egoNode || dst == _egoNode
-            ? _edgeColors.ego
-            : _edgeColors.neutral,
+        strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
+        color: switch (e.branch) {
+          GenealogyEdgeBranch.ego => _edgeColors.ego,
+          GenealogyEdgeBranch.target => _edgeColors.target,
+          GenealogyEdgeBranch.neutral => _edgeColors.neutral,
+          null =>
+            e.weight < 0
+                ? _edgeColors.negative
+                : touchesEgo
+                ? _edgeColors.ego
+                : _edgeColors.neutral,
+        },
       );
       if (!mutator.controller.nodes.contains(src)) {
         mutator.addNode(src);
@@ -410,12 +578,19 @@ class GraphCubit extends Cubit<GraphState> {
       if (!mutator.controller.nodes.contains(dst)) {
         mutator.addNode(dst);
       }
-      if (src.id != dst.id && !mutator.controller.edges.contains(edge)) {
+      final endpointKey = (src.id, dst.id);
+      if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
         mutator.addEdge(edge);
       }
     }
 
-    if (!mutator.controller.nodes.contains(_egoNode)) {
+    if (genealogyMode) {
+      for (final node in _nodes.values) {
+        if (!mutator.controller.nodes.contains(node)) {
+          mutator.addNode(node);
+        }
+      }
+    } else if (!mutator.controller.nodes.contains(_egoNode)) {
       mutator.addNode(_egoNode);
     }
     final focusNode = _nodes[state.focus];

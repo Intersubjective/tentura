@@ -12,7 +12,8 @@ import '../gql/_g/graph_fetch.req.gql.dart';
 import 'graph_source_repository.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class GraphRepository extends RemoteRepository implements GraphSourceRepository {
+class GraphRepository extends RemoteRepository
+    implements GraphSourceRepository {
   GraphRepository({
     required super.remoteApiService,
     required super.log,
@@ -53,6 +54,7 @@ class GraphRepository extends RemoteRepository implements GraphSourceRepository 
             dst: e.dst!,
             weight: weight,
             node: BeaconNode(beacon: (beacon as BeaconModel).toEntity()),
+            branch: null,
           ));
         }
       } else {
@@ -61,6 +63,7 @@ class GraphRepository extends RemoteRepository implements GraphSourceRepository 
           dst: e.dst!,
           weight: weight,
           node: UserNode(user: (user as UserModel).toEntity()),
+          branch: null,
         ));
       }
     }

@@ -6,11 +6,12 @@ import 'package:tentura/features/graph/domain/prune_directed_paths.dart';
 const _w = 1.0;
 
 EdgeDirected _e(String src, String dst) => (
-      src: src,
-      dst: dst,
-      weight: _w,
-      node: null,
-    );
+  src: src,
+  dst: dst,
+  weight: _w,
+  node: null,
+  branch: null,
+);
 
 void main() {
   group('edgesOnSomeDirectedPath', () {
@@ -59,20 +60,23 @@ void main() {
       expect(out, edges);
     });
 
-    test('swap fallback: committer as root, author as focus uses author→…→committer chain', () {
-      // Forward physical chain: author U -> … -> committer C (no C -> U edge).
-      final edges = {
-        _e('U', 'A'),
-        _e('A', 'B'),
-        _e('B', 'C'),
-      };
-      final out = edgesOnSomeDirectedPath(
-        edges: edges,
-        root: 'C',
-        focus: 'U',
-      );
-      expect(out, edges);
-    });
+    test(
+      'swap fallback: committer as root, author as focus uses author→…→committer chain',
+      () {
+        // Forward physical chain: author U -> … -> committer C (no C -> U edge).
+        final edges = {
+          _e('U', 'A'),
+          _e('A', 'B'),
+          _e('B', 'C'),
+        };
+        final out = edgesOnSomeDirectedPath(
+          edges: edges,
+          root: 'C',
+          focus: 'U',
+        );
+        expect(out, edges);
+      },
+    );
 
     test('empty input returns empty', () {
       expect(

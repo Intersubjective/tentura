@@ -46,6 +46,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
           dst: e.recipientId,
           weight: _weight,
           node: null,
+          branch: null,
         ),
     };
 
@@ -79,6 +80,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
           dst: e.recipientId,
           weight: _weight,
           node: null,
+          branch: null,
         ),
     };
 

@@ -180,6 +180,7 @@ class _V2RoutingLink extends Link {
     'InvitationById',
     'InviteGenealogy',
     'InviteGenealogyBetween',
+    'InviteGenealogyChildren',
     'InvitationDeleteById',
     'MyContacts',
     'ContactSet',

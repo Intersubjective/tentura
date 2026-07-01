@@ -13,6 +13,8 @@ abstract class GraphState extends StateBase with _$GraphState {
     @Default('') String context,
     @Default(true) bool isAnimated,
     @Default(true) bool positiveOnly,
+    @Default('') String egoNodeId,
+    @Default('') String genealogyTargetNodeKey,
     ForwardsGraphViewerRole? helpOffererViewerRole,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _GraphState;

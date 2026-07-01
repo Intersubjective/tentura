@@ -9,19 +9,25 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
   order: 1,
 )
 class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
-  final recordedEdges = <({
-    String ancestorUserId,
-    DateTime ancestorUserCreatedAt,
-    String descendantUserId,
-    DateTime descendantUserCreatedAt,
-    String invitationId,
-  })>[];
+  final recordedEdges =
+      <
+        ({
+          String ancestorUserId,
+          DateTime ancestorUserCreatedAt,
+          String descendantUserId,
+          DateTime descendantUserCreatedAt,
+          String invitationId,
+        })
+      >[];
 
   InviteGenealogyGraphEntity lineage = const InviteGenealogyGraphEntity(
     viewerNodeKey: 'Gviewer',
     nodes: [],
     edges: [],
   );
+
+  InviteGenealogyChildrenPageEntity childrenPage =
+      const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
 
   @override
   Future<void> recordSignupEdge({
@@ -45,13 +51,19 @@ class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
   @override
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String userId,
-  }) async =>
-      lineage;
+  }) async => lineage;
 
   @override
   Future<InviteGenealogyGraphEntity> fetchLineageBetween({
     required String viewerId,
     required String targetId,
-  }) async =>
-      lineage;
+  }) async => lineage;
+
+  @override
+  Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String nodeKey,
+    required int limit,
+    DateTime? afterCreatedAt,
+    String? afterNodeKey,
+  }) async => childrenPage;
 }
