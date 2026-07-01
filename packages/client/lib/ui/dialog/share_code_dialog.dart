@@ -99,16 +99,20 @@ class ShareCodeDialog extends StatelessWidget {
             child: Text(l10n.shareLink),
             onPressed: () async {
               try {
-                final box = context.findRenderObject()! as RenderBox;
+                final renderObject = context.findRenderObject();
+                final sharePositionOrigin =
+                    renderObject is RenderBox && renderObject.hasSize
+                    ? renderObject.localToGlobal(Offset.zero) &
+                          renderObject.size
+                    : null;
                 final result = await SharePlus.instance.share(
                   ShareParams(
                     subject: header,
                     title: l10n.shareLink,
                     uri: Uri.parse(link),
                     mailToFallbackEnabled: false,
-                    // This needed for iPad
-                    sharePositionOrigin:
-                        box.localToGlobal(Offset.zero) & box.size,
+                    // iPad popover anchor; optional on other platforms.
+                    sharePositionOrigin: sharePositionOrigin,
                   ),
                 );
                 if (context.mounted) {
