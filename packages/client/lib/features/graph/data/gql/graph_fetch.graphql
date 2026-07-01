@@ -22,6 +22,8 @@ query GraphFetch(
     dst
     src_score
     dst_score
+    src_total_neighbor_count
+    dst_total_neighbor_count
     user {
       ...UserModel
     }

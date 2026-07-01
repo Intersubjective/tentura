@@ -26,6 +26,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
 
   static final _targetId = InputFieldString(fieldName: 'target_id');
   static final _nodeKey = InputFieldString(fieldName: 'node_key');
+  static final _nodeKeys = InputFieldStringList(fieldName: 'node_keys');
   static final _afterCreatedAt = InputFieldDatetime(
     fieldName: 'after_created_at',
   );
@@ -37,6 +38,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
     inviteGenealogy,
     inviteGenealogyBetween,
     inviteGenealogyChildren,
+    inviteGenealogyChildCounts,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get inviteGenealogy =>
@@ -154,6 +156,41 @@ final class QueryInviteGenealogy extends GqlNodeBase {
       );
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get inviteGenealogyChildCounts =>
+      GraphQLObjectField(
+        'inviteGenealogyChildCounts',
+        GraphQLListType(
+          gqlTypeInviteGenealogyChildCount.nonNullable(),
+        ).nonNullable(),
+        arguments: [_nodeKeys.field],
+        resolve: (_, args) async {
+          final nodeKeys = _nodeKeys
+              .fromArgsNonNullable(args)
+              .map((key) => key.trim())
+              .toSet()
+              .toList(growable: false);
+          for (final nodeKey in nodeKeys) {
+            if (!_nodeKeyPattern.hasMatch(nodeKey)) {
+              throw ArgumentError.value(
+                nodeKey,
+                _nodeKeys.field.name,
+                'must contain only valid invite-genealogy node keys',
+              );
+            }
+          }
+          final counts = await _inviteGenealogyCase.fetchChildCounts(
+            nodeKeys: nodeKeys,
+          );
+          return [
+            for (final nodeKey in nodeKeys)
+              {
+                'node_key': nodeKey,
+                'total_children': counts[nodeKey] ?? 0,
+              },
+          ];
+        },
+      );
 
   static String _queryContext(Map<String, dynamic> args) =>
       args[kGlobalInputQueryContext] as String? ?? '';

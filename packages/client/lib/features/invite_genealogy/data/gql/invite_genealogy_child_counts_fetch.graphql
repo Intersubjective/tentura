@@ -1,0 +1,6 @@
+query InviteGenealogyChildCounts($nodeKeys: [String!]!) {
+  inviteGenealogyChildCounts(node_keys: $nodeKeys) {
+    node_key
+    total_children
+  }
+}

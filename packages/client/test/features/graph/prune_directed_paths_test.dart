@@ -11,6 +11,8 @@ EdgeDirected _e(String src, String dst) => (
   weight: _w,
   node: null,
   branch: null,
+  srcTotalNeighborCount: null,
+  dstTotalNeighborCount: null,
 );
 
 void main() {

@@ -24,4 +24,8 @@ abstract class InviteGenealogyRepositoryPort {
     DateTime? afterCreatedAt,
     String? afterNodeKey,
   });
+
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  });
 }

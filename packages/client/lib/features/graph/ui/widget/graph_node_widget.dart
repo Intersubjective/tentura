@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/design_system/components/tentura_count_badge.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/node_details.dart';
+import '../bloc/graph_cubit.dart';
 
 class GraphNodeWidget extends StatelessWidget {
   const GraphNodeWidget({
@@ -23,49 +25,71 @@ class GraphNodeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final node = switch (nodeDetails) {
+      final UserNode userNode => BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (p, c) => p.profile.id != c.profile.id,
+        builder: (context, state) {
+          final s = nodeDetails.size;
+          final isSelf = SelfUserHighlight.profileIsSelf(
+            userNode.user,
+            state.profile.id,
+          );
+          final core = TenturaAvatar(
+            profile: userNode.user,
+            size: s,
+            withRating: withRating,
+            isSelf: isSelf,
+          );
+          Widget result = core;
+          if (userNode.isHelpOfferer) {
+            result = _HelpOffererRing(size: s, child: result);
+          }
+          return result;
+        },
+      ),
+      final BeaconNode beaconNode => BeaconImage(
+        beacon: beaconNode.beacon,
+      ),
+      final GenealogyUserNode genealogyUser => TenturaAvatar(
+        profile: genealogyUser.user,
+        size: nodeDetails.size,
+        // Self never gets the eye/mutual-friend or rating overlay — those
+        // are relative-to-viewer signals that don't apply to one's own node.
+        withRating: withRating && !isSelf,
+        isSelf: isSelf,
+      ),
+      final GenealogyDeletedNode _ => CircleAvatar(
+        radius: nodeDetails.size / 2,
+        child: Icon(
+          Icons.person_off_outlined,
+          size: nodeDetails.size * 0.45,
+        ),
+      ),
+    };
     final widget = SizedBox.square(
       dimension: nodeDetails.size,
-      child: switch (nodeDetails) {
-        final UserNode userNode => BlocBuilder<ProfileCubit, ProfileState>(
-          buildWhen: (p, c) => p.profile.id != c.profile.id,
-          builder: (context, state) {
-            final s = nodeDetails.size;
-            final isSelf = SelfUserHighlight.profileIsSelf(
-              userNode.user,
-              state.profile.id,
-            );
-            final core = TenturaAvatar(
-              profile: userNode.user,
-              size: s,
-              withRating: withRating,
-              isSelf: isSelf,
-            );
-            Widget result = core;
-            if (userNode.isHelpOfferer) {
-              result = _HelpOffererRing(size: s, child: result);
-            }
-            return result;
-          },
-        ),
-        final BeaconNode beaconNode => BeaconImage(
-          beacon: beaconNode.beacon,
-        ),
-        final GenealogyUserNode genealogyUser => TenturaAvatar(
-          profile: genealogyUser.user,
-          size: nodeDetails.size,
-          // Self never gets the eye/mutual-friend or rating overlay — those
-          // are relative-to-viewer signals that don't apply to one's own node.
-          withRating: withRating && !isSelf,
-          isSelf: isSelf,
-        ),
-        final GenealogyDeletedNode _ => CircleAvatar(
-          radius: nodeDetails.size / 2,
-          child: Icon(
-            Icons.person_off_outlined,
-            size: nodeDetails.size * 0.45,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: node),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: BlocSelector<GraphCubit, GraphState, int?>(
+              selector: (state) => state.hiddenNeighborCounts[nodeDetails.id],
+              builder: (context, count) {
+                if (count == null || count <= 0) {
+                  return const SizedBox.shrink();
+                }
+                return TenturaCountBadge(
+                  count: count,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                );
+              },
+            ),
           ),
-        ),
-      },
+        ],
+      ),
     );
     return onTap == null
         ? widget

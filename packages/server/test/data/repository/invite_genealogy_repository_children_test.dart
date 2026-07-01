@@ -191,6 +191,39 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
     },
     skip: skipReason,
   );
+
+  test(
+    'fetchChildCounts returns total children for mixed node keys',
+    () async {
+      if (skipReason != false) return;
+
+      final first = await repo.fetchChildren(
+        nodeKey: keyOf(parentId),
+        limit: 2,
+      );
+      final second = await repo.fetchChildren(
+        nodeKey: keyOf(parentId),
+        afterCreatedAt: first.edges.last.descendantUserCreatedAt,
+        afterNodeKey: first.edges.last.descendantNodeKey,
+        limit: 2,
+      );
+
+      expect(first.edges, hasLength(2));
+      expect(second.edges, hasLength(2));
+
+      final missingNodeKey = keyOf('Ugenchildmissing');
+      final counts = await repo.fetchChildCounts(
+        nodeKeys: [keyOf(parentId), keyOf(loneId), missingNodeKey],
+      );
+
+      expect(counts, {
+        keyOf(parentId): childIds.length,
+        keyOf(loneId): 0,
+        missingNodeKey: 0,
+      });
+    },
+    skip: skipReason,
+  );
 }
 
 Env _testEnv() => Env(

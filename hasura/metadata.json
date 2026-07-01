@@ -637,6 +637,61 @@
           },
           {
             "table": {
+              "name": "graph_score",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "dst": "id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "beacon",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "dst": "id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "user",
+                      "schema": "public"
+                    }
+                  }
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "dst_score",
+                    "src_score",
+                    "dst_total_neighbor_count",
+                    "src_total_neighbor_count",
+                    "dst",
+                    "src"
+                  ],
+                  "filter": {}
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
               "name": "polling",
               "schema": "public"
             },
