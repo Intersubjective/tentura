@@ -1,3 +1,6 @@
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
+import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/invite_genealogy_case.dart';
 
 import '../custom_types.dart';
@@ -7,11 +10,19 @@ import '../mappers/gql_public_user_maps.dart';
 import '../mappers/invite_genealogy_gql_maps.dart';
 
 final class QueryInviteGenealogy extends GqlNodeBase {
-  QueryInviteGenealogy({InviteGenealogyCase? inviteGenealogyCase})
-    : _inviteGenealogyCase =
-          inviteGenealogyCase ?? GetIt.I<InviteGenealogyCase>();
+  QueryInviteGenealogy({
+    InviteGenealogyCase? inviteGenealogyCase,
+    MeritScoreLookupPort? meritScoreLookup,
+    VoteUserFriendshipLookupPort? voteUserFriendshipLookup,
+  }) : _inviteGenealogyCase =
+           inviteGenealogyCase ?? GetIt.I<InviteGenealogyCase>(),
+       _meritScoreLookup = meritScoreLookup ?? GetIt.I<MeritScoreLookupPort>(),
+       _voteUserFriendshipLookup =
+           voteUserFriendshipLookup ?? GetIt.I<VoteUserFriendshipLookupPort>();
 
   final InviteGenealogyCase _inviteGenealogyCase;
+  final MeritScoreLookupPort _meritScoreLookup;
+  final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
   static final _targetId = InputFieldString(fieldName: 'target_id');
   static final _nodeKey = InputFieldString(fieldName: 'node_key');
@@ -37,9 +48,16 @@ final class QueryInviteGenealogy extends GqlNodeBase {
           final graph = await _inviteGenealogyCase.fetchLineage(
             viewerId: jwt.sub,
           );
+          final overlay = await _viewerRelativeOverlay(
+            viewerId: jwt.sub,
+            context: _queryContext(args),
+            userIds: graph.nodes.map((n) => n.user?.id).whereType<String>(),
+          );
           return inviteGenealogyGraphToGqlMap(
             graph,
             userPublicToGqlMap: userPublicToGqlMap,
+            scoresByUserId: overlay.scores,
+            mutualFriendUserIds: overlay.mutualFriends,
           );
         },
       );
@@ -55,9 +73,16 @@ final class QueryInviteGenealogy extends GqlNodeBase {
             viewerId: jwt.sub,
             targetId: _targetId.fromArgsNonNullable(args),
           );
+          final overlay = await _viewerRelativeOverlay(
+            viewerId: jwt.sub,
+            context: _queryContext(args),
+            userIds: graph.nodes.map((n) => n.user?.id).whereType<String>(),
+          );
           return inviteGenealogyGraphToGqlMap(
             graph,
             userPublicToGqlMap: userPublicToGqlMap,
+            scoresByUserId: overlay.scores,
+            mutualFriendUserIds: overlay.mutualFriends,
           );
         },
       );
@@ -73,7 +98,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
       _limit.fieldNullable,
     ],
     resolve: (_, args) async {
-      getCredentials(args);
+      final jwt = getCredentials(args);
       final nodeKey = _nodeKey.fromArgsNonNullable(args).trim();
       if (!_nodeKeyPattern.hasMatch(nodeKey)) {
         throw ArgumentError.value(
@@ -116,10 +141,55 @@ final class QueryInviteGenealogy extends GqlNodeBase {
         afterNodeKey: afterNodeKey,
         limit: _limit.fromArgs(args) ?? 10,
       );
+      final overlay = await _viewerRelativeOverlay(
+        viewerId: jwt.sub,
+        context: _queryContext(args),
+        userIds: page.nodes.map((n) => n.user?.id).whereType<String>(),
+      );
       return inviteGenealogyChildrenPageToGqlMap(
         page,
         userPublicToGqlMap: userPublicToGqlMap,
+        scoresByUserId: overlay.scores,
+        mutualFriendUserIds: overlay.mutualFriends,
       );
     },
   );
+
+  static String _queryContext(Map<String, dynamic> args) =>
+      args[kGlobalInputQueryContext] as String? ?? '';
+
+  /// Attaches viewer-relative MeritRank scores and mutual-friend status to a
+  /// batch of genealogy node user ids in two extra queries total (not one per
+  /// node): [MeritScoreLookupPort.reciprocalScoresForViewer] returns all of
+  /// the viewer's reciprocal-positive peers in one call, and
+  /// [VoteUserFriendshipLookupPort.reciprocalPositivePeerIds] checks the
+  /// whole candidate batch in one indexed round trip.
+  Future<
+    ({
+      Map<String, MutualScoreRecord> scores,
+      Set<String> mutualFriends,
+    })
+  >
+  _viewerRelativeOverlay({
+    required String viewerId,
+    required String context,
+    required Iterable<String> userIds,
+  }) async {
+    final candidateIds = userIds
+        .where((id) => id.isNotEmpty && id != viewerId)
+        .toSet();
+    if (candidateIds.isEmpty) {
+      return (
+        scores: const <String, MutualScoreRecord>{},
+        mutualFriends: const <String>{},
+      );
+    }
+    final scores = await _meritScoreLookup.reciprocalScoresForViewer(
+      viewerId: viewerId,
+      context: context,
+    );
+    final mutualFriends = await _voteUserFriendshipLookup
+        .reciprocalPositivePeerIds(viewerId: viewerId, peerIds: candidateIds);
+    return (scores: scores, mutualFriends: mutualFriends);
+  }
 }

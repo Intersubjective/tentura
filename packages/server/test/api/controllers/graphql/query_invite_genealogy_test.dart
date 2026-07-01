@@ -3,9 +3,12 @@ import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/graphql/query/query_invite_genealogy.dart';
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/invite_genealogy_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -48,6 +51,34 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   }) async => const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
 }
 
+class _FakeMeritScoreLookup implements MeritScoreLookupPort {
+  @override
+  Future<Map<String, MutualScoreRecord>> reciprocalScoresForViewer({
+    required String viewerId,
+    required String context,
+  }) async => {};
+}
+
+class _FakeVoteUserFriendshipLookup implements VoteUserFriendshipLookupPort {
+  @override
+  Future<Set<String>> reciprocalPositivePeerIds({
+    required String viewerId,
+    required Iterable<String> peerIds,
+  }) async => {};
+
+  @override
+  Future<bool> isReciprocalSubscribe({
+    required String viewerId,
+    required String peerId,
+  }) async => false;
+
+  @override
+  Future<bool> isSubscribedTo({
+    required String viewerId,
+    required String peerId,
+  }) async => false;
+}
+
 void main() {
   late QueryInviteGenealogy query;
 
@@ -58,6 +89,8 @@ void main() {
         env: Env(environment: Environment.test),
         logger: Logger('QueryInviteGenealogyTest'),
       ),
+      meritScoreLookup: _FakeMeritScoreLookup(),
+      voteUserFriendshipLookup: _FakeVoteUserFriendshipLookup(),
     );
   });
 
