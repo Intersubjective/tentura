@@ -58,6 +58,19 @@ void main() {
       expect(offset.dy, inInclusiveRange(center.dy - 200, center.dy + 200));
     });
 
+    test('wrapped vertical hints do not overlap the ego seed', () {
+      final ego = initialPositionExtractor(
+        const UserNode(user: Profile(id: 'ego'), positionHint: 0),
+        canvas,
+      );
+      final wrapped = initialPositionExtractor(
+        const UserNode(user: Profile(id: 'wrapped'), positionHint: 5),
+        canvas,
+      );
+
+      expect((wrapped - ego).distance, greaterThan(40));
+    });
+
     test('x jitter stays within ±1 px of center', () {
       final offset = initialPositionExtractor(
         const UserNode(user: Profile(id: 'n'), positionHint: 1),

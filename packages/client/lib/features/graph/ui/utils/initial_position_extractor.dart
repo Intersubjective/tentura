@@ -16,13 +16,25 @@ Offset initialPositionExtractor(NodeBase node, Size canvasSize) {
 }
 
 Offset _calculatePositionWithHint(NodeDetails node, Size canvasSize) {
-  final verticalSlot = node.positionHint! % _verticalHintSlots;
+  final hint = node.positionHint!;
+  final verticalSlot = hint % _verticalHintSlots;
+  final horizontalSlot = hint ~/ _verticalHintSlots;
 
   return canvasSize.center(Offset.zero) +
       Offset(
-        (_random.nextDouble() * 2 - 1) * (_optimalDistance * 0.01),
+        _horizontalOffsetForSlot(horizontalSlot) +
+            (_random.nextDouble() * 2 - 1) * (_optimalDistance * 0.01),
         -(verticalShift + _optimalDistance * verticalSlot),
       );
+}
+
+double _horizontalOffsetForSlot(int slot) {
+  if (slot == 0) {
+    return 0;
+  }
+  final lane = (slot + 1) ~/ 2;
+  final direction = slot.isOdd ? 1 : -1;
+  return direction * lane * _optimalDistance;
 }
 
 const _optimalDistance = 100.0;
