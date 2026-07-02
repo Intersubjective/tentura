@@ -5,5 +5,9 @@ dependency_overrides:
   lean_builder: 0.1.10
   ferry_generator:
     path: packages/ferry_generator
+  # Vendored 0.6.2 + render guards: skip nodes/edges whose layout position
+  # hasn't been produced yet by the async relayout (see package README).
+  force_directed_graphview:
+    path: packages/force_directed_graphview
   adaptive_number:
     git: https://github.com/alexandrim0/adaptive_number_dart.git

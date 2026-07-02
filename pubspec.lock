@@ -843,12 +843,11 @@ packages:
     source: sdk
     version: "0.0.0"
   force_directed_graphview:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: force_directed_graphview
-      sha256: "7759f06537e5d42021c4f17b99b717420897809a0eb044f7c3f1456a532e0d0f"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/force_directed_graphview"
+      relative: true
+    source: path
     version: "0.6.2"
   freezed:
     dependency: "direct dev"

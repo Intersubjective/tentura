@@ -126,6 +126,12 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _addedEdgeEndpoints = <(String, String)>{};
 
+  /// Every edge ever fetched this session, keyed by `(src, dst)` — the
+  /// source of truth for focus-path visibility. Unlike `graphController`
+  /// (which only holds what is currently rendered), nothing is ever removed
+  /// here except on full resets ([setContext] / [togglePositiveOnly]).
+  final _allEdges = <(String, String), EdgeDirected>{};
+
   late final Map<String, NodeDetails> _nodes = genealogyMode
       ? <String, NodeDetails>{}
       : <String, NodeDetails>{_egoNode.id: _egoNode};
@@ -133,6 +139,11 @@ class GraphCubit extends Cubit<GraphState> {
   /// Active help offerers for [forwardsGraphBeaconId] (forwards graph only).
   /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
   Set<String> _helpOffererIds = const <String>{};
+
+  /// Focus-path spotlight applies only to the default MeritRank connections
+  /// graph; forwards and genealogy graphs keep their additive rendering.
+  bool get _usesFocusPathVisibility =>
+      forwardsGraphBeaconId == null && !genealogyMode;
 
   @override
   Future<void> close() {
@@ -155,16 +166,49 @@ class GraphCubit extends Cubit<GraphState> {
   ///
   ///
   void setFocus(NodeDetails node) {
+    var alreadyFetched = false;
     if (state.focus != node.id) {
+      final previousFocusId = state.focus;
       emit(state.copyWith(focus: node.id));
       graphController.setPinned(node, true);
+      _unpinPreviousFocus(previousFocusId);
+      if (_usesFocusPathVisibility) {
+        _recomputeVisibility();
+        // Backtracking onto a node whose neighbors are already loaded is a
+        // pure visibility change — re-reveal instantly, no refetch. A repeat
+        // tap on the *current* focus still falls through to _fetch to page
+        // in more neighbors.
+        alreadyFetched = _fetchLimits.containsKey(node.id);
+      }
       if (graphController.canLayout &&
           graphController.layout.hasPosition(node)) {
         unawaited(Future.value(graphController.jumpToNode(node)));
       }
     }
-    if (forwardsGraphBeaconId == null) {
+    if (forwardsGraphBeaconId == null && !alreadyFetched) {
       unawaited(_fetch());
+    }
+  }
+
+  /// Every focus change pins the new node ([setFocus]) — without a matching
+  /// unpin, every node ever tapped stays frozen in the force layout forever.
+  /// Converges to "ego + current focus pinned, everything else free".
+  void _unpinPreviousFocus(String previousFocusId) {
+    if (previousFocusId.isEmpty ||
+        previousFocusId == _egoNode.id ||
+        previousFocusId == state.egoNodeId ||
+        previousFocusId == state.genealogyTargetNodeKey) {
+      return;
+    }
+    // Look up the live controller instance by id: NodeBase equality ignores
+    // `pinned`, and setPinned throws if the instance isn't in the controller.
+    for (final n in graphController.nodes) {
+      if (n.id == previousFocusId) {
+        if (n.pinned) {
+          graphController.setPinned(n, false);
+        }
+        break;
+      }
     }
   }
 
@@ -185,6 +229,7 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
+    _allEdges.clear();
     return _fetch();
   }
 
@@ -205,6 +250,7 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
+    _allEdges.clear();
     unawaited(_fetch());
   }
 
@@ -651,10 +697,22 @@ class GraphCubit extends Cubit<GraphState> {
 
   void _updateGraph(Set<EdgeDirected> edges) {
     _captureEndpointTotals(edges);
+    if (_usesFocusPathVisibility) {
+      for (final e in edges) {
+        if (state.positiveOnly && e.weight < 0) {
+          continue;
+        }
+        if (e.src == e.dst ||
+            !_nodes.containsKey(e.src) ||
+            !_nodes.containsKey(e.dst)) {
+          continue;
+        }
+        _allEdges[(e.src, e.dst)] = e;
+      }
+      _recomputeVisibility();
+      return;
+    }
     graphController.mutate((mutator) {
-      final egoOrGenealogyEgoNode = genealogyMode
-          ? _nodes[state.egoNodeId]
-          : _egoNode;
       for (final e in edges) {
         if (state.positiveOnly && e.weight < 0) {
           continue;
@@ -667,27 +725,6 @@ class GraphCubit extends Cubit<GraphState> {
         if (dst == null) {
           continue;
         }
-        final branchHighlighted =
-            e.branch == GenealogyEdgeBranch.ego ||
-            e.branch == GenealogyEdgeBranch.target;
-        final touchesEgo =
-            src == egoOrGenealogyEgoNode || dst == egoOrGenealogyEgoNode;
-        final edge = EdgeDetails<NodeDetails>(
-          source: src,
-          destination: dst,
-          strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
-          color: switch (e.branch) {
-            GenealogyEdgeBranch.ego => _edgeColors.ego,
-            GenealogyEdgeBranch.target => _edgeColors.target,
-            GenealogyEdgeBranch.neutral => _edgeColors.neutral,
-            null =>
-              e.weight < 0
-                  ? _edgeColors.negative
-                  : touchesEgo
-                  ? _edgeColors.ego
-                  : _edgeColors.neutral,
-          },
-        );
         if (!mutator.controller.nodes.contains(src)) {
           mutator.addNode(src);
         }
@@ -696,7 +733,7 @@ class GraphCubit extends Cubit<GraphState> {
         }
         final endpointKey = (src.id, dst.id);
         if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
-          mutator.addEdge(edge);
+          mutator.addEdge(_buildEdgeDetails(e, src, dst));
         }
       }
 
@@ -712,6 +749,109 @@ class GraphCubit extends Cubit<GraphState> {
       final focusNode = _nodes[state.focus];
       if (focusNode != null && !mutator.controller.nodes.contains(focusNode)) {
         mutator.addNode(focusNode);
+      }
+    });
+    _emitHiddenNeighborCounts();
+  }
+
+  EdgeDetails<NodeDetails> _buildEdgeDetails(
+    EdgeDirected e,
+    NodeDetails src,
+    NodeDetails dst,
+  ) {
+    final egoId = genealogyMode ? state.egoNodeId : _egoNode.id;
+    final branchHighlighted =
+        e.branch == GenealogyEdgeBranch.ego ||
+        e.branch == GenealogyEdgeBranch.target;
+    final touchesEgo = egoId.isNotEmpty && (src.id == egoId || dst.id == egoId);
+    return EdgeDetails<NodeDetails>(
+      source: src,
+      destination: dst,
+      strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
+      color: switch (e.branch) {
+        GenealogyEdgeBranch.ego => _edgeColors.ego,
+        GenealogyEdgeBranch.target => _edgeColors.target,
+        GenealogyEdgeBranch.neutral => _edgeColors.neutral,
+        null =>
+          e.weight < 0
+              ? _edgeColors.negative
+              : touchesEgo
+              ? _edgeColors.ego
+              : _edgeColors.neutral,
+      },
+    );
+  }
+
+  /// Focus-path spotlight (MeritRank connections graph only): reconciles
+  /// [graphController] against the union of edges lying on some directed
+  /// ego→focus path plus all edges incident to the current focus (the
+  /// fresh neighbors a tap just revealed). Pure filter over [_allEdges] —
+  /// hidden data stays cached, so backtracking re-reveals without a refetch.
+  void _recomputeVisibility() {
+    final focusId = state.focus;
+    final visibleEdges = <(String, String), EdgeDirected>{};
+    if (focusId.isEmpty) {
+      visibleEdges.addAll(_allEdges);
+    } else {
+      final onPath = edgePairsOnSomeDirectedPath(
+        pairs: _allEdges.keys.toSet(),
+        root: _egoNode.id,
+        focus: focusId,
+      );
+      for (final entry in _allEdges.entries) {
+        if (onPath.contains(entry.key) ||
+            entry.key.$1 == focusId ||
+            entry.key.$2 == focusId) {
+          visibleEdges[entry.key] = entry.value;
+        }
+      }
+    }
+    final visibleNodeIds = <String>{
+      _egoNode.id,
+      if (focusId.isNotEmpty) focusId,
+      for (final key in visibleEdges.keys) ...[key.$1, key.$2],
+    };
+
+    graphController.mutate((mutator) {
+      for (final node in List.of(graphController.nodes)) {
+        if (node.id != _egoNode.id && !visibleNodeIds.contains(node.id)) {
+          mutator.removeNode(node); // cascades to remove touching edges
+        }
+      }
+      // A surviving edge can still be invisible even with both endpoints
+      // visible (e.g. two of ego's siblings linked to each other, neither
+      // on-path nor focus-incident).
+      for (final edge in List.of(graphController.edges)) {
+        if (!visibleEdges.containsKey((edge.source.id, edge.destination.id))) {
+          mutator.removeEdge(edge);
+        }
+      }
+      final liveNodes = <String, NodeDetails>{
+        for (final n in graphController.nodes) n.id: n,
+      };
+      for (final id in visibleNodeIds) {
+        if (liveNodes.containsKey(id)) {
+          continue;
+        }
+        final node = _nodes[id];
+        if (node != null) {
+          mutator.addNode(node);
+          liveNodes[id] = node;
+        }
+      }
+      final liveEdgeKeys = <(String, String)>{
+        for (final e in graphController.edges) (e.source.id, e.destination.id),
+      };
+      for (final entry in visibleEdges.entries) {
+        if (liveEdgeKeys.contains(entry.key)) {
+          continue;
+        }
+        final src = liveNodes[entry.key.$1];
+        final dst = liveNodes[entry.key.$2];
+        if (src == null || dst == null) {
+          continue;
+        }
+        mutator.addEdge(_buildEdgeDetails(entry.value, src, dst));
       }
     });
     _emitHiddenNeighborCounts();
