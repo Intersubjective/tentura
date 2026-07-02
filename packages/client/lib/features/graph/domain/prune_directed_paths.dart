@@ -69,15 +69,34 @@ Set<(String, String)> edgePairsOnSomeDirectedPath({
   }
 
   Set<(String, String)> pruneFor(String r, String f) {
-    final s = forwardReachFromPairs(pairs, r);
-    if (!s.contains(f)) {
-      return const <(String, String)>{};
+    final adj = <String, List<String>>{};
+    for (final (src, dst) in pairs) {
+      adj.putIfAbsent(src, () => <String>[]).add(dst);
     }
-    final t = verticesThatCanReachFocusPairs(pairs, f);
-    return {
-      for (final p in pairs)
-        if (s.contains(p.$1) && t.contains(p.$2)) p,
-    };
+
+    final keep = <(String, String)>{};
+
+    bool markSimplePathsFrom(String node, Set<String> visited) {
+      var foundPath = false;
+      for (final next in adj[node] ?? const <String>[]) {
+        if (visited.contains(next)) {
+          continue;
+        }
+        final edge = (node, next);
+        if (next == f ||
+            markSimplePathsFrom(next, {
+              ...visited,
+              next,
+            })) {
+          keep.add(edge);
+          foundPath = true;
+        }
+      }
+      return foundPath;
+    }
+
+    markSimplePathsFrom(r, {r});
+    return keep;
   }
 
   var result = pruneFor(root, focus);

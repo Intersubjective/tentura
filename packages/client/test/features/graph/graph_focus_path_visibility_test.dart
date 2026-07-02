@@ -173,7 +173,7 @@ void main() {
     },
   );
 
-  test('diamond: both loaded ego→focus branches stay visible', () async {
+  test('diamond: only the tapped branch stays on the ego→focus path', () async {
     final source = _FakeGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
@@ -199,7 +199,6 @@ void main() {
 
     expect(_nodeIds(cubit), {'Ume', 'Ub', 'Uc', 'Ue'});
     expect(_edgePairs(cubit), {
-      ('Ume', 'Ub'),
       ('Ume', 'Uc'),
       ('Ub', 'Ue'),
       ('Uc', 'Ue'),
@@ -207,6 +206,30 @@ void main() {
 
     await cubit.close();
   });
+
+  test(
+    'reciprocal off-path edges do not keep sibling nodes visible',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {
+            _e('Ume', 'Ub'),
+            _e('Ume', 'Uc'),
+            _e('Uc', 'Ume'),
+          },
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(_nodeIds(cubit), {'Ume', 'Ub'});
+      expect(_edgePairs(cubit), {('Ume', 'Ub')});
+
+      await cubit.close();
+    },
+  );
 
   test(
     'focus reachable only via an incoming edge keeps a connected spine '
@@ -233,9 +256,38 @@ void main() {
     },
   );
 
+  test('tapping ego again hides the focused branch expansion', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    cubit.setFocus(_liveNode(cubit, 'Ub'));
+    await _settle();
+
+    expect(_nodeIds(cubit), {'Ume', 'Ub', 'Ue'});
+    expect(_edgePairs(cubit), {
+      ('Ume', 'Ub'),
+      ('Ub', 'Ue'),
+    });
+
+    cubit.setFocus(_liveNode(cubit, 'Ume'));
+    await _settle();
+
+    expect(_nodeIds(cubit), {'Ume', 'Ub', 'Uc'});
+    expect(_edgePairs(cubit), {
+      ('Ume', 'Ub'),
+      ('Ume', 'Uc'),
+    });
+
+    await cubit.close();
+  });
+
   test(
-    'only ego and the current focus stay pinned after a multi-hop tap '
-    'sequence',
+    'previously focused nodes stay pinned while they remain visible',
     () async {
       final source = _FakeGraphSource()
         ..pages.addAll({
@@ -250,13 +302,45 @@ void main() {
       cubit.setFocus(_liveNode(cubit, 'Ue'));
       await _settle();
 
-      // B stays visible (it is on the ego→E path) but must have been
-      // unpinned when focus moved on.
+      // B stays visible because it is on the ego→E path, so it keeps the
+      // pinned state it received when it was focused.
       final pinnedIds = cubit.graphController.nodes
           .where((n) => n.pinned)
           .map((n) => n.id)
           .toSet();
-      expect(pinnedIds, {'Ume', 'Ue'});
+      expect(pinnedIds, {'Ume', 'Ub', 'Ue'});
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'previously focused nodes stay pinned after they reappear from cache',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.setFocus(_liveNode(cubit, 'Ume'));
+      await _settle();
+      cubit.setFocus(_liveNode(cubit, 'Uc'));
+      await _settle();
+
+      expect(_nodeIds(cubit), {'Ume', 'Uc'});
+
+      cubit.setFocus(_liveNode(cubit, 'Ume'));
+      await _settle();
+
+      final pinnedIds = cubit.graphController.nodes
+          .where((n) => n.pinned)
+          .map((n) => n.id)
+          .toSet();
+      expect(pinnedIds, containsAll({'Ume', 'Ub', 'Uc'}));
 
       await cubit.close();
     },
