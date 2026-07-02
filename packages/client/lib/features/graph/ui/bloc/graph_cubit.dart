@@ -148,10 +148,14 @@ class GraphCubit extends Cubit<GraphState> {
   /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
   Set<String> _helpOffererIds = const <String>{};
 
-  /// Focus-path spotlight applies only to the default MeritRank connections
-  /// graph; forwards and genealogy graphs keep their additive rendering.
-  bool get _usesFocusPathVisibility =>
-      forwardsGraphBeaconId == null && !genealogyMode;
+  /// Focus-path spotlight is shared by the MeritRank connections graph and
+  /// invite genealogy. Forwards graph remains additive/static.
+  bool get _usesFocusPathVisibility => forwardsGraphBeaconId == null;
+
+  String get _focusRootId => genealogyMode ? state.egoNodeId : _egoNode.id;
+
+  Set<String> get _alwaysVisibleNodeIds =>
+      genealogyMode ? _genealogyParentChainNodeIds : const <String>{};
 
   @override
   Future<void> close() {
@@ -240,7 +244,10 @@ class GraphCubit extends Cubit<GraphState> {
     if (!_usesFocusPathVisibility) {
       return;
     }
-    final egoId = _egoNode.id;
+    final egoId = _focusRootId;
+    if (egoId.isEmpty) {
+      return;
+    }
     if (_focusPathIds.isEmpty) {
       _focusPathIds.add(egoId);
     }
@@ -256,6 +263,15 @@ class GraphCubit extends Cubit<GraphState> {
       return;
     }
     _focusPathIds.add(focusId);
+  }
+
+  void _resetFocusPathRoot(String rootId) {
+    if (rootId.isEmpty) {
+      return;
+    }
+    _focusPathIds
+      ..clear()
+      ..add(rootId);
   }
 
   ///
@@ -389,6 +405,7 @@ class GraphCubit extends Cubit<GraphState> {
                 genealogyTargetNodeKey: graph.targetNodeKey ?? '',
               ),
             );
+            _resetFocusPathRoot(graph.viewerNodeKey);
           }
           _genealogyParentChainNodeIds.addAll(
             graph.nodes.map((node) => node.nodeKey),
@@ -807,13 +824,7 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
 
-      if (genealogyMode) {
-        for (final node in _nodes.values) {
-          if (!mutator.controller.nodes.contains(node)) {
-            mutator.addNode(node);
-          }
-        }
-      } else if (!mutator.controller.nodes.contains(_egoNode)) {
+      if (!mutator.controller.nodes.contains(_egoNode)) {
         mutator.addNode(_egoNode);
       }
       final focusNode = _nodeForGraph(state.focus);
@@ -852,13 +863,15 @@ class GraphCubit extends Cubit<GraphState> {
     );
   }
 
-  /// Focus-path spotlight (MeritRank connections graph only): reconciles
+  /// Focus-path spotlight: reconciles
   /// [graphController] against the user's current tap trail plus all edges
   /// incident to the current focus (the fresh neighbors a tap just revealed).
   /// Pure filter over [_allEdges] — hidden data stays cached, so backtracking
   /// re-reveals without a refetch.
   void _recomputeVisibility() {
     final focusId = state.focus;
+    final rootId = _focusRootId;
+    final alwaysVisibleNodeIds = _alwaysVisibleNodeIds;
     final visibleEdges = <(String, String), EdgeDirected>{};
     if (focusId.isEmpty) {
       visibleEdges.addAll(_allEdges);
@@ -882,9 +895,16 @@ class GraphCubit extends Cubit<GraphState> {
           visibleEdges[entry.key] = entry.value;
         }
       }
+      for (final entry in _allEdges.entries) {
+        if (alwaysVisibleNodeIds.contains(entry.key.$1) &&
+            alwaysVisibleNodeIds.contains(entry.key.$2)) {
+          visibleEdges[entry.key] = entry.value;
+        }
+      }
     }
     final visibleNodeIds = <String>{
-      _egoNode.id,
+      if (rootId.isNotEmpty) rootId,
+      ...alwaysVisibleNodeIds,
       ..._focusPathIds,
       if (focusId.isNotEmpty) focusId,
       for (final key in visibleEdges.keys) ...[key.$1, key.$2],
@@ -892,7 +912,7 @@ class GraphCubit extends Cubit<GraphState> {
 
     graphController.mutate((mutator) {
       for (final node in List.of(graphController.nodes)) {
-        if (node.id != _egoNode.id && !visibleNodeIds.contains(node.id)) {
+        if (node.id != rootId && !visibleNodeIds.contains(node.id)) {
           mutator.removeNode(node); // cascades to remove touching edges
         }
       }

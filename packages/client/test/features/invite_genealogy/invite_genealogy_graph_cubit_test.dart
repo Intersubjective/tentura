@@ -611,6 +611,72 @@ void main() {
     },
   );
 
+  test(
+    'genealogy exploration hides sibling branches while keeping the parent chain',
+    () async {
+      final rootAt = DateTime.utc(2026);
+      final child1At = DateTime.utc(2026, 2);
+      final child2At = DateTime.utc(2026, 3);
+      final repo = _FakeInviteGenealogyRepository()
+        ..bootstrapGraph = InviteGenealogyGraph(
+          viewerNodeKey: 'Groot',
+          nodes: [_node('Groot', _viewer, rootAt)],
+          edges: [],
+        )
+        ..childrenPages.addAll([
+          (
+            nodes: [
+              _node('Groot', _viewer, rootAt),
+              _node('Gchild1', _friend, child1At),
+            ],
+            edges: [_edge('Groot', 'Gchild1', rootAt, child1At)],
+          ),
+          (
+            nodes: [
+              _node('Groot', _viewer, rootAt),
+              _node('Gchild2', _target, child2At),
+            ],
+            edges: [_edge('Groot', 'Gchild2', rootAt, child2At)],
+          ),
+        ]);
+      final cubit = _cubit(repo: repo);
+
+      await _settleCubitFetch();
+      final root = cubit.graphController.nodes.singleWhere(
+        (node) => node.id == 'Groot',
+      );
+
+      cubit.setFocus(root);
+      await _settleCubitFetch();
+      cubit.setFocus(root);
+      await _settleCubitFetch();
+
+      expect(
+        cubit.graphController.nodes.map((node) => node.id).toSet(),
+        {'Groot', 'Gchild1', 'Gchild2'},
+      );
+
+      final child1 = cubit.graphController.nodes.singleWhere(
+        (node) => node.id == 'Gchild1',
+      );
+      cubit.setFocus(child1);
+      await _settleCubitFetch();
+
+      expect(
+        cubit.graphController.nodes.map((node) => node.id).toSet(),
+        {'Groot', 'Gchild1'},
+      );
+      expect(
+        cubit.graphController.edges
+            .map((edge) => (edge.source.id, edge.destination.id))
+            .toSet(),
+        {('Groot', 'Gchild1')},
+      );
+
+      await cubit.close();
+    },
+  );
+
   test('genealogy mode ignores context and positive-only controls', () async {
     final repo = _FakeInviteGenealogyRepository()
       ..bootstrapGraph = InviteGenealogyGraph(
