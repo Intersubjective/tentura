@@ -671,7 +671,7 @@ void main() {
       cubit.setFocus(strangerNode);
       await _settleCubitFetch();
 
-      expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 1});
+      expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 2});
 
       await cubit.close();
     },

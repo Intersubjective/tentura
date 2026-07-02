@@ -706,7 +706,13 @@ class GraphCubit extends Cubit<GraphState> {
     }
 
     final hidden = <String, int>{};
+    final renderedNodeIds = graphController.nodes
+        .map((node) => node.id)
+        .toSet();
     for (final entry in _totalNeighborCounts.entries) {
+      if (!renderedNodeIds.contains(entry.key)) {
+        continue;
+      }
       final visibleCount = visibleNeighborIds[entry.key]?.length ?? 0;
       final hiddenCount = entry.value - visibleCount;
       if (hiddenCount > 0) {
