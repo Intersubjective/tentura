@@ -1,6 +1,17 @@
 # Tentura
 
-Coordination product for beacons (needs), rooms, and helpers.
+Coordination product for **Requests** (internally: **Beacons**), **Chats** (internally: `beacon_room`), and helpers.
+
+## Terminology
+
+| Layer | Primary object | Coordination workspace |
+|-------|----------------|------------------------|
+| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **Chat** |
+| **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` |
+
+**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Chat (internally: room)** is the private coordination workspace on a request.
+
+**Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon" or "room" as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
 ## Language
 

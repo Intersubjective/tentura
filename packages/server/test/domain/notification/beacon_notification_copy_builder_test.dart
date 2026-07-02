@@ -69,7 +69,7 @@ void main() {
     );
 
     expect(copy.title, 'Jordan');
-    expect(copy.body, 'Jordan forwarded a beacon to you');
+    expect(copy.body, 'Jordan forwarded a request to you');
     expect(copy.actionUrl, '/#$kPathAppLinkView?id=beacon-1');
   });
 
@@ -82,7 +82,7 @@ void main() {
       actorDisplayName: '',
     );
 
-    expect(copy.title, 'Beacon closed — close the loop');
+    expect(copy.title, 'Request closed — close the loop');
     expect(copy.body, 'Community garden cleanup');
     expect(copy.actionUrl, '/#$kPathReviewContributions/beacon-1');
   });

@@ -1,12 +1,12 @@
-# Beacon & Room — product spec (as shipped)
+# Request (internally: Beacon) & Chat — product spec (as shipped)
 
-User-facing behavior of a **beacon** (the request) and its optional **Room** (coordination workspace). For product direction and philosophy, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
+User-facing behavior of a **Request** (internally: **Beacon**) and its optional **Chat** (internally: `beacon_room` coordination workspace). For product direction and philosophy, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
 
-## What a beacon is
+## What a Request is
 
-A beacon is a **request for help** that can be forwarded person-to-person, committed to, coordinated, and closed. It is not a discussion thread or a feed post.
+A **Request (internally: Beacon)** is a **request for help** that can be forwarded person-to-person, committed to, coordinated, and closed. It is not a discussion thread or a feed post.
 
-Each beacon has:
+Each request has:
 
 - a **need** (what is being asked for),
 - **context** (where/when/constraints),
@@ -22,8 +22,8 @@ Bottom navigation (default tab: **My Work**):
 
 | Tab | Role |
 |-----|------|
-| **My Work** | Beacons I authored and/or offered help on |
-| **Inbox** | Beacons forwarded to me that need triage or passive follow |
+| **My Work** | Requests I authored and/or offered help on |
+| **Inbox** | Requests forwarded to me that need triage or passive follow |
 | **Friends** | People in my network (forward targets, trust) |
 | **Profile** | Account, capabilities, settings |
 

@@ -32,7 +32,7 @@ class BeaconNotificationCopyBuilder {
     final (title, body) = switch (intent.kind) {
       NotificationKind.needsMe => (
           'Asked of you',
-          excerpt.isNotEmpty ? excerpt : 'Action needed in the beacon room',
+          excerpt.isNotEmpty ? excerpt : 'Action needed in the request chat',
         ),
       NotificationKind.promiseMade => intent.promiseWithdrawn
           ? (
@@ -41,7 +41,7 @@ class BeaconNotificationCopyBuilder {
             )
           : (
               '$actor promised',
-              excerpt.isNotEmpty ? excerpt : 'New promise in the beacon room',
+              excerpt.isNotEmpty ? excerpt : 'New promise in the request chat',
             ),
       NotificationKind.coordinationChanged => (
           'Plan updated',
@@ -56,14 +56,14 @@ class BeaconNotificationCopyBuilder {
           excerpt.isNotEmpty ? excerpt : 'A blocker was resolved',
         ),
       NotificationKind.roomAccess => (
-          'Room access',
-          'You were admitted to the beacon room',
+          'Chat access',
+          'You were admitted to the request chat',
         ),
       NotificationKind.newRelay => (
           actor,
           excerpt.isNotEmpty
               ? '$actor: $excerpt'
-              : '$actor forwarded a beacon to you',
+              : '$actor forwarded a request to you',
         ),
       NotificationKind.commitmentEvent => intent.promiseWithdrawn
           ? (
@@ -75,16 +75,16 @@ class BeaconNotificationCopyBuilder {
               excerpt.isNotEmpty ? excerpt : '$actor offered help',
             ),
       NotificationKind.reviewReady => (
-          'Beacon closed — close the loop',
+          'Request closed — close the loop',
           beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
         ),
       NotificationKind.roomActivityLowPriority => (
-          beaconTitle.isNotEmpty ? beaconTitle : 'Beacon update',
-          excerpt.isNotEmpty ? excerpt : 'New room update',
+          beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
+          excerpt.isNotEmpty ? excerpt : 'New chat update',
         ),
       NotificationKind.staleRemind => (
           'Still needs attention',
-          excerpt.isNotEmpty ? excerpt : 'Something in the beacon room needs attention',
+          excerpt.isNotEmpty ? excerpt : 'Something in the request chat needs attention',
         ),
     };
 
@@ -110,7 +110,7 @@ class BeaconNotificationCopyBuilder {
         ),
       NotificationCategory.coordination => (
           'Tentura',
-          'New activity in a beacon room',
+          'New activity in a request chat',
         ),
       NotificationCategory.ambient => ('Tentura', 'New activity'),
     };

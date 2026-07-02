@@ -10,11 +10,11 @@ final class MovedToInboxMessage extends LocalizableMessage {
 
   @override
   String get toEn =>
-      'Help offer withdrawn — the beacon is in Watching (not in Needs me).';
+      'Help offer withdrawn — the request is in Watching (not in Needs me).';
 
   @override
   String get toRu =>
-      'Предложение помощи отозвано — маяк в «Наблюдении», не в «Нужно мне».';
+      'Предложение помощи отозвано — запрос в «Наблюдении», не в «Нужно мне».';
 }
 
 final class _ForwardActionLabel extends LocalizableMessage {

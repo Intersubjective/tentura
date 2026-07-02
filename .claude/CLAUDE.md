@@ -10,6 +10,8 @@ Use the token-minimizing ladder in [`.cursor/rules/search-tools.mdc`](../.cursor
 
 Client UI must go through the Material 3 design system — invoke the `material-3-flutter` skill (`.claude/skills/material-3-flutter/SKILL.md`) and see [`.cursor/rules/tentura-design-system.mdc`](../.cursor/rules/tentura-design-system.mdc). The design-system invariants and lints are listed in `AGENTS.md`.
 
+**Terminology:** users see **Request** / **Chat**; code paths stay `beacon_view`, `beacon_room`, etc. See [`.cursor/rules/terminology.mdc`](../.cursor/rules/terminology.mdc).
+
 ## Claude-specific tooling
 
 - **RAG index debugging only** (normal flow runs via `ollama_explore.py`):

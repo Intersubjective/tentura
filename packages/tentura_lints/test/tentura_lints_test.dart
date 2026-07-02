@@ -6,6 +6,7 @@ import 'package:tentura_lints/src/rules/no_domain_to_data_imports.dart';
 import 'package:tentura_lints/src/rules/no_raw_border_radius.dart';
 import 'package:tentura_lints/src/rules/no_raw_edge_insets.dart';
 import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
+import 'package:tentura_lints/src/rules/no_request_domain_entity.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 @reflectiveTest
@@ -256,6 +257,36 @@ final a = BorderRadius.circular(t.cardRadius);
   }
 }
 
+@reflectiveTest
+class NoRequestDomainEntityTest extends AnalysisRuleTest {
+  @override
+  String get testFileName => 'domain/request_entity.dart';
+
+  @override
+  void setUp() {
+    rule = NoRequestDomainEntity();
+    super.setUp();
+  }
+
+  Future<void> test_reports_request_entity_class() async {
+    await assertDiagnostics(
+      '''
+class Request {}
+''',
+      [lint(0, 16)],
+    );
+  }
+
+  Future<void> test_allows_beacon_entity_class() async {
+    await assertDiagnostics(
+      '''
+class Beacon {}
+''',
+      [],
+    );
+  }
+}
+
 void main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(NoDomainToDataImportsTest);
@@ -264,5 +295,6 @@ void main() {
     defineReflectiveTests(NoRawGraphqlInDartTest);
     defineReflectiveTests(NoRawEdgeInsetsTest);
     defineReflectiveTests(NoRawBorderRadiusTest);
+    defineReflectiveTests(NoRequestDomainEntityTest);
   });
 }

@@ -71,7 +71,7 @@ function beaconOverlay(p) {
     'div',
     { class: 'beacon' },
     el('div', { class: 'beacon-label' }, `${inviterName(p)} shared`),
-    el('div', { class: 'beacon-title' }, p.beacon.title || 'a beacon'),
+    el('div', { class: 'beacon-title' }, p.beacon.title || 'a request'),
     p.beacon.snippet
       ? el('div', { class: 'beacon-snippet' }, p.beacon.snippet)
       : null,

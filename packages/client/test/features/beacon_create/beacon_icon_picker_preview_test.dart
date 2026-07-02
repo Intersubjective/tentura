@@ -26,7 +26,7 @@ void main() {
     await tester.pumpWidget(_pickerHarness());
     await tester.pumpAndSettle();
 
-    expect(find.text('Beacon symbol'), findsOneWidget);
+    expect(find.text('Request symbol'), findsOneWidget);
     expect(find.text('Announcement'), findsWidgets);
 
     final announcementTile = find.ancestor(
@@ -45,7 +45,7 @@ void main() {
 
     expect(find.text('Announcement'), findsWidgets);
     expect(find.byType(BeaconIdentityTile), findsOneWidget);
-    expect(find.text('Beacon symbol'), findsNothing);
+    expect(find.text('Request symbol'), findsNothing);
   });
 
   testWidgets('long-press previews symbol on touch devices', (tester) async {
@@ -61,7 +61,7 @@ void main() {
     final gesture = await tester.startGesture(center);
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Beacon symbol'), findsNothing);
+    expect(find.text('Request symbol'), findsNothing);
     expect(find.text('Announcement'), findsWidgets);
 
     await gesture.up();

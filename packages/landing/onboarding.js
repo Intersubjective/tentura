@@ -23,10 +23,10 @@ export const ONBOARDING_PAGES = [
       'no likes, no noise. Just real needs moving through real people.',
   },
   {
-    title: 'Light a beacon, friends pass it on',
+    title: 'Post a request, friends pass it on',
     body:
-      "Describe what you need — that's a beacon. Friends forward it to " +
-      "someone who can help, and you coordinate in the beacon's room until " +
+      "Describe what you need — that's a request. Friends forward it to " +
+      "someone who can help, and you coordinate in the request's chat until " +
       "it's done.",
   },
   {
@@ -34,7 +34,7 @@ export const ONBOARDING_PAGES = [
     body:
       'You joined by a personal invite, like everyone else — the friend who ' +
       'invited you is already in your network. Add people you trust, and ' +
-      'light a beacon when you need a hand.',
+      'post a request when you need a hand.',
   },
 ];
 

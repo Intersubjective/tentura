@@ -134,14 +134,14 @@ final class ForwardCase extends UseCaseBase {
       viewerId: senderId,
     )) {
       throw const UnauthorizedException(
-        description: 'Sender cannot read beacon content',
+        description: 'Sender cannot read request content',
       );
     }
 
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsForward) {
       throw const UnauthorizedException(
-        description: 'Beacon does not allow forwarding',
+        description: 'Request does not allow forwarding',
       );
     }
 

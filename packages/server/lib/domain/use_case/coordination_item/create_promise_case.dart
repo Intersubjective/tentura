@@ -51,7 +51,7 @@ final class CreatePromiseCase extends UseCaseBase {
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsCoordination) {
-      throw const BeaconCreateException(description: 'Beacon is not open');
+      throw const BeaconCreateException(description: 'Request is not open');
     }
     final item = await _itemRepository.create(
       beaconId: beaconId,

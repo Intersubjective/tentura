@@ -9,7 +9,7 @@ Future<void> assertBeaconLineageSourceVisible({
 }) async {
   if (!await guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
     throw const BeaconCreateException(
-      description: 'Beacon is not available as a lineage source',
+      description: 'Request is not available as a lineage source',
     );
   }
 }

@@ -1,0 +1,35 @@
+---
+description: User-facing Request/Chat vs internal Beacon/beacon_room terminology alias.
+alwaysApply: true
+---
+
+# Terminology alias
+
+## Contract
+
+| Layer | Primary object | Coordination workspace |
+|-------|----------------|------------------------|
+| **Internal** (code, DB, GraphQL, routes, technical docs) | `Beacon`, `beacon`, `beacon_room` | room |
+| **User-facing** (l10n values, push, landing, snackbars) | **Request** / **Requests** | **Chat** |
+
+Russian: **запрос** / **запросы**; workspace **чат**.
+
+## Forbidden
+
+- `Request` domain entity, `request` table, `RequestRepository`, `/request/*` routes, `features/request_*` module.
+- User-facing copy containing product-noun **beacon** or workspace **room** (use l10n keys; values say request/chat).
+- Renaming DB tables, API fields, routes, events, models, services, repos, or analytics IDs for this alias.
+
+## Where copy lives
+
+- Client: [`packages/client/l10n/app_*.arb`](../../packages/client/l10n/) values only (keys stay `beacon*`).
+- Server: notification copy, evaluation participant strings, API error `description` strings shown to users.
+- Landing: [`packages/landing/onboarding.js`](../../packages/landing/onboarding.js), [`main.js`](../../packages/landing/main.js) quoted strings.
+
+## Enforcement
+
+- `bash scripts/check-user-facing-terminology.sh`
+- `packages/client/test/l10n/request_terminology_contract_test.dart`
+- Lint: `no_request_domain_entity` (blocks parallel `Request` types in domain)
+
+Full glossary: [`CONTEXT.md`](../../CONTEXT.md) § Terminology.

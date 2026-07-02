@@ -12,6 +12,7 @@ import 'src/rules/no_operational_raw_text_style.dart';
 import 'src/rules/no_raw_border_radius.dart';
 import 'src/rules/no_raw_edge_insets.dart';
 import 'src/rules/no_raw_graphql_in_dart.dart';
+import 'src/rules/no_request_domain_entity.dart';
 
 final plugin = TenturaLintsPlugin();
 
@@ -32,6 +33,7 @@ class TenturaLintsPlugin extends Plugin {
       ..registerLintRule(NoOperationalRawTextStyle())
       ..registerLintRule(NoOperationalPillWidgetsInBeaconView())
       ..registerLintRule(NoRawEdgeInsets())
-      ..registerLintRule(NoRawBorderRadius());
+      ..registerLintRule(NoRawBorderRadius())
+      ..registerLintRule(NoRequestDomainEntity());
   }
 }

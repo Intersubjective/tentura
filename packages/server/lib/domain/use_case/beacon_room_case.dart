@@ -425,7 +425,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
-        description: 'Room message not on this beacon',
+        description: 'Chat message not on this request',
       );
     }
     await _room.markRoomMessageSemanticDone(

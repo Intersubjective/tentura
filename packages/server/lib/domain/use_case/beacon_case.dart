@@ -150,7 +150,7 @@ final class BeaconCase extends UseCaseBase {
     if (recent >= env.beaconCreateMaxPerUser) {
       logger.info('beacon create rate-limited for user $userId');
       throw const RateLimitedException(
-        description: 'Too many beacons created recently, please wait',
+        description: 'Too many requests created recently, please wait',
       );
     }
   }
@@ -338,7 +338,7 @@ final class BeaconCase extends UseCaseBase {
     final currentCount = await _beaconRepository.getImageCount(beaconId);
     if (currentCount >= kMaxImagesPerBeacon) {
       throw const BeaconCreateException(
-        description: 'Maximum images per beacon reached',
+        description: 'Maximum images per request reached',
       );
     }
 
@@ -468,7 +468,7 @@ final class BeaconCase extends UseCaseBase {
           if (!beacon.status.isOpenFamily) {
             throw EvaluationException(
               evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Beacon must be open to cancel',
+              description: 'Request must be open to cancel',
             );
           }
           if (beacon.author.id != userId) {
@@ -489,7 +489,7 @@ final class BeaconCase extends UseCaseBase {
           if (hasCommitters) {
             throw EvaluationException(
               evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Cannot cancel a beacon with committers',
+              description: 'Cannot cancel a request with committers',
             );
           }
           await _beaconRepository.recordBeaconStatusTransition(
@@ -540,7 +540,7 @@ final class BeaconCase extends UseCaseBase {
           if (everHadAcknowledgedCommitter) {
             throw EvaluationException(
               evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Cannot delete a beacon that ever had a committer',
+              description: 'Cannot delete a request that ever had a committer',
             );
           }
 

@@ -54,13 +54,13 @@ final class InvitationCase extends UseCaseBase {
     if (beaconId != null) {
       if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
         throw const UnauthorizedException(
-          description: 'Issuer cannot read beacon content',
+          description: 'Issuer cannot read request content',
         );
       }
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       if (!beacon.allowsForward) {
         throw const UnauthorizedException(
-          description: 'Beacon does not allow forwarding',
+          description: 'Request does not allow forwarding',
         );
       }
       final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(

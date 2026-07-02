@@ -100,7 +100,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
       if (beacon.status != BeaconStatus.draft) {
-        _emitSnackError(Exception('Beacon is not a draft'));
+        _emitSnackError(Exception('Request is not a draft'));
         return;
       }
 
@@ -143,7 +143,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
       if (beacon.status != BeaconStatus.open) {
-        _emitSnackError(Exception('Only open beacons can be edited'));
+        _emitSnackError(Exception('Only open requests can be edited'));
         return;
       }
 

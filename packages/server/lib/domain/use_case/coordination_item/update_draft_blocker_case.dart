@@ -51,7 +51,7 @@ final class UpdateDraftBlockerCase extends UseCaseBase {
     final beacon =
         await _beaconRepository.getBeaconById(beaconId: existing.beaconId);
     if (!beacon.allowsCoordination) {
-      throw const BeaconCreateException(description: 'Beacon is not open');
+      throw const BeaconCreateException(description: 'Request is not open');
     }
     return _itemRepository.updateDraftBlocker(
       id: itemId,

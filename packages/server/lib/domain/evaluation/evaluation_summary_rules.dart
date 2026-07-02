@@ -136,7 +136,7 @@ Map<String, dynamic> buildEvaluationSummaryGraphqlPayload({
     return {
       'suppressed': true,
       'tone': tone,
-      'message': 'Feedback in this beacon (details limited for privacy)',
+      'message': 'Feedback in this request (details limited for privacy)',
       'topReasonTags': <String>[],
       'roleSummaryLine': '',
     };

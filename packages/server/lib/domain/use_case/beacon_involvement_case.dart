@@ -44,7 +44,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
       viewerId: currentUserId,
     )) {
       throw const UnauthorizedException(
-        description: 'Viewer cannot read beacon involvement',
+        description: 'Viewer cannot read request involvement',
       );
     }
 

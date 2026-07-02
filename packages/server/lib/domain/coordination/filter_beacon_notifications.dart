@@ -1,9 +1,9 @@
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 
-const kBeaconUnavailableNotificationTitle = 'Beacon no longer available';
+const kBeaconUnavailableNotificationTitle = 'Request no longer available';
 const kBeaconUnavailableNotificationBody =
-    'This beacon was deleted or is no longer visible to you.';
+    'This request was deleted or is no longer visible to you.';
 
 /// Drops or tombstones notification rows whose beacon content is no longer
 /// readable at fetch/send time (ADR 0008 §5).

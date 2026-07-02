@@ -18,7 +18,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 | Client UI (features/ui, design_system) | `.cursor/rules/tentura-design-system.mdc` + `docs/tentura-design-system.md` |
 | GraphQL / codegen / build / DI | `.cursor/rules/codegen.mdc` |
 | Procedures (real-time invalidation, V2 routing, invite, read-state, ferry scalars) | `DEV_GUIDELINES.md` |
-| Product behavior / vocabulary | `docs/README.md`, `CONTEXT.md` |
+| Product behavior / vocabulary | `docs/README.md`, `CONTEXT.md`, `.cursor/rules/terminology.mdc` |
 | Verifying changes | `.cursor/rules/lint-after-changes.mdc` |
 | Versioning / `MIN_CLIENT_VERSION` | `.cursor/rules/versioning.mdc` |
 
@@ -29,6 +29,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 - **Client UI uses the design system:** no raw `Color`/`Colors.*`, `TextStyle(…)`, inline `fontSize:`, or `EdgeInsets`/`BorderRadius` from raw numbers in `features/**` / `ui/**`; use `context.tt` tokens and `TenturaText.*`. (lints: `no_inline_font_size`, `no_operational_raw_color`, `no_raw_edge_insets`, `no_raw_border_radius`)
 - **Never edit generated files** (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`, `*.schema.dart`); run codegen instead.
 - **Search ladder:** known path → Read; semantic → `ollama_explore.py`; symbols/refs → Serena MCP; then Grep/Glob.
+- **Terminology alias:** user-facing **Request** / **Chat**; internal **Beacon** / `beacon_room`. Never introduce a `Request` domain entity. See `.cursor/rules/terminology.mdc` and `bash scripts/check-user-facing-terminology.sh`.
 
 ## Product docs
 
@@ -44,4 +45,4 @@ cd packages/client && flutter test --update-goldens <path>               # regen
 ```
 
 CI (`.github/workflows/pipeline.yml`) runs the lint tests, `flutter analyze`,
-and `flutter test` on every push to `main`.
+`bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push to `main`.

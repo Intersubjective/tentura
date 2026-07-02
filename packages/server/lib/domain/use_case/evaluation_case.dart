@@ -61,7 +61,7 @@ EvaluationSummaryResult _buildEvaluationSummary({
     return EvaluationSummaryResult(
       suppressed: true,
       tone: tone,
-      message: 'Feedback in this beacon (details limited for privacy)',
+      message: 'Feedback in this request (details limited for privacy)',
       topReasonTags: const [],
       roleSummaryLine: '',
     );
@@ -126,7 +126,7 @@ final class EvaluationCase extends UseCaseBase {
         if (!beacon.status.isOpenFamily) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Beacon must be open to close',
+            description: 'Request must be open to close',
           );
         }
         if (beacon.author.id != userId) {
@@ -247,7 +247,7 @@ final class EvaluationCase extends UseCaseBase {
         if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Beacon must be wrapping up to extend review',
+            description: 'Request must be wrapping up to extend review',
           );
         }
         if (beacon.author.id != userId) {
@@ -291,7 +291,7 @@ final class EvaluationCase extends UseCaseBase {
         if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Beacon must be wrapping up to reopen',
+            description: 'Request must be wrapping up to reopen',
           );
         }
         if (beacon.author.id != userId) {
@@ -335,7 +335,7 @@ final class EvaluationCase extends UseCaseBase {
         if (beacon.status != BeaconStatus.reviewOpen) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Beacon must be wrapping up to close now',
+            description: 'Request must be wrapping up to close now',
           );
         }
         if (beacon.author.id != userId) {
@@ -623,7 +623,7 @@ final class EvaluationCase extends UseCaseBase {
     if (!beacon.status.isOpenFamily) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-        description: 'Drafts only while beacon is open',
+        description: 'Drafts only while request is open',
       );
     }
     if (evaluatorId == evaluatedUserId) {
@@ -642,7 +642,7 @@ final class EvaluationCase extends UseCaseBase {
     if (!allowed) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.notEligible,
-        description: 'Not an allowed draft target for this beacon',
+        description: 'Not an allowed draft target for this request',
       );
     }
     final target = graph.participants.firstWhere((p) => p.userId == evaluatedUserId);
@@ -674,7 +674,7 @@ final class EvaluationCase extends UseCaseBase {
     if (!beacon.status.isOpenFamily) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-        description: 'Draft delete only while beacon is open',
+        description: 'Draft delete only while request is open',
       );
     }
     final ev = await _evaluationRepository.getEvaluation(

@@ -155,7 +155,7 @@ class BeaconCardShell extends StatelessWidget {
             label:
                 tapSemanticsLabel ??
                 L10n.of(context)?.openBeacon ??
-                'Open beacon',
+                'Open request',
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: InkWell(

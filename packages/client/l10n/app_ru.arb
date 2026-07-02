@@ -307,15 +307,15 @@
   "@friendsInvitesPeopleSection": {
     "context": "FriendsScreen"
   },
-  "friendsInvitesBeaconSection": "Приглашения к маякам",
+  "friendsInvitesBeaconSection": "Приглашения к запросам",
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
-  "beaconShareSheetTitle": "Поделиться приглашением к маяку",
+  "beaconShareSheetTitle": "Поделиться приглашением к запросу",
   "@beaconShareSheetTitle": {
     "context": "BeaconShareSheet"
   },
-  "beaconShareNoPendingInvites": "Пока нет активных приглашений для этого маяка.",
+  "beaconShareNoPendingInvites": "Пока нет активных приглашений для этого запроса.",
   "@beaconShareNoPendingInvites": {
     "context": "BeaconShareSheet"
   },
@@ -331,15 +331,15 @@
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"
   },
-  "confirmBeaconRemoval": "Вы уверены, что хотите удалить этот маяк?",
+  "confirmBeaconRemoval": "Вы уверены, что хотите удалить этот запрос?",
   "@confirmBeaconRemoval": {
     "context": "BeaconDeleteDialog"
   },
-  "confirmBeaconClose": "Вы уверены, что хотите закрыть этот маяк?",
+  "confirmBeaconClose": "Вы уверены, что хотите закрыть этот запрос?",
   "@confirmBeaconClose": {
     "context": "BeaconCloseConfirmDialog"
   },
-  "beaconsTitle": "Маяки",
+  "beaconsTitle": "Запросы",
   "@beaconsTitle": {
     "context": "BeaconScreen"
   },
@@ -355,15 +355,15 @@
   "@noBeaconsMessage": {
     "context": "BeaconScreen"
   },
-  "closeBeacon": "Закрыть маяк",
+  "closeBeacon": "Закрыть запрос",
   "@closeBeacon": {
     "context": "BeaconOverflowMenu"
   },
-  "openBeacon": "Открыть маяк",
+  "openBeacon": "Открыть запрос",
   "@openBeacon": {
     "context": "BeaconOverflowMenu"
   },
-  "deleteBeacon": "Удалить маяк",
+  "deleteBeacon": "Удалить запрос",
   "@deleteBeacon": {
     "context": "BeaconOverflowMenu"
   },
@@ -371,7 +371,7 @@
   "@showOnMap": {
     "context": "BeaconDefinitionBody"
   },
-  "createNewBeacon": "Создать маяк",
+  "createNewBeacon": "Создать запрос",
   "@createNewBeacon": {
     "context": "BeaconCreateScreen"
   },
@@ -383,7 +383,7 @@
   "@editDraftTitle": {
     "context": "BeaconCreateScreen"
   },
-  "editBeaconTitle": "Редактировать маяк",
+  "editBeaconTitle": "Редактировать запрос",
   "@editBeaconTitle": {
     "context": "BeaconCreateScreen"
   },
@@ -391,7 +391,7 @@
   "@buttonSaveChanges": {
     "context": "BeaconCreateScreen"
   },
-  "editBeacon": "Редактировать маяк",
+  "editBeacon": "Редактировать запрос",
   "@editBeacon": {
     "context": "BeaconOverflowMenu"
   },
@@ -403,7 +403,7 @@
   "@setDisplayPeriod": {
     "context": "BeaconCreateScreen"
   },
-  "beaconTitleRequired": "Название маяка (обязательно)",
+  "beaconTitleRequired": "Название запроса (обязательно)",
   "@beaconTitleRequired": {
     "context": "BeaconCreateScreen"
   },
@@ -411,7 +411,7 @@
   "@beaconNeedsTitle": {
     "context": "BeaconCreateScreen"
   },
-  "beaconNeedsHelper": "Необязательно. Отметьте, что нужно для маяка — так проще подобрать получателей при пересылке.",
+  "beaconNeedsHelper": "Необязательно. Отметьте, что нужно для запроса — так проще подобрать получателей при пересылке.",
   "@beaconNeedsHelper": {
     "context": "BeaconCreateScreen"
   },
@@ -439,7 +439,7 @@
   "@beaconImage": {
     "context": "BeaconCreateScreen"
   },
-  "beaconSymbolTitle": "Символ маяка",
+  "beaconSymbolTitle": "Символ запроса",
   "@beaconSymbolTitle": {
     "context": "BeaconCreateScreen"
   },
@@ -547,11 +547,11 @@
   "@createBeaconErrorTooShortQuestion": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCreateSuccess": "Маяк успешно создан!",
+  "beaconCreateSuccess": "Запрос успешно создан!",
   "@beaconCreateSuccess": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCreateError": "Что-то пошло не так, маяк не создан. Попробуйте ещё раз.",
+  "beaconCreateError": "Что-то пошло не так, запрос не создан. Попробуйте ещё раз.",
   "@beaconCreateError": {
     "context": "BeaconCreateScreen"
   },
@@ -559,11 +559,11 @@
   "@beaconViewButton": {
     "context": "BeaconCreateScreen"
   },
-  "confirmBeaconPublishing": "Вы уверены, что хотите опубликовать этот маяк?",
+  "confirmBeaconPublishing": "Вы уверены, что хотите опубликовать этот запрос?",
   "@confirmBeaconPublishing": {
     "context": "BeaconPublishDialog"
   },
-  "confirmBeaconPublishingHint": "После публикации маяка изменения будут невозможны. Вы уверены, что хотите опубликовать этот маяк?",
+  "confirmBeaconPublishingHint": "После публикации запроса изменения будут невозможны. Вы уверены, что хотите опубликовать этот запрос?",
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
   },
@@ -665,11 +665,11 @@
   "@confirmFriendAccept": {
     "context": "FriendAcceptInvitationDialog"
   },
-  "inviteAcceptBeaconTitle": "Принять приглашение и маяк?",
+  "inviteAcceptBeaconTitle": "Принять приглашение и запрос?",
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
-  "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот маяк во «Входящие».",
+  "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот запрос во «Входящие».",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",
     "placeholders": {
@@ -768,11 +768,11 @@
   "@introPage1Text": {
     "context": "Intro"
   },
-  "introPage2Title": "Зажгите маяк — друзья передадут его дальше",
+  "introPage2Title": "Опубликуйте запрос — друзья передадут его дальше",
   "@introPage2Title": {
     "context": "Intro"
   },
-  "introPage2Text": "Опишите, что вам нужно, — это маяк. Друзья перешлют его тому, кто может помочь, а вы договоритесь обо всём в комнате маяка.",
+  "introPage2Text": "Опишите, что вам нужно, — это запрос. Друзья перешлют его тому, кто может помочь, а вы договоритесь обо всём в чате запроса.",
   "@introPage2Text": {
     "context": "Intro"
   },
@@ -780,7 +780,7 @@
   "@introPage3Title": {
     "context": "Intro"
   },
-  "introPage3Text": "Вы пришли по личному приглашению, как и все остальные: пригласивший вас друг уже в вашей сети. Добавляйте людей, которым доверяете, и зажигайте маяк, когда нужна помощь.",
+  "introPage3Text": "Вы пришли по личному приглашению, как и все остальные: пригласивший вас друг уже в вашей сети. Добавляйте людей, которым доверяете, и публикуйте запрос, когда нужна помощь.",
   "@introPage3Text": {
     "context": "Intro"
   },
@@ -827,7 +827,7 @@
   "@inviteGenealogyBetweenTitle": {
     "context": "Profile"
   },
-  "showBeacons": "Показать маяки",
+  "showBeacons": "Показать запросы",
   "@showBeacons": {
     "context": "Profile"
   },
@@ -851,7 +851,7 @@
   "@mutualFriendsTitle": {
     "context": "Profile"
   },
-  "newBeacon": "Новый маяк",
+  "newBeacon": "Новый запрос",
   "@newBeacon": {
     "context": "Profile"
   },
@@ -1163,15 +1163,15 @@
   "@newStuffUpdatedBadge": {
     "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
   },
-  "newStuffReasonNewForward": "Маяк переслан вам",
+  "newStuffReasonNewForward": "Запрос переслан вам",
   "@newStuffReasonNewForward": {
     "context": "NewStuff dot — Inbox row reason"
   },
-  "newStuffReasonBeaconUpdated": "Маяк обновлён",
+  "newStuffReasonBeaconUpdated": "Запрос обновлён",
   "@newStuffReasonBeaconUpdated": {
     "context": "NewStuff dot — beacon content/lifecycle change"
   },
-  "newStuffReasonCoordinationStatusChanged": "Изменён статус координации маяка",
+  "newStuffReasonCoordinationStatusChanged": "Изменён статус координации запроса",
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
@@ -1203,7 +1203,7 @@
   "notificationCatUnblocksMe": "Разблокировки",
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
   "notificationCatCoordination": "Координация",
-  "notificationCatCoordinationDesc": "Активность в комнатах маяков, где вы участвуете",
+  "notificationCatCoordinationDesc": "Активность в чатах запросов, где вы участвуете",
   "notificationCatAmbient": "Фоновые",
   "notificationCatAmbientDesc": "Фоновая активность низкого приоритета",
   "notificationDigest": "Сводка по эл. почте",
@@ -1216,7 +1216,7 @@
   "notificationQuietHoursTo": "До",
   "notificationLockScreen": "Скрывать детали на экране блокировки",
   "notificationLockScreenDesc": "Показывать общую сводку вместо содержимого",
-  "inboxEmptyHint": "Здесь появятся маяки, пересланные вам",
+  "inboxEmptyHint": "Здесь появятся запросы, пересланные вам",
   "@inboxEmptyHint": {
     "context": "InboxScreen"
   },
@@ -1276,11 +1276,11 @@
   "@inboxTabNeedsEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabWatchingEmpty": "Нет маяков в наблюдении",
+  "inboxTabWatchingEmpty": "Нет запросов в наблюдении",
   "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabRejectedEmpty": "Нет отклонённых маяков",
+  "inboxTabRejectedEmpty": "Нет отклонённых запросов",
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
@@ -1292,7 +1292,7 @@
   "@inboxTombstoneQueueStatus": {
     "context": "InboxScreen"
   },
-  "inboxTombstoneSectionTitle": "Закрытые маяки",
+  "inboxTombstoneSectionTitle": "Закрытые запросы",
   "@inboxTombstoneSectionTitle": {
     "context": "InboxScreen"
   },
@@ -1312,7 +1312,7 @@
   "@inboxTombstoneClosedTitle": {
     "context": "InboxTombstoneCard"
   },
-  "inboxTombstoneClosedSubtitle": "Этот маяк закрыли до того, как вы отреагировали.",
+  "inboxTombstoneClosedSubtitle": "Этот запрос закрыли до того, как вы отреагировали.",
   "@inboxTombstoneClosedSubtitle": {
     "context": "InboxTombstoneCard"
   },
@@ -1320,7 +1320,7 @@
   "@inboxTombstoneDeletedTitle": {
     "context": "InboxTombstoneCard"
   },
-  "inboxTombstoneDeletedSubtitle": "Этот маяк убрали до того, как вы отреагировали.",
+  "inboxTombstoneDeletedSubtitle": "Этот запрос убрали до того, как вы отреагировали.",
   "@inboxTombstoneDeletedSubtitle": {
     "context": "InboxTombstoneCard"
   },
@@ -1352,7 +1352,7 @@
   "@timelineDeclined": {
     "context": "BeaconViewScreen"
   },
-  "forwardDeclined": "Отклонил(а) этот маяк",
+  "forwardDeclined": "Отклонил(а) этот запрос",
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
   },
@@ -1398,7 +1398,7 @@
   "@beaconLifecycleReviewOpen": {
     "context": "InboxItemTile"
   },
-  "cancelBeacon": "Отменить маяк",
+  "cancelBeacon": "Отменить запрос",
   "@cancelBeacon": {
     "context": "BeaconOverflowMenu"
   },
@@ -1554,11 +1554,11 @@
       }
     }
   },
-  "forwardBeaconTitle": "Переслать маяк",
+  "forwardBeaconTitle": "Переслать запрос",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardRecipientCapabilityMatchesNeed": "Совпадает с заявленными потребностями маяка",
+  "forwardRecipientCapabilityMatchesNeed": "Совпадает с заявленными потребностями запроса",
   "@forwardRecipientCapabilityMatchesNeed": {
     "context": "ForwardRecipientRow capability chip (tooltip / accessibility)"
   },
@@ -1660,7 +1660,7 @@
   "@forwardWatching": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAuthor": "Автор маяка",
+  "forwardAuthor": "Автор запроса",
   "@forwardAuthor": {
     "context": "ForwardBeaconScreen"
   },
@@ -1755,7 +1755,7 @@
   "@forwardScopeInvolvedShort": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardScopeUnseenHint": "Люди, которые ещё не видели этот маяк",
+  "forwardScopeUnseenHint": "Люди, которые ещё не видели этот запрос",
   "@forwardScopeUnseenHint": {
     "context": "ForwardBeaconScreen"
   },
@@ -1763,7 +1763,7 @@
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardReachExplainer": "Это люди, до которых вы можете дотянуться. Доступ к маяку появится только после принятия пересылки.",
+  "forwardReachExplainer": "Это люди, до которых вы можете дотянуться. Доступ к запросу появится только после принятия пересылки.",
   "@forwardReachExplainer": {
     "description": "Clarifies that forward-picker candidacy (reach) is not the same as read access."
   },
@@ -1823,7 +1823,7 @@
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAuthored": "Нет ваших маяков",
+  "myWorkEmptyAuthored": "Нет ваших запросов",
   "@myWorkEmptyAuthored": {
     "context": "MyWorkScreen"
   },
@@ -1839,11 +1839,11 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "«Мои дела» — маяки, которые вы создали или на которых предложили помощь. Пересланные вам маяки — во «Входящих».",
+  "myWorkEmptyActiveBody": "«Мои дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — во «Входящих».",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxHint": "Пересланные маяки ждут вас во «Входящих» → «Нужно мне».",
+  "myWorkEmptyActiveInboxHint": "Пересланные запросы ждут вас во «Входящих» → «Нужно мне».",
   "@myWorkEmptyActiveInboxHint": {
     "context": "MyWorkScreen"
   },
@@ -1856,7 +1856,7 @@
       }
     }
   },
-  "myWorkEmptyActiveCreateCta": "Создать маяк",
+  "myWorkEmptyActiveCreateCta": "Создать запрос",
   "@myWorkEmptyActiveCreateCta": {
     "context": "MyWorkScreen"
   },
@@ -2297,15 +2297,15 @@
   "@myWorkEmptyClosed": {
     "context": "MyWorkScreen"
   },
-  "beaconViewTitle": "Маяк",
+  "beaconViewTitle": "Запрос",
   "@beaconViewTitle": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewUnavailableBody": "Не удалось загрузить этот маяк. Возможно, он удалён или у вашего аккаунта нет доступа.",
+  "beaconViewUnavailableBody": "Не удалось загрузить этот запрос. Возможно, он удалён или у вашего аккаунта нет доступа.",
   "@beaconViewUnavailableBody": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewLoadErrorBody": "При загрузке маяка произошла ошибка. Проверьте подключение и повторите попытку.",
+  "beaconViewLoadErrorBody": "При загрузке запроса произошла ошибка. Проверьте подключение и повторите попытку.",
   "@beaconViewLoadErrorBody": {
     "context": "BeaconViewScreen"
   },
@@ -2313,7 +2313,7 @@
   "@beaconViewErrorGoBack": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewRoomAccessUnavailableBanner": "Комната для этого маяка недоступна.",
+  "beaconViewRoomAccessUnavailableBanner": "Чат для этого запроса недоступна.",
   "@beaconViewRoomAccessUnavailableBanner": {
     "context": "BeaconViewScreen"
   },
@@ -2350,7 +2350,7 @@
   "@labelForward": {
     "context": "BeaconViewScreen"
   },
-  "forwardActionTooltip": "Лично передать этот маяк выбранным людям",
+  "forwardActionTooltip": "Лично передать этот запрос выбранным людям",
   "labelTimeline": "Хронология",
   "@labelTimeline": {
     "context": "BeaconViewScreen"
@@ -2457,7 +2457,7 @@
       }
     }
   },
-  "timelineBeaconLifecycleChanged": "{author} изменил(а) статус маяка на: {status}",
+  "timelineBeaconLifecycleChanged": "{author} изменил(а) статус запроса на: {status}",
   "@timelineBeaconLifecycleChanged": {
     "context": "BeaconViewScreen",
     "description": "Timeline: beacon lifecycle/state changed",
@@ -2498,7 +2498,7 @@
     "context": "BeaconViewScreen",
     "description": "CTA button in People tab to lazy-load the forwards subsection"
   },
-  "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому маяку.",
+  "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому запросу.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
@@ -2565,7 +2565,7 @@
       }
     }
   },
-  "dialogOfferHelpTitle": "Предложить помощь по маяку",
+  "dialogOfferHelpTitle": "Предложить помощь по запросу",
   "@dialogOfferHelpTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for offer help dialog"
@@ -2680,15 +2680,15 @@
       }
     }
   },
-  "evaluationBannerTitle": "Маяк закрыт — отзыв о вкладе",
+  "evaluationBannerTitle": "Запрос закрыт — отзыв о вкладе",
   "evaluationBannerTitleDraft": "Приватные черновики",
-  "evaluationBannerSubtitle": "Приватно, только для этого маяка. Не публично.",
-  "evaluationBannerSubtitleDraft": "Сохраняйте приватные заметки до закрытия маяка. Они не учитываются, пока вы не отправите отзыв после закрытия.",
+  "evaluationBannerSubtitle": "Приватно, только для этого запроса. Не публично.",
+  "evaluationBannerSubtitleDraft": "Сохраняйте приватные заметки до закрытия запроса. Они не учитываются, пока вы не отправите отзыв после закрытия.",
   "evaluationBannerReview": "Оценить",
   "evaluationBannerDraftReview": "Черновик отзыва",
   "evaluationAcknowledgeTitle": "Признать вклад",
   "evaluationAcknowledgeTitleDraft": "Черновик отзыва",
-  "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники маяка по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать маяки в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом маяке. Если не уверены, выберите «Нет оснований».",
+  "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники запроса по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать запросы в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом запросе. Если не уверены, выберите «Нет оснований».",
   "evaluationPrivacyShort": "Ваш отзыв приватен.",
   "evaluationDraftDone": "Готово",
   "evaluationSectionAuthor": "Автор",
@@ -2705,7 +2705,7 @@
   "evaluationSubmitFinish": "Отправить и завершить",
   "evaluationSkipForNow": "Пропустить",
   "evaluationAllNoBasisConfirmTitle": "Сохранено",
-  "evaluationAllNoBasisConfirmBody": "Этот маяк всё равно поможет откалибровать ваше локальное представление.",
+  "evaluationAllNoBasisConfirmBody": "Этот запрос всё равно поможет откалибровать ваше локальное представление.",
   "evaluationProgress": "{reviewed} из {total} оценено",
   "@evaluationProgress": {
     "placeholders": {
@@ -2717,14 +2717,14 @@
       }
     }
   },
-  "evaluationPrivateHint": "Приватный отзыв только для этого маяка. Ответ используется только для вашей персональной логики доверия и рекомендаций. Это не публичный балл, и другие участники не видят вашу оценку с привязкой к имени.",
-  "evaluationPromptAuthor": "Как вклад автора повлиял на этот маяк?",
-  "evaluationPromptHelpOfferer": "Как помощь этого человека повлияла на маяк?",
-  "evaluationPromptHelpOffererHandoff": "Как этот человек вёл себя после пересылки маяка ему?",
-  "evaluationPromptForwarder": "Помогла или помешала эта пересылка маяку?",
-  "evaluationEmptyTargets": "Пока некого оценивать по этому маяку.",
+  "evaluationPrivateHint": "Приватный отзыв только для этого запроса. Ответ используется только для вашей персональной логики доверия и рекомендаций. Это не публичный балл, и другие участники не видят вашу оценку с привязкой к имени.",
+  "evaluationPromptAuthor": "Как вклад автора повлиял на этот запрос?",
+  "evaluationPromptHelpOfferer": "Как помощь этого человека повлияла на запрос?",
+  "evaluationPromptHelpOffererHandoff": "Как этот человек вёл себя после пересылки запроса ему?",
+  "evaluationPromptForwarder": "Помогла или помешала эта пересылка запросу?",
+  "evaluationEmptyTargets": "Пока некого оценивать по этому запросу.",
   "evaluationSave": "Сохранить",
-  "evaluationSummaryTitle": "Ваш отзыв по этому маяку",
+  "evaluationSummaryTitle": "Ваш отзыв по этому запросу",
   "evaluationNotReviewed": "Не оценено",
   "evaluationReviewed": "Оценено",
   "evaluationNoBasisLabel": "Нет оснований",
@@ -2785,11 +2785,11 @@
   "coordinationNeedDifferentSkill": "Нужен другой навык",
   "coordinationNeedCoordination": "Нужна координация",
   "coordinationNotSuitable": "Не подходит",
-  "coordinationResponseRoomAdmits": "Комната будет доступна",
-  "coordinationResponseRoomNoAdmission": "Комната недоступна",
-  "coordinationInviteToRoomRow": "Допустить в комнату",
+  "coordinationResponseRoomAdmits": "Чат будет доступна",
+  "coordinationResponseRoomNoAdmission": "Чат недоступна",
+  "coordinationInviteToRoomRow": "Допустить в чат",
   "beaconRoomWaitingForApproval": "Ожидает решения",
-  "beaconRoomNoAdmission": "Комната недоступна",
+  "beaconRoomNoAdmission": "Чат недоступна",
   "withdrawCantDoIt": "Больше не могу",
   "withdrawTimingChanged": "Не сходится по времени",
   "withdrawWrongFit": "Не мой формат",
@@ -2805,12 +2805,12 @@
     }
   },
   "labelSetCoordinationResponse": "Сигнал координации",
-  "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
+  "labelBeaconCoordinationSummary": "Покрытие потребности запроса",
   "coordinationSetOverallStatus": "Общий статус координации",
   "labelBeaconTabStatus": "Статус",
   "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
-  "labelBeaconTabRoom": "Комната",
+  "labelBeaconTabRoom": "Чат",
   "labelBeaconTabItems": "Элементы",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
   "beaconItemsActiveFoldTitle": "Активные ({count})",
@@ -2869,9 +2869,9 @@
   "beaconSituationCurrentLineLabel": "Что дальше?",
   "beaconSituationBlockerLabel": "Блокер",
   "beaconSituationLastChangeLabel": "Последнее",
-  "beaconSituationOpenRoom": "Открыть комнату",
+  "beaconSituationOpenRoom": "Открыть чат",
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
-  "beaconBlockersPanelAskInRoom": "Спросить в комнате",
+  "beaconBlockersPanelAskInRoom": "Спросить в чате",
   "beaconHudYourRolePanelTitle": "Ваша роль",
   "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
   "@beaconHudYouAuthorReview": {
@@ -2901,7 +2901,7 @@
       }
     }
   },
-  "beaconHudBeaconUnavailable": "Маяк недоступен",
+  "beaconHudBeaconUnavailable": "Запрос недоступен",
   "beaconHudYouNoActionAvailable": "Действий нет",
   "beaconHudYouForward": "Можете переслать",
   "beaconHudReviewOpen": "ОКНО ОЦЕНКИ",
@@ -2931,7 +2931,7 @@
   },
   "beaconHudClosedSummary": "Закрыт",
   "beaconHudOverflowMore": "Ещё действия",
-  "beaconHudOverflowCloseBeacon": "Закрыть маяк…",
+  "beaconHudOverflowCloseBeacon": "Закрыть запрос…",
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
   "beaconHudYouAuthorReviewBeforeClose": "Проверьте предложения помощи перед закрытием",
   "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
@@ -2940,8 +2940,8 @@
   "beaconHudTokenClosureBlocked": "ЗАКРЫТИЕ ЗАБЛОКИРОВАНО",
   "beaconHudCtaReviewContributions": "Оценка",
   "beaconHudCtaOpenLog": "Журнал",
-  "beaconCloseSheetReadyTitle": "Закрыть маяк?",
-  "beaconCloseSheetReadyBody": "Маяк будет отмечен завершённым и откроется подтверждение вклада.",
+  "beaconCloseSheetReadyTitle": "Закрыть запрос?",
+  "beaconCloseSheetReadyBody": "Запрос будет отмечен завершённым и откроется подтверждение вклада.",
   "beaconCloseSheetReviewTitle": "Закрыть после проверки?",
   "beaconCloseSheetReviewBody": "Возможно, всё готово, но часть сигналов всё ещё требует вашего решения.",
   "beaconCloseSheetPrematureTitle": "Закрыть сейчас?",
@@ -2950,7 +2950,7 @@
   "beaconCloseSheetBlockedBody": "Пока есть незакрытая координация или блокеры, чистое закрытие недоступно.",
   "beaconCloseSheetEvidenceOpenBlocker": "Есть открытый блокер",
   "beaconCloseSheetEvidenceNoOpenBlocker": "Нет открытого блокера",
-  "beaconCloseSheetEvidenceWholeBeaconDone": "Маяк целиком отмечен завершённым",
+  "beaconCloseSheetEvidenceWholeBeaconDone": "Запрос целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено достаточно помощи",
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
   "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
@@ -2969,16 +2969,16 @@
       }
     }
   },
-  "beaconCloseSheetActionCloseBeacon": "Закрыть маяк",
+  "beaconCloseSheetActionCloseBeacon": "Закрыть запрос",
   "beaconCloseSheetActionCloseAnyway": "Всё равно закрыть",
   "beaconCloseSheetActionKeepActive": "Оставить активным",
   "beaconCloseSheetActionOpenPeople": "Открыть людей",
-  "beaconCloseSheetActionResolveRoom": "Открыть комнату",
+  "beaconCloseSheetActionResolveRoom": "Открыть чат",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
   "beaconCloseSheetReadyReviewTitle": "Закрыть и завершить?",
   "beaconCloseSheetReadyReviewBody": "Помощники с подтверждённым участием получат окно для признания вклада.",
-  "beaconCloseSheetReadyImmediateBody": "Маяк будет отмечен завершённым без окна отзыва.",
+  "beaconCloseSheetReadyImmediateBody": "Запрос будет отмечен завершённым без окна отзыва.",
   "beaconCloseSheetReviewWrappingUpBody": "Часть сигналов всё ещё требует вашего решения перед завершением.",
   "beaconCloseSheetPrematureReviewBody": "Недостаточно сигналов завершения. Раннее завершение может обойти контекст координации.",
   "beaconCloseSheetBranchWrappingUp": "Итог: завершение (окно отзыва)",
@@ -2987,9 +2987,9 @@
   "beaconReviewReopenAction": "Открыть снова",
   "beaconReviewCloseNowAction": "Закрыть сейчас",
   "beaconReviewExtendSuccess": "Окно отзыва продлено",
-  "beaconReviewReopenSuccess": "Маяк снова открыт",
-  "beaconReviewCloseNowSuccess": "Маяк закрыт",
-  "beaconReviewReopenTitle": "Открыть маяк снова?",
+  "beaconReviewReopenSuccess": "Запрос снова открыт",
+  "beaconReviewCloseNowSuccess": "Запрос закрыт",
+  "beaconReviewReopenTitle": "Открыть запрос снова?",
   "beaconReviewReopenBody": "Возврат в «Открыт». Заметки отзыва сохраняются как черновики, где это ещё уместно.",
   "beaconReviewReopenConfirm": "Открыть снова",
   "beaconNeedsMoreHelpRevertTitle": "Нужна ещё помощь?",
@@ -3005,15 +3005,15 @@
   },
   "beaconReviewCloseNowBlocked": "«Закрыть сейчас» доступно, когда каждый обязательный рецензент завершил или пропустил отзыв.",
   "beaconDeleteBlockedTitle": "Нельзя удалить",
-  "beaconDeleteBlockedBody": "У этого маяка были подтверждённые помощники. Архивируйте его в «Моя работа».",
+  "beaconDeleteBlockedBody": "У этого запроса были подтверждённые помощники. Архивируйте его в «Моя работа».",
   "beaconDeleteDraftTitle": "Удалить черновик?",
   "beaconDeleteDraftBody": "Черновик и его изображения будут удалены безвозвратно.",
-  "beaconDeleteOpenTitle": "Удалить маяк?",
-  "beaconDeleteOpenBody": "Маяк будет удалён безвозвратно. Подтверждённых помощников не было.",
-  "beaconDeleteGenericBody": "Маяк исчезнет для всех, кто его видел.",
+  "beaconDeleteOpenTitle": "Удалить запрос?",
+  "beaconDeleteOpenBody": "Запрос будет удалён безвозвратно. Подтверждённых помощников не было.",
+  "beaconDeleteGenericBody": "Запрос исчезнет для всех, кто его видел.",
   "myWorkFinishedStatusClosed": "Закрыт",
   "myWorkFinishedStatusCancelled": "Отменён",
-  "myWorkFinishedHint": "Завершённые маяки остаются здесь, пока вы их не архивируете.",
+  "myWorkFinishedHint": "Завершённые запросы остаются здесь, пока вы их не архивируете.",
   "myWorkStatusWrappingUp": "Завершение",
   "myWorkStatusCancelled": "Отменён",
   "myWorkUnarchive": "Вернуть из архива",
@@ -3024,14 +3024,14 @@
   "beaconClosurePanelTitleReview": "Проверка перед закрытием",
   "beaconClosurePanelTitlePremature": "Закрытие ещё не готово",
   "beaconClosurePanelTitleBlocked": "Сначала снимите блокеры",
-  "beaconClosurePanelBodyReady": "По сигналам координации маяк выглядит готовым к закрытию.",
-  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и комнату.",
+  "beaconClosurePanelBodyReady": "По сигналам координации запрос выглядит готовым к закрытию.",
+  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и чат.",
   "beaconClosurePanelBodyPremature": "Недостаточно явных сигналов завершения.",
   "beaconClosurePanelBodyBlocked": "Закрытие заблокировано незавершённой координацией.",
   "beaconClosurePanelEvidenceHeading": "Сигналы",
   "beaconPeopleLensAuthorHeading": "Автор",
   "beaconPeopleLensStewardsHeading": "Стюард",
-  "beaconPeopleLensRoomMembersHeading": "Участники комнаты",
+  "beaconPeopleLensRoomMembersHeading": "Участники чаты",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
   "beaconPeopleLensWillingToHelpHeading": "Готовы помочь",
   "beaconPeopleLensNotFittingHeading": "Не подходят",
@@ -3101,7 +3101,7 @@
       }
     }
   },
-  "beaconHeaderRoomCount": "Комната · {count}",
+  "beaconHeaderRoomCount": "Чат · {count}",
   "@beaconHeaderRoomCount": {
     "placeholders": {
       "count": {
@@ -3114,24 +3114,24 @@
   "beaconHeaderUpdateHelpOffer": "Изменить предложение помощи",
   "beaconNeedSummaryTitle": "Потребность",
   "beaconCoordinationCardTitle": "Координация",
-  "beaconStatusSheetTitle": "Статус маяка",
+  "beaconStatusSheetTitle": "Статус запроса",
   "beaconStatusRowDraft": "Черновик",
   "beaconStatusRowOpen": "Открыт",
   "beaconStatusRowPublish": "Опубликовать",
   "beaconStatusRowWrappingUp": "Завершение",
   "beaconStatusRowClosed": "Закрыт",
   "beaconStatusRowCancelled": "Отменён",
-  "beaconStatusHintPublishFirst": "Сначала опубликуйте маяк",
+  "beaconStatusHintPublishFirst": "Сначала опубликуйте запрос",
   "beaconStatusHintFinishReviewFirst": "Сначала завершите период проверки",
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
-  "beaconStatusHintCancelWrappingUp": "Маяк завершается",
+  "beaconStatusHintCancelWrappingUp": "Запрос завершается",
   "beaconStatusHintBlocked": "Сначала устраните блокеры",
   "beaconStatusHintNotReadyToClose": "Пока рано закрывать",
-  "beaconStatusHintAuthorOnly": "Только автор маяка может это изменить",
-  "beaconStatusCancelTitle": "Отменить маяк?",
-  "beaconStatusCancelBody": "Маяк будет отмечен как отменённый. Его можно просматривать, но помощь больше не принимается.",
-  "beaconStatusCancelConfirm": "Отменить маяк",
+  "beaconStatusHintAuthorOnly": "Только автор запроса может это изменить",
+  "beaconStatusCancelTitle": "Отменить запрос?",
+  "beaconStatusCancelBody": "Запрос будет отмечен как отменённый. Его можно просматривать, но помощь больше не принимается.",
+  "beaconStatusCancelConfirm": "Отменить запрос",
   "beaconHelpOfferSnapshotTitle": "Предложения помощи",
   "beaconViewAllHelpOffers": "Все предложения помощи",
   "beaconForwardChainPreview": "Цепочка пересылок",
@@ -3140,7 +3140,7 @@
   "beaconNeedCardTitle": "Что нужно",
   "beaconDefinitionSectionTitle": "Описание",
   "beaconDefinitionLastPublicChangeLabel": "Последнее обновление",
-  "beaconDefinitionLastRoomChangeLabel": "Последнее в комнате",
+  "beaconDefinitionLastRoomChangeLabel": "Последнее в чате",
   "beaconNeedAndContextTitle": "Запрос и контекст",
   "beaconContextAttachmentsTitle": "Контекст и вложения",
   "beaconNeedBriefPrefix": "Запрос:",
@@ -3199,20 +3199,20 @@
     }
   },
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
-  "beaconRoomTitle": "Комната",
+  "beaconRoomTitle": "Чат",
   "beaconRoomMessageHint": "Напишите сообщение…",
-  "beaconRoomOpen": "Комната",
+  "beaconRoomOpen": "Чат",
   "beaconFactsSheetTitle": "Закреплённые факты",
   "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
   "beaconRoomPinFactTitle": "Закрепить как факт",
-  "beaconRoomPinFactPublic": "Публично — видно за пределами комнаты",
-  "beaconRoomPinFactRoomOnly": "Только комната",
+  "beaconRoomPinFactPublic": "Публично — видно за пределами чаты",
+  "beaconRoomPinFactRoomOnly": "Только чат",
   "beaconRoomPinFactDisabledEmpty": "Добавьте текст или вложение перед закреплением.",
   "beaconRoomPinFactAttachmentBodyFallback": "Вложение",
   "beaconRoomActionViewPinnedFact": "Открыть закреплённый факт",
   "beaconRoomSemanticPlan": "План",
   "beaconRoomSemanticPublicFact": "Публичный факт",
-  "beaconRoomSemanticRoomFact": "Факт комнаты",
+  "beaconRoomSemanticRoomFact": "Факт чаты",
   "beaconRoomSemanticParticipantStatus": "Статус",
   "beaconRoomSemanticBlocker": "Блокер",
   "beaconRoomSemanticNeedInfo": "Нужна информация",
@@ -3222,17 +3222,17 @@
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
-  "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт комнаты",
+  "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт чаты",
   "beaconRoomFactCardActionEdit": "Изменить текст",
   "beaconRoomFactCardActionRemove": "Открепить",
   "beaconRoomFactCardActionJumpToSource": "К сообщению",
   "beaconRoomFactCardActionCopy": "Копировать текст",
   "beaconRoomFactCardActionMakePublic": "Сделать публичным",
-  "beaconRoomFactCardActionMakePrivate": "Только комната",
+  "beaconRoomFactCardActionMakePrivate": "Только чат",
   "beaconRoomFactCardEditTitle": "Редактировать факт",
   "beaconRoomFactCardEditHint": "Текст факта",
   "beaconRoomFactCardRemoveConfirmTitle": "Открепить факт?",
-  "beaconRoomFactCardRemoveConfirmBody": "Карточка перестанет быть закреплённой на маяке. Сообщения в комнате не удаляются.",
+  "beaconRoomFactCardRemoveConfirmBody": "Карточка перестанет быть закреплённой на запросе. Сообщения в чате не удаляются.",
   "beaconRoomFactCardRemoveConfirmAction": "Открепить",
   "beaconRoomFactCardCorrectedBadge": "Изменён",
   "beaconRoomFactCardPinnedByLabel": "Закрепил(а) {name}",
@@ -3274,12 +3274,12 @@
     }
   },
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
-  "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате комнаты).",
+  "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате чаты).",
   "coordinationCreatePromiseAction": "Дать обещание…",
   "coordinationCreatePromiseSheetPrompt": "Что вы обещаете сделать?",
   "coordinationCreatePromiseFromMessage": "Обещание из сообщения",
   "coordinationPromiseTargetPickerLabel": "Кому это обещание?",
-  "coordinationCreatePromiseNoTargets": "Пока некому дать обещание по этому маяку. Примите помощника в комнату или дождитесь предложения помощи.",
+  "coordinationCreatePromiseNoTargets": "Пока некому дать обещание по этому запросу. Примите помощника в чат или дождитесь предложения помощи.",
   "coordinationDeleteDraftTitle": "Удалить черновик?",
   "coordinationDeleteDraftBody": "Это действие нельзя отменить.",
   "coordinationAskFromMessagePreview": "Из сообщения",
@@ -3321,7 +3321,7 @@
   "beaconActivityLifecycleClosedAfterReview": "Закрыто после обзора",
   "beaconActivityLifecycleReopened": "Снова открыто",
   "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
-  "beaconActivityCoordinationFallback": "Обновление комнаты",
+  "beaconActivityCoordinationFallback": "Обновление чаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",
   "beaconRoomReactionPickerSemantic": "Выбор реакции",
@@ -3379,7 +3379,7 @@
       }
     }
   },
-  "inboxCardRoomUnread": "{count, plural, =0{Комната без новых сообщений} one{1 непрочитанное в комнате} few{{count} непрочитанных в комнате} many{{count} непрочитанных в комнате} other{{count} непрочитанных в комнате}}",
+  "inboxCardRoomUnread": "{count, plural, =0{Чат без новых сообщений} one{1 непрочитанное в чате} few{{count} непрочитанных в чате} many{{count} непрочитанных в чате} other{{count} непрочитанных в чате}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
       "count": {
@@ -3387,7 +3387,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "Что дальше в комнате: {text}",
+  "inboxCardRoomCurrentLine": "Что дальше в чате: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -3403,7 +3403,7 @@
       }
     }
   },
-  "inboxCardRoomLastChange": "Последнее в комнате: {text}",
+  "inboxCardRoomLastChange": "Последнее в чате: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
       "text": {
@@ -3590,7 +3590,7 @@
       }
     }
   },
-  "friendContextInboxCount": "{count} активных маяков переслано ему/ей",
+  "friendContextInboxCount": "{count} активных запросов переслано ему/ей",
   "@friendContextInboxCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
@@ -3599,7 +3599,7 @@
       }
     }
   },
-  "friendContextSharedCount": "{count} активных маяков видите оба",
+  "friendContextSharedCount": "{count} активных запросов видите оба",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
@@ -3609,7 +3609,7 @@
     }
   },
   "beaconRequirementsTitle": "Требования",
-  "beaconRequirementsSheetHint": "Выбранные требования отображаются значками в форме маяка.",
+  "beaconRequirementsSheetHint": "Выбранные требования отображаются значками в форме запроса.",
   "beaconRequirementsDiscardTitle": "Отменить выбор?",
   "beaconRequirementsDiscardBody": "Выбранные требования не сохранены.",
   "beaconRequirementsDiscardConfirm": "Отменить",
@@ -3710,22 +3710,22 @@
   "authRecoveryResetLocalBody": "Будут удалены все аккаунты и ключи на этом устройстве. Аккаунт на сервере не удаляется.",
   "authRecoveryResetSeedWarning": "После сброса вход с этого устройства может быть невозможен без seed-фразы или привязанного Google/email.",
   "buttonDismiss": "Закрыть",
-  "beaconCreateFromAction": "Создать на основе этого маяка",
+  "beaconCreateFromAction": "Создать на основе этого запроса",
   "beaconLineageSuggestionsAction": "Предложения пересылки по родословной",
-  "beaconLineageSuggestionsLinkSemantics": "Просмотреть предложения пересылки из похожих прошлых маяков",
-  "beaconLineageParentLinkLabel": "Создано на основе предыдущего маяка",
-  "beaconLineageParentLinkSemantics": "Открыть предыдущий маяк, на основе которого создан этот",
-  "beaconLineageForwardSectionTitle": "Из ваших похожих прошлых маяков",
+  "beaconLineageSuggestionsLinkSemantics": "Просмотреть предложения пересылки из похожих прошлых запросов",
+  "beaconLineageParentLinkLabel": "Создано на основе предыдущего запроса",
+  "beaconLineageParentLinkSemantics": "Открыть предыдущий запрос, на основе которого создан этот",
+  "beaconLineageForwardSectionTitle": "Из ваших похожих прошлых запросов",
   "beaconLineageForwardSectionHelp": "Только на основе вашей собственной прошлой активности — не рейтинг.",
   "beaconLineageAutoSelectHint": "Предложения отмечены заранее — снимите отметку с ненужных.",
   "beaconLineageClearSuggestions": "Очистить предложения",
-  "beaconLineageForwardBadge": "Из прошлого маяка",
+  "beaconLineageForwardBadge": "Из прошлого запроса",
   "beaconLineageSuggestedNoteHelper": "Предложенный текст — отредактируйте перед отправкой",
-  "lineageReasonHelpedBefore": "Помогал в похожем прошлом маяке",
+  "lineageReasonHelpedBefore": "Помогал в похожем прошлом запросе",
   "lineageReasonReviewedHelpful": "Вы отмечали этого человека как полезного",
   "lineageReasonRoutedHelp": "Ваша пересылка привела к помощи",
   "lineageReasonPrivateTag": "Личная метка: {tag}",
-  "beaconLineagePreviewTitle": "Кого бы вы предложили из похожих прошлых маяков",
+  "beaconLineagePreviewTitle": "Кого бы вы предложили из похожих прошлых запросов",
   "beaconLineagePreviewSubjectivity": "Видите только вы — на основе вашей активности.",
   "beaconLineagePreviewEmpty": "Пока нет предложений — на основе вашей прошлой активности",
   "beaconLineagePreviewError": "Не удалось загрузить предложения",
@@ -3787,7 +3787,7 @@
   "@profileDisplayNameNudgeTitle": {
     "description": "Profile tab card prompting users with placeholder names to set a display name."
   },
-  "profileDisplayNameNudgeBody": "Помогите друзьям узнать вас — укажите имя, которое видят на маяках и в приглашениях.",
+  "profileDisplayNameNudgeBody": "Помогите друзьям узнать вас — укажите имя, которое видят на запросах и в приглашениях.",
   "@profileDisplayNameNudgeBody": {
     "description": "Body copy for the display-name nudge card on Profile."
   },

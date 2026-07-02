@@ -54,11 +54,11 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.coordinationChanged => '$n coordination updates$suffix',
       NotificationKind.blockerOpened => '$n blockers opened$suffix',
       NotificationKind.blockerResolved => '$n blockers resolved$suffix',
-      NotificationKind.newRelay => '$n beacons forwarded to you$suffix',
+      NotificationKind.newRelay => '$n requests forwarded to you$suffix',
       NotificationKind.commitmentEvent => '$n commitment updates$suffix',
-      NotificationKind.reviewReady => '$n beacons ready to review$suffix',
+      NotificationKind.reviewReady => '$n requests ready to review$suffix',
       NotificationKind.staleRemind => '$n items need attention$suffix',
-      _ => '$n beacon updates$suffix',
+      _ => '$n request updates$suffix',
     };
   }
 

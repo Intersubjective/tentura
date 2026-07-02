@@ -47,4 +47,5 @@ Short pointers for agents — read only what your task needs. Full inventory: **
 
 - Retired journals/plans were removed in 2026-06 cleanup; prefer this index + status quo over grep hits in old branches.
 - Legacy term drift check: `scripts/check-doc-drift.sh` (Registry tab, Overview tab, `coordination_status`, `beacon.state`, ChatNews, `beacon_blocker`).
+- User-facing terminology: `scripts/check-user-facing-terminology.sh` (Request/Chat vs internal Beacon/room).
 - After large UI refactors: refresh [`client-ui-inventory.md`](client-ui-inventory.md); verify home tab order (My Work default), beacon detail tabs (Items / People / Log).

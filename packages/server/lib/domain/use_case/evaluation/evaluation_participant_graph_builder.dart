@@ -75,11 +75,11 @@ final class EvaluationParticipantGraphBuilder {
         userId: authorId,
         role: EvaluationParticipantRole.author,
         contributionSummary: preClosure
-            ? 'Created this beacon'
-            : 'Created and closed the beacon',
+            ? 'Created this request'
+            : 'Created and closed the request',
         causalHint: preClosure
-            ? 'Author — created this beacon'
-            : 'Author — created and closed the beacon',
+            ? 'Author — created this request'
+            : 'Author — created and closed the request',
       ),
     ];
 
@@ -93,7 +93,7 @@ final class EvaluationParticipantGraphBuilder {
           role: EvaluationParticipantRole.committer,
           contributionSummary:
               'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
-          causalHint: 'Committer — committed in this beacon',
+          causalHint: 'Committer — committed in this request',
         ),
       );
       final edge = latestEdgeToCommitter[c.userId];
@@ -105,7 +105,7 @@ final class EvaluationParticipantGraphBuilder {
           contributionSummary:
               'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
           causalHint:
-              'Committer — received via forward from ${fs.displayName}; committed in this beacon',
+              'Committer — received via forward from ${fs.displayName}; committed in this request',
         );
       }
     }
@@ -124,7 +124,7 @@ final class EvaluationParticipantGraphBuilder {
         EvaluationParticipantDraft(
           userId: fid,
           role: EvaluationParticipantRole.forwarder,
-          contributionSummary: 'Forwarded the beacon toward committer(s)',
+          contributionSummary: 'Forwarded the request toward committer(s)',
           causalHint:
               'Forwarder — adjacent on the path to $namesStr, who committed',
         ),

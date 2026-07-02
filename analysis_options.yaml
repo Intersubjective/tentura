@@ -16,6 +16,7 @@ plugins:
       no_operational_pill_widgets_in_beacon_view: true
       no_raw_edge_insets: true
       no_raw_border_radius: true
+      no_request_domain_entity: true
 
 analyzer:
   exclude:

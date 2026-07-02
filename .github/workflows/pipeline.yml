@@ -62,6 +62,8 @@ jobs:
               case "$TEST_TARGET" in
                 lints)
                   dart pub get
+                  bash scripts/check-user-facing-terminology.sh
+                  bash scripts/check-doc-drift.sh
                   cd packages/tentura_lints
                   dart test
                   ;;
@@ -119,6 +121,7 @@ jobs:
               dart pub get
               flutter pub get
               ( cd packages/tentura_lints && dart test ) &&
+              bash scripts/check-user-facing-terminology.sh &&
               ( cd packages/server && dart run build_runner build -d && dart test --exclude-tags pg --coverage=coverage ) &&
               ( cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --coverage )
             '

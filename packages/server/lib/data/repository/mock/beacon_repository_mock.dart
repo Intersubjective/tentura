@@ -101,7 +101,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
         existing.status != BeaconStatus.draft ||
         existing.author.id != userId) {
       throw const BeaconCreateException(
-        description: 'Beacon is not an editable draft',
+        description: 'Request is not an editable draft',
       );
     }
     final now = DateTime.timestamp();
@@ -149,7 +149,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
             existing.status != BeaconStatus.reviewOpen) ||
         existing.author.id != userId) {
       throw const BeaconCreateException(
-        description: 'Only open or wrapping-up beacons can be edited',
+        description: 'Only open or wrapping-up requests can be edited',
       );
     }
     final updated = existing.copyWith(

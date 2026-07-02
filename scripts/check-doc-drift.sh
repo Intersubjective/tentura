@@ -19,6 +19,11 @@ DOC_PATTERNS=(
 #  - applyWhen / pathMatches: inert (unsupported) Cursor rule frontmatter
 #  - quick-reference: deleted rule hub, must not be referenced
 #  - widgetbook: no such package in the monorepo
+#  - terminology alias must be documented in AGENTS.md / CONTEXT.md
+TERMINOLOGY_MARKERS=(
+  'Terminology alias'
+  'internally: Beacon'
+)
 RULE_DOC_FILES=(
   .cursor/rules
   AGENTS.md
@@ -47,6 +52,18 @@ for pat in "${RULE_DOC_PATTERNS[@]}"; do
     found=1
   fi
 done
+
+for pat in "${TERMINOLOGY_MARKERS[@]}"; do
+  if ! rg -q "$pat" AGENTS.md CONTEXT.md 2>/dev/null; then
+    echo "check-doc-drift: missing terminology marker '$pat' in AGENTS.md or CONTEXT.md" >&2
+    found=1
+  fi
+done
+
+if [[ ! -f .cursor/rules/terminology.mdc ]]; then
+  echo "check-doc-drift: missing .cursor/rules/terminology.mdc" >&2
+  found=1
+fi
 
 if [[ $found -eq 0 ]]; then
   echo "check-doc-drift: no legacy terms or rule/doc drift found"

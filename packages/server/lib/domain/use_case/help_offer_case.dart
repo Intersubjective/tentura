@@ -63,7 +63,7 @@ final class HelpOfferCase extends UseCaseBase {
     }
     if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
       throw const UnauthorizedException(
-        description: 'Viewer cannot read beacon content',
+        description: 'Viewer cannot read request content',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
@@ -186,7 +186,7 @@ final class HelpOfferCase extends UseCaseBase {
     }
     if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
       throw const UnauthorizedException(
-        description: 'Viewer cannot read beacon content',
+        description: 'Viewer cannot read request content',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);

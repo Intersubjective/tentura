@@ -169,7 +169,7 @@ class _FriendContextCountsRow extends StatelessWidget {
         children: [
           if (inbox > 0) ...[
             Tooltip(
-              message: '$inbox active beacons forwarded to them',
+              message: L10n.of(context)!.friendContextInboxCount(inbox),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -187,7 +187,7 @@ class _FriendContextCountsRow extends StatelessWidget {
           if (shared > 0) ...[
             if (inbox > 0) const SizedBox(width: 10),
             Tooltip(
-              message: '$shared active beacons you both see',
+              message: L10n.of(context)!.friendContextSharedCount(shared),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

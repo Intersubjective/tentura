@@ -290,7 +290,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     final beacon = state.beacon;
     if (beacon == null || beacon.status != BeaconStatus.open) {
       _emitSnackError(
-        Exception('Forwarding is only available while the beacon is open'),
+        Exception('Forwarding is only available while the request is open'),
       );
       return;
     }

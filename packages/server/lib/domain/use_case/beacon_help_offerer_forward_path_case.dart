@@ -61,7 +61,7 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
       viewerId: currentUserId,
     )) {
       throw const UnauthorizedException(
-        description: 'Viewer is not involved in this beacon',
+        description: 'Viewer is not involved in this request',
       );
     }
 
@@ -82,7 +82,7 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
     if (!activeHelpOffererIds.contains(helpOffererId)) {
       throw IdNotFoundException(
         id: helpOffererId,
-        description: 'User is not an active help offerer of the beacon',
+        description: 'User is not an active help offerer of the request',
       );
     }
 

@@ -174,14 +174,14 @@ class BeaconRepository implements BeaconRepositoryPort {
 
     if (row == null) {
       throw const BeaconCreateException(
-        description: 'Beacon is not an editable draft',
+        description: 'Request is not an editable draft',
       );
     }
     final (existing, _) = row;
 
     if (existing.status != BeaconStatus.draft.smallintValue) {
       throw const BeaconCreateException(
-        description: 'Beacon is not an editable draft',
+        description: 'Request is not an editable draft',
       );
     }
 
@@ -236,14 +236,14 @@ class BeaconRepository implements BeaconRepositoryPort {
 
     if (row == null) {
       throw const BeaconCreateException(
-        description: 'Beacon not found or not owned by user',
+        description: 'Request not found or not owned by user',
       );
     }
 
     final current = BeaconStatus.fromSmallint(row.status);
     if (!current.isOpenFamily && current != BeaconStatus.reviewOpen) {
       throw const BeaconCreateException(
-        description: 'Only open or wrapping-up beacons can be edited',
+        description: 'Only open or wrapping-up requests can be edited',
       );
     }
 
@@ -404,7 +404,7 @@ WHERE user_id = \$1 AND created_at >= \$2
 
           if (existing == null) {
             throw const BeaconCreateException(
-              description: 'Beacon not found or not owned',
+              description: 'Request not found or not owned',
             );
           }
 

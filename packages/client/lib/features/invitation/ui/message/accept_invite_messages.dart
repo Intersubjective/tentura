@@ -72,10 +72,10 @@ final class _OpenBeaconActionLabel extends LocalizableMessage {
   const _OpenBeaconActionLabel();
 
   @override
-  String get toEn => 'Open beacon';
+  String get toEn => 'Open request';
 
   @override
-  String get toRu => 'Открыть маяк';
+  String get toRu => 'Открыть запрос';
 }
 
 /// Shown after accepting a beacon-bearing invite.
@@ -93,14 +93,14 @@ final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
   @override
   String get toEn {
     final who = inviterName.isEmpty ? 'Someone' : inviterName;
-    final title = beaconTitle.isEmpty ? 'a beacon' : beaconTitle;
+    final title = beaconTitle.isEmpty ? 'a request' : beaconTitle;
     return '$who shared $title with you. It\'s in your Inbox.';
   }
 
   @override
   String get toRu {
     final who = inviterName.isEmpty ? 'Кто-то' : inviterName;
-    final title = beaconTitle.isEmpty ? 'маяк' : beaconTitle;
+    final title = beaconTitle.isEmpty ? 'запрос' : beaconTitle;
     return '$who поделился(ась) «$title» с вами. Он в ваших входящих.';
   }
 

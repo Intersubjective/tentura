@@ -6,10 +6,10 @@ final class BeaconCreatedMessage extends LocalizableActionMessage {
   });
 
   @override
-  String get toEn => 'Beacon created successfully!';
+  String get toEn => 'Request created successfully!';
 
   @override
-  String get toRu => 'Маяк успешно создан!';
+  String get toRu => 'Запрос успешно создан!';
 
   @override
   final void Function() onPressed;
@@ -22,10 +22,10 @@ final class _BeaconCreatedMessageActionLabel extends LocalizableMessage {
   const _BeaconCreatedMessageActionLabel();
 
   @override
-  String get toEn => 'View Beacon';
+  String get toEn => 'View Request';
 
   @override
-  String get toRu => 'Посмотреть';
+  String get toRu => 'Посмотреть запрос';
 }
 
 final class DraftSavedMessage extends LocalizableMessage {
