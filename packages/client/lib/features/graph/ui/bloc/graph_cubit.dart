@@ -124,6 +124,8 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _genealogyChildrenCursors = <String, (DateTime, String)>{};
 
+  final _genealogyParentChainNodeIds = <String>{};
+
   final _totalNeighborCounts = <String, int>{};
 
   final _addedEdgeEndpoints = <(String, String)>{};
@@ -173,6 +175,9 @@ class GraphCubit extends Cubit<GraphState> {
   ///
   void setFocus(NodeDetails node) {
     var alreadyFetched = false;
+    if (genealogyMode) {
+      _pinGenealogyParentChainNodes();
+    }
     if (state.focus != node.id) {
       emit(state.copyWith(focus: node.id));
       _updateFocusPath(node.id);
@@ -192,13 +197,24 @@ class GraphCubit extends Cubit<GraphState> {
   }
 
   NodeDetails _pinNode(NodeDetails node) {
-    _pinnedNodeIds.add(node.id);
-    final pinnedNode = _pinnedCopyIfNeeded(node);
-    if (!node.pinned) {
-      graphController.replaceNode(node, pinnedNode);
+    final controllerNode = _controllerNodeById(node.id) ?? node;
+    _pinnedNodeIds.add(controllerNode.id);
+    final pinnedNode = _pinnedCopyIfNeeded(controllerNode);
+    if (!controllerNode.pinned &&
+        graphController.nodes.contains(controllerNode)) {
+      graphController.replaceNode(controllerNode, pinnedNode);
     }
-    _nodes[node.id] = pinnedNode;
+    _nodes[controllerNode.id] = pinnedNode;
     return pinnedNode;
+  }
+
+  NodeDetails? _controllerNodeById(String id) {
+    for (final node in graphController.nodes) {
+      if (node.id == id) {
+        return node;
+      }
+    }
+    return null;
   }
 
   NodeDetails _pinnedCopyIfNeeded(NodeDetails node) {
@@ -374,6 +390,9 @@ class GraphCubit extends Cubit<GraphState> {
               ),
             );
           }
+          _genealogyParentChainNodeIds.addAll(
+            graph.nodes.map((node) => node.nodeKey),
+          );
           _preloadGenealogyNodes(graph.nodes);
           await _fetchGenealogyChildCounts(
             source,
@@ -584,6 +603,15 @@ class GraphCubit extends Cubit<GraphState> {
           positionHint: _nodes.length,
         );
       });
+    }
+  }
+
+  void _pinGenealogyParentChainNodes() {
+    for (final id in _genealogyParentChainNodeIds) {
+      final node = _controllerNodeById(id) ?? _nodes[id];
+      if (node != null) {
+        _pinNode(node);
+      }
     }
   }
 

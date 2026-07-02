@@ -528,6 +528,89 @@ void main() {
     await cubit.close();
   });
 
+  test(
+    'genealogy parent-chain nodes pin on first exploration tap and remain visible',
+    () async {
+      final rootAt = DateTime.utc(2026);
+      final lcaAt = DateTime.utc(2026, 2);
+      final viewerAt = DateTime.utc(2026, 3);
+      final targetAt = DateTime.utc(2026, 4);
+      final childAt = DateTime.utc(2026, 5);
+      final repo = _FakeInviteGenealogyRepository()
+        ..bootstrapGraph = InviteGenealogyGraph(
+          viewerNodeKey: 'Gviewer',
+          targetNodeKey: 'Gtarget',
+          commonAncestorNodeKey: 'Glca',
+          nodes: [
+            _node(
+              'Groot',
+              const Profile(id: 'Uroot', displayName: 'Root'),
+              rootAt,
+            ),
+            _node('Glca', const Profile(id: 'Ulca', displayName: 'Lca'), lcaAt),
+            _node('Gviewer', _viewer, viewerAt),
+            _node('Gtarget', _target, targetAt),
+          ],
+          edges: [
+            _edge('Groot', 'Glca', rootAt, lcaAt),
+            _edge('Glca', 'Gviewer', lcaAt, viewerAt),
+            _edge('Glca', 'Gtarget', lcaAt, targetAt),
+          ],
+        )
+        ..childrenPages.add((
+          nodes: [
+            _node('Gtarget', _target, targetAt),
+            _node('Gchild', _friend, childAt),
+          ],
+          edges: [_edge('Gtarget', 'Gchild', targetAt, childAt)],
+        ));
+      final cubit = _cubit(repo: repo, targetId: _target.id);
+
+      await _settleCubitFetch();
+
+      final parentChainIds = {'Groot', 'Glca', 'Gviewer', 'Gtarget'};
+      expect(
+        cubit.graphController.nodes
+            .where((node) => parentChainIds.contains(node.id))
+            .where((node) => node.pinned)
+            .map((node) => node.id)
+            .toSet(),
+        {'Gviewer', 'Gtarget'},
+      );
+
+      final target = cubit.graphController.nodes.singleWhere(
+        (node) => node.id == 'Gtarget',
+      );
+      cubit.setFocus(target);
+      await _settleCubitFetch();
+
+      expect(
+        cubit.graphController.nodes
+            .where((node) => parentChainIds.contains(node.id))
+            .map((node) => node.pinned)
+            .toSet(),
+        {true},
+      );
+      expect(
+        cubit.graphController.nodes.map((node) => node.id).toSet(),
+        containsAll({...parentChainIds, 'Gchild'}),
+      );
+      expect(
+        cubit.graphController.edges
+            .map((edge) => (edge.source.id, edge.destination.id))
+            .toSet(),
+        containsAll({
+          ('Groot', 'Glca'),
+          ('Glca', 'Gviewer'),
+          ('Glca', 'Gtarget'),
+          ('Gtarget', 'Gchild'),
+        }),
+      );
+
+      await cubit.close();
+    },
+  );
+
   test('genealogy mode ignores context and positive-only controls', () async {
     final repo = _FakeInviteGenealogyRepository()
       ..bootstrapGraph = InviteGenealogyGraph(
