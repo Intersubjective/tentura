@@ -51,6 +51,14 @@ int _previewBackgroundArgb(_BeaconIconPickerSelection sel) =>
   return (bg: bg, fg: fg);
 }
 
+int _gridCrossAxisCount(double width) {
+  return switch (windowClassForWidth(width)) {
+    WindowClass.compact => 4,
+    WindowClass.regular => 5,
+    WindowClass.expanded => 6,
+  };
+}
+
 /// Full-screen dialog to pick beacon symbol icon and background color.
 class BeaconIconPickerScreen extends StatefulWidget {
   const BeaconIconPickerScreen({
@@ -69,7 +77,6 @@ class BeaconIconPickerScreen extends StatefulWidget {
   }) => showDialog<BeaconIconPickerResult>(
     context: context,
     barrierDismissible: false,
-    useSafeArea: false,
     builder: (_) => Dialog.fullscreen(
       child: BeaconIconPickerScreen(
         initialIconCode: iconCode,
@@ -80,31 +87,6 @@ class BeaconIconPickerScreen extends StatefulWidget {
 
   @override
   State<BeaconIconPickerScreen> createState() => _BeaconIconPickerScreenState();
-}
-
-class _GridListenable extends Listenable {
-  _GridListenable(this._query, this._category, this._selection, this._preview);
-
-  final ValueNotifier<String> _query;
-  final ValueNotifier<int> _category;
-  final ValueNotifier<_BeaconIconPickerSelection> _selection;
-  final ValueNotifier<String?> _preview;
-
-  @override
-  void addListener(VoidCallback listener) {
-    _query.addListener(listener);
-    _category.addListener(listener);
-    _selection.addListener(listener);
-    _preview.addListener(listener);
-  }
-
-  @override
-  void removeListener(VoidCallback listener) {
-    _query.removeListener(listener);
-    _category.removeListener(listener);
-    _selection.removeListener(listener);
-    _preview.removeListener(listener);
-  }
 }
 
 class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
@@ -118,18 +100,17 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
   late final ValueNotifier<_BeaconIconPickerSelection> _selectionNotifier =
       ValueNotifier(_initialSelection);
 
-  /// Hovered or long-pressed icon key; drives app-bar and tile preview colors.
+  /// Hovered icon key; drives app-bar preview label only (not grid rebuild).
   late final ValueNotifier<String?> _previewIconCodeNotifier =
       ValueNotifier(null);
 
   late final DateTime _epoch = DateTime.timestamp();
 
-  late final _GridListenable _gridListenable = _GridListenable(
+  late final Listenable _gridListenable = Listenable.merge([
     _queryNotifier,
     _categoryNotifier,
     _selectionNotifier,
-    _previewIconCodeNotifier,
-  );
+  ]);
 
   late final Listenable _headerPreviewListenable = Listenable.merge([
     _selectionNotifier,
@@ -141,26 +122,15 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
   /// Lowercase search blob per icon key: `code`, `label`, localized category.
   late Map<String, String> _searchBlobByKey;
 
-  List<MapEntry<String, BeaconIconDefinition>> _cachedEntries = [];
-
-  void _onFilterChanged() => _recomputeEntries();
-
-  void _recomputeEntries() {
+  List<MapEntry<String, BeaconIconDefinition>> _filteredEntries(L10n l10n) {
     final cat = _categoryNotifier.value;
     final q = _queryNotifier.value.trim().toLowerCase();
-    _cachedEntries = [
+    return [
       for (final e in kBeaconIdentityIcons.entries)
         if (cat == 0 ||
             e.value.category == BeaconIdentityCategory.values[cat - 1])
           if (q.isEmpty || _searchBlobByKey[e.key]!.contains(q)) e,
     ];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _queryNotifier.addListener(_onFilterChanged);
-    _categoryNotifier.addListener(_onFilterChanged);
   }
 
   @override
@@ -173,13 +143,10 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
         e.key:
             '${e.key.toLowerCase()} ${e.value.label.toLowerCase()} ${_categoryLabel(l10n, e.value.category).toLowerCase()}',
     };
-    _recomputeEntries();
   }
 
   @override
   void dispose() {
-    _queryNotifier.removeListener(_onFilterChanged);
-    _categoryNotifier.removeListener(_onFilterChanged);
     _queryNotifier.dispose();
     _categoryNotifier.dispose();
     _selectionNotifier.dispose();
@@ -230,6 +197,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
     final tt = context.tt;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
@@ -299,201 +267,182 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
           ),
         ],
       ),
-      body: TenturaContentColumn(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-            child: Semantics(
-              label: l10n.beaconSymbolSearchHint,
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: l10n.beaconSymbolSearchHint,
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: tt.iconSize),
+      body: SafeArea(
+        top: false,
+        child: TenturaContentColumn(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                child: Semantics(
+                  label: l10n.beaconSymbolSearchHint,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: l10n.beaconSymbolSearchHint,
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search, size: tt.iconSize),
+                    ),
+                    onChanged: (v) => _queryNotifier.value = v,
+                  ),
                 ),
-                onChanged: (v) => _queryNotifier.value = v,
               ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              tt.screenHPadding,
-              tt.rowGap,
-              tt.screenHPadding,
-              tt.rowGap,
-            ),
-            child: ValueListenableBuilder<int>(
-              valueListenable: _categoryNotifier,
-              builder: (context, cat, _) {
-                final chipStyle = _chipStyle;
-                return Wrap(
-                  spacing: tt.rowGap,
-                  runSpacing: tt.rowGap,
-                  children: [
-                    BeaconIconFilterChip(
-                      chipStyle: chipStyle,
-                      label: l10n.beaconSymbolCategoryAll,
-                      selected: cat == 0,
-                      onSelected: (_) => _categoryNotifier.value = 0,
-                    ),
-                    for (
-                      var i = 0;
-                      i < BeaconIdentityCategory.values.length;
-                      i++
-                    )
-                      BeaconIconFilterChip(
-                        chipStyle: chipStyle,
-                        label: _categoryLabel(
-                          l10n,
-                          BeaconIdentityCategory.values[i],
-                        ),
-                        selected: cat == i + 1,
-                        onSelected: (_) => _categoryNotifier.value = i + 1,
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: ListenableBuilder(
-              listenable: _gridListenable,
-              builder: (context, _) {
-                final entries = _cachedEntries;
-                final sel = _selectionNotifier.value;
-                final previewCode = _previewIconCodeNotifier.value;
-                final previewBg = _previewBackgroundArgb(sel);
-                if (entries.isEmpty) {
-                  return CustomScrollView(
-                    slivers: [
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text(
-                            l10n.beaconSymbolNoMatches,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.all(tt.rowGap),
-                      sliver: SliverLayoutBuilder(
-                        builder: (context, constraints) {
-                          final windowClass = windowClassForWidth(
-                            constraints.crossAxisExtent,
-                          );
-                          final crossAxisCount = switch (windowClass) {
-                            WindowClass.compact => 4,
-                            WindowClass.regular => 5,
-                            WindowClass.expanded => 6,
-                          };
-                          return SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  mainAxisSpacing: tt.rowGap,
-                                  crossAxisSpacing: tt.rowGap,
-                                  childAspectRatio: 0.85,
-                                ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, i) {
-                                final entry = entries[i];
-                                final selected = sel.iconCode == entry.key;
-                                final previewing =
-                                    !selected && previewCode == entry.key;
-                                return _IconGridTile(
-                                  key: ValueKey(entry.key),
-                                  iconData: entry.value.icon,
-                                  label: entry.value.label,
-                                  selected: selected,
-                                  previewing: previewing,
-                                  identityBackgroundArgb: previewBg,
-                                  scheme: scheme,
-                                  baseLabelStyle: theme.textTheme.labelSmall,
-                                  onPreviewStart: () =>
-                                      _previewIconCodeNotifier.value = entry.key,
-                                  onPreviewEnd: () =>
-                                      _clearPreviewIconCode(entry.key),
-                                  onTap: () {
-                                    _clearPreviewIconCode(entry.key);
-                                    final cur = _selectionNotifier.value;
-                                    _selectionNotifier.value = (
-                                      iconCode: entry.key,
-                                      iconBackground:
-                                          cur.iconBackground ??
-                                          kBeaconIdentityPalette
-                                              .first
-                                              .backgroundArgb,
-                                    );
-                                  },
-                                );
-                              },
-                              childCount: entries.length,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          Material(
-            elevation: 8,
-            child: SafeArea(
-              top: false,
-              child: Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(
                   tt.screenHPadding,
                   tt.rowGap,
                   tt.screenHPadding,
-                  tt.screenHPadding,
+                  tt.rowGap,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      l10n.beaconSymbolBackground,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    SizedBox(height: tt.rowGap),
-                    ValueListenableBuilder<_BeaconIconPickerSelection>(
-                      valueListenable: _selectionNotifier,
-                      builder: (context, sel, _) {
-                        return Opacity(
-                          opacity: sel.iconCode == null ? 0.4 : 1,
-                          child: IgnorePointer(
-                            ignoring: sel.iconCode == null,
-                            child: BeaconColorSelector(
-                              selectedArgb: sel.iconBackground,
-                              onSelected: (v) {
-                                final cur = _selectionNotifier.value;
-                                _selectionNotifier.value = (
-                                  iconCode: cur.iconCode,
-                                  iconBackground: v,
-                                );
-                              },
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _categoryNotifier,
+                  builder: (context, cat, _) {
+                    final chipStyle = _chipStyle;
+                    return Wrap(
+                      spacing: tt.rowGap,
+                      runSpacing: tt.rowGap,
+                      children: [
+                        BeaconIconFilterChip(
+                          chipStyle: chipStyle,
+                          label: l10n.beaconSymbolCategoryAll,
+                          selected: cat == 0,
+                          onSelected: (_) => _categoryNotifier.value = 0,
+                        ),
+                        for (
+                          var i = 0;
+                          i < BeaconIdentityCategory.values.length;
+                          i++
+                        )
+                          BeaconIconFilterChip(
+                            chipStyle: chipStyle,
+                            label: _categoryLabel(
+                              l10n,
+                              BeaconIdentityCategory.values[i],
                             ),
+                            selected: cat == i + 1,
+                            onSelected: (_) => _categoryNotifier.value = i + 1,
                           ),
-                        );
-                      },
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
-            ),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _gridListenable,
+                  builder: (context, _) {
+                    final entries = _filteredEntries(l10n);
+                    final sel = _selectionNotifier.value;
+                    final previewBg = _previewBackgroundArgb(sel);
+                    final query = _queryNotifier.value;
+                    final category = _categoryNotifier.value;
+
+                    if (entries.isEmpty) {
+                      return Center(
+                        child: Text(
+                          l10n.beaconSymbolNoMatches,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = _gridCrossAxisCount(
+                          constraints.maxWidth,
+                        );
+                        return GridView.builder(
+                          key: ValueKey('$category|$query'),
+                          padding: EdgeInsets.all(tt.rowGap),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                mainAxisSpacing: tt.rowGap,
+                                crossAxisSpacing: tt.rowGap,
+                                childAspectRatio: 0.85,
+                              ),
+                          itemCount: entries.length,
+                          itemBuilder: (context, i) {
+                            final entry = entries[i];
+                            final selected = sel.iconCode == entry.key;
+                            return _IconGridTile(
+                              key: ValueKey(entry.key),
+                              iconData: entry.value.icon,
+                              label: entry.value.label,
+                              selected: selected,
+                              identityBackgroundArgb: previewBg,
+                              scheme: scheme,
+                              baseLabelStyle: theme.textTheme.labelSmall,
+                              onPreviewStart: () => _previewIconCodeNotifier
+                                  .value = entry.key,
+                              onPreviewEnd: () =>
+                                  _clearPreviewIconCode(entry.key),
+                              onTap: () {
+                                _clearPreviewIconCode(entry.key);
+                                final cur = _selectionNotifier.value;
+                                _selectionNotifier.value = (
+                                  iconCode: entry.key,
+                                  iconBackground:
+                                      cur.iconBackground ??
+                                      kBeaconIdentityPalette
+                                          .first
+                                          .backgroundArgb,
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              Material(
+                elevation: 8,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    tt.screenHPadding,
+                    tt.rowGap,
+                    tt.screenHPadding,
+                    tt.screenHPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l10n.beaconSymbolBackground,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      SizedBox(height: tt.rowGap),
+                      ValueListenableBuilder<_BeaconIconPickerSelection>(
+                        valueListenable: _selectionNotifier,
+                        builder: (context, sel, _) {
+                          return Opacity(
+                            opacity: sel.iconCode == null ? 0.4 : 1,
+                            child: IgnorePointer(
+                              ignoring: sel.iconCode == null,
+                              child: BeaconColorSelector(
+                                selectedArgb: sel.iconBackground,
+                                onSelected: (v) {
+                                  final cur = _selectionNotifier.value;
+                                  _selectionNotifier.value = (
+                                    iconCode: cur.iconCode,
+                                    iconBackground: v,
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
         ),
       ),
     );
@@ -505,7 +454,6 @@ class _IconGridTile extends StatelessWidget {
     required this.iconData,
     required this.label,
     required this.selected,
-    required this.previewing,
     required this.identityBackgroundArgb,
     required this.onPreviewStart,
     required this.onPreviewEnd,
@@ -518,7 +466,6 @@ class _IconGridTile extends StatelessWidget {
   final IconData iconData;
   final String label;
   final bool selected;
-  final bool previewing;
   final int identityBackgroundArgb;
   final VoidCallback onPreviewStart;
   final VoidCallback onPreviewEnd;
@@ -529,7 +476,7 @@ class _IconGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final showIdentityColors = selected || previewing;
+    final showIdentityColors = selected;
     final colors = _pickerTileColors(
       showIdentityColors: showIdentityColors,
       identityBackgroundArgb: identityBackgroundArgb,
@@ -537,34 +484,27 @@ class _IconGridTile extends StatelessWidget {
     );
     final fg = colors.fg;
     final borderColor = scheme.outlineVariant.withValues(alpha: 0.35);
+    final radius = BorderRadius.circular(tt.cardRadius);
     return Semantics(
       button: true,
       label: label,
       selected: selected,
-      child: Tooltip(
-        message: label,
+      child: Listener(
+        onPointerHover: (_) => onPreviewStart(),
         child: MouseRegion(
-          onEnter: (_) => onPreviewStart(),
           onExit: (_) => onPreviewEnd(),
-          child: GestureDetector(
-            onTap: onTap,
-            onLongPressStart: (_) => onPreviewStart(),
-            onLongPressEnd: (_) => onPreviewEnd(),
-            onLongPressCancel: onPreviewEnd,
-            behavior: HitTestBehavior.opaque,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.bg,
-                borderRadius: BorderRadius.circular(tt.cardRadius),
-                border: showIdentityColors
-                    ? Border.all(
-                        color: selected
-                            ? borderColor
-                            : scheme.primary.withValues(alpha: 0.55),
-                        width: selected ? 1 : 2,
-                      )
-                    : null,
-              ),
+          child: Material(
+            color: colors.bg,
+            shape: RoundedRectangleBorder(
+              borderRadius: radius,
+              side: showIdentityColors
+                  ? BorderSide(color: borderColor)
+                  : BorderSide.none,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: radius,
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: tt.tightGap * 2,

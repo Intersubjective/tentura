@@ -31,7 +31,7 @@ void main() {
 
     final announcementTile = find.ancestor(
       of: find.text('Announcement'),
-      matching: find.byType(GestureDetector),
+      matching: find.byType(InkWell),
     );
     final center = tester.getCenter(announcementTile.first);
 
@@ -48,23 +48,71 @@ void main() {
     expect(find.text('Request symbol'), findsNothing);
   });
 
-  testWidgets('long-press previews symbol on touch devices', (tester) async {
+  testWidgets('search query filters visible symbols', (tester) async {
+    await tester.pumpWidget(_pickerHarness());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Announcement'), findsWidgets);
+    expect(find.text('Discussion'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), 'announcement');
+    await tester.pump();
+
+    expect(find.text('Announcement'), findsWidgets);
+    expect(find.text('Discussion'), findsNothing);
+  });
+
+  testWidgets('category chip filters visible symbols', (tester) async {
+    await tester.pumpWidget(_pickerHarness());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Announcement'), findsWidgets);
+
+    await tester.tap(find.text('Community'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Announcement'), findsNothing);
+    expect(find.text('Accessibility'), findsWidgets);
+  });
+
+  testWidgets('tap selects symbol on touch devices', (tester) async {
     await tester.pumpWidget(_pickerHarness());
     await tester.pumpAndSettle();
 
     final announcementTile = find.ancestor(
       of: find.text('Announcement'),
-      matching: find.byType(GestureDetector),
+      matching: find.byType(InkWell),
+    );
+    expect(announcementTile, findsOneWidget);
+
+    final center = tester.getCenter(announcementTile);
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Request symbol'), findsNothing);
+    expect(find.text('Announcement'), findsWidgets);
+  });
+
+  testWidgets('long-press does not block tap selection on touch devices', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_pickerHarness());
+    await tester.pumpAndSettle();
+
+    final announcementTile = find.ancestor(
+      of: find.text('Announcement'),
+      matching: find.byType(InkWell),
     );
     final center = tester.getCenter(announcementTile.first);
 
     final gesture = await tester.startGesture(center);
     await tester.pump(const Duration(milliseconds: 600));
+    await gesture.up();
+    await tester.pumpAndSettle();
 
     expect(find.text('Request symbol'), findsNothing);
     expect(find.text('Announcement'), findsWidgets);
-
-    await gesture.up();
-    await tester.pump();
   });
 }
