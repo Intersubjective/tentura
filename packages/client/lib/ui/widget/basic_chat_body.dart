@@ -655,7 +655,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   void _showOverlay(List<BeaconParticipant> suggestions) {
     _overlaySuggestions = suggestions;
     if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _overlayEntry?.markNeedsBuild();
+      });
       return;
     }
     _overlayEntry = OverlayEntry(
@@ -673,7 +675,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       },
     );
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    overlay?.insert(_overlayEntry!);
+    if (overlay == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _overlayEntry == null) return;
+      overlay.insert(_overlayEntry!);
+    });
   }
 
   int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;

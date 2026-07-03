@@ -171,6 +171,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   Future<void>? _pendingRoomExit;
   bool _lastBuildUsedRoomSplit = false;
   bool _splitRoomRouteSyncScheduled = false;
+  bool _splitRoomRouteFocusPostFrameScheduled = false;
   String? _splitRoomRouteFocusKey;
 
   void _unfocusForRouteChange() {
@@ -398,6 +399,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
     c.prepareThreadScroll();
+  }
+
+  void _scheduleExpandedRoomPaneRouteFocusIfNeeded() {
+    if (_splitRoomRouteFocusPostFrameScheduled) return;
+    _splitRoomRouteFocusPostFrameScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _splitRoomRouteFocusPostFrameScheduled = false;
+      if (!mounted) return;
+      _focusExpandedRoomPaneFromRouteIfNeeded();
+    });
   }
 
   void _focusExpandedRoomPaneFromRouteIfNeeded() {
@@ -893,8 +904,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             canNavigateBeaconRoom: state.canNavigateBeaconRoom,
           );
           if (isSplit) {
-            _activateExpandedRoomSplit();
-            _focusExpandedRoomPaneFromRouteIfNeeded();
+            if (!_lastBuildUsedRoomSplit) {
+              _showRoomSurface = false;
+              _userDismissedRoomSurface = true;
+              _roomExitInProgress = false;
+              _roomEnteredViaPush = false;
+            }
+            _ensureEmbeddedRoomCubit();
+            _scheduleExpandedRoomPaneRouteFocusIfNeeded();
           }
           _lastBuildUsedRoomSplit = isSplit;
           final showLegacyRoomSurface = _showRoomSurface && !isSplit;

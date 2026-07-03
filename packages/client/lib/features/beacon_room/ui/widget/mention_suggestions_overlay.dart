@@ -93,35 +93,41 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
                         .clamp(0, max - 1);
                 widget.onSelect(list[index]);
               },
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: left,
-                    top: top,
-                    width: width,
-                    height: height,
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(12),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (var i = 0; i < max; i++)
-                            SizedBox(
-                              height: _kMentionSuggestionRowHeight,
-                              child: _row(
-                                theme,
-                                list[i],
-                                selected: i == _selectedIndex,
-                                index: i,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: left,
+                      top: top,
+                      width: width,
+                      height: height,
+                      child: Material(
+                        elevation: 6,
+                        borderRadius: BorderRadius.circular(12),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (var i = 0; i < max; i++)
+                              SizedBox(
+                                height: _kMentionSuggestionRowHeight,
+                                child: _row(
+                                  theme,
+                                  list[i],
+                                  selected: i == _selectedIndex,
+                                  index: i,
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
