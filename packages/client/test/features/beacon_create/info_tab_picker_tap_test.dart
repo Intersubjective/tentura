@@ -287,7 +287,7 @@ void main() {
 
     expect(
       find.text(
-        'Selected requirements appear as icons in the beacon form.',
+        'Selected requirements appear as icons in the request form.',
       ),
       findsOneWidget,
     );
