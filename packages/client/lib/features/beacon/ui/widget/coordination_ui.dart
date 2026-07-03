@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -14,15 +15,16 @@ import 'package:tentura/ui/l10n/l10n.dart';
 //   moreOrDifferentHelpNeeded -> error             (gap)
 //   enoughHelpOffered     -> tertiary           (satisfied)
 //
-// Per-help-offer author reaction (response_type):
-//   useful                  -> tertiary
-//   overlapping             -> secondary
-//   needDifferentSkill      -> error
-//   needCoordination        -> primary
-//   notSuitable             -> error
+// Per-help-offer author reaction (response_type) — prefer [coordinationResponseInkColor]:
+//   useful                  -> good (green)
+//   overlapping             -> info (sky)
+//   needDifferentSkill      -> warn (amber, semi-action)
+//   needCoordination        -> warn (amber, semi-action)
+//   notSuitable             -> textMuted (grey, terminal)
+//   pending (null)          -> danger (red, author must review)
 //
-// Pills: use [coordinationResponseColor] for tinted fill; use
-// [coordinationResponseOnSurfaceColor] for label ink so it matches list rows.
+// Pills: use [coordinationResponsePillColor] for tinted fill; ink via
+// [coordinationResponseInkColor] on neutral surfaces.
 // ----------------------------------------------------------------------------
 
 String coordinationStatusLabel(L10n l10n, BeaconStatus s) =>
@@ -46,6 +48,24 @@ String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
   };
 }
 
+/// Ink on neutral card/sheet surfaces (People tab footer, picker rows).
+Color coordinationResponseInkColor(TenturaTokens tt, CoordinationResponseType r) =>
+    switch (r) {
+      CoordinationResponseType.useful => tt.good,
+      CoordinationResponseType.overlapping => tt.info,
+      CoordinationResponseType.needCoordination => tt.warn,
+      CoordinationResponseType.needDifferentSkill => tt.warn,
+      CoordinationResponseType.notSuitable => tt.textMuted,
+    };
+
+TenturaTone coordinationResponseTone(CoordinationResponseType r) => switch (r) {
+      CoordinationResponseType.useful => TenturaTone.good,
+      CoordinationResponseType.overlapping => TenturaTone.info,
+      CoordinationResponseType.needCoordination => TenturaTone.warn,
+      CoordinationResponseType.needDifferentSkill => TenturaTone.warn,
+      CoordinationResponseType.notSuitable => TenturaTone.neutral,
+    };
+
 Color coordinationStatusOnSurfaceColor(
   ColorScheme scheme,
   BeaconStatus s,
@@ -62,8 +82,12 @@ Color coordinationContextOnSurfaceColor(
   ColorScheme scheme, {
   required BeaconStatus beaconStatus,
   CoordinationResponseType? dominantResponse,
+  TenturaTokens? tokens,
 }) {
   if (dominantResponse != null) {
+    if (tokens != null) {
+      return coordinationResponseInkColor(tokens, dominantResponse);
+    }
     return coordinationResponseOnSurfaceColor(scheme, dominantResponse);
   }
   return coordinationStatusOnSurfaceColor(scheme, beaconStatus);
@@ -76,13 +100,40 @@ Color coordinationResponseOnSurfaceColor(
     switch (r) {
       CoordinationResponseType.useful => scheme.tertiary,
       CoordinationResponseType.overlapping => scheme.secondary,
-      CoordinationResponseType.needDifferentSkill => scheme.error,
-      CoordinationResponseType.needCoordination => scheme.primary,
-      CoordinationResponseType.notSuitable => scheme.error,
+      CoordinationResponseType.needDifferentSkill => scheme.onSurfaceVariant,
+      CoordinationResponseType.needCoordination => scheme.onSurfaceVariant,
+      CoordinationResponseType.notSuitable => scheme.onSurfaceVariant,
     };
 
-/// Tinted pill fill; pair with [coordinationResponseOnSurfaceColor] for the label
-/// so chip text matches status lines (avoid `fg` on neutral surfaces).
+/// Tinted pill fill; pair with [coordinationResponseInkColor] for label ink.
+({Color bg, Color fg}) coordinationResponsePillColor(
+  TenturaTokens tt,
+  CoordinationResponseType r,
+) =>
+    switch (r) {
+      CoordinationResponseType.useful => (
+          bg: tt.good.withValues(alpha: 0.12),
+          fg: tt.good,
+        ),
+      CoordinationResponseType.overlapping => (
+          bg: tt.info.withValues(alpha: 0.12),
+          fg: tt.info,
+        ),
+      CoordinationResponseType.needDifferentSkill => (
+          bg: tt.warn.withValues(alpha: 0.12),
+          fg: tt.warn,
+        ),
+      CoordinationResponseType.needCoordination => (
+          bg: tt.warn.withValues(alpha: 0.12),
+          fg: tt.warn,
+        ),
+      CoordinationResponseType.notSuitable => (
+          bg: tt.borderSubtle,
+          fg: tt.textMuted,
+        ),
+    };
+
+/// Tinted pill fill using [ColorScheme] containers (legacy).
 ({Color bg, Color fg}) coordinationResponseColor(
   ColorScheme scheme,
   CoordinationResponseType r,
@@ -97,16 +148,16 @@ Color coordinationResponseOnSurfaceColor(
           fg: scheme.onSecondaryContainer,
         ),
       CoordinationResponseType.needDifferentSkill => (
-          bg: scheme.errorContainer,
-          fg: scheme.onErrorContainer,
+          bg: scheme.surfaceContainerHighest,
+          fg: scheme.onSurfaceVariant,
         ),
       CoordinationResponseType.needCoordination => (
-          bg: scheme.primaryContainer,
-          fg: scheme.onPrimaryContainer,
+          bg: scheme.surfaceContainerHighest,
+          fg: scheme.onSurfaceVariant,
         ),
       CoordinationResponseType.notSuitable => (
-          bg: scheme.errorContainer,
-          fg: scheme.onErrorContainer,
+          bg: scheme.surfaceContainerHighest,
+          fg: scheme.onSurfaceVariant,
         ),
     };
 

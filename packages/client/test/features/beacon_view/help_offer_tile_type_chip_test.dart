@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -42,6 +44,7 @@ TimelineHelpOffer _helpOffer({
   String? helpType,
   String message = '',
   bool isWithdrawn = false,
+  CoordinationResponseType? coordinationResponse,
 }) {
   final t = DateTime.utc(2025);
   return TimelineHelpOffer(
@@ -51,6 +54,7 @@ TimelineHelpOffer _helpOffer({
     updatedAt: t,
     helpType: helpType,
     isWithdrawn: isWithdrawn,
+    coordinationResponse: coordinationResponse,
   );
 }
 
@@ -190,4 +194,52 @@ void main() {
       expect(text.style?.fontWeight, FontWeight.w600);
     },
   );
+
+  testWidgets('author view pending review shows red author review required', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1'),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isAuthorView: true,
+          onAuthorTapCoordination: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('author review required'), findsOneWidget);
+    final text = tester.widget<Text>(find.text('author review required'));
+    expect(text.style?.color, TenturaTokens.light.danger);
+  });
+
+  testWidgets('needDifferentSkill author reaction uses warn ink', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            coordinationResponse: CoordinationResponseType.needDifferentSkill,
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isAuthorView: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Need different skill'), findsOneWidget);
+    final text = tester.widget<Text>(
+      find.textContaining('Need different skill'),
+    );
+    expect(text.style?.color, TenturaTokens.light.warn);
+  });
 }

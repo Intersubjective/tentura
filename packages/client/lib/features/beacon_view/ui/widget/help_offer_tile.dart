@@ -54,16 +54,6 @@ class HelpOfferTile extends StatelessWidget {
   static const double _contentGap = 10;
   static const double _rowGap = 12;
 
-  Color _authorLabelColor(TenturaTokens tt, CoordinationResponseType r) {
-    return switch (r) {
-      CoordinationResponseType.useful => tt.good,
-      CoordinationResponseType.needCoordination => tt.warn,
-      CoordinationResponseType.overlapping => tt.info,
-      CoordinationResponseType.needDifferentSkill => tt.danger,
-      CoordinationResponseType.notSuitable => tt.danger,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -233,11 +223,11 @@ class HelpOfferTile extends StatelessWidget {
               coordinationLabel: coordinationLabel,
               responseType: helpOffer.coordinationResponse,
               authorLabelColor: helpOffer.coordinationResponse != null
-                  ? _authorLabelColor(
+                  ? coordinationResponseInkColor(
                       tt,
                       helpOffer.coordinationResponse!,
                     )
-                  : tt.textMuted,
+                  : tt.danger,
               isAuthorView: isAuthorView,
               onAuthorTapCoordination: onAuthorTapCoordination,
             ),
@@ -258,7 +248,7 @@ class HelpOfferTile extends StatelessWidget {
                     TenturaTextAction(
                       label: l10n.helpOffersTabActionWithdraw,
                       onPressed: onWithdraw,
-                      tone: TenturaTone.danger,
+                      tone: TenturaTone.neutral,
                     ),
                 ],
               ),
@@ -325,7 +315,7 @@ class _AuthorFooter extends StatelessWidget {
                 )
               : Text(
                   l10n.helpOffersTabNoAuthorLabelYet,
-                  style: TenturaText.bodySmall(tt.textMuted),
+                  style: TenturaText.bodySmall(authorLabelColor),
                 ),
         ),
         if (isAuthorView && onAuthorTapCoordination != null) ...[

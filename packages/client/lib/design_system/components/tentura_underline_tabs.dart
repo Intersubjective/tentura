@@ -16,6 +16,7 @@ class TenturaUnderlineTabs extends StatefulWidget {
     required this.selectedIndex,
     required this.onChanged,
     this.badges,
+    this.badgeBackgroundColors,
     this.secondaryBadges,
     this.attentionIndex,
     this.attentionActive = false,
@@ -26,6 +27,10 @@ class TenturaUnderlineTabs extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final List<int?>? badges;
+
+  /// Optional per-tab primary badge fill. Same length as [tabs] when non-null;
+  /// null entry uses [TenturaTokens.info].
+  final List<Color?>? badgeBackgroundColors;
 
   /// Optional per-tab second count (e.g. warn-styled chip). Same length as
   /// [tabs] when non-null; entries null or <=0 are hidden.
@@ -145,6 +150,11 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         widget.secondaryBadges != null && index < widget.secondaryBadges!.length
         ? widget.secondaryBadges![index]
         : null;
+    final badgeBackground =
+        widget.badgeBackgroundColors != null &&
+            index < widget.badgeBackgroundColors!.length
+        ? widget.badgeBackgroundColors![index]
+        : null;
 
     final useAnimatedAttention =
         _shouldShowAttention &&
@@ -156,6 +166,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       selected: index == widget.selectedIndex,
       onTap: () => widget.onChanged(index),
       badge: badge,
+      badgeBackgroundColor: badgeBackground,
       secondaryBadge: secondaryBadge,
       attentionBackgroundOpacity: staticAttentionOpacity,
     );
@@ -176,6 +187,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           selected: index == widget.selectedIndex,
           onTap: () => widget.onChanged(index),
           badge: badge,
+          badgeBackgroundColor: badgeBackground,
           secondaryBadge: secondaryBadge,
           attentionBackgroundOpacity: opacity,
         );
@@ -190,6 +202,7 @@ class _TabCell extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
+    this.badgeBackgroundColor,
     this.secondaryBadge,
     this.attentionBackgroundOpacity = 0.0,
   });
@@ -198,6 +211,7 @@ class _TabCell extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int? badge;
+  final Color? badgeBackgroundColor;
   final int? secondaryBadge;
   final double attentionBackgroundOpacity;
 
@@ -264,7 +278,8 @@ class _TabCell extends StatelessWidget {
                             if (hasPrimaryBadge)
                               TenturaCountBadge(
                                 count: badge!,
-                                backgroundColor: tt.info,
+                                backgroundColor:
+                                    badgeBackgroundColor ?? tt.info,
                               ),
                             if (hasPrimaryBadge && hasSecondaryBadge)
                               const SizedBox(width: 6),

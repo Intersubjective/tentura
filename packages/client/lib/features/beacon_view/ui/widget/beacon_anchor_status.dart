@@ -2,7 +2,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -15,14 +14,6 @@ TenturaTone beaconAnchorStatusTone(BeaconStatus s) => switch (s) {
       BeaconStatus.needsMoreHelp => TenturaTone.warn,
       BeaconStatus.enoughHelp => TenturaTone.good,
       _ => TenturaTone.neutral,
-    };
-
-TenturaTone coordinationResponseTone(CoordinationResponseType r) => switch (r) {
-      CoordinationResponseType.useful => TenturaTone.good,
-      CoordinationResponseType.overlapping => TenturaTone.info,
-      CoordinationResponseType.needDifferentSkill => TenturaTone.danger,
-      CoordinationResponseType.needCoordination => TenturaTone.info,
-      CoordinationResponseType.notSuitable => TenturaTone.danger,
     };
 
 /// Shared operational status for beacon detail app bar subtitle.

@@ -3206,7 +3206,7 @@
     }
   },
   "beaconNoActivityYetShort": "No activity yet",
-  "helpOffersTabNoAuthorLabelYet": "no author label yet",
+  "helpOffersTabNoAuthorLabelYet": "author review required",
   "helpOffersTabActionEdit": "edit",
   "helpOffersTabActionWithdraw": "withdraw",
   "helpOffersTabSummaryUseful": "{n} useful",

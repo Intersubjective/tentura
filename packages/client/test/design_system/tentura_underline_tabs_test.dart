@@ -96,4 +96,34 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'TenturaUnderlineTabs primary badge uses custom background color',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: TenturaUnderlineTabs(
+              tabs: const ['A', 'B', 'C'],
+              selectedIndex: 1,
+              onChanged: (_) {},
+              badges: const [null, 2, null],
+              badgeBackgroundColors: [
+                null,
+                TenturaTokens.light.danger,
+                null,
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final badge = tester.widget<TenturaCountBadge>(
+        find.byType(TenturaCountBadge),
+      );
+      expect(badge.backgroundColor, TenturaTokens.light.danger);
+    },
+  );
 }

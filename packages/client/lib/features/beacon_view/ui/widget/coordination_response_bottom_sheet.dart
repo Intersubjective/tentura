@@ -153,8 +153,31 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                             children: [
                               SizedBox(
                                 width: 40,
-                                child: Radio<CoordinationResponseType>(
-                                  value: t,
+                                child: Builder(
+                                  builder: (radioContext) {
+                                    final ink = coordinationResponseInkColor(
+                                      tt,
+                                      t,
+                                    );
+                                    return Theme(
+                                      data: Theme.of(radioContext).copyWith(
+                                        radioTheme: RadioThemeData(
+                                          fillColor:
+                                              WidgetStateProperty.resolveWith(
+                                            (states) =>
+                                                states.contains(
+                                                  WidgetState.selected,
+                                                )
+                                                ? ink
+                                                : null,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Radio<CoordinationResponseType>(
+                                        value: t,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               Expanded(
@@ -162,7 +185,9 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                                   coordinationResponseLabel(l10n, t) ?? '',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  style: TenturaText.bodyMedium(
+                                    coordinationResponseInkColor(tt, t),
+                                  ),
                                 ),
                               ),
                             ],

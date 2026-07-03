@@ -3171,7 +3171,7 @@
     }
   },
   "beaconNoActivityYetShort": "Пока нет событий",
-  "helpOffersTabNoAuthorLabelYet": "метки автора ещё нет",
+  "helpOffersTabNoAuthorLabelYet": "требуется оценка автора",
   "helpOffersTabActionEdit": "правка",
   "helpOffersTabActionWithdraw": "снять",
   "helpOffersTabSummaryUseful": "{n} полезн.",

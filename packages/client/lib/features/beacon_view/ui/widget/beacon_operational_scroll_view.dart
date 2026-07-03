@@ -306,6 +306,11 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 peopleTabBadge,
                                 null,
                               ],
+                              badgeBackgroundColors: [
+                                null,
+                                peopleTabBadge != null ? tt.danger : null,
+                                null,
+                              ],
                               secondaryBadges: [
                                 null,
                                 peopleTabSecondaryBadge,
