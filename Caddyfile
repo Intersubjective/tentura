@@ -169,7 +169,7 @@
 
 	# Service worker + preload manifest must always revalidate so a new deploy's
 	# cache version is picked up on a normal refresh (not only a hard refresh).
-	@appUpdateFiles path /index.html /flutter_bootstrap.js /manifest.json /tentura-app-cache-sw.js /version.json /wasm-preload-manifest.json
+	@appUpdateFiles path /index.html /flutter_bootstrap.js /google_maps_config.js /manifest.json /tentura-app-cache-sw.js /version.json /wasm-preload-manifest.json
 
 	# Versioned Flutter app assets are immutable and safe for long CDN/browser TTLs.
 	@appImmutableAssets path /app-assets/*

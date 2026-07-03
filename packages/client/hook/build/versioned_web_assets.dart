@@ -51,6 +51,7 @@ bool _isRootControlPath(String name) {
     'app-assets',
     'firebase-messaging-sw.js',
     'flutter_bootstrap.js',
+    'google_maps_config.js',
     'index.html',
     'manifest.json',
     'tentura-app-cache-sw.js',

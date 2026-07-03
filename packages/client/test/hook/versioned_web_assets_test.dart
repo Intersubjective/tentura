@@ -38,6 +38,16 @@ void main() {
         expect(File('${dir.path}/index.html').existsSync(), isTrue);
         expect(File('${dir.path}/flutter_bootstrap.js').existsSync(), isTrue);
         expect(File('${dir.path}/manifest.json').existsSync(), isTrue);
+        expect(
+          File('${dir.path}/google_maps_config.js').existsSync(),
+          isTrue,
+        );
+        expect(
+          File(
+            '${dir.path}/app-assets/$version/google_maps_config.js',
+          ).existsSync(),
+          isFalse,
+        );
 
         final bootstrap = File(
           '${dir.path}/flutter_bootstrap.js',
@@ -134,6 +144,9 @@ void _writeBuildFixture(Directory dir) {
   );
   File('${dir.path}/version.json').writeAsStringSync('{}');
   File('${dir.path}/firebase-messaging-sw.js').writeAsStringSync('');
+  File(
+    '${dir.path}/google_maps_config.js',
+  ).writeAsStringSync('window.tenturaGoogleMapsApiKey = "test-key";\n');
 
   Directory('${dir.path}/assets/packages').createSync(recursive: true);
   File('${dir.path}/assets/packages/sqlite3.wasm').writeAsStringSync('');
