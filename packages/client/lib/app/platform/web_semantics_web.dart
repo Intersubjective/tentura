@@ -18,27 +18,43 @@ import 'package:web/web.dart' as web;
 // enabled (e.g. by App.runner's ensureSemantics() at startup), no number
 // of app-level dispose() calls brings the handle count back to zero.
 //
-// Hiding the DOM host directly sidesteps that entirely: it removes the
-// whole semantics subtree from hit-testing (`display: none` takes an
-// element and its descendants out of hit-testing regardless of their own
-// `pointer-events`), while Flutter keeps generating semantics updates
-// against it harmlessly in the background. Screen-reader users lose
+// A blanket `display: none` on the host (an earlier version of this fix)
+// isn't safe either: while semantics is active, Flutter Web swaps in
+// SemanticsTextEditingStrategy for focused text fields, which appends the
+// *real* editable <input>/<textarea> as a child of the field's own
+// <flt-semantics> node (see engine/semantics/text_field.dart) instead of
+// the usual always-present, semantics-independent text-editing host.
+// `display: none` on an ancestor cannot be overridden by a descendant, so
+// hiding the whole host takes that live input out of the DOM along with
+// the map-blocking node, breaking typed input into any text field while
+// this is in effect (e.g. the location search box).
+//
+// Overriding `pointer-events` instead is selectively overridable per
+// descendant (unlike `display`), so it can neutralize every semantics node
+// *except* the one tagged `data-semantics-role="text-field"` — the real
+// input surface — which stays interactive. Screen-reader users lose
 // semantics for the one screen this is active on, which is an acceptable
 // trade-off since panning/tapping a map isn't practically
 // screen-reader-navigable anyway.
-String? _previousDisplay;
+const _styleElementId = 'tentura-suspend-web-semantics';
+
+web.HTMLStyleElement? _styleElement;
 
 void suspendWebSemantics() {
-  final host = web.document.querySelector('flt-semantics-host');
-  if (host == null) return;
-  final element = host as web.HTMLElement;
-  _previousDisplay = element.style.display;
-  element.style.display = 'none';
+  if (_styleElement != null) return;
+  final style =
+      web.document.createElement('style') as web.HTMLStyleElement
+        ..id = _styleElementId
+        ..textContent =
+            'flt-semantics-host, flt-semantics-host * '
+            '{ pointer-events: none !important; } '
+            'flt-semantics-host [data-semantics-role="text-field"] '
+            '{ pointer-events: auto !important; }';
+  web.document.head!.appendChild(style);
+  _styleElement = style;
 }
 
 void resumeWebSemantics() {
-  final host = web.document.querySelector('flt-semantics-host');
-  if (host == null) return;
-  (host as web.HTMLElement).style.display = _previousDisplay ?? '';
-  _previousDisplay = null;
+  _styleElement?.remove();
+  _styleElement = null;
 }

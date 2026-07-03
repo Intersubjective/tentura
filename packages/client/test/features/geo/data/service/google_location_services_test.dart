@@ -59,6 +59,54 @@ void main() {
       },
     );
 
+    test('returns empty list when suggestions is not an array', () async {
+      final service = GooglePlacesService.withClient(
+        const Env(googleMapsApiKey: 'maps-key'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({'suggestions': {'unexpected': true}}),
+            200,
+          ),
+        ),
+      );
+
+      final predictions = await service.autocomplete(
+        input: 'Muse',
+        sessionToken: 'token-1',
+      );
+
+      expect(predictions, isEmpty);
+    });
+
+    test('surfaces Google error message from failed autocomplete', () async {
+      final service = GooglePlacesService.withClient(
+        const Env(googleMapsApiKey: 'maps-key'),
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {
+                'code': 403,
+                'message': 'Places API (New) has not been enabled.',
+                'status': 'PERMISSION_DENIED',
+              },
+            }),
+            403,
+          ),
+        ),
+      );
+
+      expect(
+        () => service.autocomplete(input: 'Muse', sessionToken: 'token-1'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Places API (New) has not been enabled'),
+          ),
+        ),
+      );
+    });
+
     test('resolves place details with the same session token', () async {
       http.Request? seen;
       final service = GooglePlacesService.withClient(

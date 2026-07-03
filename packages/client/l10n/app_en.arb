@@ -682,6 +682,22 @@
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
   },
+  "chooseLocationMapLoading": "Loading map…",
+  "@chooseLocationMapLoading": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationMapUnavailable": "Map preview couldn’t load. You can still search for an address below.",
+  "@chooseLocationMapUnavailable": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationMapsKeyMissing": "Google Maps isn’t configured. Add GOOGLE_MAPS_API_KEY to .env, then restart the app.",
+  "@chooseLocationMapsKeyMissing": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationSearchFailed": "Address search failed. Check your connection and try again.",
+  "@chooseLocationSearchFailed": {
+    "context": "ChooseLocationDialog"
+  },
   "goToEgo": "Go to Ego",
   "@goToEgo": {
     "context": "GraphScreen"

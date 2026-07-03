@@ -682,6 +682,22 @@
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
   },
+  "chooseLocationMapLoading": "Загрузка карты…",
+  "@chooseLocationMapLoading": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationMapUnavailable": "Не удалось загрузить карту. Адрес можно найти через поиск ниже.",
+  "@chooseLocationMapUnavailable": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationMapsKeyMissing": "Google Maps не настроен. Добавьте GOOGLE_MAPS_API_KEY в .env и перезапустите приложение.",
+  "@chooseLocationMapsKeyMissing": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationSearchFailed": "Не удалось выполнить поиск адреса. Проверьте подключение и повторите попытку.",
+  "@chooseLocationSearchFailed": {
+    "context": "ChooseLocationDialog"
+  },
   "goToEgo": "Перейти к Эго",
   "@goToEgo": {
     "context": "GraphScreen"

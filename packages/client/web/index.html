@@ -23,11 +23,13 @@
     (function () {
       var apiKey = window.tenturaGoogleMapsApiKey || "";
       if (!apiKey) return;
-      document.write(
-        '<script src="https://maps.googleapis.com/maps/api/js?key=' +
+      var script = document.createElement("script");
+      script.async = true;
+      script.src =
+        "https://maps.googleapis.com/maps/api/js?key=" +
         encodeURIComponent(apiKey) +
-        '"><\/script>'
-      );
+        "&loading=async";
+      document.head.appendChild(script);
     })();
   </script>
 

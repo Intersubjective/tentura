@@ -162,6 +162,7 @@ void main() {
     placesService = _FakePlacesService();
     geocodingService = _FakeGeocodingService();
 
+    GetIt.I.registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'));
     GetIt.I.registerSingleton<GeoRepository>(GeoRepository(Logger('test')));
     GetIt.I.registerSingleton<GooglePlacesService>(placesService);
     GetIt.I.registerSingleton<GoogleGeocodingService>(geocodingService);
@@ -248,5 +249,19 @@ void main() {
 
     expect(result!.coords, _selectedFromMarkerDrag);
     expect(result!.place.toString(), 'Prinsengracht 263, Amsterdam');
+  });
+
+  testWidgets('shows missing maps key guidance when Env key is empty', (
+    tester,
+  ) async {
+    await GetIt.I.reset();
+    GetIt.I.registerSingleton<Env>(const Env());
+    GetIt.I.registerSingleton<GeoRepository>(GeoRepository(Logger('test')));
+    GetIt.I.registerSingleton<GooglePlacesService>(placesService);
+    GetIt.I.registerSingleton<GoogleGeocodingService>(geocodingService);
+
+    await openDialog(tester);
+
+    expect(find.textContaining('GOOGLE_MAPS_API_KEY'), findsWidgets);
   });
 }

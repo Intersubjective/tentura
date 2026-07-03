@@ -1,10 +1,10 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/env.dart';
+
+import 'google_maps_json.dart';
 
 @lazySingleton
 class GoogleGeocodingService {
@@ -32,13 +32,17 @@ class GoogleGeocodingService {
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
-        'Google Geocoding request failed: ${response.statusCode}',
+        googleMapsHttpFailureLabel(
+          serviceName: 'Google Geocoding',
+          statusCode: response.statusCode,
+          body: response.body,
+        ),
       );
     }
 
-    final body = jsonDecode(response.body) as Map<String, Object?>;
+    final body = decodeGoogleMapsJsonObject(response.body);
     if (body['status'] != 'OK') return null;
-    final results = body['results'] as List<Object?>? ?? const [];
+    final results = readGoogleMapsJsonList(body['results']);
     if (results.isEmpty) return null;
     final first = results.first! as Map<String, Object?>;
     return first['formatted_address'] as String?;

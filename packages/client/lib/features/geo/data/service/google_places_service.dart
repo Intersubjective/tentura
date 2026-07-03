@@ -6,6 +6,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/env.dart';
 
+import 'google_maps_json.dart';
+
 final class GooglePlacePrediction {
   const GooglePlacePrediction({
     required this.placeId,
@@ -55,10 +57,10 @@ class GooglePlacesService {
         'sessionToken': sessionToken,
       }),
     );
-    _throwIfFailed(response);
+    _throwIfFailed(response, serviceName: 'Google Places autocomplete');
 
-    final body = jsonDecode(response.body) as Map<String, Object?>;
-    final suggestions = body['suggestions'] as List<Object?>? ?? const [];
+    final body = decodeGoogleMapsJsonObject(response.body);
+    final suggestions = readGoogleMapsJsonList(body['suggestions']);
     return [
       for (final suggestion in suggestions)
         if (suggestion case {'placePrediction': final Map<String, Object?> p})
@@ -81,9 +83,9 @@ class GooglePlacesService {
       }),
       headers: _headers(fieldMask: _detailsFieldMask),
     );
-    _throwIfFailed(response);
+    _throwIfFailed(response, serviceName: 'Google Places details');
 
-    final body = jsonDecode(response.body) as Map<String, Object?>;
+    final body = decodeGoogleMapsJsonObject(response.body);
     final location = body['location'] as Map<String, Object?>? ?? const {};
     return GoogleResolvedPlace(
       coordinates: Coordinates(
@@ -106,9 +108,18 @@ class GooglePlacesService {
     };
   }
 
-  void _throwIfFailed(http.Response response) {
+  void _throwIfFailed(
+    http.Response response, {
+    required String serviceName,
+  }) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError('Google Places request failed: ${response.statusCode}');
+      throw StateError(
+        googleMapsHttpFailureLabel(
+          serviceName: serviceName,
+          statusCode: response.statusCode,
+          body: response.body,
+        ),
+      );
     }
   }
 }
