@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -5,10 +7,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
-import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
+import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../widget/beacon_color_selector.dart';
-import '../widget/beacon_icon_filter_chip.dart';
 
 /// Result of [BeaconIconPickerScreen.show]; `iconCode == null` means cleared identity.
 typedef BeaconIconPickerResult = ({
@@ -117,8 +118,6 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
     _previewIconCodeNotifier,
   ]);
 
-  late AppChoiceChipStyle _chipStyle;
-
   /// Lowercase search blob per icon key: `code`, `label`, localized category.
   late Map<String, String> _searchBlobByKey;
 
@@ -136,13 +135,39 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _chipStyle = AppChoiceChipStyle(Theme.of(context).colorScheme);
     final l10n = L10n.of(context)!;
     _searchBlobByKey = {
       for (final e in kBeaconIdentityIcons.entries)
         e.key:
             '${e.key.toLowerCase()} ${e.value.label.toLowerCase()} ${_categoryLabel(l10n, e.value.category).toLowerCase()}',
     };
+  }
+
+  String _categoryFilterLabel(L10n l10n, int cat) => cat == 0
+      ? l10n.beaconSymbolCategoryAll
+      : _categoryLabel(l10n, BeaconIdentityCategory.values[cat - 1]);
+
+  Future<void> _showCategoryMenu(BuildContext buttonContext, L10n l10n) async {
+    final current = _categoryNotifier.value;
+    final selected = await showAnchoredPopupMenu<int>(
+      anchorContext: buttonContext,
+      items: [
+        for (var cat = 0; cat <= BeaconIdentityCategory.values.length; cat++)
+          PopupMenuItem<int>(
+            value: cat,
+            child: Row(
+              children: [
+                Expanded(child: Text(_categoryFilterLabel(l10n, cat))),
+                if (cat == current)
+                  const Icon(Icons.check, size: 20),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected != null) {
+      _categoryNotifier.value = selected;
+    }
   }
 
   @override
@@ -297,148 +322,170 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                 child: ValueListenableBuilder<int>(
                   valueListenable: _categoryNotifier,
                   builder: (context, cat, _) {
-                    final chipStyle = _chipStyle;
-                    return Wrap(
-                      spacing: tt.rowGap,
-                      runSpacing: tt.rowGap,
-                      children: [
-                        BeaconIconFilterChip(
-                          chipStyle: chipStyle,
-                          label: l10n.beaconSymbolCategoryAll,
-                          selected: cat == 0,
-                          onSelected: (_) => _categoryNotifier.value = 0,
-                        ),
-                        for (
-                          var i = 0;
-                          i < BeaconIdentityCategory.values.length;
-                          i++
-                        )
-                          BeaconIconFilterChip(
-                            chipStyle: chipStyle,
-                            label: _categoryLabel(
-                              l10n,
-                              BeaconIdentityCategory.values[i],
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            unawaited(_showCategoryMenu(context, l10n)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: 160,
+                              ),
+                              child: Text(
+                                _categoryFilterLabel(l10n, cat),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            selected: cat == i + 1,
-                            onSelected: (_) => _categoryNotifier.value = i + 1,
-                          ),
-                      ],
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
+              // Grid and background picker share one scroll region so the
+              // color picker stays reachable even when the viewport is too
+              // short to fit every symbol row on screen at once.
               Expanded(
-                child: ListenableBuilder(
-                  listenable: _gridListenable,
-                  builder: (context, _) {
-                    final entries = _filteredEntries(l10n);
-                    final sel = _selectionNotifier.value;
-                    final previewBg = _previewBackgroundArgb(sel);
-                    final query = _queryNotifier.value;
-                    final category = _categoryNotifier.value;
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = _gridCrossAxisCount(
+                      constraints.maxWidth,
+                    );
+                    return ListenableBuilder(
+                      listenable: _gridListenable,
+                      builder: (context, _) {
+                        final entries = _filteredEntries(l10n);
+                        final sel = _selectionNotifier.value;
+                        final previewBg = _previewBackgroundArgb(sel);
+                        final query = _queryNotifier.value;
+                        final category = _categoryNotifier.value;
 
-                    if (entries.isEmpty) {
-                      return Center(
-                        child: Text(
-                          l10n.beaconSymbolNoMatches,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = _gridCrossAxisCount(
-                          constraints.maxWidth,
-                        );
-                        return GridView.builder(
+                        return CustomScrollView(
                           key: ValueKey('$category|$query'),
-                          padding: EdgeInsets.all(tt.rowGap),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                mainAxisSpacing: tt.rowGap,
-                                crossAxisSpacing: tt.rowGap,
-                                childAspectRatio: 0.85,
+                          slivers: [
+                            if (entries.isEmpty)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: tt.sectionGap,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      l10n.beaconSymbolNoMatches,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              SliverPadding(
+                                padding: EdgeInsets.all(tt.rowGap),
+                                sliver: SliverGrid(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: crossAxisCount,
+                                        mainAxisSpacing: tt.rowGap,
+                                        crossAxisSpacing: tt.rowGap,
+                                        childAspectRatio: 0.85,
+                                      ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, i) {
+                                      final entry = entries[i];
+                                      final selected =
+                                          sel.iconCode == entry.key;
+                                      return _IconGridTile(
+                                        key: ValueKey(entry.key),
+                                        iconData: entry.value.icon,
+                                        label: entry.value.label,
+                                        selected: selected,
+                                        identityBackgroundArgb: previewBg,
+                                        scheme: scheme,
+                                        baseLabelStyle:
+                                            theme.textTheme.labelSmall,
+                                        onPreviewStart: () =>
+                                            _previewIconCodeNotifier.value =
+                                                entry.key,
+                                        onPreviewEnd: () =>
+                                            _clearPreviewIconCode(entry.key),
+                                        onTap: () {
+                                          _clearPreviewIconCode(entry.key);
+                                          final cur =
+                                              _selectionNotifier.value;
+                                          _selectionNotifier.value = (
+                                            iconCode: entry.key,
+                                            iconBackground:
+                                                cur.iconBackground ??
+                                                kBeaconIdentityPalette
+                                                    .first
+                                                    .backgroundArgb,
+                                          );
+                                        },
+                                      );
+                                    },
+                                    childCount: entries.length,
+                                  ),
+                                ),
                               ),
-                          itemCount: entries.length,
-                          itemBuilder: (context, i) {
-                            final entry = entries[i];
-                            final selected = sel.iconCode == entry.key;
-                            return _IconGridTile(
-                              key: ValueKey(entry.key),
-                              iconData: entry.value.icon,
-                              label: entry.value.label,
-                              selected: selected,
-                              identityBackgroundArgb: previewBg,
-                              scheme: scheme,
-                              baseLabelStyle: theme.textTheme.labelSmall,
-                              onPreviewStart: () => _previewIconCodeNotifier
-                                  .value = entry.key,
-                              onPreviewEnd: () =>
-                                  _clearPreviewIconCode(entry.key),
-                              onTap: () {
-                                _clearPreviewIconCode(entry.key);
-                                final cur = _selectionNotifier.value;
-                                _selectionNotifier.value = (
-                                  iconCode: entry.key,
-                                  iconBackground:
-                                      cur.iconBackground ??
-                                      kBeaconIdentityPalette
-                                          .first
-                                          .backgroundArgb,
-                                );
-                              },
-                            );
-                          },
+                            SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const TenturaHairlineDivider(),
+                                  Padding(
+                                    padding: EdgeInsets.fromLTRB(
+                                      tt.screenHPadding,
+                                      tt.rowGap,
+                                      tt.screenHPadding,
+                                      tt.screenHPadding,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
+                                          l10n.beaconSymbolBackground,
+                                          style: theme.textTheme.labelLarge,
+                                        ),
+                                        SizedBox(height: tt.rowGap),
+                                        Opacity(
+                                          opacity: sel.iconCode == null
+                                              ? 0.4
+                                              : 1,
+                                          child: IgnorePointer(
+                                            ignoring: sel.iconCode == null,
+                                            child: BeaconColorSelector(
+                                              selectedArgb: sel.iconBackground,
+                                              onSelected: (v) {
+                                                final cur =
+                                                    _selectionNotifier.value;
+                                                _selectionNotifier.value = (
+                                                  iconCode: cur.iconCode,
+                                                  iconBackground: v,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         );
                       },
                     );
                   },
-                ),
-              ),
-              Material(
-                elevation: 8,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    tt.screenHPadding,
-                    tt.rowGap,
-                    tt.screenHPadding,
-                    tt.screenHPadding,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.beaconSymbolBackground,
-                        style: theme.textTheme.labelLarge,
-                      ),
-                      SizedBox(height: tt.rowGap),
-                      ValueListenableBuilder<_BeaconIconPickerSelection>(
-                        valueListenable: _selectionNotifier,
-                        builder: (context, sel, _) {
-                          return Opacity(
-                            opacity: sel.iconCode == null ? 0.4 : 1,
-                            child: IgnorePointer(
-                              ignoring: sel.iconCode == null,
-                              child: BeaconColorSelector(
-                                selectedArgb: sel.iconBackground,
-                                onSelected: (v) {
-                                  final cur = _selectionNotifier.value;
-                                  _selectionNotifier.value = (
-                                    iconCode: cur.iconCode,
-                                    iconBackground: v,
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],

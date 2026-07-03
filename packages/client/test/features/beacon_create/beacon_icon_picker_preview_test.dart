@@ -62,12 +62,14 @@ void main() {
     expect(find.text('Discussion'), findsNothing);
   });
 
-  testWidgets('category chip filters visible symbols', (tester) async {
+  testWidgets('category picker filters visible symbols', (tester) async {
     await tester.pumpWidget(_pickerHarness());
     await tester.pumpAndSettle();
 
     expect(find.text('Announcement'), findsWidgets);
 
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Community'));
     await tester.pumpAndSettle();
 
