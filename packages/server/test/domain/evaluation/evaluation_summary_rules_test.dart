@@ -135,7 +135,7 @@ void main() {
       expect(m['tone'], 'positive');
       expect(
         m['message'],
-        'Feedback in this beacon (details limited for privacy)',
+        'Feedback in this request (details limited for privacy)',
       );
     });
 

@@ -107,7 +107,7 @@ void main() {
         isA<UnauthorizedException>().having(
           (e) => e.description,
           'description',
-          'Sender cannot read beacon content',
+          'Sender cannot read request content',
         ),
       ),
     );

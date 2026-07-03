@@ -122,7 +122,7 @@ void main() {
           isA<UnauthorizedException>().having(
             (e) => e.description,
             'description',
-            'Viewer cannot read beacon involvement',
+            'Viewer cannot read request involvement',
           ),
         ),
       );

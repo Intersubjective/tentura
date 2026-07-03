@@ -664,7 +664,7 @@ void main() {
           beaconId: 'B1',
           recipientIds: ['R1'],
         ),
-        _unauthorizedWithDescription('Sender cannot read beacon content'),
+        _unauthorizedWithDescription('Sender cannot read request content'),
       );
       verifyNever(
         forwardEdgeRepo.createBatch(
@@ -700,7 +700,7 @@ void main() {
           beaconId: 'B1',
           recipientIds: ['R1'],
         ),
-        _unauthorizedWithDescription('Beacon does not allow forwarding'),
+        _unauthorizedWithDescription('Request does not allow forwarding'),
       );
       verifyNever(
         forwardEdgeRepo.createBatch(
