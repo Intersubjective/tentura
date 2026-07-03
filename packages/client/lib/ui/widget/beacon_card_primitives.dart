@@ -601,7 +601,7 @@ class BeaconCardMetaItem extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: scheme.onSurfaceVariant),
         const SizedBox(width: 4),
-        child,
+        if (mainAxisSize == MainAxisSize.max) Flexible(child: child) else child,
       ],
     );
   }

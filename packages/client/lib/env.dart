@@ -12,7 +12,6 @@ class Env {
     String? serverUrlBase,
     String? complaintEmail,
     String? pathAppLinkView,
-    String? osmUrlTemplate,
     String? inviteEmail,
 
     // Websocket
@@ -33,6 +32,7 @@ class Env {
     // Google OAuth (native linking)
     String? googleServerClientId,
     String? googleIosClientId,
+    String? googleMapsApiKey,
   }) : // Common
        logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
        serverUrlBase =
@@ -42,13 +42,6 @@ class Env {
            complaintEmail ?? const String.fromEnvironment('COMPLAINT_EMAIL'),
        inviteEmail =
            inviteEmail ?? const String.fromEnvironment('INVITE_EMAIL'),
-       osmUrlTemplate =
-           osmUrlTemplate ??
-           const String.fromEnvironment(
-             'OSM_LINK_BASE',
-             defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-           ),
-
        // Websocket
        wsPingInterval =
            wsPingInterval ??
@@ -83,10 +76,15 @@ class Env {
            needInviteCode ?? const bool.fromEnvironment('NEED_INVITE_CODE'),
 
        // Google OAuth (native linking; web uses server redirect)
-       googleServerClientId = googleServerClientId ??
+       googleServerClientId =
+           googleServerClientId ??
            const String.fromEnvironment('GOOGLE_CLIENT_ID'),
-       googleIosClientId = googleIosClientId ??
-           const String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+       googleIosClientId =
+           googleIosClientId ??
+           const String.fromEnvironment('GOOGLE_IOS_CLIENT_ID'),
+       googleMapsApiKey =
+           googleMapsApiKey ??
+           const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
 
   @factoryMethod
   const factory Env.fromEnvironment() = Env;
@@ -97,7 +95,6 @@ class Env {
   final String serverUrlBase;
   final String complaintEmail;
   final String pathAppLinkView;
-  final String osmUrlTemplate;
   final String inviteEmail;
 
   // Websocket
@@ -121,6 +118,9 @@ class Env {
 
   /// iOS OAuth client id for `google_sign_in` (optional on Android/web).
   final String googleIosClientId;
+
+  /// Browser/server key restricted to Google Maps, Places, and Geocoding APIs.
+  final String googleMapsApiKey;
 
   bool get isGoogleNativeLinkConfigured => googleServerClientId.isNotEmpty;
 }

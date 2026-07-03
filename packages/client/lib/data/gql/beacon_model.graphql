@@ -21,6 +21,7 @@ fragment BeaconModel on beacon {
   end_at
   long
   lat
+  address_label
   tags
   lineage_parent_beacon_id
   lineage_root_beacon_id

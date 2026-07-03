@@ -92,6 +92,47 @@ void main() {
     expect(scheduleX, greaterThan(180));
   });
 
+  testWidgets('metadata row renders stored address label for a location', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-address',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+      coordinates: const Coordinates(lat: 52.358, long: 4.881),
+      addressLabel: 'Museumplein 6, Amsterdam',
+      createdAt: DateTime(2026, 6, 10, 9),
+      updatedAt: DateTime(2026, 6, 10, 10),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon),
+                  currentUserId: 'viewer',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Museumplein 6, Amsterdam'), findsOneWidget);
+    expect(find.text('Location set'), findsNothing);
+  });
+
   testWidgets('metadata row shows NOW icon above YOU icon', (tester) async {
     final beacon = Beacon.empty.copyWith(
       id: 'b-now',
@@ -473,7 +514,6 @@ void main() {
         role: MyWorkCardRole.helpOffered,
         kind: MyWorkCardKind.helpOfferedActive,
         beacon: beacon,
-        authorResponseType: null,
         offerHelpMessage: 'I can help',
       );
 

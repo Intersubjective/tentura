@@ -23,5 +23,11 @@ class Place {
   }
 
   @override
-  String toString() => '$country${locality.isEmpty ? '' : ','} $locality';
+  String toString() {
+    final cleanCountry = country.trim();
+    final cleanLocality = locality.trim();
+    if (cleanCountry.isEmpty) return cleanLocality;
+    if (cleanLocality.isEmpty) return cleanCountry;
+    return '$cleanCountry, $cleanLocality';
+  }
 }

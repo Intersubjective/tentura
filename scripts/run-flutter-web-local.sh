@@ -7,6 +7,7 @@ bash "$ROOT/scripts/sync-client-local-config.sh"
 bash "$ROOT/scripts/resolve_local_web_config.sh" --check-only
 
 cd "$ROOT/packages/client"
+dart run tool/apply_google_maps_web_key.dart --source
 exec flutter run -d web-server --web-port=8888 \
   --dart-define-from-file=env/local-web.env \
   "$@"

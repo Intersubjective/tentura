@@ -23,6 +23,8 @@ class Beacons extends Table
 
   late final long = real().nullable()();
 
+  late final addressLabel = text().nullable()();
+
   late final startAt = customType(PgTypes.timestampWithTimezone).nullable()();
 
   late final endAt = customType(PgTypes.timestampWithTimezone).nullable()();
@@ -33,8 +35,7 @@ class Beacons extends Table
 
   // 0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed,
   // 7=needsMoreHelp, 8=enoughHelp
-  late final Column<int> status = integer()
-      .withDefault(const Constant(0))();
+  late final Column<int> status = integer().withDefault(const Constant(0))();
 
   late final statusChangedAt = customType(
     PgTypes.timestampWithTimezone,
@@ -53,7 +54,10 @@ class Beacons extends Table
   late final successCriteria = text().nullable()();
 
   /// Immediate source beacon when this row was created via lineage fork.
-  late final lineageParentBeaconId = text().nullable().references(Beacons, #id)();
+  late final lineageParentBeaconId = text().nullable().references(
+    Beacons,
+    #id,
+  )();
 
   /// Root of the lineage tree (self when this beacon is the original).
   late final lineageRootBeaconId = text().nullable().references(Beacons, #id)();

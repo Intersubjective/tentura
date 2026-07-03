@@ -107,8 +107,8 @@ class BeaconRepository {
         ..coordinates = beacon.coordinates == null
             ? null
             : (GCoordinatesBuilder()
-                  ..lat = beacon.coordinates!.lat
-                  ..long = beacon.coordinates!.long)
+                ..lat = beacon.coordinates!.lat
+                ..long = beacon.coordinates!.long)
         ..image = firstImage?.imageBytes == null
             ? null
             : MultipartFile.fromBytes(
@@ -124,6 +124,7 @@ class BeaconRepository {
         ..needSummary = beacon.needSummary
         ..successCriteria = beacon.successCriteria
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..addressLabel = beacon.addressLabel
         ..draft = draft;
     });
     final beaconId = await _remoteApiService
@@ -160,15 +161,16 @@ class BeaconRepository {
         ..coordinates = beacon.coordinates == null
             ? null
             : (GCoordinatesBuilder()
-                  ..lat = beacon.coordinates!.lat
-                  ..long = beacon.coordinates!.long)
+                ..lat = beacon.coordinates!.lat
+                ..long = beacon.coordinates!.long)
         ..iconCode = beacon.iconCode
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needSummary = beacon.needSummary
         ..successCriteria = beacon.successCriteria
-        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',');
+        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..addressLabel = beacon.addressLabel;
     });
     await _remoteApiService
         .request(request)
@@ -195,15 +197,16 @@ class BeaconRepository {
         ..coordinates = beacon.coordinates == null
             ? null
             : (GCoordinatesBuilder()
-                  ..lat = beacon.coordinates!.lat
-                  ..long = beacon.coordinates!.long)
+                ..lat = beacon.coordinates!.lat
+                ..long = beacon.coordinates!.long)
         ..iconCode = beacon.iconCode
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needSummary = beacon.needSummary
         ..successCriteria = beacon.successCriteria
-        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',');
+        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..addressLabel = beacon.addressLabel;
     });
     await _remoteApiService
         .request(request)
@@ -256,11 +259,13 @@ class BeaconRepository {
     required String imageId,
   }) async {
     final isOk = await _remoteApiService
-        .request(GBeaconRemoveImageReq((b) {
-          b.vars
-            ..beaconId = beaconId
-            ..imageId = imageId;
-        }))
+        .request(
+          GBeaconRemoveImageReq((b) {
+            b.vars
+              ..beaconId = beaconId
+              ..imageId = imageId;
+          }),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconRemoveImage);
     if (!isOk) {

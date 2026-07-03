@@ -30,6 +30,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
               lat: i.lat ?? 0,
               long: i.long ?? 0,
             ),
+      addressLabel: i.address_label,
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       score: i.scores?.firstOrNull?.dst_score ?? 0,
       images: [

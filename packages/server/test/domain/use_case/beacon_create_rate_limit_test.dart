@@ -20,13 +20,15 @@ import '../../support/fake_beacon_access_guard.dart';
 class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   int recentCount = 0;
   int createBeaconCalls = 0;
+  int updateBeaconCalls = 0;
+  int updateDraftBeaconCalls = 0;
+  String? lastAddressLabel;
 
   @override
   Future<int> countRecentByAuthor({
     required String userId,
     required Duration window,
-  }) async =>
-      recentCount;
+  }) async => recentCount;
 
   @override
   Future<BeaconEntity> createBeacon({
@@ -47,10 +49,12 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) async {
     createBeaconCalls++;
+    lastAddressLabel = addressLabel;
     return BeaconEntity(
       id: 'Bnew',
       title: title,
@@ -59,6 +63,72 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
       updatedAt: DateTime.utc(2026),
       status: status ?? BeaconStatus.open,
       needSummary: needSummary,
+      addressLabel: addressLabel,
+    );
+  }
+
+  @override
+  Future<BeaconEntity> updateBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    Set<String>? needs,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
+    String? addressLabel,
+  }) async {
+    updateBeaconCalls++;
+    lastAddressLabel = addressLabel;
+    return BeaconEntity(
+      id: beaconId,
+      title: title,
+      author: UserEntity(id: userId),
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+      needSummary: needSummary,
+      addressLabel: addressLabel,
+    );
+  }
+
+  @override
+  Future<BeaconEntity> updateDraftBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    Set<String>? needs,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
+    String? addressLabel,
+  }) async {
+    updateDraftBeaconCalls++;
+    lastAddressLabel = addressLabel;
+    return BeaconEntity(
+      id: beaconId,
+      title: title,
+      author: UserEntity(id: userId),
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+      status: BeaconStatus.draft,
+      needSummary: needSummary,
+      addressLabel: addressLabel,
     );
   }
 }
@@ -67,7 +137,8 @@ class _FakeImageRepo extends Fake implements ImageRepositoryPort {}
 
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
-class _FakeCoordinationRepo extends Fake implements CoordinationRepositoryPort {}
+class _FakeCoordinationRepo extends Fake
+    implements CoordinationRepositoryPort {}
 
 class _FakeHelpOfferRepo extends Fake implements HelpOfferRepositoryPort {}
 
@@ -76,15 +147,15 @@ void main() {
   late BeaconCase case_;
 
   BeaconCase build(Env env) => BeaconCase(
-        beaconRepo,
-        _FakeImageRepo(),
-        _FakeTaskRepo(),
-        _FakeCoordinationRepo(),
-        _FakeHelpOfferRepo(),
-        FakeBeaconAccessGuard(),
-        env: env,
-        logger: Logger('BeaconCreateRateLimitTest'),
-      );
+    beaconRepo,
+    _FakeImageRepo(),
+    _FakeTaskRepo(),
+    _FakeCoordinationRepo(),
+    _FakeHelpOfferRepo(),
+    FakeBeaconAccessGuard(),
+    env: env,
+    logger: Logger('BeaconCreateRateLimitTest'),
+  );
 
   setUp(() {
     beaconRepo = _StubBeaconRepo();
@@ -127,5 +198,69 @@ void main() {
 
     expect(beacon.id, 'Bnew');
     expect(beaconRepo.createBeaconCalls, 1);
+  });
+
+  test(
+    'create passes the authoring-time address label to persistence',
+    () async {
+      final env = Env(
+        environment: Environment.test,
+        beaconCreateMaxPerUser: 3,
+      );
+      case_ = build(env);
+
+      final beacon = await case_.create(
+        userId: 'Uauth',
+        title: 'Pickup request',
+        description: 'A description that is long enough.',
+        needSummary: 'Enough chars here!!',
+        addressLabel: 'Museumplein 6, Amsterdam',
+      );
+
+      expect(beacon.addressLabel, 'Museumplein 6, Amsterdam');
+      expect(beaconRepo.lastAddressLabel, 'Museumplein 6, Amsterdam');
+    },
+  );
+
+  test('update passes the address label to persistence', () async {
+    final env = Env(
+      environment: Environment.test,
+      beaconCreateMaxPerUser: 3,
+    );
+    case_ = build(env);
+
+    final beacon = await case_.update(
+      userId: 'Uauth',
+      beaconId: 'B1',
+      title: 'Pickup request',
+      description: 'A description that is long enough.',
+      needSummary: 'Enough chars here!!',
+      addressLabel: '  Museumplein 6, Amsterdam  ',
+    );
+
+    expect(beacon.addressLabel, 'Museumplein 6, Amsterdam');
+    expect(beaconRepo.lastAddressLabel, 'Museumplein 6, Amsterdam');
+    expect(beaconRepo.updateBeaconCalls, 1);
+  });
+
+  test('updateDraft passes the address label to persistence', () async {
+    final env = Env(
+      environment: Environment.test,
+      beaconCreateMaxPerUser: 3,
+    );
+    case_ = build(env);
+
+    final beacon = await case_.updateDraft(
+      userId: 'Uauth',
+      beaconId: 'Bdraft',
+      title: 'Draft pickup request',
+      description: 'A description that is long enough.',
+      needSummary: 'Draft summary',
+      addressLabel: '  Prinsengracht 263, Amsterdam  ',
+    );
+
+    expect(beacon.addressLabel, 'Prinsengracht 263, Amsterdam');
+    expect(beaconRepo.lastAddressLabel, 'Prinsengracht 263, Amsterdam');
+    expect(beaconRepo.updateDraftBeaconCalls, 1);
   });
 }

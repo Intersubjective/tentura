@@ -19,10 +19,16 @@ dart run build_runner build -d
 
 flutter build web --wasm --pwa-strategy=none --source-maps --dart-define-from-file=.env
 
+dart run tool/apply_google_maps_web_key.dart
 dart run tool/trim_web_deploy_artifact.dart
 dart run tool/generate_wasm_preload_artifacts.dart
 dart run tool/verify_web_version_consistency.dart
 ```
+
+Set `GOOGLE_MAPS_API_KEY` in the same `.env` used for Dart defines. For
+Android local builds, also put it in `android/local.properties`; for iOS local
+builds, create `ios/Flutter/MapsKeys.xcconfig` with
+`GOOGLE_MAPS_API_KEY=<restricted key>`.
 
 To make database migration:
 
@@ -32,4 +38,3 @@ To make database migration:
 ```bash
 dart run drift_dev make-migrations
 ```
-

@@ -18,6 +18,18 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+  <script src="google_maps_config.js"></script>
+  <script>
+    (function () {
+      var apiKey = window.tenturaGoogleMapsApiKey || "";
+      if (!apiKey) return;
+      document.write(
+        '<script src="https://maps.googleapis.com/maps/api/js?key=' +
+        encodeURIComponent(apiKey) +
+        '"><\/script>'
+      );
+    })();
+  </script>
 
   <!-- Circular crop preview for avatar (1:1 aspect ratio set from Flutter). -->
   <style>

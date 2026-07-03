@@ -3,9 +3,9 @@ import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
+import 'package:tentura_server/consts.dart'
+    show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -60,6 +60,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) => _database.withMutatingUser(authorId, () async {
@@ -82,6 +83,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         status: Value(effectiveStatus.smallintValue),
         needSummary: Value(needSummary),
         successCriteria: Value(successCriteria),
+        addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
       ),
@@ -164,6 +166,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
         .filter(
@@ -185,27 +188,30 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-      (o) => o(
-        title: Value(title),
-        description: Value(description),
-        context: Value(_beaconContextForDb(context)),
-        tags: Value(
-          tags == null || tags.isEmpty ? '' : tags.join(','),
-        ),
-        needs: Value(
-          needs == null || needs.isEmpty ? '' : needs.join(','),
-        ),
-        lat: Value(latitude),
-        long: Value(longitude),
-        startAt: Value(startAt == null ? null : PgDateTime(startAt)),
-        endAt: Value(endAt == null ? null : PgDateTime(endAt)),
-        iconCode: Value(iconCode),
-        iconBackground: Value(iconBackground),
-        needSummary: Value(needSummary),
-        successCriteria: Value(successCriteria),
-      ),
-    );
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update(
+          (o) => o(
+            title: Value(title),
+            description: Value(description),
+            context: Value(_beaconContextForDb(context)),
+            tags: Value(
+              tags == null || tags.isEmpty ? '' : tags.join(','),
+            ),
+            needs: Value(
+              needs == null || needs.isEmpty ? '' : needs.join(','),
+            ),
+            lat: Value(latitude),
+            long: Value(longitude),
+            startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+            endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+            iconCode: Value(iconCode),
+            iconBackground: Value(iconBackground),
+            needSummary: Value(needSummary),
+            successCriteria: Value(successCriteria),
+            addressLabel: Value(addressLabel),
+          ),
+        );
 
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });
@@ -227,6 +233,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
         .filter(
@@ -247,27 +254,30 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-      (o) => o(
-        title: Value(title),
-        description: Value(description),
-        context: Value(_beaconContextForDb(context)),
-        tags: Value(
-          tags == null || tags.isEmpty ? '' : tags.join(','),
-        ),
-        needs: Value(
-          needs == null || needs.isEmpty ? '' : needs.join(','),
-        ),
-        lat: Value(latitude),
-        long: Value(longitude),
-        startAt: Value(startAt == null ? null : PgDateTime(startAt)),
-        endAt: Value(endAt == null ? null : PgDateTime(endAt)),
-        iconCode: Value(iconCode),
-        iconBackground: Value(iconBackground),
-        needSummary: Value(needSummary),
-        successCriteria: Value(successCriteria),
-      ),
-    );
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update(
+          (o) => o(
+            title: Value(title),
+            description: Value(description),
+            context: Value(_beaconContextForDb(context)),
+            tags: Value(
+              tags == null || tags.isEmpty ? '' : tags.join(','),
+            ),
+            needs: Value(
+              needs == null || needs.isEmpty ? '' : needs.join(','),
+            ),
+            lat: Value(latitude),
+            long: Value(longitude),
+            startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+            endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+            iconCode: Value(iconCode),
+            iconBackground: Value(iconBackground),
+            needSummary: Value(needSummary),
+            successCriteria: Value(successCriteria),
+            addressLabel: Value(addressLabel),
+          ),
+        );
 
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });
@@ -285,16 +295,17 @@ class BeaconRepository implements BeaconRepositoryPort {
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      _database.withMutatingUser(userId, () async {
-        await _database.customSelect(
+  }) => _database.withMutatingUser(userId, () async {
+    await _database
+        .customSelect(
           r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
           variables: [Variable<String>(beaconId)],
-        ).getSingle();
+        )
+        .getSingle();
 
-        final locked = await getBeaconById(beaconId: beaconId);
-        return fn(locked);
-      });
+    final locked = await getBeaconById(beaconId: beaconId);
+    return fn(locked);
+  });
 
   @override
   Future<void> recordBeaconStatusTransition({
@@ -303,24 +314,23 @@ class BeaconRepository implements BeaconRepositoryPort {
     required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
-  }) =>
-      _database.transaction(() async {
-        await _database.managers.beacons
-            .filter((e) => e.id.equals(beaconId))
-            .update(
-              (o) => o(
-                status: Value(toStatus.smallintValue),
-                statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-        await _insertBeaconLifecycleEvent(
-          beaconId: beaconId,
-          fromStatus: fromStatus,
-          toStatus: toStatus,
-          reason: reason,
-          actorId: actorId,
+  }) => _database.transaction(() async {
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update(
+          (o) => o(
+            status: Value(toStatus.smallintValue),
+            statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
         );
-      });
+    await _insertBeaconLifecycleEvent(
+      beaconId: beaconId,
+      fromStatus: fromStatus,
+      toStatus: toStatus,
+      reason: reason,
+      actorId: actorId,
+    );
+  });
 
   @override
   Future<void> addImage({
@@ -348,10 +358,9 @@ class BeaconRepository implements BeaconRepositoryPort {
       .delete();
 
   @override
-  Future<int> getImageCount(String beaconId) =>
-      _database.managers.beaconImages
-          .filter((e) => e.beaconId.id.equals(beaconId))
-          .count();
+  Future<int> getImageCount(String beaconId) => _database.managers.beaconImages
+      .filter((e) => e.beaconId.id.equals(beaconId))
+      .count();
 
   @override
   Future<int> countRecentByAuthor({
@@ -359,17 +368,19 @@ class BeaconRepository implements BeaconRepositoryPort {
     required Duration window,
   }) async {
     final since = DateTime.timestamp().subtract(window);
-    final rows = await _database.customSelect(
-      '''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT COUNT(*)::int AS c
 FROM public.beacon
-WHERE user_id = \$1 AND created_at >= \$2
+WHERE user_id = $1 AND created_at >= $2
 ''',
-      variables: [
-        Variable<String>(userId),
-        Variable(TypedValue(Type.timestampTz, since)),
-      ],
-    ).getSingle();
+          variables: [
+            Variable<String>(userId),
+            Variable(TypedValue(Type.timestampTz, since)),
+          ],
+        )
+        .getSingle();
     return rows.read<int>('c');
   }
 
@@ -393,44 +404,43 @@ WHERE user_id = \$1 AND created_at >= \$2
   Future<BeaconEntity> publishDraft({
     required String id,
     required String actorId,
-  }) =>
-      _database.withMutatingUser(actorId, () async {
-        return _database.transaction(() async {
-          final existing = await _database.managers.beacons
-              .filter(
-                (e) => e.id.equals(id) & e.userId.id.equals(actorId),
-              )
-              .getSingleOrNull();
+  }) => _database.withMutatingUser(actorId, () async {
+    return _database.transaction(() async {
+      final existing = await _database.managers.beacons
+          .filter(
+            (e) => e.id.equals(id) & e.userId.id.equals(actorId),
+          )
+          .getSingleOrNull();
 
-          if (existing == null) {
-            throw const BeaconCreateException(
-              description: 'Request not found or not owned',
-            );
-          }
+      if (existing == null) {
+        throw const BeaconCreateException(
+          description: 'Request not found or not owned',
+        );
+      }
 
-          if (existing.status != BeaconStatus.draft.smallintValue) {
-            return getBeaconById(beaconId: id, filterByUserId: actorId);
-          }
+      if (existing.status != BeaconStatus.draft.smallintValue) {
+        return getBeaconById(beaconId: id, filterByUserId: actorId);
+      }
 
-          await _database.managers.beacons
-              .filter((e) => e.id.equals(id))
-              .update(
-                (o) => o(
-                  status: Value(BeaconStatus.open.smallintValue),
-                  statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
-                ),
-              );
-
-          await _insertBeaconPublishedEvent(
-            beaconId: id,
-            actorId: actorId,
-            title: existing.title,
-            needSummary: existing.needSummary,
+      await _database.managers.beacons
+          .filter((e) => e.id.equals(id))
+          .update(
+            (o) => o(
+              status: Value(BeaconStatus.open.smallintValue),
+              statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
           );
 
-          return getBeaconById(beaconId: id, filterByUserId: actorId);
-        });
-      });
+      await _insertBeaconPublishedEvent(
+        beaconId: id,
+        actorId: actorId,
+        title: existing.title,
+        needSummary: existing.needSummary,
+      );
+
+      return getBeaconById(beaconId: id, filterByUserId: actorId);
+    });
+  });
 
   Future<void> _insertBeaconPublishedEvent({
     required String beaconId,
@@ -502,8 +512,7 @@ WHERE user_id = \$1 AND created_at >= \$2
 
     final imageMap = {for (final img in imageRows) img.id: img};
     return [
-      for (final bi in beaconImageRows)
-        ?imageMap[bi.imageId],
+      for (final bi in beaconImageRows) ?imageMap[bi.imageId],
     ];
   }
 }

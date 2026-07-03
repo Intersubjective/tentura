@@ -264,6 +264,7 @@ jobs:
                   --dart-define=BUILD_DATE=\${BUILD_DATE} \\
                   \${SENTRY_DART_DEFINES}
               fi
+              dart run tool/apply_google_maps_web_key.dart
               # Trim dead-weight, then preload manifest + cache SW from FINISHED
               # build/web (the build hook ran too early on fresh checkouts).
               dart run tool/trim_web_deploy_artifact.dart

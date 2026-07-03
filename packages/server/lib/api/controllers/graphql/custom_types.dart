@@ -268,6 +268,7 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('id', graphQLString.nonNullable()),
     field('iconCode', graphQLString),
     field('iconBackground', graphQLInt),
+    field('addressLabel', graphQLString),
   ]);
 
 /// Per-recipient forward record from the current user's perspective.

@@ -106,7 +106,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
       final coords = beacon.coordinates;
       final coordinates = coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel = coordinates != null ? coordinates.toString() : '';
+      final locationLabel = coordinates != null
+          ? beacon.addressLabel ?? coordinates.toString()
+          : '';
 
       emit(
         state.copyWith(
@@ -149,7 +151,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
       final coords = beacon.coordinates;
       final coordinates = coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel = coordinates != null ? coordinates.toString() : '';
+      final locationLabel = coordinates != null
+          ? beacon.addressLabel ?? coordinates.toString()
+          : '';
 
       emit(
         state.copyWith(
@@ -352,6 +356,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       needs: state.needs,
       title: _draftSafeTitle(state.title),
       coordinates: state.coordinates,
+      addressLabel: state.location.trim().isEmpty
+          ? null
+          : state.location.trim(),
       description: state.description.trim(),
       needSummary: ns.isEmpty ? null : ns,
       successCriteria: sc.isEmpty ? null : sc,
@@ -436,6 +443,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         needs: state.needs,
         title: state.title,
         coordinates: state.coordinates,
+        addressLabel: state.location.trim().isEmpty
+            ? null
+            : state.location.trim(),
         description: state.description,
         needSummary: ns.isEmpty ? null : ns,
         successCriteria: sc.isEmpty ? null : sc,
@@ -522,6 +532,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             needs: state.needs,
             title: state.title,
             coordinates: state.coordinates,
+            addressLabel: state.location.trim().isEmpty
+                ? null
+                : state.location.trim(),
             description: state.description,
             needSummary: ns.isEmpty ? null : ns,
             successCriteria: sc.isEmpty ? null : sc,

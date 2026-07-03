@@ -94,6 +94,7 @@ type beacon {
     """filter the rows returned"""
     where: beacon_help_offer_bool_exp
   ): beacon_help_offer_aggregate!
+  address_label: String
   context: String
 
   created_at: timestamptz!
@@ -259,6 +260,7 @@ input beacon_bool_exp {
   help_offers: beacon_help_offer_bool_exp
   help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   context: String_comparison_exp
+  address_label: String_comparison_exp
   status: smallint_comparison_exp
   status_changed_at: timestamptz_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -1140,6 +1142,7 @@ type beacon_mutation_response {
 
 """Ordering options when selecting data from "beacon"."""
 input beacon_order_by {
+  address_label: order_by
   author: user_order_by
   beacon_pinneds_aggregate: beacon_pinned_aggregate_order_by
   beacon_review_window: beacon_review_window_order_by
@@ -1488,6 +1491,9 @@ input beacon_review_window_stream_cursor_value_input {
 select columns of table "beacon"
 """
 enum beacon_select_column {
+  """column name"""
+  address_label
+
   """column name"""
   context
 
@@ -2218,9 +2224,9 @@ type mutation_root {
   beaconFork(id: String!): v2_Beacon!
   beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
-  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconCreate(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdate(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdateDraft(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
   beaconPublish(id: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!

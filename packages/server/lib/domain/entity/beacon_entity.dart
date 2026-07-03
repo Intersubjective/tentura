@@ -26,6 +26,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     @Default('') String description,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
+    String? addressLabel,
     DateTime? startAt,
     DateTime? endAt,
     String? context,
@@ -75,5 +76,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     'id': id,
     'iconCode': iconCode,
     'iconBackground': iconBackground,
+    'addressLabel': addressLabel,
   };
 }

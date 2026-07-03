@@ -217,6 +217,7 @@
                     "context",
                     "created_at",
                     "description",
+                    "address_label",
                     "end_at",
                     "icon_background",
                     "icon_code",

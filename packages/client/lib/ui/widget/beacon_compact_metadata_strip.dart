@@ -1,16 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
-import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -345,48 +341,27 @@ class _LocationMeta extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final baseStyle = beaconCardUpdatedLineTextStyle(theme);
-    final useStaticLabel = kIsWeb || isDesktopPlatform;
+    final addressLabel = beacon.addressLabel?.trim();
+    final displayLabel = addressLabel == null || addressLabel.isEmpty
+        ? l10n.beaconCardLocationSet
+        : addressLabel;
 
-    final label = useStaticLabel
-        ? Text(
-            l10n.beaconCardLocationSet,
-            style: baseStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          )
-        : _CompactPlaceNameText(
-            coords: coords,
-            style: baseStyle,
-          );
+    final label = Text(
+      displayLabel,
+      style: baseStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
 
     return Semantics(
       label: l10n.beaconCardLocationSemantics(
-        useStaticLabel ? l10n.beaconCardLocationSet : coords.toString(),
+        displayLabel,
       ),
       child: BeaconCardMetaItem(
         icon: TenturaIcons.location,
+        mainAxisSize: MainAxisSize.max,
         child: label,
       ),
-    );
-  }
-}
-
-class _CompactPlaceNameText extends StatelessWidget {
-  const _CompactPlaceNameText({
-    required this.coords,
-    this.style,
-  });
-
-  final Coordinates coords;
-  final TextStyle? style;
-
-  @override
-  Widget build(BuildContext context) {
-    return PlaceNameText(
-      coords: coords,
-      style: style,
-      labelForPlace: (place, coords) =>
-          place?.displayLocality ?? coords.toString(),
     );
   }
 }

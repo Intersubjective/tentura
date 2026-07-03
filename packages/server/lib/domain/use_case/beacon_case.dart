@@ -71,10 +71,16 @@ void _validateSuccessCriteriaLength(String? sc) {
 
 Set<String>? _normalizeNeeds(String? raw) {
   if (raw == null || raw.isEmpty) return null;
-  final slugs = raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
+  final slugs = raw
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toSet();
   for (final slug in slugs) {
     if (!kAllowedCapabilitySlugs.contains(slug)) {
-      throw BeaconCreateException(description: 'Unknown capability slug: $slug');
+      throw BeaconCreateException(
+        description: 'Unknown capability slug: $slug',
+      );
     }
   }
   return slugs.isEmpty ? null : slugs;
@@ -88,8 +94,9 @@ String? _normalizeIconCode(String? raw) {
   if (raw == null) return null;
   final t = raw.trim();
   if (t.isEmpty) return null;
-  final truncated =
-      t.length > _kMaxIconCodeLength ? t.substring(0, _kMaxIconCodeLength) : t;
+  final truncated = t.length > _kMaxIconCodeLength
+      ? t.substring(0, _kMaxIconCodeLength)
+      : t;
   if (!_isValidIconCodeKey(truncated)) return null;
   return truncated;
 }
@@ -172,6 +179,7 @@ final class BeaconCase extends UseCaseBase {
     bool draft = false,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   }) async {
     await _enforceCreateRateLimit(userId);
     final imageIds = <String>[];
@@ -215,6 +223,7 @@ final class BeaconCase extends UseCaseBase {
       status: draft ? BeaconStatus.draft : null,
       needSummary: ns,
       successCriteria: sc,
+      addressLabel: _trimOrNull(addressLabel),
     );
 
     return beacon;
@@ -254,8 +263,8 @@ final class BeaconCase extends UseCaseBase {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   }) async {
-
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
     final sc = _trimOrNull(successCriteria);
@@ -278,6 +287,7 @@ final class BeaconCase extends UseCaseBase {
       iconBackground: normalizedIcon == null ? null : iconBackground,
       needSummary: ns,
       successCriteria: sc,
+      addressLabel: _trimOrNull(addressLabel),
     );
     return beacon;
   }
@@ -298,6 +308,7 @@ final class BeaconCase extends UseCaseBase {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   }) async {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
@@ -305,9 +316,7 @@ final class BeaconCase extends UseCaseBase {
     final desc = _normalizeBeaconDescription(description);
     _validateNeedSummaryLength(ns);
     _validateSuccessCriteriaLength(sc);
-    if (ns != null &&
-        ns.isNotEmpty &&
-        ns.length < _kNeedSummaryPublishMin) {
+    if (ns != null && ns.isNotEmpty && ns.length < _kNeedSummaryPublishMin) {
       throw const BeaconNeedSummaryTooShortException();
     }
     return _beaconRepository.updateBeacon(
@@ -326,6 +335,7 @@ final class BeaconCase extends UseCaseBase {
       iconBackground: normalizedIcon == null ? null : iconBackground,
       needSummary: ns,
       successCriteria: sc,
+      addressLabel: _trimOrNull(addressLabel),
     );
   }
 
@@ -460,109 +470,106 @@ final class BeaconCase extends UseCaseBase {
   Future<BeaconCloseReviewResult> beaconCancel({
     required String beaconId,
     required String userId,
-  }) =>
-      _beaconRepository.runInBeaconStateTransaction(
-        beaconId: beaconId,
-        userId: userId,
-        fn: (beacon) async {
-          if (!beacon.status.isOpenFamily) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Request must be open to cancel',
-            );
-          }
-          if (beacon.author.id != userId) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.notEligible,
-              description: 'Only the author can cancel',
-            );
-          }
-          final coords =
-              await _coordinationRepository.coordinationResponseTypeByOfferUserId(
+  }) => _beaconRepository.runInBeaconStateTransaction(
+    beaconId: beaconId,
+    userId: userId,
+    fn: (beacon) async {
+      if (!beacon.status.isOpenFamily) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+          description: 'Request must be open to cancel',
+        );
+      }
+      if (beacon.author.id != userId) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+          description: 'Only the author can cancel',
+        );
+      }
+      final coords = await _coordinationRepository
+          .coordinationResponseTypeByOfferUserId(
             beaconId,
           );
-          final activeOffers =
-              await _helpOfferRepository.fetchByBeaconId(beaconId);
-          final hasCommitters = activeOffers.any(
-            (o) => isAcknowledgedCommitterResponse(coords[o.userId]),
-          );
-          if (hasCommitters) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Cannot cancel a request with committers',
-            );
-          }
-          await _beaconRepository.recordBeaconStatusTransition(
-            beaconId: beaconId,
-            fromStatus: beacon.status,
-            toStatus: BeaconStatus.cancelled,
-            reason: BeaconLifecycleChangeReason.cancelled,
-            actorId: userId,
-          );
-          return BeaconCloseReviewResult(
-            id: beaconId,
-            status: BeaconStatus.cancelled.smallintValue,
-          );
-        },
+      final activeOffers = await _helpOfferRepository.fetchByBeaconId(beaconId);
+      final hasCommitters = activeOffers.any(
+        (o) => isAcknowledgedCommitterResponse(coords[o.userId]),
       );
+      if (hasCommitters) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+          description: 'Cannot cancel a request with committers',
+        );
+      }
+      await _beaconRepository.recordBeaconStatusTransition(
+        beaconId: beaconId,
+        fromStatus: beacon.status,
+        toStatus: BeaconStatus.cancelled,
+        reason: BeaconLifecycleChangeReason.cancelled,
+        actorId: userId,
+      );
+      return BeaconCloseReviewResult(
+        id: beaconId,
+        status: BeaconStatus.cancelled.smallintValue,
+      );
+    },
+  );
 
   //
   Future<bool> deleteById({
     required String beaconId,
     required String userId,
-  }) =>
-      _beaconRepository.runInBeaconStateTransaction(
-        beaconId: beaconId,
-        userId: userId,
-        fn: (beacon) async {
-          if (beacon.author.id != userId) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.notEligible,
-            );
-          }
+  }) => _beaconRepository.runInBeaconStateTransaction(
+    beaconId: beaconId,
+    userId: userId,
+    fn: (beacon) async {
+      if (beacon.author.id != userId) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+        );
+      }
 
-          if (beacon.status == BeaconStatus.draft) {
-            for (final image in beacon.images) {
-              await _imageRepository.delete(
-                authorId: beacon.author.id,
-                imageId: image.id,
-              );
-            }
-            await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
-            return true;
-          }
-
-          final coords = await _coordinationRepository
-              .coordinationResponseTypeByOfferUserId(beacon.id);
-          final everHadAcknowledgedCommitter = coords.values.any(
-            isAcknowledgedCommitterResponse,
+      if (beacon.status == BeaconStatus.draft) {
+        for (final image in beacon.images) {
+          await _imageRepository.delete(
+            authorId: beacon.author.id,
+            imageId: image.id,
           );
-          if (everHadAcknowledgedCommitter) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-              description: 'Cannot delete a request that ever had a committer',
-            );
-          }
+        }
+        await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
+        return true;
+      }
 
-          final verdict = validateBeaconStatusTransition(
-            from: beacon.status,
-            to: BeaconStatus.deleted,
-            reason: BeaconStatusTransitionReason.deleted,
-          );
-          if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            );
-          }
-
-          await _beaconRepository.recordBeaconStatusTransition(
-            beaconId: beacon.id,
-            fromStatus: beacon.status,
-            toStatus: BeaconStatus.deleted,
-            reason: BeaconLifecycleChangeReason.deleted,
-            actorId: userId,
-          );
-          return true;
-        },
+      final coords = await _coordinationRepository
+          .coordinationResponseTypeByOfferUserId(beacon.id);
+      final everHadAcknowledgedCommitter = coords.values.any(
+        isAcknowledgedCommitterResponse,
       );
+      if (everHadAcknowledgedCommitter) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+          description: 'Cannot delete a request that ever had a committer',
+        );
+      }
+
+      final verdict = validateBeaconStatusTransition(
+        from: beacon.status,
+        to: BeaconStatus.deleted,
+        reason: BeaconStatusTransitionReason.deleted,
+      );
+      if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+        );
+      }
+
+      await _beaconRepository.recordBeaconStatusTransition(
+        beaconId: beacon.id,
+        fromStatus: beacon.status,
+        toStatus: BeaconStatus.deleted,
+        reason: BeaconLifecycleChangeReason.deleted,
+        actorId: userId,
+      );
+      return true;
+    },
+  );
 }

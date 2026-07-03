@@ -27,6 +27,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _needs = InputFieldString(fieldName: 'needs');
 
+  final _addressLabel = InputFieldString(fieldName: 'addressLabel');
+
   final _draft = InputFieldBool(fieldName: 'draft');
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -85,6 +87,7 @@ final class MutationBeacon extends GqlNodeBase {
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
       _needs.fieldNullable,
+      _addressLabel.fieldNullable,
       _draft.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
@@ -104,6 +107,7 @@ final class MutationBeacon extends GqlNodeBase {
           draft: _draft.fromArgs(args) ?? false,
           needSummary: _needSummary.fromArgs(args),
           successCriteria: _successCriteria.fromArgs(args),
+          addressLabel: _addressLabel.fromArgs(args),
         )
         .then((v) => v.asJson),
   );
@@ -137,6 +141,7 @@ final class MutationBeacon extends GqlNodeBase {
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
       _needs.fieldNullable,
+      _addressLabel.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .update(
@@ -154,6 +159,7 @@ final class MutationBeacon extends GqlNodeBase {
           iconBackground: _iconBackground.fromArgs(args),
           needSummary: _needSummary.fromArgs(args),
           successCriteria: _successCriteria.fromArgs(args),
+          addressLabel: _addressLabel.fromArgs(args),
         )
         .then((v) => v.asJson),
   );
@@ -175,6 +181,7 @@ final class MutationBeacon extends GqlNodeBase {
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
       _needs.fieldNullable,
+      _addressLabel.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .updateDraft(
@@ -192,6 +199,7 @@ final class MutationBeacon extends GqlNodeBase {
           iconBackground: _iconBackground.fromArgs(args),
           needSummary: _needSummary.fromArgs(args),
           successCriteria: _successCriteria.fromArgs(args),
+          addressLabel: _addressLabel.fromArgs(args),
         )
         .then((v) => v.asJson),
   );

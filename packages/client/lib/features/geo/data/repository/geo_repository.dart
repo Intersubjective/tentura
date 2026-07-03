@@ -4,22 +4,13 @@ import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart'
-    if (dart.library.js_interop) '../service/geocoding_web_service.dart'
-    hide Location;
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
-import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
-
-import '../../domain/entity/location.dart';
-import '../../domain/entity/place.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class GeoRepository {
   GeoRepository(this._logger);
-
-  final Map<Coordinates, Place?> cache = {};
 
   final Logger _logger;
 
@@ -34,30 +25,6 @@ class GeoRepository {
     if (kIsWeb) return;
     unawaited(getMyCoords());
   }
-
-  Future<Place?> getPlaceNameByCoords(
-    Coordinates coords, {
-    bool useCache = true,
-  }) async {
-    if (kIsWeb || isDesktopPlatform) return null;
-    if (useCache && cache.containsKey(coords)) return cache[coords];
-    try {
-      final places = await placemarkFromCoordinates(coords.lat, coords.long);
-      return cache[coords] = places.isEmpty
-          ? null
-          : Place(
-              country: places.first.country ?? '',
-              locality: places.first.locality ?? '',
-            );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<Location> getLocationByCoords(Coordinates coords) async => Location(
-    coords: coords,
-    place: await getPlaceNameByCoords(coords),
-  );
 
   Future<Coordinates?> getMyCoords({
     Duration timeLimit = const Duration(seconds: 30),

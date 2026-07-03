@@ -11,6 +11,8 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/features/geo/data/repository/geo_repository.dart';
+import 'package:tentura/features/geo/data/service/google_geocoding_service.dart';
+import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -53,8 +55,8 @@ Widget _infoTabHarness(BeaconCreateCubit cubit) {
       child: Scaffold(
         body: BlocProvider<BeaconCreateCubit>.value(
           value: cubit,
-          child: Form(
-            child: const InfoTab(key: ValueKey('BeaconCreate.InfoTab')),
+          child: const Form(
+            child: InfoTab(key: ValueKey('BeaconCreate.InfoTab')),
           ),
         ),
       ),
@@ -200,7 +202,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(2), needText);
     await tester.pump();
 
-    cubit.setDeadline(DateTime(2026, 7, 1));
+    cubit.setDeadline(DateTime(2026, 7));
     await tester.pump();
     cubit.clearTiming();
     await tester.pump();
@@ -219,6 +221,12 @@ void main() {
 
     GetIt.I.registerSingleton<Env>(const Env());
     GetIt.I.registerSingleton<GeoRepository>(geo);
+    GetIt.I.registerSingleton<GooglePlacesService>(
+      GooglePlacesService(const Env()),
+    );
+    GetIt.I.registerSingleton<GoogleGeocodingService>(
+      GoogleGeocodingService(const Env()),
+    );
 
     addTearDown(() async => GetIt.I.reset());
 

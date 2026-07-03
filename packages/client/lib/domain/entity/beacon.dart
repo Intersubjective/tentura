@@ -34,6 +34,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default({}) Set<String> needs,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
+    String? addressLabel,
     DateTime? startAt,
     DateTime? endAt,
 

@@ -21,6 +21,7 @@ abstract class BeaconRepositoryPort {
     BeaconStatus? status,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   });
@@ -46,6 +47,7 @@ abstract class BeaconRepositoryPort {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   });
 
   /// Updates an open-family or reviewOpen beacon owned by [userId].
@@ -65,6 +67,7 @@ abstract class BeaconRepositoryPort {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    String? addressLabel,
   });
 
   Future<void> deleteBeaconById(String id, {required String userId});

@@ -26,6 +26,7 @@ BeaconEntity beaconModelToEntity(
   coordinates: model.lat != null && model.long != null
       ? Coordinates(lat: model.lat!, long: model.long!)
       : null,
+  addressLabel: model.addressLabel,
   images: images?.map(imageModelToEntity).toList() ?? const [],
   tags: model.tags.split(',').toSet(),
   needs: model.needs.isEmpty
