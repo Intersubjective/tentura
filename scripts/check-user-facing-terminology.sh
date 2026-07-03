@@ -83,9 +83,9 @@ if rg -n "\|\|\s*'a beacon'" packages/landing/main.js 2>/dev/null; then
   warn_or_fail "landing main.js fallback still uses beacon"
 fi
 
-# Entry points must document the alias
+# Entry points must document the alias (grep — available in CI builder image)
 for f in AGENTS.md CONTEXT.md; do
-  if ! rg -q "Request \(internally: Beacon\)|internally: Beacon|Terminology alias" "$f" 2>/dev/null; then
+  if ! grep -qE 'Terminology alias|Request \(internally: Beacon\)|internally: Beacon' "$f" 2>/dev/null; then
     warn_or_fail "$f missing terminology alias documentation"
   fi
 done

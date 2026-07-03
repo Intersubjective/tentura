@@ -54,7 +54,7 @@ for pat in "${RULE_DOC_PATTERNS[@]}"; do
 done
 
 for pat in "${TERMINOLOGY_MARKERS[@]}"; do
-  if ! rg -q "$pat" AGENTS.md CONTEXT.md 2>/dev/null; then
+  if ! grep -qF "$pat" AGENTS.md CONTEXT.md 2>/dev/null; then
     echo "check-doc-drift: missing terminology marker '$pat' in AGENTS.md or CONTEXT.md" >&2
     found=1
   fi
