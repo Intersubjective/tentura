@@ -3,6 +3,12 @@ import 'package:tentura_server/domain/entity/notification_priority.dart';
 
 sealed class FcmMessageEntity {}
 
+/// Sent over the wire as a data-only FCM message — title/body travel in
+/// `data`, never in a top-level `notification` block. See
+/// `buildFcmMessagePayload` in `data/service/fcm_service.dart` for why
+/// (Safari silently cancels push subscriptions that don't get a displayed
+/// notification, and the fix — the client showing it explicitly — would
+/// double up with FCM's own automatic display if `notification` came back).
 class FcmNotificationEntity implements FcmMessageEntity {
   const FcmNotificationEntity({
     required this.title,

@@ -45,7 +45,7 @@ Bearer auth is also accepted: `Authorization: Bearer <QA_AUTH_TOKEN>`.
 | `body` | yes | Notification body |
 | `userId` | one of | Load all `fcm_token` rows for this user |
 | `token` | one of | Send directly to this device token |
-| `actionUrl` | no | Deep link (webpush `fcm_options.link`) |
+| `actionUrl` | no | Deep link, sent as `data.link` and opened by the client's own `notificationclick` handler |
 | `beaconId` | no | Passed in FCM data payload |
 
 If both `userId` and `token` are set, **`token` wins** (explicit override).
@@ -128,8 +128,24 @@ WHERE user_id = 'U6fca01549512';
 | `404` on curl | Set `QA_AUTH_ENABLED=true`, non-empty `QA_AUTH_TOKEN`, not prod |
 | `"reason": "no_fcm_token_rows"` | Sign in as that user, grant notification permission; or pass explicit `token` |
 | `"mock": true` | Set all three server `FB_*` creds and restart the API |
-| `[FCM] FCM HTTP 200` but no device popup | Check client Firebase config, browser permission, service worker |
+| `[FCM] FCM HTTP 200` but no device popup | Check client Firebase config, browser permission, service worker; see "Data-only push payloads" below if it's specifically iOS Safari |
 | `staleTokens: 1` | Token expired; re-register from client (`fcmTokenRegister`) |
+
+## Data-only push payloads (iOS Safari quirk)
+
+Every FCM message the server sends is **data-only** — `title`/`body`/`link`/`beaconId` all travel under `data`, and there is deliberately no top-level `notification` field. This isn't the FCM default; it was changed on 2026-07-04 after this exact sequence, confirmed on an iOS Safari PWA:
+
+1. `sendChatNotification`/QA send returns `200`/`"sent"`, so the server-side send genuinely succeeded.
+2. No notification ever appears on the device.
+3. On the next app open, the account shows `"registered on server": false` even though nothing about the registration flow failed — the token is simply dead.
+
+The cause: with a `notification` field present, Chrome/Firefox display it automatically via Firebase's own service-worker handling, with no code of ours involved. That same automatic path is unreliable on iOS Safari — and **Safari cancels a web push subscription outright if a push event arrives and the service worker doesn't end up calling `showNotification()` for it.** So a delivery that silently fails to display on Safari doesn't just look broken once; it kills the subscription, and the *next* registration attempt is what you actually observe failing.
+
+The fix: the server never sends a `notification` field (see `buildFcmMessagePayload` in `packages/server/lib/data/service/fcm_service.dart`), and the generated service worker (`packages/server/lib/api/controllers/firebase_sw_controller.dart`) calls `self.registration.showNotification()` itself from `onBackgroundMessage`, on every browser, using the `data` payload. This is deliberate and must stay this way:
+
+- **Do not re-add a `notification` field to the FCM payload.** If you do, Chrome/Firefox will show it via their own automatic path *in addition to* the explicit `showNotification()` call below — every push becomes a duplicate (a well-documented firebase-js-sdk footgun: issues #4412, #5516, #6670).
+- The service worker also owns click-to-open (`notificationclick` → focus/open `data.link`) for the same reason — the automatic path's `fcm_options.link` handling doesn't fire for data-only messages either.
+- This can't be exercised by the Dart test suite — it only runs inside a real browser's service worker runtime. `buildFcmMessagePayload` is unit-tested to *never* emit a `notification` key, but verifying actual display still means testing in a real browser (Chrome, Firefox, and specifically Safari-iOS, since that's the one that silently breaks).
 
 ## Related
 

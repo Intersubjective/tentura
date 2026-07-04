@@ -27,46 +27,17 @@ class FcmService {
     required String fcmToken,
     required String accessToken,
     required FcmNotificationEntity message,
-    Map<String, Map<String, String>>? webConfig,
-    Map<String, Map<String, String>>? androidConfig,
     String? analyticsLabel,
     int ttlInSeconds = 0,
   }) async {
-    final messageBody = jsonEncode({
-      'message': {
-        'token': fcmToken,
-        'notification': {
-          'title': message.title,
-          'body': message.body,
-          if (message.imageUrl != null) 'image': message.imageUrl,
-        },
-        if (message.actionUrl != null)
-          'data': {
-            'link': message.actionUrl!,
-            if (message.kind != null) 'kind': message.kind!.name,
-            if (message.priority != null) 'priority': message.priority!.name,
-            if (message.beaconId != null && message.beaconId!.isNotEmpty)
-              'beaconId': message.beaconId!,
-            if (message.coordinationItemId != null &&
-                message.coordinationItemId!.isNotEmpty)
-              'item': message.coordinationItemId!,
-          },
-        'android': {
-          'ttl': '${ttlInSeconds}s',
-          ...?androidConfig,
-        },
-        'webpush': {
-          'headers': {
-            'TTL': ttlInSeconds.toString(),
-          },
-          ...?webConfig,
-        },
-        if (analyticsLabel != null)
-          'fcm_options': {
-            'analytics_label': analyticsLabel,
-          },
-      },
-    });
+    final messageBody = jsonEncode(
+      buildFcmMessagePayload(
+        fcmToken: fcmToken,
+        message: message,
+        analyticsLabel: analyticsLabel,
+        ttlInSeconds: ttlInSeconds,
+      ),
+    );
     try {
       final response = await post(
         _fcmEndpointUri,
@@ -177,6 +148,64 @@ class FcmService {
     'https://oauth2.googleapis.com/token',
   );
 }
+
+/// Builds the `messages:send` request body for one FCM v1 push.
+///
+/// DELIBERATELY DATA-ONLY: every field (including `title`/`body`) goes under
+/// `data`, and there is NO top-level `notification` block. Do not add one
+/// back — see docs/qa-push-testing.md "Data-only push payloads" for the full
+/// story, but in short:
+///
+///  1. Safari cancels a web push subscription outright if a push event
+///     arrives and the service worker doesn't end up calling
+///     `showNotification()` for it. Chrome/Firefox tolerate depending on
+///     Firebase's own automatic display for `notification`-type payloads,
+///     but that automatic path was unreliable on iOS Safari specifically,
+///     silently killing subscriptions there (confirmed 2026-07-04).
+///  2. The fix — packages/server/lib/api/controllers/firebase_sw_controller
+///     .dart's generated service worker calls `showNotification()` itself
+///     from `onBackgroundMessage`, reading title/body out of `data`. If a
+///     `notification` field is ever reintroduced here, Chrome/Firefox will
+///     show it via their own automatic path AND our explicit call fires
+///     too — every push becomes a duplicate. See
+///     firebase/firebase-js-sdk issues #4412, #5516, #6670.
+///
+/// `data` values must all be strings per the FCM v1 API.
+Map<String, Object?> buildFcmMessagePayload({
+  required String fcmToken,
+  required FcmNotificationEntity message,
+  String? analyticsLabel,
+  int ttlInSeconds = 0,
+}) => {
+  'message': {
+    'token': fcmToken,
+    'data': {
+      'title': message.title,
+      'body': message.body,
+      if (message.imageUrl != null) 'image': message.imageUrl!,
+      if (message.actionUrl != null) 'link': message.actionUrl!,
+      if (message.kind != null) 'kind': message.kind!.name,
+      if (message.priority != null) 'priority': message.priority!.name,
+      if (message.beaconId != null && message.beaconId!.isNotEmpty)
+        'beaconId': message.beaconId!,
+      if (message.coordinationItemId != null &&
+          message.coordinationItemId!.isNotEmpty)
+        'item': message.coordinationItemId!,
+    },
+    'android': {
+      'ttl': '${ttlInSeconds}s',
+    },
+    'webpush': {
+      'headers': {
+        'TTL': ttlInSeconds.toString(),
+      },
+    },
+    if (analyticsLabel != null)
+      'fcm_options': {
+        'analytics_label': analyticsLabel,
+      },
+  },
+};
 
 /// Pulls the FCM-specific `errorCode` (e.g. `THIRD_PARTY_AUTH_ERROR`,
 /// `SENDER_ID_MISMATCH`, `QUOTA_EXCEEDED`) out of a `messages:send` error

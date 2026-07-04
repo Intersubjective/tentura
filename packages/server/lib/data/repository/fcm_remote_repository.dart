@@ -43,6 +43,11 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   ///
   /// Sends a chat push notification via FCM to a list of devices.
   ///
+  /// The wire payload is data-only (see [buildFcmMessagePayload] in
+  /// fcm_service.dart for why — Safari kills web push subscriptions that
+  /// don't get a displayed notification). Display is the generated service
+  /// worker's job (firebase_sw_controller.dart), not FCM's automatic path.
+  ///
   @override
   Future<List<Exception>> sendChatNotification({
     required Iterable<String> fcmTokens,
@@ -52,13 +57,6 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     ttlInSeconds: 60,
     fcmTokens: fcmTokens,
     analyticsLabel: 'notification',
-    webConfig: message.actionUrl == null
-        ? null
-        : {
-            'fcm_options': {
-              'link': message.actionUrl!,
-            },
-          },
   );
 
   ///
@@ -68,8 +66,6 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   Future<List<Exception>> _sendFcmMessage({
     required FcmNotificationEntity message,
     required Iterable<String> fcmTokens,
-    Map<String, Map<String, String>>? webConfig,
-    Map<String, Map<String, String>>? androidConfig,
     String? analyticsLabel,
     int ttlInSeconds = 0,
   }) async {
@@ -86,9 +82,7 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
         await _fcmService.sendFcmMessage(
           ttlInSeconds: ttlInSeconds,
           analyticsLabel: analyticsLabel,
-          androidConfig: androidConfig,
           accessToken: accessToken,
-          webConfig: webConfig,
           fcmToken: fcmToken,
           message: message,
         );

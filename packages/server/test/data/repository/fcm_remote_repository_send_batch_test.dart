@@ -98,8 +98,6 @@ class FakeFcmService extends FcmService {
     required String fcmToken,
     required String accessToken,
     required FcmNotificationEntity message,
-    Map<String, Map<String, String>>? webConfig,
-    Map<String, Map<String, String>>? androidConfig,
     String? analyticsLabel,
     int ttlInSeconds = 0,
   }) async {
