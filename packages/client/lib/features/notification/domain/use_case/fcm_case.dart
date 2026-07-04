@@ -26,6 +26,12 @@ class FcmCase {
 
   final SettingsRepositoryPort _settingsRepository;
 
+  /// Re-confirm registration with the server on this cadence even when the
+  /// cached record still matches — our defense against the server silently
+  /// losing the row (a rejected write, a credential rotation, a prune job,
+  /// ...) with nothing on the client ever prompting a retry otherwise.
+  static const _registrationTtl = Duration(days: 3);
+
   Stream<String> get onTokenRefresh => _fcmLocalRepository.onTokenRefresh;
 
   ///
@@ -63,7 +69,8 @@ class FcmCase {
             accountId: accountId,
             appId: appId,
             token: token,
-          )) {
+          ) &&
+          !last.isStaleAt(DateTime.now(), _registrationTtl)) {
         fcmLog('FcmCase: registration unchanged, skip server call');
         return appId;
       }
@@ -82,6 +89,7 @@ class FcmCase {
         accountId: accountId,
         appId: appId,
         token: token,
+        registeredAt: DateTime.now(),
       ),
     );
     fcmLog('FcmCase: updated LastFcmRegistration');
@@ -123,7 +131,8 @@ class FcmCase {
               appId: appId,
               token: token,
             ) ??
-            false);
+            false) &&
+        !(last?.isStaleAt(DateTime.now(), _registrationTtl) ?? true);
     return FcmRegistrationInfo(
       token: token,
       appId: appId,

@@ -32,10 +32,11 @@ void main() {
   group('syncTokenForAccount', () {
     test('skips server when accountId, appId, and token unchanged', () async {
       await settings.setLastFcmRegistration(
-        const LastFcmRegistration(
+        LastFcmRegistration(
           accountId: accountA,
           appId: appId,
           token: tokenT,
+          registeredAt: DateTime.now(),
         ),
       );
       local.token = tokenT;
@@ -47,6 +48,45 @@ void main() {
 
       expect(result, appId);
       expect(remote.registerCalls, 0);
+    });
+
+    test('registers when matching record is older than the TTL', () async {
+      await settings.setLastFcmRegistration(
+        LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+          registeredAt: DateTime.now().subtract(const Duration(days: 30)),
+        ),
+      );
+      local.token = tokenT;
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+      );
+
+      expect(remote.registerCalls, 1);
+    });
+
+    test(
+        'registers when matching record predates the registeredAt field '
+        '(null is treated as maximally stale)', () async {
+      await settings.setLastFcmRegistration(
+        const LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+        ),
+      );
+      local.token = tokenT;
+
+      await case_.syncTokenForAccount(
+        accountId: accountA,
+        platform: 'web',
+      );
+
+      expect(remote.registerCalls, 1);
     });
 
     test('registers when accountId changes but token is the same', () async {
@@ -167,19 +207,21 @@ void main() {
 
     test('persists triple-key registration after successful register', () async {
       local.token = tokenT;
+      final before = DateTime.now();
 
       await case_.syncTokenForAccount(
         accountId: accountA,
         platform: 'ios',
       );
 
+      final last = await settings.getLastFcmRegistration();
+      expect(last?.accountId, accountA);
+      expect(last?.appId, appId);
+      expect(last?.token, tokenT);
       expect(
-        await settings.getLastFcmRegistration(),
-        const LastFcmRegistration(
-          accountId: accountA,
-          appId: appId,
-          token: tokenT,
-        ),
+        last?.registeredAt?.isBefore(before),
+        isNot(isTrue),
+        reason: 'registeredAt should be stamped at registration time',
       );
     });
 
@@ -277,10 +319,11 @@ void main() {
     test('reports serverSynced when last registration matches', () async {
       local.token = tokenT;
       await settings.setLastFcmRegistration(
-        const LastFcmRegistration(
+        LastFcmRegistration(
           accountId: accountA,
           appId: appId,
           token: tokenT,
+          registeredAt: DateTime.now(),
         ),
       );
 
@@ -307,6 +350,26 @@ void main() {
       );
 
       expect(info.token, isNull);
+      expect(info.serverSynced, isFalse);
+    });
+
+    test('reports not synced when matching record is stale', () async {
+      local.token = tokenT;
+      await settings.setLastFcmRegistration(
+        LastFcmRegistration(
+          accountId: accountA,
+          appId: appId,
+          token: tokenT,
+          registeredAt: DateTime.now().subtract(const Duration(days: 30)),
+        ),
+      );
+
+      final info = await case_.getRegistrationInfo(
+        accountId: accountA,
+        permissionGranted: true,
+        platform: 'web',
+      );
+
       expect(info.serverSynced, isFalse);
     });
   });

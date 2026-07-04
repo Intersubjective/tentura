@@ -51,10 +51,16 @@ class SettingsRepository implements SettingsRepositoryPort {
       return null;
     }
     final map = jsonDecode(raw) as Map<String, dynamic>;
+    final registeredAtMs = map['registeredAtMs'] as int?;
     return LastFcmRegistration(
       accountId: map['accountId']! as String,
       appId: map['appId']! as String,
       token: map['token']! as String,
+      // Absent for records written before this field existed — leave null
+      // so LastFcmRegistration.isStaleAt treats them as maximally stale.
+      registeredAt: registeredAtMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(registeredAtMs),
     );
   }
 
@@ -70,6 +76,7 @@ class SettingsRepository implements SettingsRepositoryPort {
       'accountId': value.accountId,
       'appId': value.appId,
       'token': value.token,
+      'registeredAtMs': value.registeredAt?.millisecondsSinceEpoch,
     });
     await _database.managers.settings.create(
       (o) => o(
