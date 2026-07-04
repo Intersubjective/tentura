@@ -89,6 +89,19 @@ final class DebugFcmForceReregisterRejectedMessage extends LocalizableMessage {
   String get toRu => 'Сервер отклонил регистрацию — проверьте логи сервера';
 }
 
+final class DebugDirectNotificationTestSentMessage
+    extends LocalizableMessage {
+  const DebugDirectNotificationTestSentMessage();
+
+  @override
+  String get toEn =>
+      'Requested — check if a notification appeared (bypasses FCM entirely)';
+
+  @override
+  String get toRu =>
+      'Запрошено — проверьте, появилось ли уведомление (без FCM)';
+}
+
 final class DebugEmailTestSentMessage extends LocalizableMessage {
   const DebugEmailTestSentMessage();
 

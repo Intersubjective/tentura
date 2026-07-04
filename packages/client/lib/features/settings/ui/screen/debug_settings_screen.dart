@@ -73,6 +73,11 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                               : null,
                         ),
                         TenturaCommandButton(
+                          label: l10n.settingsFcmDirectNotificationTest,
+                          icon: const Icon(Icons.phonelink_ring_outlined),
+                          onPressed: cubit.testDirectNotification,
+                        ),
+                        TenturaCommandButton(
                           label: l10n.settingsEmailTest,
                           icon: const Icon(Icons.email_outlined),
                           onPressed: state.isEmailTestEnabled

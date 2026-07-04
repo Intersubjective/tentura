@@ -8,6 +8,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/notification/data/service/direct_notification_probe.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
@@ -136,6 +137,17 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
       if (!isClosed) {
         emit(state.copyWith(isForcingReregister: false));
       }
+    }
+  }
+
+  Future<void> testDirectNotification() async {
+    try {
+      await showDirectTestNotification();
+      _effects.emit(
+        const ShowMessage(DebugDirectNotificationTestSentMessage()),
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
     }
   }
 
