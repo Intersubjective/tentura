@@ -6,6 +6,7 @@ import 'package:tentura/features/notification/data/gql/_g/fcm_register_token.req
 import 'package:tentura/features/notification/data/gql/_g/fcm_send_test_notification.req.gql.dart';
 import 'package:tentura/features/notification/data/gql/_g/fcm_token_delete.req.gql.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
+import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 
@@ -30,7 +31,7 @@ class FcmRemoteRepository extends RemoteRepository
       'FcmRemoteRepository: fcmTokenRegister '
       'platform=$platform appId=$appId token=${fcmTokenFingerprint(token)}',
     );
-    await requestDataOnlineOrThrow(
+    final data = await requestDataOnlineOrThrow(
       GFcmRegisterTokenReq(
         (r) => r.vars
           ..appId = appId
@@ -39,6 +40,10 @@ class FcmRemoteRepository extends RemoteRepository
       ),
       label: _label,
     );
+    if (!data.fcmTokenRegister) {
+      fcmLog('FcmRemoteRepository: fcmTokenRegister rejected by server');
+      throw const FcmRegistrationRejectedException();
+    }
     fcmLog('FcmRemoteRepository: fcmTokenRegister response OK');
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
+import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/port/fcm_local_repository_port.dart';
 import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
@@ -181,6 +182,25 @@ void main() {
         ),
       );
     });
+
+    test(
+        'does not persist last registration when server rejects, '
+        'so a later sync retries instead of sticking as "synced"', () async {
+      remote.registerThrows = const FcmRegistrationRejectedException();
+      local.token = tokenT;
+
+      await expectLater(
+        case_.syncTokenForAccount(accountId: accountA, platform: 'web'),
+        throwsA(isA<FcmRegistrationRejectedException>()),
+      );
+      expect(await settings.getLastFcmRegistration(), isNull);
+
+      remote.registerThrows = null;
+      await case_.syncTokenForAccount(accountId: accountA, platform: 'web');
+
+      expect(remote.registerCalls, 2);
+      expect(await settings.getLastFcmRegistration(), isNotNull);
+    });
   });
 
   group('unregisterCurrentDevice', () {
@@ -321,6 +341,7 @@ class FakeFcmRemote implements FcmRemoteRepositoryPort {
   int registerCalls = 0;
   int deleteCalls = 0;
   Object? deleteThrows;
+  Object? registerThrows;
   ({String appId, String token, String platform})? lastRegister;
   String? lastDeleteAppId;
 
@@ -332,6 +353,9 @@ class FakeFcmRemote implements FcmRemoteRepositoryPort {
   }) async {
     registerCalls++;
     lastRegister = (appId: appId, token: token, platform: platform);
+    if (registerThrows != null) {
+      throw registerThrows!;
+    }
   }
 
   @override
