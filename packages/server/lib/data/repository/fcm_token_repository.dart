@@ -57,8 +57,8 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
       );
 
       await _database.customStatement(
-        'DELETE FROM fcm_token WHERE token = ? '
-        'AND NOT (user_id = ? AND app_id = ?::uuid)',
+        'DELETE FROM fcm_token WHERE token = \$1 '
+        'AND NOT (user_id = \$2 AND app_id = \$3::uuid)',
         [token, userId, appId],
       );
     });
