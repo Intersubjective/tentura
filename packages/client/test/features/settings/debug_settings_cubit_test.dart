@@ -19,6 +19,7 @@ void main() {
     late _FcmCaseSpy fcmCase;
     late FakeEmailTestRepository emailRepo;
     late FakeUiEffectPort effects;
+    late FcmCubit fcmCubit;
     late DebugSettingsCubit cubit;
 
     setUp(() {
@@ -26,16 +27,33 @@ void main() {
       emailRepo = FakeEmailTestRepository();
       effects = FakeUiEffectPort();
       final authCase = buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote());
+      fcmCubit = FcmCubit(fcmCase, authCase);
       cubit = DebugSettingsCubit(
         fcmCase,
         authCase,
-        FcmCubit(fcmCase, authCase),
+        fcmCubit,
         emailRepo,
         effects,
       );
     });
 
     tearDown(() => cubit.close());
+
+    test(
+        'loadFcmInfo reflects a live permission re-check, not the FcmCubit '
+        "state's stale cache", () async {
+      // FcmCubit.state.permissions never got refreshed here (its account
+      // stream never emits, so _onAccountChanges never ran) — it's stuck at
+      // its false default, even though the platform actually granted it.
+      expect(fcmCubit.state.permissions.authorized, isFalse);
+      fcmCase.local.permissionResult = const NotificationPermissions(
+        authorized: true,
+      );
+
+      await cubit.loadFcmInfo();
+
+      expect(cubit.state.permissionGranted, isTrue);
+    });
 
     test('successful FCM test starts cooldown', () async {
       await cubit.sendTestNotification();

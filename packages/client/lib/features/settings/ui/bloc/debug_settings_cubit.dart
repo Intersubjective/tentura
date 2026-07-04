@@ -50,9 +50,15 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     emit(state.copyWith(isLoadingFcmInfo: true));
     try {
       final accountId = await _authCase.getCurrentAccountId();
+      // Re-check live: FcmCubit.state.permissions is only refreshed on
+      // account-change or a manual force-reregister, so it can lag behind
+      // the browser's actual (already-decided) permission and show stale
+      // "Denied" here indefinitely. requestPermission() is a no-op re-read
+      // once the user has answered — it won't show the prompt again.
+      final permissions = await _fcmCase.requestPermission();
       final info = await _fcmCase.getRegistrationInfo(
         accountId: accountId,
-        permissionGranted: _fcmCubit.state.permissions.authorized,
+        permissionGranted: permissions.authorized,
         platform: platformName,
       );
       emit(
