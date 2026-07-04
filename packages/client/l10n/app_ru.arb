@@ -975,6 +975,7 @@
   "settingsFcmServerSynced": "Зарегистрировано на сервере",
   "settingsFcmServerSyncedYes": "Да",
   "settingsFcmServerSyncedNo": "Нет",
+  "settingsFcmForceReregister": "Принудительно перерегистрировать устройство",
   "settingsRefresh": "Обновить",
   "settingsNotificationsTest": "Тест уведомлений",
   "settingsEmailTest": "Тест email",

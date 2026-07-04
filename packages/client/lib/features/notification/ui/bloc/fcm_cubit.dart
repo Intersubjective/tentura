@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import '../../domain/exception.dart';
 import '../../domain/use_case/fcm_case.dart';
 import '../../fcm_debug_log.dart';
 import 'fcm_state.dart';
@@ -83,6 +84,23 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
         }
       }());
     });
+  }
+
+  /// Manual retry for Settings → Debug: bypasses the "already synced" cache
+  /// and forces a fresh `fcmTokenRegister` call for the active account, so a
+  /// stuck device (stale record, past rejection, ...) doesn't have to wait
+  /// out the TTL. Unlike the background paths above, this does not swallow
+  /// errors — the caller shows success/failure to the user.
+  Future<void> forceReregister() async {
+    if (_activeAccountId.isEmpty) {
+      throw const FcmNoActiveAccountException();
+    }
+    final permissions = await _fcmCase.requestPermission();
+    emit(state.copyWith(permissions: permissions));
+    if (!permissions.authorized) {
+      throw const FcmPermissionDeniedException();
+    }
+    await _syncToken(accountId: _activeAccountId, forceRegister: true);
   }
 
   @override

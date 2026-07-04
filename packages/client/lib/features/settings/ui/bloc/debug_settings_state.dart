@@ -17,6 +17,7 @@ abstract class DebugSettingsState with _$DebugSettingsState {
     DateTime? emailCooldownUntil,
     @Default(false) bool isSendingFcm,
     @Default(false) bool isSendingEmail,
+    @Default(false) bool isForcingReregister,
   }) = _DebugSettingsState;
 
   const DebugSettingsState._();
@@ -24,6 +25,8 @@ abstract class DebugSettingsState with _$DebugSettingsState {
   bool get isFcmTestEnabled =>
       !isSendingFcm &&
       (fcmCooldownUntil == null || DateTime.now().isAfter(fcmCooldownUntil!));
+
+  bool get isForceReregisterEnabled => !isForcingReregister;
 
   bool get isEmailTestEnabled =>
       !isSendingEmail &&

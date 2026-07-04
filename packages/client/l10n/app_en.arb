@@ -975,6 +975,7 @@
   "settingsFcmServerSynced": "Registered on server",
   "settingsFcmServerSyncedYes": "Yes",
   "settingsFcmServerSyncedNo": "No",
+  "settingsFcmForceReregister": "Force re-register device",
   "settingsRefresh": "Refresh",
   "settingsNotificationsTest": "Notifications test",
   "settingsEmailTest": "Email test",

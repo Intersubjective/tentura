@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
+import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
+import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/settings/domain/entity/email_test_send_result.dart';
@@ -20,7 +22,7 @@ void main() {
     late DebugSettingsCubit cubit;
 
     setUp(() {
-      fcmCase = _FcmCaseSpy();
+      fcmCase = _FcmCaseSpy(FakeFcmLocal(), FakeFcmRemote(), FakeSettings());
       emailRepo = FakeEmailTestRepository();
       effects = FakeUiEffectPort();
       final authCase = buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote());
@@ -73,11 +75,91 @@ void main() {
       );
     });
   });
+
+  group('DebugSettingsCubit.forceReregisterDevice', () {
+    late _FcmCaseSpy fcmCase;
+    late FakeUiEffectPort effects;
+    late DebugSettingsCubit cubit;
+
+    Future<void> setup({
+      required bool signedIn,
+      bool permissionGranted = true,
+    }) async {
+      fcmCase = _FcmCaseSpy(FakeFcmLocal(), FakeFcmRemote(), FakeSettings());
+      fcmCase.local.token = 'device-token';
+      fcmCase.local.permissionResult = NotificationPermissions(
+        authorized: permissionGranted,
+      );
+      effects = FakeUiEffectPort();
+      final authCase = buildTestAuthCase(
+        signedIn ? _SignedInAuthLocal() : EmptyAuthLocal(),
+        EmptyAuthRemote(),
+      );
+      cubit = DebugSettingsCubit(
+        fcmCase,
+        authCase,
+        FcmCubit(fcmCase, authCase),
+        FakeEmailTestRepository(),
+        effects,
+      );
+    }
+
+    tearDown(() => cubit.close());
+
+    test('registers with the server and reports success', () async {
+      await setup(signedIn: true);
+
+      await cubit.forceReregisterDevice();
+
+      expect(cubit.state.isForcingReregister, isFalse);
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<DebugFcmForceReregisterSentMessage>()),
+      );
+    });
+
+    test('reports permission denied without registering', () async {
+      await setup(signedIn: true, permissionGranted: false);
+
+      await cubit.forceReregisterDevice();
+
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<DebugFcmForceReregisterPermissionDeniedMessage>()),
+      );
+    });
+
+    test('reports no active account', () async {
+      await setup(signedIn: false);
+
+      await cubit.forceReregisterDevice();
+
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<DebugFcmForceReregisterNoAccountMessage>()),
+      );
+    });
+
+    test('reports server rejection', () async {
+      await setup(signedIn: true);
+      fcmCase.remote.registerThrows = const FcmRegistrationRejectedException();
+
+      await cubit.forceReregisterDevice();
+
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<DebugFcmForceReregisterRejectedMessage>()),
+      );
+    });
+  });
 }
 
 class _FcmCaseSpy extends FcmCase {
-  _FcmCaseSpy()
-      : super(FakeFcmLocal(), FakeFcmRemote(), FakeSettings());
+  _FcmCaseSpy(this.local, this.remote, FakeSettings settings)
+      : super(local, remote, settings);
+
+  final FakeFcmLocal local;
+  final FakeFcmRemote remote;
 
   FcmTestSendResult testResult = const FcmTestSendResult(
     ok: true,
@@ -88,6 +170,16 @@ class _FcmCaseSpy extends FcmCase {
 
   @override
   Future<FcmTestSendResult> sendTestNotification() async => testResult;
+}
+
+class _SignedInAuthLocal extends EmptyAuthLocal {
+  static const _accountId = 'Utest0000001';
+
+  @override
+  Stream<String> currentAccountChanges() => Stream.value(_accountId);
+
+  @override
+  Future<String> getCurrentAccountId() async => _accountId;
 }
 
 class FakeEmailTestRepository implements EmailTestRemoteRepositoryPort {

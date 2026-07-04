@@ -59,6 +59,13 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                       spacing: tt.rowGap,
                       children: [
                         TenturaCommandButton(
+                          label: l10n.settingsFcmForceReregister,
+                          icon: const Icon(Icons.sync),
+                          onPressed: state.isForceReregisterEnabled
+                              ? cubit.forceReregisterDevice
+                              : null,
+                        ),
+                        TenturaCommandButton(
                           label: l10n.settingsNotificationsTest,
                           icon: const Icon(Icons.notifications_active_outlined),
                           onPressed: state.isFcmTestEnabled
@@ -109,7 +116,10 @@ class _FcmRegistrationSection extends StatelessWidget {
         _InfoRow(
           label: l10n.settingsFcmToken,
           child: token == null || token.isEmpty
-              ? TenturaMetaText(l10n.settingsFcmTokenUnavailable)
+              ? TenturaStatusText(
+                  l10n.settingsFcmTokenUnavailable,
+                  tone: TenturaTone.danger,
+                )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: tt.rowGap,
@@ -137,18 +147,22 @@ class _FcmRegistrationSection extends StatelessWidget {
         ),
         _InfoRow(
           label: l10n.settingsFcmPermission,
-          child: TenturaMetaText(
+          child: TenturaStatusText(
             state.permissionGranted
                 ? l10n.settingsFcmPermissionGranted
                 : l10n.settingsFcmPermissionDenied,
+            tone: state.permissionGranted
+                ? TenturaTone.good
+                : TenturaTone.danger,
           ),
         ),
         _InfoRow(
           label: l10n.settingsFcmServerSynced,
-          child: TenturaMetaText(
+          child: TenturaStatusText(
             state.serverSynced
                 ? l10n.settingsFcmServerSyncedYes
                 : l10n.settingsFcmServerSyncedNo,
+            tone: state.serverSynced ? TenturaTone.good : TenturaTone.danger,
           ),
         ),
       ],

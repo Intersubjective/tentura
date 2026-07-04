@@ -8,6 +8,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/settings/domain/port/email_test_remote_repository_port.dart';
@@ -98,6 +99,36 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     } finally {
       if (!isClosed) {
         emit(state.copyWith(isSendingFcm: false));
+      }
+    }
+  }
+
+  Future<void> forceReregisterDevice() async {
+    if (!state.isForceReregisterEnabled) {
+      return;
+    }
+    emit(state.copyWith(isForcingReregister: true));
+    try {
+      await _fcmCubit.forceReregister();
+      await loadFcmInfo();
+      _effects.emit(const ShowMessage(DebugFcmForceReregisterSentMessage()));
+    } on FcmPermissionDeniedException {
+      _effects.emit(
+        const ShowMessage(DebugFcmForceReregisterPermissionDeniedMessage()),
+      );
+    } on FcmNoActiveAccountException {
+      _effects.emit(
+        const ShowMessage(DebugFcmForceReregisterNoAccountMessage()),
+      );
+    } on FcmRegistrationRejectedException {
+      _effects.emit(
+        const ShowMessage(DebugFcmForceReregisterRejectedMessage()),
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    } finally {
+      if (!isClosed) {
+        emit(state.copyWith(isForcingReregister: false));
       }
     }
   }

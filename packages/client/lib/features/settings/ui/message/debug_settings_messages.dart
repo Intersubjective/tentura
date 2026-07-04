@@ -48,6 +48,47 @@ final class DebugFcmTestMockMessage extends LocalizableMessage {
   String get toRu => 'FCM на сервере не настроен (режим mock)';
 }
 
+final class DebugFcmForceReregisterSentMessage extends LocalizableMessage {
+  const DebugFcmForceReregisterSentMessage();
+
+  @override
+  String get toEn => 'Re-registered with server';
+
+  @override
+  String get toRu => 'Устройство повторно зарегистрировано на сервере';
+}
+
+final class DebugFcmForceReregisterPermissionDeniedMessage
+    extends LocalizableMessage {
+  const DebugFcmForceReregisterPermissionDeniedMessage();
+
+  @override
+  String get toEn => 'Notification permission is not granted';
+
+  @override
+  String get toRu => 'Разрешение на уведомления не предоставлено';
+}
+
+final class DebugFcmForceReregisterNoAccountMessage extends LocalizableMessage {
+  const DebugFcmForceReregisterNoAccountMessage();
+
+  @override
+  String get toEn => 'No signed-in account';
+
+  @override
+  String get toRu => 'Нет входа в аккаунт';
+}
+
+final class DebugFcmForceReregisterRejectedMessage extends LocalizableMessage {
+  const DebugFcmForceReregisterRejectedMessage();
+
+  @override
+  String get toEn => 'Server rejected the registration — check server logs';
+
+  @override
+  String get toRu => 'Сервер отклонил регистрацию — проверьте логи сервера';
+}
+
 final class DebugEmailTestSentMessage extends LocalizableMessage {
   const DebugEmailTestSentMessage();
 
