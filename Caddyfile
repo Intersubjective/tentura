@@ -94,6 +94,16 @@
 		}
 	}
 
+	# One-click email unsubscribe links — must hit Tentura, not the SPA catch-all.
+	handle /email/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	# Development/staging-only QA endpoints enforce their own hidden token guard.
 	handle /_qa/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}

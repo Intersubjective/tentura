@@ -115,6 +115,16 @@
 		}
 	}
 
+	# One-click email unsubscribe links — must hit Tentura, not the SPA catch-all.
+	handle /email/* {
+		reverse_proxy 127.0.0.1:2080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	handle /_qa/* {
 		reverse_proxy 127.0.0.1:2080
 	}
