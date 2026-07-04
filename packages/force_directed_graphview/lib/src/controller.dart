@@ -18,6 +18,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   Size? _currentSize;
   var _centered = false;
+  var _relayoutGeneration = 0;
 
   /// { @nodoc }
   Set<N> get nodes => Set.unmodifiable(_nodes);
@@ -161,14 +162,21 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return;
     }
 
+    final generation = ++_relayoutGeneration;
+    final nodesSnapshot = Set<N>.of(_nodes);
+    final edgesSnapshot = Set<E>.of(_edges);
+
     final layoutStream = currentAlgorithm.relayout(
       existingLayout: layout,
-      nodes: _nodes,
-      edges: _edges,
+      nodes: nodesSnapshot,
+      edges: edgesSnapshot,
       size: currentSize,
     );
 
     await for (final layout in layoutStream) {
+      if (generation != _relayoutGeneration) {
+        return;
+      }
       _layout = layout;
       notifyListeners();
     }
@@ -185,13 +193,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _currentAlgorithm = algorithm;
     _size = size;
     _currentSize = _size?.resolve(nodes: nodes, edges: edges);
+    final generation = ++_relayoutGeneration;
+    final nodesSnapshot = Set<N>.of(_nodes);
+    final edgesSnapshot = Set<E>.of(_edges);
     final layoutStream = algorithm.layout(
-      nodes: _nodes,
-      edges: _edges,
+      nodes: nodesSnapshot,
+      edges: edgesSnapshot,
       size: canvasSize,
     );
 
     await for (final layout in layoutStream) {
+      if (generation != _relayoutGeneration) {
+        return;
+      }
       _layout = layout;
 
       if (!_centered) {

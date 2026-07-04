@@ -74,14 +74,25 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
     required Size size,
     required GraphLayout? existingLayout,
   }) async* {
+    // Snapshot inputs: layout yields between iterations (Future.delayed) while
+    // the controller may still mutate its live node/edge sets.
+    final nodesSnapshot = Set<NodeBase>.of(nodes);
+    final edgesSnapshot = Set<EdgeBase>.of(edges);
+
+    if (nodesSnapshot.isEmpty) {
+      yield const GraphLayout.empty();
+      return;
+    }
+
     var temp = temperature ?? sqrt(size.width / 2 * size.height / 2) / 30;
-    final k = optimalDistance ?? sqrt(size.width * size.height / nodes.length);
+    final k =
+        optimalDistance ?? sqrt(size.width * size.height / nodesSnapshot.length);
 
     final layoutBuilder = GraphLayoutBuilder(
-      nodes: nodes,
+      nodes: nodesSnapshot,
     );
 
-    for (final node in nodes) {
+    for (final node in nodesSnapshot) {
       layoutBuilder.setNodePosition(
         node,
         existingLayout?.getPositionOrNull(node) ??
@@ -101,8 +112,8 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
 
       _runIteration(
         layoutBuilder: layoutBuilder,
-        nodes: nodes,
-        edges: edges,
+        nodes: nodesSnapshot,
+        edges: edgesSnapshot,
         size: size,
         temp: temp,
         k: k,
@@ -111,7 +122,7 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
       // temp = temp / (1 + 0.0001 * temp);
 
       // Annealing schedule inspired by VCF by Peprah, Appiah, Amponash 2017
-      final vc = nodes.length * 2;
+      final vc = nodesSnapshot.length * 2;
       temp *= 1 / (1 + 1 / (sqrt(step * (vc + 1) + vc)));
 
       if (showIterations) {
@@ -168,6 +179,10 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
 
     // Calculate attractive forces.
     for (final edge in edges) {
+      if (!nodes.contains(edge.source) || !nodes.contains(edge.destination)) {
+        continue;
+      }
+
       final sourcePos = layoutBuilder.getNodePosition(edge.source);
       final destPos = layoutBuilder.getNodePosition(edge.destination);
 

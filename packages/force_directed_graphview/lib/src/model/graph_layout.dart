@@ -6,8 +6,9 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 class GraphLayoutBuilder {
   /// { @nodoc }
   GraphLayoutBuilder({
-    required this.nodes,
-  }) : _positions = {};
+    required Set<NodeBase> nodes,
+  })  : nodes = Set.of(nodes),
+        _positions = {};
 
   /// { @nodoc }
   GraphLayoutBuilder.fromLayout(GraphLayout layout)
