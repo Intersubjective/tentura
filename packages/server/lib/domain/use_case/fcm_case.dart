@@ -1,7 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
-import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
@@ -112,8 +111,7 @@ final class FcmCase extends UseCaseBase {
       message: message,
     );
 
-    final staleTokens = results.whereType<FcmTokenNotFoundException>().length;
-    final sent = fcmTokens.length - staleTokens;
+    final sent = fcmTokens.length - results.length;
 
     return _fcmTestResult(
       ok: true,

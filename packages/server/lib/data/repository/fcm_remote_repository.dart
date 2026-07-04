@@ -96,7 +96,7 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
           '[FCM] FCM HTTP 200 token=…${fcmToken.length > 8 ? fcmToken.substring(fcmToken.length - 8) : fcmToken}',
         );
       } on FcmUnauthorizedException catch (e) {
-        print(e);
+        _logger.severe('[FCM] unauthorized — aborting send batch: $e');
         rethrow;
       } on FcmTokenNotFoundException catch (e) {
         await _fcmTokenRepository.deleteToken(e.token);
@@ -107,8 +107,20 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
           '[FCM] pruned stale token len=${e.token.length} suffix=$suffix',
         );
         results.add(e);
+      } on FcmMessageRejectedException catch (e) {
+        final suffix = e.token.length > 8
+            ? e.token.substring(e.token.length - 8)
+            : e.token;
+        _logger.warning(
+          '[FCM] send rejected suffix=$suffix errorCode=${e.errorCode}',
+        );
+        results.add(e);
       } catch (e) {
-        print(e);
+        final suffix = fcmToken.length > 8
+            ? fcmToken.substring(fcmToken.length - 8)
+            : fcmToken;
+        _logger.warning('[FCM] send failed suffix=$suffix: $e');
+        results.add(e is Exception ? e : Exception('$e'));
       }
     }
 

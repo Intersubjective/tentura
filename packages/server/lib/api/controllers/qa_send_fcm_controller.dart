@@ -78,12 +78,18 @@ final class QaSendFcmController extends BaseController {
     );
 
     final staleTokens = results.whereType<FcmTokenNotFoundException>().length;
-    final sent = fcmTokens.length - staleTokens;
+    final sent = fcmTokens.length - results.length;
     final errors = [
       for (final e in results)
         if (e is FcmTokenNotFoundException)
           {
             'type': 'token_not_found',
+            'tokenSuffix': _tokenSuffix(e.token),
+          }
+        else if (e is FcmMessageRejectedException)
+          {
+            'type': 'message_rejected',
+            'errorCode': e.errorCode,
             'tokenSuffix': _tokenSuffix(e.token),
           }
         else

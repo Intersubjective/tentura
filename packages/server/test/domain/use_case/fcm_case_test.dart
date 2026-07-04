@@ -110,6 +110,37 @@ void main() {
     expect(result['sent'], 1);
   });
 
+  test(
+    'sendTestNotification counts any send failure, not just stale tokens',
+    () async {
+      repo.tokensByUser['U1'] = [
+        FcmTokenEntity(
+          userId: 'U1',
+          appId: const Uuid().v4obj(),
+          token: 'firefox-token',
+          platform: 'web',
+          createdAt: DateTime.utc(2026),
+          lastRefreshedAt: DateTime.utc(2026),
+        ),
+        FcmTokenEntity(
+          userId: 'U1',
+          appId: const Uuid().v4obj(),
+          token: 'chrome-token',
+          platform: 'web',
+          createdAt: DateTime.utc(2026),
+          lastRefreshedAt: DateTime.utc(2026),
+        ),
+      ];
+      remote.rejectedTokens.add('firefox-token');
+
+      final result = await case_.sendTestNotification(userId: 'U1');
+
+      expect(result['ok'], isTrue);
+      expect(result['devices'], 2);
+      expect(result['sent'], 1);
+    },
+  );
+
   test('sendTestNotification is rate limited', () async {
     repo.tokensByUser['U1'] = [
       FcmTokenEntity(
@@ -162,6 +193,7 @@ class FakeFcmTokenRepository implements FcmTokenRepositoryPort {
 class FakeFcmRemote implements FcmRemoteRepositoryPort {
   final sentTokens = <String>{};
   final staleTokens = <String>{};
+  final rejectedTokens = <String>{};
 
   @override
   Future<List<Exception>> sendChatNotification({
@@ -173,6 +205,13 @@ class FakeFcmRemote implements FcmRemoteRepositoryPort {
       sentTokens.add(token);
       if (staleTokens.contains(token)) {
         errors.add(FcmTokenNotFoundException(token: token));
+      } else if (rejectedTokens.contains(token)) {
+        errors.add(
+          FcmMessageRejectedException(
+            token: token,
+            errorCode: 'THIRD_PARTY_AUTH_ERROR',
+          ),
+        );
       }
     }
     return errors;

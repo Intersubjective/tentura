@@ -320,6 +320,41 @@ void main() {
     ]);
   });
 
+  test('reports rejected-message errors and counts them as not sent', () async {
+    final fcmRemote = _CapturingFcmRemote(
+      results: [
+        const FcmMessageRejectedException(
+          token: 'firefox-token-12345678',
+          errorCode: 'THIRD_PARTY_AUTH_ERROR',
+        ),
+      ],
+    );
+    final controller = QaSendFcmController(
+      env(),
+      fcmRemote,
+      _FakeFcmTokens(),
+    );
+
+    final response = await controller.sendFcm(
+      request(
+        body: {'token': 'firefox-token-12345678', 'title': 'T', 'body': 'B'},
+      ),
+    );
+
+    final body = await jsonBody(response);
+    expect(body['ok'], true);
+    expect(body['devices'], 1);
+    expect(body['sent'], 0);
+    expect(body['staleTokens'], 0);
+    expect(body['errors'], [
+      {
+        'type': 'message_rejected',
+        'errorCode': 'THIRD_PARTY_AUTH_ERROR',
+        'tokenSuffix': '12345678',
+      },
+    ]);
+  });
+
   test('mock is false when Firebase server creds are configured', () async {
     final controller = QaSendFcmController(
       env(

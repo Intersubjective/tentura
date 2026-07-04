@@ -81,11 +81,6 @@ class FcmService {
         case 200:
           return;
 
-        case 401:
-          throw FcmUnauthorizedException(
-            description: response.body,
-          );
-
         case 404:
           throw FcmTokenNotFoundException(
             token: fcmToken,
@@ -93,6 +88,24 @@ class FcmService {
           );
 
         default:
+          // FCM reports many per-message failures (THIRD_PARTY_AUTH_ERROR,
+          // SENDER_ID_MISMATCH, ...) as HTTP 401/400 too, indistinguishable
+          // from "our own access token is bad" by status code alone. Only
+          // the latter should abort the whole send batch, so check the
+          // structured FcmError body first.
+          final fcmErrorCode = extractFcmErrorCode(response.body);
+          if (fcmErrorCode != null) {
+            throw FcmMessageRejectedException(
+              token: fcmToken,
+              errorCode: fcmErrorCode,
+              description: response.body,
+            );
+          }
+          if (response.statusCode == 401) {
+            throw FcmUnauthorizedException(
+              description: response.body,
+            );
+          }
           throw Exception(
             '[FcmService] Failed to send FCM message\n'
             'Response code: [${response.statusCode}, ${response.reasonPhrase}]\n'
@@ -163,4 +176,36 @@ class FcmService {
   static final _oAuthTokenEndpointUri = Uri.parse(
     'https://oauth2.googleapis.com/token',
   );
+}
+
+/// Pulls the FCM-specific `errorCode` (e.g. `THIRD_PARTY_AUTH_ERROR`,
+/// `SENDER_ID_MISMATCH`, `QUOTA_EXCEEDED`) out of a `messages:send` error
+/// body's `error.details[]`, where one entry's `@type` is
+/// `google.firebase.fcm.v1.FcmError`. Returns null for a body with no such
+/// detail (a genuine, non-FCM-specific error, e.g. a bad access token).
+String? extractFcmErrorCode(String responseBody) {
+  try {
+    final decoded = jsonDecode(responseBody);
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+    final error = decoded['error'];
+    if (error is! Map<String, dynamic>) {
+      return null;
+    }
+    final details = error['details'];
+    if (details is! List) {
+      return null;
+    }
+    for (final detail in details) {
+      if (detail is Map<String, dynamic> &&
+          (detail['@type'] as Object?) ==
+              'type.googleapis.com/google.firebase.fcm.v1.FcmError') {
+        return detail['errorCode'] as String?;
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
