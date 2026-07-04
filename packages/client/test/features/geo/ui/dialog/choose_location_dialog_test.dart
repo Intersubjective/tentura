@@ -75,6 +75,23 @@ class _FakeGeocodingService extends GoogleGeocodingService {
   }
 }
 
+/// Only resolves once [complete] is called, so tests can observe UI state
+/// while a reverse-geocode lookup is still in flight.
+class _DelayedGeocodingService extends GoogleGeocodingService {
+  _DelayedGeocodingService()
+    : super.withClient(
+        const Env(googleMapsApiKey: 'unused'),
+        client: MockClient((_) async => http.Response('', 500)),
+      );
+
+  final _completer = Completer<String?>();
+
+  void complete(String? label) => _completer.complete(label);
+
+  @override
+  Future<String?> reverseGeocode(Coordinates coordinates) => _completer.future;
+}
+
 class _DialogHarness extends StatelessWidget {
   const _DialogHarness({
     required this.onResult,
@@ -248,6 +265,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(result!.coords, _selectedFromMarkerDrag);
+    expect(result!.place.toString(), 'Prinsengracht 263, Amsterdam');
+  });
+
+  testWidgets('disables confirm until reverse geocoding settles', (
+    tester,
+  ) async {
+    final delayedGeocoding = _DelayedGeocodingService();
+    await GetIt.I.reset();
+    GetIt.I.registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'));
+    GetIt.I.registerSingleton<GeoRepository>(GeoRepository(Logger('test')));
+    GetIt.I.registerSingleton<GooglePlacesService>(placesService);
+    GetIt.I.registerSingleton<GoogleGeocodingService>(delayedGeocoding);
+
+    await openDialog(tester);
+
+    await tester.tap(find.byKey(const Key('ChooseLocation.FakeMap')));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Use this location'),
+          )
+          .onPressed,
+      isNull,
+      reason: 'still resolving the address, confirm must stay disabled',
+    );
+    expect(result, isNull);
+
+    delayedGeocoding.complete('Prinsengracht 263, Amsterdam');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Use this location'));
+    await tester.pumpAndSettle();
+
+    expect(result!.coords, _selectedFromMapTap);
     expect(result!.place.toString(), 'Prinsengracht 263, Amsterdam');
   });
 

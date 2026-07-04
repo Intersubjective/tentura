@@ -631,22 +631,35 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   bloc: _cubit,
                   selector: (s) =>
                       (location: s.location, coordinates: s.coordinates),
-                  builder: (_, data) => _pickerField(
-                    key: const Key('BeaconCreate.LocationField'),
-                    hint: _l10n.addLocation,
-                    displayText: data.location,
-                    suffixIcon: data.coordinates == null
-                        ? const Icon(TenturaIcons.location)
-                        : IconButton(
-                            key: const Key('BeaconCreate.LocationClearButton'),
-                            icon: const Icon(Icons.cancel_rounded),
-                            onPressed: () {
-                              _locationController.clear();
-                              _cubit.setLocation(null, '');
-                            },
-                          ),
-                    onTap: () => unawaited(_pickLocation(context)),
-                  ),
+                  builder: (_, data) {
+                    final hasCoordinates = data.coordinates != null;
+                    // Coordinates picked but reverse geocoding found no
+                    // address: say so explicitly rather than showing a blank
+                    // field (looks unset) or leaking raw lat/long.
+                    final showsUnnamedPlaceholder =
+                        hasCoordinates && data.location.trim().isEmpty;
+                    return _pickerField(
+                      key: const Key('BeaconCreate.LocationField'),
+                      hint: _l10n.addLocation,
+                      displayText: showsUnnamedPlaceholder
+                          ? _l10n.locationNameUnavailable
+                          : data.location,
+                      isEmpty: !hasCoordinates && data.location.isEmpty,
+                      suffixIcon: !hasCoordinates
+                          ? const Icon(TenturaIcons.location)
+                          : IconButton(
+                              key: const Key(
+                                'BeaconCreate.LocationClearButton',
+                              ),
+                              icon: const Icon(Icons.cancel_rounded),
+                              onPressed: () {
+                                _locationController.clear();
+                                _cubit.setLocation(null, '');
+                              },
+                            ),
+                      onTap: () => unawaited(_pickLocation(context)),
+                    );
+                  },
                 ),
           ),
         ],
@@ -673,6 +686,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     required String displayText,
     required Widget? suffixIcon,
     required VoidCallback onTap,
+    bool? isEmpty,
   }) {
     final tt = context.tt;
     return Material(
@@ -684,7 +698,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           decoration: _createFieldDecoration(hintText: hint).copyWith(
             suffixIcon: suffixIcon,
           ),
-          isEmpty: displayText.isEmpty,
+          isEmpty: isEmpty ?? displayText.isEmpty,
           child: SizedBox(
             width: double.infinity,
             height: tt.buttonHeight,
@@ -776,8 +790,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       center: _cubit.state.coordinates,
     );
     if (location != null) {
-      final locationName =
-          location.place?.toString() ?? location.coords.toString();
+      final locationName = location.place?.toString() ?? '';
 
       _locationController.text = locationName;
       _cubit.setLocation(location.coords, locationName);

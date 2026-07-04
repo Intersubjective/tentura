@@ -542,6 +542,7 @@ class _LocationConfirmBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final l10n = L10n.of(context)!;
     final selected = this.selected;
     final label = selected == null
         ? 'Choose a location'
@@ -549,7 +550,7 @@ class _LocationConfirmBar extends StatelessWidget {
         ? 'Resolving address...'
         : (addressLabel?.trim().isNotEmpty ?? false)
         ? addressLabel!.trim()
-        : selected.toString();
+        : l10n.locationNameUnavailable;
 
     return SafeArea(
       child: Material(
@@ -568,7 +569,10 @@ class _LocationConfirmBar extends StatelessWidget {
               ),
               SizedBox(height: tt.rowGap),
               FilledButton.icon(
-                onPressed: onConfirm,
+                // Gate on resolution: confirming mid-lookup would silently
+                // save the pin with no address (see _addressLabel == null
+                // handling below), even though this bar looks settled.
+                onPressed: isResolvingAddress ? null : onConfirm,
                 icon: const Icon(Icons.check),
                 label: const Text('Use this location'),
               ),

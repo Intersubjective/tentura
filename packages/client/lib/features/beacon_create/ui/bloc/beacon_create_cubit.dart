@@ -107,7 +107,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final coords = beacon.coordinates;
       final coordinates = coords != null && coords.isNotEmpty ? coords : null;
       final locationLabel = coordinates != null
-          ? beacon.addressLabel ?? coordinates.toString()
+          ? beacon.addressLabel ?? ''
           : '';
 
       emit(
@@ -152,7 +152,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final coords = beacon.coordinates;
       final coordinates = coords != null && coords.isNotEmpty ? coords : null;
       final locationLabel = coordinates != null
-          ? beacon.addressLabel ?? coordinates.toString()
+          ? beacon.addressLabel ?? ''
           : '';
 
       emit(

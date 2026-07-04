@@ -259,6 +259,23 @@ void main() {
     expect(find.text('Tap to choose location'), findsNothing);
   });
 
+  testWidgets('coordinates without a resolved name show a clear placeholder', (
+    tester,
+  ) async {
+    const coords = Coordinates(lat: 52.358, long: 4.881);
+    cubit.setLocation(coords, '');
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    await scrollToLocationControls(tester);
+
+    // Must not leak raw coordinates as the displayed location name.
+    expect(find.text('(52.358, 4.881)'), findsNothing);
+    expect(find.text('Pinned location (no address found)'), findsOneWidget);
+    // Persisted addressLabel stays empty rather than storing the placeholder.
+    expect(cubit.state.location, isEmpty);
+  });
+
   testWidgets('removing a requirement chip updates cubit needs', (
     tester,
   ) async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
@@ -655,9 +656,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   void _showOverlay(List<BeaconParticipant> suggestions) {
     _overlaySuggestions = suggestions;
     if (_overlayEntry != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _overlayEntry?.markNeedsBuild();
-      });
+      if (SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _overlayEntry?.markNeedsBuild();
+        });
+      } else {
+        _overlayEntry!.markNeedsBuild();
+      }
       return;
     }
     _overlayEntry = OverlayEntry(

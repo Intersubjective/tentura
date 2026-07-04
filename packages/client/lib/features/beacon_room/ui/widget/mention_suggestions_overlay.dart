@@ -45,92 +45,94 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
     final list = widget.suggestions;
     if (list.isEmpty) return const SizedBox.shrink();
 
+    final viewport = MediaQuery.sizeOf(context);
+    if (!viewport.isFinite || viewport.width <= 0 || viewport.height <= 0) {
+      return const SizedBox.shrink();
+    }
+
     final max = list.length < 5 ? list.length : 5;
     final height = max * _kMentionSuggestionRowHeight;
 
+    final left = widget.anchor.left
+        .clamp(
+          _kMentionOverlayMargin,
+          math.max(
+            _kMentionOverlayMargin,
+            viewport.width - _kMentionOverlayMargin,
+          ),
+        )
+        .toDouble();
+    final width = math.min(
+      _kMentionOverlayMaxWidth,
+      math.max(
+        _kMentionOverlayMinWidth,
+        viewport.width - left - _kMentionOverlayMargin,
+      ),
+    );
+    final top = math.max(
+      _kMentionOverlayMargin,
+      widget.anchor.top - height - _kMentionOverlayMargin,
+    );
+
+    if (width <= 0 || height <= 0) {
+      return const SizedBox.shrink();
+    }
+
     return Positioned.fill(
       child: TextFieldTapRegion(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final left = widget.anchor.left
-                .clamp(
-                  _kMentionOverlayMargin,
-                  math.max(
-                    _kMentionOverlayMargin,
-                    constraints.maxWidth - _kMentionOverlayMargin,
-                  ),
-                )
-                .toDouble();
-            final width = math.min(
-              _kMentionOverlayMaxWidth,
-              math.max(
-                _kMentionOverlayMinWidth,
-                constraints.maxWidth - left - _kMentionOverlayMargin,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (event) {
+                  final position = event.localPosition;
+                  final insideCard =
+                      position.dx >= left &&
+                      position.dx <= left + width &&
+                      position.dy >= top &&
+                      position.dy <= top + height;
+                  if (!insideCard) {
+                    widget.onDismiss();
+                    return;
+                  }
+
+                  final index =
+                      ((position.dy - top) / _kMentionSuggestionRowHeight)
+                          .floor()
+                          .clamp(0, max - 1);
+                  widget.onSelect(list[index]);
+                },
               ),
-            );
-            final top = math.max(
-              _kMentionOverlayMargin,
-              widget.anchor.top - height - _kMentionOverlayMargin,
-            );
-
-            return Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) {
-                final position = event.localPosition;
-                final insideCard =
-                    position.dx >= left &&
-                    position.dx <= left + width &&
-                    position.dy >= top &&
-                    position.dy <= top + height;
-                if (!insideCard) {
-                  widget.onDismiss();
-                  return;
-                }
-
-                final index =
-                    ((position.dy - top) / _kMentionSuggestionRowHeight)
-                        .floor()
-                        .clamp(0, max - 1);
-                widget.onSelect(list[index]);
-              },
-              child: SizedBox(
-                width: constraints.maxWidth,
-                height: constraints.maxHeight,
-                child: Stack(
-                  fit: StackFit.expand,
-                  clipBehavior: Clip.none,
+            ),
+            Positioned(
+              left: left,
+              top: top,
+              width: width,
+              height: height,
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Positioned(
-                      left: left,
-                      top: top,
-                      width: width,
-                      height: height,
-                      child: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(12),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (var i = 0; i < max; i++)
-                              SizedBox(
-                                height: _kMentionSuggestionRowHeight,
-                                child: _row(
-                                  theme,
-                                  list[i],
-                                  selected: i == _selectedIndex,
-                                  index: i,
-                                ),
-                              ),
-                          ],
+                    for (var i = 0; i < max; i++)
+                      SizedBox(
+                        height: _kMentionSuggestionRowHeight,
+                        child: _row(
+                          theme,
+                          list[i],
+                          selected: i == _selectedIndex,
+                          index: i,
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );

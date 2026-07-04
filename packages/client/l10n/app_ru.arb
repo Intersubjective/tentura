@@ -423,6 +423,11 @@
   "@addLocation": {
     "context": "BeaconCreateScreen"
   },
+  "locationNameUnavailable": "Точка на карте (адрес не найден)",
+  "@locationNameUnavailable": {
+    "context": "BeaconCreateScreen",
+    "description": "Shown instead of the address label when coordinates are set but reverse geocoding found no address."
+  },
   "attachImage": "Добавить изображения",
   "@attachImage": {
     "context": "BeaconCreateScreen"
