@@ -64,6 +64,8 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
 
   Timer? _visibilityResyncTimer;
 
+  Timer? _coldStartRetryTimer;
+
   //
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -108,6 +110,7 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
   Future<void> close() async {
     fcmLog('FcmCubit: closing');
     _visibilityResyncTimer?.cancel();
+    _coldStartRetryTimer?.cancel();
     if (kIsWeb) {
       WidgetsBinding.instance.removeObserver(this);
     }
@@ -146,7 +149,10 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
       if (!permissions.authorized) {
         return;
       }
-      await _syncToken(accountId: accountId);
+      final synced = await _syncToken(accountId: accountId);
+      if (!synced) {
+        _scheduleColdStartRetry(accountId);
+      }
     } catch (e, st) {
       fcmLog('FcmCubit: account FCM setup failed: $e');
       fcmLog('FcmCubit: stack: $st');
@@ -156,9 +162,37 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
     }
   }
 
+  /// This cubit runs its first sync as soon as the account stream emits —
+  /// on web, that can race the Firebase messaging service worker
+  /// registration in index.html, which is deferred to `window.load` and
+  /// entirely unsynchronized with the Dart app's own boot. When that race
+  /// is lost, `getToken()` comes back empty and there's simply no token to
+  /// register yet (confirmed live: App ID stayed unset until a manual
+  /// "Force re-register" — by then the service worker had long finished —
+  /// succeeded outright). One short delayed retry self-heals this without
+  /// making the user find that button.
+  void _scheduleColdStartRetry(String accountId) {
+    _coldStartRetryTimer?.cancel();
+    _coldStartRetryTimer = Timer(const Duration(seconds: 3), () {
+      unawaited(() async {
+        try {
+          fcmLog('FcmCubit: cold-start retry accountId=$accountId');
+          await _syncToken(accountId: accountId);
+        } catch (e, st) {
+          fcmLog('FcmCubit: cold-start retry failed: $e');
+          fcmLog('FcmCubit: stack: $st');
+        }
+      }());
+    });
+  }
+
   //
   //
-  Future<void> _syncToken({
+  /// Returns false when there's simply no platform token yet (e.g. the
+  /// service worker registration in index.html — deferred to `window.load`,
+  /// unsynchronized with this cubit's own boot — hasn't completed yet), as
+  /// opposed to throwing, which means a real registration attempt failed.
+  Future<bool> _syncToken({
     required String accountId,
     String? token,
     bool forceRegister = false,
@@ -175,7 +209,7 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
         forceRegister: forceRegister,
       );
       if (appId == null) {
-        return;
+        return false;
       }
       final resolved = token ?? state.token;
       fcmLog(
@@ -189,6 +223,7 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
           status: StateStatus.isSuccess,
         ),
       );
+      return true;
     } catch (e, st) {
       fcmLog('FcmCubit: sync failed: $e');
       fcmLog('FcmCubit: stack: $st');
