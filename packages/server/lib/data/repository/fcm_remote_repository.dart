@@ -54,7 +54,13 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     required FcmNotificationEntity message,
   }) => _sendFcmMessage(
     message: message,
-    ttlInSeconds: 60,
+    // Generous on purpose: Apple's web push relay is an extra hop beyond
+    // the platform-native paths (Chrome/Firefox talk to Google/Mozilla's
+    // own infra more directly), so it can add latency those never see. A
+    // short TTL risks the message expiring before Apple ever delivers it,
+    // with nothing in our logs to show for it — FCM still returns 200
+    // either way. Delivered-late is recoverable; expired-silently isn't.
+    ttlInSeconds: 3600,
     fcmTokens: fcmTokens,
     analyticsLabel: 'notification',
   );
