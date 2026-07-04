@@ -8,6 +8,7 @@ import 'package:tentura/data/service/service_base.dart';
 
 import '../../domain/entity/notification_permissions.dart';
 import '../../fcm_debug_log.dart';
+import 'browser_notification_permission.dart';
 
 @singleton
 class FcmService extends ServiceBase {
@@ -47,13 +48,21 @@ class FcmService extends ServiceBase {
       provisional: true,
     );
     final status = settings.authorizationStatus;
+    final pluginAuthorized = status == AuthorizationStatus.authorized;
+    // Cross-check the browser's own Notification.permission: on an iOS
+    // Safari PWA, FirebaseMessaging's authorizationStatus was observed
+    // reporting "denied" while the browser's actual permission was
+    // "granted" (confirmed live — a direct showNotification() call
+    // displayed correctly on the same device at the same time this
+    // reported denied). Trust either source being affirmative.
+    final browserGranted = browserNotificationPermissionGranted() ?? false;
+    final authorized = pluginAuthorized || browserGranted;
     fcmLog(
       'FcmService: authorizationStatus=${status.name} '
-      'alert=${settings.alert} badge=${settings.badge}',
+      'alert=${settings.alert} badge=${settings.badge} '
+      'browserGranted=$browserGranted authorized=$authorized',
     );
-    return NotificationPermissions(
-      authorized: status == AuthorizationStatus.authorized,
-    );
+    return NotificationPermissions(authorized: authorized);
   }
 
   //
