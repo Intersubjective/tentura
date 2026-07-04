@@ -156,19 +156,32 @@ class FcmService {
 /// back — see docs/qa-push-testing.md "Data-only push payloads" for the full
 /// story, but in short:
 ///
-///  1. Safari cancels a web push subscription outright if a push event
-///     arrives and the service worker doesn't end up calling
-///     `showNotification()` for it. Chrome/Firefox tolerate depending on
-///     Firebase's own automatic display for `notification`-type payloads,
-///     but that automatic path was unreliable on iOS Safari specifically,
-///     silently killing subscriptions there (confirmed 2026-07-04).
-///  2. The fix — packages/server/lib/api/controllers/firebase_sw_controller
-///     .dart's generated service worker calls `showNotification()` itself
-///     from `onBackgroundMessage`, reading title/body out of `data`. If a
-///     `notification` field is ever reintroduced here, Chrome/Firefox will
-///     show it via their own automatic path AND our explicit call fires
-///     too — every push becomes a duplicate. See
-///     firebase/firebase-js-sdk issues #4412, #5516, #6670.
+///  1. With a `notification` field present, Chrome/Firefox display it
+///     automatically via Firebase's own service-worker handling, with no
+///     code of ours involved — that's a real inconsistency across browsers
+///     (icon, click-through, and grouping/`tag` behavior all end up
+///     depending on Firebase's per-browser default instead of something we
+///     control). NOTE: an early theory here was that this automatic path
+///     was *also* why an iOS Safari PWA received nothing at all, on the
+///     premise that Safari cancels a subscription outright if a push
+///     arrives and nothing calls `showNotification()`. That theory was
+///     wrong — the actual root cause of that specific failure was
+///     unrelated to our payload shape: iOS 16.x ships web push disabled by
+///     default behind Settings → Safari → Advanced → Feature Flags →
+///     Notifications (Apple enabled it by default starting iOS 17;
+///     confirmed 2026-07-05 by toggling that flag on an iOS 16.7 device).
+///     This data-only approach is kept anyway, on its own merits — explicit
+///     control over notification content and click-navigation, not
+///     dependent on each browser's inconsistent automatic-display default —
+///     not because it was "the" iOS fix.
+///  2. Given that, the generated service worker
+///     (packages/server/lib/api/controllers/firebase_sw_controller.dart)
+///     calls `showNotification()` itself from `onBackgroundMessage`, reading
+///     title/body out of `data`. If a `notification` field is ever
+///     reintroduced here, Chrome/Firefox will show it via their own
+///     automatic path AND our explicit call fires too — every push becomes
+///     a duplicate. See firebase/firebase-js-sdk issues #4412, #5516,
+///     #6670.
 ///
 /// `data` values must all be strings per the FCM v1 API.
 Map<String, Object?> buildFcmMessagePayload({

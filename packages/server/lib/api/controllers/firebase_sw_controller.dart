@@ -30,10 +30,17 @@ const messaging = firebase.messaging();
 // THIS handler is the only thing that displays anything, on every browser.
 // Do not "simplify" this back to relying on FCM's automatic notification
 // display:
-//  1. Safari cancels a web push subscription outright if a push event
-//     arrives and the service worker doesn't end up calling
-//     showNotification() for it. That automatic path is unreliable on iOS
-//     Safari, which silently killed subscriptions there (2026-07-04).
+//  1. It gives us one consistent, explicit notification (icon, tag,
+//     click-navigation) across every browser instead of each one's
+//     inconsistent automatic default for a "notification"-shaped payload.
+//     (An earlier theory here was that Safari also cancels a subscription
+//     outright if a push arrives with nothing shown, and that this was why
+//     an iOS PWA received nothing at all — that theory was wrong. The real
+//     cause of that specific failure was iOS 16.x shipping web push
+//     disabled by default behind Settings -> Safari -> Advanced -> Feature
+//     Flags -> Notifications, fixed by Apple's iOS 17 default; confirmed
+//     2026-07-05. This file is kept data-only regardless, on its own
+//     merits, not because it was "the" iOS fix.)
 //  2. If a "notification" field is ever added back to the payload
 //     alongside this explicit showNotification() call, Chrome/Firefox show
 //     BOTH their own automatic one AND ours — every push becomes a

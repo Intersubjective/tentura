@@ -4,13 +4,18 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/firebase_sw_controller.dart';
 import 'package:tentura_server/env.dart';
 
-/// Regression coverage for the Safari quirk documented in
-/// docs/qa-push-testing.md "Data-only push payloads": Safari cancels a web
-/// push subscription outright if a push event arrives and the service
-/// worker doesn't end up calling showNotification() for it. These assertions
-/// exist so that "simplifying" the generated service worker back to relying
-/// on Firebase's automatic notification display fails a test, not just a
-/// code comment.
+/// Regression coverage for the data-only payload approach documented in
+/// docs/qa-push-testing.md "Data-only push payloads": consistent, explicit
+/// notification display/click-navigation across every browser, instead of
+/// depending on each browser's own inconsistent automatic default for a
+/// "notification"-shaped payload. These assertions exist so that
+/// "simplifying" the generated service worker back to relying on Firebase's
+/// automatic notification display fails a test, not just a code comment.
+///
+/// (Not to be confused with the separate iOS Feature Flag issue in the
+/// same doc — that was the actual cause of the one real "iOS PWA receives
+/// nothing" case investigated, and this data-only approach was not the fix
+/// for it.)
 void main() {
   Request request() =>
       Request('GET', Uri.parse('http://localhost/firebase-messaging-sw.js'));

@@ -44,9 +44,10 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   /// Sends a chat push notification via FCM to a list of devices.
   ///
   /// The wire payload is data-only (see [buildFcmMessagePayload] in
-  /// fcm_service.dart for why — Safari kills web push subscriptions that
-  /// don't get a displayed notification). Display is the generated service
-  /// worker's job (firebase_sw_controller.dart), not FCM's automatic path.
+  /// fcm_service.dart for why — consistent explicit display across
+  /// browsers, not a Safari-specific fix as originally theorized). Display
+  /// is the generated service worker's job (firebase_sw_controller.dart),
+  /// not FCM's automatic path.
   ///
   @override
   Future<List<Exception>> sendChatNotification({
@@ -56,10 +57,14 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     message: message,
     // Generous on purpose: Apple's web push relay is an extra hop beyond
     // the platform-native paths (Chrome/Firefox talk to Google/Mozilla's
-    // own infra more directly), so it can add latency those never see. A
-    // short TTL risks the message expiring before Apple ever delivers it,
-    // with nothing in our logs to show for it — FCM still returns 200
-    // either way. Delivered-late is recoverable; expired-silently isn't.
+    // own infra more directly), so it can in principle add latency those
+    // never see. A short TTL risks a message expiring before Apple ever
+    // delivers it, with nothing in our logs to show for it — FCM still
+    // returns 200 either way. Kept even though it turned out not to be the
+    // fix for the one real case investigated (that was an iOS 16.x platform
+    // setting — see buildFcmMessagePayload's docstring): delivered-late is
+    // recoverable, expired-silently isn't, and there's no real downside to
+    // a longer TTL for a chat-style notification.
     ttlInSeconds: 3600,
     fcmTokens: fcmTokens,
     analyticsLabel: 'notification',

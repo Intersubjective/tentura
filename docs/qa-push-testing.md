@@ -128,24 +128,26 @@ WHERE user_id = 'U6fca01549512';
 | `404` on curl | Set `QA_AUTH_ENABLED=true`, non-empty `QA_AUTH_TOKEN`, not prod |
 | `"reason": "no_fcm_token_rows"` | Sign in as that user, grant notification permission; or pass explicit `token` |
 | `"mock": true` | Set all three server `FB_*` creds and restart the API |
-| `[FCM] FCM HTTP 200` but no device popup | Check client Firebase config, browser permission, service worker; see "Data-only push payloads" below if it's specifically iOS Safari |
+| `[FCM] FCM HTTP 200` but no device popup | Check client Firebase config, browser permission, service worker; if it's specifically an iOS PWA, see "iOS Safari: check the Feature Flag first" below before anything else |
 | `staleTokens: 1` | Token expired; re-register from client (`fcmTokenRegister`) |
 
-## Data-only push payloads (iOS Safari quirk)
+## iOS Safari: check the Feature Flag first
 
-Every FCM message the server sends is **data-only** — `title`/`body`/`link`/`beaconId` all travel under `data`, and there is deliberately no top-level `notification` field. This isn't the FCM default; it was changed on 2026-07-04 after this exact sequence, confirmed on an iOS Safari PWA:
+If an iOS PWA registers fine (permission granted, "registered on server: yes"), FCM accepts every send with `HTTP 200`, and a device-local test (`ServiceWorkerRegistration.showNotification()`, no push involved — the "Test direct notification" button in Settings → Debug) displays correctly, but real pushes still never arrive: **check Settings → Safari → Advanced → Feature Flags → Notifications on the device before debugging anything else.**
 
-1. `sendChatNotification`/QA send returns `200`/`"sent"`, so the server-side send genuinely succeeded.
-2. No notification ever appears on the device.
-3. On the next app open, the account shows `"registered on server": false` even though nothing about the registration flow failed — the token is simply dead.
+iOS 16.x shipped the web push APIs disabled by default behind that flag; Apple only enabled it by default starting iOS 17. A device stuck on iOS 16 (e.g. hardware that can't run 17+, like an iPhone 8) can look fully correctly configured on both the server and the client and still never receive a single push, because the underlying platform push-delivery machinery was never actually turned on. Confirmed 2026-07-05: toggling this flag on an iOS 16.7 device fixed delivery immediately, with zero code changes.
 
-The cause: with a `notification` field present, Chrome/Firefox display it automatically via Firebase's own service-worker handling, with no code of ours involved. That same automatic path is unreliable on iOS Safari — and **Safari cancels a web push subscription outright if a push event arrives and the service worker doesn't end up calling `showNotification()` for it.** So a delivery that silently fails to display on Safari doesn't just look broken once; it kills the subscription, and the *next* registration attempt is what you actually observe failing.
+This was preceded by an incorrect theory (see git history / code comments predating this note) that the cause was Safari cancelling web push subscriptions that don't get a displayed notification. That specific mechanism is real and documented, and worth knowing about, but it was not what was happening in the case that was actually investigated and fixed here — don't reach for the payload-shape/service-worker explanation before ruling out the Feature Flag.
 
-The fix: the server never sends a `notification` field (see `buildFcmMessagePayload` in `packages/server/lib/data/service/fcm_service.dart`), and the generated service worker (`packages/server/lib/api/controllers/firebase_sw_controller.dart`) calls `self.registration.showNotification()` itself from `onBackgroundMessage`, on every browser, using the `data` payload. This is deliberate and must stay this way:
+## Data-only push payloads
 
-- **Do not re-add a `notification` field to the FCM payload.** If you do, Chrome/Firefox will show it via their own automatic path *in addition to* the explicit `showNotification()` call below — every push becomes a duplicate (a well-documented firebase-js-sdk footgun: issues #4412, #5516, #6670).
+Every FCM message the server sends is **data-only** — `title`/`body`/`link`/`beaconId` all travel under `data`, and there is deliberately no top-level `notification` field. This is unrelated to the iOS Feature Flag issue above; it's kept for a different, still-valid reason:
+
+With a `notification` field present, Chrome/Firefox display it automatically via Firebase's own service-worker handling, with no code of ours involved — and that automatic path is inconsistent across browsers (icon, `tag`/grouping, and click-navigation all end up depending on each browser's own default instead of something we control). The server never sends a `notification` field (see `buildFcmMessagePayload` in `packages/server/lib/data/service/fcm_service.dart`), and the generated service worker (`packages/server/lib/api/controllers/firebase_sw_controller.dart`) calls `self.registration.showNotification()` itself from `onBackgroundMessage`, on every browser, using the `data` payload. This is deliberate and must stay this way:
+
+- **Do not re-add a `notification` field to the FCM payload.** If you do, Chrome/Firefox will show it via their own automatic path *in addition to* the explicit `showNotification()` call — every push becomes a duplicate (a well-documented firebase-js-sdk footgun: issues #4412, #5516, #6670).
 - The service worker also owns click-to-open (`notificationclick` → focus/open `data.link`) for the same reason — the automatic path's `fcm_options.link` handling doesn't fire for data-only messages either.
-- This can't be exercised by the Dart test suite — it only runs inside a real browser's service worker runtime. `buildFcmMessagePayload` is unit-tested to *never* emit a `notification` key, but verifying actual display still means testing in a real browser (Chrome, Firefox, and specifically Safari-iOS, since that's the one that silently breaks).
+- This can't be exercised by the Dart test suite — it only runs inside a real browser's service worker runtime. `buildFcmMessagePayload` is unit-tested to *never* emit a `notification` key, but verifying actual display still means testing in a real browser.
 
 ## Related
 

@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/entity/notification_priority.dart';
 void main() {
   group(
     'buildFcmMessagePayload '
-    '(regression: Safari kills subscriptions that never see a shown '
-    'notification — see docs/qa-push-testing.md "Data-only push payloads")',
+    '(regression: consistent explicit display across browsers — see '
+    'docs/qa-push-testing.md "Data-only push payloads")',
     () {
       test('never includes a top-level notification field', () {
         final payload = buildFcmMessagePayload(
