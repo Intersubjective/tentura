@@ -123,4 +123,6 @@ class Env {
   final String googleMapsApiKey;
 
   bool get isGoogleNativeLinkConfigured => googleServerClientId.isNotEmpty;
+
+  bool get isGoogleMapsConfigured => googleMapsApiKey.trim().isNotEmpty;
 }

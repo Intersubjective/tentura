@@ -35,16 +35,20 @@ typedef ChooseLocationMapBuilder =
     );
 
 class ChooseLocationDialog extends StatefulWidget {
-  static Future<Location?> show(BuildContext context, {Coordinates? center}) =>
-      showAdaptiveDialog<Location>(
-        context: context,
-        useSafeArea: false,
-        builder: (_) => ChooseLocationDialog(
-          center: center == null
-              ? null
-              : Coordinates(lat: center.lat, long: center.long),
-        ),
-      );
+  static Future<Location?> show(BuildContext context, {Coordinates? center}) {
+    if (!GetIt.I<Env>().isGoogleMapsConfigured) {
+      return Future.value();
+    }
+    return showAdaptiveDialog<Location>(
+      context: context,
+      useSafeArea: false,
+      builder: (_) => ChooseLocationDialog(
+        center: center == null
+            ? null
+            : Coordinates(lat: center.lat, long: center.long),
+      ),
+    );
+  }
 
   const ChooseLocationDialog({this.center, this.mapBuilder, super.key});
 
@@ -76,7 +80,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
   Timer? _webMapsReadyPoll;
   String? _searchError;
 
-  bool get _mapsApiKeyConfigured => GetIt.I<Env>().googleMapsApiKey.isNotEmpty;
+  bool get _mapsConfigured => GetIt.I<Env>().isGoogleMapsConfigured;
 
   @override
   void initState() {
@@ -114,7 +118,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
   }
 
   bool get _canRenderGoogleMap {
-    if (!_mapsApiKeyConfigured) return false;
+    if (!_mapsConfigured) return false;
     if (!kIsWeb) return true;
     return _webMapsReady && isGoogleMapsJsReady();
   }
@@ -182,10 +186,10 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
                       isSearching: _isSearching,
                       searchError:
                           _searchError ??
-                          (!_mapsApiKeyConfigured
+                          (!_mapsConfigured
                               ? l10n.chooseLocationMapsKeyMissing
                               : null),
-                      mapsEnabled: _mapsApiKeyConfigured,
+                      mapsEnabled: _mapsConfigured,
                       onQueryChanged: _onQueryChanged,
                       onPredictionSelected: _selectPrediction,
                     ),
@@ -220,8 +224,8 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
   Widget _buildMapSurface(Coordinates? selected, L10n l10n) {
     if (!_canRenderGoogleMap) {
       final waitingForScript =
-          _mapsApiKeyConfigured && kIsWeb && !_webMapsReady;
-      final message = !_mapsApiKeyConfigured
+          _mapsConfigured && kIsWeb && !_webMapsReady;
+      final message = !_mapsConfigured
           ? l10n.chooseLocationMapsKeyMissing
           : waitingForScript
           ? l10n.chooseLocationMapLoading
@@ -239,7 +243,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
                   const CircularProgressIndicator.adaptive()
                 else
                   Icon(
-                    !_mapsApiKeyConfigured
+                    !_mapsConfigured
                         ? Icons.key_off_outlined
                         : Icons.map_outlined,
                     size: context.tt.iconSize * 2,
@@ -319,7 +323,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
       return;
     }
 
-    if (!_mapsApiKeyConfigured) {
+    if (!_mapsConfigured) {
       setState(() {
         _predictions = const [];
         _isSearching = false;

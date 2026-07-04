@@ -2,8 +2,10 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
@@ -33,6 +35,8 @@ class InfoTab extends StatefulWidget {
 }
 
 class _InfoTabState extends State<InfoTab> with StringInputValidator {
+  final _env = GetIt.I<Env>();
+
   late final _l10n = L10n.of(context)!;
 
   late final _theme = Theme.of(context);
@@ -619,49 +623,49 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             },
           ),
 
-          // Location
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child:
-                BlocSelector<
-                  BeaconCreateCubit,
-                  BeaconCreateState,
-                  ({String location, Coordinates? coordinates})
-                >(
-                  bloc: _cubit,
-                  selector: (s) =>
-                      (location: s.location, coordinates: s.coordinates),
-                  builder: (_, data) {
-                    final hasCoordinates = data.coordinates != null;
-                    // Coordinates picked but reverse geocoding found no
-                    // address: say so explicitly rather than showing a blank
-                    // field (looks unset) or leaking raw lat/long.
-                    final showsUnnamedPlaceholder =
-                        hasCoordinates && data.location.trim().isEmpty;
-                    return _pickerField(
-                      key: const Key('BeaconCreate.LocationField'),
-                      hint: _l10n.addLocation,
-                      displayText: showsUnnamedPlaceholder
-                          ? _l10n.locationNameUnavailable
-                          : data.location,
-                      isEmpty: !hasCoordinates && data.location.isEmpty,
-                      suffixIcon: !hasCoordinates
-                          ? const Icon(TenturaIcons.location)
-                          : IconButton(
-                              key: const Key(
-                                'BeaconCreate.LocationClearButton',
+          if (_env.isGoogleMapsConfigured)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+              child:
+                  BlocSelector<
+                    BeaconCreateCubit,
+                    BeaconCreateState,
+                    ({String location, Coordinates? coordinates})
+                  >(
+                    bloc: _cubit,
+                    selector: (s) =>
+                        (location: s.location, coordinates: s.coordinates),
+                    builder: (_, data) {
+                      final hasCoordinates = data.coordinates != null;
+                      // Coordinates picked but reverse geocoding found no
+                      // address: say so explicitly rather than showing a blank
+                      // field (looks unset) or leaking raw lat/long.
+                      final showsUnnamedPlaceholder =
+                          hasCoordinates && data.location.trim().isEmpty;
+                      return _pickerField(
+                        key: const Key('BeaconCreate.LocationField'),
+                        hint: _l10n.addLocation,
+                        displayText: showsUnnamedPlaceholder
+                            ? _l10n.locationNameUnavailable
+                            : data.location,
+                        isEmpty: !hasCoordinates && data.location.isEmpty,
+                        suffixIcon: !hasCoordinates
+                            ? const Icon(TenturaIcons.location)
+                            : IconButton(
+                                key: const Key(
+                                  'BeaconCreate.LocationClearButton',
+                                ),
+                                icon: const Icon(Icons.cancel_rounded),
+                                onPressed: () {
+                                  _locationController.clear();
+                                  _cubit.setLocation(null, '');
+                                },
                               ),
-                              icon: const Icon(Icons.cancel_rounded),
-                              onPressed: () {
-                                _locationController.clear();
-                                _cubit.setLocation(null, '');
-                              },
-                            ),
-                      onTap: () => unawaited(_pickLocation(context)),
-                    );
-                  },
-                ),
-          ),
+                        onTap: () => unawaited(_pickLocation(context)),
+                      );
+                    },
+                  ),
+            ),
         ],
       ),
     );

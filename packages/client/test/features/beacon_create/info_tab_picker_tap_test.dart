@@ -73,10 +73,16 @@ void main() {
       imageRepository: ImageRepositoryMock(),
       effects: FakeUiEffectPort(),
     );
+    GetIt.I.registerSingleton<Env>(
+      const Env(googleMapsApiKey: 'test-key'),
+    );
   });
 
   tearDown(() async {
     await cubit.close();
+    if (GetIt.I.isRegistered<Env>()) {
+      await GetIt.I.unregister<Env>();
+    }
   });
 
   Future<void> scrollToLocationControls(WidgetTester tester) async {
@@ -219,16 +225,25 @@ void main() {
     final geo = _GeoRepositoryMock();
     when(geo.myCoordinates).thenReturn(null);
 
-    GetIt.I.registerSingleton<Env>(const Env());
     GetIt.I.registerSingleton<GeoRepository>(geo);
     GetIt.I.registerSingleton<GooglePlacesService>(
-      GooglePlacesService(const Env()),
+      GooglePlacesService(const Env(googleMapsApiKey: 'test-key')),
     );
     GetIt.I.registerSingleton<GoogleGeocodingService>(
-      GoogleGeocodingService(const Env()),
+      GoogleGeocodingService(const Env(googleMapsApiKey: 'test-key')),
     );
 
-    addTearDown(() async => GetIt.I.reset());
+    addTearDown(() async {
+      if (GetIt.I.isRegistered<GeoRepository>()) {
+        await GetIt.I.unregister<GeoRepository>();
+      }
+      if (GetIt.I.isRegistered<GooglePlacesService>()) {
+        await GetIt.I.unregister<GooglePlacesService>();
+      }
+      if (GetIt.I.isRegistered<GoogleGeocodingService>()) {
+        await GetIt.I.unregister<GoogleGeocodingService>();
+      }
+    });
 
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
@@ -238,6 +253,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Tap to choose location'), findsOneWidget);
+  });
+
+  testWidgets('location field is hidden when maps key is not configured', (
+    tester,
+  ) async {
+    await GetIt.I.unregister<Env>();
+    GetIt.I.registerSingleton<Env>(const Env());
+
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('BeaconCreate.LocationField')), findsNothing);
   });
 
   testWidgets('location clear button clears coords without opening map', (
