@@ -26,77 +26,87 @@ class ImageTab extends StatelessWidget {
             final useGrid = windowClass != WindowClass.compact;
             final crossAxisCount = windowClass == WindowClass.expanded ? 3 : 2;
 
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ListTile(
-                  title: Text(L10n.of(context)!.attachImage),
-                  trailing: const Icon(Icons.add_a_photo_rounded),
-                  onTap: cubit.pickImages,
+            // Single scroll owner; nested ListView/GridView caused
+            // parentDataDirty semantics asserts on web.
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: ListTile(
+                    title: Text(L10n.of(context)!.attachImage),
+                    trailing: const Icon(Icons.add_a_photo_rounded),
+                    onTap: cubit.pickImages,
+                  ),
                 ),
                 if (images.isNotEmpty) ...[
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: cubit.clearAllImages,
-                      icon: Icon(Icons.delete_sweep, size: tt.iconSize),
-                      label: Text(L10n.of(context)!.removeAll),
+                  SliverToBoxAdapter(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: cubit.clearAllImages,
+                        icon: Icon(Icons.delete_sweep, size: tt.iconSize),
+                        label: Text(L10n.of(context)!.removeAll),
+                      ),
                     ),
                   ),
-                  SizedBox(height: tt.rowGap / 2),
+                  SliverToBoxAdapter(child: SizedBox(height: tt.rowGap / 2)),
                   if (useGrid)
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                    SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: tt.cardGap,
                         mainAxisSpacing: tt.rowGap,
                         childAspectRatio: 4 / 3,
                       ),
-                      itemCount: images.length,
-                      itemBuilder: (context, index) => _ImageCard(
-                        image: images[index],
-                        index: index,
-                        onRemove: () => cubit.removeImage(index),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _ImageCard(
+                          image: images[index],
+                          index: index,
+                          onRemove: () => cubit.removeImage(index),
+                        ),
+                        childCount: images.length,
                       ),
                     )
                   else
-                    ReorderableListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                    SliverReorderableList(
                       itemCount: images.length,
-                      onReorder: cubit.reorderImages,
-                      itemBuilder: (context, index) => _ImageCard(
+                      onReorderItem: cubit.reorderImages,
+                      itemBuilder: (context, index) =>
+                          ReorderableDelayedDragStartListener(
                         key: ObjectKey(images[index]),
-                        image: images[index],
                         index: index,
-                        onRemove: () => cubit.removeImage(index),
+                        child: _ImageCard(
+                          image: images[index],
+                          index: index,
+                          onRemove: () => cubit.removeImage(index),
+                        ),
                       ),
                     ),
                 ] else
-                  Padding(
-                    padding: EdgeInsets.only(top: tt.rowGap * 2),
-                    child: Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(tt.cardRadius),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: cubit.pickImages,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: scheme.outlineVariant),
-                            borderRadius: BorderRadius.circular(tt.cardRadius),
-                          ),
-                          child: AspectRatio(
-                            aspectRatio: windowClass == WindowClass.expanded
-                                ? 21 / 9
-                                : 4 / 3,
-                            child: Center(
-                              child: Icon(
-                                Icons.photo_outlined,
-                                size: tt.iconSize * 3,
-                                color: scheme.onSurfaceVariant,
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: tt.rowGap * 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(tt.cardRadius),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: cubit.pickImages,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: scheme.outlineVariant),
+                              borderRadius:
+                                  BorderRadius.circular(tt.cardRadius),
+                            ),
+                            child: AspectRatio(
+                              aspectRatio: windowClass == WindowClass.expanded
+                                  ? 21 / 9
+                                  : 4 / 3,
+                              child: Center(
+                                child: Icon(
+                                  Icons.photo_outlined,
+                                  size: tt.iconSize * 3,
+                                  color: scheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
                           ),
@@ -118,7 +128,6 @@ class _ImageCard extends StatelessWidget {
     required this.image,
     required this.index,
     required this.onRemove,
-    super.key,
   });
 
   final ImageEntity image;
@@ -130,11 +139,13 @@ class _ImageCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tt = context.tt;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
           if (image.imageBytes != null)
             Image.memory(
               image.imageBytes!,
@@ -197,6 +208,7 @@ class _ImageCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

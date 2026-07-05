@@ -295,8 +295,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void reorderImages(int oldIndex, int newIndex) {
     final images = [...state.images];
     final item = images.removeAt(oldIndex);
-    final adjustedIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    images.insert(adjustedIndex, item);
+    images.insert(newIndex, item);
     emit(state.copyWith(images: images));
   }
 
