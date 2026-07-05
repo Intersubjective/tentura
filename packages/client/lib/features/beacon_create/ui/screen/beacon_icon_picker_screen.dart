@@ -348,9 +348,8 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                   },
                 ),
               ),
-              // Grid and background picker share one scroll region so the
-              // color picker stays reachable even when the viewport is too
-              // short to fit every symbol row on screen at once.
+              // Background picker and grid share one scroll region so every
+              // symbol row stays reachable when the viewport is short.
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -369,6 +368,47 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                         return CustomScrollView(
                           key: ValueKey('$category|$query'),
                           slivers: [
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  tt.screenHPadding,
+                                  0,
+                                  tt.screenHPadding,
+                                  tt.rowGap,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      l10n.beaconSymbolBackground,
+                                      style: theme.textTheme.labelLarge,
+                                    ),
+                                    SizedBox(height: tt.rowGap),
+                                    Opacity(
+                                      opacity: sel.iconCode == null ? 0.4 : 1,
+                                      child: IgnorePointer(
+                                        ignoring: sel.iconCode == null,
+                                        child: BeaconColorSelector(
+                                          selectedArgb: sel.iconBackground,
+                                          onSelected: (v) {
+                                            final cur =
+                                                _selectionNotifier.value;
+                                            _selectionNotifier.value = (
+                                              iconCode: cur.iconCode,
+                                              iconBackground: v,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SliverToBoxAdapter(
+                              child: TenturaHairlineDivider(),
+                            ),
                             if (entries.isEmpty)
                               SliverToBoxAdapter(
                                 child: Padding(
@@ -435,52 +475,6 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                                   ),
                                 ),
                               ),
-                            SliverToBoxAdapter(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const TenturaHairlineDivider(),
-                                  Padding(
-                                    padding: EdgeInsets.fromLTRB(
-                                      tt.screenHPadding,
-                                      tt.rowGap,
-                                      tt.screenHPadding,
-                                      tt.screenHPadding,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Text(
-                                          l10n.beaconSymbolBackground,
-                                          style: theme.textTheme.labelLarge,
-                                        ),
-                                        SizedBox(height: tt.rowGap),
-                                        Opacity(
-                                          opacity: sel.iconCode == null
-                                              ? 0.4
-                                              : 1,
-                                          child: IgnorePointer(
-                                            ignoring: sel.iconCode == null,
-                                            child: BeaconColorSelector(
-                                              selectedArgb: sel.iconBackground,
-                                              onSelected: (v) {
-                                                final cur =
-                                                    _selectionNotifier.value;
-                                                _selectionNotifier.value = (
-                                                  iconCode: cur.iconCode,
-                                                  iconBackground: v,
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         );
                       },
