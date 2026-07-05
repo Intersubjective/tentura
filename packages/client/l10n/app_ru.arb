@@ -3234,6 +3234,8 @@
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
   "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт чаты",
+  "beaconRoomFactCardVisibilityPublic": "Публичный",
+  "beaconRoomFactCardVisibilityChat": "Чат",
   "beaconRoomFactCardActionEdit": "Изменить текст",
   "beaconRoomFactCardActionRemove": "Открепить",
   "beaconRoomFactCardActionJumpToSource": "К сообщению",

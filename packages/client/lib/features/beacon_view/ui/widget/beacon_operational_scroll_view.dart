@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_strip.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
@@ -21,6 +22,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'beacon_view_constants.dart';
 import 'beacon_view_status_bottom_sheet.dart';
 import 'beacon_view_app_bar_overflow.dart';
+import '../util/pinned_facts.dart';
 
 class BeaconOperationalScrollView extends StatelessWidget {
   const BeaconOperationalScrollView({
@@ -128,6 +130,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
               c.needCoordinationHelpOffersCount,
       builder: (context, state) {
         final beaconId = state.beacon.id;
+        final pinnedFacts = pinnedFactsForStrip(state.factCards);
 
         final tabBody = switch (idx) {
           kBeaconTabItems => ItemsTab(
@@ -273,6 +276,16 @@ class BeaconOperationalScrollView extends StatelessWidget {
                   ),
                 ),
               ),
+              if (pinnedFacts.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: ColoredBox(
+                    color: scheme.surface,
+                    child: BeaconPinnedFactsStrip(
+                      facts: pinnedFacts,
+                      beaconId: beaconId,
+                    ),
+                  ),
+                ),
               SliverPersistentHeader(
                 pinned: true,
                 delegate: BeaconPinnedSegmentBarDelegate(

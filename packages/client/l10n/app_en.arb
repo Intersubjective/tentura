@@ -3269,6 +3269,8 @@
   "beaconRoomDateYesterday": "Yesterday",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
   "beaconRoomMessagePinnedFactChipPrivate": "Pinned · chat fact",
+  "beaconRoomFactCardVisibilityPublic": "Public",
+  "beaconRoomFactCardVisibilityChat": "Chat",
   "beaconRoomFactCardActionEdit": "Edit text",
   "beaconRoomFactCardActionRemove": "Unpin",
   "beaconRoomFactCardActionJumpToSource": "Jump to message",

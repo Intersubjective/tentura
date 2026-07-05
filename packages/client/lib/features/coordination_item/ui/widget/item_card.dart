@@ -195,29 +195,45 @@ class _ItemCardState extends State<ItemCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (staleOverdueLabel != null) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.notification_important_outlined,
-                            size: 14,
-                            color: tt.warn,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            staleOverdueLabel,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: tt.warn,
+                        if (staleOverdueLabel != null)
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.notification_important_outlined,
+                                  size: 14,
+                                  color: tt.warn,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    staleOverdueLabel,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: tt.warn,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (staleCountdown != null)
+                          Flexible(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Text(
+                                staleCountdown,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                        ] else if (staleCountdown != null) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            staleCountdown,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),

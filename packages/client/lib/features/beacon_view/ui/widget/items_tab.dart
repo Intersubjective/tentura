@@ -4,19 +4,12 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
-    show BeaconFactCardStatusBits;
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_edit_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
-import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
@@ -27,17 +20,6 @@ import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
 import 'beacon_hud_action_button.dart';
 import 'coordination_item_composer_sheet.dart';
-
-List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
-  return factCards
-      .where((f) => f.status != BeaconFactCardStatusBits.removed)
-      .toList(growable: false)
-    ..sort((a, b) {
-      final ta = a.updatedAt ?? a.createdAt;
-      final tb = b.updatedAt ?? b.createdAt;
-      return tb.compareTo(ta);
-    });
-}
 
 List<CoordinationItem> _itemsTabVisibleItems(List<CoordinationItem> items) =>
     items.where((i) => i.kind != CoordinationItemKind.plan).toList();
@@ -193,7 +175,6 @@ class ItemsTab extends StatelessWidget {
         final hasItems = openItems.isNotEmpty ||
             closedItems.isNotEmpty ||
             myDraftCount > 0;
-        final beaconId = state.beacon.id;
 
         final canCoordinate = state.canCoordinateInBeaconRoom;
         final inRoom = state.canNavigateBeaconRoom || canCoordinate;
@@ -202,8 +183,6 @@ class ItemsTab extends StatelessWidget {
             inRoom && (canCoordinate || openItems.isNotEmpty);
         final showClosedFold = inRoom && closedItems.isNotEmpty;
 
-        final pinnedFacts = _pinnedFactsForCarousel(state.factCards);
-        final showFacts = pinnedFacts.isNotEmpty;
         final showDrafts = inRoom && myDraftCount > 0;
         final requestedSectionId = itemsTabAccordionSectionId(
           focusInDrafts: focusInDrafts,
@@ -211,7 +190,6 @@ class ItemsTab extends StatelessWidget {
           showActiveFold: showActiveFold,
           showClosedFold: showClosedFold,
           showDrafts: showDrafts,
-          showFacts: showFacts,
         );
 
         // Parent CustomScrollView owns scrolling; nested ListView caused
@@ -458,13 +436,6 @@ class ItemsTab extends StatelessWidget {
                         ],
                       ),
                     ],
-                    if (showFacts) ...[
-                      const SizedBox(height: 8),
-                      _BeaconFactsSection(
-                        pinnedFacts: pinnedFacts,
-                        beaconId: beaconId,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -639,50 +610,6 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
   }
 }
 
-class _BeaconFactsSection extends StatelessWidget {
-  const _BeaconFactsSection({
-    required this.pinnedFacts,
-    required this.beaconId,
-  });
-
-  final List<BeaconFactCard> pinnedFacts;
-  final String beaconId;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-
-    return AccordionExpansionTile(
-      id: BeaconItemsAccordionSection.facts,
-      leading: const Icon(Icons.article_outlined),
-      title: Text(
-        l10n.beaconItemsFactsFoldTitle,
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: BeaconPinnedFactCarousel(
-            facts: pinnedFacts,
-            factTextStyle: TenturaText.body(scheme.onSurface),
-            onManageOverflow: (f) => _showFactActionsFromItemsTab(
-              context,
-              beaconId: beaconId,
-              fact: f,
-            ),
-            onOpenFileAttachment: (a) => openRoomFileAttachment(
-              context,
-              l10n,
-              a,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _MyDraftItemRow extends StatelessWidget {
   const _MyDraftItemRow({
     required this.draft,
@@ -806,24 +733,4 @@ class _StaleDeadlineTickerState extends State<_StaleDeadlineTicker> {
 
   @override
   Widget build(BuildContext context) => widget.child;
-}
-
-Future<void> _showFactActionsFromItemsTab(
-  BuildContext context, {
-  required String beaconId,
-  required BeaconFactCard fact,
-}) async {
-  final cubit = RoomCubit(beaconId: beaconId);
-  try {
-    await showFactActionsSheet(
-      context,
-      cubit: cubit,
-      fact: fact,
-    );
-    if (context.mounted) {
-      await context.read<ItemsTabCubit>().fetch();
-    }
-  } finally {
-    await cubit.close();
-  }
 }

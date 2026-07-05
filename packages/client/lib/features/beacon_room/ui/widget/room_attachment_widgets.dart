@@ -111,7 +111,9 @@ class _RoomMessageInlineImageAlbumState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final items = widget.attachments;
+    final albumHeight = roomMessageInlineImageAlbumHeight(context);
 
     return Semantics(
       label: 'Image gallery',
@@ -122,23 +124,66 @@ class _RoomMessageInlineImageAlbumState
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              height: roomMessageInlineImageAlbumHeight(context),
+              height: albumHeight,
               width: double.infinity,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: items.length,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                itemBuilder: (ctx, index) {
-                  final a = items[index];
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => unawaited(
-                      openRoomAttachmentImageAlbum(context, items, index),
+              child: items.length == 1
+                  ? GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => unawaited(
+                        openRoomAttachmentImageAlbum(context, items, 0),
+                      ),
+                      child: roomAttachmentAlbumThumbnail(context, items.first),
+                    )
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        PageView.builder(
+                          controller: _pageController,
+                          itemCount: items.length,
+                          onPageChanged: (i) => setState(() => _currentPage = i),
+                          itemBuilder: (ctx, index) {
+                            final a = items[index];
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => unawaited(
+                                openRoomAttachmentImageAlbum(
+                                  context,
+                                  items,
+                                  index,
+                                ),
+                              ),
+                              child: roomAttachmentAlbumThumbnail(ctx, a),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: _RoomInlineImageNavButton(
+                            icon: Icons.chevron_left,
+                            tooltip: MaterialLocalizations.of(context)
+                                .previousPageTooltip,
+                            enabled: _currentPage > 0,
+                            onPressed: () => _goTo(_currentPage - 1),
+                            scheme: scheme,
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: _RoomInlineImageNavButton(
+                            icon: Icons.chevron_right,
+                            tooltip:
+                                MaterialLocalizations.of(context).nextPageTooltip,
+                            enabled: _currentPage < items.length - 1,
+                            onPressed: () => _goTo(_currentPage + 1),
+                            scheme: scheme,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: roomAttachmentAlbumThumbnail(ctx, a),
-                  );
-                },
-              ),
             ),
           ),
           if (items.length > 1)
@@ -179,6 +224,43 @@ class _RoomMessageInlineImageAlbumState
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _RoomInlineImageNavButton extends StatelessWidget {
+  const _RoomInlineImageNavButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
+        elevation: 0,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: IconButton(
+          tooltip: tooltip,
+          icon: Icon(icon, size: 22),
+          color: enabled ? scheme.onSurfaceVariant : scheme.outlineVariant,
+          onPressed: enabled ? onPressed : null,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: EdgeInsets.zero,
+        ),
       ),
     );
   }
@@ -239,6 +321,16 @@ class _RoomAttachmentFullscreenGalleryState
     super.dispose();
   }
 
+  void _goTo(int index) {
+    unawaited(
+      _controller.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = widget.attachments;
@@ -246,6 +338,7 @@ class _RoomAttachmentFullscreenGalleryState
     final chromeBg = tt.text;
     final chromeFg = tt.surface;
     final chromeMuted = tt.textFaint;
+    final materialL10n = MaterialLocalizations.of(context);
     return Scaffold(
       backgroundColor: chromeBg,
       appBar: AppBar(
@@ -253,7 +346,7 @@ class _RoomAttachmentFullscreenGalleryState
         foregroundColor: chromeFg,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+          tooltip: materialL10n.closeButtonTooltip,
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: items.length > 1
@@ -263,31 +356,71 @@ class _RoomAttachmentFullscreenGalleryState
               )
             : null,
       ),
-      body: PageView.builder(
-        controller: _controller,
-        onPageChanged: (i) => setState(() => _index = i),
-        itemCount: items.length,
-        itemBuilder: (ctx, i) {
-          final a = items[i];
-          final url = roomAttachmentImageUrl(a);
-          final img = Image.network(
-            url,
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => Icon(
-              Icons.broken_image_outlined,
-              color: chromeMuted,
-              size: 64,
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemCount: items.length,
+            itemBuilder: (ctx, i) {
+              final a = items[i];
+              final url = roomAttachmentImageUrl(a);
+              final img = Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => Icon(
+                  Icons.broken_image_outlined,
+                  color: chromeMuted,
+                  size: 64,
+                ),
+              );
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4,
+                child: Center(
+                  child:
+                      a.blurHash.isEmpty ? img : BlurHash(a.blurHash, child: img),
+                ),
+              );
+            },
+          ),
+          if (items.length > 1) ...[
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  icon: Icon(
+                    Icons.chevron_left,
+                    color: chromeMuted,
+                    size: 40,
+                  ),
+                  tooltip: materialL10n.previousPageTooltip,
+                  onPressed: _index > 0 ? () => _goTo(_index - 1) : null,
+                ),
+              ),
             ),
-          );
-          return InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4,
-            child: Center(
-              child:
-                  a.blurHash.isEmpty ? img : BlurHash(a.blurHash, child: img),
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  icon: Icon(
+                    Icons.chevron_right,
+                    color: chromeMuted,
+                    size: 40,
+                  ),
+                  tooltip: materialL10n.nextPageTooltip,
+                  onPressed:
+                      _index < items.length - 1 ? () => _goTo(_index + 1) : null,
+                ),
+              ),
             ),
-          );
-        },
+          ],
+        ],
       ),
     );
   }

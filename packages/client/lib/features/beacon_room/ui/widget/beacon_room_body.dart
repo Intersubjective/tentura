@@ -154,13 +154,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.factCards
                     .map(
                       (e) =>
-                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.factText}',
+                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.visibility}|${e.factText}',
                     )
                     .join() !=
                 c.factCards
                     .map(
                       (e) =>
-                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.factText}',
+                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.visibility}|${e.factText}',
                     )
                     .join() ||
             p.roomState?.currentLine != c.roomState?.currentLine ||
@@ -263,6 +263,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       roomCubit: cubit,
                     ),
                   ),
+            pinnedFactForMessage: state.factForRoomMessage,
           );
         },
       ),

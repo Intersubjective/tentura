@@ -19,7 +19,9 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_text_controller.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_date_separator.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -51,6 +53,7 @@ class BasicChatBody extends StatefulWidget {
     this.onScrollToPromoteSource,
     this.onOpenCoordinationItem,
     this.hideCoordinationLifecycleFooter = false,
+    this.pinnedFactForMessage,
     super.key,
   });
 
@@ -111,6 +114,9 @@ class BasicChatBody extends StatefulWidget {
   final void Function(CoordinationItem item)? onOpenCoordinationItem;
 
   final bool hideCoordinationLifecycleFooter;
+
+  /// Active pinned fact originating from a message, if any.
+  final BeaconFactCard? Function(RoomMessage message)? pinnedFactForMessage;
 
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
@@ -360,6 +366,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
                           final toggle = widget.onToggleReaction;
                           final vote = widget.onVotePoll;
+                          final pinnedFact =
+                              widget.pinnedFactForMessage?.call(m);
                           final messageTile = RoomMessageTile(
                             key: _messageKey(m.id),
                             message: m,
@@ -385,6 +393,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                 widget.onOpenCoordinationItem,
                             hideCoordinationLifecycleFooter:
                                 widget.hideCoordinationLifecycleFooter,
+                            pinnedFact: pinnedFact != null &&
+                                    roomPinnedFactIsVisible(pinnedFact)
+                                ? pinnedFact
+                                : null,
                           );
 
                           return Column(

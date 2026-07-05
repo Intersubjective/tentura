@@ -19,7 +19,6 @@ void main() {
           showActiveFold: true,
           showClosedFold: true,
           showDrafts: true,
-          showFacts: true,
         ),
         BeaconItemsAccordionSection.drafts,
       );
@@ -33,7 +32,6 @@ void main() {
           showActiveFold: true,
           showClosedFold: true,
           showDrafts: false,
-          showFacts: false,
         ),
         BeaconItemsAccordionSection.closed,
       );
@@ -47,7 +45,6 @@ void main() {
           showActiveFold: true,
           showClosedFold: true,
           showDrafts: false,
-          showFacts: false,
         ),
         BeaconItemsAccordionSection.active,
       );
@@ -61,7 +58,19 @@ void main() {
           showActiveFold: false,
           showClosedFold: false,
           showDrafts: false,
-          showFacts: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('pinned facts no longer affect default section', () {
+      expect(
+        itemsTabAccordionSectionId(
+          focusInDrafts: false,
+          focusInClosed: false,
+          showActiveFold: false,
+          showClosedFold: false,
+          showDrafts: false,
         ),
         isNull,
       );

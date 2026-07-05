@@ -5,7 +5,6 @@ abstract final class BeaconItemsAccordionSection {
   static const active = 'active';
   static const closed = 'closed';
   static const drafts = 'drafts';
-  static const facts = 'facts';
 }
 
 /// Stable accordion section ids for the beacon People tab.
@@ -23,7 +22,6 @@ String? itemsTabAccordionSectionId({
   required bool showActiveFold,
   required bool showClosedFold,
   required bool showDrafts,
-  required bool showFacts,
 }) {
   if (focusInDrafts && showDrafts) {
     return BeaconItemsAccordionSection.drafts;
@@ -39,9 +37,6 @@ String? itemsTabAccordionSectionId({
   }
   if (showDrafts) {
     return BeaconItemsAccordionSection.drafts;
-  }
-  if (showFacts) {
-    return BeaconItemsAccordionSection.facts;
   }
   return null;
 }

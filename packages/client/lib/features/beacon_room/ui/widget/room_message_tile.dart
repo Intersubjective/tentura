@@ -8,6 +8,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -17,6 +18,7 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
@@ -75,6 +77,7 @@ class RoomMessageTile extends StatelessWidget {
     this.onScrollToPromoteSource,
     this.onOpenCoordinationItem,
     this.hideCoordinationLifecycleFooter = false,
+    this.pinnedFact,
     super.key,
   });
 
@@ -101,6 +104,9 @@ class RoomMessageTile extends StatelessWidget {
 
   /// True in item discussion thread (no lifecycle footer rows).
   final bool hideCoordinationLifecycleFooter;
+
+  /// Active pinned fact card for this message, when present.
+  final BeaconFactCard? pinnedFact;
 
   /// Member-only file attachments (download + share flow).
   final Future<void> Function(RoomMessageAttachment attachment)?
@@ -353,7 +359,9 @@ class RoomMessageTile extends StatelessWidget {
           tt.screenHPadding,
           bottomPad / 2,
         ),
-        icon: Icons.fact_check_outlined,
+        icon: message.semanticMarker == BeaconRoomSemanticMarker.pinFactPublic
+            ? Icons.public_outlined
+            : Icons.fact_check_outlined,
         lineBuilder: (authorName) =>
             l10n.beaconRoomFactPinLine(authorName, visibilityLabel),
         author: message.author,
@@ -608,6 +616,16 @@ class RoomMessageTile extends StatelessWidget {
               );
             },
           ),
+        if (pinnedFact != null) ...[
+          Padding(
+            padding: EdgeInsets.only(
+              top: showNameHeader ? tt.rowGap / 2 : 0,
+            ),
+            child: RoomPinnedFactVisibilityMark(
+              visibility: pinnedFact!.visibility,
+            ),
+          ),
+        ],
         if (semantic.isNotEmpty &&
             !showCoordinationFooter &&
             message.semanticMarker != BeaconRoomSemanticMarker.done)
