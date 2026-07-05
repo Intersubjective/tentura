@@ -266,7 +266,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onEdit: b.status == BeaconStatus.open
+              onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
                       context.router.pushPath(
                         '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
@@ -546,7 +546,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onEdit: b.status == BeaconStatus.open
+              onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
                       context.router.pushPath(
                         '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',

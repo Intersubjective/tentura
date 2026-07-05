@@ -11,3 +11,7 @@ bool beaconDeleteBlockedByCommitters(Beacon beacon) =>
 
 bool beaconAllowsCancel(Beacon beacon) =>
     beacon.status == BeaconStatus.open && beacon.helpOfferCount == 0;
+
+/// Mirrors the server's edit gate (open-family or wrapping-up review window).
+bool beaconAllowsEdit(Beacon beacon) =>
+    beacon.status.isOpenFamily || beacon.status == BeaconStatus.reviewOpen;

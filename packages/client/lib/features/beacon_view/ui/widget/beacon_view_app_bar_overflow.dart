@@ -341,7 +341,7 @@ Widget beaconViewAppBarOverflow({
               await onAuthorManageStatus();
             }
           : null,
-      onEdit: showBeaconManagementOverflow && b.status == BeaconStatus.open
+      onEdit: showBeaconManagementOverflow && beaconAllowsEdit(b)
           ? () => unawaited(
               context.router.pushPath(
                 '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
