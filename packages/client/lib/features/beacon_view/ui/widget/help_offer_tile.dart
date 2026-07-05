@@ -15,6 +15,8 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -74,9 +76,9 @@ class HelpOfferTile extends StatelessWidget {
     final locale = Localizations.localeOf(context).toString();
     final participantUpdated = participantMeta == null
         ? null
-        : DateFormat.yMMMd(locale)
-            .add_Hm()
-            .format(participantMeta.updatedAt.toLocal());
+        : DateFormat.yMMMd(
+            locale,
+          ).add_Hm().format(participantMeta.updatedAt.toLocal());
 
     final avatarWidget = SelfAwareAvatar.medium(
       profile: helpOffer.user,
@@ -166,8 +168,7 @@ class HelpOfferTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                      if (isWithdrawn)
-                        TenturaStatusText(l10n.labelWithdrawn),
+                    if (isWithdrawn) TenturaStatusText(l10n.labelWithdrawn),
                   ],
                 ),
               ),
@@ -191,9 +192,11 @@ class HelpOfferTile extends StatelessWidget {
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
             if (showHelpTypeChips) const SizedBox(height: 6),
-            Text(
+            ShowMoreText(
               helpOffer.message,
               style: TenturaText.body(theme.colorScheme.onSurface),
+              colorClickableText: theme.colorScheme.primary,
+              annotations: buildUrlAnnotations(linkColor: tt.info),
             ),
           ],
           if (nextMove != null && nextMove.isNotEmpty) ...[

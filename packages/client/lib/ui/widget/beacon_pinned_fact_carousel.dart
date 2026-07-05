@@ -8,8 +8,10 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 const double _kCarouselHorizontalPadding = 2;
 
@@ -181,6 +183,7 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
     BeaconFactCard f,
     ColorScheme scheme,
     L10n l10n,
+    TenturaTokens tt,
   ) {
     final corrected = f.status == BeaconFactCardStatusBits.corrected;
     final hasText = f.factText.trim().isNotEmpty;
@@ -190,9 +193,12 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (hasText)
-          SelectableText(
-            f.factText,
-            style: widget.factTextStyle,
+          Text.rich(
+            buildRoomMessageAnnotatedBodySpan(
+              data: f.factText,
+              textStyle: widget.factTextStyle,
+              annotations: buildUrlAnnotations(linkColor: tt.info),
+            ),
           ),
         if (corrected) ...[
           SizedBox(height: hasText ? kSpacingSmall / 2 : 0),
@@ -382,7 +388,7 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: _kCarouselHorizontalPadding,
                         ),
-                        child: _factColumn(f, scheme, l10n),
+                        child: _factColumn(f, scheme, l10n, tt),
                       );
                       if (needsScroll) {
                         return SingleChildScrollView(

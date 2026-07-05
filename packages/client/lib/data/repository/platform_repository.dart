@@ -44,4 +44,20 @@ class PlatformRepository implements PlatformRepositoryPort {
       throw const UnknownPlatformException();
     }
   }
+
+  @override
+  Future<void> launchUserLink(Uri uri) async {
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      _log.warning(
+        'Refused to launch user-authored link with scheme "${uri.scheme}"',
+      );
+      return;
+    }
+    try {
+      await url.launchUrl(uri, mode: url.LaunchMode.externalApplication);
+    } catch (e) {
+      _log.warning('Failed to launch user link: $e');
+      throw const UnknownPlatformException();
+    }
+  }
 }

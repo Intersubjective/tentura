@@ -1,8 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:readmore/readmore.dart';
 
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
+
+({String text, Color? color, bool hasRecognizer}) _leaf(TextSpan s) =>
+    (text: s.text!, color: s.style?.color, hasRecognizer: s.recognizer != null);
+
+List<({String text, Color? color, bool hasRecognizer})> _flattenLeaves(
+  InlineSpan span,
+) {
+  final result = <({String text, Color? color, bool hasRecognizer})>[];
+  void visit(InlineSpan s) {
+    if (s is! TextSpan) return;
+    if (s.text != null && s.text!.isNotEmpty) {
+      result.add(_leaf(s));
+    }
+    s.children?.forEach(visit);
+  }
+
+  visit(span);
+  return result;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -465,6 +486,124 @@ void main() {
         hasMediaOrPoll: false,
       );
       expect(r.innerWidth, 224);
+    });
+  });
+
+  group('findUrlRanges', () {
+    String matched(String text, TextRange r) => text.substring(r.start, r.end);
+
+    test('finds a bare URL with no trailing punctuation', () {
+      const text = 'See https://example.com for details';
+      final ranges = findUrlRanges(text);
+      expect(ranges, hasLength(1));
+      expect(matched(text, ranges.single), 'https://example.com');
+    });
+
+    test('strips a trailing period', () {
+      const text = 'Visit https://example.com.';
+      final ranges = findUrlRanges(text);
+      expect(matched(text, ranges.single), 'https://example.com');
+    });
+
+    test('strips a trailing comma', () {
+      const text = 'Try https://example.com, thanks!';
+      final ranges = findUrlRanges(text);
+      expect(matched(text, ranges.single), 'https://example.com');
+    });
+
+    test('keeps a balanced closing paren from the URL path', () {
+      const text = 'See https://en.wikipedia.org/wiki/Foo_(bar) now';
+      final ranges = findUrlRanges(text);
+      expect(
+        matched(text, ranges.single),
+        'https://en.wikipedia.org/wiki/Foo_(bar)',
+      );
+    });
+
+    test('strips an unbalanced wrapping paren and trailing period', () {
+      const text = '(see https://en.wikipedia.org/wiki/Foo_(bar)).';
+      final ranges = findUrlRanges(text);
+      expect(
+        matched(text, ranges.single),
+        'https://en.wikipedia.org/wiki/Foo_(bar)',
+      );
+    });
+
+    test('rejects a match with no host', () {
+      expect(findUrlRanges('https:///no-host-here'), isEmpty);
+    });
+  });
+
+  group('buildUrlAnnotations + mention merge', () {
+    const linkColor = Colors.blue;
+    const mentionColor = Colors.purple;
+
+    List<Annotation> mergedAnnotations() => [
+      ...buildUrlAnnotations(linkColor: linkColor, onTapLink: (_) async {}),
+      ...buildRoomMessageMentionAnnotations(
+        handleToUserId: const {'alice': 'u1'},
+        mentionedIds: const {'u1'},
+        selfUserId: 'me',
+        mentionColor: mentionColor,
+        selfMentionBackground: Colors.yellow,
+      ),
+    ];
+
+    test(
+      'URL containing an @handle-shaped path segment is not mention-styled',
+      () {
+        final span = buildRoomMessageAnnotatedBodySpan(
+          data: 'Check https://twitter.com/@alice today',
+          textStyle: bodyStyle,
+          annotations: mergedAnnotations(),
+        );
+
+        final leaves = _flattenLeaves(span);
+        final linkLeaf = leaves.firstWhere((l) => l.hasRecognizer);
+        expect(linkLeaf.text, 'https://twitter.com/@alice');
+        expect(linkLeaf.color, linkColor);
+        expect(leaves.any((l) => l.color == mentionColor), isFalse);
+      },
+    );
+
+    test('a separate @mention elsewhere is still mention-styled', () {
+      final span = buildRoomMessageAnnotatedBodySpan(
+        data: 'Hi @alice, see https://example.com for context',
+        textStyle: bodyStyle,
+        annotations: mergedAnnotations(),
+      );
+
+      final leaves = _flattenLeaves(span);
+      expect(
+        leaves.any((l) => l.text == '@alice' && l.color == mentionColor),
+        isTrue,
+      );
+      expect(
+        leaves.any(
+          (l) => l.hasRecognizer && l.text == 'https://example.com',
+        ),
+        isTrue,
+      );
+    });
+
+    test('trailing punctuation is excluded from the recognizer span', () {
+      const data = 'Try https://example.com, thanks!';
+      final span = buildRoomMessageAnnotatedBodySpan(
+        data: data,
+        textStyle: bodyStyle,
+        annotations: mergedAnnotations(),
+      );
+
+      final leaves = _flattenLeaves(span);
+      final linkLeaf = leaves.firstWhere((l) => l.hasRecognizer);
+      expect(linkLeaf.text, 'https://example.com');
+      // Nothing lost/duplicated across leaves, and the comma stays outside
+      // any tappable span.
+      expect(leaves.map((l) => l.text).join(), data);
+      expect(
+        leaves.any((l) => l.hasRecognizer && l.text.contains(',')),
+        isFalse,
+      );
     });
   });
 }

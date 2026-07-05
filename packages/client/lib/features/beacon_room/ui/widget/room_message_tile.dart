@@ -35,6 +35,7 @@ import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measu
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 VoidCallback? _linkedCoordinationItemOnTap(
   BuildContext context,
@@ -511,13 +512,16 @@ class RoomMessageTile extends StatelessWidget {
       }
     }
     final mentionedIds = message.mentions.toSet();
-    final mentionAnnotations = buildRoomMessageMentionAnnotations(
-      handleToUserId: handleToUserId,
-      mentionedIds: mentionedIds,
-      selfUserId: myProfile.id,
-      mentionColor: scheme.primary,
-      selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
-    );
+    final mentionAnnotations = [
+      ...buildUrlAnnotations(linkColor: tt.info),
+      ...buildRoomMessageMentionAnnotations(
+        handleToUserId: handleToUserId,
+        mentionedIds: mentionedIds,
+        selfUserId: myProfile.id,
+        mentionColor: scheme.primary,
+        selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
+      ),
+    ];
 
     final editedSuffix = message.editedAt != null
         ? l10n.beaconRoomMessageEdited

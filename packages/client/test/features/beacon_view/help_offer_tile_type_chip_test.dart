@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -6,12 +7,35 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
+
+class _FakePlatformRepository implements PlatformRepositoryPort {
+  Uri? launchedUserLink;
+
+  @override
+  Future<String> getAppVersion() async => 'test';
+
+  @override
+  Future<String> getStringFromClipboard() async => '';
+
+  @override
+  Future<void> launchUri(Uri uri) async {}
+
+  @override
+  Future<void> launchUrl(String uri) async {}
+
+  @override
+  Future<void> launchUserLink(Uri uri) async {
+    launchedUserLink = uri;
+  }
+}
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -59,6 +83,18 @@ TimelineHelpOffer _helpOffer({
 }
 
 void main() {
+  late _FakePlatformRepository platform;
+
+  setUp(() async {
+    await GetIt.I.reset();
+    platform = _FakePlatformRepository();
+    GetIt.I.registerSingleton<PlatformRepositoryPort>(platform);
+  });
+
+  tearDown(() async {
+    await GetIt.I.reset();
+  });
+
   test('helpOfferTypeSlugs parses JSON array or single slug', () {
     expect(helpOfferTypeSlugs('["money","time"]'), ['money', 'time']);
     expect(helpOfferTypeSlugs('money'), ['money']);
@@ -241,5 +277,43 @@ void main() {
       find.textContaining('Need different skill'),
     );
     expect(text.style?.color, TenturaTokens.light.warn);
+  });
+
+  testWidgets('message link opens via launchUserLink', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            message: 'See https://example.com for details',
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final richTextFinder = find
+        .descendant(
+          of: find.byType(ShowMoreText),
+          matching: find.byType(RichText),
+        )
+        .first;
+    final richText = tester.widget<RichText>(richTextFinder);
+    final renderParagraph =
+        tester.element(richTextFinder).renderObject! as RenderParagraph;
+    final text = richText.text.toPlainText();
+    final linkStart = text.indexOf('https://');
+    final boxes = renderParagraph.getBoxesForSelection(
+      TextSelection(baseOffset: linkStart, extentOffset: linkStart + 1),
+    );
+    final point = renderParagraph.localToGlobal(boxes.first.toRect().center);
+
+    await tester.tapAt(point);
+    await tester.pumpAndSettle();
+
+    expect(platform.launchedUserLink, Uri.parse('https://example.com'));
   });
 }

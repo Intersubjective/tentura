@@ -9,12 +9,13 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_location_maps_uri.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';
-import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 /// Beacon definition content for the HUD fold (schedule, need, media, description).
 class BeaconDefinitionBody extends StatelessWidget {
@@ -128,10 +129,12 @@ class BeaconDefinitionBody extends StatelessWidget {
         ],
         if (beacon.description.trim().isNotEmpty) ...[
           SizedBox(height: tt.rowGap),
-          ShowMoreText(
-            beacon.description.trim(),
-            style: textStyle,
-            colorClickableText: scheme.primary,
+          Text.rich(
+            buildRoomMessageAnnotatedBodySpan(
+              data: beacon.description.trim(),
+              textStyle: textStyle,
+              annotations: buildUrlAnnotations(linkColor: tt.info),
+            ),
           ),
         ],
       ],

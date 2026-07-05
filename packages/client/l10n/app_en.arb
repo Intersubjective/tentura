@@ -2423,35 +2423,11 @@
       }
     }
   },
-  "timelineHelpOfferedWithMessage": "{user} offered help: \"{message}\"",
-  "@timelineHelpOfferedWithMessage": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "user": {
-        "type": "String"
-      },
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "timelineWithdrew": "{user} withdrew",
   "@timelineWithdrew": {
     "context": "BeaconViewScreen",
     "placeholders": {
       "user": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineWithdrewWithMessage": "{user} withdrew: \"{message}\"",
-  "@timelineWithdrewWithMessage": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "user": {
-        "type": "String"
-      },
-      "message": {
         "type": "String"
       }
     }

@@ -2419,35 +2419,11 @@
       }
     }
   },
-  "timelineHelpOfferedWithMessage": "{user} предложил(а) помощь: \"{message}\"",
-  "@timelineHelpOfferedWithMessage": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "user": {
-        "type": "String"
-      },
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "timelineWithdrew": "{user} отказался(-ась)",
   "@timelineWithdrew": {
     "context": "BeaconViewScreen",
     "placeholders": {
       "user": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineWithdrewWithMessage": "{user} отказался(-ась): \"{message}\"",
-  "@timelineWithdrewWithMessage": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "user": {
-        "type": "String"
-      },
-      "message": {
         "type": "String"
       }
     }

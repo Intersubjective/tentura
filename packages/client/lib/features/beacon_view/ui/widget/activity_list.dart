@@ -276,9 +276,10 @@ Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
 }
 
 String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
-      final TimelineHelpOfferCreated e => e.message.isNotEmpty
-          ? l10n.timelineHelpOfferedWithMessage(e.helpOfferer.shownName, e.message)
-          : l10n.timelineHelpOffered(e.helpOfferer.shownName),
+      // Commitment/withdrawal message text is intentionally omitted from the
+      // compact log line; HelpOfferTile shows it in full.
+      final TimelineHelpOfferCreated e =>
+        l10n.timelineHelpOffered(e.helpOfferer.shownName),
       final TimelineHelpOfferUpdated e =>
         _timelineHelpOfferUpdatedLine(l10n, e),
       final TimelineAuthorCoordinationResponse e =>
@@ -287,9 +288,8 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
           e.helpOfferer.shownName,
           coordinationResponseLabel(l10n, e.response) ?? '',
         ),
-      final TimelineHelpOfferWithdrawn e => e.message.isNotEmpty
-          ? l10n.timelineWithdrewWithMessage(e.helpOfferer.shownName, e.message)
-          : l10n.timelineWithdrew(e.helpOfferer.shownName),
+      final TimelineHelpOfferWithdrawn e =>
+        l10n.timelineWithdrew(e.helpOfferer.shownName),
       final TimelineBeaconCoordinationStatusChanged e =>
         l10n.timelineBeaconCoordinationStatusChanged(
           e.author.shownName,

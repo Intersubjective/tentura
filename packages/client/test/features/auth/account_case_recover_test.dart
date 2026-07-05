@@ -266,4 +266,7 @@ class RecoverFakePlatform implements PlatformRepositoryPort {
 
   @override
   Future<void> launchUri(Uri uri) async {}
+
+  @override
+  Future<void> launchUserLink(Uri uri) async {}
 }
