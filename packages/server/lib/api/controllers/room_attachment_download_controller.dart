@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/api/util/attachment_content_disposition.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -31,12 +32,11 @@ final class RoomAttachmentDownloadController extends BaseController {
         userId: jwt.sub,
         attachmentId: attachmentId,
       );
-      final safeName = _asciiFallback(r.fileName);
       return Response.ok(
         r.bytes,
         headers: {
           kHeaderContentType: r.mime,
-          'Content-Disposition': 'attachment; filename="$safeName"',
+          ...attachmentDownloadContentDisposition(r.fileName),
         },
       );
     } on IdNotFoundException {
@@ -46,13 +46,5 @@ final class RoomAttachmentDownloadController extends BaseController {
     } on IdWrongException {
       return Response.badRequest(body: 'wrong attachment type');
     }
-  }
-
-  static String _asciiFallback(String name) {
-    if (name.isEmpty) {
-      return 'file';
-    }
-    final cleaned = name.replaceAll(RegExp(r'[^\x20-\x7E]+'), '_');
-    return cleaned.length > 200 ? cleaned.substring(0, 200) : cleaned;
   }
 }

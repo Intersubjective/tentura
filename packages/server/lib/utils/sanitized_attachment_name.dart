@@ -1,4 +1,4 @@
-/// Safe single-segment filename for storage paths and Content-Disposition.
+/// ASCII-safe single-segment filename for Content-Disposition filename=.
 String sanitizedAttachmentBaseName(String raw) {
   var s = raw.split(RegExp(r'[/\\]')).last.trim();
   if (s.isEmpty) {

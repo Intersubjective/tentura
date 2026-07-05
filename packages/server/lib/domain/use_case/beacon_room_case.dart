@@ -24,9 +24,10 @@ import 'package:tentura_server/domain/exception.dart';
 
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
+import 'package:tentura_server/domain/util/attachment_filename.dart';
+import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
-import 'package:tentura_server/utils/sanitized_attachment_name.dart';
 
 import '_use_case_base.dart';
 
@@ -853,14 +854,14 @@ final class BeaconRoomCase extends UseCaseBase {
     }
     final position = count;
     final attachmentId = generateId('A');
-    final label = sanitizedAttachmentBaseName(uploadFilename ?? 'file');
-    var mime = _normalizeAttachmentMime(uploadMimeType, label);
+    final displayName = attachmentDisplayName(uploadFilename ?? 'file');
+    var mime = _normalizeAttachmentMime(uploadMimeType, displayName);
     final sniffedMime = inferImageMimeFromLeadingBytes(bytes);
     if (sniffedMime != null) {
       mime = sniffedMime;
     }
     final useImagePipeline =
-        sniffedMime != null || _attachmentLooksLikeImage(mime, label);
+        sniffedMime != null || _attachmentLooksLikeImage(mime, displayName);
     if (useImagePipeline) {
       final imageId = await _imageRepository.put(
         authorId: userId,
@@ -878,7 +879,7 @@ final class BeaconRoomCase extends UseCaseBase {
         imageId: imageId,
         mime: mime,
         sizeBytes: bytes.length,
-        displayName: label,
+        displayName: displayName,
         mutatingUserId: mutatingUserId,
       );
     } else {
@@ -894,9 +895,7 @@ final class BeaconRoomCase extends UseCaseBase {
           description: 'Daily upload limit reached, try again tomorrow',
         );
       }
-      final safeObjectName = sanitizedAttachmentBaseName(label);
-      final storagePath =
-          '$kRoomAttachmentsPath/$userId/$attachmentId/$safeObjectName';
+      final storagePath = roomAttachmentStorageKey(bytes);
       final meta = <String, String>{
         kHeaderContentType: mime,
       };
@@ -916,7 +915,7 @@ final class BeaconRoomCase extends UseCaseBase {
         storagePath: storagePath,
         mime: mime,
         sizeBytes: bytes.length,
-        displayName: safeObjectName,
+        displayName: displayName,
         mutatingUserId: mutatingUserId,
       );
     }
