@@ -182,6 +182,29 @@ void main() {
       }
     });
 
+    testWidgets('forward composer collapsed with ahead hint', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      for (final s in sizes) {
+        for (final scale in scalers) {
+          await pumpTypographyGolden(
+            tester,
+            id: 'forward_composer_collapsed',
+            body: ForwardBottomComposer(
+              selectedIds: const {},
+              noteExpanded: false,
+              onToggleNoteExpanded: () {},
+              sharedNoteController: controller,
+              onSharedNoteChanged: (_) {},
+              onForward: null,
+            ),
+            logicalSize: s,
+            textScaler: scale,
+          );
+        }
+      }
+    });
+
     testWidgets('forward recipient row', (tester) async {
       for (final s in sizes) {
         for (final scale in scalers) {

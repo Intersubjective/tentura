@@ -17,6 +17,7 @@ import 'package:tentura/features/invitation/data/repository/invitation_repositor
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -91,6 +92,72 @@ void _registerUiEffectPort() {
       );
     });
   }
+}
+
+Future<void> _pumpForwardPage(
+  WidgetTester tester, {
+  required ForwardCubit cubit,
+  Size size = const Size(360, 780),
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      theme: TenturaTheme.light(),
+      home: MediaQuery(
+        data: MediaQueryData(size: size),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<ForwardCubit>.value(value: cubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: const ForwardBeaconPage(beaconId: 'b1'),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+ForwardCubit _forwardCubitWithBeacon({
+  Set<String> selectedIds = const {},
+  Set<String> needs = const {},
+}) {
+  final cubit = ForwardCubit(
+    beaconId: 'b1',
+    debugSkipInitialLoad: true,
+    effects: FakeUiEffectPort(),
+  );
+
+  final beacon = Beacon.empty.copyWith(
+    id: 'aaaaaaaa-bbbb-cccc-dddd-1234567890ab',
+    title: 'Test beacon',
+    context: 'General',
+    needs: needs,
+    startAt: DateTime.utc(2025, 5, 12),
+    endAt: DateTime.utc(2025, 5, 19),
+  );
+
+  cubit.emit(
+    ForwardState(
+      beaconId: 'b1',
+      beacon: beacon,
+      candidates: const [
+        ForwardCandidate(
+          profile: Profile(
+            id: 'u1',
+            displayName: 'Clara',
+            rScore: 1,
+            score: 70,
+          ),
+        ),
+      ],
+      selectedIds: selectedIds,
+    ),
+  );
+
+  return cubit;
 }
 
 void main() {
@@ -333,5 +400,92 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsWidgets);
+  });
+
+  testWidgets('compact hints replace inline explainer paragraphs', (
+    tester,
+  ) async {
+    _registerInvitationRepository();
+    _registerUiEffectPort();
+
+    const reachExplainer =
+        'These are people you can reach. They get access only after they accept your forward.';
+    const aheadHint =
+        'After selecting someone, you can explain why you\'re forwarding and add a personal note.';
+
+    final cubit = _forwardCubitWithBeacon();
+    addTearDown(cubit.close);
+
+    await _pumpForwardPage(tester, cubit: cubit);
+
+    expect(find.text(reachExplainer), findsNothing);
+    expect(find.text(aheadHint), findsNothing);
+    expect(find.byType(TenturaInfoHintButton), findsNWidgets(2));
+  });
+
+  testWidgets('reach explainer dialog opens from context strip hint', (
+    tester,
+  ) async {
+    _registerInvitationRepository();
+    _registerUiEffectPort();
+
+    const reachExplainer =
+        'These are people you can reach. They get access only after they accept your forward.';
+
+    final cubit = _forwardCubitWithBeacon();
+    addTearDown(cubit.close);
+
+    await _pumpForwardPage(tester, cubit: cubit);
+
+    final stripHint = find.descendant(
+      of: find.byType(CompactBeaconContextStrip),
+      matching: find.byType(TenturaInfoHintButton),
+    );
+    expect(stripHint, findsOneWidget);
+
+    await tester.tap(stripHint);
+    await tester.pumpAndSettle();
+
+    expect(find.text(reachExplainer), findsOneWidget);
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+    expect(find.text(reachExplainer), findsNothing);
+  });
+
+  testWidgets('ahead hint icon hides after recipient selected', (tester) async {
+    _registerInvitationRepository();
+    _registerUiEffectPort();
+
+    final cubit = _forwardCubitWithBeacon();
+    addTearDown(cubit.close);
+
+    await _pumpForwardPage(tester, cubit: cubit);
+    expect(find.byType(TenturaInfoHintButton), findsNWidgets(2));
+
+    cubit.toggleSelection('u1');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
+  });
+
+  testWidgets('forward page layout has no overflow at compact widths', (
+    tester,
+  ) async {
+    _registerInvitationRepository();
+    _registerUiEffectPort();
+
+    final cubit = _forwardCubitWithBeacon(
+      needs: {'transport', 'tools', 'housing'},
+    );
+    addTearDown(cubit.close);
+
+    for (final size in [
+      const Size(320, 640),
+      const Size(360, 780),
+      const Size(720, 900),
+    ]) {
+      await _pumpForwardPage(tester, cubit: cubit, size: size);
+      expect(tester.takeException(), isNull);
+    }
   });
 }

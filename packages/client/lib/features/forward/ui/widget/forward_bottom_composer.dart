@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 import 'forward_input_decoration.dart';
 
@@ -47,16 +48,7 @@ class ForwardBottomComposer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (selectedIds.isEmpty)
-              Padding(
-                padding: EdgeInsets.only(bottom: tt.rowGap),
-                child: Text(
-                  l10n.forwardReasonAheadHint,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                ),
-              ),
             if (noteExpanded) ...[
-              SizedBox(height: tt.rowGap),
               if (showSuggestedNoteHelper)
                 Padding(
                   padding: EdgeInsets.only(bottom: tt.rowGap / 2),
@@ -88,32 +80,45 @@ class ForwardBottomComposer extends StatelessWidget {
                   ),
                 ),
               ),
-            ] else ...[
-              SizedBox(height: tt.rowGap),
+            ] else
               Material(
                 type: MaterialType.transparency,
-                child: InkWell(
-                  onTap: onToggleNoteExpanded,
-                  child: SizedBox(
-                    height: tt.buttonHeight,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.add_comment_outlined,
-                          size: tt.iconSize,
-                          color: tt.textMuted,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: onToggleNoteExpanded,
+                        child: SizedBox(
+                          height: tt.buttonHeight,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.add_comment_outlined,
+                                size: tt.iconSize,
+                                color: tt.textMuted,
+                              ),
+                              SizedBox(width: tt.rowGap),
+                              Flexible(
+                                child: Text(
+                                  l10n.forwardAddSharedNoteCommand,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TenturaText.command(tt.textMuted),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(width: tt.rowGap),
-                        Text(
-                          l10n.forwardAddSharedNoteCommand,
-                          style: TenturaText.command(tt.textMuted),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    if (selectedIds.isEmpty)
+                      TenturaInfoHintButton(
+                        fullText: l10n.forwardReasonAheadHint,
+                        semanticsLabel: l10n.forwardReasonAheadHint,
+                      ),
+                  ],
                 ),
               ),
-            ],
             SizedBox(height: tt.rowGap),
             if (onInvite != null)
               TextButton.icon(

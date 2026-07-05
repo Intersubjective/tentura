@@ -15,6 +15,7 @@ class BeaconRequirementsBar extends StatelessWidget {
     required this.needs,
     this.maxIcons = 5,
     this.leadingLabel,
+    this.inline = false,
     super.key,
   });
 
@@ -25,6 +26,9 @@ class BeaconRequirementsBar extends StatelessWidget {
 
   /// Optional prefix (e.g. l10n beaconForwardRequirementsHint) before icons.
   final String? leadingLabel;
+
+  /// Single-line row for embedding in a tight horizontal layout (no [Wrap]).
+  final bool inline;
 
   @override
   Widget build(BuildContext context) {
@@ -45,9 +49,43 @@ class BeaconRequirementsBar extends StatelessWidget {
     }
 
     final l10n = L10n.of(context)!;
+    final effectiveMaxIcons = inline && maxIcons == 5 ? 3 : maxIcons;
     final visibleCount =
-        maxIcons < 1 ? tags.length : min(tags.length, maxIcons);
+        effectiveMaxIcons < 1 ? tags.length : min(tags.length, effectiveMaxIcons);
     final overflow = tags.length - visibleCount;
+
+    final iconChildren = <Widget>[
+      for (var i = 0; i < visibleCount; i++)
+        Tooltip(
+          message: tags[i].labelOf(l10n),
+          child: Icon(
+            tags[i].icon,
+            size: 22,
+            color: tt.textMuted,
+          ),
+        ),
+      if (overflow > 0)
+        Text(
+          '+$overflow',
+          style: TenturaText.labelSmall(tt.textMuted),
+        ),
+    ];
+
+    if (inline) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leadingLabel != null && leadingLabel!.isNotEmpty) ...[
+            Text(
+              leadingLabel!,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+            SizedBox(width: tt.iconTextGap),
+          ],
+          ...iconChildren,
+        ],
+      );
+    }
 
     return Row(
       children: [
@@ -63,22 +101,7 @@ class BeaconRequirementsBar extends StatelessWidget {
             spacing: 6,
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              for (var i = 0; i < visibleCount; i++)
-                Tooltip(
-                  message: tags[i].labelOf(l10n),
-                  child: Icon(
-                    tags[i].icon,
-                    size: 22,
-                    color: tt.textMuted,
-                  ),
-                ),
-              if (overflow > 0)
-                Text(
-                  '+$overflow',
-                  style: TenturaText.labelSmall(tt.textMuted),
-                ),
-            ],
+            children: iconChildren,
           ),
         ),
       ],

@@ -10,8 +10,9 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
-/// Thin metadata strip: `author · context · start—end` (hidden while search focused).
+/// Thin metadata strip: avatar · author · needs · reach hint on one row.
 class CompactBeaconContextStrip extends StatelessWidget {
   const CompactBeaconContextStrip({
     required this.beacon,
@@ -19,6 +20,8 @@ class CompactBeaconContextStrip extends StatelessWidget {
   });
 
   final Beacon beacon;
+
+  static const _tightStripMaxWidth = 400.0;
 
   static String _authorLabel(L10n l10n, Profile author, String viewerId) {
     final name = SelfUserHighlight.displayName(l10n, author, viewerId);
@@ -77,34 +80,56 @@ class CompactBeaconContextStrip extends StatelessWidget {
               ..write(' · ')
               ..write(dateRange);
           }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final maxW = constraints.maxWidth;
+              final wc = windowClassForWidth(maxW);
+              final tight = maxW < _tightStripMaxWidth;
+              final needsMaxIcons = tight
+                  ? 2
+                  : (wc == WindowClass.compact ? 3 : 5);
+
+              return Row(
                 children: [
                   SelfAwareAvatar.small(
                     profile: beacon.author,
                   ),
                   SizedBox(width: tt.iconTextGap),
                   Expanded(
-                    child: Text(
-                      buffer.toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.bodySmall(tt.textMuted),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            buffer.toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          ),
+                        ),
+                        if (beacon.needs.isNotEmpty) ...[
+                          SizedBox(width: tt.iconTextGap),
+                          Flexible(
+                            child: BeaconRequirementsBar(
+                              needs: beacon.needs,
+                              inline: true,
+                              maxIcons: needsMaxIcons,
+                              leadingLabel: tight
+                                  ? null
+                                  : l10n.beaconForwardRequirementsHint,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  TenturaInfoHintButton(
+                    fullText: l10n.forwardReachExplainer,
+                    semanticsLabel: l10n.forwardReachExplainer,
+                  ),
                 ],
-              ),
-              if (beacon.needs.isNotEmpty) ...[
-                SizedBox(height: tt.iconTextGap / 2),
-                BeaconRequirementsBar(
-                  needs: beacon.needs,
-                  leadingLabel: l10n.beaconForwardRequirementsHint,
-                ),
-              ],
-            ],
+              );
+            },
           );
         },
       ),
