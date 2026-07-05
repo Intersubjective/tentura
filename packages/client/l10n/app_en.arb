@@ -355,6 +355,14 @@
   "@noBeaconsMessage": {
     "context": "BeaconScreen"
   },
+  "beaconsInvolvedInTitle": "Requests I'm involved in",
+  "@beaconsInvolvedInTitle": {
+    "context": "InvolvedBeaconScreen"
+  },
+  "noInvolvedBeaconsMessage": "Requests this person forwards to you will show up here",
+  "@noInvolvedBeaconsMessage": {
+    "context": "InvolvedBeaconScreen"
+  },
   "closeBeacon": "Close Request",
   "@closeBeacon": {
     "context": "BeaconOverflowMenu"
@@ -850,6 +858,10 @@
   },
   "showBeacons": "Show Requests",
   "@showBeacons": {
+    "context": "Profile"
+  },
+  "showBeaconsInvolvedIn": "Requests I'm involved in",
+  "@showBeaconsInvolvedIn": {
     "context": "Profile"
   },
   "profileSharedBeaconsForwardedSection": "Forwarded to them",

@@ -357,6 +357,13 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconViewAll/:id',
     ),
 
+    // Beacons authored by :id that the viewer was ever forwarded.
+    AutoRoute(
+      usesPathAsKey: true,
+      page: InvolvedBeaconRoute.page,
+      path: '$kPathBeaconInvolvedAll/:id',
+    ),
+
     // Legacy `/beacon/:id` (missing `/view`) → unified beacon view.
     AutoRoute(
       usesPathAsKey: true,

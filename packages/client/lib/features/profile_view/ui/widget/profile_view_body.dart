@@ -157,19 +157,20 @@ class ProfileViewBody extends StatelessWidget {
               ),
             ),
 
-            // Show Beacons — only meaningful for vote-mutual friends, who can
-            // read all of this person's non-draft beacons (ADR 0008). One-way
-            // friends would otherwise land on an empty list (QA trap 2).
-            if (profile.isMutualFriend)
-              Padding(
-                padding: kPaddingSmallT,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      context.read<ScreenCubit>().showBeaconsOf(profile.id),
-                  icon: const Icon(Icons.open_in_full),
-                  label: Text(l10n.showBeacons),
-                ),
+            // Beacons this person authored that were ever forwarded to the
+            // viewer — privacy-scoped by forwarding, not friendship (a
+            // beacon's existence is never revealed to someone who was never
+            // forwarded it).
+            Padding(
+              padding: kPaddingSmallT,
+              child: OutlinedButton.icon(
+                onPressed: () => context
+                    .read<ScreenCubit>()
+                    .showInvolvedBeaconsOf(profile.id),
+                icon: const Icon(Icons.open_in_full),
+                label: Text(l10n.showBeaconsInvolvedIn),
               ),
+            ),
 
             Padding(
               padding: kPaddingSmallT,

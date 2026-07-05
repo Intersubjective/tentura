@@ -1,0 +1,22 @@
+# import '/data/gql/beacon_model.graphql'
+
+query BeaconsInvolvedWithAuthor(
+  $user_id: String!,
+  $viewer_id: String!,
+  $offset: Int = 0,
+  $limit: Int = 5
+) {
+  beacon(
+    where: {
+      _and: [
+        { user_id: { _eq: $user_id } },
+        { forward_edges: { recipient_id: { _eq: $viewer_id } } }
+      ]
+    },
+    order_by: {created_at: desc},
+    offset: $offset,
+    limit: $limit
+  ) {
+    ...BeaconModel
+  }
+}

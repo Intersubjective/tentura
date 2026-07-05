@@ -54,6 +54,9 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showBeaconsOf(String id) => _navigateTo('$kPathBeaconViewAll/$id');
 
+  void showInvolvedBeaconsOf(String id) =>
+      _navigateTo('$kPathBeaconInvolvedAll/$id');
+
   void showBeaconCreate() => _navigateTo(kPathBeaconNew);
 
   void showBeaconEditDraft(String id) =>

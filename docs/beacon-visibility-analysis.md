@@ -63,6 +63,16 @@ Sender-only edges satisfy "I forwarded it" for the sender but not "I can open it
 
 **P3 trade-off:** Involved-only readers (forward recipient, help offerer) viewing a non-mutual profile lose the Show Beacons entry point; they still reach those beacons via Inbox and profile Forwarded / Co-help cards.
 
+**P3 update (resolved):** "Show Beacons" (the mutual-friend author-browse-all
+button) was replaced outright by a strictly narrower "beacons I'm involved in"
+entry point — shown to any viewer, gated purely on "was this beacon ever
+forwarded to me" (`beacon(where: {user_id: P, forward_edges: {recipient_id:
+viewer}})`, `beacons_involved_with_author.graphql`). This closes the P3 gap by
+construction (no mutual-friendship dependency at all) at the cost of no longer
+offering mutual friends a full author browse from the profile screen. See
+`packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
+and `packages/client/lib/features/beacon/ui/screen/involved_beacon_screen.dart`.
+
 ## 5. Server simplification
 
 The Dart policy + SQL function + parity test remain the single source of truth. Do not duplicate or relax the predicate elsewhere.

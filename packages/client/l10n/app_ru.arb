@@ -355,6 +355,14 @@
   "@noBeaconsMessage": {
     "context": "BeaconScreen"
   },
+  "beaconsInvolvedInTitle": "Запросы, к которым я причастен",
+  "@beaconsInvolvedInTitle": {
+    "context": "InvolvedBeaconScreen"
+  },
+  "noInvolvedBeaconsMessage": "Здесь появятся запросы, которые этот человек перешлёт вам",
+  "@noInvolvedBeaconsMessage": {
+    "context": "InvolvedBeaconScreen"
+  },
   "closeBeacon": "Закрыть запрос",
   "@closeBeacon": {
     "context": "BeaconOverflowMenu"
@@ -850,6 +858,10 @@
   },
   "showBeacons": "Показать запросы",
   "@showBeacons": {
+    "context": "Profile"
+  },
+  "showBeaconsInvolvedIn": "Запросы, к которым я причастен",
+  "@showBeaconsInvolvedIn": {
     "context": "Profile"
   },
   "profileSharedBeaconsForwardedSection": "Отправлено этому пользователю",

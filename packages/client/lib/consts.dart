@@ -44,6 +44,7 @@ const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
 const kPathBeaconView = '/beacon/view';
 const kPathBeaconViewAll = '/beacon/all';
+const kPathBeaconInvolvedAll = '/beacon/involved';
 const kPathBeaconRoom = '/beacon/room';
 const kPathReviewContributions = '/beacon/review';
 const kPathForwardBeacon = '/forward';

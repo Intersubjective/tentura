@@ -25,6 +25,7 @@ import '../gql/_g/beacon_update.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
+import '../gql/_g/beacons_involved_with_author.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class BeaconRepository {
@@ -65,6 +66,28 @@ class BeaconRepository {
       (b) => b.vars
         ..user_id = profileId
         ..active_states.replace(lifecycleStates)
+        ..offset = offset
+        ..limit = limit,
+    );
+    return _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beacon)
+        .then((v) => v.map((e) => (e as BeaconModel).toEntity()));
+  }
+
+  /// Beacons authored by [authorId] that were ever forwarded to [viewerId]
+  /// (profile "beacons I'm involved in" entry point).
+  Future<Iterable<Beacon>> fetchInvolvedBeacons({
+    required String authorId,
+    required String viewerId,
+    required int offset,
+    int limit = kFetchWindowSize,
+  }) async {
+    final request = GBeaconsInvolvedWithAuthorReq(
+      (b) => b.vars
+        ..user_id = authorId
+        ..viewer_id = viewerId
         ..offset = offset
         ..limit = limit,
     );
