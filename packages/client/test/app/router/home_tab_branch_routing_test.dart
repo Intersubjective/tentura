@@ -113,6 +113,11 @@ void main() {
   late final PageInfo realProfilePage;
   late final PageInfo realBeaconViewPage;
   late final PageInfo realAuthLoginPage;
+  late final PageInfo realGraphPage;
+  late final PageInfo realProfileViewPage;
+  late final PageInfo realItemDiscussionPage;
+  late final PageInfo realInboxRejectedPage;
+  late final PageInfo realNotificationCenterPage;
 
   setUpAll(() {
     realHomePage = HomeRoute.page;
@@ -122,6 +127,11 @@ void main() {
     realProfilePage = ProfileRoute.page;
     realBeaconViewPage = BeaconViewRoute.page;
     realAuthLoginPage = AuthLoginRoute.page;
+    realGraphPage = GraphRoute.page;
+    realProfileViewPage = ProfileViewRoute.page;
+    realItemDiscussionPage = ItemDiscussionRoute.page;
+    realInboxRejectedPage = InboxRejectedRoute.page;
+    realNotificationCenterPage = NotificationCenterRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -144,6 +154,39 @@ void main() {
         );
       },
     );
+    GraphRoute.page = PageInfo(
+      GraphRoute.name,
+      builder: (data) {
+        final focus = data.inheritedPathParams.getString('id', '');
+        return Text('graph:$focus', textDirection: TextDirection.ltr);
+      },
+    );
+    ProfileViewRoute.page = PageInfo(
+      ProfileViewRoute.name,
+      builder: (data) {
+        final id = data.inheritedPathParams.getString('id', '');
+        return Text('profile-view:$id', textDirection: TextDirection.ltr);
+      },
+    );
+    ItemDiscussionRoute.page = PageInfo(
+      ItemDiscussionRoute.name,
+      builder: (data) {
+        final beaconId = data.inheritedPathParams.getString('beaconId', '');
+        final itemId = data.inheritedPathParams.getString('itemId', '');
+        return Text(
+          'item-discussion:$beaconId:$itemId',
+          textDirection: TextDirection.ltr,
+        );
+      },
+    );
+    InboxRejectedRoute.page = _labelPage(
+      InboxRejectedRoute.name,
+      'inbox-rejected',
+    );
+    NotificationCenterRoute.page = _labelPage(
+      NotificationCenterRoute.name,
+      'notification-center',
+    );
   });
 
   tearDownAll(() {
@@ -154,6 +197,11 @@ void main() {
     ProfileRoute.page = realProfilePage;
     BeaconViewRoute.page = realBeaconViewPage;
     AuthLoginRoute.page = realAuthLoginPage;
+    GraphRoute.page = realGraphPage;
+    ProfileViewRoute.page = realProfileViewPage;
+    ItemDiscussionRoute.page = realItemDiscussionPage;
+    InboxRejectedRoute.page = realInboxRejectedPage;
+    NotificationCenterRoute.page = realNotificationCenterPage;
   });
 
   late RootRouter router;
@@ -277,6 +325,32 @@ void main() {
     );
 
     testWidgets(
+      'dispatcher-shaped pushPath (includePrefixMatches: true) lands in the '
+      'active tab branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/profile');
+        expect(find.text('profile-root'), findsOneWidget);
+
+        // ui_effect_dispatcher.dart pushes with includePrefixMatches: true
+        // and swallows failures (the guard rejects the root push after
+        // forwarding into the branch) — mirror that exact call shape.
+        await router.pushPath(
+          '/graph/U2?x=1',
+          includePrefixMatches: true,
+          onFailure: (_) {},
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('graph:U2'), findsOneWidget);
+        expect(currentUrl(), startsWith('/home/profile/graph/U2'));
+        expect(
+          find.byType(_TestHomeShell, skipOffstage: false),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'pushPath of legacy /beacon/view/:id targets the active (non-default) '
       'tab branch',
       (tester) async {
@@ -364,6 +438,218 @@ void main() {
 
         expect(find.text('my-work-root'), findsOneWidget);
         expect(currentUrl(), '/home/work');
+      },
+    );
+  });
+
+  group('Step 2 — remaining browse cluster', () {
+    testWidgets(
+      'restores nested graph view from a full branch URL (browser refresh)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/network/graph/U1');
+
+        expect(find.text('graph:U1'), findsOneWidget);
+        expect(currentUrl(), '/home/network/graph/U1');
+      },
+    );
+
+    testWidgets(
+      'pushPath of legacy /graph/:id (warm, work tab active) lands in the '
+      'work branch, not its semantic-owner (network) branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home');
+        expect(find.text('my-work-root'), findsOneWidget);
+
+        await router.pushPath('/graph/U1');
+        await tester.pumpAndSettle();
+
+        expect(find.text('graph:U1'), findsOneWidget);
+        expect(currentUrl(), '/home/work/graph/U1');
+      },
+    );
+
+    testWidgets(
+      'pushPath of legacy /graph/:id (cold — Home not mounted yet, hit as '
+      'the initial route) falls back to its semantic-owner (network) branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/graph/U1');
+
+        expect(find.text('graph:U1'), findsOneWidget);
+        expect(currentUrl(), '/home/network/graph/U1');
+      },
+    );
+
+    testWidgets(
+      'ProfileViewRoute isMe guard redirects to ProfileRoute inside a branch',
+      (tester) async {
+        // _FakeAuthCubit's currentAccountId is 'U1' — viewing "U1" is self.
+        await pumpRouter(tester, initialPath: '/home/network/profile/view/U1');
+
+        expect(find.text('profile-root'), findsOneWidget);
+        expect(currentUrl(), '/home/profile');
+      },
+    );
+
+    testWidgets(
+      'ProfileViewRoute renders normally for another user inside a branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/network/profile/view/U2');
+
+        expect(find.text('profile-view:U2'), findsOneWidget);
+        expect(currentUrl(), '/home/network/profile/view/U2');
+      },
+    );
+
+    testWidgets(
+      'ItemDiscussionRoute matches before BeaconViewRoute inside a branch',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: '/home/work/beacon/view/B1/discussion/I1',
+        );
+
+        expect(find.text('item-discussion:B1:I1'), findsOneWidget);
+        expect(currentUrl(), '/home/work/beacon/view/B1/discussion/I1');
+      },
+    );
+
+    testWidgets(
+      'pushPath of legacy item-discussion path lands in the active tab branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home');
+
+        await router.pushPath('/beacon/view/B1/discussion/I1');
+        await tester.pumpAndSettle();
+
+        expect(find.text('item-discussion:B1:I1'), findsOneWidget);
+        expect(currentUrl(), '/home/work/beacon/view/B1/discussion/I1');
+      },
+    );
+
+    testWidgets(
+      'restores InboxRejected from a full branch URL (browser refresh)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/inbox/inbox-rejected');
+
+        expect(find.text('inbox-rejected'), findsOneWidget);
+        expect(currentUrl(), '/home/inbox/inbox-rejected');
+      },
+    );
+
+    testWidgets(
+      'restores NotificationCenter from a full branch URL (browser refresh)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/inbox/notifications');
+
+        expect(find.text('notification-center'), findsOneWidget);
+        expect(currentUrl(), '/home/inbox/notifications');
+      },
+    );
+
+    testWidgets(
+      'pushPath of legacy inbox-rejected path targets the active '
+      '(non-default) tab branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/network');
+        expect(find.text('friends-root'), findsOneWidget);
+
+        await router.pushPath('/home/inbox/rejected');
+        await tester.pumpAndSettle();
+
+        expect(find.text('inbox-rejected'), findsOneWidget);
+        expect(currentUrl(), '/home/network/inbox-rejected');
+      },
+    );
+
+    testWidgets(
+      'two consecutive warm detail pushes stack on the branch (no URL '
+      'replace) and back-pop one page at a time',
+      (tester) async {
+        // Regression: the guards previously used `navigate(HomeRoute(...))`
+        // for warm forwards too; auto_route's navigate has replace semantics,
+        // so the second detail swapped the URL in place and browser back
+        // skipped a level (graph1 → profile → graph2, back×2 ≠ graph1).
+        await pumpRouter(tester, initialPath: '/home/profile');
+        expect(find.text('profile-root'), findsOneWidget);
+
+        await router.pushPath('/graph/U5');
+        await tester.pumpAndSettle();
+        expect(find.text('graph:U5'), findsOneWidget);
+        expect(currentUrl(), '/home/profile/graph/U5');
+
+        await router.pushPath('/profile/view/U2');
+        await tester.pumpAndSettle();
+        expect(find.text('profile-view:U2'), findsOneWidget);
+        expect(currentUrl(), '/home/profile/profile/view/U2');
+
+        // The branch stack must hold all three pages — proof the second
+        // detail was pushed, not navigated-over (which would have replaced
+        // the graph entry).
+        final branch = router
+            .innerRouterOf<TabsRouter>(HomeRoute.name)
+            ?.stackRouterOfIndex(3);
+        expect(branch, isNotNull, reason: 'me branch router exists');
+        expect(
+          branch!.stack.length,
+          3,
+          reason: 'branch stack is [profile-root, graph, profile-view]',
+        );
+
+        // Back one level: profile-view → graph.
+        await router.maybePopTop();
+        await tester.pumpAndSettle();
+        expect(find.text('graph:U5'), findsOneWidget);
+        expect(currentUrl(), '/home/profile/graph/U5');
+
+        // Back again: graph → tab root.
+        await router.maybePopTop();
+        await tester.pumpAndSettle();
+        expect(find.text('profile-root'), findsOneWidget);
+        expect(currentUrl(), '/home/profile');
+      },
+    );
+
+    testWidgets(
+      'deepLinkTransformer nests bare browse paths under the active branch '
+      '(single history entry for platform navigations)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/network');
+
+        // Warm: active tab (network) wins over the semantic owner.
+        expect(
+          (await router.deepLinkTransformer(
+            Uri.parse('/profile/view/U2?x=1'),
+          )).toString(),
+          '/home/network/profile/view/U2?x=1',
+        );
+        expect(
+          (await router.deepLinkTransformer(
+            Uri.parse('/beacon/view/B9?tab=room'),
+          )).toString(),
+          '/home/network/beacon/view/B9?tab=room',
+        );
+        // Non-browse paths pass through untouched.
+        for (final path in ['/settings', '/sign/in', '/beacon/new', '/home']) {
+          expect(
+            (await router.deepLinkTransformer(Uri.parse(path))).toString(),
+            path,
+          );
+        }
+      },
+    );
+
+    testWidgets(
+      'cold platform load of a bare browse path lands nested in its '
+      'semantic-owner branch',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: '/profile/view/U2',
+          viaPlatform: true,
+        );
+
+        expect(find.text('profile-view:U2'), findsOneWidget);
+        expect(currentUrl(), '/home/network/profile/view/U2');
       },
     );
   });

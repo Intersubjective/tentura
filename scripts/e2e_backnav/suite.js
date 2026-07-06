@@ -15,16 +15,30 @@ async (page) => {
 
   const EXPECT = {
     railOnBeaconDetail: true, // STEP1+: beacon view lives in a tab branch
-    railOnGraphDetail: false, // STEP2 cohort 2 flips this
+    railOnGraphDetail: true, // STEP2: graph/profile details live in tab branches
     bottomBarOnDetailCompact: false, // frozen: compact hides bottom bar on details
   };
 
   // STEP1+: beacon view is a branch child; cold-start legacy links land in
   // the default MyWork branch, warm pushes in the active tab's branch.
   const BEACON_VIEW_RE = new RegExp(`^#/home/[a-z]+/beacon/view/${BEACON}`);
+  const GRAPH_ME_RE = new RegExp(`^#/home/[a-z]+/graph/${ME}`);
+  const GRAPH_HELPER_RE = new RegExp(`^#/home/[a-z]+/graph/${HELPER}`);
+  const PROFILE_HELPER_RE = new RegExp(`^#/home/[a-z]+/profile/view/${HELPER}`);
 
   const results = [];
   const hash = () => page.evaluate(() => location.hash);
+
+  // The app-cache service worker is cache-first with a fixed CACHE_VERSION,
+  // so a rebuilt bundle is invisible until its caches are dropped. Clear
+  // once per suite run, from an on-origin page.
+  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  await page.evaluate(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  });
   const settle = (ms) => page.waitForTimeout(ms);
 
   async function enableSemantics() {
@@ -117,19 +131,19 @@ async (page) => {
     await boot('#/home/profile', desktop);
     await page.getByRole('button', { name: 'Show Connections' }).first().click();
     await settle(3500);
-    expectMatch(await hash(), new RegExp(`^#/graph/${ME}`), 'graph 1');
+    expectMatch(await hash(), GRAPH_ME_RE, 'graph 1');
     expectEq(await railVisible(), EXPECT.railOnGraphDetail, 'rail on graph');
     await gotoHash(`#/profile/view/${HELPER}`);
-    expectMatch(await hash(), new RegExp(`^#/profile/view/${HELPER}`), 'profile view');
+    expectMatch(await hash(), PROFILE_HELPER_RE, 'profile view');
     await page.getByRole('button', { name: 'Show Connections' }).first().click();
     await settle(3500);
-    expectMatch(await hash(), new RegExp(`^#/graph/${HELPER}`), 'graph 2');
+    expectMatch(await hash(), GRAPH_HELPER_RE, 'graph 2');
     await page.goBack();
     await settle(2000);
-    expectMatch(await hash(), new RegExp(`^#/profile/view/${HELPER}`), 'back to profile');
+    expectMatch(await hash(), PROFILE_HELPER_RE, 'back to profile');
     await page.goBack();
     await settle(2000);
-    expectMatch(await hash(), new RegExp(`^#/graph/${ME}`), 'back to graph 1');
+    expectMatch(await hash(), GRAPH_ME_RE, 'back to graph 1');
     await page.goBack();
     await settle(2000);
     expectEq(await hash(), '#/home/profile', 'back to profile tab');

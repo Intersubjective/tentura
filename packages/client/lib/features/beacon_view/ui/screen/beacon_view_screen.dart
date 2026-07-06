@@ -570,9 +570,29 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   Future<void> _stripRoomFromUrl({bool stripRoomEntry = false}) {
-    return context.router.replacePath(
-      _beaconViewPath(stripRoomEntry: stripRoomEntry),
+    // Drop the room markers from the *current* URL rather than rebuilding a
+    // bare `/beacon/view/:id` path: since beacon view lives inside a home tab
+    // branch (Phase 2), a bare path would re-enter the root redirect guard
+    // and be pushed as a new branch entry — disposing this screen mid-flight
+    // instead of replacing the URL in place.
+    final current = Uri.parse(context.router.root.currentUrl);
+    final q = Map<String, String>.from(current.queryParameters)
+      ..remove(kQueryBeaconViewTab)
+      ..remove(kQueryBeaconSurface);
+    final entryOpensRoom =
+        normalizeBeaconViewEntry(
+          isDeepLink: widget.isDeepLink,
+          rawFromQuery: BeaconViewEntrySourceWire.parseQuery(widget.entry),
+        ) ==
+        BeaconViewEntrySource.roomNotification;
+    if (stripRoomEntry && entryOpensRoom) {
+      q.remove(kQueryBeaconEntry);
+    }
+    final stripped = Uri(
+      path: current.path,
+      queryParameters: q.isEmpty ? null : q,
     );
+    return context.router.root.replacePath(stripped.toString());
   }
 
   void _enterRoomSurface([CoordinationItem? focusItem]) {
