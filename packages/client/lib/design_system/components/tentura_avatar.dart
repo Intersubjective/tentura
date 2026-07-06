@@ -276,7 +276,7 @@ class _Network extends StatelessWidget {
       profile.avatarUrl,
       errorBuilder: (context, error, stackTrace) =>
           ProfileAvatarInitials(lettering: initials, size: size),
-      cacheHeight: cacheSize,
+      // Only one cache dimension: both set would decode to a square and stretch.
       cacheWidth: cacheSize,
       fit: boxFit,
     );
