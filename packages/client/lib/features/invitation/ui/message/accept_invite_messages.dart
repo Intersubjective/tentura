@@ -2,7 +2,6 @@ import 'dart:async' show unawaited;
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
@@ -110,7 +109,7 @@ final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
   @override
   void Function() get onPressed => () {
     unawaited(
-      GetIt.I<RootRouter>().pushPath('$kPathBeaconView/$beaconId'),
+      GetIt.I<RootRouter>().push(BeaconViewRoute(id: beaconId)),
     );
   };
 }

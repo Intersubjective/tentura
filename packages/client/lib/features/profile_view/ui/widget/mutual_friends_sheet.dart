@@ -1,9 +1,8 @@
 import 'dart:async' show unawaited;
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/consts.dart';
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -95,9 +94,8 @@ Future<void> showMutualFriendsSheet(
                             ),
                       onTap: () {
                         final router = context.router;
-                        final path = '$kPathProfileView/${profile.id}';
                         Navigator.of(context).pop();
-                        unawaited(router.pushPath(path));
+                        unawaited(router.push(ProfileViewRoute(id: profile.id)));
                       },
                     );
                   },

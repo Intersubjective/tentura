@@ -1,7 +1,6 @@
 import 'dart:async' show unawaited;
 
 import 'package:get_it/get_it.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
@@ -45,7 +44,7 @@ final class HelpOfferedForwardNudgeMessage extends LocalizableActionMessage {
   @override
   void Function() get onPressed => () {
     unawaited(
-      GetIt.I<RootRouter>().pushPath('$kPathForwardBeacon/$beaconId'),
+      GetIt.I<RootRouter>().push(ForwardBeaconRoute(beaconId: beaconId)),
     );
   };
 }

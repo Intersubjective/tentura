@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/consts.dart';
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
@@ -165,8 +164,8 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
             ReviewBanner(
               isDraftPhase: false,
               margin: EdgeInsets.zero,
-              onPrimary: () => context.router.pushPath(
-                '$kPathReviewContributions/${widget.beaconId}',
+              onPrimary: () => context.router.push(
+                ReviewContributionsRoute(id: widget.beaconId),
               ),
             ),
             if (w.closesAt != null && w.closesAt!.isNotEmpty) ...[

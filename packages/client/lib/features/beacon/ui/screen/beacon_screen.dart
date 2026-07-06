@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -216,11 +216,11 @@ class _BeaconScreenState extends State<BeaconScreen> {
                     child: BeaconTile(
                       key: ValueKey(beacon.id),
                       beacon: beacon,
-                      onOpenBeacon: () => context.router.pushPath(
-                        '$kPathBeaconView/${beacon.id}',
+                      onOpenBeacon: () => context.router.push(
+                        BeaconViewRoute(id: beacon.id),
                       ),
-                      onForward: () => context.router.pushPath(
-                        '$kPathForwardBeacon/${beacon.id}',
+                      onForward: () => context.router.push(
+                        ForwardBeaconRoute(beaconId: beacon.id),
                       ),
                     ),
                   );

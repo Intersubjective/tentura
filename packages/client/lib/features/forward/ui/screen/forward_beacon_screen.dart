@@ -340,8 +340,11 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           children: [
                             ForwardTopBar(
                               titleLine: l10n.forwardBeaconTitle,
-                              closeFallbackPath: widget.beaconId.isNotEmpty
-                                  ? '$kPathBeaconView/${widget.beaconId}?$kQueryBeaconEntry=$kBeaconEntryForward'
+                              closeFallbackRoute: widget.beaconId.isNotEmpty
+                                  ? BeaconViewRoute(
+                                      id: widget.beaconId,
+                                      entry: kBeaconEntryForward,
+                                    )
                                   : null,
                               subtitleLine:
                                   beacon != null && beacon.id.isNotEmpty
