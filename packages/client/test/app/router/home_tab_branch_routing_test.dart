@@ -610,6 +610,24 @@ void main() {
     );
 
     testWidgets(
+      'back at a branch root defers to the platform (backgrounds the app)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/work');
+        expect(find.text('my-work-root'), findsOneWidget);
+
+        // Decided back semantics: with the active branch at its root there
+        // is nothing to pop in-app — maybePopTop must return false so the
+        // system back (Android predictive back / browser history) takes
+        // over and backgrounds/exits the app instead of e.g. snapping to
+        // the initial tab.
+        expect(await router.maybePopTop(), isFalse);
+        await tester.pumpAndSettle();
+        expect(find.text('my-work-root'), findsOneWidget);
+        expect(currentUrl(), '/home/work');
+      },
+    );
+
+    testWidgets(
       'deepLinkTransformer nests bare browse paths under the active branch '
       '(single history entry for platform navigations)',
       (tester) async {
@@ -635,6 +653,26 @@ void main() {
             path,
           );
         }
+      },
+    );
+
+    testWidgets(
+      'notification dest=room link keeps the room entry through the '
+      'branch-prefixed pipeline',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home');
+
+        // Not awaited: the underlying push future completes only when the
+        // pushed page pops.
+        unawaited(
+          router.openFromNotificationLink(
+            'https://app.example/#/shared/view?id=B7&dest=room',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(currentUrl(), contains('/home/work/beacon/view/B7'));
+        expect(currentUrl(), contains('entry=room_notification'));
       },
     );
 

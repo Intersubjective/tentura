@@ -712,6 +712,16 @@ class RootRouter extends RootStackRouter {
   }
 
   /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
+  ///
+  /// Deep-link pipeline (same for platform links and notification taps):
+  /// 1. [_transformDeepLink] normalizes legacy/app-link shapes to canonical
+  ///    paths (credential, invite, `/beacon/:id`, `/shared/view?id=…`);
+  /// 2. [_prefixBrowseBranch] nests bare browse paths under the owning
+  ///    `/home/<tab>` branch ([homeBranchPathPrefixFor]) so they match the
+  ///    nested registration directly with one history entry;
+  /// 3. anything that still arrives bare (in-app `pushPath` from effects)
+  ///    is caught by the root redirect-target guards, which forward into
+  ///    the active branch ([_forwardIntoHomeBranch]).
   Future<void> openFromNotificationLink(String rawLink) async {
     final uri = _notificationUriFromRaw(rawLink);
     if (uri.path.startsWith(kPathReviewContributions)) {
@@ -721,7 +731,11 @@ class RootRouter extends RootStackRouter {
     final destRoom =
         uri.queryParameters['dest'] == 'room' ||
         (uri.path == kPathAppLinkView && uri.queryParameters['dest'] == 'room');
-    var transformed = await deepLinkTransformer(uri);
+    // Normalize only (no branch prefix): the bare path goes through
+    // `pushPath`, whose root redirect-target guard pushes onto the active
+    // branch — one history entry. The branch prefix stage is for
+    // platform-parsed links, where the browser already owns the entry.
+    var transformed = _transformDeepLink(uri);
     if (destRoom && transformed.path.startsWith(kPathBeaconView)) {
       final q = Map<String, String>.from(transformed.queryParameters);
       q[kQueryBeaconEntry] = kBeaconEntryRoomNotification;
