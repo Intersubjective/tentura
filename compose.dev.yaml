@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     hostname: meritrank
     container_name: meritrank
-    image: vbulavintsev/meritrank-service:v0.8.0
+    image: vbulavintsev/meritrank-service:v0.9.0
     networks:
       - backend
     environment:
@@ -88,6 +88,7 @@ services:
       - 'MERITRANK_SERVER_PORT=8080'
       - 'MERITRANK_NUM_WALKS=1000'
       - 'MERITRANK_ZERO_OPINION_FACTOR=0.02'
+      - 'MERITRANK_ALPHA=0.85'
       - 'MERITRANK_WALKS_CACHE_SIZE=200'
 
   postgres:
