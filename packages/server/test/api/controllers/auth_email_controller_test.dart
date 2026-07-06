@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shelf_plus/shelf_plus.dart';
@@ -334,5 +335,167 @@ void main() {
     final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
     expect(body['ok'], true);
     expect(body['attemptId'], startsWith('E'));
+  });
+
+  group('testLogin', () {
+    Request qaRequest(String body) => Request(
+      'POST',
+      Uri.parse('https://dev.tentura.io/api/v2/auth/email/test-login'),
+      body: body,
+      headers: {'content-type': 'application/json'},
+    );
+
+    AuthEmailController buildQaController({
+      required Env qaEnv,
+      required MockUserRepositoryPort userRepo,
+      required MockVerifiedContactRepositoryPort contactRepo,
+    }) {
+      when(
+        userRepo.findCredentialId(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenAnswer((_) async => 'Ccred');
+      final emailAuthCase = _buildEmailAuthCase(
+        env: qaEnv,
+        txRepo: txRepo,
+        userRepo: userRepo,
+        contactRepo: contactRepo,
+      );
+      return AuthEmailController(
+        qaEnv,
+        emailAuthCase,
+        SessionCase(
+          _FakeSessionRepo(),
+          AuthCase(userRepo, env: qaEnv, logger: Logger('AuthEmailControllerTest')),
+          env: qaEnv,
+          logger: Logger('AuthEmailControllerTest'),
+        ),
+      );
+    }
+
+    test('returns 404 when QA simple login is disabled', () async {
+      final disabled = Env(
+        environment: Environment.test,
+        publicOrigin: 'https://dev.tentura.io',
+        qaSimpleLoginMode: false,
+      );
+      final userRepo = MockUserRepositoryPort();
+      final contactRepo = MockVerifiedContactRepositoryPort();
+      final res = await buildQaController(
+        qaEnv: disabled,
+        userRepo: userRepo,
+        contactRepo: contactRepo,
+      ).testLogin(
+        qaRequest('{"email":"u@test.tentura.local"}'),
+      );
+      expect(res.statusCode, 404);
+    });
+
+    test('returns 400 for non-QA email domain', () async {
+      final qaEnv = Env(
+        environment: Environment.test,
+        publicOrigin: 'https://dev.tentura.io',
+        qaSimpleLoginMode: true,
+      );
+      final userRepo = MockUserRepositoryPort();
+      final contactRepo = MockVerifiedContactRepositoryPort();
+      final res = await buildQaController(
+        qaEnv: qaEnv,
+        userRepo: userRepo,
+        contactRepo: contactRepo,
+      ).testLogin(
+        qaRequest('{"email":"u@example.com"}'),
+      );
+      expect(res.statusCode, 400);
+    });
+
+    test('existing account returns session cookie without new=1', () async {
+      final qaEnv = Env(
+        environment: Environment.test,
+        publicOrigin: 'https://dev.tentura.io',
+        qaSimpleLoginMode: true,
+        isNeedInvite: true,
+      );
+      final userRepo = MockUserRepositoryPort();
+      final contactRepo = MockVerifiedContactRepositoryPort();
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: 'u@test.tentura.local',
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Uexist', displayName: 'u'),
+      );
+      when(
+        userRepo.addVerifiedContacts(
+          accountId: anyNamed('accountId'),
+          source: anyNamed('source'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final res = await buildQaController(
+        qaEnv: qaEnv,
+        userRepo: userRepo,
+        contactRepo: contactRepo,
+      ).testLogin(
+        qaRequest('{"email":"u@test.tentura.local"}'),
+      );
+
+      expect(res.statusCode, 200);
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      expect(body['ok'], true);
+      expect(body['immediate'], true);
+      expect(body['isNewAccount'], false);
+      expect(body['redirectUrl'], 'https://dev.tentura.io/');
+      expect(res.headers['set-cookie'], contains(kCookieSessionName));
+    });
+
+    test('new account returns session cookie with new=1', () async {
+      final qaEnv = Env(
+        environment: Environment.test,
+        publicOrigin: 'https://dev.tentura.io',
+        qaSimpleLoginMode: true,
+        isNeedInvite: true,
+      );
+      final userRepo = MockUserRepositoryPort();
+      final contactRepo = MockVerifiedContactRepositoryPort();
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((_) async => {});
+      when(
+        userRepo.createWithCredential(
+          type: anyNamed('type'),
+          identifier: 'u@test.tentura.local',
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Unew', displayName: 'u'),
+      );
+
+      final res = await buildQaController(
+        qaEnv: qaEnv,
+        userRepo: userRepo,
+        contactRepo: contactRepo,
+      ).testLogin(
+        qaRequest('{"email":"u@test.tentura.local"}'),
+      );
+
+      expect(res.statusCode, 200);
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      expect(body['immediate'], true);
+      expect(body['isNewAccount'], true);
+      expect(body['redirectUrl'], contains('signed_in=1'));
+      expect(body['redirectUrl'], contains('new=1'));
+      expect(res.headers['set-cookie'], contains(kCookieSessionName));
+    });
   });
 }

@@ -149,27 +149,55 @@ final class EmailAuthCase extends UseCaseBase {
       return const EmailAuthLinkConfirmed();
     }
 
+    final resolved = await _mintLoginSession(
+      normalizedEmail: tx.normalizedEmail,
+      inviteCode: tx.inviteCode,
+    );
+    await _consumeLast(plaintextToken);
+    return EmailAuthLoginConfirmed(
+      sessionToken: resolved.sessionToken,
+      inviteCode: tx.inviteCode,
+      isNewAccount: resolved.isNewAccount,
+    );
+  }
+
+  /// QA-only immediate sign-in (controller must gate env + domain).
+  Future<({String sessionToken, bool isNewAccount})> qaTestLogin({
+    required String normalizedEmail,
+    String? inviteCode,
+  }) => _mintLoginSession(
+    normalizedEmail: normalizedEmail,
+    inviteCode: inviteCode,
+    bypassInviteForNewAccount: true,
+  );
+
+  Future<({String sessionToken, bool isNewAccount})> _mintLoginSession({
+    required String normalizedEmail,
+    String? inviteCode,
+    bool bypassInviteForNewAccount = false,
+  }) async {
+    final emailContact = AssertedContact.email(
+      rawEmail: normalizedEmail,
+      authoritative: true,
+    )!;
+
     final resolved = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.emailOtp,
-      identifier: tx.normalizedEmail,
-      displayName: displayNameFromEmail(tx.normalizedEmail),
-      inviteId: tx.inviteCode,
+      identifier: normalizedEmail,
+      displayName: displayNameFromEmail(normalizedEmail),
+      inviteId: inviteCode,
       assertedContacts: [emailContact],
+      bypassInviteForNewAccount: bypassInviteForNewAccount,
     );
     final credentialId = await _userRepository.findCredentialId(
       type: CredentialType.emailOtp,
-      identifier: tx.normalizedEmail,
+      identifier: normalizedEmail,
     );
     final sessionToken = await _sessionCase.createSession(
       accountId: resolved.accountId,
       credentialId: credentialId,
     );
-    await _consumeLast(plaintextToken);
-    return EmailAuthLoginConfirmed(
-      sessionToken: sessionToken,
-      inviteCode: tx.inviteCode,
-      isNewAccount: resolved.isNewAccount,
-    );
+    return (sessionToken: sessionToken, isNewAccount: resolved.isNewAccount);
   }
 
   Future<void> _consumeLast(String plaintextToken) async {

@@ -222,3 +222,11 @@ test('main uses location.origin for app CTAs', () => {
   assert.match(mainJs, /`\$\{location\.origin\}\/`/);
   assert.doesNotMatch(mainJs, /APP_BASE|resolveAppBase|addAppPreconnect/);
 });
+
+test('QA test login button is gated on qaTestLogin config', () => {
+  assert.match(mainJs, /const QA_TEST_LOGIN = Boolean\(LANDING_CONFIG\.qaTestLogin\)/);
+  assert.match(mainJs, /function renderQaTestLoginForm/);
+  assert.match(mainJs, /if \(QA_TEST_LOGIN\)/);
+  assert.match(mainJs, /startTestLogin\(/);
+  assert.match(authJs, /\/api\/v2\/auth\/email\/test-login/);
+});

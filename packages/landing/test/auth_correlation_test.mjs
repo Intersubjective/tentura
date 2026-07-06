@@ -16,6 +16,39 @@ test('startEmailMagicLink returns attemptId from JSON', async () => {
   assert.equal(attemptId, 'Eabc1234567890');
 });
 
+test('startTestLogin posts to test-login and returns redirectUrl', async () => {
+  globalThis.window = globalThis;
+  globalThis.TENTURA = { apiBase: '' };
+  let capturedUrl;
+  let capturedInit;
+  globalThis.fetch = async (url, init) => {
+    capturedUrl = url;
+    capturedInit = init;
+    return {
+      ok: true,
+      json: async () => ({
+        ok: true,
+        immediate: true,
+        redirectUrl: 'https://dev.tentura.io/invite/Iabc?signed_in=1',
+        isNewAccount: false,
+      }),
+    };
+  };
+  const { startTestLogin } = await import('../auth.js');
+  const result = await startTestLogin({
+    email: 'u@test.tentura.local',
+    code: 'Iabc',
+  });
+  assert.equal(capturedUrl, '/api/v2/auth/email/test-login');
+  assert.equal(capturedInit.method, 'POST');
+  assert.equal(
+    JSON.parse(capturedInit.body).email,
+    'u@test.tentura.local',
+  );
+  assert.equal(result.redirectUrl, 'https://dev.tentura.io/invite/Iabc?signed_in=1');
+  assert.equal(result.isNewAccount, false);
+});
+
 test('google start URL carries auth_attempt_id in start and returnTo', async () => {
   const { newAttemptId } = await import('../analytics.js');
   const attemptId = newAttemptId('google');

@@ -32,3 +32,29 @@ export async function startEmailMagicLink({ email, code }) {
   const data = await res.json();
   return data?.attemptId ?? null;
 }
+
+/** QA immediate sign-in for allowlisted test domains (dev/staging only). */
+export async function startTestLogin({ email, code }) {
+  const normalized = (email || '').trim().toLowerCase();
+  if (!normalized) throw new EmailLinkError('Please enter your email.');
+  const payload = { email: normalized };
+  if (code) payload.inviteCode = code;
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/v2/auth/email/test-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new EmailLinkError(`Could not reach the server (${e}).`);
+  }
+  if (!res.ok) {
+    throw new EmailLinkError('Test login failed. Check the email domain and try again.');
+  }
+  const data = await res.json();
+  return {
+    redirectUrl: data?.redirectUrl ?? null,
+    isNewAccount: Boolean(data?.isNewAccount),
+  };
+}

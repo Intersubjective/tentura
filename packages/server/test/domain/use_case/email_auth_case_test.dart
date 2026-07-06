@@ -598,4 +598,95 @@ void main() {
       throwsA(isA<EmailAuthTokenAlreadyUsedException>()),
     );
   });
+
+  group('qaTestLogin', () {
+    late Env qaEnv;
+    late EmailAuthCase qaCase;
+
+    setUp(() {
+      qaEnv = Env(
+        environment: Environment.test,
+        isNeedInvite: true,
+        qaSimpleLoginMode: true,
+        publicOrigin: 'https://dev.tentura.io',
+      );
+      final qaCredentialAuthCase = CredentialAuthCase(
+        userRepo,
+        contactRepo,
+        invitationCase,
+        env: qaEnv,
+        logger: Logger('CredentialAuthCaseTest'),
+      );
+      qaCase = EmailAuthCase(
+        txRepo,
+        sender,
+        qaCredentialAuthCase,
+        userRepo,
+        _fakeSessionCase(qaEnv, userRepo),
+        env: qaEnv,
+        logger: Logger('EmailAuthCaseTest'),
+      );
+      sender.lastTo = null;
+      sender.lastVerifyUrl = null;
+    });
+
+    test('mints session for existing user without magic link', () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: 'u@test.tentura.local',
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Uexist', displayName: 'u'),
+      );
+      when(
+        userRepo.addVerifiedContacts(
+          accountId: anyNamed('accountId'),
+          source: anyNamed('source'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final result = await qaCase.qaTestLogin(
+        normalizedEmail: 'u@test.tentura.local',
+      );
+
+      expect(result.sessionToken, 'session-cookie-value');
+      expect(result.isNewAccount, isFalse);
+      expect(sender.lastTo, isNull);
+      expect(sender.lastVerifyUrl, isNull);
+      expect(txRepo.lastTransactionId, isNull);
+    });
+
+    test('creates account for new user on invite-only server', () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((_) async => {});
+      when(
+        userRepo.createWithCredential(
+          type: anyNamed('type'),
+          identifier: 'u@test.tentura.local',
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Unew', displayName: 'u'),
+      );
+
+      final result = await qaCase.qaTestLogin(
+        normalizedEmail: 'u@test.tentura.local',
+      );
+
+      expect(result.sessionToken, 'session-cookie-value');
+      expect(result.isNewAccount, isTrue);
+      expect(sender.lastTo, isNull);
+      expect(txRepo.lastTransactionId, isNull);
+    });
+  });
 }

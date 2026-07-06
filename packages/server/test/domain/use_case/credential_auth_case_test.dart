@@ -160,6 +160,88 @@ void main() {
     );
   });
 
+  test('bypassInviteForNewAccount creates account when QA simple login enabled', () async {
+    final qaEnv = Env(
+      environment: Environment.test,
+      isNeedInvite: true,
+      qaSimpleLoginMode: true,
+    );
+    final qaCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      invitationCase,
+      env: qaEnv,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    when(
+      userRepo.createWithCredential(
+        type: anyNamed('type'),
+        identifier: 'new@test.tentura.local',
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Unew', displayName: 'new'),
+    );
+
+    final resolved = await qaCase.resolveOrCreate(
+      type: CredentialType.emailOtp,
+      identifier: 'new@test.tentura.local',
+      displayName: 'new',
+      bypassInviteForNewAccount: true,
+    );
+
+    expect(resolved.accountId, 'Unew');
+    expect(resolved.isNewAccount, isTrue);
+  });
+
+  test('bypassInviteForNewAccount is ignored in prod', () async {
+    final prodEnv = Env(
+      environment: Environment.prod,
+      isNeedInvite: true,
+      qaSimpleLoginMode: true,
+      serverUri: Uri.parse('https://tentura.io'),
+      publicOrigin: 'https://tentura.io',
+    );
+    final prodCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      invitationCase,
+      env: prodEnv,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+
+    expect(
+      () => prodCase.resolveOrCreate(
+        type: CredentialType.emailOtp,
+        identifier: 'new@test.tentura.local',
+        displayName: 'new',
+        bypassInviteForNewAccount: true,
+      ),
+      throwsA(isA<OidcInviteRequiredException>()),
+    );
+  });
+
   test('email verify links into existing google account by verified contact', () async {
     when(
       userRepo.getByCredential(

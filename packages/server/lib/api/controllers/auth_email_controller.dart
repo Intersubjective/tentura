@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
+import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_base_controller.dart';
 
@@ -52,6 +53,59 @@ final class AuthEmailController extends BaseController {
         kHeaderCacheControl: kCacheControlNoStore,
       },
     );
+  }
+
+  /// `POST /api/v2/auth/email/test-login` — dev/staging QA immediate sign-in.
+  Future<Response> testLogin(Request request) async {
+    if (!env.isQaSimpleLoginEnabled) {
+      return Response.notFound(null);
+    }
+
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+    final email = body['email'] as String? ?? '';
+    final inviteCode = body['inviteCode'] as String?;
+    final normalized = normalizeAuthEmail(email);
+    if (!isValidAuthEmailFormat(normalized) || !env.isQaEmailDomain(normalized)) {
+      return Response.badRequest(body: 'invalid QA email');
+    }
+
+    try {
+      final result = await _emailAuthCase.qaTestLogin(
+        normalizedEmail: normalized,
+        inviteCode: inviteCode,
+      );
+      final redirectUrl = _redirectAfterVerify(
+        inviteCode,
+        isNewAccount: result.isNewAccount,
+      );
+      return Response.ok(
+        jsonEncode({
+          'ok': true,
+          'immediate': true,
+          'redirectUrl': redirectUrl,
+          'isNewAccount': result.isNewAccount,
+        }),
+        headers: withSetCookie(
+          {
+            kHeaderContentType: kContentApplicationJson,
+            kHeaderCacheControl: kCacheControlNoStore,
+          },
+          buildSetCookie(
+            name: _sessionCase.sessionCookieName(),
+            value: result.sessionToken,
+            maxAgeSeconds: _sessionCase.sessionCookieMaxAge().inSeconds,
+          ),
+        ),
+      );
+    } catch (e, st) {
+      _log.severe('qa test login failed', e, st);
+      return Response.internalServerError(body: 'test login failed');
+    }
   }
 
   /// `POST /api/v2/auth/email/link/start` (Bearer) — add an email to the

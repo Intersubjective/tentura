@@ -40,6 +40,7 @@ class Env {
     String? emailDebugSinkDir,
     bool? qaAuthEnabled,
     String? qaAuthToken,
+    bool? qaSimpleLoginMode,
     List<String>? qaEmailDomains,
     String? unsubscribeSigningSecret,
     String? genealogyNodeKeySecret,
@@ -143,6 +144,8 @@ class Env {
        qaAuthEnabled =
            qaAuthEnabled ?? _env['QA_AUTH_ENABLED'] == 'true',
        qaAuthToken = qaAuthToken ?? _env['QA_AUTH_TOKEN'] ?? '',
+       qaSimpleLoginMode =
+           qaSimpleLoginMode ?? _env['QA_SIMPLE_LOGIN_MODE'] == 'true',
        qaEmailDomains =
            qaEmailDomains ??
            (_env['QA_EMAIL_DOMAINS'] ??
@@ -418,6 +421,10 @@ class Env {
   /// Shared secret for development/staging-only QA HTTP endpoints.
   final String qaAuthToken;
 
+  /// When true (dev/staging only), exposes `POST /api/v2/auth/email/test-login`
+  /// for allowlisted QA email domains — immediate sign-in without magic link.
+  final bool qaSimpleLoginMode;
+
   /// Domains accepted by the QA email-sink endpoint.
   final List<String> qaEmailDomains;
 
@@ -471,6 +478,9 @@ class Env {
       environment != Environment.prod &&
       qaAuthEnabled &&
       qaAuthToken.isNotEmpty;
+
+  bool get isQaSimpleLoginEnabled =>
+      environment != Environment.prod && qaSimpleLoginMode;
 
   /// Directory used by `/_qa/latest-email` and QA-domain magic-link capture.
   String get qaEmailCaptureDir => emailDebugSinkDir.isNotEmpty

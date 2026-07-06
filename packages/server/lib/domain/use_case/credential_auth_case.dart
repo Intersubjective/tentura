@@ -36,6 +36,7 @@ final class CredentialAuthCase extends UseCaseBase {
     String? inviteId,
     Map<String, Object?>? publicData,
     List<AssertedContact> assertedContacts = const [],
+    bool bypassInviteForNewAccount = false,
   }) async {
     final authoritative = AssertedContact.authoritativeOnly(assertedContacts);
 
@@ -77,6 +78,7 @@ final class CredentialAuthCase extends UseCaseBase {
       inviteId: inviteId,
       publicData: publicData,
       contacts: authoritative,
+      bypassInviteForNewAccount: bypassInviteForNewAccount,
     );
   }
 
@@ -108,9 +110,12 @@ final class CredentialAuthCase extends UseCaseBase {
     required List<AssertedContact> contacts,
     String? inviteId,
     Map<String, Object?>? publicData,
+    bool bypassInviteForNewAccount = false,
   }) async {
     if (inviteId == null || inviteId.isEmpty) {
-      if (env.isNeedInvite) {
+      final mayBypassInvite =
+          bypassInviteForNewAccount && env.isQaSimpleLoginEnabled;
+      if (!mayBypassInvite && env.isNeedInvite) {
         throw const OidcInviteRequiredException();
       }
       try {

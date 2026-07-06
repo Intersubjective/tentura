@@ -1,7 +1,7 @@
 import { initAnalytics, initVisit, track, trackError, setAttemptId, setAccount, newAttemptId } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
 import { parseInviteCode, parseInviteCodeRaw, fetchPreview } from './preview.js';
-import { startEmailMagicLink } from './auth.js';
+import { startEmailMagicLink, startTestLogin } from './auth.js';
 import {
   parseInviteEntryInput,
   invitePathForCode,
@@ -21,6 +21,7 @@ const LANDING_CONFIG = window.TENTURA || {};
 const GOOGLE_ENABLED = Boolean(
   LANDING_CONFIG.googleEnabled && !LANDING_CONFIG.emailOnlyQa,
 );
+const QA_TEST_LOGIN = Boolean(LANDING_CONFIG.qaTestLogin);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
 
 const app = document.getElementById('app');
@@ -229,6 +230,9 @@ function buildSignInOptionItems(inviteCode) {
     el('p', { class: 'section-label' }, 'Sign in'),
     renderEmailMagicLinkForm(),
   ];
+  if (QA_TEST_LOGIN) {
+    items.push(renderQaTestLoginForm(inviteCode));
+  }
   if (env.inApp) {
     items.push(ctaOpenInBrowser());
   } else {
@@ -314,6 +318,9 @@ function renderInviteAuthOptions(inviteCode) {
     el('p', { class: 'section-label' }, 'Get started'),
     renderEmailMagicLinkForm(),
   ];
+  if (QA_TEST_LOGIN) {
+    items.push(renderQaTestLoginForm(inviteCode));
+  }
   if (env.inApp) {
     items.push(ctaOpenInBrowser());
   } else {
@@ -403,6 +410,65 @@ function renderEmailMagicLinkForm() {
       { class: 'hint' },
       'We never confirm whether an account exists for this address.',
     ),
+  );
+}
+
+function renderQaTestLoginForm(inviteCode) {
+  const emailInput = el('input', {
+    class: 'input',
+    type: 'email',
+    id: 'email-qa-test-login',
+    name: 'qa-test-login-identifier',
+    placeholder: 'user@test.tentura.local',
+    autocomplete: 'section-qa-test-login email',
+    inputmode: 'email',
+  });
+  const errorEl = el('p', { class: 'error', role: 'alert' });
+  const submit = el(
+    'button',
+    { class: 'btn btn-secondary', type: 'submit' },
+    'Test login',
+  );
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    errorEl.textContent = '';
+    const label = submit.textContent;
+    submit.disabled = true;
+    submit.textContent = 'Signing in…';
+    track('qa_test_login_clicked');
+    try {
+      const { redirectUrl } = await startTestLogin({
+        email: emailInput.value,
+        code: inviteCode ?? parseInviteCode(),
+      });
+      track('qa_test_login_accepted');
+      if (redirectUrl) {
+        location.assign(redirectUrl);
+        return;
+      }
+      throw new Error('missing redirect');
+    } catch (err) {
+      trackError('qa_test_login_error', err);
+      errorEl.textContent = err.message || 'Test login failed. Try again.';
+      submit.disabled = false;
+      submit.textContent = label;
+    }
+  };
+
+  return el(
+    'form',
+    {
+      class: 'qa-test-login',
+      onsubmit: onSubmit,
+      autocomplete: 'on',
+      'data-lpignore': 'true',
+    },
+    el('p', { class: 'hint' }, 'QA only — immediate sign-in for test email domains.'),
+    el('label', { class: 'field-label', for: 'email-qa-test-login' }, 'Test email'),
+    emailInput,
+    submit,
+    errorEl,
   );
 }
 

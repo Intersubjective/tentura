@@ -159,6 +159,10 @@ class RootRouter {
         _authEmailController.start,
       )
       ..post(
+        '/api/v2/auth/email/test-login',
+        _authEmailController.testLogin,
+      )
+      ..post(
         '/api/v2/auth/email/link/start',
         _authEmailController.linkStart,
         use: _authMiddleware.verifyBearerJwt,
