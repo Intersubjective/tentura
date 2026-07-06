@@ -50,7 +50,7 @@ class _InboxScreenState extends State<InboxScreen> {
   Widget build(BuildContext context) {
     final inboxCubit = context.read<InboxCubit>();
 
-    return DefaultTabController(
+    final screen = DefaultTabController(
       length: 2,
       child: _InboxMovedSnackBarDismisser(
         child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
@@ -216,6 +216,12 @@ class _InboxScreenState extends State<InboxScreen> {
         ),
       ),
     );
+    // Branch root (no external home_screen.dart wrap anymore): expanded stays
+    // full-bleed for the master/detail pane; other classes get the standalone
+    // centered-column treatment other tab roots use.
+    return context.windowClass == WindowClass.expanded
+        ? screen
+        : TenturaContentColumn(child: screen);
   }
 }
 

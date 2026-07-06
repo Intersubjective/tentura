@@ -13,12 +13,14 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'accept_invite_guard.dart';
 import 'beacon_legacy_path_deep_link.dart';
 import 'credential_link_deep_link.dart';
+import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
 import 'notification_deep_link.dart';
 import 'root_router.gr.dart';
 
 export 'package:auto_route/auto_route.dart';
 
+export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
 
 @singleton
@@ -55,6 +57,12 @@ class RootRouter extends RootStackRouter {
   /// app never shows IntroScreen. Native keeps the Drift-backed intro flag.
   bool get _introPending => !kIsWeb && _settingsCubit.state.introEnabled;
 
+  /// [TabsRouter.activeIndex] for [HomeRoute]'s branches. `null` before the
+  /// shell has mounted a tab (cold start / first deep link) defaults to
+  /// MyWork (index 0) — see [homeTabShellForIndex].
+  int _activeHomeTabIndex() =>
+      innerRouterOf<TabsRouter>(HomeRoute.name)?.activeIndex ?? 0;
+
   @override
   @disposeMethod
   void dispose() {
@@ -76,23 +84,39 @@ class RootRouter extends RootStackRouter {
         // My Work (default home tab)
         AutoRoute(
           initial: true,
-          page: MyWorkRoute.page,
+          page: workTabShell.page,
           path: kPathMyWork.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: MyWorkRoute.page, path: ''),
+            ...browseDetailChildren(),
+          ],
         ),
         // Inbox (tab body only; rejected archive is a root-level full-screen route)
         AutoRoute(
-          page: InboxRoute.page,
+          page: inboxTabShell.page,
           path: kPathInbox.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: InboxRoute.page, path: ''),
+            ...browseDetailChildren(),
+          ],
         ),
         // Network (Friends)
         AutoRoute(
-          page: FriendsRoute.page,
+          page: networkTabShell.page,
           path: kPathNetwork.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: FriendsRoute.page, path: ''),
+            ...browseDetailChildren(),
+          ],
         ),
         // Me (Profile)
         AutoRoute(
-          page: ProfileRoute.page,
+          page: meTabShell.page,
           path: kPathProfile.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: ProfileRoute.page, path: ''),
+            ...browseDetailChildren(),
+          ],
         ),
       ],
       guards: [
@@ -207,7 +231,11 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.redirect((resolver) {
           if (_authCubit.state.isAuthenticated) {
             if (_postJoinNavigationCubit.hasPending) {
-              return const HomeRoute(children: [InboxRoute()]);
+              return HomeRoute(
+                children: [
+                  inboxTabShell(children: [const InboxRoute()]),
+                ],
+              );
             }
             return const ProfileRoute();
           }
@@ -310,11 +338,50 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconView/:beaconId/discussion/:itemId',
     ),
 
-    // Beacon View
+    // Beacon View — root registration only exists as a redirect target: the
+    // real (rendered) registration is nested under each tab branch via
+    // `browseDetailChildren()` above, so a full branch URL resolves there
+    // directly. This entry catches bare `/beacon/view/:id` pushes (all the
+    // legacy pushPath call sites) and forwards them into whichever tab is
+    // currently active. Must use `navigate` — not `AutoRouteGuard.redirect`,
+    // whose `router.push` would mount a second Home shell above the one
+    // already on the stack; `navigate` merges into it instead.
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconViewRoute.page,
       path: '$kPathBeaconView/:id',
+      guards: [
+        AutoRouteGuard.simple((resolver, router) {
+          final id = resolver.route.params.getString('id');
+          final qp = resolver.route.queryParams;
+          unawaited(
+            router.navigate(
+              HomeRoute(
+                children: [
+                  homeTabShellForIndex(_activeHomeTabIndex())(
+                    children: [
+                      BeaconViewRoute(
+                        id: id,
+                        isDeepLink: qp.optString(kQueryIsDeepLink),
+                        viewTab: qp.optString(kQueryBeaconViewTab),
+                        peopleTabAttention: qp.optString(
+                          kQueryBeaconPeopleTabAttention,
+                        ),
+                        surface: qp.optString(kQueryBeaconSurface),
+                        entry: qp.optString(kQueryBeaconEntry),
+                        coordinationItemId: qp.optString(
+                          kQueryCoordinationItemId,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+          resolver.next(false);
+        }),
+      ],
     ),
 
     // Beacon coordination room (V2 chat) — legacy path redirects into unified view.

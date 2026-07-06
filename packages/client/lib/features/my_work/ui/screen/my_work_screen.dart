@@ -50,35 +50,39 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-      listenWhen: (prev, curr) =>
-          prev.myWorkReselectCount != curr.myWorkReselectCount,
-      listener: (context, _) {
-        context.read<MyWorkCubit>()
-          ..setFilter(MyWorkFilter.active)
-          ..setSort(MyWorkSort.recent);
-      },
-      child: Scaffold(
-        backgroundColor: scheme.surface,
-        appBar: InboxStyleAppBar(
-          title: const Row(
-            children: [
-              Expanded(child: _MyWorkFilterMenu()),
-              _MyWorkSortButton(),
+    return TenturaContentColumn(
+      child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+        listenWhen: (prev, curr) =>
+            prev.myWorkReselectCount != curr.myWorkReselectCount,
+        listener: (context, _) {
+          context.read<MyWorkCubit>()
+            ..setFilter(MyWorkFilter.active)
+            ..setSort(MyWorkSort.recent);
+        },
+        child: Scaffold(
+          backgroundColor: scheme.surface,
+          appBar: InboxStyleAppBar(
+            title: const Row(
+              children: [
+                Expanded(child: _MyWorkFilterMenu()),
+                _MyWorkSortButton(),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: l10n.newBeacon,
+                onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+                icon: const Icon(Icons.add),
+              ),
+              const _MyWorkOverflowMenu(),
             ],
           ),
-          actions: [
-            IconButton(
-              tooltip: l10n.newBeacon,
-              onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
-              icon: const Icon(Icons.add),
+          body: SafeArea(
+            minimum: EdgeInsets.symmetric(
+              horizontal: context.tt.screenHPadding,
             ),
-            const _MyWorkOverflowMenu(),
-          ],
-        ),
-        body: SafeArea(
-          minimum: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
-          child: const TenturaContentColumn(child: _MyWorkBody()),
+            child: const TenturaContentColumn(child: _MyWorkBody()),
+          ),
         ),
       ),
     );

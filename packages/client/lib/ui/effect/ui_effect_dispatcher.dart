@@ -43,7 +43,11 @@ void dispatchUiEffect(
         case NavigateReplaceTarget.homeInboxTab:
           unawaited(
             router.replaceAll([
-              const HomeRoute(children: [InboxRoute()]),
+              HomeRoute(
+                children: [
+                  inboxTabShell(children: [const InboxRoute()]),
+                ],
+              ),
             ]),
           );
         case NavigateReplaceTarget.authLogin:
