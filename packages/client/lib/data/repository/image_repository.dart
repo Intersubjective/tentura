@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:injectable/injectable.dart';
@@ -10,6 +11,9 @@ import 'package:tentura/domain/entity/image_picked.dart';
 
 import 'read_blob_url_stub.dart'
     if (dart.library.js_interop) 'read_blob_url_web.dart';
+import 'write_crop_source_stub.dart'
+    if (dart.library.js_interop) 'write_crop_source_web.dart'
+    if (dart.library.io) 'write_crop_source_io.dart';
 
 /// Output name for cropped avatar bytes (always JPEG from ImageCropper).
 const _kCroppedAvatarFileName = 'avatar_crop.jpg';
@@ -41,8 +45,36 @@ class ImageRepository {
     );
     if (xFile == null) return null;
 
+    return _cropSourcePath(xFile.path, cropUiSettings);
+  }
+
+  /// Open the crop UI for existing image bytes (e.g. current profile photo).
+  Future<ImagePicked?> cropImageBytes(
+    Uint8List bytes,
+    List<PlatformUiSettings> cropUiSettings,
+  ) async {
+    final sourcePath = await writeCropSourceBytes(bytes);
+    try {
+      return await _cropSourcePath(sourcePath, cropUiSettings);
+    } finally {
+      await disposeCropSourcePath(sourcePath);
+    }
+  }
+
+  Future<Uint8List> fetchImageBytes(String url) async {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode != 200) {
+      throw FormatException('Failed to load image (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
+  Future<ImagePicked?> _cropSourcePath(
+    String sourcePath,
+    List<PlatformUiSettings> cropUiSettings,
+  ) async {
     final croppedFile = await ImageCropper().cropImage(
-      sourcePath: xFile.path,
+      sourcePath: sourcePath,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       maxWidth: kImageMaxDimension,
       maxHeight: kImageMaxDimension,

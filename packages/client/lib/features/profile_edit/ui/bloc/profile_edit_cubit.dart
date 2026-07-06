@@ -59,12 +59,59 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   void setDescription(String value) => emit(state.copyWith(description: value));
 
   //
-  Future<void> pickImage(List<PlatformUiSettings> cropUiSettings) async {
+  Future<void> uploadImage(List<PlatformUiSettings> cropUiSettings) async {
     if (!isClosed) {
       emit(state.copyWith(status: const StateIsLoading()));
     }
     try {
       final picked = await _imageRepository.pickAndCropImage(cropUiSettings);
+      if (isClosed) {
+        return;
+      }
+      if (picked != null) {
+        emit(
+          state.copyWith(
+            image: picked.toImageEntity(),
+            canDropImage: true,
+            willDropImage: false,
+            status: const StateIsSuccess(),
+          ),
+        );
+      } else {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
+    } catch (e) {
+      if (!isClosed) {
+        _emitSnackError(e);
+      }
+    }
+  }
+
+  //
+  Future<void> cropCurrentImage(List<PlatformUiSettings> cropUiSettings) async {
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsLoading()));
+    }
+    try {
+      final sourceBytes =
+          state.image?.imageBytes ??
+          (state.original.hasAvatar
+              ? await _imageRepository.fetchImageBytes(
+                  state.original.avatarUrl,
+                )
+              : null);
+      if (isClosed) {
+        return;
+      }
+      if (sourceBytes == null) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+        return;
+      }
+
+      final picked = await _imageRepository.cropImageBytes(
+        sourceBytes,
+        cropUiSettings,
+      );
       if (isClosed) {
         return;
       }

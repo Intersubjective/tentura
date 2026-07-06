@@ -52,8 +52,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
     final fieldPadding = EdgeInsets.all(tt.screenHPadding);
     final cubit = context.read<ProfileEditCubit>();
     final cropUiSettings = _avatarCropUiSettings(context, l10n);
-    void pickAvatar() {
-      unawaited(cubit.pickImage(cropUiSettings));
+    void uploadAvatar() {
+      unawaited(cubit.uploadImage(cropUiSettings));
+    }
+
+    void cropAvatar() {
+      unawaited(cubit.cropCurrentImage(cropUiSettings));
     }
 
     return Form(
@@ -137,56 +141,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: state.canDropImage
-                                ? state.hasNoImage
-                                      // Current server avatar: change + remove
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton.filledTonal(
-                                              style: overlayIconStyle,
-                                              tooltip: l10n.buttonRemove,
-                                              icon: const Icon(
-                                                Icons.highlight_remove_outlined,
-                                              ),
-                                              onPressed: state.isLoading
-                                                  ? null
-                                                  : cubit.clearImage,
-                                            ),
-                                            IconButton.filledTonal(
-                                              style: overlayIconStyle,
-                                              tooltip: l10n.titleCropAvatar,
-                                              icon: const Icon(
-                                                Icons.edit_outlined,
-                                              ),
-                                              onPressed: state.isLoading
-                                                  ? null
-                                                  : pickAvatar,
-                                            ),
-                                          ],
-                                        )
-                                      // New pick in memory: remove draft only
-                                      : IconButton.filledTonal(
-                                          style: overlayIconStyle,
-                                          tooltip: l10n.buttonRemove,
-                                          icon: const Icon(
-                                            Icons.highlight_remove_outlined,
-                                          ),
-                                          onPressed: state.isLoading
-                                              ? null
-                                              : cubit.clearImage,
-                                        )
-                                // No avatar yet: pick first picture
-                                : IconButton.filledTonal(
-                                    style: overlayIconStyle,
-                                    tooltip: l10n.titleCropAvatar,
-                                    icon: const Icon(
-                                      Icons.add_a_photo_outlined,
-                                    ),
-                                    onPressed: state.isLoading
-                                        ? null
-                                        : pickAvatar,
-                                  ),
+                            child: _ProfileAvatarActions(
+                              canRemove:
+                                  state.canDropImage || state.hasImage,
+                              canCrop:
+                                  state.hasImage ||
+                                  (state.canDropImage &&
+                                      state.hasNoImage &&
+                                      cubit.state.original.hasAvatar),
+                              overlayIconStyle: overlayIconStyle,
+                              isLoading: state.isLoading,
+                              onRemove: cubit.clearImage,
+                              onCrop: cropAvatar,
+                              onUpload: uploadAvatar,
+                              removeTooltip: l10n.buttonRemove,
+                              cropTooltip: l10n.titleCropAvatar,
+                              uploadTooltip: l10n.titleUploadProfilePhoto,
+                            ),
                           ),
                         ],
                       );
@@ -280,6 +251,70 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ProfileAvatarActions extends StatelessWidget {
+  const _ProfileAvatarActions({
+    required this.canRemove,
+    required this.canCrop,
+    required this.overlayIconStyle,
+    required this.isLoading,
+    required this.onRemove,
+    required this.onCrop,
+    required this.onUpload,
+    required this.removeTooltip,
+    required this.cropTooltip,
+    required this.uploadTooltip,
+  });
+
+  final bool canRemove;
+  final bool canCrop;
+  final ButtonStyle overlayIconStyle;
+  final bool isLoading;
+  final VoidCallback onRemove;
+  final VoidCallback onCrop;
+  final VoidCallback onUpload;
+  final String removeTooltip;
+  final String cropTooltip;
+  final String uploadTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canRemove && !canCrop) {
+      return IconButton.filledTonal(
+        style: overlayIconStyle,
+        tooltip: uploadTooltip,
+        icon: const Icon(Icons.add_a_photo_outlined),
+        onPressed: isLoading ? null : onUpload,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (canRemove)
+          IconButton.filledTonal(
+            style: overlayIconStyle,
+            tooltip: removeTooltip,
+            icon: const Icon(Icons.highlight_remove_outlined),
+            onPressed: isLoading ? null : onRemove,
+          ),
+        if (canCrop)
+          IconButton.filledTonal(
+            style: overlayIconStyle,
+            tooltip: cropTooltip,
+            icon: const Icon(Icons.crop_outlined),
+            onPressed: isLoading ? null : onCrop,
+          ),
+        IconButton.filledTonal(
+          style: overlayIconStyle,
+          tooltip: uploadTooltip,
+          icon: const Icon(Icons.add_a_photo_outlined),
+          onPressed: isLoading ? null : onUpload,
+        ),
+      ],
     );
   }
 }

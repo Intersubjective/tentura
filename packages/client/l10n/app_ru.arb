@@ -151,6 +151,10 @@
   "@titleCropAvatar": {
     "context": "Utils"
   },
+  "titleUploadProfilePhoto": "Загрузить фото профиля",
+  "@titleUploadProfilePhoto": {
+    "context": "Utils"
+  },
   "cropRotateLeftTooltip": "Повернуть против часовой стрелки",
   "@cropRotateLeftTooltip": {
     "context": "Utils"
