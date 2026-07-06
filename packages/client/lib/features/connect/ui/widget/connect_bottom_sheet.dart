@@ -5,6 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/qr_scan_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -80,6 +81,7 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
                     ],
                   ),
               decoration: const InputDecoration(filled: true),
+              inputFormatters: const [EntityIdInputFormatter()],
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               textAlign: TextAlign.center,
               maxLength: kIdLength,

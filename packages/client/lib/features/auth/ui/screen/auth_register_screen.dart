@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +11,7 @@ import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -163,8 +163,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                     maxLength: kIdLength,
                     keyboardType: TextInputType.text,
                     style: _textTheme.headlineLarge,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(kInvitationCodeRegExp),
+                    inputFormatters: const [
+                      InviteCodeInputFormatter(),
                     ],
                     validator: (text) => invitationCodeValidator(_l10n, text),
                     onTapOutside: (_) => FocusScope.of(context).unfocus(),

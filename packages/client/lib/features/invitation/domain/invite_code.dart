@@ -10,7 +10,10 @@ String normalizeInviteCode(String raw) {
   return code;
 }
 
-bool isValidInviteCode(String code) => kInvitationCodeRegExp.hasMatch(code);
+bool isValidInviteCode(String code) {
+  final match = kInvitationCodeRegExp.firstMatch(code);
+  return match != null && match.start == 0 && match.end == code.length;
+}
 
 /// True when [raw] ends with `-` after trim (helps explain a common paste typo).
 bool inviteCodeHadTrailingDash(String raw) => raw.trim().endsWith('-');
@@ -32,7 +35,13 @@ String? extractInviteCodeFromText(String text, {String prefix = ''}) {
 
   final pathMatch = _invitePathInText.firstMatch(trimmed);
   if (pathMatch != null) {
-    final fromUrl = normalizeInviteCode(pathMatch.group(1)!);
+    String segment;
+    try {
+      segment = Uri.decodeComponent(pathMatch.group(1)!);
+    } catch (_) {
+      return null;
+    }
+    final fromUrl = normalizeInviteCode(segment.split(RegExp('[?#]')).first);
     if (fromUrl.startsWith(prefix) && isValidInviteCode(fromUrl)) {
       return fromUrl;
     }

@@ -37,6 +37,22 @@ void main() {
     test('rejects non-invite text', () {
       expect(extractInviteCodeFromText('not-an-invite', prefix: 'I'), isNull);
     });
+
+    test('extracts code from full URL without prefix', () {
+      expect(
+        extractInviteCodeFromText(
+          'https://dev.tentura.io/invite/I806d29daebbe',
+        ),
+        'I806d29daebbe',
+      );
+    });
+
+    test('does not treat URL substring as direct code', () {
+      expect(
+        isValidInviteCode('https://dev.tentura.io/invite/I806d29daebbe'),
+        isFalse,
+      );
+    });
   });
 
   group('inviteCodeHadTrailingDash', () {
