@@ -6,6 +6,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 
 class ProfileBody extends StatelessWidget {
   const ProfileBody({
@@ -29,9 +30,17 @@ class ProfileBody extends StatelessWidget {
         children: [
           // Avatar
           Center(
-            child: SelfAwareAvatar.big(
-              profile: profile,
-            ),
+            child: profile.hasAvatar
+                ? GestureDetector(
+                    onTap: () =>
+                        openProfileAvatarFullscreen(context, profile),
+                    child: SelfAwareAvatar.big(
+                      profile: profile,
+                    ),
+                  )
+                : SelfAwareAvatar.big(
+                    profile: profile,
+                  ),
           ),
 
           // Description

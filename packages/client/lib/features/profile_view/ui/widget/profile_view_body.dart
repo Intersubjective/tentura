@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
@@ -33,10 +34,19 @@ class ProfileViewBody extends StatelessWidget {
           children: [
             // Avatar
             Center(
-              child: TenturaAvatar.big(
-                profile: profile,
-                withContactBadge: true,
-              ),
+              child: profile.hasAvatar
+                  ? GestureDetector(
+                      onTap: () =>
+                          openProfileAvatarFullscreen(context, profile),
+                      child: TenturaAvatar.big(
+                        profile: profile,
+                        withContactBadge: true,
+                      ),
+                    )
+                  : TenturaAvatar.big(
+                      profile: profile,
+                      withContactBadge: true,
+                    ),
             ),
 
             // Description
