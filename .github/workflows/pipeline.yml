@@ -284,6 +284,7 @@ jobs:
         env:
           LANDING_SENTRY_DSN: ${{ vars.LANDING_SENTRY_DSN }}
           LANDING_GOOGLE_ENABLED: ${{ vars.LANDING_GOOGLE_ENABLED }}
+          LANDING_QA_TEST_LOGIN: ${{ vars.LANDING_QA_TEST_LOGIN }}
         run: |
           set -euo pipefail
           if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
@@ -293,6 +294,9 @@ jobs:
           sed -i "s|sentryRelease: ''|sentryRelease: 'landing@${{ steps.versions.outputs.server_version }}'|" packages/landing/config.js
           if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
             sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
+          fi
+          if [ "${LANDING_QA_TEST_LOGIN:-true}" = "true" ]; then
+            sed -i 's|qaTestLogin: false|qaTestLogin: true|' packages/landing/config.js
           fi
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \

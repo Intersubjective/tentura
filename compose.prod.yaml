@@ -144,6 +144,7 @@ services:
       - QA_AUTH_ENABLED
       - QA_AUTH_TOKEN
       - QA_EMAIL_DOMAINS
+      - QA_SIMPLE_LOGIN_MODE
       - SESSION_EXPIRES_IN
       - S3_ACCESS_KEY
       - S3_SECRET_KEY
