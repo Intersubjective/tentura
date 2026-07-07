@@ -269,12 +269,16 @@ class EvaluationRepository {
           .then(
             (r) {
               final result = r.dataOrThrow(label: _label).beaconClose;
+              // The V2 `beaconClose` resolver returns only id/status/closesAt;
+              // it signals a committer-count branch conflict by throwing
+              // `closeBranchConflict` (surfaced as a retryable error), never via
+              // a `branchMismatch` field. Selecting fields the server does not
+              // return makes Ferry fail to build the (non-nullable) response and
+              // hang the whole transition — see issue #74.
               return BeaconCloseResult(
                 beaconId: result.id,
                 state: result.status,
                 closesAt: result.closesAt,
-                requiresReviewWindow: result.requiresReviewWindow,
-                branchMismatch: result.branchMismatch,
               );
             },
           );
