@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -105,11 +105,14 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                           beaconActivityEpochMs:
                               item.newStuffBeaconOnlyActivityEpochMs,
                         ),
-                        onOpenBeacon: () => context.router.pushPath(
-                          '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                        onOpenBeacon: () => context.router.push(
+                          BeaconViewRoute(
+                            id: item.beaconId,
+                            entry: kBeaconEntryInbox,
+                          ),
                         ),
-                        onTap: () => context.router.pushPath(
-                          '$kPathForwardBeacon/${item.beaconId}',
+                        onTap: () => context.router.push(
+                          ForwardBeaconRoute(beaconId: item.beaconId),
                         ),
                         onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
                         showCtaRow: false,

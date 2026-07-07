@@ -50,7 +50,7 @@ class _InboxScreenState extends State<InboxScreen> {
   Widget build(BuildContext context) {
     final inboxCubit = context.read<InboxCubit>();
 
-    return DefaultTabController(
+    final screen = DefaultTabController(
       length: 2,
       child: _InboxMovedSnackBarDismisser(
         child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
@@ -184,8 +184,9 @@ class _InboxScreenState extends State<InboxScreen> {
                       IconButton(
                         icon: const Icon(Icons.notifications_none_outlined),
                         tooltip: l10n.notifications,
-                        onPressed: () =>
-                            context.router.pushPath(kPathNotifications),
+                        onPressed: () => context.router.push(
+                          const NotificationCenterRoute(),
+                        ),
                       ),
                       const _InboxOverflowMenu(),
                     ],
@@ -216,6 +217,12 @@ class _InboxScreenState extends State<InboxScreen> {
         ),
       ),
     );
+    // Branch root (no external home_screen.dart wrap anymore): expanded stays
+    // full-bleed for the master/detail pane; other classes get the standalone
+    // centered-column treatment other tab roots use.
+    return context.windowClass == WindowClass.expanded
+        ? screen
+        : TenturaContentColumn(child: screen);
   }
 }
 
@@ -328,8 +335,8 @@ class _InboxExpandedPreview extends StatelessWidget {
                   beaconActivityEpochMs:
                       selected.newStuffBeaconOnlyActivityEpochMs,
                 ),
-                onOpenBeacon: () => context.router.pushPath(
-                  '$kPathBeaconView/${selected.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                onOpenBeacon: () => context.router.push(
+                  BeaconViewRoute(id: selected.beaconId, entry: kBeaconEntryInbox),
                 ),
                 onTap: () => unawaited(_onForwardItem(context, selected)),
                 onWatch: watchingTab
@@ -787,8 +794,8 @@ Widget _needsMeTabBody(
               return InboxTombstoneCard(
                 key: ValueKey('tombstone-${item.beaconId}'),
                 item: item,
-                onOpen: () => context.router.pushPath(
-                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                onOpen: () => context.router.push(
+                  BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),
                 ),
                 onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
               );
@@ -811,8 +818,11 @@ Widget _needsMeTabBody(
                   beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
                 ),
                 onOpenBeacon: onSelectItem == null
-                    ? () => context.router.pushPath(
-                        '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+                    ? () => context.router.push(
+                        BeaconViewRoute(
+                          id: item.beaconId,
+                          entry: kBeaconEntryInbox,
+                        ),
                       )
                     : () => onSelectItem(item),
                 onTap: () => unawaited(_onForwardItem(context, item)),
@@ -905,8 +915,8 @@ Widget _watchingTabBody(
             beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
           ),
           onOpenBeacon: onSelectItem == null
-              ? () => context.router.pushPath(
-                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
+              ? () => context.router.push(
+                  BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),
                 )
               : () => onSelectItem(item),
           onTap: () => unawaited(_onForwardItem(context, item)),
@@ -939,7 +949,7 @@ Widget _watchingTabBody(
 /// Pushes full-screen rejected archive, then refreshes the tab inbox when popped.
 Future<void> openInboxRejectedArchive(BuildContext context) async {
   final cubit = context.read<InboxCubit>();
-  await context.router.pushPath(kPathInboxRejected);
+  await context.router.push(const InboxRejectedRoute());
   if (!context.mounted) return;
   await cubit.fetch();
 }

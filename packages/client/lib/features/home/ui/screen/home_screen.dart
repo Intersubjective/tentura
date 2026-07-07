@@ -24,11 +24,20 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
   static final _homeTabRoutes = [
-    const MyWorkRoute(),
-    const InboxRoute(),
-    FriendsRoute(),
-    const ProfileRoute(),
+    workTabShell(),
+    inboxTabShell(),
+    networkTabShell(),
+    meTabShell(),
   ];
+
+  /// Keeps the home shell subtree (and its [AutoTabsRouter] state) alive when
+  /// [wrappedRoute] reparents it after the account id arrives. Without this
+  /// the tabs router is disposed and rebuilt from the bare tab roots —
+  /// `TabsRouter.setupRoutes` has already consumed `pendingChildren`, so any
+  /// pushed branch detail (e.g. a deep-linked beacon view) is silently
+  /// dropped and the URL snaps back to the tab root.
+  /// Covered by `test/app/router/home_tab_branch_routing_test.dart`.
+  static final _shellSubtreeKey = GlobalKey(debugLabel: 'HomeShellSubtree');
 
   @override
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
@@ -41,11 +50,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       bloc: GetIt.I<AuthCubit>(),
       selector: (state) => state.currentAccountId,
       builder: (_, accountId) {
-        if (accountId.isEmpty) return this;
+        final home = KeyedSubtree(key: _shellSubtreeKey, child: this);
+        if (accountId.isEmpty) return home;
         return BlocProvider(
           key: ValueKey(accountId),
           create: (_) => InboxCubit(userId: accountId),
-          child: InboxNeedsMeReporter(child: this),
+          child: InboxNeedsMeReporter(child: home),
         );
       },
     ),
@@ -59,6 +69,11 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     final prev = tabsRouter.activeIndex;
     tabsRouter.setActiveIndex(index);
     if (index == prev) {
+      // Reselecting the already-active tab jumps straight back to its root
+      // page (e.g. the My Work list) instead of requiring repeated back-taps
+      // out of a pushed detail. `popUntilRoot` pops the branch's Navigator
+      // directly, bypassing any `PopScope.canPop=false` a pushed detail sets.
+      tabsRouter.stackRouterOfIndex(index)?.popUntilRoot();
       final reselect = context.read<HomeTabReselectCubit>();
       if (index == 0) {
         reselect.bumpMyWorkReselect();
@@ -90,122 +105,149 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           transitionBuilder: (context, child, animation) => child,
           builder: (context, child) {
             final tabsRouter = context.tabsRouter;
-            final tabContent = HomePostJoinListener(
+            final content = HomePostJoinListener(
               tabsRouter: tabsRouter,
               child: child,
             );
-            final content =
-                tabsRouter.activeIndex == 1 &&
-                    windowClass == WindowClass.expanded
-                ? tabContent
-                : TenturaContentColumn(child: tabContent);
-            if (useSideNav) {
-              final extendedRail = windowClass == WindowClass.expanded;
-              return Scaffold(
-                resizeToAvoidBottomInset: false,
-                body: HomeBottomNavListener(
-                  tabsRouter: tabsRouter,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      NavigationRail(
-                        extended: extendedRail,
-                        selectedIndex: tabsRouter.activeIndex,
-                        onDestinationSelected: (index) =>
-                            _onDestinationSelected(
-                              context,
-                              tabsRouter,
-                              index,
-                            ),
-                        labelType: extendedRail
-                            ? NavigationRailLabelType.none
-                            : NavigationRailLabelType.all,
-                        destinations: [
-                          NavigationRailDestination(
-                            icon: const MyWorkNavbarItem(),
-                            selectedIcon: const MyWorkNavbarItem(
-                              selected: true,
-                            ),
-                            label: Text(l10n.myWork),
-                          ),
-                          NavigationRailDestination(
-                            icon: const InboxNavbarItem(),
-                            selectedIcon: const InboxNavbarItem(
-                              selected: true,
-                            ),
-                            label: Text(l10n.inbox),
-                          ),
-                          NavigationRailDestination(
-                            icon: const FriendsNavbarItem(),
-                            selectedIcon: const FriendsNavbarItem(
-                              selected: true,
-                            ),
-                            label: Text(l10n.network),
-                          ),
-                          NavigationRailDestination(
-                            icon: Tooltip(
-                              message: profileTooltipLabel,
-                              child: const ProfileNavBarItem(),
-                            ),
-                            selectedIcon: Tooltip(
-                              message: profileTooltipLabel,
-                              child: const ProfileNavBarItem(
-                                selected: true,
-                              ),
-                            ),
-                            label: Text(l10n.profile),
-                          ),
-                        ],
-                      ),
-                      const TenturaVerticalHairline(),
-                      Expanded(child: content),
-                    ],
-                  ),
-                ),
-              );
-            }
-            return Scaffold(
-              resizeToAvoidBottomInset: false,
-              body: content,
-              bottomNavigationBar: HomeBottomNavListener(
+            return ListenableBuilder(
+              // Rebuild on every navigation: branch-internal pushes don't
+              // notify the TabsRouter, but chrome below derives from the
+              // active branch's stack depth.
+              listenable: context.router.root.navigationHistory,
+              builder: (context, _) => _buildChrome(
+                context,
+                l10n: l10n,
+                profileTooltipLabel: profileTooltipLabel,
+                windowClass: windowClass,
+                useSideNav: useSideNav,
                 tabsRouter: tabsRouter,
-                child: NavigationBar(
-                  onDestinationSelected: (index) =>
-                      _onDestinationSelected(context, tabsRouter, index),
-                  selectedIndex: tabsRouter.activeIndex,
-                  destinations: [
-                    NavigationDestination(
-                      icon: const MyWorkNavbarItem(),
-                      selectedIcon: const MyWorkNavbarItem(selected: true),
-                      label: l10n.myWork,
-                    ),
-                    NavigationDestination(
-                      icon: const InboxNavbarItem(),
-                      selectedIcon: const InboxNavbarItem(selected: true),
-                      label: l10n.inbox,
-                    ),
-                    NavigationDestination(
-                      icon: const FriendsNavbarItem(),
-                      selectedIcon: const FriendsNavbarItem(
-                        selected: true,
-                      ),
-                      label: l10n.network,
-                    ),
-                    NavigationDestination(
-                      icon: const ProfileNavBarItem(),
-                      selectedIcon: const ProfileNavBarItem(
-                        selected: true,
-                      ),
-                      label: l10n.profile,
-                      tooltip: profileTooltipLabel,
-                    ),
-                  ],
-                ),
+                content: content,
               ),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildChrome(
+    BuildContext context, {
+    required L10n l10n,
+    required String profileTooltipLabel,
+    required WindowClass windowClass,
+    required bool useSideNav,
+    required TabsRouter tabsRouter,
+    required Widget content,
+  }) {
+    if (useSideNav) {
+      final extendedRail = windowClass == WindowClass.expanded;
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: HomeBottomNavListener(
+          tabsRouter: tabsRouter,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              NavigationRail(
+                extended: extendedRail,
+                selectedIndex: tabsRouter.activeIndex,
+                onDestinationSelected: (index) => _onDestinationSelected(
+                  context,
+                  tabsRouter,
+                  index,
+                ),
+                labelType: extendedRail
+                    ? NavigationRailLabelType.none
+                    : NavigationRailLabelType.all,
+                destinations: [
+                  NavigationRailDestination(
+                    icon: const MyWorkNavbarItem(),
+                    selectedIcon: const MyWorkNavbarItem(
+                      selected: true,
+                    ),
+                    label: Text(l10n.myWork),
+                  ),
+                  NavigationRailDestination(
+                    icon: const InboxNavbarItem(),
+                    selectedIcon: const InboxNavbarItem(
+                      selected: true,
+                    ),
+                    label: Text(l10n.inbox),
+                  ),
+                  NavigationRailDestination(
+                    icon: const FriendsNavbarItem(),
+                    selectedIcon: const FriendsNavbarItem(
+                      selected: true,
+                    ),
+                    label: Text(l10n.network),
+                  ),
+                  NavigationRailDestination(
+                    icon: Tooltip(
+                      message: profileTooltipLabel,
+                      child: const ProfileNavBarItem(),
+                    ),
+                    selectedIcon: Tooltip(
+                      message: profileTooltipLabel,
+                      child: const ProfileNavBarItem(
+                        selected: true,
+                      ),
+                    ),
+                    label: Text(l10n.profile),
+                  ),
+                ],
+              ),
+              const TenturaVerticalHairline(),
+              Expanded(child: content),
+            ],
+          ),
+        ),
+      );
+    }
+    // Compact keeps details full-screen (frozen pre-Phase-2 behavior):
+    // hide the bottom bar while the active branch shows a pushed detail.
+    // The listener stays mounted on the body so tab-index sync survives.
+    final activeBranch = tabsRouter.stackRouterOfIndex(tabsRouter.activeIndex);
+    final branchShowsDetail = (activeBranch?.stackData.length ?? 1) > 1;
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: HomeBottomNavListener(
+        tabsRouter: tabsRouter,
+        child: content,
+      ),
+      bottomNavigationBar: branchShowsDetail
+          ? null
+          : NavigationBar(
+              onDestinationSelected: (index) =>
+                  _onDestinationSelected(context, tabsRouter, index),
+              selectedIndex: tabsRouter.activeIndex,
+              destinations: [
+                NavigationDestination(
+                  icon: const MyWorkNavbarItem(),
+                  selectedIcon: const MyWorkNavbarItem(selected: true),
+                  label: l10n.myWork,
+                ),
+                NavigationDestination(
+                  icon: const InboxNavbarItem(),
+                  selectedIcon: const InboxNavbarItem(selected: true),
+                  label: l10n.inbox,
+                ),
+                NavigationDestination(
+                  icon: const FriendsNavbarItem(),
+                  selectedIcon: const FriendsNavbarItem(
+                    selected: true,
+                  ),
+                  label: l10n.network,
+                ),
+                NavigationDestination(
+                  icon: const ProfileNavBarItem(),
+                  selectedIcon: const ProfileNavBarItem(
+                    selected: true,
+                  ),
+                  label: l10n.profile,
+                  tooltip: profileTooltipLabel,
+                ),
+              ],
+            ),
     );
   }
 }

@@ -11,7 +11,7 @@ class ForwardTopBar extends StatelessWidget {
   const ForwardTopBar({
     required this.titleLine,
     required this.subtitleLine,
-    this.closeFallbackPath,
+    this.closeFallbackRoute,
     this.onSearchPressed,
     this.onFilterPressed,
     this.searchTooltip,
@@ -23,7 +23,7 @@ class ForwardTopBar extends StatelessWidget {
   final String subtitleLine;
 
   /// When the route stack cannot pop (e.g. web refresh), navigate here on close.
-  final String? closeFallbackPath;
+  final PageRouteInfo<dynamic>? closeFallbackRoute;
   final VoidCallback? onSearchPressed;
   final VoidCallback? onFilterPressed;
   final String? searchTooltip;
@@ -48,8 +48,8 @@ class ForwardTopBar extends StatelessWidget {
               final router = context.router;
               if (router.canPop()) {
                 unawaited(router.maybePop());
-              } else if (closeFallbackPath != null) {
-                unawaited(router.navigatePath(closeFallbackPath!));
+              } else if (closeFallbackRoute != null) {
+                unawaited(router.navigate(closeFallbackRoute!));
               }
             },
           ),

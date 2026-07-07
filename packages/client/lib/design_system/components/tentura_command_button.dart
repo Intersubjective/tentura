@@ -44,9 +44,12 @@ class TenturaCommandButton extends StatelessWidget {
                   child: icon!,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TenturaText.command(color),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TenturaText.command(color),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

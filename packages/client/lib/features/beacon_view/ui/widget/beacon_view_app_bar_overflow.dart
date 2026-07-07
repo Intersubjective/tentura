@@ -3,7 +3,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -343,9 +342,7 @@ Widget beaconViewAppBarOverflow({
           : null,
       onEdit: showBeaconManagementOverflow && beaconAllowsEdit(b)
           ? () => unawaited(
-              context.router.pushPath(
-                '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
-              ),
+              context.router.push(BeaconCreateRoute(editId: beaconId)),
             )
           : null,
       onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
@@ -369,8 +366,8 @@ Widget beaconViewAppBarOverflow({
           : null,
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
-              context.router.pushPath(
-                '$kPathReviewContributions/$beaconId?draft=true',
+              context.router.push(
+                ReviewContributionsRoute(id: beaconId, draft: true),
               ),
             )
           : null,
@@ -443,8 +440,8 @@ Widget beaconViewAppBarOverflow({
         : null,
     onDraftReview: state.showDraftEvaluationCta
         ? () => unawaited(
-            context.router.pushPath(
-              '$kPathReviewContributions/$beaconId?draft=true',
+            context.router.push(
+              ReviewContributionsRoute(id: beaconId, draft: true),
             ),
           )
         : null,

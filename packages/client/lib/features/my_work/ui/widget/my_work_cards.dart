@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -69,28 +69,29 @@ class MyWorkCardRouter extends StatelessWidget {
 
 void _openBeacon(BuildContext context, String id) {
   unawaited(
-    context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconEntry=$kBeaconEntryMyWork',
-    ),
+    context.router.push(BeaconViewRoute(id: id, entry: kBeaconEntryMyWork)),
   );
 }
 
 void _openBeaconReviewHelpOffers(BuildContext context, String id) {
   unawaited(
-    context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewTab=help_offers&$kQueryBeaconPeopleTabAttention=1&$kQueryBeaconEntry=$kBeaconEntryMyWork',
+    context.router.push(
+      BeaconViewRoute(
+        id: id,
+        viewTab: 'help_offers',
+        peopleTabAttention: '1',
+        entry: kBeaconEntryMyWork,
+      ),
     ),
   );
 }
 
 void _openEditDraft(BuildContext context, String id) {
-  unawaited(
-    context.router.pushPath('$kPathBeaconNew?$kQueryBeaconDraftId=$id'),
-  );
+  unawaited(context.router.push(BeaconCreateRoute(draftId: id)));
 }
 
 void _openReviewContributions(BuildContext context, String id) {
-  unawaited(context.router.pushPath('$kPathReviewContributions/$id'));
+  unawaited(context.router.push(ReviewContributionsRoute(id: id)));
 }
 
 ({String? statusLine, TenturaTone statusTone}) _myWorkCardHeaderStatus(
@@ -176,7 +177,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             BeaconPhasePrimaryAction.reviewOffers =>
               _openBeaconReviewHelpOffers(context, b.id),
             BeaconPhasePrimaryAction.forward => unawaited(
-                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                context.router.push(ForwardBeaconRoute(beaconId: b.id)),
               ),
             BeaconPhasePrimaryAction.resolveBlocker =>
               _openBeacon(context, b.id),
@@ -207,7 +208,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                 label: l10n.inboxCardOpenBeacon,
                 icon: const Icon(Icons.arrow_forward),
                 onPressed: () => unawaited(
-                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                  context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                 ),
               ),
             ),
@@ -268,14 +269,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                   : null,
               onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
-                      context.router.pushPath(
-                        '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
-                      ),
+                      context.router.push(BeaconCreateRoute(editId: b.id)),
                     )
                   : null,
               onForward: b.allowsForward
                   ? () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -363,7 +362,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
               beacon: b,
               onForward: b.allowsForward
                   ? () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -548,14 +547,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
                   : null,
               onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
-                      context.router.pushPath(
-                        '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
-                      ),
+                      context.router.push(BeaconCreateRoute(editId: b.id)),
                     )
                   : null,
               onForward: b.allowsForward
                   ? () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -635,7 +632,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
               beacon: b,
               onForward: b.allowsForward
                   ? () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
                     )
                   : null,
               onForwardsGraph: () =>
