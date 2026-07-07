@@ -23,6 +23,8 @@ class ForwardCubit extends Cubit<ForwardState> {
     ForwardCase? forwardCase,
     UiEffectPort? effects,
     @visibleForTesting bool debugSkipInitialLoad = false,
+    this.preselectLineageSuggestions = false,
+    this.embedded = false,
   }) : _forwardCase =
            forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
@@ -34,9 +36,17 @@ class ForwardCubit extends Cubit<ForwardState> {
     _subscribeLiveUpdates();
   }
 
+  /// When true, first candidate load pre-checks lineage [autoSelect] rows.
+  final bool preselectLineageSuggestions;
+
+  /// When true, [forward] does not emit [NavigateBack] (beacon-create tab host).
+  final bool embedded;
+
   final ForwardCase? _forwardCase;
 
   final UiEffectPort _effects;
+
+  bool _appliedInitialPreselect = false;
 
   StreamSubscription<String>? _forwardCompletedSub;
 
@@ -85,6 +95,9 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   String? _loadMemoKey;
 
+  Future<void> reloadCandidates({bool forceReload = true}) =>
+      _loadCandidates(forceReload: forceReload);
+
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null || isClosed) {
@@ -122,13 +135,23 @@ class ForwardCubit extends Cubit<ForwardState> {
         for (final c in load.lineageSuggestions) c.id,
       };
       final preservedSelection = state.selectedIds.intersection(availableIds);
+      final shouldPreselect =
+          preselectLineageSuggestions &&
+          !_appliedInitialPreselect &&
+          preservedSelection.isEmpty;
+      final autoSelect = shouldPreselect
+          ? load.autoSelectIds.intersection(availableIds)
+          : preservedSelection;
+      if (shouldPreselect && autoSelect.isNotEmpty) {
+        _appliedInitialPreselect = true;
+      }
 
       emit(
         state.copyWith(
           beacon: load.beacon,
           candidates: load.candidates,
           lineageSuggestions: load.lineageSuggestions,
-          selectedIds: preservedSelection,
+          selectedIds: autoSelect,
           note: load.suggestedNote,
           status: const StateIsSuccess(),
         ),
@@ -281,18 +304,18 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
-  Future<void> forward() async {
+  Future<bool> forward() async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
-      return;
+      return false;
     }
-    if (state.selectedIds.isEmpty) return;
+    if (state.selectedIds.isEmpty) return false;
     final beacon = state.beacon;
     if (beacon == null || beacon.status != BeaconStatus.open) {
       _emitSnackError(
         Exception('Forwarding is only available while the request is open'),
       );
-      return;
+      return false;
     }
 
     final allCandidates = [
@@ -308,11 +331,12 @@ class ForwardCubit extends Cubit<ForwardState> {
         .toList();
     if (ineligible.isNotEmpty) {
       _emitSnackError(const IneligibleRecipientsException());
-      return;
+      return false;
     }
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      final recipientIds = state.selectedIds.toList();
       final perNotes = <String, String>{};
       for (final id in state.selectedIds) {
         final personal = state.perRecipientNotes[id];
@@ -323,7 +347,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       final composedNote = state.note.trim();
       await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
-        recipientIds: state.selectedIds.toList(),
+        recipientIds: recipientIds,
         note: composedNote.isEmpty ? null : composedNote,
         perRecipientNotes: perNotes.isEmpty ? null : perNotes,
         context: state.context.isEmpty ? null : state.context,
@@ -331,9 +355,35 @@ class ForwardCubit extends Cubit<ForwardState> {
             ? null
             : state.recipientReasons,
       );
-      _emitNavigateBack(result: true);
+      final outcome = ForwardDeliveryOutcome(
+        deliveredRecipientIds: recipientIds,
+      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            lastDeliveryOutcome: outcome,
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
+      if (!embedded) {
+        _emitNavigateBack(result: true);
+      }
+      return true;
     } catch (e) {
+      if (embedded && !isClosed) {
+        emit(
+          state.copyWith(
+            lastDeliveryOutcome: ForwardDeliveryOutcome(
+              deliveredRecipientIds: const [],
+              failed: true,
+            ),
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
       _emitSnackError(e);
+      return false;
     }
   }
 }

@@ -456,6 +456,43 @@
   "@beaconImage": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipients": "Получатели",
+  "@beaconRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRoutingBanner": "Никто не увидит этот запрос, пока вы не отправите его кому-нибудь.",
+  "@beaconRoutingBanner": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendRequest": "Отправить запрос",
+  "@beaconSendRequest": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendRequestBlockedRecipients": "Выберите хотя бы одного получателя или сохраните черновик.",
+  "@beaconSendRequestBlockedRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRecipientsPreparing": "Подготовка черновика…",
+  "@beaconRecipientsPreparing": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendConfirmationTitle": "Запрос отправлен",
+  "@beaconSendConfirmationTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendConfirmationDelivered": "Доставлено {count, plural, =1{1 человеку} few{{count} людям} many{{count} людям} other{{count} людям}}.",
+  "@beaconSendConfirmationDelivered": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconSendConfirmationFailed": "Запрос опубликован, но доставка не удалась. Откройте его в «Моей работе», чтобы отправить снова.",
+  "@beaconSendConfirmationFailed": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSymbolTitle": "Символ запроса",
   "@beaconSymbolTitle": {
     "context": "BeaconCreateScreen"
@@ -2210,6 +2247,10 @@
   },
   "myWorkEditDraft": "Редактировать черновик",
   "@myWorkEditDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSendDraft": "Отправить",
+  "@myWorkSendDraft": {
     "context": "MyWorkScreen"
   },
   "myWorkArchive": "В архив",

@@ -456,6 +456,43 @@
   "@beaconImage": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipients": "Recipients",
+  "@beaconRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRoutingBanner": "Nobody will see this request until you send it to someone.",
+  "@beaconRoutingBanner": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendRequest": "Send request",
+  "@beaconSendRequest": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendRequestBlockedRecipients": "Choose at least one recipient, or save as draft.",
+  "@beaconSendRequestBlockedRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRecipientsPreparing": "Preparing draft…",
+  "@beaconRecipientsPreparing": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendConfirmationTitle": "Request sent",
+  "@beaconSendConfirmationTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSendConfirmationDelivered": "Delivered to {count, plural, =1{1 person} other{{count} people}}.",
+  "@beaconSendConfirmationDelivered": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from My Work to send again.",
+  "@beaconSendConfirmationFailed": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSymbolTitle": "Request symbol",
   "@beaconSymbolTitle": {
     "context": "BeaconCreateScreen"
@@ -2210,6 +2247,10 @@
   },
   "myWorkEditDraft": "Edit draft",
   "@myWorkEditDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSendDraft": "Send",
+  "@myWorkSendDraft": {
     "context": "MyWorkScreen"
   },
   "myWorkArchive": "Archive",

@@ -19,7 +19,7 @@ import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/capability/ui/widget/removable_capability_chips.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
-import 'package:tentura/features/beacon/ui/widget/beacon_lineage_suggestions_link.dart';
+
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
@@ -289,26 +289,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       },
       child: ListView(
         children: [
-          BlocSelector<
-            BeaconCreateCubit,
-            BeaconCreateState,
-            ({String? draftId, String? parentId})
-          >(
-            bloc: _cubit,
-            selector: (s) => (
-              draftId: s.draftId,
-              parentId: s.lineageParentBeaconId,
-            ),
-            builder: (context, ids) {
-              if (ids.draftId == null ||
-                  ids.draftId!.isEmpty ||
-                  ids.parentId == null ||
-                  ids.parentId!.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return BeaconLineageSuggestionsLink(beaconId: ids.draftId!);
-            },
-          ),
           // Title
           TextFormField(
             autovalidateMode: AutovalidateMode.onUserInteraction,

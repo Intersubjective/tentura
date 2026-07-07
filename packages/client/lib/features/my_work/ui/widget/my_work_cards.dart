@@ -90,6 +90,17 @@ void _openEditDraft(BuildContext context, String id) {
   unawaited(context.router.push(BeaconCreateRoute(draftId: id)));
 }
 
+void _openSendDraft(BuildContext context, String id) {
+  unawaited(
+    context.router.push(
+      BeaconCreateRoute(
+        draftId: id,
+        initialTab: kBeaconCreateTabRecipients,
+      ),
+    ),
+  );
+}
+
 void _openReviewContributions(BuildContext context, String id) {
   unawaited(context.router.push(ReviewContributionsRoute(id: id)));
 }
@@ -415,12 +426,20 @@ class _DraftAuthoredCard extends StatelessWidget {
     return BeaconCardShell(
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
-      footer: Align(
-        alignment: Alignment.centerRight,
-        child: TenturaTextAction(
-          label: l10n.myWorkEditDraft,
-          onPressed: () => _openEditDraft(context, b.id),
-        ),
+      footer: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TenturaTextAction(
+            label: l10n.myWorkEditDraft,
+            onPressed: () => _openEditDraft(context, b.id),
+          ),
+          SizedBox(width: context.tt.rowGap),
+          TenturaCommandButton(
+            label: l10n.myWorkSendDraft,
+            icon: const Icon(Icons.send_outlined),
+            onPressed: () => _openSendDraft(context, b.id),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

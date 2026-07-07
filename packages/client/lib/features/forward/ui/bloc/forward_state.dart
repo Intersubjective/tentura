@@ -10,6 +10,18 @@ part 'forward_state.freezed.dart';
 
 enum ForwardFilter { all, bestNext, unseen, alreadyInvolved }
 
+/// Result of the most recent [ForwardCubit.forward] call (embedded create flow).
+@immutable
+class ForwardDeliveryOutcome {
+  const ForwardDeliveryOutcome({
+    required this.deliveredRecipientIds,
+    this.failed = false,
+  });
+
+  final List<String> deliveredRecipientIds;
+  final bool failed;
+}
+
 /// Counts for compact scope links (full candidate list; scope only).
 @immutable
 class ForwardScopeCounts {
@@ -68,6 +80,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     String? editingRecipientId,
     @Default('') String editNote,
     @Default(<String>[]) List<String> editReasons,
+    ForwardDeliveryOutcome? lastDeliveryOutcome,
   }) = _ForwardState;
 
   const ForwardState._();

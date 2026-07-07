@@ -16,6 +16,8 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart'
     show StringInputValidator;
 
@@ -371,7 +373,55 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  Future<void> saveDraft({required String context}) async {
+  Future<String?> ensureDraft({
+    required String context,
+    bool showMessage = true,
+  }) async {
+    if (state.draftId != null && state.draftId!.isNotEmpty) {
+      return state.draftId;
+    }
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final now = DateTime.timestamp();
+      final beaconPayload = _beaconPayload(context: context, now: now);
+      final created = await _beaconRepository.create(
+        beaconPayload,
+        draft: true,
+      );
+      final skipFirst =
+          state.images.isNotEmpty && state.images.first.imageBytes != null;
+      await _syncDraftServerImages(
+        created.id,
+        skipFirstMultipart: skipFirst,
+      );
+      final refreshed = await _beaconRepository.fetchBeaconById(created.id);
+      emit(
+        state.copyWith(
+          draftId: refreshed.id,
+          images: [...refreshed.images],
+          initialServerImageIds: {
+            for (final img in refreshed.images)
+              if (img.id.isNotEmpty) img.id,
+          },
+          status: const StateIsSuccess(),
+        ),
+      );
+      if (showMessage) {
+        _emitSnackMessage(const DraftSavedMessage());
+      }
+      return refreshed.id;
+    } catch (e) {
+      _emitSnackError(e);
+      return null;
+    }
+  }
+
+  ///
+  ///
+  Future<void> saveDraft({
+    required String context,
+    bool showMessage = true,
+  }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
@@ -400,7 +450,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             status: const StateIsSuccess(),
           ),
         );
-        _emitSnackMessage(const DraftSavedMessage());
+        if (showMessage) {
+          _emitSnackMessage(const DraftSavedMessage());
+        }
       } else {
         final id = state.draftId!;
         await _syncDraftServerImages(id);
@@ -415,10 +467,54 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             status: const StateIsSuccess(),
           ),
         );
-        _emitSnackMessage(const DraftSavedMessage());
+        if (showMessage) {
+          _emitSnackMessage(const DraftSavedMessage());
+        }
       }
     } catch (e) {
       _emitSnackError(e);
+    }
+  }
+
+  /// Publish the draft, then forward to recipients selected in [forwardCubit].
+  Future<ForwardDeliveryOutcome?> sendRequest({
+    required String context,
+    required ForwardCubit forwardCubit,
+  }) async {
+    if (state.needSummary.trim().length < kNeedSummaryPublishMin) {
+      _emitSnackError(const BeaconNeedSummaryTooShortException());
+      return null;
+    }
+    if (forwardCubit.state.selectedIds.isEmpty) {
+      return null;
+    }
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final draftId = state.draftId ?? await ensureDraft(
+        context: context,
+        showMessage: false,
+      );
+      if (draftId == null || draftId.isEmpty) {
+        return null;
+      }
+
+      final now = DateTime.timestamp();
+      final beaconPayload = _beaconPayload(context: context, now: now);
+      await _syncDraftServerImages(draftId);
+      await _beaconRepository.updateDraft(beaconPayload);
+      await _beaconRepository.publishDraft(draftId);
+
+      await forwardCubit.reloadCandidates(forceReload: true);
+      await forwardCubit.forward();
+      final outcome = forwardCubit.state.lastDeliveryOutcome;
+
+      emit(state.copyWith(status: const StateIsSuccess()));
+
+      return outcome;
+    } catch (e) {
+      _emitSnackError(e);
+      return null;
     }
   }
 

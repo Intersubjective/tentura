@@ -59,6 +59,12 @@ const kQueryIsDeepLink = 'is_deep_link';
 /// Query param for opening the beacon create screen in server-draft edit mode.
 const kQueryBeaconDraftId = 'draft_id';
 
+/// Initial tab on beacon create: `info` (default), `image`, or [kBeaconCreateTabRecipients].
+const kQueryBeaconCreateTab = 'tab';
+
+/// [kQueryBeaconCreateTab] value — open the Recipients tab.
+const kBeaconCreateTabRecipients = 'recipients';
+
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 

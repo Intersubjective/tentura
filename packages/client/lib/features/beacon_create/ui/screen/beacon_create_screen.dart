@@ -1,16 +1,19 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
-
 import '../bloc/beacon_create_cubit.dart';
-import '../dialog/beacon_publish_dialog.dart';
+import '../dialog/beacon_send_confirmation_dialog.dart';
 import '../widget/image_tab.dart';
 import '../widget/info_tab.dart';
+import '../widget/recipients_tab.dart';
 
 String? _publishBlockedDetail(L10n l10n, BeaconPublishBlocker blocker) =>
     switch (blocker) {
@@ -24,6 +27,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconCreateScreen({
     @QueryParam(kQueryBeaconDraftId) this.draftId = '',
     @QueryParam(kQueryBeaconEditId) this.editId = '',
+    @QueryParam(kQueryBeaconCreateTab) this.initialTab = '',
     super.key,
   });
 
@@ -32,6 +36,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Server open beacon id when editing a published beacon.
   final String editId;
+
+  /// Optional initial tab (`recipients` opens the Recipients tab).
+  final String initialTab;
 
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
@@ -55,22 +62,166 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     with TickerProviderStateMixin {
+  static const _recipientsTabIndex = 2;
+
   final _formKey = GlobalKey<FormState>();
 
-  late final _tabController = TabController(length: 2, vsync: this);
+  late final _tabController = TabController(length: 3, vsync: this);
 
   late final _beaconCreateCubit = context.read<BeaconCreateCubit>();
 
+  ForwardCubit? _forwardCubit;
+  String? _forwardCubitDraftId;
+  bool _recipientsDraftEnsuring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+    if (widget.initialTab == kBeaconCreateTabRecipients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_openRecipientsTab());
+        }
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    unawaited(_forwardCubit?.close());
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging &&
+        _tabController.index == _recipientsTabIndex) {
+      unawaited(_prepareRecipientsTab());
+    }
+  }
+
+  Future<void> _openRecipientsTab() async {
+    if (!mounted || _beaconCreateCubit.state.isEditMode) return;
+    await _prepareRecipientsTab();
+    if (mounted) {
+      _tabController.animateTo(_recipientsTabIndex);
+    }
+  }
+
+  Future<void> _prepareRecipientsTab() async {
+    if (_beaconCreateCubit.state.isEditMode || _recipientsDraftEnsuring) {
+      return;
+    }
+    if (_beaconCreateCubit.state.draftId != null) {
+      return;
+    }
+    _recipientsDraftEnsuring = true;
+    final contextName = context.read<ContextCubit>().state.selected;
+    await _beaconCreateCubit.ensureDraft(
+      context: contextName,
+      showMessage: false,
+    );
+    if (mounted) {
+      setState(() => _recipientsDraftEnsuring = false);
+    }
+  }
+
+  ForwardCubit? _forwardCubitFor(BeaconCreateState state, String contextName) {
+    final id = state.draftId;
+    if (id == null || id.isEmpty || state.isEditMode) {
+      return null;
+    }
+    if (_forwardCubitDraftId != id) {
+      unawaited(_forwardCubit?.close());
+      _forwardCubit = ForwardCubit(
+        beaconId: id,
+        context: contextName,
+        preselectLineageSuggestions:
+            state.lineageParentBeaconId != null &&
+            state.lineageParentBeaconId!.isNotEmpty,
+        embedded: true,
+      );
+      _forwardCubitDraftId = id;
+    }
+    return _forwardCubit;
+  }
+
+  Future<void> _sendRequest() async {
+    final contextName = context.read<ContextCubit>().state.selected;
+    final forwardCubit = _forwardCubitFor(
+      _beaconCreateCubit.state,
+      contextName,
+    );
+    if (forwardCubit == null) {
+      await _prepareRecipientsTab();
+    }
+    final cubit = _forwardCubitFor(_beaconCreateCubit.state, contextName);
+    if (cubit == null || !mounted) return;
+
+    final outcome = await _beaconCreateCubit.sendRequest(
+      context: contextName,
+      forwardCubit: cubit,
+    );
+    if (!mounted || outcome == null) return;
+
+    await BeaconSendConfirmationDialog.show(context, outcome: outcome);
+    if (!mounted) return;
+    if (!outcome.failed) {
+      await context.router.maybePop();
+    }
+  }
+
+  Widget _buildSendRequestButton({
+    required L10n l10n,
+    required ButtonStyle actionButtonStyle,
+    required String contextName,
+    required bool canPublish,
+    required bool isLoading,
+    required BeaconPublishBlocker? blocker,
+  }) {
+    final forwardCubit = _forwardCubitFor(
+      _beaconCreateCubit.state,
+      contextName,
+    );
+    Widget button({required bool hasRecipients}) {
+      final canSend = canPublish && hasRecipients;
+      final blockedDetail = blocker == null
+          ? null
+          : _publishBlockedDetail(l10n, blocker);
+      final tooltip = blockedDetail ??
+          (hasRecipients
+              ? l10n.beaconSendRequest
+              : l10n.beaconSendRequestBlockedRecipients);
+      return Tooltip(
+        message: tooltip,
+        child: TextButton(
+          style: actionButtonStyle,
+          onPressed: canSend && !isLoading
+              ? () => unawaited(_sendRequest())
+              : null,
+          child: Text(l10n.beaconSendRequest),
+        ),
+      );
+    }
+
+    if (forwardCubit == null) {
+      return button(hasRecipients: false);
+    }
+    return BlocBuilder<ForwardCubit, ForwardState>(
+      bloc: forwardCubit,
+      buildWhen: (p, c) => p.selectedIds != c.selectedIds,
+      builder: (context, forwardState) =>
+          button(hasRecipients: forwardState.selectedIds.isNotEmpty),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final contextName = context.watch<ContextCubit>().state.selected;
     final actionButtonStyle = TextButton.styleFrom(
       minimumSize: Size(0, tt.buttonHeight),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -114,10 +265,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                         ? null
                         : () async {
                             await _beaconCreateCubit.saveEdit(
-                              context: context
-                                  .read<ContextCubit>()
-                                  .state
-                                  .selected,
+                              context: contextName,
                             );
                           },
                     child: Text(l10n.buttonSaveChanges),
@@ -139,10 +287,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                             ? null
                             : () async {
                                 await _beaconCreateCubit.saveDraft(
-                                  context: context
-                                      .read<ContextCubit>()
-                                      .state
-                                      .selected,
+                                  context: contextName,
                                 );
                               },
                         child: Text(l10n.buttonSaveDraft),
@@ -158,41 +303,21 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                       BeaconPublishBlocker? blocker,
                     })
                   >(
-                    key: const Key('BeaconCreate.PublishButton'),
+                    key: const Key('BeaconCreate.SendRequestButton'),
                     bloc: _beaconCreateCubit,
                     selector: (s) => (
                       canPublish: s.canTryToPublish,
                       isLoading: s.isLoading,
                       blocker: s.publishBlocker,
                     ),
-                    builder: (context, publish) {
-                      final blockedDetail = publish.blocker == null
-                          ? null
-                          : _publishBlockedDetail(l10n, publish.blocker!);
-                      final tooltip = blockedDetail ?? l10n.buttonPublish;
-                      return Tooltip(
-                        message: tooltip,
-                        child: TextButton(
-                          style: actionButtonStyle,
-                          onPressed: publish.canPublish && !publish.isLoading
-                              ? () async {
-                                  if (await BeaconPublishDialog.show(context) ??
-                                      false) {
-                                    if (context.mounted) {
-                                      await _beaconCreateCubit.publish(
-                                        context: context
-                                            .read<ContextCubit>()
-                                            .state
-                                            .selected,
-                                      );
-                                    }
-                                  }
-                                }
-                              : null,
-                          child: Text(l10n.buttonPublish),
-                        ),
-                      );
-                    },
+                    builder: (context, publish) => _buildSendRequestButton(
+                      l10n: l10n,
+                      actionButtonStyle: actionButtonStyle,
+                      contextName: contextName,
+                      canPublish: publish.canPublish,
+                      isLoading: publish.isLoading,
+                      blocker: publish.blocker,
+                    ),
                   ),
                 ],
               );
@@ -210,6 +335,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
           tabs: [
             Tab(text: l10n.beaconInfo),
             Tab(text: l10n.beaconImage),
+            Tab(text: l10n.beaconRecipients),
           ],
         ),
       ),
@@ -217,7 +343,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         child: TenturaContentColumn(
           child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
-            buildWhen: (p, c) => p.status != c.status || p.draftId != c.draftId,
+            buildWhen: (p, c) =>
+                p.status != c.status ||
+                p.draftId != c.draftId ||
+                p.isEditMode != c.isEditMode,
             builder: (context, state) {
               if ((widget.draftId.isNotEmpty && state.draftId == null ||
                       widget.editId.isNotEmpty && state.editId == null) &&
@@ -323,11 +452,12 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                                 absorbing: isLoading,
                                 child: TabBarView(
                                   controller: _tabController,
-                                  children: const [
-                                    InfoTab(
+                                  children: [
+                                    const InfoTab(
                                       key: ValueKey('BeaconCreate.InfoTab'),
                                     ),
-                                    ImageTab(),
+                                    const ImageTab(),
+                                    _buildRecipientsTab(state, contextName),
                                   ],
                                 ),
                               ),
@@ -340,6 +470,46 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecipientsTab(BeaconCreateState state, String contextName) {
+    final l10n = L10n.of(context)!;
+    if (state.isEditMode) {
+      return Center(
+        child: Text(
+          l10n.beaconSendRequestBlockedRecipients,
+          textAlign: TextAlign.center,
+          style: TenturaText.bodySmall(context.tt.textMuted),
+        ),
+      );
+    }
+
+    final draftId = state.draftId;
+    if (draftId == null || draftId.isEmpty || _recipientsDraftEnsuring) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator.adaptive(),
+            SizedBox(height: context.tt.rowGap),
+            Text(
+              l10n.beaconRecipientsPreparing,
+              style: TenturaText.bodySmall(context.tt.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final forwardCubit = _forwardCubitFor(state, contextName)!;
+    return BlocProvider.value(
+      value: forwardCubit,
+      child: BlocListener<ForwardCubit, ForwardState>(
+        listenWhen: (prev, next) => prev.selectedIds != next.selectedIds,
+        listener: (_, __) => setState(() {}),
+        child: BeaconRecipientsTab(beaconId: draftId),
       ),
     );
   }
