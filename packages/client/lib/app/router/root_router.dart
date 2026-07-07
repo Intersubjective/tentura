@@ -361,7 +361,6 @@ class RootRouter extends RootStackRouter {
 
     // Settings
     AutoRoute(
-      keepHistory: false,
       maintainState: false,
       fullscreenDialog: true,
       page: SettingsRoute.page,

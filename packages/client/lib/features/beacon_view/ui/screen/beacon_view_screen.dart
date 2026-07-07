@@ -186,20 +186,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _didApplyFetchResolution = false;
   String? _bannerMessage;
 
-  /// Reentrancy guard: [_exitRoomSurface] can be invoked from both `PopScope`
-  /// and the app-bar `BackButton` in quick succession; not derivable from
+  /// Reentrancy guard: [_exitRoomSurface] can be invoked from `PopScope` more
+  /// than once in quick succession (e.g. a rapid double-tap on the app-bar
+  /// back button before the first pop attempt resolves); not derivable from
   /// route/window state (it's about an in-flight *action*, not "what is
   /// currently displayed").
   bool _roomExitInProgress = false;
-
-  /// Set when [_enterRoomSurface] used `StackRouter.pushPath` for `?tab=room`.
-  /// Exit must `StackRouter.back` to drop that history entry; `replacePath`
-  /// would leave a duplicate beacon URL and force two pops to leave the beacon.
-  /// Not route-derivable: the *current* route can't tell us whether popping
-  /// lands back on this same beacon (pushed room) or leaves it entirely (room
-  /// baked into the only page from a cold/deep link) — that's provenance of
-  /// how this screen entered room, not a fact visible in the current URL.
-  bool _roomEnteredViaPush = false;
 
   /// Ensures mark-seen on the previous visit finishes before re-open refresh;
   /// an in-flight async handle, not something route/window state can derive.
@@ -215,10 +207,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void _leaveBeaconView(BuildContext context) {
     final router = context.router;
     if (router.canPop()) {
-      router.back();
+      // Not `back()`: on web that's `window.history.back()`, an async
+      // browser-level round-trip — see [_exitRoomSurface]. `maybePop` drives
+      // the StackRouter's own page list directly and synchronously.
+      unawaited(router.maybePop());
       return;
     }
-    unawaited(router.replacePath(kPathMyWork));
+    // Nothing below this page in *this* tab branch (e.g. a cold-loaded deep
+    // link) — replace on root with the absolute path. Not `router.replacePath`
+    // (this branch's own nested StackRouter): an absolute, leading-slash path
+    // never matches this branch's own relative registrations, so scope
+    // resolution falls through unpredictably — see [_stripRoomFromUrl].
+    unawaited(router.root.replacePath(kPathMyWork));
   }
 
   Widget _beaconViewErrorBody({
@@ -282,7 +282,43 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         entry: w.entry,
       );
 
-  String _beaconViewPath({String? viewTab, bool stripRoomEntry = false}) {
+  /// Whether the router stack shows another page for *this same beacon*
+  /// directly beneath the current (room) page — i.e. room was entered by
+  /// [_enterRoomSurface] pushing an overlay onto an already-open operational
+  /// page, as opposed to a cold/deep-link load that baked `?tab=room` into
+  /// the only page for this beacon. Exit must pop in the former case
+  /// (`StackRouter.back`) and strip the query in place in the latter
+  /// (`replacePath` would otherwise leave a duplicate beacon-view page and
+  /// force two pops to leave the beacon).
+  ///
+  /// Deliberately *not* a stored per-State flag: `_enterRoomSurface` would
+  /// have to set it on the *operational* instance right before pushing, but
+  /// the *new* State created for the pushed room page starts with its own,
+  /// unset copy of any such flag — so a stored flag can never be read back
+  /// correctly by the page that actually needs to act on it on exit. The
+  /// stack is owned by the (single, shared) StackRouter, not by either
+  /// page's State, so it survives the push intact.
+  bool _hasOperationalBeaconPageBeneath() {
+    final stack = context.router.stack;
+    if (stack.length < 2) return false;
+    final below = stack[stack.length - 2];
+    return below.name == BeaconViewRoute.name &&
+        below.routeData.pathParams.optString('id') == widget.id;
+  }
+
+  /// [relativeToTabBranch]: drop the leading `/` so the path matches the
+  /// *nested* `beacon/view/:id` registration under this tab branch
+  /// (`browseDetailChildren()` in home_tab_branches.dart) directly, scoped to
+  /// `context.router` (this branch's own StackRouter) rather than falling
+  /// through to root's standalone `/beacon/view/:id` redirect-target entry —
+  /// segment-matching requires an exact leading-slash match, so a leading `/`
+  /// fails against the branch's own (slash-less) registered pattern and the
+  /// scope search falls through to root instead. See [_stripRoomFromUrl].
+  String _beaconViewPath({
+    String? viewTab,
+    bool stripRoomEntry = false,
+    bool relativeToTabBranch = false,
+  }) {
     final q = <String, String>{};
     if (viewTab != null && viewTab.isNotEmpty) {
       q[kQueryBeaconViewTab] = viewTab;
@@ -299,7 +335,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         !(stripRoomEntry && entryOpensRoom)) {
       q[kQueryBeaconEntry] = entry;
     }
-    final base = '$kPathBeaconView/${widget.id}';
+    final pathPrefix = relativeToTabBranch
+        ? kPathBeaconView.replaceFirst('/', '')
+        : kPathBeaconView;
+    final base = '$pathPrefix/${widget.id}';
     if (q.isEmpty) return base;
     return '$base?${Uri(queryParameters: q).query}';
   }
@@ -337,7 +376,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
       _roomExitInProgress = false;
-      _roomEnteredViaPush = false;
       _splitRoomRouteFocusKey = null;
     }
     final wasRoom = _roomFromRouteParams(oldWidget);
@@ -353,7 +391,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       // Route dropped room (e.g. our own `_stripRoomFromUrl` landed, or a
       // browser/forward-back sync) — reconcile the cubit; idempotent if
       // something else already released it.
-      _roomEnteredViaPush = false;
       _exitRoomSurface(fromRouteSync: true);
     } else if (!wasRoom && isRoom) {
       // URL moved to ?tab=room while room was closed — treat this as an entry
@@ -450,7 +487,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_splitRoomRouteFocusKey == focusKey) return;
     _splitRoomRouteFocusKey = focusKey;
     _prepareRoomPaneScroll();
-    _scheduleExpandedRoomRouteSync(popPushedRoom: _roomEnteredViaPush);
+    _scheduleExpandedRoomRouteSync(
+      popPushedRoom: _hasOperationalBeaconPageBeneath(),
+    );
   }
 
   void _scheduleExpandedRoomRouteSync({bool popPushedRoom = false}) {
@@ -463,18 +502,27 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       }
       _unfocusForRouteChange();
       if (popPushedRoom && context.router.canPop()) {
-        _roomEnteredViaPush = false;
-        context.router.back();
+        // Not `StackRouter.back()`: on web that's `NavigationHistoryImpl`'s
+        // literal `window.history.back()` — an async, browser-level
+        // popstate round-trip whose reconciliation was observed to rewrite
+        // *this* (top) page's own route data in place instead of removing
+        // it, leaving a duplicate `BeaconViewRoute` in the stack. `maybePop`
+        // drives the StackRouter's own page list directly (same mechanism
+        // `AutoLeadingButton` uses), synchronously removing this page and
+        // revealing the operational page beneath it.
+        unawaited(context.router.maybePop());
         _splitRoomRouteSyncScheduled = false;
         return;
       }
-      unawaited(
-        _stripRoomFromUrl(stripRoomEntry: true).whenComplete(() {
-          if (mounted) {
-            _splitRoomRouteSyncScheduled = false;
-          }
-        }),
-      );
+      // Not `.whenComplete()`: `StackRouter.replacePath`'s returned Future
+      // follows `push`'s "resolves when the pushed page is later popped"
+      // contract, not "resolves when this navigation settles" — it would
+      // never fire here, leaving this guard stuck forever. The actual
+      // route/URL update already happens synchronously inside
+      // `replacePath` (its guard chain is empty for this route), so it's
+      // safe to clear the guard right after the call.
+      unawaited(_stripRoomFromUrl(stripRoomEntry: true));
+      _splitRoomRouteSyncScheduled = false;
     });
   }
 
@@ -483,9 +531,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     bool fromRoute = false,
     bool focusRoom = false,
   }) {
-    final popPushedRoom = _roomEnteredViaPush;
+    final popPushedRoom = _hasOperationalBeaconPageBeneath();
     _roomExitInProgress = false;
-    _roomEnteredViaPush = false;
     _ensureEmbeddedRoomCubit();
     if (focusRoom || fromRoute || focusItem != null) {
       _prepareRoomPaneScroll(focusItem);
@@ -588,29 +635,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   Future<void> _stripRoomFromUrl({bool stripRoomEntry = false}) {
-    // Drop the room markers from the *current* URL rather than rebuilding a
-    // bare `/beacon/view/:id` path: since beacon view lives inside a home tab
-    // branch (Phase 2), a bare path would re-enter the root redirect guard
-    // and be pushed as a new branch entry — disposing this screen mid-flight
-    // instead of replacing the URL in place.
-    final current = Uri.parse(context.router.root.currentUrl);
-    final q = Map<String, String>.from(current.queryParameters)
-      ..remove(kQueryBeaconViewTab)
-      ..remove(kQueryBeaconSurface);
-    final entryOpensRoom =
-        normalizeBeaconViewEntry(
-          isDeepLink: widget.isDeepLink,
-          rawFromQuery: BeaconViewEntrySourceWire.parseQuery(widget.entry),
-        ) ==
-        BeaconViewEntrySource.roomNotification;
-    if (stripRoomEntry && entryOpensRoom) {
-      q.remove(kQueryBeaconEntry);
-    }
-    final stripped = Uri(
-      path: current.path,
-      queryParameters: q.isEmpty ? null : q,
+    // Replace on *this tab branch's own* StackRouter (`context.router`, the
+    // same one `_enterRoomSurface`'s `pushPath` already targets) with a path
+    // relative to it (no leading `/`) — not `context.router.root.replacePath`
+    // with the full `/home/<tab>/...` URL, and not a leading-slash path on
+    // `context.router` either. `auto_route`'s segment matcher requires an
+    // exact match: a leading `/` never matches this branch's own (slash-less)
+    // `beacon/view/:id` registration, so scope resolution falls through to
+    // root's *standalone* `/beacon/view/:id` redirect-target entry — whose
+    // guard (`_forwardIntoHomeBranch` in root_router.dart) pushes a *second*
+    // beacon-view page and/or rebuilds `HomeRoute` from scratch. The latter
+    // forces `AutoTabsRouter`'s `TabsRouter.setupRoutes` to re-run with only
+    // this one branch's children — and `setupRoutes` only consumes its
+    // `pendingChildren` once, so the branch silently stops updating (URL and
+    // body freeze while chrome briefly flashes the collapsed/no-detail
+    // state). Same underlying fragility as `_shellSubtreeKey`'s comment in
+    // home_screen.dart, triggered from a different call site. A relative path
+    // matches this branch's own registration directly, keeping the replace a
+    // single-level pop+push on this branch's own stack.
+    return context.router.replacePath(
+      _beaconViewPath(
+        stripRoomEntry: stripRoomEntry,
+        relativeToTabBranch: true,
+      ),
     );
-    return context.router.root.replacePath(stripped.toString());
   }
 
   void _enterRoomSurface([CoordinationItem? focusItem]) {
@@ -634,7 +682,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // route below — otherwise back pops the top route but leaves a live
     // [RoomCubit] on the underlying beacon view.
     if (!_roomFromRouteParams(widget)) {
-      _roomEnteredViaPush = true;
       final roomPath = _beaconViewPath(viewTab: 'room');
       // Push so browser history retains the operational beacon URL; exit via
       // [StackRouter.back] (not replacePath) to avoid duplicate beacon entries.
@@ -642,7 +689,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       unawaited(context.router.pushPath(roomPath));
       return;
     }
-    _roomEnteredViaPush = false;
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
@@ -674,7 +720,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_roomExitInProgress) return;
 
     if (_usesExpandedRoomSplitForState(context.read<BeaconViewCubit>().state)) {
-      _roomEnteredViaPush = false;
       _roomExitInProgress = false;
       if (_urlIndicatesRoom() || _roomFromRouteParams(widget)) {
         _scheduleExpandedRoomRouteSync();
@@ -683,7 +728,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
 
     if (fromRouteSync) {
-      _roomEnteredViaPush = false;
       if (_hasLiveRoomCubit) {
         _applyRoomSurfaceState(open: false);
       }
@@ -697,15 +741,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
     // Room opened via pushPath: pop the `?tab=room` history entry. Using
     // replacePath here duplicates `/beacon/view/:id` in the stack/history.
-    if (_roomEnteredViaPush) {
-      _roomEnteredViaPush = false;
+    //
+    // Not `StackRouter.back()`: on web that's `NavigationHistoryImpl`'s
+    // literal `window.history.back()` — an async, browser-level popstate
+    // round-trip whose reconciliation was observed to rewrite *this* (top)
+    // page's own route data in place instead of removing it, leaving a
+    // duplicate `BeaconViewRoute` in the stack (the URL looked right — room
+    // query stripped — but the page beneath was never actually revealed, so
+    // a *second* back tap was needed to really leave).
+    //
+    // Not `maybePop()` either: we're here *because* this page's own
+    // `PopScope.canPop` is false (that's what routed the system/AppBar back
+    // gesture into this method instead of a plain pop), and `maybePop()`
+    // consults that same `canPop` — it would just refuse, silently doing
+    // nothing. `pop()` forces the StackRouter's own page list to drop this
+    // page regardless of PopScope, synchronously revealing the operational
+    // page beneath it.
+    if (_hasOperationalBeaconPageBeneath()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           _roomExitInProgress = false;
           return;
         }
         _unfocusForRouteChange();
-        context.router.back();
+        context.router.pop();
         _roomExitInProgress = false;
       });
       return;
@@ -724,13 +783,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         return;
       }
       _unfocusForRouteChange();
-      unawaited(
-        _stripRoomFromUrl().whenComplete(() {
-          if (mounted) {
-            _roomExitInProgress = false;
-          }
-        }),
-      );
+      // Not `.whenComplete()`: see the comment on the sibling call in
+      // `_scheduleExpandedRoomRouteSync` — `replacePath`'s Future resolves on
+      // pop, not on navigation settling, so it would never fire here.
+      unawaited(_stripRoomFromUrl());
+      _roomExitInProgress = false;
     });
   }
 
@@ -1024,8 +1081,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   color: scheme.onSurface,
                 ),
                 titleSpacing: 8,
+                // Plain BackButton (no onPressed): let it fall through to
+                // Navigator.maybePop so a tap routes through the same
+                // PopScope.onPopInvokedWithResult → _exitRoomSurface() path
+                // that browser/system back already uses. Wiring onPressed
+                // directly to _exitRoomSurface bypassed the Navigator pop
+                // attempt entirely and hung on compact — the replacePath in
+                // _stripRoomFromUrl never resolved when called that way.
                 leading: showLegacyRoomSurface
-                    ? BackButton(onPressed: _exitRoomSurface)
+                    ? const BackButton()
                     : AutoLeadingWithFallback(
                         fallbackPath: kPathMyWork,
                         onFallback: () => _leaveBeaconView(context),
