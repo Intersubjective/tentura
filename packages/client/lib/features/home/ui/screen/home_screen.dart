@@ -69,6 +69,11 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     final prev = tabsRouter.activeIndex;
     tabsRouter.setActiveIndex(index);
     if (index == prev) {
+      // Reselecting the already-active tab jumps straight back to its root
+      // page (e.g. the My Work list) instead of requiring repeated back-taps
+      // out of a pushed detail. `popUntilRoot` pops the branch's Navigator
+      // directly, bypassing any `PopScope.canPop=false` a pushed detail sets.
+      tabsRouter.stackRouterOfIndex(index)?.popUntilRoot();
       final reselect = context.read<HomeTabReselectCubit>();
       if (index == 0) {
         reselect.bumpMyWorkReselect();
