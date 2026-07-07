@@ -16,19 +16,23 @@ class NotificationSettingsScreen extends StatelessWidget
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
-        create: (_) {
-          final cubit = NotificationSettingsCubit();
-          unawaited(cubit.fetch());
-          return cubit;
-        },
-        child: this,
-      );
+    create: (_) {
+      final cubit = NotificationSettingsCubit();
+      unawaited(cubit.fetch());
+      return cubit;
+    },
+    child: this,
+  );
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.notificationSettings)),
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
+        title: Text(l10n.notificationSettings),
+      ),
       body: BlocBuilder<NotificationSettingsCubit, NotificationSettingsState>(
         builder: (context, state) {
           if (state.isLoading) {
@@ -39,55 +43,55 @@ class NotificationSettingsScreen extends StatelessWidget
           return TenturaContentColumn(
             child: ListView(
               children: [
-              _SectionHeader(label: l10n.notificationSettingsPush),
-              for (final c in NotificationSettingsCategory.values)
-                SwitchListTile(
-                  title: Text(_categoryLabel(l10n, c)),
-                  subtitle: Text(_categoryDesc(l10n, c)),
-                  value: s.isEnabled(c, email: false),
-                  onChanged: (v) => cubit.setChannelCategory(
-                    category: c,
-                    email: false,
-                    enabled: v,
+                _SectionHeader(label: l10n.notificationSettingsPush),
+                for (final c in NotificationSettingsCategory.values)
+                  SwitchListTile(
+                    title: Text(_categoryLabel(l10n, c)),
+                    subtitle: Text(_categoryDesc(l10n, c)),
+                    value: s.isEnabled(c, email: false),
+                    onChanged: (v) => cubit.setChannelCategory(
+                      category: c,
+                      email: false,
+                      enabled: v,
+                    ),
+                  ),
+                const TenturaHairlineDivider(),
+                _SectionHeader(label: l10n.notificationSettingsEmail),
+                for (final c in NotificationSettingsCategory.values)
+                  SwitchListTile(
+                    title: Text(_categoryLabel(l10n, c)),
+                    value: s.isEnabled(c, email: true),
+                    onChanged: (v) => cubit.setChannelCategory(
+                      category: c,
+                      email: true,
+                      enabled: v,
+                    ),
+                  ),
+                const TenturaHairlineDivider(),
+                _SectionHeader(label: l10n.notificationDigest),
+                RadioGroup<NotificationDigestCadence>(
+                  groupValue: s.emailDigest,
+                  onChanged: (v) => v == null ? null : cubit.setDigest(v),
+                  child: Column(
+                    children: [
+                      for (final cadence in NotificationDigestCadence.values)
+                        RadioListTile<NotificationDigestCadence>(
+                          title: Text(_digestLabel(l10n, cadence)),
+                          value: cadence,
+                        ),
+                    ],
                   ),
                 ),
-              const TenturaHairlineDivider(),
-              _SectionHeader(label: l10n.notificationSettingsEmail),
-              for (final c in NotificationSettingsCategory.values)
+                const TenturaHairlineDivider(),
+                _SectionHeader(label: l10n.notificationQuietHours),
+                _QuietHoursControls(settings: s),
+                const TenturaHairlineDivider(),
                 SwitchListTile(
-                  title: Text(_categoryLabel(l10n, c)),
-                  value: s.isEnabled(c, email: true),
-                  onChanged: (v) => cubit.setChannelCategory(
-                    category: c,
-                    email: true,
-                    enabled: v,
-                  ),
+                  title: Text(l10n.notificationLockScreen),
+                  subtitle: Text(l10n.notificationLockScreenDesc),
+                  value: s.lockScreenSafe,
+                  onChanged: cubit.setLockScreenSafe,
                 ),
-              const TenturaHairlineDivider(),
-              _SectionHeader(label: l10n.notificationDigest),
-              RadioGroup<NotificationDigestCadence>(
-                groupValue: s.emailDigest,
-                onChanged: (v) => v == null ? null : cubit.setDigest(v),
-                child: Column(
-                  children: [
-                    for (final cadence in NotificationDigestCadence.values)
-                      RadioListTile<NotificationDigestCadence>(
-                        title: Text(_digestLabel(l10n, cadence)),
-                        value: cadence,
-                      ),
-                  ],
-                ),
-              ),
-              const TenturaHairlineDivider(),
-              _SectionHeader(label: l10n.notificationQuietHours),
-              _QuietHoursControls(settings: s),
-              const TenturaHairlineDivider(),
-              SwitchListTile(
-                title: Text(l10n.notificationLockScreen),
-                subtitle: Text(l10n.notificationLockScreenDesc),
-                value: s.lockScreenSafe,
-                onChanged: cubit.setLockScreenSafe,
-              ),
               ],
             ),
           );
@@ -187,7 +191,9 @@ class _QuietHoursControls extends StatelessWidget {
 
   Future<void> _pick(BuildContext context, {required bool isStart}) async {
     final cubit = context.read<NotificationSettingsCubit>();
-    final current = isStart ? settings.quietHoursStart! : settings.quietHoursEnd!;
+    final current = isStart
+        ? settings.quietHoursStart!
+        : settings.quietHoursEnd!;
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),

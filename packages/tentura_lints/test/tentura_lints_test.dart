@@ -7,6 +7,7 @@ import 'package:tentura_lints/src/rules/no_raw_border_radius.dart';
 import 'package:tentura_lints/src/rules/no_raw_edge_insets.dart';
 import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
 import 'package:tentura_lints/src/rules/no_request_domain_entity.dart';
+import 'package:tentura_lints/src/rules/use_tentura_top_bar.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 @reflectiveTest
@@ -287,6 +288,54 @@ class Beacon {}
   }
 }
 
+@reflectiveTest
+class UseTenturaTopBarTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/lib/features/foo/ui/screen/foo_screen.dart';
+
+  @override
+  void setUp() {
+    rule = UseTenturaTopBar();
+    super.setUp();
+  }
+
+  Future<void> test_reports_raw_app_bar() async {
+    await assertDiagnostics(
+      '''
+final a = AppBar();
+class AppBar {
+  const AppBar();
+}
+''',
+      [lint(10, 6)],
+    );
+  }
+
+  Future<void> test_reports_raw_sliver_app_bar() async {
+    await assertDiagnostics(
+      '''
+final a = SliverAppBar();
+class SliverAppBar {
+  const SliverAppBar();
+}
+''',
+      [lint(10, 12)],
+    );
+  }
+
+  Future<void> test_allows_tentura_top_bar() async {
+    await assertNoDiagnostics(
+      '''
+final a = TenturaTopBar.of();
+class TenturaTopBar {
+  static Object of() => Object();
+}
+''',
+    );
+  }
+}
+
 void main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(NoDomainToDataImportsTest);
@@ -296,5 +345,6 @@ void main() {
     defineReflectiveTests(NoRawEdgeInsetsTest);
     defineReflectiveTests(NoRawBorderRadiusTest);
     defineReflectiveTests(NoRequestDomainEntityTest);
+    defineReflectiveTests(UseTenturaTopBarTest);
   });
 }

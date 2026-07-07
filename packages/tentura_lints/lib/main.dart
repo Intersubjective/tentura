@@ -13,6 +13,7 @@ import 'src/rules/no_raw_border_radius.dart';
 import 'src/rules/no_raw_edge_insets.dart';
 import 'src/rules/no_raw_graphql_in_dart.dart';
 import 'src/rules/no_request_domain_entity.dart';
+import 'src/rules/use_tentura_top_bar.dart';
 
 final plugin = TenturaLintsPlugin();
 
@@ -34,6 +35,7 @@ class TenturaLintsPlugin extends Plugin {
       ..registerLintRule(NoOperationalPillWidgetsInBeaconView())
       ..registerLintRule(NoRawEdgeInsets())
       ..registerLintRule(NoRawBorderRadius())
-      ..registerLintRule(NoRequestDomainEntity());
+      ..registerLintRule(NoRequestDomainEntity())
+      ..registerLintRule(UseTenturaTopBar());
   }
 }

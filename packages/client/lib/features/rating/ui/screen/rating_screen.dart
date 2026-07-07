@@ -131,7 +131,9 @@ class _RatingScreenState extends State<RatingScreen> {
         }
 
         return Scaffold(
-          appBar: AppBar(
+          appBar: TenturaTopBar.of(
+            context,
+            alignment: TenturaTopBarAlignment.fullWidth,
             leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
             actions: [
               // Toggle list / scatter view
@@ -147,8 +149,7 @@ class _RatingScreenState extends State<RatingScreen> {
                 IconButton(
                   tooltip: l10n.buttonClose,
                   icon: const Icon(Icons.clear_rounded),
-                  onPressed:
-                      filter.isEmpty ? null : cubit.clearSearchFilter,
+                  onPressed: filter.isEmpty ? null : cubit.clearSearchFilter,
                 ),
             ],
             title: _isScatterView
@@ -177,28 +178,13 @@ class _RatingScreenState extends State<RatingScreen> {
                       ),
                     ],
                   ),
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(
-                state.isLoading && state.items.isNotEmpty
-                    ? tt.appBarHeight + tt.tightGap
-                    : tt.appBarHeight,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (state.isLoading && state.items.isNotEmpty)
-                    SizedBox(
-                      height: tt.tightGap,
-                      child: const LinearProgressIndicator(),
-                    ),
-                ],
-              ),
+            progress: TenturaTopBar.loadingBar(
+              context,
+              state.isLoading && state.items.isNotEmpty,
             ),
           ),
           body: SafeArea(
-            child: _isScatterView
-                ? body
-                : TenturaContentColumn(child: body),
+            child: _isScatterView ? body : TenturaContentColumn(child: body),
           ),
         );
       },
@@ -275,7 +261,8 @@ class _RatingHeatmapHeader extends StatelessWidget {
               flex: 2,
               child: _RatingSortHeader(
                 label: l10n.theyTrustMe,
-                isActive: isSortedByReverse && !isSortedByAlter && !isSortedByClass,
+                isActive:
+                    isSortedByReverse && !isSortedByAlter && !isSortedByClass,
                 isAscending: isSortedByAsc,
                 labelStyle: headerLabelStyle,
                 alignment: Alignment.centerRight,

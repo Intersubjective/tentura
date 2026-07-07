@@ -6,10 +6,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../../domain/entity/graph_edge_colors.dart';
@@ -38,21 +36,21 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
-        child: BlocProvider(
-          create: (context) {
-            final me = GetIt.I<ProfileCubit>().state.profile;
-            return GraphCubit(
-              me: me,
-              focus: me.id,
-              graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
-              forwardsGraphBeaconId: focus,
-              helpOffererFocusUserId: helpOffererId,
-              edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
-            );
-          },
-          child: this,
-        ),
-      );
+    child: BlocProvider(
+      create: (context) {
+        final me = GetIt.I<ProfileCubit>().state.profile;
+        return GraphCubit(
+          me: me,
+          focus: me.id,
+          graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
+          forwardsGraphBeaconId: focus,
+          helpOffererFocusUserId: helpOffererId,
+          edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
+        );
+      },
+      child: this,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +58,9 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     final cubit = context.read<GraphCubit>();
     final tt = context.tt;
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        alignment: TenturaTopBarAlignment.fullWidth,
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: BlocBuilder<GraphCubit, GraphState>(
           buildWhen: (p, c) =>
@@ -69,12 +69,9 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
           builder: (context, state) =>
               Text(_titleFor(l10n, state.helpOffererViewerRole)),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(LinearPiActive.height),
-          child: BlocSelector<GraphCubit, GraphState, bool>(
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-          ),
+        progress: BlocSelector<GraphCubit, GraphState, bool>(
+          selector: (state) => state.isLoading,
+          builder: TenturaTopBar.loadingBar,
         ),
         actions: [
           PopupMenuButton<void>(
@@ -105,12 +102,14 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     final name = helpOffererName?.trim();
     final hasName = name != null && name.isNotEmpty;
     return switch (role) {
-      ForwardsGraphViewerRole.author => hasName
-          ? l10n.helpOffererForwardPathTitleAuthor(name)
-          : l10n.forwardsGraphView,
-      ForwardsGraphViewerRole.involvedOther => hasName
-          ? l10n.helpOffererForwardPathTitleViewer(name)
-          : l10n.forwardsGraphView,
+      ForwardsGraphViewerRole.author =>
+        hasName
+            ? l10n.helpOffererForwardPathTitleAuthor(name)
+            : l10n.forwardsGraphView,
+      ForwardsGraphViewerRole.involvedOther =>
+        hasName
+            ? l10n.helpOffererForwardPathTitleViewer(name)
+            : l10n.forwardsGraphView,
       ForwardsGraphViewerRole.self => l10n.helpOffererForwardPathTitleSelf,
     };
   }

@@ -21,7 +21,6 @@ import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
-import '../message/inbox_messages.dart';
 import '../widget/inbox_item_tile.dart';
 import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
@@ -161,35 +160,77 @@ class _InboxScreenState extends State<InboxScreen> {
 
                 return Scaffold(
                   backgroundColor: scheme.surface,
-                  appBar: AppBar(
-                    // Same fill as the inbox card Offer Help [FilledButton] default style.
-                    backgroundColor: scheme.primary,
-                    surfaceTintColor: scheme.primary,
-                    elevation: 0,
-                    scrolledUnderElevation: 0,
-                    toolbarHeight: tt.appBarHeight,
-                    foregroundColor: scheme.onPrimary,
-                    iconTheme: IconThemeData(color: scheme.onPrimary),
-                    // Tab root: never show a back control (some nested routes still
-                    // reserve leading width unless this is explicit).
-                    automaticallyImplyLeading: false,
-                    titleSpacing: tt.iconTextGap,
-                    title: const Row(
-                      children: [
-                        Expanded(child: _InboxTabStrip()),
-                        _InboxSortButton(),
-                      ],
-                    ),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none_outlined),
-                        tooltip: l10n.notifications,
-                        onPressed: () => context.router.push(
-                          const NotificationCenterRoute(),
-                        ),
-                      ),
-                      const _InboxOverflowMenu(),
-                    ],
+                  appBar: TenturaTopBar.of(
+                    context,
+                    tone: TenturaTopBarTone.primary,
+                    alignment: useExpandedPane
+                        ? TenturaTopBarAlignment.fullWidth
+                        : TenturaTopBarAlignment.content,
+                    title: useExpandedPane
+                        ? const SizedBox.shrink()
+                        : const Row(
+                            children: [
+                              Expanded(child: _InboxTabStrip()),
+                              _InboxSortButton(),
+                            ],
+                          ),
+                    actions: useExpandedPane
+                        ? null
+                        : [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.notifications_none_outlined,
+                              ),
+                              tooltip: l10n.notifications,
+                              onPressed: () => context.router.push(
+                                const NotificationCenterRoute(),
+                              ),
+                            ),
+                            const _InboxOverflowMenu(),
+                          ],
+                    row: useExpandedPane
+                        ? LayoutBuilder(
+                            builder: (context, constraints) {
+                              final masterWidth = inboxMasterPaneWidth(
+                                constraints.maxWidth,
+                                context.tt,
+                              );
+                              return Row(
+                                children: [
+                                  SizedBox(
+                                    width: masterWidth,
+                                    child: const Row(
+                                      children: [
+                                        Expanded(child: _InboxTabStrip()),
+                                        _InboxSortButton(),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.notifications_none_outlined,
+                                            ),
+                                            tooltip: l10n.notifications,
+                                            onPressed: () => context.router.push(
+                                              const NotificationCenterRoute(),
+                                            ),
+                                          ),
+                                          const _InboxOverflowMenu(),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                        : null,
                   ),
                   body: SafeArea(
                     minimum: EdgeInsets.symmetric(
@@ -217,14 +258,12 @@ class _InboxScreenState extends State<InboxScreen> {
         ),
       ),
     );
-    // Branch root (no external home_screen.dart wrap anymore): expanded stays
-    // full-bleed for the master/detail pane; other classes get the standalone
-    // centered-column treatment other tab roots use.
-    return context.windowClass == WindowClass.expanded
-        ? screen
-        : TenturaContentColumn(child: screen);
+    return screen;
   }
 }
+
+double inboxMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
+    (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
 
 class _InboxExpandedBody extends StatelessWidget {
   const _InboxExpandedBody({
@@ -248,9 +287,7 @@ class _InboxExpandedBody extends StatelessWidget {
     final tt = context.tt;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final masterWidth = (tt.contentMaxWidth ?? constraints.maxWidth / 2)
-            .clamp(420.0, 560.0)
-            .toDouble();
+        final masterWidth = inboxMasterPaneWidth(constraints.maxWidth, tt);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -336,7 +373,10 @@ class _InboxExpandedPreview extends StatelessWidget {
                       selected.newStuffBeaconOnlyActivityEpochMs,
                 ),
                 onOpenBeacon: () => context.router.push(
-                  BeaconViewRoute(id: selected.beaconId, entry: kBeaconEntryInbox),
+                  BeaconViewRoute(
+                    id: selected.beaconId,
+                    entry: kBeaconEntryInbox,
+                  ),
                 ),
                 onTap: () => unawaited(_onForwardItem(context, selected)),
                 onWatch: watchingTab
@@ -484,32 +524,14 @@ class _InboxTabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final l10n = L10n.of(context)!;
 
     return BlocSelector<InboxCubit, InboxState, int>(
       selector: (s) => s.needsMe.length,
       builder: (_, needsMeCount) {
         final tt = context.tt;
-        return TabBar(
-          automaticIndicatorColorAdjustment: false,
-          tabAlignment: TabAlignment.start,
-          isScrollable: true,
+        return TenturaPrimaryTabBar(
           labelPadding: EdgeInsets.symmetric(horizontal: tt.rowGap),
-          labelColor: scheme.onPrimary,
-          unselectedLabelColor: scheme.onPrimary.withValues(alpha: 0.72),
-          indicatorColor: scheme.onPrimary,
-          dividerColor: scheme.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: scheme.onPrimary,
-          ),
-          unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: scheme.onPrimary.withValues(alpha: 0.72),
-          ),
           tabs: [
             Tab(text: '${l10n.inboxTabNeedsMe} ($needsMeCount)'),
             Tab(text: l10n.inboxTabWatching),

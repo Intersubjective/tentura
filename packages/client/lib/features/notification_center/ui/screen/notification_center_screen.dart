@@ -17,19 +17,21 @@ class NotificationCenterScreen extends StatelessWidget
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
-        create: (_) {
-          final cubit = NotificationCenterCubit();
-          unawaited(cubit.fetch());
-          return cubit;
-        },
-        child: this,
-      );
+    create: (_) {
+      final cubit = NotificationCenterCubit();
+      unawaited(cubit.fetch());
+      return cubit;
+    },
+    child: this,
+  );
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
         title: Text(l10n.notifications),
         actions: [
           BlocSelector<NotificationCenterCubit, NotificationCenterState, bool>(
@@ -114,7 +116,8 @@ class _NotificationTile extends StatelessWidget {
 
   static IconData _iconFor(NotificationCenterCategory category) =>
       switch (category) {
-        NotificationCenterCategory.asksOfMe => Icons.notifications_active_outlined,
+        NotificationCenterCategory.asksOfMe =>
+          Icons.notifications_active_outlined,
         NotificationCenterCategory.unblocksMe => Icons.check_circle_outline,
         NotificationCenterCategory.coordination => Icons.forum_outlined,
         NotificationCenterCategory.ambient => Icons.bubble_chart_outlined,
@@ -131,8 +134,7 @@ class _NotificationTile extends StatelessWidget {
       NotificationCenterCategory.unblocksMe => tt.good,
       NotificationCenterCategory.coordination => tt.info,
       NotificationCenterCategory.ambient ||
-      NotificationCenterCategory.unknown =>
-        tt.textMuted,
+      NotificationCenterCategory.unknown => tt.textMuted,
     };
   }
 
@@ -164,7 +166,10 @@ class _EmptyState extends StatelessWidget {
             color: tt.textFaint,
           ),
           SizedBox(height: tt.rowGap),
-          Text(l10n.notificationsEmpty, style: TenturaText.title(colors.onSurface)),
+          Text(
+            l10n.notificationsEmpty,
+            style: TenturaText.title(colors.onSurface),
+          ),
           SizedBox(height: tt.tightGap),
           Text(
             l10n.notificationsEmptyHint,

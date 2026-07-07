@@ -11,7 +11,6 @@ import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/credential_entity.dart';
 import '../../domain/entity/credential_types.dart';
@@ -76,14 +75,13 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     final theme = Theme.of(context);
     final tt = context.tt;
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
         title: Text(l10n.signInMethods),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(LinearPiActive.height),
-          child: BlocSelector<CredentialsCubit, CredentialsState, bool>(
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-          ),
+        progress: BlocSelector<CredentialsCubit, CredentialsState, bool>(
+          selector: (state) => state.isLoading,
+          builder: TenturaTopBar.loadingBar,
         ),
       ),
       body: SafeArea(
@@ -243,7 +241,8 @@ class _CredentialsScreenState extends State<CredentialsScreen>
                   right: tt.screenHPadding,
                   top: tt.sectionGap,
                   bottom:
-                      MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
+                      MediaQuery.viewInsetsOf(sheetContext).bottom +
+                      tt.sectionGap,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

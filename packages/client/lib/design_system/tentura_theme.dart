@@ -9,17 +9,18 @@ import 'tentura_tokens.dart';
 /// Root [ThemeData] for Tentura: Material 3 + [TenturaTokens] extension.
 abstract final class TenturaTheme {
   static ThemeData light() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: TenturaPalette.sky,
-    ).copyWith(
-      surface: TenturaPalette.bg,
-      surfaceContainer: TenturaPalette.surface,
-      onSurface: TenturaPalette.text,
-      onSurfaceVariant: TenturaPalette.textMuted,
-      outline: TenturaPalette.border,
-      error: TenturaPalette.rose,
-      onError: Colors.white,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: TenturaPalette.sky,
+        ).copyWith(
+          surface: TenturaPalette.bg,
+          surfaceContainer: TenturaPalette.surface,
+          onSurface: TenturaPalette.text,
+          onSurfaceVariant: TenturaPalette.textMuted,
+          outline: TenturaPalette.border,
+          error: TenturaPalette.rose,
+          onError: Colors.white,
+        );
 
     return _base(
       colorScheme: colorScheme,
@@ -28,18 +29,19 @@ abstract final class TenturaTheme {
   }
 
   static ThemeData dark() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: TenturaPalette.skyDark,
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: TenturaPalette.bgDark,
-      surfaceContainer: TenturaPalette.surfaceDark,
-      onSurface: TenturaPalette.textDark,
-      onSurfaceVariant: TenturaPalette.textMutedDark,
-      outline: TenturaPalette.borderDark,
-      error: TenturaPalette.roseDark,
-      onError: const Color(0xFF0A1826),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: TenturaPalette.skyDark,
+          brightness: Brightness.dark,
+        ).copyWith(
+          surface: TenturaPalette.bgDark,
+          surfaceContainer: TenturaPalette.surfaceDark,
+          onSurface: TenturaPalette.textDark,
+          onSurfaceVariant: TenturaPalette.textMutedDark,
+          outline: TenturaPalette.borderDark,
+          error: TenturaPalette.roseDark,
+          onError: const Color(0xFF0A1826),
+        );
 
     return _base(
       colorScheme: colorScheme,
@@ -76,8 +78,9 @@ abstract final class TenturaTheme {
 
     // In dark M3, [ColorScheme.primary] is often a dark tone; default [Icon]s
     // (no explicit color) would inherit [iconTheme] and disappear on dark surfaces.
-    final defaultIconColor =
-        isDark ? colorScheme.onSurfaceVariant : colorScheme.primary;
+    final defaultIconColor = isDark
+        ? colorScheme.onSurfaceVariant
+        : colorScheme.primary;
 
     return ThemeData(
       useMaterial3: true,
@@ -112,11 +115,20 @@ abstract final class TenturaTheme {
         shape: expansionTileShape,
       ),
       iconTheme: IconThemeData(color: defaultIconColor),
+      appBarTheme: AppBarThemeData(
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+      ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.primary,
         contentTextStyle: TextStyle(color: colorScheme.onPrimary),
-        dismissDirection:
-            kIsWeb ? DismissDirection.none : DismissDirection.down,
+        dismissDirection: kIsWeb
+            ? DismissDirection.none
+            : DismissDirection.down,
       ),
       dividerTheme: DividerThemeData(
         color: tokens.borderSubtle,
@@ -162,8 +174,8 @@ abstract final class TenturaTheme {
           final color = disabled
               ? colorScheme.onSurfaceVariant.withValues(alpha: 0.38)
               : selected
-                  ? colorScheme.onSurface
-                  : colorScheme.onSurfaceVariant;
+              ? colorScheme.onSurface
+              : colorScheme.onSurfaceVariant;
 
           return TenturaText.navLabel(color).copyWith(
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,

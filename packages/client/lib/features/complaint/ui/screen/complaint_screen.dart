@@ -7,7 +7,6 @@ import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/complaint_cubit.dart';
 import '../../domain/util/feedback_email.dart';
@@ -108,19 +107,17 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
           final isAccountDeletionRequest =
               fixedType == ComplaintType.accountDeletionRequest;
           return Scaffold(
-            appBar: AppBar(
+            appBar: TenturaTopBar.of(
+              context,
               title: Text(
                 isAccountDeletionRequest
                     ? l10n.submitAccountDeletionRequest
                     : l10n.submitComplaint,
               ),
               leading: const AutoLeadingButton(),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(LinearPiActive.height),
-                child: BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                  selector: (state) => state.isLoading,
-                  builder: LinearPiActive.builder,
-                ),
+              progress: BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                selector: (state) => state.isLoading,
+                builder: TenturaTopBar.loadingBar,
               ),
             ),
             body: SafeArea(

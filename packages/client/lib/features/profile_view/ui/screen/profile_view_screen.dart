@@ -42,30 +42,26 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: TenturaContentColumn(
-          child: RefreshIndicator.adaptive(
-            onRefresh: () => Future.wait([
-              context.read<ProfileViewCubit>().fetch(),
-              context.read<ProfileSharedBeaconsCubit>().fetch(),
-            ]),
-            child: CustomScrollView(
-              slivers: [
-                // Header
-                ProfileViewAppBar(
-                  key: Key('ProfileViewScreen:AppBar'),
-                ),
-
-                // Body
-                SliverPadding(
-                  padding: context.tt.cardPadding,
-                  sliver: ProfileViewBody(),
-                ),
-
-                // Shared beacons (forwarded + co-help-offered)
-                ProfileSharedBeaconsSliver(),
-              ],
+    appBar: buildProfileViewAppBar(context),
+    body: TenturaContentColumn(
+      child: RefreshIndicator.adaptive(
+        onRefresh: () => Future.wait([
+          context.read<ProfileViewCubit>().fetch(),
+          context.read<ProfileSharedBeaconsCubit>().fetch(),
+        ]),
+        child: CustomScrollView(
+          slivers: [
+            // Body
+            SliverPadding(
+              padding: context.tt.cardPadding,
+              sliver: ProfileViewBody(),
             ),
-          ),
+
+            // Shared beacons (forwarded + co-help-offered)
+            ProfileSharedBeaconsSliver(),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

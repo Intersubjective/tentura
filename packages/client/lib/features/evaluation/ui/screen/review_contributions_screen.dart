@@ -15,7 +15,6 @@ import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.da
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -82,25 +81,23 @@ class ReviewContributionsScreen extends StatelessWidget
       minimumSize: Size.fromHeight(tt.buttonHeight),
     );
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
         title: Text(
           draft
               ? l10n.evaluationAcknowledgeTitleDraft
               : l10n.evaluationAcknowledgeTitle,
         ),
+        progress: BlocSelector<EvaluationCubit, EvaluationState, bool>(
+          bloc: cubit,
+          selector: (state) => state.isLoading,
+          builder: TenturaTopBar.loadingBar,
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            SizedBox(
-              width: double.infinity,
-              height: LinearPiActive.height,
-              child: BlocSelector<EvaluationCubit, EvaluationState, bool>(
-                bloc: cubit,
-                selector: (state) => state.isLoading,
-                builder: LinearPiActive.builder,
-              ),
-            ),
             Expanded(
               child: TenturaContentColumn(
                 child: BlocBuilder<EvaluationCubit, EvaluationState>(

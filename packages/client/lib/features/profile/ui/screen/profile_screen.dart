@@ -14,38 +14,39 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => TenturaContentColumn(
-    child: BlocSelector<ProfileCubit, ProfileState, Profile>(
-      bloc: GetIt.I<ProfileCubit>(),
-      selector: (state) => state.profile,
-      builder: (_, profile) => RefreshIndicator.adaptive(
-        onRefresh: GetIt.I<ProfileCubit>().fetch,
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            ProfileAppBar(
-              key: Key('ProfileAppBar:${profile.id}'),
-              profile: profile,
+  Widget build(BuildContext context) =>
+      BlocSelector<ProfileCubit, ProfileState, Profile>(
+        bloc: GetIt.I<ProfileCubit>(),
+        selector: (state) => state.profile,
+        builder: (context, profile) => Scaffold(
+          appBar: buildProfileAppBar(context, profile: profile),
+          body: SafeArea(
+            minimum: EdgeInsets.symmetric(
+              horizontal: context.tt.screenHPadding,
             ),
-
-            SliverPadding(
-              padding: context.tt.cardPadding,
-              sliver: SliverToBoxAdapter(
-                child: ProfileNameNudge(profile: profile),
+            child: TenturaContentColumn(
+              child: RefreshIndicator.adaptive(
+                onRefresh: GetIt.I<ProfileCubit>().fetch,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: context.tt.cardPadding,
+                      sliver: SliverToBoxAdapter(
+                        child: ProfileNameNudge(profile: profile),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: context.tt.cardPadding,
+                      sliver: ProfileBody(
+                        key: Key('ProfileBody:${profile.id}'),
+                        profile: profile,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            // Profile
-            SliverPadding(
-              padding: context.tt.cardPadding,
-              sliver: ProfileBody(
-                key: Key('ProfileBody:${profile.id}'),
-                profile: profile,
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }

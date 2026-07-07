@@ -14,6 +14,8 @@ export 'components/tentura_meta_text.dart';
 export 'components/tentura_status_text.dart';
 export 'components/tentura_tech_card.dart';
 export 'components/tentura_text_action.dart';
+export 'components/tentura_top_bar.dart';
+export 'components/tentura_primary_tab_bar.dart';
 export 'components/tentura_type_label.dart';
 export 'components/tentura_underline_tabs.dart';
 export 'tentura_colors.dart';

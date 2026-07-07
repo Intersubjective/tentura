@@ -217,10 +217,34 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 
 ## Components (use these)
 
+- `TenturaTopBar`, `TenturaPrimaryTabBar`
 - `TenturaTechCard` / `TenturaTechCardStatic`
 - `TenturaStatusText`, `TenturaMetaText`, `TenturaTypeLabel`
 - `TenturaTextAction`, `TenturaCommandButton`
 - `TenturaUnderlineTabs`, `TenturaAvatar`, `TenturaHairlineDivider`
+
+## Top app bar
+
+Use [`TenturaTopBar`](../packages/client/lib/design_system/components/tentura_top_bar.dart) for every normal feature/shared UI top bar. It owns the Material 3 app-bar chrome, token-driven height (`tt.appBarHeight`: 56 compact, 60 regular/expanded), title spacing, surface tint, progress strip, and content-column alignment. Raw `AppBar` / `SliverAppBar` are reserved for immersive overlays that intentionally draw over camera, map, or media content.
+
+Tone policy:
+
+- `TenturaTopBarTone.primary`: the 4 home-tab roots only (MyWork, Inbox, Friends, Profile).
+- `TenturaTopBarTone.surface`: pushed/standalone screens and dialogs.
+- Immersive exceptions: QR scanner, map picker, gallery/image viewers, room attachment gallery.
+
+Alignment policy:
+
+- `TenturaTopBarAlignment.content` is the default. Bar background spans the pane; the internal `[leading] [title] [actions]` row aligns to the same horizontal geometry as body content (`screenHPadding` + `TenturaContentColumn`).
+- `TenturaTopBarAlignment.fullWidth` is for full-bleed canvases such as graph and rating scatter screens.
+- Multi-pane screens use the `row:` escape hatch and the same pane-width helper as the body (Inbox expanded, BeaconView split).
+
+Rules:
+
+- Pass leading explicitly on pushed screens. The primitive disables implicit leading so tab roots never reserve hidden back-button width.
+- Use `progress: TenturaTopBar.loadingBar(context, isLoading, tone: ...)` instead of `bottom: PreferredSize(... LinearPiActive ...)`; the 4dp slot is reserved while idle.
+- Use `bottom:` only for real bottom widgets such as `TabBar`; it receives the same content alignment wrapper.
+- Use `TenturaPrimaryTabBar` for on-primary home-tab tabs.
 
 ## Do / don’t (operational areas)
 
@@ -233,7 +257,7 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 | `context.tt` gaps/padding (`rowGap`, `cardGap`, `tightGap`, …) + `tt.cardRadius` / `TenturaRadii.*` | `EdgeInsets.only(top: 6)` / `BorderRadius.circular(12)` and other raw-number insets/radii in **all** `features/**` and `ui/**` |
 
 
-Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_operational_pill_widgets_in_beacon_view` in [`packages/tentura_lints`](../packages/tentura_lints); plus `no_inline_font_size`, `no_raw_edge_insets`, and `no_raw_border_radius` for `features/**` and `ui/**` (design-system files and the package `test/` tree are exempt). If a spacing/radius token is missing, add it to `tentura_spacing.dart` + `tentura_tokens.dart` (or `tentura_radii.dart`) first — e.g. `tightGap` (2px hairline nudge between stacked metadata lines). The `material-3-flutter` agent skill summarizes this workflow.
+Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_operational_pill_widgets_in_beacon_view` in [`packages/tentura_lints`](../packages/tentura_lints); plus `no_inline_font_size`, `no_raw_edge_insets`, `no_raw_border_radius`, and `use_tentura_top_bar` for `features/**` and `ui/**` (design-system files, tests, and immersive overlay allowlist are exempt). If a spacing/radius token is missing, add it to `tentura_spacing.dart` + `tentura_tokens.dart` (or `tentura_radii.dart`) first — e.g. `tightGap` (2px hairline nudge between stacked metadata lines). The `material-3-flutter` agent skill summarizes this workflow.
 
 ## Web viewport
 

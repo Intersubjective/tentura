@@ -19,7 +19,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../widget/beacon_anchor_status.dart';
@@ -1069,18 +1068,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               _exitRoomSurface();
             },
             child: Scaffold(
-              appBar: AppBar(
-                backgroundColor: scheme.surface,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                toolbarHeight: kToolbarHeight,
-                leadingWidth: kToolbarHeight,
-                foregroundColor: scheme.onSurface,
-                titleTextStyle: theme.textTheme.titleLarge!.copyWith(
-                  color: scheme.onSurface,
-                ),
-                titleSpacing: 8,
+              appBar: TenturaTopBar.of(
+                context,
+                alignment: isSplit
+                    ? TenturaTopBarAlignment.fullWidth
+                    : TenturaTopBarAlignment.content,
                 // Plain BackButton (no onPressed): let it fall through to
                 // Navigator.maybePop so a tap routes through the same
                 // PopScope.onPopInvokedWithResult → _exitRoomSurface() path
@@ -1088,54 +1080,124 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 // directly to _exitRoomSurface bypassed the Navigator pop
                 // attempt entirely and hung on compact — the replacePath in
                 // _stripRoomFromUrl never resolved when called that way.
-                leading: showLegacyRoomSurface
+                leading: isSplit
+                    ? null
+                    : showLegacyRoomSurface
                     ? const BackButton()
                     : AutoLeadingWithFallback(
                         fallbackPath: kPathMyWork,
                         onFallback: () => _leaveBeaconView(context),
                       ),
-                title: BeaconViewAppBarTitle(
-                  beacon: state.beacon,
-                  showBeaconContent: showBeaconContent,
-                  statusLine: appBarStatusLine,
-                  statusTone: appBarStatusTone,
-                  l10n: l10n,
-                ),
-                actions: [
-                  if (showBeaconContent &&
-                      !showInitialLoading &&
-                      !isSplit &&
-                      !showLegacyRoomSurface &&
-                      state.canNavigateBeaconRoom)
-                    BeaconViewRoomAppBarButton(
-                      state: state,
-                      onPressed: _enterRoomSurface,
-                    ),
-                  if (showBeaconContent)
-                    beaconViewAppBarOverflow(
-                      context: context,
-                      state: state,
-                      cubit: beaconViewCubit,
-                      screenCubit: screenCubit,
-                      l10n: l10n,
-                      inRoomSurface: showLegacyRoomSurface,
-                      roomCubit: showLegacyRoomSurface ? _roomCubit : null,
-                      onItemsTabRefresh: _refreshItemsTab,
-                      onAuthorManageStatus: () async {
-                        await showBeaconViewUpdateStatusSheet(
-                          context,
-                          state,
-                          beaconViewCubit,
-                          onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
-                          onEnterRoomSurface: _enterRoomSurface,
-                        );
-                      },
-                    ),
-                ],
-                bottom: PreferredSize(
-                  preferredSize: LinearPiActive.size,
-                  child: LinearPiActive.builder(context, state.isLoading),
-                ),
+                title: isSplit
+                    ? const SizedBox.shrink()
+                    : BeaconViewAppBarTitle(
+                        beacon: state.beacon,
+                        showBeaconContent: showBeaconContent,
+                        statusLine: appBarStatusLine,
+                        statusTone: appBarStatusTone,
+                        l10n: l10n,
+                      ),
+                actions: isSplit
+                    ? null
+                    : [
+                        if (showBeaconContent &&
+                            !showInitialLoading &&
+                            !showLegacyRoomSurface &&
+                            state.canNavigateBeaconRoom)
+                          BeaconViewRoomAppBarButton(
+                            state: state,
+                            onPressed: _enterRoomSurface,
+                          ),
+                        if (showBeaconContent)
+                          beaconViewAppBarOverflow(
+                            context: context,
+                            state: state,
+                            cubit: beaconViewCubit,
+                            screenCubit: screenCubit,
+                            l10n: l10n,
+                            inRoomSurface: showLegacyRoomSurface,
+                            roomCubit: showLegacyRoomSurface
+                                ? _roomCubit
+                                : null,
+                            onItemsTabRefresh: _refreshItemsTab,
+                            onAuthorManageStatus: () async {
+                              await showBeaconViewUpdateStatusSheet(
+                                context,
+                                state,
+                                beaconViewCubit,
+                                onOpenPeopleTab: () =>
+                                    _switchToTab(kBeaconTabPeople),
+                                onEnterRoomSurface: _enterRoomSurface,
+                              );
+                            },
+                          ),
+                      ],
+                row: isSplit
+                    ? LayoutBuilder(
+                        builder: (context, constraints) {
+                          final roomPaneWidth = beaconViewRoomSplitPaneWidth(
+                            tt,
+                            availableWidth: constraints.maxWidth,
+                          );
+                          final overflow = showBeaconContent
+                              ? beaconViewAppBarOverflow(
+                                  context: context,
+                                  state: state,
+                                  cubit: beaconViewCubit,
+                                  screenCubit: screenCubit,
+                                  l10n: l10n,
+                                  inRoomSurface: false,
+                                  roomCubit: null,
+                                  onItemsTabRefresh: _refreshItemsTab,
+                                  onAuthorManageStatus: () async {
+                                    await showBeaconViewUpdateStatusSheet(
+                                      context,
+                                      state,
+                                      beaconViewCubit,
+                                      onOpenPeopleTab: () =>
+                                          _switchToTab(kBeaconTabPeople),
+                                      onEnterRoomSurface: _enterRoomSurface,
+                                    );
+                                  },
+                                )
+                              : const SizedBox.shrink();
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TenturaContentColumn(
+                                  child: Row(
+                                    children: [
+                                      AutoLeadingWithFallback(
+                                        fallbackPath: kPathMyWork,
+                                        onFallback: () =>
+                                            _leaveBeaconView(context),
+                                      ),
+                                      Expanded(
+                                        child: BeaconViewAppBarTitle(
+                                          beacon: state.beacon,
+                                          showBeaconContent: showBeaconContent,
+                                          statusLine: appBarStatusLine,
+                                          statusTone: appBarStatusTone,
+                                          l10n: l10n,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: roomPaneWidth,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: overflow,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      )
+                    : null,
+                progress: TenturaTopBar.loadingBar(context, state.isLoading),
               ),
               body: SafeArea(
                 child: Column(

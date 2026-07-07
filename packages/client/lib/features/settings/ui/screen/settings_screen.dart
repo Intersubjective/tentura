@@ -4,8 +4,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
@@ -49,16 +47,14 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
     final tt = context.tt;
     final visibleVersion = cubit.state.visibleVersion;
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
         leading: const AutoLeadingButton(),
         title: Text(l10n.labelSettings),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(LinearPiActive.height),
-          child: BlocSelector<AuthCubit, AuthState, bool>(
-            bloc: authCubit,
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-          ),
+        progress: BlocSelector<AuthCubit, AuthState, bool>(
+          bloc: authCubit,
+          selector: (state) => state.isLoading,
+          builder: TenturaTopBar.loadingBar,
         ),
       ),
       body: SafeArea(
@@ -66,24 +62,24 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
           child: SingleChildScrollView(
             padding: EdgeInsets.all(tt.screenHPadding),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: tt.sectionGap,
-            children: [
-              const LanguageSwitchButton(),
-              const ThemeSwitchButton(),
-              _SettingsCommandList(
-                l10n: l10n,
-                authCubit: authCubit,
-                settingsCubit: cubit,
-                onConfirmResetLocal: () => _confirmResetLocal(context),
-              ),
-              if (visibleVersion != null && visibleVersion.isNotEmpty)
-                Center(
-                  child: TenturaMetaText(
-                    visibleVersion,
-                    maxLines: 2,
-                  ),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: tt.sectionGap,
+              children: [
+                const LanguageSwitchButton(),
+                const ThemeSwitchButton(),
+                _SettingsCommandList(
+                  l10n: l10n,
+                  authCubit: authCubit,
+                  settingsCubit: cubit,
+                  onConfirmResetLocal: () => _confirmResetLocal(context),
                 ),
+                if (visibleVersion != null && visibleVersion.isNotEmpty)
+                  Center(
+                    child: TenturaMetaText(
+                      visibleVersion,
+                      maxLines: 2,
+                    ),
+                  ),
               ],
             ),
           ),

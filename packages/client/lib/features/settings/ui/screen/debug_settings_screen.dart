@@ -16,20 +16,22 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
-        create: (_) {
-          final cubit = GetIt.I<DebugSettingsCubit>();
-          unawaited(cubit.loadFcmInfo());
-          return cubit;
-        },
-        child: this,
-      );
+    create: (_) {
+      final cubit = GetIt.I<DebugSettingsCubit>();
+      unawaited(cubit.loadFcmInfo());
+      return cubit;
+    },
+    child: this,
+  );
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
         title: Text(l10n.settingsDebug),
         actions: [
           IconButton(

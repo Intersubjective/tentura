@@ -153,61 +153,61 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
             return TenturaSheetDismissGuard(
               isDirty: isDirty,
               child: DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.7,
-              minChildSize: 0.4,
-              maxChildSize: 0.95,
-              builder: (_, scrollController) => Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      modalTt.screenHPadding,
-                      modalTt.screenHPadding,
-                      modalTt.screenHPadding,
-                      modalTt.rowGap,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            l10n.forwardReasonPrompt,
-                            style: TenturaText.title(modalTt.text),
-                          ),
-                        ),
-                        FilledButton(
-                          onPressed: () {
-                            cubit.setRecipientReasons(
-                              recipientId,
-                              selected.toList(),
-                            );
-                            Navigator.of(ctx).pop();
-                          },
-                          child: Text(l10n.buttonSave),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView(
-                      controller: scrollController,
+                expand: false,
+                initialChildSize: 0.7,
+                minChildSize: 0.4,
+                maxChildSize: 0.95,
+                builder: (_, scrollController) => Column(
+                  children: [
+                    Padding(
                       padding: EdgeInsets.fromLTRB(
                         modalTt.screenHPadding,
-                        0,
                         modalTt.screenHPadding,
-                        modalTt.sectionGap,
+                        modalTt.screenHPadding,
+                        modalTt.rowGap,
                       ),
-                      children: [
-                        CapabilityChipSet(
-                          selectedSlugs: selected,
-                          automaticSlugs: existingSlugs,
-                          onChanged: (s) => setModalState(() => selected = s),
-                        ),
-                      ],
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.forwardReasonPrompt,
+                              style: TenturaText.title(modalTt.text),
+                            ),
+                          ),
+                          FilledButton(
+                            onPressed: () {
+                              cubit.setRecipientReasons(
+                                recipientId,
+                                selected.toList(),
+                              );
+                              Navigator.of(ctx).pop();
+                            },
+                            child: Text(l10n.buttonSave),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: ListView(
+                        controller: scrollController,
+                        padding: EdgeInsets.fromLTRB(
+                          modalTt.screenHPadding,
+                          0,
+                          modalTt.screenHPadding,
+                          modalTt.sectionGap,
+                        ),
+                        children: [
+                          CapabilityChipSet(
+                            selectedSlugs: selected,
+                            automaticSlugs: existingSlugs,
+                            onChanged: (s) => setModalState(() => selected = s),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
             );
           },
         ),
@@ -338,29 +338,70 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            ForwardTopBar(
-                              titleLine: l10n.forwardBeaconTitle,
-                              closeFallbackRoute: widget.beaconId.isNotEmpty
-                                  ? BeaconViewRoute(
-                                      id: widget.beaconId,
-                                      entry: kBeaconEntryForward,
-                                    )
-                                  : null,
-                              subtitleLine:
-                                  beacon != null && beacon.id.isNotEmpty
-                                  ? forwardBeaconSubtitle(
-                                      l10n: l10n,
-                                      beaconTitle: beacon.title,
-                                      lifecycleLabel: _lifecycleLabel(
-                                        l10n,
-                                        beacon,
+                            TenturaTopBar.of(
+                              context,
+                              leading: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(
+                                  minWidth: tt.buttonHeight,
+                                  minHeight: tt.buttonHeight,
+                                ),
+                                icon: Icon(Icons.close, size: tt.iconSize),
+                                tooltip: MaterialLocalizations.of(
+                                  context,
+                                ).closeButtonTooltip,
+                                onPressed: () {
+                                  final router = context.router;
+                                  if (router.canPop()) {
+                                    unawaited(router.maybePop());
+                                  } else if (widget.beaconId.isNotEmpty) {
+                                    unawaited(
+                                      router.navigate(
+                                        BeaconViewRoute(
+                                          id: widget.beaconId,
+                                          entry: kBeaconEntryForward,
+                                        ),
                                       ),
-                                    )
-                                  : '',
-                              searchTooltip: l10n.forwardOverlaySearchHint,
-                              onSearchPressed: () {
-                                setState(() => _searchOverlayOpen = true);
-                              },
+                                    );
+                                  }
+                                },
+                              ),
+                              title: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.forwardBeaconTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TenturaText.title(tt.text),
+                                  ),
+                                  Text(
+                                    beacon != null && beacon.id.isNotEmpty
+                                        ? forwardBeaconSubtitle(
+                                            l10n: l10n,
+                                            beaconTitle: beacon.title,
+                                            lifecycleLabel: _lifecycleLabel(
+                                              l10n,
+                                              beacon,
+                                            ),
+                                          )
+                                        : '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TenturaText.bodySmall(tt.textMuted),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                IconButton(
+                                  tooltip: l10n.forwardOverlaySearchHint,
+                                  icon: const Icon(Icons.search),
+                                  onPressed: () {
+                                    setState(() => _searchOverlayOpen = true);
+                                  },
+                                ),
+                              ],
                             ),
                             const TenturaHairlineDivider(),
                             if (beacon != null && beacon.id.isNotEmpty) ...[

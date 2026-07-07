@@ -9,7 +9,6 @@ import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
-import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
@@ -50,39 +49,39 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    return TenturaContentColumn(
-      child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-        listenWhen: (prev, curr) =>
-            prev.myWorkReselectCount != curr.myWorkReselectCount,
-        listener: (context, _) {
-          context.read<MyWorkCubit>()
-            ..setFilter(MyWorkFilter.active)
-            ..setSort(MyWorkSort.recent);
-        },
-        child: Scaffold(
-          backgroundColor: scheme.surface,
-          appBar: InboxStyleAppBar(
-            title: const Row(
-              children: [
-                Expanded(child: _MyWorkFilterMenu()),
-                _MyWorkSortButton(),
-              ],
-            ),
-            actions: [
-              IconButton(
-                tooltip: l10n.newBeacon,
-                onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
-                icon: const Icon(Icons.add),
-              ),
-              const _MyWorkOverflowMenu(),
+    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+      listenWhen: (prev, curr) =>
+          prev.myWorkReselectCount != curr.myWorkReselectCount,
+      listener: (context, _) {
+        context.read<MyWorkCubit>()
+          ..setFilter(MyWorkFilter.active)
+          ..setSort(MyWorkSort.recent);
+      },
+      child: Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: TenturaTopBar.of(
+          context,
+          tone: TenturaTopBarTone.primary,
+          title: const Row(
+            children: [
+              Expanded(child: _MyWorkFilterMenu()),
+              _MyWorkSortButton(),
             ],
           ),
-          body: SafeArea(
-            minimum: EdgeInsets.symmetric(
-              horizontal: context.tt.screenHPadding,
+          actions: [
+            IconButton(
+              tooltip: l10n.newBeacon,
+              onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+              icon: const Icon(Icons.add),
             ),
-            child: const TenturaContentColumn(child: _MyWorkBody()),
+            const _MyWorkOverflowMenu(),
+          ],
+        ),
+        body: SafeArea(
+          minimum: EdgeInsets.symmetric(
+            horizontal: context.tt.screenHPadding,
           ),
+          child: const TenturaContentColumn(child: _MyWorkBody()),
         ),
       ),
     );

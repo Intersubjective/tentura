@@ -89,7 +89,9 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingButton(),
         title: BlocBuilder<ItemActionsCubit, ItemActionsState>(
           buildWhen: (p, c) => p.item != c.item,
           builder: (context, state) => Text(
@@ -205,10 +207,12 @@ class _ItemDiscussionHydrateLoaderState
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
-            appBar: AppBar(
+            appBar: TenturaTopBar.of(
+              context,
               leading: BackButton(
                 onPressed: () => unawaited(context.router.maybePop()),
               ),
+              title: const SizedBox.shrink(),
             ),
             body: const Center(child: CircularProgressIndicator.adaptive()),
           );
@@ -246,7 +250,11 @@ class _ItemDiscussionLoadError extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return Scaffold(
-      appBar: AppBar(leading: BackButton(onPressed: onBack)),
+      appBar: TenturaTopBar.of(
+        context,
+        leading: BackButton(onPressed: onBack),
+        title: const SizedBox.shrink(),
+      ),
       body: Center(child: Text(l10n.labelNothingHere)),
     );
   }

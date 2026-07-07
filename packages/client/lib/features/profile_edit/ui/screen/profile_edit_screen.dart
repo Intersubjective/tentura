@@ -10,7 +10,6 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -64,8 +63,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       key: _formKey,
       child: Scaffold(
         // Header
-        appBar: AppBar(
+        appBar: TenturaTopBar.of(
+          context,
           title: Text(l10n.profileOverflowEdit),
+          leading: const AutoLeadingButton(),
           actions: [
             // Save Button
             BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
@@ -81,12 +82,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
               },
             ),
           ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(LinearPiActive.height),
-            child: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
-              selector: (state) => state.isLoading,
-              builder: LinearPiActive.builder,
-            ),
+          progress: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+            selector: (state) => state.isLoading,
+            builder: TenturaTopBar.loadingBar,
           ),
         ),
         resizeToAvoidBottomInset: false,
@@ -142,8 +140,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                             bottom: 0,
                             right: 0,
                             child: _ProfileAvatarActions(
-                              canRemove:
-                                  state.canDropImage || state.hasImage,
+                              canRemove: state.canDropImage || state.hasImage,
                               canCrop:
                                   state.hasImage ||
                                   (state.canDropImage &&

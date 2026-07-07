@@ -4,7 +4,7 @@ Complete inventory of screens, routes, dialogs, bottom sheets, and overlay entry
 
 > **Note:** Regenerate before trusting this inventory against the tree. After refresh, verify home tab order (My Work default) and beacon detail tabs (**Items / People / Log**).
 
-**Generated:** 2026-06-22 (source scan of `packages/client/lib`; refreshed 2026-06-23 for removed stub screens)
+**Generated:** 2026-06-22 (source scan of `packages/client/lib`; refreshed 2026-06-23 for removed stub screens; app-bar audit refreshed 2026-07-07)
 
 ---
 
@@ -82,6 +82,7 @@ Cross-checked `root_router.dart` against all `@RoutePage()` annotations. **Widge
 | Name | File | Notes |
 |------|------|-------|
 | **BeaconGalleryViewer** | `lib/ui/widget/beacon_gallery_viewer.dart` | Full-screen beacon photo gallery |
+| **TenturaFullscreenImageViewer** | `lib/ui/widget/tentura_fullscreen_image_viewer.dart` | Full-screen general image gallery |
 | **RoomAttachmentFullscreenGallery** | `lib/features/beacon_room/ui/widget/room_attachment_widgets.dart` | Full-screen room attachment swipe gallery |
 
 ---
@@ -342,10 +343,60 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 │
 ├── [Non–Auto Route pushes]
 │   ├── BeaconGalleryViewer (from beacon photos)
+│   ├── TenturaFullscreenImageViewer (from profile / profile-view image galleries)
 │   └── RoomAttachmentFullscreenGallery (from room attachments)
 ```
 
 ---
+
+## Top App Bar Audit
+
+Best-practice references:
+
+- [AppBar](https://api.flutter.dev/flutter/material/AppBar-class.html) - fixed-height top app bar on `Scaffold`, with primary actions and overflow.
+- [SliverAppBar](https://api.flutter.dev/flutter/material/SliverAppBar-class.html) - scroll-linked app bar that participates in a `CustomScrollView`.
+- [Adaptive and responsive design in Flutter](https://docs.flutter.dev/ui/adaptive-responsive) - adapt layouts so they remain usable in the available space.
+- [Large screen devices](https://docs.flutter.dev/ui/adaptive-responsive/large-screens) - switch navigation and chrome as the window grows.
+
+### Unified top bars
+
+Normal screens now use `TenturaTopBar` instead of raw `AppBar`, `SliverAppBar`, `InboxStyleAppBar`, or `ForwardTopBar`. The bar background spans the pane, while bar internals align to the same content geometry as the body. Height follows `tt.appBarHeight` (56 compact, 60 regular/expanded). Loading indicators use the 4dp `progress:` slot instead of ad-hoc `bottom` strips.
+
+- **Primary tone roots:** MyWork, Inbox, Friends, and Profile.
+- **Surface tone pushed/standalone screens:** auth, settings, credentials, complaint, profile edit/view, BeaconCreate, Beacon lists, BeaconView, ItemDiscussion, notifications, rating, graph, invite genealogy, evaluation, Forward.
+- **Full-width alignment:** graph routes, rating, invite genealogy, and split/multi-pane custom rows.
+- **Multi-pane custom rows:** Inbox expanded aligns tabs over the master pane; BeaconView split aligns title over the operational pane and overflow over the room pane.
+
+### Full-screen overlays with top bars
+
+- **QRScanDialog** (`packages/client/lib/ui/dialog/qr_scan_dialog.dart`): fullscreen dialog with an `AppBar`; desktop and mobile bodies diverge, but the top chrome is consistent. Good for a scanning utility.
+- **ChooseLocationDialog** (`packages/client/lib/features/geo/ui/dialog/choose_location_dialog.dart`): fullscreen dialog with an `AppBar`, transparent foreground, and body drawn behind it. This is a good fit for a map picker.
+- **BeaconGalleryViewer** (`packages/client/lib/ui/widget/beacon_gallery_viewer.dart`): fullscreen image viewer with a black `AppBar` and an optional image-count title. Good for an immersive gallery.
+- **TenturaFullscreenImageViewer** (`packages/client/lib/ui/widget/tentura_fullscreen_image_viewer.dart`): same pattern as the beacon gallery viewer, with a black `AppBar` and page count title when multiple images exist. Good and consistent.
+- **RoomAttachmentFullscreenGallery** (`packages/client/lib/features/beacon_room/ui/widget/room_attachment_widgets.dart`): fullscreen gallery viewer for room attachments; it follows the same top-bar model as the other image viewers.
+
+### No top app bar or legacy-only surfaces
+
+- **HomeScreen** (`packages/client/lib/features/home/ui/screen/home_screen.dart`): no top app bar. This is intentional because the shell chrome is the navigation rail or bottom bar, which is the adaptive control point for this surface.
+- **IntroScreen** (`packages/client/lib/features/intro/ui/screen/intro_screen.dart`): no top app bar. That is fine for immersive onboarding.
+- **AcceptInviteScreen** (`packages/client/lib/features/invitation/ui/screen/accept_invite_screen.dart`): no top app bar; it is a loading/redirect surface that hands off to a dialog or a registration route.
+- **BeaconRoomScreen** (`packages/client/lib/features/beacon_room/ui/screen/beacon_room_screen.dart`): legacy stub, no app bar. Keep it treated as dead UI.
+- **BeaconLegacyPathScreen** (`packages/client/lib/features/beacon_view/ui/screen/beacon_legacy_path_screen.dart`): legacy redirect stub, no app bar.
+
+### Cross-cutting read
+
+- The app mostly follows Material 3 expectations: fixed app bars on normal routes, `SliverAppBar` on scrollable profile surfaces, and shell-level navigation adaptation on `HomeScreen`.
+- The strongest adaptive choice is `HomeScreen`, which switches from bottom navigation on compact widths to a navigation rail on wider widths instead of trying to stretch the app bar into a desktop shell.
+- The most custom top-bar code lives in `ForwardBeaconScreen`, `MyWorkScreen`, `FriendsScreen`, `ProfileScreen`, and `ProfileViewScreen`. Those are valid, but they should be treated as bespoke primitives rather than copied ad hoc.
+- The densest headers are `InboxScreen` and `RatingScreen`. If you want to move closer to Material 3 adaptive best practice, those are the first places to simplify on larger widths or split secondary controls out of the title row.
+
+### Adaptive consistency snapshot
+
+- **True width-adaptive shells**: `HomeScreen` changes navigation chrome by window class; `InboxScreen` switches into a split-pane master/detail layout on expanded widths; `BeaconViewScreen` switches between operational-only and room-surface modes and can split content on expanded windows; `BeaconCreateScreen` keeps the same app bar but its tab content becomes denser and more grid-like on wide widths.
+- **Stable chrome, reflowed body**: `AuthLoginScreen`, `AuthRegisterScreen`, `RecoverScreen`, `SettingsScreen`, `CredentialsScreen`, `NotificationSettingsScreen`, `NotificationCenterScreen`, `ComplaintScreen`, `ProfileEditScreen`, `InvolvedBeaconScreen`, `InboxRejectedScreen`, `ReviewContributionsScreen`, and `InviteGenealogyScreen` keep the same top bar on mobile and desktop/tablet and mostly rely on width-capped content or vertical reflow. That is the right choice for forms and utility pages.
+- **Scrollable profile/detail surfaces**: `ProfileScreen` and `ProfileViewScreen` stay visually consistent across widths because their sliver headers are designed to survive more vertical space without needing a different navigation model. They read well on both mobile and desktop, but they do not yet split into a richer two-column layout on wide screens.
+- **Canvas / full-bleed surfaces**: `GraphScreen`, `ForwardsGraphScreen`, `RatingScreen` in scatter mode, `ChooseLocationDialog`, `BeaconGalleryViewer`, `TenturaFullscreenImageViewer`, `RoomAttachmentFullscreenGallery`, and the room surface inside `BeaconViewScreen` intentionally use the extra width instead of centering everything. These are consistent because the wide layout is supposed to feel expansive rather than compressed.
+- **Most likely to feel cramped on desktop**: `InboxScreen`, `RatingScreen`, `ForwardBeaconScreen`, `BeaconCreateScreen`, `MyWorkScreen`, `FriendsScreen`, and `BeaconViewScreen` carry the highest top-bar action density. They are still coherent on tablet, but desktop is where a future split of secondary actions, search, or filters into side panels would buy the most clarity.
 
 ## Notes
 

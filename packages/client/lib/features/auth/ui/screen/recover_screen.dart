@@ -10,7 +10,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/auth_cubit.dart';
 
@@ -138,15 +137,15 @@ class _RecoverScreenState extends State<RecoverScreen> {
     final tt = context.tt;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        centerTitle: true,
+        leading: const AutoLeadingButton(),
         title: Text(l10n.authRecoveryHubTitle),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: BlocSelector<AuthCubit, AuthState, bool>(
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-            bloc: authCubit,
-          ),
+        progress: BlocSelector<AuthCubit, AuthState, bool>(
+          selector: (state) => state.isLoading,
+          builder: TenturaTopBar.loadingBar,
+          bloc: authCubit,
         ),
       ),
       body: SafeArea(
@@ -154,97 +153,97 @@ class _RecoverScreenState extends State<RecoverScreen> {
           child: SingleChildScrollView(
             padding: EdgeInsets.all(tt.screenHPadding),
             child: BlocSelector<AuthCubit, AuthState, bool>(
-            bloc: authCubit,
-            selector: (state) => state.isLoading,
-            builder: (context, isLoading) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l10n.authSessionProblemBanner,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  FilledButton(
-                    onPressed: isLoading ? null : authCubit.signInAgain,
-                    child: Text(l10n.authRecoverySignInAgain),
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  OutlinedButton(
-                    onPressed: isLoading
-                        ? null
-                        : () => unawaited(_confirmResetLocal()),
-                    child: Text(l10n.authRecoveryResetLocalTitle),
-                  ),
-                  SizedBox(height: tt.sectionGap * 2),
-                  Text(
-                    l10n.recoverFromSeedHint,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final viewportH = MediaQuery.sizeOf(context).height;
-                      final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
-                      return SizedBox(
-                        height: qrHeight,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(tt.cardRadius),
-                          child: Semantics(
-                            key: _scanLiveRegionKey,
-                            label: l10n.recoverFromSeedHint,
-                            liveRegion: true,
-                            child: MobileScanner(onDetect: _handleBarcode),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  TextField(
-                    controller: _seedController,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    keyboardType: TextInputType.visiblePassword,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: l10n.recoverFromSeedFieldLabel,
-                      border: const OutlineInputBorder(),
+              bloc: authCubit,
+              selector: (state) => state.isLoading,
+              builder: (context, isLoading) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.authSessionProblemBanner,
+                      style: theme.textTheme.bodyMedium,
                     ),
-                    onSubmitted: _recover,
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  Text(
-                    l10n.recoverFromSeedPrivacyNote,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  SizedBox(height: tt.sectionGap),
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () async {
-                          final data = await Clipboard.getData(
-                            Clipboard.kTextPlain,
-                          );
-                          final text = data?.text?.trim();
-                          if (text != null && text.isNotEmpty && mounted) {
-                            _seedController.text = text;
-                          }
-                        },
-                        icon: const Icon(Icons.paste_rounded),
-                        label: Text(l10n.buttonPaste),
+                    SizedBox(height: tt.sectionGap),
+                    FilledButton(
+                      onPressed: isLoading ? null : authCubit.signInAgain,
+                      child: Text(l10n.authRecoverySignInAgain),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    OutlinedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => unawaited(_confirmResetLocal()),
+                      child: Text(l10n.authRecoveryResetLocalTitle),
+                    ),
+                    SizedBox(height: tt.sectionGap * 2),
+                    Text(
+                      l10n.recoverFromSeedHint,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final viewportH = MediaQuery.sizeOf(context).height;
+                        final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
+                        return SizedBox(
+                          height: qrHeight,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(tt.cardRadius),
+                            child: Semantics(
+                              key: _scanLiveRegionKey,
+                              label: l10n.recoverFromSeedHint,
+                              liveRegion: true,
+                              child: MobileScanner(onDetect: _handleBarcode),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                    TextField(
+                      controller: _seedController,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      keyboardType: TextInputType.visiblePassword,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: l10n.recoverFromSeedFieldLabel,
+                        border: const OutlineInputBorder(),
                       ),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: isLoading
-                            ? null
-                            : () => _recover(_seedController.text),
-                        child: Text(l10n.recoverFromSeedAction),
-                      ),
-                    ],
-                  ),
-                ],
-              );
+                      onSubmitted: _recover,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    Text(
+                      l10n.recoverFromSeedPrivacyNote,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    SizedBox(height: tt.sectionGap),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            final data = await Clipboard.getData(
+                              Clipboard.kTextPlain,
+                            );
+                            final text = data?.text?.trim();
+                            if (text != null && text.isNotEmpty && mounted) {
+                              _seedController.text = text;
+                            }
+                          },
+                          icon: const Icon(Icons.paste_rounded),
+                          label: Text(l10n.buttonPaste),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: isLoading
+                              ? null
+                              : () => _recover(_seedController.text),
+                          child: Text(l10n.recoverFromSeedAction),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
               },
             ),
           ),

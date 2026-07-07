@@ -46,9 +46,7 @@ int _previewBackgroundArgb(_BeaconIconPickerSelection sel) =>
   }
   final argb = identityBackgroundArgb!;
   final bg = Color(argb);
-  final fg = bg.computeLuminance() > 0.5
-      ? scheme.onSurface
-      : scheme.onPrimary;
+  final fg = bg.computeLuminance() > 0.5 ? scheme.onSurface : scheme.onPrimary;
   return (bg: bg, fg: fg);
 }
 
@@ -102,8 +100,9 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
       ValueNotifier(_initialSelection);
 
   /// Hovered icon key; drives app-bar preview label only (not grid rebuild).
-  late final ValueNotifier<String?> _previewIconCodeNotifier =
-      ValueNotifier(null);
+  late final ValueNotifier<String?> _previewIconCodeNotifier = ValueNotifier(
+    null,
+  );
 
   late final DateTime _epoch = DateTime.timestamp();
 
@@ -158,8 +157,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
             child: Row(
               children: [
                 Expanded(child: Text(_categoryFilterLabel(l10n, cat))),
-                if (cat == current)
-                  const Icon(Icons.check, size: 20),
+                if (cat == current) const Icon(Icons.check, size: 20),
               ],
             ),
           ),
@@ -223,7 +221,9 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
+      appBar: TenturaTopBar.of(
+        context,
+        trailingIsIcon: false,
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
           icon: const Icon(Icons.close),
@@ -238,7 +238,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
             final displayLabel = displayCode == null
                 ? l10n.beaconSymbolTitle
                 : (kBeaconIdentityIcons[displayCode]?.label ??
-                    l10n.beaconSymbolTitle);
+                      l10n.beaconSymbolTitle);
             final previewBeacon = Beacon(
               createdAt: _epoch,
               updatedAt: _epoch,
@@ -458,8 +458,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                                             _clearPreviewIconCode(entry.key),
                                         onTap: () {
                                           _clearPreviewIconCode(entry.key);
-                                          final cur =
-                                              _selectionNotifier.value;
+                                          final cur = _selectionNotifier.value;
                                           _selectionNotifier.value = (
                                             iconCode: entry.key,
                                             iconBackground:
