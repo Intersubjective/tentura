@@ -3,7 +3,5 @@ mutation BeaconClose($id: String!, $expectedRequiresReviewWindow: Boolean!) {
     id
     status
     closesAt
-    requiresReviewWindow
-    branchMismatch
   }
 }
