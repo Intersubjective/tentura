@@ -4,13 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/entity/beacon_schedule.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/features/geo/data/repository/geo_repository.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/geo/data/service/google_geocoding_service.dart';
 import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -43,6 +47,15 @@ Future<void> _expandLogisticsGroup(WidgetTester tester) async {
 }
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
+
+class _BeaconRepositoryStub extends Mock implements BeaconRepository {
+  _BeaconRepositoryStub(this._beacon);
+
+  final Beacon _beacon;
+
+  @override
+  Future<Beacon> fetchBeaconById(String id) async => _beacon;
+}
 
 Widget _infoTabHarness(BeaconCreateCubit cubit) {
   return MaterialApp(
@@ -162,6 +175,78 @@ void main() {
     cubit.clearTiming();
     expect(cubit.state.startAt, isNull);
     expect(cubit.state.endAt, isNull);
+  });
+
+  test('timing kind switches preserve last valid single and range values', () {
+    final start = DateTime(2026, 6, 20);
+    final end = DateTime(2026, 6, 23);
+
+    // Pick a range event, then switch to deadline and back: range is restored.
+    cubit.setEventDates(startAt: start, endAt: end);
+    cubit.setTimingKind(BeaconScheduleKind.deadline);
+    expect(cubit.state.startAt, isNull);
+    expect(cubit.state.endAt, end);
+
+    cubit.setTimingKind(BeaconScheduleKind.event);
+    expect(cubit.state.startAt, start);
+    expect(cubit.state.endAt, end);
+
+    // Switching to "no date" must not erase cached values.
+    cubit.setTimingKind(BeaconScheduleKind.none);
+    expect(cubit.state.startAt, isNull);
+    expect(cubit.state.endAt, isNull);
+
+    cubit.setTimingKind(BeaconScheduleKind.event);
+    expect(cubit.state.startAt, start);
+    expect(cubit.state.endAt, end);
+
+    // Switching from deadline to event promotes single-date when no cached range.
+    final single = DateTime(2026, 7, 1);
+    final fresh = BeaconCreateCubit(
+      beaconRepository: BeaconRepositoryMock(),
+      imageRepository: ImageRepositoryMock(),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(fresh.close);
+    fresh.setDeadline(single);
+    fresh.setTimingKind(BeaconScheduleKind.event);
+    expect(fresh.state.startAt, single);
+    expect(fresh.state.endAt, isNull);
+  });
+
+  test('edit load seeds caches for timing kind switches', () async {
+    final now = DateTime.utc(2026, 7, 1);
+    final start = DateTime.utc(2026, 7, 10);
+    final end = DateTime.utc(2026, 7, 12);
+    final beacon = Beacon(
+      createdAt: now,
+      updatedAt: now,
+      id: 'b-edit',
+      title: 'Edit me',
+      status: BeaconStatus.open,
+      startAt: start,
+      endAt: end,
+    );
+    final repo = _BeaconRepositoryStub(beacon);
+
+    final editCubit = BeaconCreateCubit(
+      beaconRepository: repo,
+      imageRepository: ImageRepositoryMock(),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(editCubit.close);
+
+    await editCubit.loadEdit('b-edit');
+    expect(editCubit.state.startAt, start);
+    expect(editCubit.state.endAt, end);
+
+    editCubit.setTimingKind(BeaconScheduleKind.deadline);
+    expect(editCubit.state.startAt, isNull);
+    expect(editCubit.state.endAt, end);
+
+    editCubit.setTimingKind(BeaconScheduleKind.event);
+    expect(editCubit.state.startAt, start);
+    expect(editCubit.state.endAt, end);
   });
 
   testWidgets('timing mode changes preserve unrelated form fields', (

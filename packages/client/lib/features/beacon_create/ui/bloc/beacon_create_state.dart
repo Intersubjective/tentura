@@ -26,6 +26,12 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     Coordinates? coordinates,
     DateTime? startAt,
     DateTime? endAt,
+
+    /// Local-only cached timing values so switching timing kind doesn't destroy
+    /// the user's inputs while the editor is open.
+    DateTime? cachedDeadlineAt,
+    DateTime? cachedEventStartAt,
+    DateTime? cachedEventEndAt,
     String? iconCode,
     int? iconBackground,
 

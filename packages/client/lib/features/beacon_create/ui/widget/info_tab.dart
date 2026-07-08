@@ -821,19 +821,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   /// reinterpreted rather than lost.
   void _onTimingKindChanged(BeaconScheduleKind kind) {
     _timingKindNotifier.value = kind;
-    final s = _cubit.state;
-    switch (kind) {
-      case BeaconScheduleKind.none:
-        _cubit.clearTiming();
-      case BeaconScheduleKind.deadline:
-        // Keep an existing end (window end) as the deadline; drop the start.
-        _cubit.setDeadline(s.endAt);
-      case BeaconScheduleKind.event:
-        // Promote a bare deadline date to a single-day event.
-        if (s.startAt == null && s.endAt != null) {
-          _cubit.setEventDates(startAt: s.endAt!);
-        }
-    }
+    _cubit.setTimingKind(kind);
   }
 }
 

@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -170,6 +171,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           location: locationLabel,
           startAt: beacon.startAt,
           endAt: beacon.endAt,
+          cachedDeadlineAt: beacon.startAt == null ? beacon.endAt : null,
+          cachedEventStartAt: beacon.startAt,
+          cachedEventEndAt: beacon.startAt != null ? beacon.endAt : null,
           iconCode: beacon.iconCode,
           iconBackground: beacon.iconBackground,
           images: [...beacon.images],
@@ -216,25 +220,79 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     state.copyWith(
       startAt: startAt,
       endAt: endAt,
+      cachedEventStartAt: startAt ?? state.cachedEventStartAt,
+      cachedEventEndAt: startAt != null ? endAt : state.cachedEventEndAt,
+      cachedDeadlineAt:
+          startAt == null && endAt != null ? endAt : state.cachedDeadlineAt,
     ),
   );
 
   /// Deadline timing: only [endAt] is set ("needs to happen by"); `startAt` is
   /// cleared so the card derives a deadline (vs an event) from nullability.
   void setDeadline(DateTime? endAt) => emit(
-    state.copyWith(startAt: null, endAt: endAt),
+    state.copyWith(
+      startAt: null,
+      endAt: endAt,
+      cachedDeadlineAt: endAt ?? state.cachedDeadlineAt,
+    ),
   );
 
   /// Event timing: [startAt] is the moment it happens; [endAt] (optional) makes
   /// it a window. The card derives an event from a non-null [startAt].
   void setEventDates({required DateTime startAt, DateTime? endAt}) => emit(
-    state.copyWith(startAt: startAt, endAt: endAt),
+    state.copyWith(
+      startAt: startAt,
+      endAt: endAt,
+      cachedEventStartAt: startAt,
+      cachedEventEndAt: endAt,
+    ),
   );
 
   /// Clears all schedule dates (flexible / no date).
   void clearTiming() => emit(
     state.copyWith(startAt: null, endAt: null),
   );
+
+  /// Switches the declared meaning of schedule dates without destroying the
+  /// user's previously entered values while the editor is open.
+  void setTimingKind(BeaconScheduleKind kind) {
+    final s = state;
+    switch (kind) {
+      case BeaconScheduleKind.none:
+        emit(s.copyWith(startAt: null, endAt: null));
+      case BeaconScheduleKind.deadline:
+        final fromEventEnd = s.endAt ?? s.cachedEventEndAt;
+        final fromEventStart = s.startAt ?? s.cachedEventStartAt;
+        final picked = fromEventEnd ?? fromEventStart ?? s.cachedDeadlineAt;
+        emit(
+          s.copyWith(
+            startAt: null,
+            endAt: picked,
+            cachedDeadlineAt: picked ?? s.cachedDeadlineAt,
+          ),
+        );
+      case BeaconScheduleKind.event:
+        final cachedStart = s.cachedEventStartAt;
+        if (cachedStart != null) {
+          emit(s.copyWith(startAt: cachedStart, endAt: s.cachedEventEndAt));
+          return;
+        }
+
+        final promote = s.cachedDeadlineAt ?? s.endAt;
+        if (promote != null) {
+          emit(
+            s.copyWith(
+              startAt: promote,
+              endAt: null,
+              cachedEventStartAt: promote,
+              cachedEventEndAt: null,
+            ),
+          );
+        } else {
+          emit(s.copyWith(startAt: null, endAt: null));
+        }
+    }
+  }
 
   ///
   ///
