@@ -464,6 +464,14 @@
   "@beaconRoutingBanner": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipientsBlockedBannerTitle": "Заполните обязательные поля",
+  "@beaconRecipientsBlockedBannerTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRecipientsBlockedBannerBody": "Добавьте название и описание, прежде чем выбирать получателей или приглашать нового человека.",
+  "@beaconRecipientsBlockedBannerBody": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSendRequest": "Отправить запрос",
   "@beaconSendRequest": {
     "context": "BeaconCreateScreen"

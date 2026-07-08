@@ -464,6 +464,14 @@
   "@beaconRoutingBanner": {
     "context": "BeaconCreateScreen"
   },
+  "beaconRecipientsBlockedBannerTitle": "Complete required fields",
+  "@beaconRecipientsBlockedBannerTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRecipientsBlockedBannerBody": "Add a title and description before choosing recipients or inviting a new person.",
+  "@beaconRecipientsBlockedBannerBody": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconSendRequest": "Send request",
   "@beaconSendRequest": {
     "context": "BeaconCreateScreen"

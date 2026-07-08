@@ -117,6 +117,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     if (_beaconCreateCubit.state.isEditMode || _recipientsDraftEnsuring) {
       return;
     }
+    // Don't attempt server draft creation until required fields are present.
+    // This tab should be reachable without triggering a validation snackbar.
+    if (_beaconCreateCubit.state.publishBlocker != null) {
+      return;
+    }
     if (_beaconCreateCubit.state.draftId != null) {
       return;
     }
@@ -348,133 +353,149 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       ),
       body: SafeArea(
         child: TenturaContentColumn(
-          child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+          child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
-            buildWhen: (p, c) =>
-                p.status != c.status ||
-                p.draftId != c.draftId ||
-                p.isEditMode != c.isEditMode,
-            builder: (context, state) {
-              if ((widget.draftId.isNotEmpty && state.draftId == null ||
-                      widget.editId.isNotEmpty && state.editId == null) &&
-                  state.isLoading) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              return Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onChanged: () => _beaconCreateCubit.validate(
-                  _formKey.currentState?.validate() ?? false,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    BlocSelector<
-                      BeaconCreateCubit,
-                      BeaconCreateState,
-                      ({bool show, BeaconPublishBlocker? blocker})
-                    >(
-                      bloc: _beaconCreateCubit,
-                      selector: (s) => (
-                        show:
-                            !s.isEditMode && !s.canTryToPublish && !s.isLoading,
-                        blocker: s.publishBlocker,
-                      ),
-                      builder: (context, hint) {
-                        if (!hint.show || hint.blocker == null) {
-                          return const SizedBox.shrink();
-                        }
-                        final scheme = Theme.of(context).colorScheme;
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: tt.rowGap),
-                          child: Material(
-                            color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(tt.cardRadius),
-                            child: Padding(
-                              padding: EdgeInsets.all(tt.cardPadding.top),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    size: tt.iconSize,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  SizedBox(width: tt.tightGap * 2),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          l10n.beaconPublishBlockedHint,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                        SizedBox(height: tt.tightGap),
-                                        Text(
-                                          _publishBlockedDetail(
-                                                l10n,
-                                                hint.blocker!,
-                                              ) ??
-                                              '',
-                                          style: TenturaText.bodySmall(
-                                            scheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          tt.screenHPadding,
-                          tt.sectionGap * 2,
-                          tt.screenHPadding,
-                          0,
+            listenWhen: (p, c) =>
+                p.publishBlocker != c.publishBlocker || p.draftId != c.draftId,
+            listener: (context, state) {
+              if (!mounted) return;
+              if (_tabController.index != _recipientsTabIndex) return;
+              if (state.isEditMode) return;
+              if (state.publishBlocker != null) return;
+              if (state.draftId != null) return;
+              if (_recipientsDraftEnsuring) return;
+              unawaited(_prepareRecipientsTab());
+            },
+            child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+              bloc: _beaconCreateCubit,
+              buildWhen: (p, c) =>
+                  p.status != c.status ||
+                  p.draftId != c.draftId ||
+                  p.isEditMode != c.isEditMode,
+              builder: (context, state) {
+                if ((widget.draftId.isNotEmpty && state.draftId == null ||
+                        widget.editId.isNotEmpty && state.editId == null) &&
+                    state.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                }
+                return Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: () => _beaconCreateCubit.validate(
+                    _formKey.currentState?.validate() ?? false,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      BlocSelector<
+                        BeaconCreateCubit,
+                        BeaconCreateState,
+                        ({bool show, BeaconPublishBlocker? blocker})
+                      >(
+                        bloc: _beaconCreateCubit,
+                        selector: (s) => (
+                          show:
+                              !s.isEditMode &&
+                              !s.canTryToPublish &&
+                              !s.isLoading,
+                          blocker: s.publishBlocker,
                         ),
-                        child:
-                            BlocSelector<
-                              BeaconCreateCubit,
-                              BeaconCreateState,
-                              bool
-                            >(
-                              key: const Key('BeaconCreate.FormBody'),
-                              bloc: _beaconCreateCubit,
-                              selector: (state) => state.isLoading,
-                              builder: (context, isLoading) => AbsorbPointer(
-                                absorbing: isLoading,
-                                child: TabBarView(
-                                  controller: _tabController,
+                        builder: (context, hint) {
+                          if (!hint.show || hint.blocker == null) {
+                            return const SizedBox.shrink();
+                          }
+                          final scheme = Theme.of(context).colorScheme;
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: tt.rowGap),
+                            child: Material(
+                              color: scheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(tt.cardRadius),
+                              child: Padding(
+                                padding: EdgeInsets.all(tt.cardPadding.top),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const InfoTab(
-                                      key: ValueKey('BeaconCreate.InfoTab'),
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: tt.iconSize,
+                                      color: scheme.onSurfaceVariant,
                                     ),
-                                    const ImageTab(),
-                                    _buildRecipientsTab(state, contextName),
+                                    SizedBox(width: tt.tightGap * 2),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            l10n.beaconPublishBlockedHint,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                          SizedBox(height: tt.tightGap),
+                                          Text(
+                                            _publishBlockedDetail(
+                                                  l10n,
+                                                  hint.blocker!,
+                                                ) ??
+                                                '',
+                                            style: TenturaText.bodySmall(
+                                              scheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ),
+                          );
+                        },
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            tt.screenHPadding,
+                            tt.sectionGap * 2,
+                            tt.screenHPadding,
+                            0,
+                          ),
+                          child:
+                              BlocSelector<
+                                BeaconCreateCubit,
+                                BeaconCreateState,
+                                bool
+                              >(
+                                key: const Key('BeaconCreate.FormBody'),
+                                bloc: _beaconCreateCubit,
+                                selector: (state) => state.isLoading,
+                                builder: (context, isLoading) => AbsorbPointer(
+                                  absorbing: isLoading,
+                                  child: TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      const InfoTab(
+                                        key: ValueKey('BeaconCreate.InfoTab'),
+                                      ),
+                                      const ImageTab(),
+                                      _buildRecipientsTab(state, contextName),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -494,7 +515,27 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     }
 
     final draftId = state.draftId;
-    if (draftId == null || draftId.isEmpty || _recipientsDraftEnsuring) {
+    if (draftId == null || draftId.isEmpty) {
+      if (state.publishBlocker != null) {
+        return const BeaconRecipientsBlockedTab();
+      }
+      if (_recipientsDraftEnsuring) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator.adaptive(),
+              SizedBox(height: context.tt.rowGap),
+              Text(
+                l10n.beaconRecipientsPreparing,
+                style: TenturaText.bodySmall(context.tt.textMuted),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+    if (draftId == null || draftId.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

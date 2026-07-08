@@ -106,3 +106,74 @@ class BeaconRecipientsTab extends StatelessWidget {
     );
   }
 }
+
+/// Recipients tab placeholder shown until required fields are filled.
+///
+/// Important: this is intentionally non-interactive so actions like
+/// “invite new person” cannot be used before a draft exists.
+class BeaconRecipientsBlockedTab extends StatelessWidget {
+  const BeaconRecipientsBlockedTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Padding(
+            padding: EdgeInsets.all(tt.cardPadding.top),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: tt.iconSize,
+                  color: scheme.onErrorContainer,
+                ),
+                SizedBox(width: tt.tightGap * 2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.beaconRecipientsBlockedBannerTitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: scheme.onErrorContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: tt.tightGap),
+                      Text(
+                        l10n.beaconRecipientsBlockedBannerBody,
+                        style: TenturaText.bodySmall(scheme.onErrorContainer),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: tt.rowGap),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+              child: Text(
+                l10n.beaconRecipientsBlockedBannerBody,
+                textAlign: TextAlign.center,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
