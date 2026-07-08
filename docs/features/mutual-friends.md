@@ -1,16 +1,16 @@
-# Mutual Friends
+# Mutual trust
 
-Shows which users Alice and Bob both know and trust, computed on-demand server-side via MeritRank.
+Shows which users Alice and Bob both trust **mutually**, computed on-demand server-side via MeritRank.
 
 ## What it does
 
-When Alice views Bob's profile (or considers accepting Bob's invite), she can tap **"Show mutual friends"** to fetch the set of users that:
+When Alice views Bob's profile (or considers accepting Bob's invite), she can tap **"Show mutual trust"** to fetch the set of users that:
 
-1. Alice knows mutually — i.e. Alice→person score > 0 **and** person→Alice score > 0
-2. Bob knows mutually — i.e. Bob→person score > 0 **and** person→Bob score > 0
+1. Alice trusts mutually — i.e. Alice→person score > 0 **and** person→Alice score > 0
+2. Bob trusts mutually — i.e. Bob→person score > 0 **and** person→Bob score > 0
 3. Are neither Alice nor Bob themselves
 
-The result replaces the button with overlapping mini-avatars (+N overflow badge). If the set is empty a short "No mutual friends" label is shown instead.
+The result replaces the button with overlapping mini-avatars (+N overflow badge). If the set is empty a short "No mutual trust" label is shown instead.
 
 ## Sorting (bridge score)
 

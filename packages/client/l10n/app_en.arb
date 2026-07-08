@@ -937,6 +937,18 @@
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
+  "trustRelationPrefix": "Trust:",
+  "@trustRelationPrefix": {
+    "context": "Profile — prefix before reciprocity class label"
+  },
+  "trustInfoTitle": "Trust on Tentura",
+  "@trustInfoTitle": {
+    "context": "Profile — info sheet title"
+  },
+  "trustInfoBody": "Trust is one-way and takes effect immediately. They don’t need to confirm. This action doesn’t send them a notification.\n\nMutual trust means you both trust each other. It can change what requests you see and how forwarding works.",
+  "@trustInfoBody": {
+    "context": "Profile — info sheet body"
+  },
   "removeFromMyField": "Stop trusting",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"

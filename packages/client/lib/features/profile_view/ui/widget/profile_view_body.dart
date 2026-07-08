@@ -11,6 +11,7 @@ import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -21,6 +22,47 @@ import 'mutual_friends_button.dart';
 
 class ProfileViewBody extends StatelessWidget {
   const ProfileViewBody({super.key});
+
+  String _trustReciprocityLabel(L10n l10n, Profile profile) {
+    if (profile.isMutualFriend) return l10n.classMutual;
+    if (profile.isFriend) return l10n.classOneWayOut;
+    if (profile.isSeeingMe) return l10n.classOneWayIn;
+    return l10n.classNone;
+  }
+
+  Future<void> _showTrustInfoSheet(BuildContext context) => showTenturaAdaptiveSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        useSafeArea: true,
+        builder: (ctx) {
+          final l10n = L10n.of(ctx)!;
+          final tt = ctx.tt;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.rowGap,
+              tt.screenHPadding,
+              tt.sectionGap,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.trustInfoTitle,
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+                SizedBox(height: tt.rowGap),
+                Text(
+                  l10n.trustInfoBody,
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          );
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -187,13 +229,38 @@ class ProfileViewBody extends StatelessWidget {
               child: MutualFriendsButton(userId: profile.id),
             ),
 
+            if (profile.id.isNotEmpty)
+              Padding(
+                padding: kPaddingSmallT,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${l10n.trustRelationPrefix} ${_trustReciprocityLabel(l10n, profile)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+
             if (profile.isNotFriend)
               Padding(
                 padding: kPaddingSmallT,
-                child: FilledButton.icon(
-                  onPressed: context.read<ProfileViewCubit>().addFriend,
-                  icon: const Icon(Icons.people),
-                  label: Text(l10n.addToMyField),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: context.read<ProfileViewCubit>().addFriend,
+                        icon: const Icon(Icons.people),
+                        label: Text(l10n.addToMyField),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _showTrustInfoSheet(context),
+                      icon: const Icon(Icons.info_outline),
+                      tooltip: l10n.trustInfoTitle,
+                    ),
+                  ],
                 ),
               ),
           ],

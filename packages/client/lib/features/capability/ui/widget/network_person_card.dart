@@ -45,6 +45,13 @@ class NetworkPersonCard extends StatelessWidget {
   /// Close-acknowledgement slugs — strongest signal (Phase 4+).
   final List<String> closeAckSlugs;
 
+  String _trustReciprocityLabel(L10n l10n) {
+    if (profile.isMutualFriend) return l10n.classMutual;
+    if (profile.isFriend) return l10n.classOneWayOut;
+    if (profile.isSeeingMe) return l10n.classOneWayIn;
+    return l10n.classNone;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
@@ -74,17 +81,32 @@ class NetworkPersonCard extends StatelessWidget {
                         profile,
                         state.profile.id,
                       );
-                      return Text(
-                        SelfUserHighlight.displayName(
-                          l10n,
-                          profile,
-                          state.profile.id,
-                        ),
-                        style: SelfUserHighlight.nameStyle(
-                          theme,
-                          theme.textTheme.bodyLarge,
-                          isSelf,
-                        ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            SelfUserHighlight.displayName(
+                              l10n,
+                              profile,
+                              state.profile.id,
+                            ),
+                            style: SelfUserHighlight.nameStyle(
+                              theme,
+                              theme.textTheme.bodyLarge,
+                              isSelf,
+                            ),
+                          ),
+                          if (!isSelf)
+                            Text(
+                              '${l10n.trustRelationPrefix} ${_trustReciprocityLabel(l10n)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
                       );
                     },
                   ),

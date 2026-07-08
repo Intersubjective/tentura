@@ -937,6 +937,18 @@
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
+  "trustRelationPrefix": "Доверие:",
+  "@trustRelationPrefix": {
+    "context": "Profile — prefix before reciprocity class label"
+  },
+  "trustInfoTitle": "Доверие в Tentura",
+  "@trustInfoTitle": {
+    "context": "Profile — info sheet title"
+  },
+  "trustInfoBody": "Доверие одностороннее и начинает действовать сразу. Подтверждение от другого человека не требуется. Это действие не отправляет ему/ей уведомление.\n\nВзаимное доверие означает, что вы доверяете друг другу. Это может влиять на то, какие запросы вы видите и как работает пересылка.",
+  "@trustInfoBody": {
+    "context": "Profile — info sheet body"
+  },
   "removeFromMyField": "Перестать доверять",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"
