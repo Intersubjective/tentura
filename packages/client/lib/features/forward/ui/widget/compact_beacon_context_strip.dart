@@ -10,9 +10,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
-/// Thin metadata strip: avatar · author · needs · reach hint on one row.
+/// Thin metadata strip: avatar · author · needs on one row.
 class CompactBeaconContextStrip extends StatelessWidget {
   const CompactBeaconContextStrip({
     required this.beacon,
@@ -92,6 +91,11 @@ class CompactBeaconContextStrip extends StatelessWidget {
 
               return Row(
                 children: [
+                  Text(
+                    l10n.forwardBeaconAuthorLabel,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                  SizedBox(width: tt.iconTextGap),
                   SelfAwareAvatar.small(
                     profile: beacon.author,
                   ),
@@ -122,10 +126,6 @@ class CompactBeaconContextStrip extends StatelessWidget {
                         ],
                       ],
                     ),
-                  ),
-                  TenturaInfoHintButton(
-                    fullText: l10n.forwardReachExplainer,
-                    semanticsLabel: l10n.forwardReachExplainer,
                   ),
                 ],
               );

@@ -420,36 +420,7 @@ void main() {
 
     expect(find.text(reachExplainer), findsNothing);
     expect(find.text(aheadHint), findsNothing);
-    expect(find.byType(TenturaInfoHintButton), findsNWidgets(2));
-  });
-
-  testWidgets('reach explainer dialog opens from context strip hint', (
-    tester,
-  ) async {
-    _registerInvitationRepository();
-    _registerUiEffectPort();
-
-    const reachExplainer =
-        'These are people you can reach. They get access only after they accept your forward.';
-
-    final cubit = _forwardCubitWithBeacon();
-    addTearDown(cubit.close);
-
-    await _pumpForwardPage(tester, cubit: cubit);
-
-    final stripHint = find.descendant(
-      of: find.byType(CompactBeaconContextStrip),
-      matching: find.byType(TenturaInfoHintButton),
-    );
-    expect(stripHint, findsOneWidget);
-
-    await tester.tap(stripHint);
-    await tester.pumpAndSettle();
-
-    expect(find.text(reachExplainer), findsOneWidget);
-    await tester.tap(find.text('Dismiss'));
-    await tester.pumpAndSettle();
-    expect(find.text(reachExplainer), findsNothing);
+    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
   });
 
   testWidgets('ahead hint icon hides after recipient selected', (tester) async {
@@ -460,12 +431,12 @@ void main() {
     addTearDown(cubit.close);
 
     await _pumpForwardPage(tester, cubit: cubit);
-    expect(find.byType(TenturaInfoHintButton), findsNWidgets(2));
+    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
 
     cubit.toggleSelection('u1');
     await tester.pumpAndSettle();
 
-    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
+    expect(find.byType(TenturaInfoHintButton), findsNothing);
   });
 
   testWidgets('forward page layout has no overflow at compact widths', (

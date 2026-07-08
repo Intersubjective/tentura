@@ -1847,6 +1847,10 @@
   "@forwardAuthor": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardBeaconAuthorLabel": "Автор:",
+  "@forwardBeaconAuthorLabel": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardPersonalizeNotes": "Персональные заметки ({count})",
   "@forwardPersonalizeNotes": {
     "context": "ForwardBeaconScreen",
@@ -1945,10 +1949,6 @@
   "forwardScopeInvolvedHint": "Люди, уже участвующие в цепочке пересылки",
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
-  },
-  "forwardReachExplainer": "Это люди, до которых вы можете дотянуться. Доступ к запросу появится только после принятия пересылки.",
-  "@forwardReachExplainer": {
-    "description": "Clarifies that forward-picker candidacy (reach) is not the same as read access."
   },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
   "@forwardHidePersonalizedNotes": {
