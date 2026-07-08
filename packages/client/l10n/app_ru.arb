@@ -937,6 +937,10 @@
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
+  "profileSendRequestTo": "Отправить запрос",
+  "@profileSendRequestTo": {
+    "context": "ProfileViewBody — open person-forward screen for this user"
+  },
   "trustRelationPrefix": "Доверие:",
   "@trustRelationPrefix": {
     "context": "Profile — prefix before reciprocity class label"

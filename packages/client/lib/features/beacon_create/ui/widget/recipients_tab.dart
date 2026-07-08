@@ -48,12 +48,20 @@ class BeaconRecipientsTab extends StatelessWidget {
           ),
         ),
         SizedBox(height: tt.rowGap),
-        BlocSelector<ForwardCubit, ForwardState, Set<String>>(
-          selector: (state) => state.droppedPreselectedIds,
-          builder: (context, droppedIds) {
-            if (droppedIds.isEmpty) {
-              return const SizedBox.shrink();
-            }
+        BlocSelector<ForwardCubit, ForwardState, (Set<String>, String?)>(
+          selector: (state) {
+            final dropped = state.droppedPreselectedIds;
+            if (dropped.isEmpty) return (const <String>{}, null);
+            final id = dropped.first;
+            final byId = {
+              for (final c in [...state.candidates, ...state.lineageSuggestions])
+                c.id: c,
+            };
+            return (dropped, byId[id]?.profile.shownName);
+          },
+          builder: (context, rec) {
+            final (droppedIds, droppedName) = rec;
+            if (droppedIds.isEmpty) return const SizedBox.shrink();
             return Padding(
               padding: EdgeInsets.only(bottom: tt.rowGap),
               child: Material(
@@ -73,7 +81,7 @@ class BeaconRecipientsTab extends StatelessWidget {
                       Expanded(
                         child: Text(
                           l10n.beaconRecipientsPreselectDropped(
-                            droppedIds.first,
+                            droppedName ?? droppedIds.first,
                           ),
                           style: TenturaText.bodySmall(
                             scheme.onSurfaceVariant,
