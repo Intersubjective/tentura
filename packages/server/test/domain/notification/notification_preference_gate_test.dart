@@ -243,7 +243,13 @@ void main() {
   group('defaults', () {
     test('conservative email opt-in (asksOfMe only) and ambient push off', () {
       final p = NotificationPreferencesEntity.defaults('a1');
-      expect(p.emailCategories, {NotificationCategory.asksOfMe});
+      expect(
+        p.emailCategories,
+        {
+          NotificationCategory.asksOfMe,
+          NotificationCategory.connections,
+        },
+      );
       expect(p.pushCategories.contains(NotificationCategory.ambient), isFalse);
       expect(p.pushCategories.contains(NotificationCategory.asksOfMe), isTrue);
       expect(p.emailDigest, DigestCadence.off);

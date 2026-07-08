@@ -41,6 +41,10 @@ class BeaconNotificationRecipientResolver {
           add(target, NotificationRecipientReason.targetOfAsk, intent.priority);
         }
 
+      case NotificationKind.inviteAccepted:
+        // Non-beacon social notification; handled by a dedicated service.
+        break;
+
       case NotificationKind.promiseMade:
         add(
           ctx.beaconAuthorId,

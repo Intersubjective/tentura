@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
@@ -110,6 +111,80 @@ class EmailNotificationService implements EmailNotificationPort {
       await _outbox.markEmailedByDedupKey(dedupKey);
     } on Object catch (e, s) {
       _logger.warning('[Email] immediate send failed for $recipientUserId', e, s);
+    }
+  }
+
+  @override
+  Future<bool> considerImmediateByCategory({
+    required String recipientUserId,
+    required String dedupKey,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String categoryScope,
+  }) async {
+    final category = notificationCategoryFromName(categoryScope);
+    if (category == null) {
+      return false;
+    }
+    // Keep asks-of-me's conservative policy routed through `considerImmediate`.
+    if (category == NotificationCategory.asksOfMe) {
+      return false;
+    }
+
+    final prefs = await _preferences.getForAccount(recipientUserId);
+    final now = DateTime.timestamp();
+    final allowed = _gate.allowsChannel(
+      channel: NotificationChannel.email,
+      category: category,
+      prefs: prefs,
+      now: now,
+    );
+    if (!allowed) {
+      return false;
+    }
+
+    final email = await _contacts.getPrimaryEmailForAccount(recipientUserId);
+    if (email == null) {
+      return false;
+    }
+
+    // Per-category cooldown (anti-flood).
+    final recent = await _outbox.countRecentEmailsByCategory(
+      accountId: recipientUserId,
+      category: category,
+      window: _env.emailNotifCooldown,
+    );
+    if (recent > 0) {
+      return false;
+    }
+
+    final unsubscribeUrl = _links.unsubscribeUrl(
+      accountId: recipientUserId,
+      scope: category.name,
+    );
+    final content = EmailNotificationContent(
+      item: EmailNotificationItem(
+        title: title,
+        body: body,
+        url: _links.absolute(actionUrl),
+      ),
+      unsubscribeUrl: unsubscribeUrl,
+      managePrefsUrl: _links.manageUrl(),
+    );
+
+    try {
+      await _email.sendNotificationEmail(
+        to: email,
+        locale: prefs.locale,
+        content: content,
+        listUnsubscribeUrl: unsubscribeUrl,
+      );
+      await _outbox.markEmailedByDedupKey(dedupKey);
+      return true;
+    } on Object catch (e, s) {
+      _logger.warning('[Email] immediate send failed for $recipientUserId', e, s);
+      return false;
     }
   }
 }

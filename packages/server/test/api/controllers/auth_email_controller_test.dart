@@ -20,12 +20,12 @@ import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
-import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   EmailAuthTransactionEntity? _tx;
@@ -159,8 +159,12 @@ EmailAuthCase _buildEmailAuthCase({
   required MockUserRepositoryPort userRepo,
   required MockVerifiedContactRepositoryPort contactRepo,
 }) {
+  final invitationRepo = MockInvitationRepositoryPort();
+  when(
+    invitationRepo.getById(invitationId: anyNamed('invitationId')),
+  ).thenAnswer((_) async => null);
   final invitationCase = buildTestInvitationCase(
-    invitationRepo: MockInvitationRepositoryPort(),
+    invitationRepo: invitationRepo,
     userRepo: userRepo,
     beaconRepo: MockBeaconRepositoryPort(),
     friendshipLookup: MockVoteUserFriendshipLookupPort(),
@@ -171,13 +175,21 @@ EmailAuthCase _buildEmailAuthCase({
   final credentialAuthCase = CredentialAuthCase(
     userRepo,
     contactRepo,
+    invitationRepo,
+    NoopInviteAcceptedNotificationPort(),
     invitationCase,
     env: env,
     logger: Logger('AuthEmailControllerTest'),
   );
   final sessionCase = SessionCase(
     _FakeSessionRepo(),
-    AuthCase(userRepo, env: env, logger: Logger('AuthEmailControllerTest')),
+    AuthCase(
+      userRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      env: env,
+      logger: Logger('AuthEmailControllerTest'),
+    ),
     env: env,
     logger: Logger('AuthEmailControllerTest'),
   );
@@ -222,7 +234,13 @@ void main() {
       emailAuthCase,
       SessionCase(
         _FakeSessionRepo(),
-        AuthCase(userRepo, env: env, logger: Logger('AuthEmailControllerTest')),
+        AuthCase(
+          userRepo,
+          MockInvitationRepositoryPort(),
+          NoopInviteAcceptedNotificationPort(),
+          env: env,
+          logger: Logger('AuthEmailControllerTest'),
+        ),
         env: env,
         logger: Logger('AuthEmailControllerTest'),
       ),
@@ -299,7 +317,13 @@ void main() {
     );
     final sessionCase = SessionCase(
       _FakeSessionRepo(),
-      AuthCase(userRepo, env: env, logger: Logger('AuthEmailControllerTest')),
+      AuthCase(
+        userRepo,
+        MockInvitationRepositoryPort(),
+        NoopInviteAcceptedNotificationPort(),
+        env: env,
+        logger: Logger('AuthEmailControllerTest'),
+      ),
       env: env,
       logger: Logger('AuthEmailControllerTest'),
     );
@@ -367,7 +391,13 @@ void main() {
         emailAuthCase,
         SessionCase(
           _FakeSessionRepo(),
-          AuthCase(userRepo, env: qaEnv, logger: Logger('AuthEmailControllerTest')),
+          AuthCase(
+            userRepo,
+            MockInvitationRepositoryPort(),
+            NoopInviteAcceptedNotificationPort(),
+            env: qaEnv,
+            logger: Logger('AuthEmailControllerTest'),
+          ),
           env: qaEnv,
           logger: Logger('AuthEmailControllerTest'),
         ),

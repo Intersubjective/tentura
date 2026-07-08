@@ -120,6 +120,7 @@ class _NotificationTile extends StatelessWidget {
           Icons.notifications_active_outlined,
         NotificationCenterCategory.unblocksMe => Icons.check_circle_outline,
         NotificationCenterCategory.coordination => Icons.forum_outlined,
+        NotificationCenterCategory.connections => Icons.people_alt_outlined,
         NotificationCenterCategory.ambient => Icons.bubble_chart_outlined,
         NotificationCenterCategory.unknown => Icons.notifications_outlined,
       };
@@ -133,6 +134,7 @@ class _NotificationTile extends StatelessWidget {
       NotificationCenterCategory.asksOfMe => tt.danger,
       NotificationCenterCategory.unblocksMe => tt.good,
       NotificationCenterCategory.coordination => tt.info,
+      NotificationCenterCategory.connections => tt.good,
       NotificationCenterCategory.ambient ||
       NotificationCenterCategory.unknown => tt.textMuted,
     };

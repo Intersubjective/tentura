@@ -6,6 +6,9 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/user_handle_consts.dart';
@@ -17,12 +20,16 @@ import '_use_case_base.dart';
 @Injectable(order: 2)
 final class AuthCase extends UseCaseBase {
   AuthCase(
-    this._userRepository, {
+    this._userRepository,
+    this._invitationRepository,
+    this._inviteAcceptedNotification, {
     required super.env,
     required super.logger,
   });
 
   final UserRepositoryPort _userRepository;
+  final InvitationRepositoryPort _invitationRepository;
+  final InviteAcceptedNotificationPort _inviteAcceptedNotification;
 
   late final _roles = {UserRoles.user};
 
@@ -92,12 +99,27 @@ final class AuthCase extends UseCaseBase {
     }
     final newUser = env.isNeedInvite
         ? switch (payload[AuthRequestIntentSignUp.keyCode]) {
-            final String invitationId => await _userRepository.createInvited(
-              invitationId: invitationId,
-              publicKey: publicKey,
-              displayName: displayName,
-              handle: handle,
-            ),
+            final String invitationId => await (() async {
+              final invitation =
+                  await _invitationRepository.getById(invitationId: invitationId);
+              final user = await _userRepository.createInvited(
+                invitationId: invitationId,
+                publicKey: publicKey,
+                displayName: displayName,
+                handle: handle,
+              );
+              if (invitation != null) {
+                await _inviteAcceptedNotification.notifyInviteAccepted(
+                  InviteAcceptedNotificationIntent(
+                    inviterUserId: invitation.issuer.id,
+                    accepterUserId: user.id,
+                    accepterDisplayName: user.displayName,
+                    actionUrl: '/#/shared/view?id=${user.id}',
+                  ),
+                );
+              }
+              return user;
+            })(),
             _ => throw const IdWrongException(
               description: 'Invite attribute not found!',
             ),
@@ -133,12 +155,24 @@ final class AuthCase extends UseCaseBase {
         );
       }
     }
+    final invitation =
+        await _invitationRepository.getById(invitationId: invitationId);
     final newUser = await _userRepository.createInvited(
       invitationId: invitationId,
       publicKey: publicKey,
       displayName: displayName,
       handle: handle,
     );
+    if (invitation != null) {
+      await _inviteAcceptedNotification.notifyInviteAccepted(
+        InviteAcceptedNotificationIntent(
+          inviterUserId: invitation.issuer.id,
+          accepterUserId: newUser.id,
+          accepterDisplayName: newUser.displayName,
+          actionUrl: '/#/shared/view?id=${newUser.id}',
+        ),
+      );
+    }
     return _issueJwt(newUser.id);
   }
 

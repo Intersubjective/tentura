@@ -277,6 +277,9 @@ void main() {
           userId: anyNamed('userId'),
         ),
       ).thenAnswer((_) async => result);
+      when(userRepo.getById(any)).thenAnswer(
+        (i) async => UserEntity(id: i.positionalArguments.first as String),
+      );
     }
 
     test('unknown code -> IdNotFoundException', () async {

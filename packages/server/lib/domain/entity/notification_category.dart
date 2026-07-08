@@ -15,6 +15,9 @@ enum NotificationCategory {
   /// Situational awareness; usually not an obligation.
   coordination,
 
+  /// Social graph / invitations / relationship signals.
+  connections,
+
   /// Background room hum. Lowest priority.
   ambient,
 }
@@ -34,6 +37,7 @@ NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
       NotificationKind.commitmentEvent ||
       NotificationKind.newRelay =>
         NotificationCategory.coordination,
+      NotificationKind.inviteAccepted => NotificationCategory.connections,
       NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
     };
 

@@ -25,6 +25,7 @@ import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeEmailSender implements EmailSenderPort {
   String? lastVerifyUrl;
@@ -171,7 +172,13 @@ final class _FakeSessionRepo implements SessionRepositoryPort {
 
 SessionCase _fakeSessionCase(Env env, UserRepositoryPort userRepo) => SessionCase(
   _FakeSessionRepo(),
-  AuthCase(userRepo, env: env, logger: Logger('EmailAuthCaseTest')),
+  AuthCase(
+    userRepo,
+    MockInvitationRepositoryPort(),
+    NoopInviteAcceptedNotificationPort(),
+    env: env,
+    logger: Logger('EmailAuthCaseTest'),
+  ),
   env: env,
   logger: Logger('EmailAuthCaseTest'),
 );
@@ -190,6 +197,9 @@ void main() {
     userRepo = MockUserRepositoryPort();
     contactRepo = MockVerifiedContactRepositoryPort();
     final invitationRepo = MockInvitationRepositoryPort();
+    when(
+      invitationRepo.getById(invitationId: anyNamed('invitationId')),
+    ).thenAnswer((_) async => null);
     final beaconRepo = MockBeaconRepositoryPort();
     final friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(
@@ -211,6 +221,8 @@ void main() {
     credentialAuthCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
@@ -497,6 +509,8 @@ void main() {
     final openCredentialAuthCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      MockInvitationRepositoryPort(),
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: openEnv,
       logger: Logger('CredentialAuthCaseTest'),
@@ -613,6 +627,8 @@ void main() {
       final qaCredentialAuthCase = CredentialAuthCase(
         userRepo,
         contactRepo,
+        MockInvitationRepositoryPort(),
+        NoopInviteAcceptedNotificationPort(),
         invitationCase,
         env: qaEnv,
         logger: Logger('CredentialAuthCaseTest'),

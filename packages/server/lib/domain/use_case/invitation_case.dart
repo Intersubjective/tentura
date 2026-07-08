@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
@@ -9,8 +11,10 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 
@@ -26,7 +30,8 @@ final class InvitationCase extends UseCaseBase {
     this._friendshipLookup,
     this._contactRepository,
     this._guard,
-    this._forwardEdgeRepository, {
+    this._forwardEdgeRepository,
+    this._inviteAcceptedNotification, {
     required super.env,
     required super.logger,
   });
@@ -44,6 +49,8 @@ final class InvitationCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+
+  final InviteAcceptedNotificationPort _inviteAcceptedNotification;
 
   Future<InvitationEntity> create({
     required String userId,
@@ -220,11 +227,32 @@ final class InvitationCase extends UseCaseBase {
   Future<bool> accept({
     required String invitationId,
     required String userId,
-  }) => _userRepository.bindMutual(
-    invitationId: invitationId,
-    userId: userId,
-    bindFriendship: true,
-  );
+  }) async {
+    final invitation =
+        await _invitationRepository.getById(invitationId: invitationId);
+    if (invitation == null) {
+      throw IdNotFoundException(id: invitationId);
+    }
+    final ok = await _userRepository.bindMutual(
+      invitationId: invitationId,
+      userId: userId,
+      bindFriendship: true,
+    );
+    if (ok) {
+      final accepter = await _userRepository.getById(userId);
+      unawaited(
+        _inviteAcceptedNotification.notifyInviteAccepted(
+          InviteAcceptedNotificationIntent(
+            inviterUserId: invitation.issuer.id,
+            accepterUserId: userId,
+            accepterDisplayName: accepter.displayName,
+            actionUrl: '/#/shared/view?id=$userId',
+          ),
+        ),
+      );
+    }
+    return ok;
+  }
 
   Future<bool> acceptAsExisting({
     required String code,
@@ -246,7 +274,22 @@ final class InvitationCase extends UseCaseBase {
       if (invitation.beaconId != null &&
           !invitation.isAccepted &&
           !invitation.isExpired) {
-        return _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+        final ok =
+            await _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+        if (ok) {
+          final accepter = await _userRepository.getById(userId);
+          unawaited(
+            _inviteAcceptedNotification.notifyInviteAccepted(
+              InviteAcceptedNotificationIntent(
+                inviterUserId: invitation.issuer.id,
+                accepterUserId: userId,
+                accepterDisplayName: accepter.displayName,
+                actionUrl: '/#/shared/view?id=$userId',
+              ),
+            ),
+          );
+        }
+        return ok;
       }
       return true;
     }
@@ -255,7 +298,22 @@ final class InvitationCase extends UseCaseBase {
     }
 
     if (invitation.beaconId != null) {
-      return _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+      final ok =
+          await _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
+      if (ok) {
+        final accepter = await _userRepository.getById(userId);
+        unawaited(
+          _inviteAcceptedNotification.notifyInviteAccepted(
+            InviteAcceptedNotificationIntent(
+              inviterUserId: invitation.issuer.id,
+              accepterUserId: userId,
+              accepterDisplayName: accepter.displayName,
+              actionUrl: '/#/shared/view?id=$userId',
+            ),
+          ),
+        );
+      }
+      return ok;
     }
 
     return accept(invitationId: code, userId: userId);

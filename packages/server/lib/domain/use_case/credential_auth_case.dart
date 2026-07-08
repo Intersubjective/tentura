@@ -2,9 +2,12 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
+import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
@@ -17,6 +20,8 @@ final class CredentialAuthCase extends UseCaseBase {
   CredentialAuthCase(
     this._userRepository,
     this._verifiedContactRepository,
+    this._invitationRepository,
+    this._inviteAcceptedNotification,
     this._invitationCase, {
     required super.env,
     required super.logger,
@@ -24,6 +29,8 @@ final class CredentialAuthCase extends UseCaseBase {
 
   final UserRepositoryPort _userRepository;
   final VerifiedContactRepositoryPort _verifiedContactRepository;
+  final InvitationRepositoryPort _invitationRepository;
+  final InviteAcceptedNotificationPort _inviteAcceptedNotification;
   final InvitationCase _invitationCase;
 
   /// Returns the account id after login or signup. `isNewAccount` is true only
@@ -138,6 +145,7 @@ final class CredentialAuthCase extends UseCaseBase {
       }
     }
 
+    final invitation = await _invitationRepository.getById(invitationId: inviteId);
     try {
       final user = await _userRepository.createInvitedWithCredential(
         invitationId: inviteId,
@@ -147,6 +155,16 @@ final class CredentialAuthCase extends UseCaseBase {
         publicData: publicData,
         contacts: contacts,
       );
+      if (invitation != null) {
+        await _inviteAcceptedNotification.notifyInviteAccepted(
+          InviteAcceptedNotificationIntent(
+            inviterUserId: invitation.issuer.id,
+            accepterUserId: user.id,
+            accepterDisplayName: user.displayName,
+            actionUrl: '/#/shared/view?id=${user.id}',
+          ),
+        );
+      }
       return (accountId: user.id, isNewAccount: true);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(

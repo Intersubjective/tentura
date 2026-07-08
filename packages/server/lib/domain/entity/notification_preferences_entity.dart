@@ -46,8 +46,12 @@ abstract class NotificationPreferencesEntity
           NotificationCategory.asksOfMe,
           NotificationCategory.unblocksMe,
           NotificationCategory.coordination,
+          NotificationCategory.connections,
         },
-        emailCategories: const {NotificationCategory.asksOfMe},
+        emailCategories: const {
+          NotificationCategory.asksOfMe,
+          NotificationCategory.connections,
+        },
       );
 
   bool get hasQuietHours =>

@@ -15,6 +15,7 @@ import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -34,6 +35,9 @@ void main() {
     userRepo = MockUserRepositoryPort();
     contactRepo = MockVerifiedContactRepositoryPort();
     invitationRepo = MockInvitationRepositoryPort();
+    when(
+      invitationRepo.getById(invitationId: anyNamed('invitationId')),
+    ).thenAnswer((_) async => null);
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(environment: Environment.test, isNeedInvite: true);
@@ -49,6 +53,8 @@ void main() {
     case_ = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
@@ -169,6 +175,8 @@ void main() {
     final qaCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: qaEnv,
       logger: Logger('CredentialAuthCaseTest'),
@@ -217,6 +225,8 @@ void main() {
     final prodCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: prodEnv,
       logger: Logger('CredentialAuthCaseTest'),
@@ -388,6 +398,8 @@ void main() {
     case_ = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),

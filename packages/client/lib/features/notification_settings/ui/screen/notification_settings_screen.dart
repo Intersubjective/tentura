@@ -107,6 +107,7 @@ class NotificationSettingsScreen extends StatelessWidget
           l10n.notificationCatUnblocksMe,
         NotificationSettingsCategory.coordination =>
           l10n.notificationCatCoordination,
+        NotificationSettingsCategory.connections => l10n.notificationCatConnections,
         NotificationSettingsCategory.ambient => l10n.notificationCatAmbient,
       };
 
@@ -118,6 +119,7 @@ class NotificationSettingsScreen extends StatelessWidget
           l10n.notificationCatUnblocksMeDesc,
         NotificationSettingsCategory.coordination =>
           l10n.notificationCatCoordinationDesc,
+        NotificationSettingsCategory.connections => l10n.notificationCatConnectionsDesc,
         NotificationSettingsCategory.ambient => l10n.notificationCatAmbientDesc,
       };
 

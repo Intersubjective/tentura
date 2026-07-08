@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/use_case/oidc_case.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeOidcProvider implements OidcProviderPort {
   @override
@@ -87,19 +88,29 @@ void main() {
   setUp(() {
     userRepo = MockUserRepositoryPort();
     final env = Env(environment: Environment.test);
-    final authCase = AuthCase(userRepo, env: env, logger: Logger('AuthCaseTest'));
+    final invitationRepo = MockInvitationRepositoryPort();
+    final authCase = AuthCase(
+      userRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      env: env,
+      logger: Logger('AuthCaseTest'),
+    );
+    final invitationCase = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: MockBeaconRepositoryPort(),
+      friendshipLookup: MockVoteUserFriendshipLookupPort(),
+      contactRepo: MockUserContactRepositoryPort(),
+      env: env,
+      logger: Logger('InvitationCaseTest'),
+    );
     final credentialAuthCase = CredentialAuthCase(
       userRepo,
       MockVerifiedContactRepositoryPort(),
-      buildTestInvitationCase(
-        invitationRepo: MockInvitationRepositoryPort(),
-        userRepo: userRepo,
-        beaconRepo: MockBeaconRepositoryPort(),
-        friendshipLookup: MockVoteUserFriendshipLookupPort(),
-        contactRepo: MockUserContactRepositoryPort(),
-        env: env,
-        logger: Logger('InvitationCaseTest'),
-      ),
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
     );

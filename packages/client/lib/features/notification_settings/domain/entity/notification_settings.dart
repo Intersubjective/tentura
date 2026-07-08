@@ -3,6 +3,7 @@ enum NotificationSettingsCategory {
   asksOfMe,
   unblocksMe,
   coordination,
+  connections,
   ambient;
 }
 

@@ -3,6 +3,7 @@ enum NotificationCenterCategory {
   asksOfMe,
   unblocksMe,
   coordination,
+  connections,
   ambient,
   unknown;
 

@@ -913,15 +913,15 @@
   "@profileSharedBeaconsCoHelpOfferedSection": {
     "context": "Profile — co-helped beacons section header"
   },
-  "showMutualFriends": "Общие друзья",
+  "showMutualFriends": "Показать взаимное доверие",
   "@showMutualFriends": {
     "context": "Profile"
   },
-  "noMutualFriends": "Нет общих друзей",
+  "noMutualFriends": "Нет взаимного доверия",
   "@noMutualFriends": {
     "context": "Profile"
   },
-  "mutualFriendsTitle": "Общие друзья",
+  "mutualFriendsTitle": "Взаимное доверие",
   "@mutualFriendsTitle": {
     "context": "Profile"
   },
@@ -933,11 +933,11 @@
   "@communityFeedback": {
     "context": "Profile"
   },
-  "addToMyField": "Добавить в друзья",
+  "addToMyField": "Доверять этому пользователю",
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
-  "removeFromMyField": "Убрать из друзей",
+  "removeFromMyField": "Перестать доверять",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"
   },
@@ -1280,6 +1280,8 @@
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
   "notificationCatCoordination": "Координация",
   "notificationCatCoordinationDesc": "Активность в чатах запросов, где вы участвуете",
+  "notificationCatConnections": "Связи",
+  "notificationCatConnectionsDesc": "Приглашения и активность связей",
   "notificationCatAmbient": "Фоновые",
   "notificationCatAmbientDesc": "Фоновая активность низкого приоритета",
   "notificationDigest": "Сводка по эл. почте",

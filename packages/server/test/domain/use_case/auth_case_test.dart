@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 
 import 'invitation_case_mocks.mocks.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 // Reuse the server's default Ed25519 key pair as the test "device key": the
 // pair is self-consistent, so `_verifyAuthRequest` (which verifies the token
@@ -31,12 +32,19 @@ String _authRequestToken() => JWT({'pk': _pkB64}).sign(
 
 void main() {
   late MockUserRepositoryPort userRepo;
+  late MockInvitationRepositoryPort invitationRepo;
   late AuthCase case_;
 
   setUp(() {
     userRepo = MockUserRepositoryPort();
+    invitationRepo = MockInvitationRepositoryPort();
+    when(
+      invitationRepo.getById(invitationId: anyNamed('invitationId')),
+    ).thenAnswer((_) async => null);
     case_ = AuthCase(
       userRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       env: Env(environment: Environment.test),
       logger: Logger('AuthCaseTest'),
     );

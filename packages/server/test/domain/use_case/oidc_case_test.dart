@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/oidc_identity.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
@@ -14,6 +15,7 @@ import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -45,6 +47,8 @@ void main() {
     credentialAuthCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
@@ -102,6 +106,16 @@ void main() {
         identifier: anyNamed('identifier'),
       ),
     ).thenThrow(const IdNotFoundException());
+    when(
+      invitationRepo.getById(invitationId: anyNamed('invitationId')),
+    ).thenAnswer(
+      (_) async => InvitationEntity(
+        id: 'Iabc',
+        issuer: const UserEntity(id: 'Uissuer', displayName: 'Alice'),
+        createdAt: DateTime.timestamp(),
+        updatedAt: DateTime.timestamp(),
+      ),
+    );
     when(
       contactRepo.findAccountIdsByContacts(any),
     ).thenAnswer((_) async => {});
@@ -228,6 +242,8 @@ void main() {
     credentialAuthCase = CredentialAuthCase(
       userRepo,
       contactRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),

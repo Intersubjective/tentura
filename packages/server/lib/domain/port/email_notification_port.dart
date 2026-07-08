@@ -16,4 +16,19 @@ abstract interface class EmailNotificationPort {
     required String actionUrl,
     required bool pushDelivered,
   });
+
+  /// Considers (and, if warranted, sends) an immediate email for a non-beacon,
+  /// non-asks-of-me category event (e.g. `connections`). This is a separate
+  /// policy surface from [considerImmediate] to keep the conservative
+  /// asks-of-me semantics intact.
+  ///
+  /// Returns whether an immediate email was sent.
+  Future<bool> considerImmediateByCategory({
+    required String recipientUserId,
+    required String dedupKey,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String categoryScope,
+  });
 }

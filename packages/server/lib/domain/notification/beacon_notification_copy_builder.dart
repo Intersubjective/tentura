@@ -86,6 +86,10 @@ class BeaconNotificationCopyBuilder {
           'Still needs attention',
           excerpt.isNotEmpty ? excerpt : 'Something in the request chat needs attention',
         ),
+      NotificationKind.inviteAccepted => (
+          'Invitation accepted',
+          '$actor accepted your invitation',
+        ),
     };
 
     return BeaconNotificationCopy(
@@ -112,6 +116,10 @@ class BeaconNotificationCopyBuilder {
           'Tentura',
           'New activity in a request chat',
         ),
+      NotificationCategory.connections => (
+          'Tentura',
+          'New connection activity',
+        ),
       NotificationCategory.ambient => ('Tentura', 'New activity'),
     };
     return BeaconNotificationCopy(
@@ -131,6 +139,7 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentEvent =>
         '/#$kPathAppLinkView?id=$id&dest=people',
       NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
+      NotificationKind.inviteAccepted => '/#/',
       NotificationKind.roomAccess ||
       NotificationKind.needsMe ||
       NotificationKind.staleRemind ||

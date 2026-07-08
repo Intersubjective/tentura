@@ -4,11 +4,14 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/session_controller.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeSessionRepository implements SessionRepositoryPort {
   final List<String> revokedHashes = [];
@@ -50,6 +53,11 @@ final class _FakeUserRepository implements UserRepositoryPort {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+final class _FakeInvitationRepository implements InvitationRepositoryPort {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
 void main() {
   late SessionController controller;
   late _FakeSessionRepository sessionRepo;
@@ -59,6 +67,8 @@ void main() {
     final env = Env(environment: 'test');
     final authCase = AuthCase(
       _FakeUserRepository(),
+      _FakeInvitationRepository(),
+      NoopInviteAcceptedNotificationPort(),
       env: env,
       logger: Logger('SessionLogoutTest'),
     );

@@ -913,15 +913,15 @@
   "@profileSharedBeaconsCoHelpOfferedSection": {
     "context": "Profile — co-helped beacons section header"
   },
-  "showMutualFriends": "Show mutual friends",
+  "showMutualFriends": "Show mutual trust",
   "@showMutualFriends": {
     "context": "Profile"
   },
-  "noMutualFriends": "No mutual friends",
+  "noMutualFriends": "No mutual trust",
   "@noMutualFriends": {
     "context": "Profile"
   },
-  "mutualFriendsTitle": "Mutual friends",
+  "mutualFriendsTitle": "Mutual trust",
   "@mutualFriendsTitle": {
     "context": "Profile"
   },
@@ -933,11 +933,11 @@
   "@communityFeedback": {
     "context": "Profile"
   },
-  "addToMyField": "Add friend",
+  "addToMyField": "Trust this user",
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
-  "removeFromMyField": "Remove from friends",
+  "removeFromMyField": "Stop trusting",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"
   },
@@ -1280,6 +1280,8 @@
   "notificationCatUnblocksMeDesc": "Updates that let you move forward",
   "notificationCatCoordination": "Coordination",
   "notificationCatCoordinationDesc": "Activity in request chats you're part of",
+  "notificationCatConnections": "Connections",
+  "notificationCatConnectionsDesc": "Invitations and connection activity",
   "notificationCatAmbient": "Ambient",
   "notificationCatAmbientDesc": "Low-priority background activity",
   "notificationDigest": "Email digest",

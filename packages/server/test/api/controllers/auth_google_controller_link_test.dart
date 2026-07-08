@@ -25,6 +25,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
 
 const _accountId = 'Uabc123456789012345678901234567890';
 
@@ -110,23 +111,29 @@ void main() {
     codec = OAuthStateCodec(env);
     userRepo = MockUserRepositoryPort();
     sessionRepo = _FakeSessionRepository();
+    final invitationRepo = MockInvitationRepositoryPort();
     final authCase = AuthCase(
       userRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    final invitationCase = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: MockBeaconRepositoryPort(),
+      friendshipLookup: MockVoteUserFriendshipLookupPort(),
+      contactRepo: MockUserContactRepositoryPort(),
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
     final credentialAuthCase = CredentialAuthCase(
       userRepo,
       MockVerifiedContactRepositoryPort(),
-      buildTestInvitationCase(
-        invitationRepo: MockInvitationRepositoryPort(),
-        userRepo: userRepo,
-        beaconRepo: MockBeaconRepositoryPort(),
-        friendshipLookup: MockVoteUserFriendshipLookupPort(),
-        contactRepo: MockUserContactRepositoryPort(),
-        env: env,
-        logger: Logger('AuthGoogleLinkTest'),
-      ),
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      invitationCase,
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
@@ -245,23 +252,29 @@ void main() {
     userRepo = MockUserRepositoryPort();
     sessionRepo = _FakeSessionRepository();
     final contactRepo = MockVerifiedContactRepositoryPort();
+    final invitationRepo = MockInvitationRepositoryPort();
     final authCase = AuthCase(
       userRepo,
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    final invitationCase = buildTestInvitationCase(
+      invitationRepo: invitationRepo,
+      userRepo: userRepo,
+      beaconRepo: MockBeaconRepositoryPort(),
+      friendshipLookup: MockVoteUserFriendshipLookupPort(),
+      contactRepo: MockUserContactRepositoryPort(),
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
     final credentialAuthCase = CredentialAuthCase(
       userRepo,
       contactRepo,
-      buildTestInvitationCase(
-        invitationRepo: MockInvitationRepositoryPort(),
-        userRepo: userRepo,
-        beaconRepo: MockBeaconRepositoryPort(),
-        friendshipLookup: MockVoteUserFriendshipLookupPort(),
-        contactRepo: MockUserContactRepositoryPort(),
-        env: env,
-        logger: Logger('AuthGoogleLinkTest'),
-      ),
+      invitationRepo,
+      NoopInviteAcceptedNotificationPort(),
+      invitationCase,
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
