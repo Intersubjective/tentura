@@ -2803,6 +2803,47 @@
   "evaluationNoEffectLabel": "Без эффекта",
   "evaluationGoodLabel": "Хорошо",
   "evaluationVeryGoodLabel": "Очень хорошо",
+  "evaluationReasonRequiredHeading": "Выберите причину (обязательно)",
+  "@evaluationReasonRequiredHeading": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonOptionalHeading": "Причина (необязательно)",
+  "@evaluationReasonOptionalHeading": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonUnknown": "Причина",
+  "@evaluationReasonUnknown": {
+    "context": "EvaluationDetailSheet",
+    "description": "Fallback label when an unknown reason tag slug is encountered"
+  },
+  "evaluationNoteLabelOptional": "Короткая заметка (необязательно)",
+  "@evaluationNoteLabelOptional": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonClearRequest": "Ясный запрос",
+  "evaluationReasonFairClosure": "Честное закрытие",
+  "evaluationReasonUsefulUpdates": "Полезные обновления",
+  "evaluationReasonCoordinatedWell": "Хорошая координация",
+  "evaluationReasonUnclearRequest": "Неясный запрос",
+  "evaluationReasonPoorUpdates": "Плохие обновления",
+  "evaluationReasonClosedUnfairly": "Закрыто нечестно",
+  "evaluationReasonHardToCoordinate": "Трудно координироваться",
+  "evaluationReasonDeliveredAsPromised": "Сделано как обещано",
+  "evaluationReasonVeryUseful": "Очень полезно",
+  "evaluationReasonCommunicatedHonestly": "Честная коммуникация",
+  "evaluationReasonAboveExpectation": "Выше ожиданий",
+  "evaluationReasonDidNotFollowThrough": "Не довёл(а) до конца",
+  "evaluationReasonOverpromised": "Обещал(а) больше, чем сделал(а)",
+  "evaluationReasonCreatedExtraWork": "Создал(а) лишнюю работу",
+  "evaluationReasonPoorCommunication": "Плохая коммуникация",
+  "evaluationReasonReachedRightPerson": "Попало к нужному человеку",
+  "evaluationReasonForwardedQuickly": "Быстро переслал(а)",
+  "evaluationReasonUsefulRoutingNote": "Полезная заметка при пересылке",
+  "evaluationReasonCrucialBridge": "Ключевой мостик",
+  "evaluationReasonSentToWrongPeople": "Отправлено не тем людям",
+  "evaluationReasonCreatedNoise": "Создал(а) шум",
+  "evaluationReasonForwardedTooLate": "Переслал(а) слишком поздно",
+  "evaluationReasonMisleadingNote": "Вводящая в заблуждение заметка",
   "evaluationTonePositive": "В основном положительно",
   "evaluationToneMixed": "Смешанно",
   "evaluationToneNegative": "В основном отрицательно",

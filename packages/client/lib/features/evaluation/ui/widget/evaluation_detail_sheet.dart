@@ -64,6 +64,7 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
   late final EvaluationValue _initialValue;
   late final List<String> _initialTags;
   late final String _initialNote;
+  late final Map<String, String> _tagLabelBySlug;
 
   @override
   void initState() {
@@ -74,6 +75,7 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
     _initialValue = _value;
     _initialTags = List<String>.from(_tags);
     _initialNote = widget.participant.note;
+    _tagLabelBySlug = _buildTagLabelBySlug(widget.l10n);
   }
 
   @override
@@ -218,7 +220,9 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
             if (allowTags && pool.isNotEmpty) ...[
               SizedBox(height: tt.sectionGap),
               Text(
-                needs ? 'Choose reason (required)' : 'Reason (optional)',
+                needs
+                    ? l10n.evaluationReasonRequiredHeading
+                    : l10n.evaluationReasonOptionalHeading,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               SizedBox(height: tt.iconTextGap),
@@ -228,7 +232,7 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
                 children: [
                   for (final t in pool)
                     FilterChip(
-                      label: Text(t),
+                      label: Text(_tagLabelBySlug[t] ?? l10n.evaluationReasonUnknown),
                       selected: _tags.contains(t),
                       onSelected: (sel) => setState(() {
                         if (sel) {
@@ -258,9 +262,9 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
             SizedBox(height: tt.rowGap),
             TextField(
               controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: 'Short note (optional)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.evaluationNoteLabelOptional,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
               maxLength: 280,
@@ -290,4 +294,31 @@ String _label(EvaluationValue v, L10n l10n) => switch (v) {
   EvaluationValue.zero => l10n.evaluationNoEffectLabel,
   EvaluationValue.pos1 => l10n.evaluationGoodLabel,
   EvaluationValue.pos2 => l10n.evaluationVeryGoodLabel,
+};
+
+Map<String, String> _buildTagLabelBySlug(L10n l10n) => {
+  'clear_request': l10n.evaluationReasonClearRequest,
+  'fair_closure': l10n.evaluationReasonFairClosure,
+  'useful_updates': l10n.evaluationReasonUsefulUpdates,
+  'coordinated_well': l10n.evaluationReasonCoordinatedWell,
+  'unclear_request': l10n.evaluationReasonUnclearRequest,
+  'poor_updates': l10n.evaluationReasonPoorUpdates,
+  'closed_unfairly': l10n.evaluationReasonClosedUnfairly,
+  'hard_to_coordinate': l10n.evaluationReasonHardToCoordinate,
+  'delivered_as_promised': l10n.evaluationReasonDeliveredAsPromised,
+  'very_useful': l10n.evaluationReasonVeryUseful,
+  'communicated_honestly': l10n.evaluationReasonCommunicatedHonestly,
+  'above_expectation': l10n.evaluationReasonAboveExpectation,
+  'did_not_follow_through': l10n.evaluationReasonDidNotFollowThrough,
+  'overpromised': l10n.evaluationReasonOverpromised,
+  'created_extra_work': l10n.evaluationReasonCreatedExtraWork,
+  'poor_communication': l10n.evaluationReasonPoorCommunication,
+  'reached_right_person': l10n.evaluationReasonReachedRightPerson,
+  'forwarded_quickly': l10n.evaluationReasonForwardedQuickly,
+  'useful_routing_note': l10n.evaluationReasonUsefulRoutingNote,
+  'crucial_bridge': l10n.evaluationReasonCrucialBridge,
+  'sent_to_wrong_people': l10n.evaluationReasonSentToWrongPeople,
+  'created_noise': l10n.evaluationReasonCreatedNoise,
+  'forwarded_too_late': l10n.evaluationReasonForwardedTooLate,
+  'misleading_note': l10n.evaluationReasonMisleadingNote,
 };

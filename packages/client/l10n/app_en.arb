@@ -2807,6 +2807,47 @@
   "evaluationNoEffectLabel": "No effect",
   "evaluationGoodLabel": "Good",
   "evaluationVeryGoodLabel": "Very good",
+  "evaluationReasonRequiredHeading": "Choose reason (required)",
+  "@evaluationReasonRequiredHeading": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonOptionalHeading": "Reason (optional)",
+  "@evaluationReasonOptionalHeading": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonUnknown": "Reason",
+  "@evaluationReasonUnknown": {
+    "context": "EvaluationDetailSheet",
+    "description": "Fallback label when an unknown reason tag slug is encountered"
+  },
+  "evaluationNoteLabelOptional": "Short note (optional)",
+  "@evaluationNoteLabelOptional": {
+    "context": "EvaluationDetailSheet"
+  },
+  "evaluationReasonClearRequest": "Clear request",
+  "evaluationReasonFairClosure": "Fair closure",
+  "evaluationReasonUsefulUpdates": "Useful updates",
+  "evaluationReasonCoordinatedWell": "Coordinated well",
+  "evaluationReasonUnclearRequest": "Unclear request",
+  "evaluationReasonPoorUpdates": "Poor updates",
+  "evaluationReasonClosedUnfairly": "Closed unfairly",
+  "evaluationReasonHardToCoordinate": "Hard to coordinate",
+  "evaluationReasonDeliveredAsPromised": "Delivered as promised",
+  "evaluationReasonVeryUseful": "Very useful",
+  "evaluationReasonCommunicatedHonestly": "Communicated honestly",
+  "evaluationReasonAboveExpectation": "Above expectation",
+  "evaluationReasonDidNotFollowThrough": "Did not follow through",
+  "evaluationReasonOverpromised": "Overpromised",
+  "evaluationReasonCreatedExtraWork": "Created extra work",
+  "evaluationReasonPoorCommunication": "Poor communication",
+  "evaluationReasonReachedRightPerson": "Reached the right person",
+  "evaluationReasonForwardedQuickly": "Forwarded quickly",
+  "evaluationReasonUsefulRoutingNote": "Useful routing note",
+  "evaluationReasonCrucialBridge": "Crucial bridge",
+  "evaluationReasonSentToWrongPeople": "Sent to the wrong people",
+  "evaluationReasonCreatedNoise": "Created noise",
+  "evaluationReasonForwardedTooLate": "Forwarded too late",
+  "evaluationReasonMisleadingNote": "Misleading note",
   "evaluationTonePositive": "Mostly positive",
   "evaluationToneMixed": "Mixed",
   "evaluationToneNegative": "Mostly negative",

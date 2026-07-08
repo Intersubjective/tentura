@@ -48,6 +48,33 @@ void main() {
     }
   });
 
+  test('ARB locales contain the same keys', () {
+    final enKeys = enArb.keys.where((k) => !k.startsWith('@')).toSet();
+    final ruKeys = ruArb.keys.where((k) => !k.startsWith('@')).toSet();
+    expect(ruKeys.difference(enKeys), isEmpty, reason: 'keys only in ru');
+    expect(enKeys.difference(ruKeys), isEmpty, reason: 'keys only in en');
+  });
+
+  test('ARB values do not look like internal snake_case keys', () {
+    final snakeCase = RegExp(r'^[a-z0-9]+(_[a-z0-9]+)+$');
+    void check(String file, Map<String, dynamic> arb) {
+      for (final entry in arb.entries) {
+        if (entry.key.startsWith('@') || entry.value is! String) {
+          continue;
+        }
+        final v = (entry.value as String).trim();
+        expect(
+          snakeCase.hasMatch(v),
+          isFalse,
+          reason: '$file ${entry.key} => "$v"',
+        );
+      }
+    }
+
+    check('app_en.arb', enArb);
+    check('app_ru.arb', ruArb);
+  });
+
   test('core labels use Request / запрос', () {
     final en = L10nEn();
     final ru = L10nRu();
