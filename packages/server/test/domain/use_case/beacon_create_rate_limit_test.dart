@@ -47,8 +47,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     BeaconStatus? status,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
@@ -62,7 +60,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
       createdAt: DateTime.utc(2026),
       updatedAt: DateTime.utc(2026),
       status: status ?? BeaconStatus.open,
-      needSummary: needSummary,
       addressLabel: addressLabel,
     );
   }
@@ -82,8 +79,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) async {
     updateBeaconCalls++;
@@ -94,7 +89,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
       author: UserEntity(id: userId),
       createdAt: DateTime.utc(2026),
       updatedAt: DateTime.utc(2026),
-      needSummary: needSummary,
       addressLabel: addressLabel,
     );
   }
@@ -114,8 +108,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) async {
     updateDraftBeaconCalls++;
@@ -127,7 +119,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
       createdAt: DateTime.utc(2026),
       updatedAt: DateTime.utc(2026),
       status: BeaconStatus.draft,
-      needSummary: needSummary,
       addressLabel: addressLabel,
     );
   }
@@ -174,7 +165,6 @@ void main() {
         userId: 'Uauth',
         title: 'Spam beacon',
         description: 'A description that is long enough.',
-        needSummary: 'Enough chars here!!',
       ),
       throwsA(isA<RateLimitedException>()),
     );
@@ -193,7 +183,6 @@ void main() {
       userId: 'Uauth',
       title: 'Legit beacon',
       description: 'A description that is long enough.',
-      needSummary: 'Enough chars here!!',
     );
 
     expect(beacon.id, 'Bnew');
@@ -213,7 +202,6 @@ void main() {
         userId: 'Uauth',
         title: 'Pickup request',
         description: 'A description that is long enough.',
-        needSummary: 'Enough chars here!!',
         addressLabel: 'Museumplein 6, Amsterdam',
       );
 
@@ -234,7 +222,6 @@ void main() {
       beaconId: 'B1',
       title: 'Pickup request',
       description: 'A description that is long enough.',
-      needSummary: 'Enough chars here!!',
       addressLabel: '  Museumplein 6, Amsterdam  ',
     );
 
@@ -255,7 +242,6 @@ void main() {
       beaconId: 'Bdraft',
       title: 'Draft pickup request',
       description: 'A description that is long enough.',
-      needSummary: 'Draft summary',
       addressLabel: '  Prinsengracht 263, Amsterdam  ',
     );
 

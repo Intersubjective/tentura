@@ -21,14 +21,10 @@ import 'package:tentura/ui/widget/url_link_annotations.dart';
 class BeaconDefinitionBody extends StatelessWidget {
   const BeaconDefinitionBody({
     required this.beacon,
-    this.includeNeedSummary = true,
     super.key,
   });
 
   final Beacon beacon;
-
-  /// When false, omits the need line (shown elsewhere, e.g. HUD collapsed row).
-  final bool includeNeedSummary;
 
   static const double _metaIconSize = 18;
 
@@ -40,9 +36,6 @@ class BeaconDefinitionBody extends StatelessWidget {
     final textStyle = TenturaText.hudBodySmall(scheme.onSurface);
     final mutedHudStyle = TenturaText.hudBodySmall(tt.textMuted);
     final metaIconColor = scheme.onSurfaceVariant;
-
-    final needText = beacon.needSummary?.trim() ?? '';
-    final doneWhen = beacon.successCriteria?.trim();
     final requirementTags = resolveCapabilityRequirementTags(beacon.needs);
 
     return Column(
@@ -92,27 +85,6 @@ class BeaconDefinitionBody extends StatelessWidget {
               ),
               onPressed: () => _showLocationActions(context, beacon),
             ),
-          ),
-        ],
-        if (includeNeedSummary &&
-            beacon.hasNeedSummary &&
-            needText.isNotEmpty) ...[
-          if (beacon.startAt != null ||
-              beacon.endAt != null ||
-              (beacon.coordinates?.isNotEmpty ?? false))
-            SizedBox(height: tt.rowGap / 2),
-          _labeledLine(
-            label: l10n.beaconNeedBriefPrefix,
-            body: needText,
-            style: textStyle,
-          ),
-        ],
-        if (doneWhen != null && doneWhen.isNotEmpty) ...[
-          SizedBox(height: tt.rowGap / 2),
-          _labeledLine(
-            label: '${l10n.beaconDoneWhenTitle}:',
-            body: doneWhen,
-            style: textStyle,
           ),
         ],
         if (requirementTags.isNotEmpty) ...[
@@ -273,22 +245,6 @@ Future<void> _showLocationActions(BuildContext context, Beacon beacon) {
           ],
         ),
       ),
-    ),
-  );
-}
-
-Widget _labeledLine({
-  required String label,
-  required String body,
-  required TextStyle style,
-}) {
-  return SelectableText.rich(
-    TextSpan(
-      children: [
-        TextSpan(text: label, style: style),
-        const TextSpan(text: ' '),
-        TextSpan(text: body, style: style),
-      ],
     ),
   );
 }

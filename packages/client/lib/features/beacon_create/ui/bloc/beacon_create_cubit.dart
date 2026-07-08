@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -83,13 +82,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  static const kNeedSummaryHardMax = BeaconCreateState.needSummaryHardMax;
-
-  static const kNeedSummaryPublishMin = BeaconCreateState.needSummaryPublishMin;
-
-  static const kSuccessCriteriaHardMax =
-      BeaconCreateState.successCriteriaHardMax;
-
   static String _draftSafeTitle(String raw) {
     final t = raw.trim();
     if (t.length >= kTitleMinLength) {
@@ -118,8 +110,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           draftId: beacon.id,
           lineageParentBeaconId: beacon.lineageParentBeaconId,
           title: beacon.title,
-          needSummary: beacon.needSummary ?? '',
-          successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
           needs: beacon.needs,
@@ -162,8 +152,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         state.copyWith(
           editId: beacon.id,
           title: beacon.title,
-          needSummary: beacon.needSummary ?? '',
-          successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
           needs: beacon.needs,
@@ -197,11 +185,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   ///
   void setDescription(String value) => emit(state.copyWith(description: value));
-
-  void setNeedSummary(String value) => emit(state.copyWith(needSummary: value));
-
-  void setSuccessCriteria(String value) =>
-      emit(state.copyWith(successCriteria: value));
 
   void setNeeds(Set<String> value) =>
       emit(state.copyWith(needs: Set<String>.from(value)));
@@ -404,8 +387,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     final iconCode = state.iconCode?.trim();
     final hasIcon = iconCode != null && iconCode.isNotEmpty;
     final id = state.draftId ?? '';
-    final ns = state.needSummary.trim();
-    final sc = state.successCriteria.trim();
     return Beacon(
       id: id,
       createdAt: now,
@@ -419,8 +400,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           ? null
           : state.location.trim(),
       description: state.description.trim(),
-      needSummary: ns.isEmpty ? null : ns,
-      successCriteria: sc.isEmpty ? null : sc,
       startAt: state.startAt,
       endAt: state.endAt,
       images: state.images,
@@ -539,10 +518,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required String context,
     required ForwardCubit forwardCubit,
   }) async {
-    if (state.needSummary.trim().length < kNeedSummaryPublishMin) {
-      _emitSnackError(const BeaconNeedSummaryTooShortException());
-      return null;
-    }
     if (forwardCubit.state.selectedIds.isEmpty) {
       return null;
     }
@@ -585,8 +560,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final now = DateTime.timestamp();
       final iconCode = state.iconCode?.trim();
       final hasIcon = iconCode != null && iconCode.isNotEmpty;
-      final ns = state.needSummary.trim();
-      final sc = state.successCriteria.trim();
       final beaconPayload = Beacon(
         id: id,
         createdAt: now,
@@ -600,8 +573,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             ? null
             : state.location.trim(),
         description: state.description,
-        needSummary: ns.isEmpty ? null : ns,
-        successCriteria: sc.isEmpty ? null : sc,
         startAt: state.startAt,
         endAt: state.endAt,
         images: state.images,
@@ -647,11 +618,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   ///
   Future<void> publish({required String context}) async {
-    if (state.needSummary.trim().length < kNeedSummaryPublishMin) {
-      _emitSnackError(const BeaconNeedSummaryTooShortException());
-      return;
-    }
-
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
@@ -674,8 +640,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       } else {
         final iconCode = state.iconCode?.trim();
         final hasIcon = iconCode != null && iconCode.isNotEmpty;
-        final ns = state.needSummary.trim();
-        final sc = state.successCriteria.trim();
         final beacon = await _beaconRepository.create(
           Beacon(
             createdAt: now,
@@ -689,8 +653,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
                 ? null
                 : state.location.trim(),
             description: state.description,
-            needSummary: ns.isEmpty ? null : ns,
-            successCriteria: sc.isEmpty ? null : sc,
             startAt: state.startAt,
             endAt: state.endAt,
             images: state.images,

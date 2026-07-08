@@ -3,10 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
-import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -53,18 +51,14 @@ void main() {
   late BeaconCase case_;
   final now = DateTime.utc(2026, 6, 18);
 
-  BeaconEntity draftBeacon({
-    String needSummary = 'Enough chars here!!',
-  }) =>
-      BeaconEntity(
-        id: 'Bdraft',
-        title: 'Draft title',
-        author: const UserEntity(id: 'Uauth'),
-        createdAt: now,
-        updatedAt: now,
-        status: BeaconStatus.draft,
-        needSummary: needSummary,
-      );
+  BeaconEntity draftBeacon() => BeaconEntity(
+    id: 'Bdraft',
+    title: 'Draft title',
+    author: const UserEntity(id: 'Uauth'),
+    createdAt: now,
+    updatedAt: now,
+    status: BeaconStatus.draft,
+  );
 
   setUp(() {
     beaconRepo = _StubBeaconRepo();
@@ -78,17 +72,6 @@ void main() {
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCasePublishDraftTest'),
     );
-  });
-
-  test('publishDraft rejects draft with short need summary', () async {
-    final beacon = draftBeacon(needSummary: 'too short');
-    beaconRepo.onGetBeaconById = () async => beacon;
-
-    await expectLater(
-      case_.publishDraft(userId: 'Uauth', beaconId: beacon.id),
-      throwsA(isA<BeaconNeedSummaryTooShortException>()),
-    );
-    expect(beaconRepo.publishDraftCalls, 0);
   });
 
   test('publishDraft delegates to repository for valid draft', () async {

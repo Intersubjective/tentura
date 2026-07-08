@@ -144,8 +144,6 @@ class BeaconRepository {
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
-        ..needSummary = beacon.needSummary
-        ..successCriteria = beacon.successCriteria
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..addressLabel = beacon.addressLabel
         ..draft = draft;
@@ -190,8 +188,6 @@ class BeaconRepository {
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
-        ..needSummary = beacon.needSummary
-        ..successCriteria = beacon.successCriteria
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..addressLabel = beacon.addressLabel;
     });
@@ -226,8 +222,6 @@ class BeaconRepository {
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
-        ..needSummary = beacon.needSummary
-        ..successCriteria = beacon.successCriteria
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..addressLabel = beacon.addressLabel;
     });

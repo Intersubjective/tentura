@@ -252,21 +252,18 @@ void main() {
   testWidgets('timing mode changes preserve unrelated form fields', (
     tester,
   ) async {
-    const needText = 'Need help moving furniture this weekend';
-    const successText = 'Everything is packed and loaded';
     const titleText = 'Weekend move';
+    const descriptionText = 'Need help moving furniture this weekend';
 
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).at(0), titleText);
-    await tester.enterText(find.byType(TextFormField).at(2), needText);
-    await tester.enterText(find.byType(TextFormField).at(3), successText);
+    await tester.enterText(find.byType(TextFormField).at(1), descriptionText);
     await tester.pump();
 
     expect(cubit.state.title, titleText);
-    expect(cubit.state.needSummary, needText);
-    expect(cubit.state.successCriteria, successText);
+    expect(cubit.state.description, descriptionText);
 
     await tester.tap(find.text('Deadline'));
     await tester.pumpAndSettle();
@@ -276,21 +273,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.title, titleText);
-    expect(cubit.state.needSummary, needText);
-    expect(cubit.state.successCriteria, successText);
-    expect(find.text(needText), findsOneWidget);
-    expect(find.text(successText), findsOneWidget);
+    expect(cubit.state.description, descriptionText);
+    expect(find.text(descriptionText), findsOneWidget);
   });
 
   testWidgets('cubit date updates preserve unrelated form fields', (
     tester,
   ) async {
-    const needText = 'Need a volunteer to water plants';
+    const descriptionText = 'Need a volunteer to water plants';
 
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField).at(2), needText);
+    await tester.enterText(find.byType(TextFormField).at(1), descriptionText);
     await tester.pump();
 
     cubit.setDeadline(DateTime(2026, 7));
@@ -300,8 +295,8 @@ void main() {
     cubit.setEventDates(startAt: DateTime(2026, 7, 2));
     await tester.pump();
 
-    expect(cubit.state.needSummary, needText);
-    expect(find.text(needText), findsOneWidget);
+    expect(cubit.state.description, descriptionText);
+    expect(find.text(descriptionText), findsOneWidget);
   });
 
   testWidgets('tapping location field opens choose location dialog', (
@@ -496,16 +491,13 @@ void main() {
     tester,
   ) async {
     const titleText = 'Weekend move';
-    const needText = 'Need help moving furniture this weekend';
-    const successText = 'Everything is packed and loaded';
+    const descriptionText = 'Need help moving furniture this weekend';
 
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).at(0), titleText);
-    await tester.enterText(find.byType(TextFormField).at(1), 'Desc');
-    await tester.enterText(find.byType(TextFormField).at(2), needText);
-    await tester.enterText(find.byType(TextFormField).at(3), successText);
+    await tester.enterText(find.byType(TextFormField).at(1), descriptionText);
     await tester.pump();
 
     await _openRequirementsSheet(tester);
@@ -517,11 +509,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.title, titleText);
-    expect(cubit.state.needSummary, needText);
-    expect(cubit.state.successCriteria, successText);
+    expect(cubit.state.description, descriptionText);
     expect(cubit.state.needs, contains('transport'));
-    expect(find.text(needText), findsOneWidget);
-    expect(find.text(successText), findsOneWidget);
+    expect(find.text(descriptionText), findsOneWidget);
   });
 
   testWidgets('requirements sheet expands the tapped capability group', (

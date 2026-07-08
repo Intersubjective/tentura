@@ -21,8 +21,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default('') String title,
     @Default('') String context,
     @Default('') String description,
-    String? needSummary,
-    String? successCriteria,
     @Default(false) bool isPinned,
     @Default(BeaconStatus.open) BeaconStatus status,
     DateTime? statusChangedAt,
@@ -70,9 +68,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   }) = _Beacon;
 
   const Beacon._();
-
-  /// True when [needSummary] is a non-empty trimmed string (post–need-first schema).
-  bool get hasNeedSummary => needSummary?.trim().isNotEmpty ?? false;
 
   /// Non-closed listing (open-family, DRAFT, WRAPPING UP); profile filters and author controls.
   bool get isListed => status.isActiveSection;

@@ -9,15 +9,12 @@ part 'beacon_create_state.freezed.dart';
 enum BeaconPublishBlocker {
   title,
   description,
-  needSummary,
 }
 
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   const factory BeaconCreateState({
     @Default('') String title,
-    @Default('') String needSummary,
-    @Default('') String successCriteria,
     @Default('') String description,
     @Default('') String location,
     @Default({}) Set<String> tags,
@@ -50,10 +47,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
 
   bool get isEditMode => editId != null;
 
-  static const needSummaryPublishMin = 16;
-  static const needSummaryHardMax = 280;
-  static const successCriteriaHardMax = 240;
-
   /// First missing field that blocks Publish on create / draft flows.
   BeaconPublishBlocker? get publishBlocker {
     if (isEditMode) {
@@ -67,18 +60,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     if (d.isEmpty || d.length > kBeaconDescriptionMaxLength) {
       return BeaconPublishBlocker.description;
     }
-    final ns = needSummary.trim();
-    if (ns.length < needSummaryPublishMin ||
-        needSummary.length > needSummaryHardMax) {
-      return BeaconPublishBlocker.needSummary;
-    }
     return null;
   }
 
   bool get meetsPublishFormRequirements {
-    if (successCriteria.length > successCriteriaHardMax) {
-      return false;
-    }
     return publishBlocker == null;
   }
 }

@@ -19,7 +19,6 @@ String? _publishBlockedDetail(L10n l10n, BeaconPublishBlocker blocker) =>
     switch (blocker) {
       BeaconPublishBlocker.title => l10n.beaconPublishBlockedTitle,
       BeaconPublishBlocker.description => l10n.beaconPublishBlockedDescription,
-      BeaconPublishBlocker.needSummary => l10n.beaconPublishBlockedNeedSummary,
     };
 
 @RoutePage()

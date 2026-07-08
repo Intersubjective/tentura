@@ -48,9 +48,9 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
     return coordShort;
   }
 
-  final need = beacon.needSummary?.trim() ?? '';
-  if (need.isNotEmpty) {
-    return need;
+  final description = beacon.description.trim();
+  if (description.isNotEmpty) {
+    return description.split('\n').first.trim();
   }
 
   return l10n.beaconHudNoCurrentLine;

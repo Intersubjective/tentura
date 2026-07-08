@@ -9,8 +9,6 @@ mutation BeaconUpdate(
   $tags: String = "",
   $iconCode: String,
   $iconBackground: Int,
-  $needSummary: String,
-  $successCriteria: String,
   $needs: String,
   $addressLabel: String
 ) {
@@ -25,8 +23,6 @@ mutation BeaconUpdate(
     tags: $tags,
     iconCode: $iconCode,
     iconBackground: $iconBackground,
-    needSummary: $needSummary,
-    successCriteria: $successCriteria,
     needs: $needs,
     addressLabel: $addressLabel
   ) {

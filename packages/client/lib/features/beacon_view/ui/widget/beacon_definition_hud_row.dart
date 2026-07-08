@@ -30,12 +30,12 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final beacon = widget.beacon;
-    final needText = beacon.needSummary?.trim() ?? '';
-    final hasNeed = needText.isNotEmpty;
-    final primaryText =
-        hasNeed ? needText : l10n.beaconDefinitionSectionTitle;
+    final description = beacon.description.trim();
+    final primaryText = description.isNotEmpty
+        ? description.split('\n').first.trim()
+        : l10n.beaconDefinitionSectionTitle;
     final primaryStyle = TenturaText.hudBodySmall(
-      hasNeed ? scheme.onSurface : tt.textMuted,
+      description.isNotEmpty ? scheme.onSurface : tt.textMuted,
     );
     final showMoreStyle = TenturaText.hudBodySmall(scheme.primary);
 
@@ -61,7 +61,6 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
             child: BeaconDefinitionBody(
               key: ValueKey('hud-def-${beacon.id}'),
               beacon: beacon,
-              includeNeedSummary: false,
             ),
           ),
           Align(
@@ -164,11 +163,9 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
   }
 
   bool _hasExpandableDefinitionContent(Beacon beacon) {
-    final doneWhen = beacon.successCriteria?.trim();
     return beacon.startAt != null ||
         beacon.endAt != null ||
         (beacon.coordinates?.isNotEmpty ?? false) ||
-        (doneWhen != null && doneWhen.isNotEmpty) ||
         beacon.needs.isNotEmpty ||
         beacon.hasPicture ||
         beacon.description.trim().isNotEmpty;

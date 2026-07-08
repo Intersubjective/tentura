@@ -30,12 +30,6 @@ const kMaxImagesPerBeacon = 10;
 
 const _kMaxIconCodeLength = 64;
 
-const _kNeedSummaryHardMax = 280;
-
-const _kNeedSummaryPublishMin = 16;
-
-const _kSuccessCriteriaHardMax = 240;
-
 String? _trimOrNull(String? raw) {
   if (raw == null) return null;
   final t = raw.trim();
@@ -51,22 +45,6 @@ String _normalizeBeaconDescription(String? raw) {
     throw const BeaconCreateException(description: 'Description is too long');
   }
   return t;
-}
-
-void _validateNeedSummaryLength(String? ns) {
-  if (ns != null && ns.length > _kNeedSummaryHardMax) {
-    throw const BeaconCreateException(
-      description: 'Need summary must be 280 characters or fewer',
-    );
-  }
-}
-
-void _validateSuccessCriteriaLength(String? sc) {
-  if (sc != null && sc.length > _kSuccessCriteriaHardMax) {
-    throw const BeaconCreateException(
-      description: 'Success criteria must be 240 characters or fewer',
-    );
-  }
 }
 
 Set<String>? _normalizeNeeds(String? raw) {
@@ -177,8 +155,6 @@ final class BeaconCase extends UseCaseBase {
     String? iconCode,
     int? iconBackground,
     bool draft = false,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) async {
     await _enforceCreateRateLimit(userId);
@@ -198,14 +174,7 @@ final class BeaconCase extends UseCaseBase {
     }
 
     final normalizedIcon = _normalizeIconCode(iconCode);
-    final ns = _trimOrNull(needSummary);
-    final sc = _trimOrNull(successCriteria);
     final desc = _normalizeBeaconDescription(description);
-    _validateNeedSummaryLength(ns);
-    _validateSuccessCriteriaLength(sc);
-    if (!draft && (ns == null || ns.length < _kNeedSummaryPublishMin)) {
-      throw const BeaconNeedSummaryTooShortException();
-    }
     final beacon = await _beaconRepository.createBeacon(
       authorId: userId,
       title: title,
@@ -221,8 +190,6 @@ final class BeaconCase extends UseCaseBase {
       iconCode: normalizedIcon,
       iconBackground: normalizedIcon == null ? null : iconBackground,
       status: draft ? BeaconStatus.draft : null,
-      needSummary: ns,
-      successCriteria: sc,
       addressLabel: _trimOrNull(addressLabel),
     );
 
@@ -234,16 +201,10 @@ final class BeaconCase extends UseCaseBase {
     required String userId,
     required String beaconId,
   }) async {
-    final beacon = await _beaconRepository.getBeaconById(
+    await _beaconRepository.getBeaconById(
       beaconId: beaconId,
       filterByUserId: userId,
     );
-    if (beacon.status == BeaconStatus.draft) {
-      final ns = beacon.needSummary?.trim();
-      if (ns == null || ns.length < _kNeedSummaryPublishMin) {
-        throw const BeaconNeedSummaryTooShortException();
-      }
-    }
     return _beaconRepository.publishDraft(id: beaconId, actorId: userId);
   }
 
@@ -261,16 +222,10 @@ final class BeaconCase extends UseCaseBase {
     Coordinates? coordinates,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) async {
     final normalizedIcon = _normalizeIconCode(iconCode);
-    final ns = _trimOrNull(needSummary);
-    final sc = _trimOrNull(successCriteria);
     final desc = _normalizeBeaconDescription(description);
-    _validateNeedSummaryLength(ns);
-    _validateSuccessCriteriaLength(sc);
     final beacon = await _beaconRepository.updateDraftBeacon(
       beaconId: beaconId,
       userId: userId,
@@ -285,8 +240,6 @@ final class BeaconCase extends UseCaseBase {
       endAt: endAt,
       iconCode: normalizedIcon,
       iconBackground: normalizedIcon == null ? null : iconBackground,
-      needSummary: ns,
-      successCriteria: sc,
       addressLabel: _trimOrNull(addressLabel),
     );
     return beacon;
@@ -306,19 +259,10 @@ final class BeaconCase extends UseCaseBase {
     Coordinates? coordinates,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) async {
     final normalizedIcon = _normalizeIconCode(iconCode);
-    final ns = _trimOrNull(needSummary);
-    final sc = _trimOrNull(successCriteria);
     final desc = _normalizeBeaconDescription(description);
-    _validateNeedSummaryLength(ns);
-    _validateSuccessCriteriaLength(sc);
-    if (ns != null && ns.isNotEmpty && ns.length < _kNeedSummaryPublishMin) {
-      throw const BeaconNeedSummaryTooShortException();
-    }
     return _beaconRepository.updateBeacon(
       beaconId: beaconId,
       userId: userId,
@@ -333,8 +277,6 @@ final class BeaconCase extends UseCaseBase {
       endAt: endAt,
       iconCode: normalizedIcon,
       iconBackground: normalizedIcon == null ? null : iconBackground,
-      needSummary: ns,
-      successCriteria: sc,
       addressLabel: _trimOrNull(addressLabel),
     );
   }
@@ -455,8 +397,6 @@ final class BeaconCase extends UseCaseBase {
       needs: source.needs,
       iconCode: source.iconCode,
       iconBackground: source.iconBackground,
-      needSummary: source.needSummary,
-      successCriteria: source.successCriteria,
       status: BeaconStatus.draft,
       imageIds: imageIds.isEmpty ? null : imageIds,
       lineageParentBeaconId: source.id,

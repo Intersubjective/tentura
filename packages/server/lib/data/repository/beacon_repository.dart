@@ -58,8 +58,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     BeaconStatus? status,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
@@ -81,8 +79,6 @@ class BeaconRepository implements BeaconRepositoryPort {
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
         status: Value(effectiveStatus.smallintValue),
-        needSummary: Value(needSummary),
-        successCriteria: Value(successCriteria),
         addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
@@ -107,7 +103,6 @@ class BeaconRepository implements BeaconRepositoryPort {
         beaconId: beacon.id,
         actorId: authorId,
         title: title,
-        needSummary: needSummary,
       );
     }
 
@@ -164,8 +159,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
@@ -207,8 +200,6 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             iconCode: Value(iconCode),
             iconBackground: Value(iconBackground),
-            needSummary: Value(needSummary),
-            successCriteria: Value(successCriteria),
             addressLabel: Value(addressLabel),
           ),
         );
@@ -231,8 +222,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
@@ -273,8 +262,6 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             iconCode: Value(iconCode),
             iconBackground: Value(iconBackground),
-            needSummary: Value(needSummary),
-            successCriteria: Value(successCriteria),
             addressLabel: Value(addressLabel),
           ),
         );
@@ -435,7 +422,6 @@ WHERE user_id = $1 AND created_at >= $2
         beaconId: id,
         actorId: actorId,
         title: existing.title,
-        needSummary: existing.needSummary,
       );
 
       return getBeaconById(beaconId: id, filterByUserId: actorId);
@@ -446,16 +432,11 @@ WHERE user_id = $1 AND created_at >= $2
     required String beaconId,
     required String actorId,
     String? title,
-    String? needSummary,
   }) async {
     final diff = <String, Object?>{};
     final trimmedTitle = title?.trim();
-    final trimmedSummary = needSummary?.trim();
     if (trimmedTitle != null && trimmedTitle.isNotEmpty) {
       diff['title'] = trimmedTitle;
-    }
-    if (trimmedSummary != null && trimmedSummary.isNotEmpty) {
-      diff['needSummary'] = trimmedSummary;
     }
 
     await _database.managers.beaconActivityEvents.create(

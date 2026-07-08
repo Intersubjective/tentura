@@ -34,8 +34,6 @@ BeaconEntity beaconModelToEntity(
       : model.needs.split(',').toSet(),
   iconCode: model.iconCode,
   iconBackground: model.iconBackground,
-  needSummary: model.needSummary,
-  successCriteria: model.successCriteria,
   lineageParentBeaconId: model.lineageParentBeaconId,
   lineageRootBeaconId: model.lineageRootBeaconId,
 );

@@ -47,12 +47,6 @@ class Beacons extends Table
   /// ARGB background for identity tile from constrained palette; null with iconCode.
   late final iconBackground = integer().nullable()();
 
-  /// Short canonical statement of what must be solved (nullable for legacy rows).
-  late final needSummary = text().nullable()();
-
-  /// Optional "done when" criteria (nullable).
-  late final successCriteria = text().nullable()();
-
   /// Immediate source beacon when this row was created via lineage fork.
   late final lineageParentBeaconId = text().nullable().references(
     Beacons,

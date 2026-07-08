@@ -66,22 +66,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     text: _cubit.state.location,
   );
 
-  late final _needSummaryController = TextEditingController(
-    text: _cubit.state.needSummary,
-  );
-
-  late final _successCriteriaController = TextEditingController(
-    text: _cubit.state.successCriteria,
-  );
-
   @override
   void dispose() {
     _timingKindNotifier.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
-    _needSummaryController.dispose();
-    _successCriteriaController.dispose();
     super.dispose();
   }
 
@@ -95,12 +85,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     }
     if (_descriptionController.text != s.description) {
       _cubit.setDescription(_descriptionController.text);
-    }
-    if (_needSummaryController.text != s.needSummary) {
-      _cubit.setNeedSummary(_needSummaryController.text);
-    }
-    if (_successCriteriaController.text != s.successCriteria) {
-      _cubit.setSuccessCriteria(_successCriteriaController.text);
     }
   }
 
@@ -260,8 +244,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           prev.title != curr.title ||
           prev.description != curr.description ||
           prev.location != curr.location ||
-          prev.needSummary != curr.needSummary ||
-          prev.successCriteria != curr.successCriteria ||
           prev.startAt != curr.startAt ||
           prev.endAt != curr.endAt,
       listener: (context, state) {
@@ -273,12 +255,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         }
         if (_locationController.text != state.location) {
           _locationController.text = state.location;
-        }
-        if (_needSummaryController.text != state.needSummary) {
-          _needSummaryController.text = state.needSummary;
-        }
-        if (_successCriteriaController.text != state.successCriteria) {
-          _successCriteriaController.text = state.successCriteria;
         }
         if (state.startAt != null || state.endAt != null) {
           final derived = _deriveTimingKind(state.startAt, state.endAt);
@@ -316,54 +292,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             onChanged: _cubit.setDescription,
             onTapOutside: (_) => FocusScope.of(context).unfocus(),
             validator: (text) => beaconDescriptionValidator(_l10n, text),
-          ),
-
-          TextFormField(
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            controller: _needSummaryController,
-            decoration: _createFieldDecoration(
-              labelText: _l10n.beaconNeedSummaryFieldLabel,
-              helperText: _l10n.beaconNeedSummaryHelper,
-            ),
-            keyboardType: TextInputType.multiline,
-            maxLines: null,
-            maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            onChanged: _cubit.setNeedSummary,
-            validator: (text) {
-              final raw = text ?? '';
-              if (raw.length > BeaconCreateCubit.kNeedSummaryHardMax) {
-                return _l10n.beaconNeedSummaryTooLongError;
-              }
-              final t = raw.trim();
-              if (t.isNotEmpty &&
-                  t.length < BeaconCreateCubit.kNeedSummaryPublishMin) {
-                return _l10n.beaconNeedSummaryTooShortError;
-              }
-              return null;
-            },
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _successCriteriaController,
-              decoration: _createFieldDecoration(
-                labelText: _l10n.beaconSuccessCriteriaFieldLabel,
-              ),
-              keyboardType: TextInputType.multiline,
-              maxLines: null,
-              maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setSuccessCriteria,
-              validator: (text) {
-                final raw = text ?? '';
-                if (raw.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
-                  return _l10n.beaconSuccessCriteriaTooLongError;
-                }
-                return null;
-              },
-            ),
           ),
 
           // Requirements — same bottom sheet pattern as forward “Why?” picker

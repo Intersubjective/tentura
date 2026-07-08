@@ -34,8 +34,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     @Default(<String>{}) Set<String> needs,
     String? iconCode,
     int? iconBackground,
-    String? needSummary,
-    String? successCriteria,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) = _BeaconEntity;

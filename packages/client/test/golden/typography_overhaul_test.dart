@@ -56,7 +56,7 @@ void main() {
     title: 'Beacon view header — compact title row',
     context: 'Projects',
     author: const Profile(id: 'a3', displayName: 'Jordan Lee'),
-    needSummary:
+    description:
         'Need-first line under author: volunteers for debris clearance.',
   );
 
@@ -318,8 +318,8 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final l10n = L10n.of(context)!;
-    final needText = beacon.needSummary?.trim() ?? '';
+    final description = beacon.description.trim();
+    final subtitle = description.isEmpty ? '' : description.split('\n').first;
     return BeaconCardShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -329,11 +329,11 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
             beacon: beacon,
             menu: const SizedBox(width: 40, height: 40),
           ),
-          if (needText.isNotEmpty)
+          if (subtitle.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '${l10n.beaconNeedBriefPrefix} $needText',
+                subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
