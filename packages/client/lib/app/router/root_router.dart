@@ -83,19 +83,25 @@ class RootRouter extends RootStackRouter {
         ? null
         : tabs?.stackRouterOfIndex(activeIndex);
     if (branch != null) {
-      unawaited(branch.push(route));
+      // Defer to avoid pushing while the router's RenderStack is mid-layout
+      // (Flutter web can deliver early pointer events before first layout).
+      scheduleMicrotask(() {
+        unawaited(branch.push(route));
+      });
     } else {
-      unawaited(
-        navigate(
-          HomeRoute(
-            children: [
-              homeTabShellFor(activeIndex: activeIndex, owner: owner)(
-                children: [route],
-              ),
-            ],
+      scheduleMicrotask(() {
+        unawaited(
+          navigate(
+            HomeRoute(
+              children: [
+                homeTabShellFor(activeIndex: activeIndex, owner: owner)(
+                  children: [route],
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+        );
+      });
     }
     resolver.next(false);
   }
