@@ -56,6 +56,15 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   bool _noteExpanded = false;
   bool _searchOverlayOpen = false;
   bool _inviteFlowActive = false;
+  bool _hitTestReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _hitTestReady = true);
+    });
+  }
 
   void _syncRecipientNoteControllers(ForwardState state) {
     final selected = state.selectedIds;
@@ -307,169 +316,172 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             final actionLoading =
                 state.isLoading && state.candidates.isNotEmpty;
 
-            return Stack(
-              children: [
-                AbsorbPointer(
-                  absorbing: actionLoading,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (!widget.embedded) ...[
-                        TenturaTopBar.of(
-                          context,
-                          leading: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(
-                              minWidth: tt.buttonHeight,
-                              minHeight: tt.buttonHeight,
-                            ),
-                            icon: Icon(Icons.close, size: tt.iconSize),
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).closeButtonTooltip,
-                            onPressed: () {
-                              final router = context.router;
-                              if (router.canPop()) {
-                                unawaited(router.maybePop());
-                              } else if (widget.beaconId.isNotEmpty) {
-                                unawaited(
-                                  router.navigate(
-                                    BeaconViewRoute(
-                                      id: widget.beaconId,
-                                      entry: kBeaconEntryForward,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          title: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.forwardBeaconTitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TenturaText.title(tt.text),
+            return IgnorePointer(
+              ignoring: !_hitTestReady,
+              child: Stack(
+                children: [
+                  AbsorbPointer(
+                    absorbing: actionLoading,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!widget.embedded) ...[
+                          TenturaTopBar.of(
+                            context,
+                            leading: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: tt.buttonHeight,
+                                minHeight: tt.buttonHeight,
                               ),
-                              Text(
-                                beacon != null && beacon.id.isNotEmpty
-                                    ? forwardBeaconSubtitle(
-                                        l10n: l10n,
-                                        beaconTitle: beacon.title,
-                                        lifecycleLabel: _lifecycleLabel(
-                                          l10n,
-                                          beacon,
-                                        ),
-                                      )
-                                    : '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TenturaText.bodySmall(tt.textMuted),
+                              icon: Icon(Icons.close, size: tt.iconSize),
+                              tooltip: MaterialLocalizations.of(
+                                context,
+                              ).closeButtonTooltip,
+                              onPressed: () {
+                                final router = context.router;
+                                if (router.canPop()) {
+                                  unawaited(router.maybePop());
+                                } else if (widget.beaconId.isNotEmpty) {
+                                  unawaited(
+                                    router.navigate(
+                                      BeaconViewRoute(
+                                        id: widget.beaconId,
+                                        entry: kBeaconEntryForward,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            title: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.forwardBeaconTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TenturaText.title(tt.text),
+                                ),
+                                Text(
+                                  beacon != null && beacon.id.isNotEmpty
+                                      ? forwardBeaconSubtitle(
+                                          l10n: l10n,
+                                          beaconTitle: beacon.title,
+                                          lifecycleLabel: _lifecycleLabel(
+                                            l10n,
+                                            beacon,
+                                          ),
+                                        )
+                                      : '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TenturaText.bodySmall(tt.textMuted),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              IconButton(
+                                tooltip: l10n.forwardOverlaySearchHint,
+                                icon: const Icon(Icons.search),
+                                onPressed: () {
+                                  setState(() => _searchOverlayOpen = true);
+                                },
                               ),
                             ],
                           ),
-                          actions: [
-                            IconButton(
-                              tooltip: l10n.forwardOverlaySearchHint,
-                              icon: const Icon(Icons.search),
-                              onPressed: () {
-                                setState(() => _searchOverlayOpen = true);
-                              },
-                            ),
-                          ],
+                          const TenturaHairlineDivider(),
+                        ],
+                        if (beacon != null &&
+                            beacon.id.isNotEmpty &&
+                            !widget.embedded) ...[
+                          CompactBeaconContextStrip(
+                            beacon: beacon,
+                          ),
+                          SizedBox(height: tt.rowGap),
+                        ],
+                        ForwardScopeLinks(
+                          activeFilter: state.activeFilter,
+                          counts: counts,
+                          onScopeChanged: cubit.setFilter,
                         ),
-                        const TenturaHairlineDivider(),
-                      ],
-                      if (beacon != null &&
-                          beacon.id.isNotEmpty &&
-                          !widget.embedded) ...[
-                        CompactBeaconContextStrip(
-                          beacon: beacon,
-                        ),
-                        SizedBox(height: tt.rowGap),
-                      ],
-                      ForwardScopeLinks(
-                        activeFilter: state.activeFilter,
-                        counts: counts,
-                        onScopeChanged: cubit.setFilter,
-                      ),
-                      Expanded(
-                        child: listIsEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: tt.screenHPadding,
-                                  ),
-                                  child: Text(
-                                    state.candidates.isEmpty
-                                        ? l10n.noReachableContacts
-                                        : l10n.labelNothingHere,
-                                    textAlign: TextAlign.center,
-                                    style: TenturaText.bodySmall(
-                                      tt.textMuted,
+                        Expanded(
+                          child: listIsEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: tt.screenHPadding,
+                                    ),
+                                    child: Text(
+                                      state.candidates.isEmpty
+                                          ? l10n.noReachableContacts
+                                          : l10n.labelNothingHere,
+                                      textAlign: TextAlign.center,
+                                      style: TenturaText.bodySmall(
+                                        tt.textMuted,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              )
-                            : ListView(
-                                padding: EdgeInsets.only(
-                                  bottom: tt.rowGap,
-                                ),
-                                children: [
-                                  ..._buildRecipientList(
-                                    context: context,
-                                    cubit: cubit,
-                                    state: state,
-                                    lineage: lineage,
-                                    visible: visible,
-                                    beacon: beacon,
+                                )
+                              : ListView(
+                                  padding: EdgeInsets.only(
+                                    bottom: tt.rowGap,
                                   ),
-                                ],
-                              ),
-                      ),
-                      ForwardBottomComposer(
-                        selectedIds: state.selectedIds,
-                        noteExpanded: _noteExpanded,
-                        onToggleNoteExpanded: _toggleNote,
-                        sharedNoteController: _sharedNoteController,
-                        onSharedNoteChanged: cubit.setNote,
-                        showSuggestedNoteHelper:
-                            state.lineageSuggestions.isNotEmpty &&
-                            state.note.trim().isNotEmpty &&
-                            _noteExpanded,
-                        onForward: !widget.embedded && state.selectedCount > 0
-                            ? () => unawaited(cubit.forward())
-                            : null,
-                        onInvite: widget.beaconId.isNotEmpty
-                            ? () => unawaited(_inviteNewPerson(context))
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-                if (actionLoading)
-                  const Positioned.fill(
-                    child: Center(
-                      child: CircularProgressIndicator.adaptive(),
+                                  children: [
+                                    ..._buildRecipientList(
+                                      context: context,
+                                      cubit: cubit,
+                                      state: state,
+                                      lineage: lineage,
+                                      visible: visible,
+                                      beacon: beacon,
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        ForwardBottomComposer(
+                          selectedIds: state.selectedIds,
+                          noteExpanded: _noteExpanded,
+                          onToggleNoteExpanded: _toggleNote,
+                          sharedNoteController: _sharedNoteController,
+                          onSharedNoteChanged: cubit.setNote,
+                          showSuggestedNoteHelper:
+                              state.lineageSuggestions.isNotEmpty &&
+                              state.note.trim().isNotEmpty &&
+                              _noteExpanded,
+                          onForward: !widget.embedded && state.selectedCount > 0
+                              ? () => unawaited(cubit.forward())
+                              : null,
+                          onInvite: widget.beaconId.isNotEmpty
+                              ? () => unawaited(_inviteNewPerson(context))
+                              : null,
+                        ),
+                      ],
                     ),
                   ),
-                if (_searchOverlayOpen)
-                  Positioned.fill(
-                    child: ForwardSearchOverlay(
-                      onClose: () {
-                        setState(() => _searchOverlayOpen = false);
-                      },
-                      recipientNoteControllers: _recipientNoteControllers,
-                      onRecipientNoteChanged: cubit.setRecipientNote,
-                      personalizedNoteEditorOpenIds:
-                          _personalizedNoteEditorOpenIds,
-                      onTogglePersonalizedNoteEditor:
-                          _togglePersonalizedNoteEditor,
+                  if (actionLoading)
+                    const Positioned.fill(
+                      child: Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      ),
                     ),
-                  ),
-              ],
+                  if (_searchOverlayOpen)
+                    Positioned.fill(
+                      child: ForwardSearchOverlay(
+                        onClose: () {
+                          setState(() => _searchOverlayOpen = false);
+                        },
+                        recipientNoteControllers: _recipientNoteControllers,
+                        onRecipientNoteChanged: cubit.setRecipientNote,
+                        personalizedNoteEditorOpenIds:
+                            _personalizedNoteEditorOpenIds,
+                        onTogglePersonalizedNoteEditor:
+                            _togglePersonalizedNoteEditor,
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         ),
