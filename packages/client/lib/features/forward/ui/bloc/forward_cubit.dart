@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
-import 'package:meta/meta.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -24,6 +23,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     UiEffectPort? effects,
     @visibleForTesting bool debugSkipInitialLoad = false,
     this.preselectLineageSuggestions = false,
+    this.initialSelectedIds = const {},
     this.embedded = false,
   }) : _forwardCase =
            forwardCase ??
@@ -36,8 +36,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     _subscribeLiveUpdates();
   }
 
-  /// When true, first candidate load pre-checks lineage [autoSelect] rows.
+  /// When true, first candidate load pre-checks lineage auto-select rows.
   final bool preselectLineageSuggestions;
+
+  /// User-explicit recipient ids passed from profile → new request flow.
+  final Set<String> initialSelectedIds;
 
   /// When true, [forward] does not emit [NavigateBack] (beacon-create tab host).
   final bool embedded;
@@ -46,7 +49,8 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final UiEffectPort _effects;
 
-  bool _appliedInitialPreselect = false;
+  bool _appliedInitialLineagePreselect = false;
+  bool _appliedInitialUserPreselect = false;
 
   StreamSubscription<String>? _forwardCompletedSub;
 
@@ -126,8 +130,10 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       _loadMemoKey = memoKey;
 
-      // Never pre-select recipients: forwarding is an explicit send action, and
-      // auto-checking server-suggested people risks mis-forwarding (QA Jun-26).
+      // Do not pre-select server-suggested recipients by default: forwarding is
+      // an explicit send action, and auto-checking suggested people risks
+      // mis-forwarding (QA Jun-26). The only opt-ins are lineage fork rows and
+      // user-explicit profile actions passed through [initialSelectedIds].
       // Preserve the user's own selection across live reloads, pruning anyone no
       // longer present in the candidate or lineage lists.
       final availableIds = {
@@ -135,15 +141,29 @@ class ForwardCubit extends Cubit<ForwardState> {
         for (final c in load.lineageSuggestions) c.id,
       };
       final preservedSelection = state.selectedIds.intersection(availableIds);
-      final shouldPreselect =
+      final shouldLineagePreselect =
           preselectLineageSuggestions &&
-          !_appliedInitialPreselect &&
+          !_appliedInitialLineagePreselect &&
           preservedSelection.isEmpty;
-      final autoSelect = shouldPreselect
+      final lineagePreselect = shouldLineagePreselect
           ? load.autoSelectIds.intersection(availableIds)
-          : preservedSelection;
-      if (shouldPreselect && autoSelect.isNotEmpty) {
-        _appliedInitialPreselect = true;
+          : const <String>{};
+      if (preselectLineageSuggestions && !_appliedInitialLineagePreselect) {
+        _appliedInitialLineagePreselect = true;
+      }
+
+      final shouldUserPreselect =
+          initialSelectedIds.isNotEmpty &&
+          !_appliedInitialUserPreselect &&
+          preservedSelection.isEmpty;
+      final userPreselect = shouldUserPreselect
+          ? initialSelectedIds.intersection(availableIds)
+          : const <String>{};
+      final droppedPreselected = shouldUserPreselect
+          ? initialSelectedIds.difference(availableIds)
+          : state.droppedPreselectedIds;
+      if (initialSelectedIds.isNotEmpty && !_appliedInitialUserPreselect) {
+        _appliedInitialUserPreselect = true;
       }
 
       emit(
@@ -151,7 +171,10 @@ class ForwardCubit extends Cubit<ForwardState> {
           beacon: load.beacon,
           candidates: load.candidates,
           lineageSuggestions: load.lineageSuggestions,
-          selectedIds: autoSelect,
+          selectedIds: preservedSelection.isNotEmpty
+              ? preservedSelection
+              : {...lineagePreselect, ...userPreselect},
+          droppedPreselectedIds: droppedPreselected,
           note: load.suggestedNote,
           status: const StateIsSuccess(),
         ),
@@ -374,8 +397,8 @@ class ForwardCubit extends Cubit<ForwardState> {
       if (embedded && !isClosed) {
         emit(
           state.copyWith(
-            lastDeliveryOutcome: ForwardDeliveryOutcome(
-              deliveredRecipientIds: const [],
+            lastDeliveryOutcome: const ForwardDeliveryOutcome(
+              deliveredRecipientIds: [],
               failed: true,
             ),
             status: const StateIsSuccess(),

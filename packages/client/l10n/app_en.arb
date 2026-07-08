@@ -937,6 +937,10 @@
   "@addToMyField": {
     "context": "ProfileViewBody"
   },
+  "profileSendRequestTo": "Send a request",
+  "@profileSendRequestTo": {
+    "context": "ProfileViewBody — open person-forward screen for this user"
+  },
   "trustRelationPrefix": "Trust:",
   "@trustRelationPrefix": {
     "context": "Profile — prefix before reciprocity class label"
@@ -1647,6 +1651,87 @@
   "forwardBeaconTitle": "Forward Request",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
+  },
+  "beaconForwardToPersonTitle": "Forward to {name}",
+  "@beaconForwardToPersonTitle": {
+    "context": "PersonForwardScreen app bar title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonUnreachable": "{name} can’t see you yet. They won’t receive forwarded requests.",
+  "@beaconForwardPersonUnreachable": {
+    "context": "PersonForwardScreen banner when the person is not seeing the viewer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconUntitled": "Untitled request",
+  "@beaconUntitled": {
+    "context": "PersonForwardScreen row title when beacon title is empty"
+  },
+  "beaconForwardPersonSend": "Send",
+  "@beaconForwardPersonSend": {
+    "context": "PersonForwardScreen send button label"
+  },
+  "beaconForwardPersonNoteHint": "Add a note (optional)",
+  "@beaconForwardPersonNoteHint": {
+    "context": "PersonForwardScreen note input hint"
+  },
+  "beaconForwardPersonEmpty": "No open requests to forward to {name} yet.",
+  "@beaconForwardPersonEmpty": {
+    "context": "PersonForwardScreen empty state",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonNewRequest": "Create a new request for {name}",
+  "@beaconForwardPersonNewRequest": {
+    "context": "PersonForwardScreen button to create a new request",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonReasonNotOpen": "Not open",
+  "@beaconForwardPersonReasonNotOpen": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonAlreadySent": "Already sent",
+  "@beaconForwardPersonReasonAlreadySent": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonAlreadyHelping": "Already helping",
+  "@beaconForwardPersonReasonAlreadyHelping": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonDeclined": "Declined",
+  "@beaconForwardPersonReasonDeclined": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonWithdrawn": "Withdrawn",
+  "@beaconForwardPersonReasonWithdrawn": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonTheirOwn": "Their own request",
+  "@beaconForwardPersonReasonTheirOwn": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconRecipientsPreselectDropped": "{name} can't receive requests from you yet and was not added.",
+  "@beaconRecipientsPreselectDropped": {
+    "description": "Banner shown when a profile-preselected recipient is no longer eligible on the new-request recipients tab.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "forwardRecipientCapabilityMatchesNeed": "Matches this request’s stated needs",
   "@forwardRecipientCapabilityMatchesNeed": {

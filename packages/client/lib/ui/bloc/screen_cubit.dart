@@ -59,6 +59,11 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showBeaconCreate() => _navigateTo(kPathBeaconNew);
 
+  void showBeaconCreateFor(String userId) => _navigateTo(
+    '$kPathBeaconNew?'
+    '${kQueryBeaconForwardTo}=${Uri.encodeQueryComponent(userId)}',
+  );
+
   void showBeaconEditDraft(String id) =>
       _navigateTo('$kPathBeaconNew?$kQueryBeaconDraftId=$id');
 
@@ -71,6 +76,9 @@ class ScreenCubit extends Cubit<ScreenState> {
       );
 
   void showProfile(String id) => _navigateTo('$kPathProfileView/$id');
+
+  void showForwardToPerson(String id) =>
+      _navigateTo('$kPathForwardPerson/$id');
 
   void showProfileEditor() => _navigateTo(kPathProfileEdit);
 

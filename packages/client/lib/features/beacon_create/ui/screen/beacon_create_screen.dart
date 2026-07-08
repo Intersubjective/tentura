@@ -27,6 +27,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconDraftId) this.draftId = '',
     @QueryParam(kQueryBeaconEditId) this.editId = '',
     @QueryParam(kQueryBeaconCreateTab) this.initialTab = '',
+    @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     super.key,
   });
 
@@ -38,6 +39,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Optional initial tab (`recipients` opens the Recipients tab).
   final String initialTab;
+
+  /// Optional profile-route recipient to preselect when Recipients is prepared.
+  final String forwardToUserId;
 
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
@@ -140,6 +144,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         preselectLineageSuggestions:
             state.lineageParentBeaconId != null &&
             state.lineageParentBeaconId!.isNotEmpty,
+        initialSelectedIds: widget.forwardToUserId.isEmpty
+            ? const <String>{}
+            : {widget.forwardToUserId},
         embedded: true,
       );
       _forwardCubitDraftId = id;
@@ -189,7 +196,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       final blockedDetail = blocker == null
           ? null
           : _publishBlockedDetail(l10n, blocker);
-      final tooltip = blockedDetail ??
+      final tooltip =
+          blockedDetail ??
           (hasRecipients
               ? l10n.beaconSendRequest
               : l10n.beaconSendRequestBlockedRecipients);

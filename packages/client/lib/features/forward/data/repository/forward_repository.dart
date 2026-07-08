@@ -183,6 +183,20 @@ class ForwardRepository {
     return mapBeaconInvolvement(beacon: beacon, inv: inv);
   }
 
+  /// Involvement sets for a beacon we already have (skips the beacon refetch).
+  Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) =>
+      _remoteApiService
+          .request(
+            GBeaconInvolvementDataReq((r) => r..vars.id = beacon.id),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => mapBeaconInvolvement(
+              beacon: beacon,
+              inv: r.dataOrThrow(label: _label).beaconInvolvement,
+            ),
+          );
+
   /// Maps V2 `beaconInvolvement` GraphQL payload into [BeaconInvolvementData].
   @visibleForTesting
   static BeaconInvolvementData mapBeaconInvolvement({

@@ -124,6 +124,25 @@ class ProfileViewBody extends StatelessWidget {
               },
             ),
 
+            BlocSelector<ProfileCubit, ProfileState, String>(
+              selector: (s) => s.profile.id,
+              builder: (context, myId) {
+                if (profile.id.isEmpty || profile.id == myId) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: kPaddingSmallT,
+                  child: FilledButton.icon(
+                    onPressed: () => context
+                        .read<ScreenCubit>()
+                        .showForwardToPerson(profile.id),
+                    icon: const Icon(Icons.send_outlined),
+                    label: Text(l10n.profileSendRequestTo),
+                  ),
+                );
+              },
+            ),
+
             // Deduplicated capability strip + edit button (viewer ≠ subject, viewer is friend)
             BlocSelector<ProfileViewCubit, ProfileViewState,
                 (List<CapabilityWithSource>, bool)>(

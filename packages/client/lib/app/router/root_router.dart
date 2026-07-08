@@ -498,6 +498,14 @@ class RootRouter extends RootStackRouter {
       path: '$kPathForwardBeacon/:id',
     ),
 
+    // Forward existing request to a person (profile entry point)
+    AutoRoute(
+      keepHistory: false,
+      maintainState: false,
+      page: PersonForwardRoute.page,
+      path: '$kPathForwardPerson/:id',
+    ),
+
     // Beacon View All — root registration only exists as a redirect target;
     // see the BeaconViewRoute comment above for the pattern.
     AutoRoute(

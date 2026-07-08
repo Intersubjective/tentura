@@ -10,7 +10,7 @@ part 'forward_state.freezed.dart';
 
 enum ForwardFilter { all, bestNext, unseen, alreadyInvolved }
 
-/// Result of the most recent [ForwardCubit.forward] call (embedded create flow).
+/// Result of the most recent forward call in the embedded create flow.
 @immutable
 class ForwardDeliveryOutcome {
   const ForwardDeliveryOutcome({
@@ -71,6 +71,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default([]) List<ForwardCandidate> candidates,
     @Default([]) List<ForwardCandidate> lineageSuggestions,
     @Default({}) Set<String> selectedIds,
+    @Default(<String>{}) Set<String> droppedPreselectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
     @Default(<String, List<String>>{})
     Map<String, List<String>> recipientReasons,

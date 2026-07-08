@@ -1648,6 +1648,87 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "beaconForwardToPersonTitle": "Переслать {name}",
+  "@beaconForwardToPersonTitle": {
+    "context": "PersonForwardScreen app bar title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonUnreachable": "{name} пока не видит вас. Они не получат пересланные запросы.",
+  "@beaconForwardPersonUnreachable": {
+    "context": "PersonForwardScreen banner when the person is not seeing the viewer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconUntitled": "Без названия",
+  "@beaconUntitled": {
+    "context": "PersonForwardScreen row title when beacon title is empty"
+  },
+  "beaconForwardPersonSend": "Отправить",
+  "@beaconForwardPersonSend": {
+    "context": "PersonForwardScreen send button label"
+  },
+  "beaconForwardPersonNoteHint": "Добавить заметку (необязательно)",
+  "@beaconForwardPersonNoteHint": {
+    "context": "PersonForwardScreen note input hint"
+  },
+  "beaconForwardPersonEmpty": "Пока нет открытых запросов, которые можно переслать {name}.",
+  "@beaconForwardPersonEmpty": {
+    "context": "PersonForwardScreen empty state",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonNewRequest": "Создать новый запрос для {name}",
+  "@beaconForwardPersonNewRequest": {
+    "context": "PersonForwardScreen button to create a new request",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconForwardPersonReasonNotOpen": "Не открыт",
+  "@beaconForwardPersonReasonNotOpen": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonAlreadySent": "Уже отправлено",
+  "@beaconForwardPersonReasonAlreadySent": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonAlreadyHelping": "Уже помогаете",
+  "@beaconForwardPersonReasonAlreadyHelping": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonDeclined": "Отклонено",
+  "@beaconForwardPersonReasonDeclined": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonWithdrawn": "Отозвано",
+  "@beaconForwardPersonReasonWithdrawn": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconForwardPersonReasonTheirOwn": "Их собственный запрос",
+  "@beaconForwardPersonReasonTheirOwn": {
+    "context": "PersonForwardScreen row disabled reason"
+  },
+  "beaconRecipientsPreselectDropped": "{name} пока не может получать от вас запросы и не добавлен.",
+  "@beaconRecipientsPreselectDropped": {
+    "description": "Banner shown when a profile-preselected recipient is no longer eligible on the new-request recipients tab.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "forwardRecipientCapabilityMatchesNeed": "Совпадает с заявленными потребностями запроса",
   "@forwardRecipientCapabilityMatchesNeed": {
     "context": "ForwardRecipientRow capability chip (tooltip / accessibility)"

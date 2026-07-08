@@ -48,6 +48,7 @@ const kPathBeaconInvolvedAll = '/beacon/involved';
 const kPathBeaconRoom = '/beacon/room';
 const kPathReviewContributions = '/beacon/review';
 const kPathForwardBeacon = '/forward';
+const kPathForwardPerson = '/forward-person';
 const kPathProfileEdit = '/profile/edit';
 const kPathProfileView = '/profile/view';
 const kPathInvitations = '/invitations';
@@ -64,6 +65,9 @@ const kQueryBeaconCreateTab = 'tab';
 
 /// [kQueryBeaconCreateTab] value — open the Recipients tab.
 const kBeaconCreateTabRecipients = 'recipients';
+
+/// Preselect a recipient when opening beacon create from a profile action.
+const kQueryBeaconForwardTo = 'forward_to';
 
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
