@@ -496,9 +496,13 @@ class _LineageMemoryBadge extends StatelessWidget {
         children: [
           Icon(Icons.history, size: tt.iconSize * 0.65, color: tt.info),
           SizedBox(width: tt.iconTextGap),
-          Text(
-            l10n.beaconLineageForwardBadge,
-            style: TenturaText.labelSmall(tt.info),
+          Flexible(
+            child: Text(
+              l10n.beaconLineageForwardBadge,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.labelSmall(tt.info),
+            ),
           ),
         ],
       ),

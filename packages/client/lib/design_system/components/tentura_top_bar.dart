@@ -159,9 +159,13 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
         ? null
         : Transform.translate(
             offset: Offset(trailingIsIcon ? iconEdgeCompensation : 0, 0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: actions!,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerEnd,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: actions!,
+              ),
             ),
           );
 

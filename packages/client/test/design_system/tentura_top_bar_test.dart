@@ -101,6 +101,33 @@ void main() {
     expect(actionIconRight, moreOrLessEquals(bodyRight, epsilon: 1));
   });
 
+  testWidgets('TenturaTopBar trailing actions do not overflow on compact', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _TopBarHarness(
+        size: const Size(390, 240),
+        builder: (context) => Scaffold(
+          appBar: TenturaTopBar.of(
+            context,
+            leading: const IconButton(
+              onPressed: null,
+              icon: Icon(Icons.arrow_back),
+            ),
+            title: const Text('Leading + actions'),
+            actions: const [
+              IconButton(onPressed: null, icon: Icon(Icons.search)),
+              IconButton(onPressed: null, icon: Icon(Icons.more_vert)),
+            ],
+          ),
+          body: const SizedBox(),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('TenturaPrimaryTabBar uses on-primary tab styling', (
     tester,
   ) async {
