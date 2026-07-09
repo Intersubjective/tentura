@@ -184,51 +184,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     }
   }
 
-  Widget _buildSendRequestButton({
-    required L10n l10n,
-    required ButtonStyle actionButtonStyle,
-    required String contextName,
-    required bool canPublish,
-    required bool isLoading,
-    required BeaconPublishBlocker? blocker,
-  }) {
-    final forwardCubit = _forwardCubitFor(
-      _beaconCreateCubit.state,
-      contextName,
-    );
-    Widget button({required bool hasRecipients}) {
-      final canSend = canPublish && hasRecipients;
-      final blockedDetail = blocker == null
-          ? null
-          : _publishBlockedDetail(l10n, blocker);
-      final tooltip =
-          blockedDetail ??
-          (hasRecipients
-              ? l10n.beaconSendRequest
-              : l10n.beaconSendRequestBlockedRecipients);
-      return Tooltip(
-        message: tooltip,
-        child: TextButton(
-          style: actionButtonStyle,
-          onPressed: canSend && !isLoading
-              ? () => unawaited(_sendRequest())
-              : null,
-          child: Text(l10n.beaconSendRequest),
-        ),
-      );
-    }
-
-    if (forwardCubit == null) {
-      return button(hasRecipients: false);
-    }
-    return BlocBuilder<ForwardCubit, ForwardState>(
-      bloc: forwardCubit,
-      buildWhen: (p, c) => p.selectedIds != c.selectedIds,
-      builder: (context, forwardState) =>
-          button(hasRecipients: forwardState.selectedIds.isNotEmpty),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -284,54 +239,24 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                   ),
                 );
               }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-                    key: const Key('BeaconCreate.SaveDraftButton'),
-                    bloc: _beaconCreateCubit,
-                    selector: (s) => s.isLoading,
-                    builder: (context, isLoading) => Tooltip(
-                      message: l10n.buttonSaveDraft,
-                      child: TextButton(
-                        style: actionButtonStyle,
-                        onPressed: isLoading
-                            ? null
-                            : () async {
-                                await _beaconCreateCubit.saveDraft(
-                                  context: contextName,
-                                );
-                              },
-                        child: Text(l10n.buttonSaveDraft),
-                      ),
-                    ),
+              return BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+                key: const Key('BeaconCreate.SaveDraftButton'),
+                bloc: _beaconCreateCubit,
+                selector: (s) => s.isLoading,
+                builder: (context, isLoading) => Tooltip(
+                  message: l10n.buttonSaveDraft,
+                  child: TextButton(
+                    style: actionButtonStyle,
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            await _beaconCreateCubit.saveDraft(
+                              context: contextName,
+                            );
+                          },
+                    child: Text(l10n.buttonSaveDraft),
                   ),
-                  BlocSelector<
-                    BeaconCreateCubit,
-                    BeaconCreateState,
-                    ({
-                      bool canPublish,
-                      bool isLoading,
-                      BeaconPublishBlocker? blocker,
-                    })
-                  >(
-                    key: const Key('BeaconCreate.SendRequestButton'),
-                    bloc: _beaconCreateCubit,
-                    selector: (s) => (
-                      canPublish: s.canTryToPublish,
-                      isLoading: s.isLoading,
-                      blocker: s.publishBlocker,
-                    ),
-                    builder: (context, publish) => _buildSendRequestButton(
-                      l10n: l10n,
-                      actionButtonStyle: actionButtonStyle,
-                      contextName: contextName,
-                      canPublish: publish.canPublish,
-                      isLoading: publish.isLoading,
-                      blocker: publish.blocker,
-                    ),
-                  ),
-                ],
+                ),
               );
             },
           ),
@@ -554,10 +479,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     final forwardCubit = _forwardCubitFor(state, contextName)!;
     return BlocProvider.value(
       value: forwardCubit,
-      child: BlocListener<ForwardCubit, ForwardState>(
-        listenWhen: (prev, next) => prev.selectedIds != next.selectedIds,
-        listener: (_, __) => setState(() {}),
-        child: BeaconRecipientsTab(beaconId: draftId),
+      child: BeaconRecipientsTab(
+        beaconId: draftId,
+        onSendRequest: () => unawaited(_sendRequest()),
       ),
     );
   }

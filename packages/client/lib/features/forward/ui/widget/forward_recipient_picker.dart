@@ -34,13 +34,27 @@ class ForwardRecipientPicker extends StatefulWidget {
   const ForwardRecipientPicker({
     required this.beaconId,
     this.embedded = false,
+    this.onSendPressed,
+    this.sendEnabled = false,
+    this.externalActionLoading = false,
     super.key,
   });
 
   final String beaconId;
 
-  /// When true, omits route chrome (close/search top bar) and the bottom send CTA.
+  /// When true, omits route chrome (close/search top bar).
+  ///
+  /// Bottom send uses [onSendPressed] when provided (beacon-create tab).
   final bool embedded;
+
+  /// Host-provided send action (beacon create publish + forward).
+  final VoidCallback? onSendPressed;
+
+  /// Whether [onSendPressed] is enabled (recipient + publish readiness).
+  final bool sendEnabled;
+
+  /// Loading overlay while the host runs publish before forward.
+  final bool externalActionLoading;
 
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
@@ -314,7 +328,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             _prunePersonalizedNoteEditors(state);
 
             final actionLoading =
-                state.isLoading && state.candidates.isNotEmpty;
+                widget.externalActionLoading ||
+                (state.isLoading && state.candidates.isNotEmpty);
 
             return IgnorePointer(
               ignoring: !_hitTestReady,
@@ -450,9 +465,11 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               state.lineageSuggestions.isNotEmpty &&
                               state.note.trim().isNotEmpty &&
                               _noteExpanded,
-                          onForward: !widget.embedded && state.selectedCount > 0
-                              ? () => unawaited(cubit.forward())
-                              : null,
+                          onForward: widget.onSendPressed != null
+                              ? (widget.sendEnabled ? widget.onSendPressed : null)
+                              : (!widget.embedded && state.selectedCount > 0
+                                    ? () => unawaited(cubit.forward())
+                                    : null),
                           onInvite: widget.beaconId.isNotEmpty
                               ? () => unawaited(_inviteNewPerson(context))
                               : null,

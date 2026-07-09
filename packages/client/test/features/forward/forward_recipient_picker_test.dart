@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
@@ -120,4 +121,113 @@ void main() {
     expect(find.text('Forward to 1'), findsNothing);
     expect(find.byIcon(Icons.close), findsNothing);
   });
+
+  testWidgets(
+    'embedded ForwardRecipientPicker enables send when onSendPressed provided',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(id: 'u1', displayName: 'Alex'),
+            ),
+          ],
+          selectedIds: {'u1'},
+        ),
+      );
+      var sendPressed = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+                onSendPressed: () => sendPressed = true,
+                sendEnabled: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Forward to 1'), findsOneWidget);
+      await tester.tap(find.text('Forward to 1'));
+      await tester.pump();
+      expect(sendPressed, isTrue);
+    },
+  );
+
+  testWidgets(
+    'embedded ForwardRecipientPicker keeps send disabled when sendEnabled is false',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(id: 'u1', displayName: 'Alex'),
+            ),
+          ],
+          selectedIds: {'u1'},
+        ),
+      );
+      var sendPressed = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+                onSendPressed: () => sendPressed = true,
+                sendEnabled: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select recipients'), findsOneWidget);
+      expect(find.text('Forward to 1'), findsNothing);
+      await tester.tap(find.text('Select recipients'));
+      await tester.pump();
+      expect(sendPressed, isFalse);
+    },
+  );
 }

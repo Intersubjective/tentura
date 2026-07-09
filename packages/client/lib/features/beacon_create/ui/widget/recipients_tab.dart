@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -9,10 +10,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 class BeaconRecipientsTab extends StatelessWidget {
   const BeaconRecipientsTab({
     required this.beaconId,
+    required this.onSendRequest,
     super.key,
   });
 
   final String beaconId;
+  final VoidCallback onSendRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +99,34 @@ class BeaconRecipientsTab extends StatelessWidget {
           },
         ),
         Expanded(
-          child: ForwardRecipientPicker(
-            key: ValueKey(beaconId),
-            beaconId: beaconId,
-            embedded: true,
+          child: BlocSelector<
+            BeaconCreateCubit,
+            BeaconCreateState,
+            ({bool canTryToPublish, bool isLoading})
+          >(
+            selector: (s) => (
+              canTryToPublish: s.canTryToPublish,
+              isLoading: s.isLoading,
+            ),
+            builder: (context, createState) {
+              return BlocSelector<ForwardCubit, ForwardState, bool>(
+                selector: (s) => s.selectedIds.isNotEmpty,
+                builder: (context, hasRecipients) {
+                  final sendEnabled =
+                      createState.canTryToPublish &&
+                      hasRecipients &&
+                      !createState.isLoading;
+                  return ForwardRecipientPicker(
+                    key: ValueKey(beaconId),
+                    beaconId: beaconId,
+                    embedded: true,
+                    onSendPressed: onSendRequest,
+                    sendEnabled: sendEnabled,
+                    externalActionLoading: createState.isLoading,
+                  );
+                },
+              );
+            },
           ),
         ),
       ],
