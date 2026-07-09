@@ -6,12 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
-import 'package:tentura/features/beacon_view/ui/widget/coordination_response_bottom_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
@@ -57,6 +56,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
             isWithdrawn: c.isWithdrawn,
             roomAccess: c.roomAccess,
             coordinationResponse: c.coordinationResponse,
+            admissionAction: c.admissionAction,
+            lastDeclineReason: c.lastDeclineReason,
+            lastRemoveReason: c.lastRemoveReason,
           ),
         )
         .toList(growable: false);
@@ -89,46 +91,59 @@ class BeaconPeopleTabBody extends StatelessWidget {
 
     HelpOfferTile peopleTile(BeaconPeopleRow row) {
       final c = helpOfferForRow(row);
+      final isMine = row.userId == state.myProfile.id;
+      final canManageOffer =
+          beacon.status.isOpenFamily &&
+          !row.isAuthor &&
+          !isMine &&
+          state.isAuthorOrSteward &&
+          !c.isWithdrawn &&
+          state.helpOffers.any(
+            (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
+          );
       return HelpOfferTile(
         helpOffer: c,
         beaconId: beacon.id,
         beaconAuthor: beacon.author,
         beaconAuthorId: beacon.author.id,
-        isMine: row.userId == state.myProfile.id,
-        isAuthorView: state.isAuthorOrSteward,
+        isMine: isMine,
+        isAuthorView: state.isAuthorOrSteward && !isMine,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
-        onAuthorTapCoordination:
-            beacon.status.isOpenFamily &&
-                !row.isAuthor &&
-                state.isAuthorOrSteward &&
-                !c.isWithdrawn &&
-                state.helpOffers.any(
-                  (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
-                )
+        onAccept: canManageOffer
             ? () => unawaited(
-                showCoordinationResponseBottomSheet(
-                  context: context,
-                  offerUserTitle: row.profile.shownName,
-                  initialResponse: c.coordinationResponse,
-                  offerUserAdmittedToRoom: state.roomParticipants.any(
-                    (p) =>
-                        p.userId == row.userId &&
-                        p.roomAccess == RoomAccessBits.admitted,
-                  ),
-                  onSave:
-                      ({
-                        required responseTypeSmallint,
-                        required inviteToRoom,
-                        required removeFromRoom,
-                      }) => beaconViewCubit.setCoordinationResponse(
-                        offerUserId: row.userId,
-                        responseType: responseTypeSmallint,
-                        inviteToRoom: inviteToRoom,
-                        removeFromRoom: removeFromRoom,
-                      ),
-                ),
+                beaconViewCubit.acceptHelpOffer(offerUserId: row.userId),
               )
+            : null,
+        onDecline: canManageOffer
+            ? () async {
+                final reason = await HelpOfferAdmissionReasonDialog.show(
+                  context,
+                  title: l10n.helpOfferDeclineDialogTitle,
+                  hintText: l10n.helpOfferDeclineDialogHint,
+                );
+                if (reason != null && context.mounted) {
+                  await beaconViewCubit.declineHelpOffer(
+                    offerUserId: row.userId,
+                    reason: reason,
+                  );
+                }
+              }
+            : null,
+        onRemoveFromChat: canManageOffer
+            ? () async {
+                final reason = await HelpOfferAdmissionReasonDialog.show(
+                  context,
+                  title: l10n.helpOfferRemoveDialogTitle,
+                  hintText: l10n.helpOfferRemoveDialogHint,
+                );
+                if (reason != null && context.mounted) {
+                  await beaconViewCubit.removeFromRoom(
+                    offerUserId: row.userId,
+                    reason: reason,
+                  );
+                }
+              }
             : null,
         onEdit: row.userId == state.myProfile.id && !c.isWithdrawn
             ? () async {

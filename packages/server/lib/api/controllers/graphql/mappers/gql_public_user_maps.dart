@@ -23,15 +23,14 @@ Map<String, dynamic>? userPresenceToGqlMap(UserPresenceRecord? p) {
   };
 }
 
-List<Map<String, dynamic>> mutualScoresToGqlList(List<MutualScoreRecord> s) =>
-    s
-        .map(
-          (e) => <String, dynamic>{
-            'src_score': e.srcScore,
-            'dst_score': e.dstScore,
-          },
-        )
-        .toList();
+List<Map<String, dynamic>> mutualScoresToGqlList(List<MutualScoreRecord> s) => s
+    .map(
+      (e) => <String, dynamic>{
+        'src_score': e.srcScore,
+        'dst_score': e.dstScore,
+      },
+    )
+    .toList();
 
 Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'id': u.id,
@@ -60,5 +59,8 @@ Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
   'responseUpdatedAt': row.responseUpdatedAt?.toUtc().toIso8601String(),
   'responseAuthorUserId': row.responseAuthorUserId,
   'roomAccess': row.roomAccess,
+  'admissionAction': row.admissionAction,
+  'lastDeclineReason': row.lastDeclineReason,
+  'lastRemoveReason': row.lastRemoveReason,
   'user': userPublicToGqlMap(row.user),
 };

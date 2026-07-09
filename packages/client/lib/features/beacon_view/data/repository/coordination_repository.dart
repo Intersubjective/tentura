@@ -8,6 +8,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/help_offers_with_coordination.data.gql.dart';
+import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
+import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
+import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
 import '../gql/_g/set_beacon_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
@@ -36,6 +39,9 @@ class CoordinationRepository {
         DateTime? responseUpdatedAt,
         String? responseAuthorUserId,
         int? roomAccess,
+        int? admissionAction,
+        String? lastDeclineReason,
+        String? lastRemoveReason,
       })
     >
   >
@@ -69,9 +75,82 @@ class CoordinationRepository {
                     : DateTime.parse(e.responseUpdatedAt!),
                 responseAuthorUserId: e.responseAuthorUserId,
                 roomAccess: e.roomAccess,
+                admissionAction: e.admissionAction,
+                lastDeclineReason: e.lastDeclineReason,
+                lastRemoveReason: e.lastRemoveReason,
               ),
             )
             .toList();
+      });
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+  }) => _remoteApiService
+      .request(
+        GAcceptHelpOfferReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.offerUserId = offerUserId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final res = r.dataOrThrow(label: _label).acceptHelpOffer;
+        return (
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
+              ? null
+              : DateTime.tryParse(res.statusChangedAt!),
+        );
+      });
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) => _remoteApiService
+      .request(
+        GDeclineHelpOfferReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.offerUserId = offerUserId
+            ..vars.reason = reason,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final res = r.dataOrThrow(label: _label).declineHelpOffer;
+        return (
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
+              ? null
+              : DateTime.tryParse(res.statusChangedAt!),
+        );
+      });
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) => _remoteApiService
+      .request(
+        GRemoveFromRoomReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.offerUserId = offerUserId
+            ..vars.reason = reason,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final res = r.dataOrThrow(label: _label).removeFromRoom;
+        return (
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
+              ? null
+              : DateTime.tryParse(res.statusChangedAt!),
+        );
       });
 
   Future<({BeaconStatus status, DateTime? updatedAt})> setCoordinationResponse({

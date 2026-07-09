@@ -25,6 +25,7 @@ import 'table/account_verified_contacts.dart';
 import 'table/account_sessions.dart';
 import 'table/email_auth_transactions.dart';
 import 'table/beacon_help_offers.dart';
+import 'table/beacon_help_offer_admission_events.dart';
 import 'table/beacon_help_offer_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
 import 'table/beacon_evaluation_visibility.dart';
@@ -74,6 +75,7 @@ part 'tentura_db.g.dart';
     AccountSessions,
     EmailAuthTransactions,
     BeaconHelpOffers,
+    BeaconHelpOfferAdmissionEvents,
     BeaconHelpOfferCoordinations,
     BeaconEvaluationParticipants,
     BeaconEvaluationVisibility,

@@ -46,6 +46,22 @@ class NoopBeaconRoomNotificationPort extends Fake
   }) async {}
 
   @override
+  Future<void> notifyCommitmentDeclined({
+    required String receiverId,
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+  }) async {}
+
+  @override
+  Future<void> notifyCommitmentRemoved({
+    required String receiverId,
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+  }) async {}
+
+  @override
   Future<void> notifyHelpWithdrawn({
     required String beaconId,
     required String withdrawerUserId,

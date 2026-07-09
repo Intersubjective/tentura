@@ -4,15 +4,15 @@ import 'package:intl/intl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -35,7 +35,9 @@ class HelpOfferTile extends StatelessWidget {
     this.onEdit,
     this.onWithdraw,
     this.isAuthorView = false,
-    this.onAuthorTapCoordination,
+    this.onAccept,
+    this.onDecline,
+    this.onRemoveFromChat,
     this.participant,
     this.showAuthorStar = false,
     super.key,
@@ -49,7 +51,9 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onWithdraw;
   final bool isAuthorView;
-  final VoidCallback? onAuthorTapCoordination;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
+  final VoidCallback? onRemoveFromChat;
   final BeaconParticipant? participant;
   final bool showAuthorStar;
 
@@ -63,10 +67,8 @@ class HelpOfferTile extends StatelessWidget {
     final tt = context.tt;
     final isWithdrawn = helpOffer.isWithdrawn;
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
-    final coordinationLabel = coordinationResponseLabel(
-      l10n,
-      helpOffer.coordinationResponse,
-    );
+    final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
+    final isAdmitted = roomAccess == RoomAccessBits.admitted;
     final helpTypeSlugs = helpOfferTypeSlugs(helpOffer.helpType);
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     final showForwardPathButton =
@@ -142,7 +144,12 @@ class HelpOfferTile extends StatelessWidget {
                           const SizedBox(height: 2),
                           if (participantMeta != null) ...[
                             Text(
-                              '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(l10n, participantMeta.status, helpOffer.coordinationResponse)}',
+                              '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(
+                                l10n,
+                                participantMeta.status,
+                                helpOffer.coordinationResponse,
+                                admissionAction: helpOffer.admissionAction,
+                              )}',
                               style: TenturaText.status(
                                 theme.colorScheme.onSurfaceVariant,
                               ),
@@ -213,31 +220,27 @@ class HelpOfferTile extends StatelessWidget {
               style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
             ),
           ],
-          if (!isWithdrawn &&
-              (coordinationLabel != null ||
-                  (isAuthorView && onAuthorTapCoordination != null))) ...[
+          if (!isWithdrawn && !showAuthorStar) ...[
             const SizedBox(height: _rowGap),
             const TenturaHairlineDivider(subtle: false),
             const SizedBox(height: 8),
-            _AuthorFooter(
+            _AdmissionFooter(
               l10n: l10n,
               tt: tt,
-              beaconAuthor: beaconAuthor,
-              coordinationLabel: coordinationLabel,
-              responseType: helpOffer.coordinationResponse,
-              authorLabelColor: helpOffer.coordinationResponse != null
-                  ? coordinationResponseInkColor(
-                      tt,
-                      helpOffer.coordinationResponse!,
-                    )
-                  : tt.danger,
+              isAdmitted: isAdmitted,
+              admissionAction: helpOffer.admissionAction,
+              lastDeclineReason: helpOffer.lastDeclineReason,
+              lastRemoveReason: helpOffer.lastRemoveReason,
               isAuthorView: isAuthorView,
-              onAuthorTapCoordination: onAuthorTapCoordination,
+              isMine: isMine,
+              onAccept: onAccept,
+              onDecline: onDecline,
+              onRemoveFromChat: onRemoveFromChat,
             ),
           ],
           if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: tt.tightGap),
               child: Row(
                 children: [
                   if (onEdit != null)
@@ -270,65 +273,216 @@ class HelpOfferTile extends StatelessWidget {
   }
 }
 
-class _AuthorFooter extends StatelessWidget {
-  const _AuthorFooter({
+class _AdmissionFooter extends StatelessWidget {
+  const _AdmissionFooter({
     required this.l10n,
     required this.tt,
-    required this.beaconAuthor,
-    required this.coordinationLabel,
-    required this.responseType,
-    required this.authorLabelColor,
+    required this.isAdmitted,
+    required this.admissionAction,
+    required this.lastDeclineReason,
+    required this.lastRemoveReason,
     required this.isAuthorView,
-    required this.onAuthorTapCoordination,
+    required this.isMine,
+    required this.onAccept,
+    required this.onDecline,
+    required this.onRemoveFromChat,
   });
 
   final L10n l10n;
   final TenturaTokens tt;
-  final Profile beaconAuthor;
-  final String? coordinationLabel;
-  final CoordinationResponseType? responseType;
-  final Color authorLabelColor;
+  final bool isAdmitted;
+  final HelpOfferAdmissionAction? admissionAction;
+  final String? lastDeclineReason;
+  final String? lastRemoveReason;
   final bool isAuthorView;
-  final VoidCallback? onAuthorTapCoordination;
+  final bool isMine;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
+  final VoidCallback? onRemoveFromChat;
 
   @override
   Widget build(BuildContext context) {
-    final hasResponse = coordinationLabel != null && responseType != null;
+    final reason = switch (admissionAction) {
+      HelpOfferAdmissionAction.decline => lastDeclineReason?.trim(),
+      HelpOfferAdmissionAction.remove => lastRemoveReason?.trim(),
+      _ => null,
+    };
 
-    return Row(
-      children: [
-        Expanded(
-          child: hasResponse
-              ? Row(
-                  children: [
-                    SelfAwareAvatar.small(
-                      profile: beaconAuthor,
-                      showAuthorStar: true,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        ' - "$coordinationLabel"',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.typeLabel(authorLabelColor),
-                      ),
-                    ),
-                  ],
-                )
-              : Text(
-                  l10n.helpOffersTabNoAuthorLabelYet,
-                  style: TenturaText.bodySmall(authorLabelColor),
+    if (isAuthorView) {
+      return _AuthorAdmissionFooter(
+        l10n: l10n,
+        tt: tt,
+        isAdmitted: isAdmitted,
+        admissionAction: admissionAction,
+        reason: reason,
+        onAccept: onAccept,
+        onDecline: onDecline,
+        onRemoveFromChat: onRemoveFromChat,
+      );
+    }
+
+    if (isMine) {
+      return _CommitterAdmissionFooter(
+        l10n: l10n,
+        tt: tt,
+        isAdmitted: isAdmitted,
+        admissionAction: admissionAction,
+        reason: reason,
+      );
+    }
+
+    return Text(
+      isAdmitted
+          ? l10n.helpOfferAdmittedLabel
+          : l10n.helpOffersTabNoAuthorLabelYet,
+      style: TenturaText.bodySmall(tt.textMuted),
+    );
+  }
+}
+
+class _AuthorAdmissionFooter extends StatelessWidget {
+  const _AuthorAdmissionFooter({
+    required this.l10n,
+    required this.tt,
+    required this.isAdmitted,
+    required this.admissionAction,
+    required this.reason,
+    required this.onAccept,
+    required this.onDecline,
+    required this.onRemoveFromChat,
+  });
+
+  final L10n l10n;
+  final TenturaTokens tt;
+  final bool isAdmitted;
+  final HelpOfferAdmissionAction? admissionAction;
+  final String? reason;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
+  final VoidCallback? onRemoveFromChat;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isAdmitted) {
+      final isAutomatic =
+          admissionAction == null ||
+          admissionAction == HelpOfferAdmissionAction.autoAdmit;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isAutomatic
+                      ? l10n.helpOfferAdmittedAutomaticallyLabel
+                      : l10n.helpOfferAdmittedLabel,
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
-        ),
-        if (isAuthorView && onAuthorTapCoordination != null) ...[
-          const SizedBox(width: 6),
-          TenturaTextAction(
-            label: l10n.labelSetCoordinationResponse,
-            onPressed: onAuthorTapCoordination,
+                if (isAutomatic) ...[
+                  SizedBox(height: tt.tightGap),
+                  Text(
+                    l10n.helpOfferAdmittedAutomaticallyHint,
+                    style: TenturaText.bodySmall(tt.textFaint),
+                  ),
+                ],
+              ],
+            ),
           ),
+          if (onRemoveFromChat != null) ...[
+            SizedBox(width: tt.rowGap),
+            TenturaTextAction(
+              label: l10n.helpOfferAdmissionRemove,
+              onPressed: onRemoveFromChat,
+              tone: TenturaTone.neutral,
+            ),
+          ],
         ],
+      );
+    }
+
+    final contextText = switch (admissionAction) {
+      HelpOfferAdmissionAction.decline
+          when reason != null && reason!.isNotEmpty =>
+        l10n.helpOfferPreviousDeclineContext(reason!),
+      HelpOfferAdmissionAction.remove
+          when reason != null && reason!.isNotEmpty =>
+        l10n.helpOfferPreviousRemoveContext(reason!),
+      _ => null,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (contextText != null) ...[
+          Text(
+            contextText,
+            style: TenturaText.bodySmall(tt.textMuted),
+          ),
+          SizedBox(height: tt.tightGap),
+        ],
+        Row(
+          children: [
+            if (onAccept != null)
+              TenturaTextAction(
+                label: l10n.helpOfferAdmissionAccept,
+                onPressed: onAccept,
+                tone: TenturaTone.good,
+                icon: const Icon(Icons.check_outlined),
+              ),
+            if (onAccept != null && onDecline != null)
+              SizedBox(width: tt.tightGap),
+            if (onDecline != null)
+              TenturaTextAction(
+                label: l10n.helpOfferAdmissionDecline,
+                onPressed: onDecline,
+                tone: TenturaTone.danger,
+                icon: const Icon(Icons.close_outlined),
+              ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _CommitterAdmissionFooter extends StatelessWidget {
+  const _CommitterAdmissionFooter({
+    required this.l10n,
+    required this.tt,
+    required this.isAdmitted,
+    required this.admissionAction,
+    required this.reason,
+  });
+
+  final L10n l10n;
+  final TenturaTokens tt;
+  final bool isAdmitted;
+  final HelpOfferAdmissionAction? admissionAction;
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (admissionAction) {
+      HelpOfferAdmissionAction.decline
+          when reason != null && reason!.isNotEmpty =>
+        l10n.helpOfferDeclinedWithReason(reason!),
+      HelpOfferAdmissionAction.remove
+          when reason != null && reason!.isNotEmpty =>
+        l10n.helpOfferRemovedWithReason(reason!),
+      _ =>
+        isAdmitted
+            ? l10n.helpOfferAdmittedLabel
+            : l10n.helpOffersTabNoAuthorLabelYet,
+    };
+    final color = switch (admissionAction) {
+      HelpOfferAdmissionAction.decline ||
+      HelpOfferAdmissionAction.remove => tt.danger,
+      _ => tt.textMuted,
+    };
+    return Text(
+      text,
+      style: TenturaText.bodySmall(color),
     );
   }
 }

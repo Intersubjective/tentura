@@ -1,0 +1,13 @@
+mutation AcceptHelpOffer(
+  $beaconId: String!
+  $offerUserId: String!
+) {
+  acceptHelpOffer(
+    id: $beaconId
+    offerUserId: $offerUserId
+  ) {
+    beaconId
+    status
+    statusChangedAt
+  }
+}

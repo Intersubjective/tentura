@@ -3411,6 +3411,48 @@
   },
   "beaconNoActivityYetShort": "No activity yet",
   "helpOffersTabNoAuthorLabelYet": "author review required",
+  "helpOfferAdmissionAccept": "Accept",
+  "helpOfferAdmissionDecline": "Decline",
+  "helpOfferAdmissionRemove": "Remove from chat",
+  "helpOfferAdmittedLabel": "Admitted",
+  "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
+  "helpOfferAdmittedAutomaticallyHint": "You forwarded this request to them directly",
+  "helpOfferDeclineDialogTitle": "Decline this offer",
+  "helpOfferDeclineDialogHint": "Let them know why. This is required",
+  "helpOfferRemoveDialogTitle": "Remove from chat",
+  "helpOfferRemoveDialogHint": "Let them know why. This is required",
+  "helpOfferDeclinedWithReason": "Declined: {reason}",
+  "@helpOfferDeclinedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferRemovedWithReason": "Removed from chat: {reason}",
+  "@helpOfferRemovedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferPreviousDeclineContext": "You previously declined: \"{reason}\"",
+  "@helpOfferPreviousDeclineContext": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferPreviousRemoveContext": "You previously removed them: \"{reason}\"",
+  "@helpOfferPreviousRemoveContext": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "helpOffersTabActionEdit": "edit",
   "helpOffersTabActionWithdraw": "withdraw",
   "helpOffersTabSummaryUseful": "{n} useful",
@@ -3577,6 +3619,7 @@
   "@beaconActivityLifecycleReviewExpired": {
     "description": "Activity log: review window expired and beacon closed"
   },
+  "beaconActivityParticipantRemoved": "Participant removed from chat",
   "beaconActivityCoordinationFallback": "Chat update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",
@@ -3641,6 +3684,7 @@
   "beaconPeopleStatusHelpOffered": "Help Offered",
   "beaconPeopleStatusHelpOfferedUseful": "Help Offered · marked useful",
   "beaconPeopleStatusHelpOfferedNeedCoordination": "Help Offered · needs coordination",
+  "beaconPeopleStatusRemovedFromChat": "Removed from chat",
   "beaconPeopleStatusNeedsInfo": "Needs info",
   "beaconPeopleStatusBlocked": "Blocked",
   "beaconPeopleStatusDone": "Done",

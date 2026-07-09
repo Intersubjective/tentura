@@ -2545,6 +2545,9 @@ type mutation_root {
   userUnsubscribe(objectId: String!): Int!
   userVote(amount: Int!, objectId: String!): Int!
   pollingAct(pollingId: String!, variantIds: [String!]!, score: Int): Boolean!
+  acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
+  declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
+  removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   setBeaconStatus(status: Int!, id: String!): v2_BeaconStatusResult!
   setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_BeaconStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
@@ -5720,9 +5723,12 @@ type v2_ForwardGraphResult {
 }
 
 type v2_HelpOfferWithCoordinationRow {
+  admissionAction: Int
   beaconId: String!
   createdAt: String!
   helpType: String
+  lastDeclineReason: String
+  lastRemoveReason: String
   message: String!
   responseAuthorUserId: String
   responseType: Int

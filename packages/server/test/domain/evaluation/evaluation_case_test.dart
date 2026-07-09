@@ -166,8 +166,7 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      fn(lockedBeacon);
+  }) => fn(lockedBeacon);
 
   @override
   Future<void> recordBeaconStatusTransition({
@@ -235,28 +234,24 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   Future<int> countDistinctEvaluatorsForEvaluated({
     required String beaconId,
     required String evaluatedUserId,
-  }) async =>
-      0;
+  }) async => 0;
 
   @override
   Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
     required String beaconId,
     required String evaluatorId,
-  }) async =>
-      listEvaluationsForEvaluatorResult
-          .where(
-            (e) =>
-                e.beaconId == beaconId && e.evaluatorId == evaluatorId,
-          )
-          .toList();
+  }) async => listEvaluationsForEvaluatorResult
+      .where(
+        (e) => e.beaconId == beaconId && e.evaluatorId == evaluatorId,
+      )
+      .toList();
 
   @override
   Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
@@ -302,33 +297,28 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
-  }) async =>
-      [];
+  }) async => [];
 
   @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
     String beaconId,
-  ) async =>
-      participantsResult;
+  ) async => participantsResult;
 
   @override
   Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
     String beaconId,
     String evaluatorId,
-  ) async =>
-      visibilityResult;
+  ) async => visibilityResult;
 
   @override
   Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
     String beaconId,
-  ) async =>
-      visibilityResult;
+  ) async => visibilityResult;
 
   @override
   Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
     String beaconId,
-  ) async =>
-      [];
+  ) async => [];
 
   @override
   Future<void> deleteEvaluationRow({
@@ -455,30 +445,54 @@ void main() {
   });
 
   group('evaluationFinalize', () {
-    test('returns true without updating status when already finalized (2)', () async {
-      evalRepo
-        ..reviewWindowResult = openWindow()
-        ..reviewUserStatusResult = 2;
+    test(
+      'returns true without updating status when already finalized (2)',
+      () async {
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 2;
 
-      expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
-      expect(evalRepo.setReviewUserStatusCalls, isEmpty);
-    });
+        expect(
+          await evaluationCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: userId,
+          ),
+          isTrue,
+        );
+        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+      },
+    );
 
-    test('returns true without updating status when user skipped (3)', () async {
-      evalRepo
-        ..reviewWindowResult = openWindow()
-        ..reviewUserStatusResult = 3;
+    test(
+      'returns true without updating status when user skipped (3)',
+      () async {
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 3;
 
-      expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
-      expect(evalRepo.setReviewUserStatusCalls, isEmpty);
-    });
+        expect(
+          await evaluationCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: userId,
+          ),
+          isTrue,
+        );
+        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+      },
+    );
 
     test('sets status to 2 when user was in progress (1)', () async {
       evalRepo
         ..reviewWindowResult = openWindow()
         ..reviewUserStatusResult = 1;
 
-      expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        isTrue,
+      );
       expect(
         evalRepo.setReviewUserStatusCalls,
         const [_SetStatusCall(beaconId, userId, 2)],
@@ -490,7 +504,13 @@ void main() {
         ..reviewWindowResult = openWindow()
         ..reviewUserStatusResult = 0;
 
-      expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        isTrue,
+      );
       expect(
         evalRepo.setReviewUserStatusCalls,
         const [_SetStatusCall(beaconId, userId, 2)],
@@ -503,12 +523,17 @@ void main() {
         ..reviewUserStatusResult = null;
 
       expect(
-        () => evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId),
+        () => evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
         throwsA(
           isA<EvaluationException>().having(
             (e) => e.code.codeNumber,
             'codeNumber',
-            const EvaluationExceptionCodes(EvaluationExceptionCode.notEligible).codeNumber,
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
           ),
         ),
       );
@@ -518,78 +543,95 @@ void main() {
       evalRepo.reviewWindowResult = null;
 
       expect(
-        () => evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId),
+        () => evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
         throwsA(
           isA<EvaluationException>().having(
             (e) => e.code.codeNumber,
             'codeNumber',
-            const EvaluationExceptionCodes(EvaluationExceptionCode.reviewWindowExpired).codeNumber,
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.reviewWindowExpired,
+            ).codeNumber,
           ),
         ),
       );
     });
 
-    test('throws reviewWindowExpired when window already closed (status 1)', () async {
-      final now = DateTime.timestamp();
-      evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
-        beaconId: beaconId,
-        openedAt: now.subtract(const Duration(days: 8)),
-        closesAt: now.subtract(const Duration(days: 1)),
-        status: 1,
-        extensionsUsed: 0,
-        createdAt: now.subtract(const Duration(days: 8)),
-        updatedAt: now,
-      );
+    test(
+      'throws reviewWindowExpired when window already closed (status 1)',
+      () async {
+        final now = DateTime.timestamp();
+        evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
+          beaconId: beaconId,
+          openedAt: now.subtract(const Duration(days: 8)),
+          closesAt: now.subtract(const Duration(days: 1)),
+          status: 1,
+          extensionsUsed: 0,
+          createdAt: now.subtract(const Duration(days: 8)),
+          updatedAt: now,
+        );
 
-      expect(
-        () => evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId),
-        throwsA(
-          isA<EvaluationException>().having(
-            (e) => e.code.codeNumber,
-            'codeNumber',
-            const EvaluationExceptionCodes(EvaluationExceptionCode.reviewWindowExpired).codeNumber,
+        expect(
+          () => evaluationCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: userId,
           ),
-        ),
-      );
-    });
-
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.reviewWindowExpired,
+              ).codeNumber,
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('evaluationSubmit', () {
-    test('throws reviewWindowExpired when review deadline has passed', () async {
-      const evaluatorId = 'eval1';
-      const evaluatedId = 'author1';
-      final now = DateTime.timestamp();
-      evalRepo
-        ..reviewWindowResult = openWindow(
-          closesAt: now.subtract(const Duration(days: 1)),
-        )
-        ..visibilityResult = [
-          const BeaconEvaluationVisibilityRecord(
+    test(
+      'throws reviewWindowExpired when review deadline has passed',
+      () async {
+        const evaluatorId = 'eval1';
+        const evaluatedId = 'author1';
+        final now = DateTime.timestamp();
+        evalRepo
+          ..reviewWindowResult = openWindow(
+            closesAt: now.subtract(const Duration(days: 1)),
+          )
+          ..visibilityResult = [
+            const BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: evaluatorId,
+              participantId: evaluatedId,
+            ),
+          ];
+
+        expect(
+          () => evaluationCase.evaluationSubmit(
             beaconId: beaconId,
             evaluatorId: evaluatorId,
-            participantId: evaluatedId,
+            evaluatedUserId: evaluatedId,
+            value: BeaconEvaluationValue.zero,
+            reasonTags: const [],
+            note: '',
           ),
-        ];
-
-      expect(
-        () => evaluationCase.evaluationSubmit(
-          beaconId: beaconId,
-          evaluatorId: evaluatorId,
-          evaluatedUserId: evaluatedId,
-          value: BeaconEvaluationValue.zero,
-          reasonTags: const [],
-          note: '',
-        ),
-        throwsA(
-          isA<EvaluationException>().having(
-            (e) => e.code.codeNumber,
-            'codeNumber',
-            const EvaluationExceptionCodes(EvaluationExceptionCode.reviewWindowExpired).codeNumber,
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.reviewWindowExpired,
+              ).codeNumber,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('first submit moves review user status from 0 to 1', () async {
       const evaluatorId = 'eval1';
@@ -633,44 +675,47 @@ void main() {
       );
     });
 
-    test('does not set review user status when already past first submit (1)', () async {
-      const evaluatorId = 'eval1';
-      const evaluatedId = 'author1';
+    test(
+      'does not set review user status when already past first submit (1)',
+      () async {
+        const evaluatorId = 'eval1';
+        const evaluatedId = 'author1';
 
-      evalRepo
-        ..reviewWindowResult = openWindow()
-        ..reviewUserStatusResult = 1
-        ..visibilityResult = [
-          const BeaconEvaluationVisibilityRecord(
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 1
+          ..visibilityResult = [
+            const BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: evaluatorId,
+              participantId: evaluatedId,
+            ),
+          ]
+          ..participantsResult = [
+            const BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: evaluatedId,
+              role: 0,
+              contributionSummary: 's',
+              causalHint: 'h',
+            ),
+          ];
+
+        expect(
+          await evaluationCase.evaluationSubmit(
             beaconId: beaconId,
             evaluatorId: evaluatorId,
-            participantId: evaluatedId,
+            evaluatedUserId: evaluatedId,
+            value: BeaconEvaluationValue.zero,
+            reasonTags: const [],
+            note: '',
           ),
-        ]
-        ..participantsResult = [
-          const BeaconEvaluationParticipantRecord(
-            beaconId: beaconId,
-            userId: evaluatedId,
-            role: 0,
-            contributionSummary: 's',
-            causalHint: 'h',
-          ),
-        ];
+          isTrue,
+        );
 
-      expect(
-        await evaluationCase.evaluationSubmit(
-          beaconId: beaconId,
-          evaluatorId: evaluatorId,
-          evaluatedUserId: evaluatedId,
-          value: BeaconEvaluationValue.zero,
-          reasonTags: const [],
-          note: '',
-        ),
-        isTrue,
-      );
-
-      expect(evalRepo.setReviewUserStatusCalls, isEmpty);
-    });
+        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+      },
+    );
   });
 
   group('evaluationSkip', () {
@@ -685,7 +730,9 @@ void main() {
           isA<EvaluationException>().having(
             (e) => e.code.codeNumber,
             'codeNumber',
-            const EvaluationExceptionCodes(EvaluationExceptionCode.notEligible).codeNumber,
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
           ),
         ),
       );
@@ -827,20 +874,23 @@ void main() {
       );
     });
 
-    test('resets stale scaffolding instead of throwing review exists', () async {
-      evalRepo.reviewWindowResult = openWindow();
+    test(
+      'resets stale scaffolding instead of throwing review exists',
+      () async {
+        evalRepo.reviewWindowResult = openWindow();
 
-      final result = await evaluationCase.beaconClose(
-        beaconId: beaconId,
-        userId: userId,
-        expectedRequiresReviewWindow: true,
-      );
+        final result = await evaluationCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: true,
+        );
 
-      expect(result.status, BeaconStatus.reviewOpen.smallintValue);
-      expect(evalRepo.downgradeSubmittedCalls, 1);
-      expect(evalRepo.deleteScaffoldingCalls, 1);
-      expect(evalRepo.insertReviewWindowCalls, 1);
-    });
+        expect(result.status, BeaconStatus.reviewOpen.smallintValue);
+        expect(evalRepo.downgradeSubmittedCalls, 1);
+        expect(evalRepo.deleteScaffoldingCalls, 1);
+        expect(evalRepo.insertReviewWindowCalls, 1);
+      },
+    );
   });
 
   group('beaconClose direct close', () {
@@ -1030,24 +1080,27 @@ void main() {
       );
     });
 
-    test('throws closeBranchConflict when expected review flag is stale', () async {
-      expect(
-        () => evaluationCase.beaconClose(
-          beaconId: beaconId,
-          userId: userId,
-          expectedRequiresReviewWindow: false,
-        ),
-        throwsA(
-          isA<EvaluationException>().having(
-            (e) => e.code.codeNumber,
-            'codeNumber',
-            const EvaluationExceptionCodes(
-              EvaluationExceptionCode.closeBranchConflict,
-            ).codeNumber,
+    test(
+      'throws closeBranchConflict when expected review flag is stale',
+      () async {
+        expect(
+          () => evaluationCase.beaconClose(
+            beaconId: beaconId,
+            userId: userId,
+            expectedRequiresReviewWindow: false,
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.closeBranchConflict,
+              ).codeNumber,
+            ),
+          ),
+        );
+      },
+    );
 
     test('throws notEligible when caller is not the author', () async {
       expect(
@@ -1068,57 +1121,60 @@ void main() {
       );
     });
 
-    test('throws beaconNotClosable when beacon is not in open family', () async {
-      beaconRepo = _TransactionStubBeaconRepo(
-        BeaconEntity(
-          id: beaconId,
-          title: 't',
-          author: UserEntity(id: userId),
-          createdAt: DateTime.timestamp(),
-          updatedAt: DateTime.timestamp(),
-          status: BeaconStatus.closed,
-        ),
-      );
-      final graphBuilder = EvaluationParticipantGraphBuilder(
-        EmptyGraphHelpOfferRepository(),
-        EmptyGraphCoordinationRepository(),
-        EmptyGraphForwardEdgeRepository(),
-        StubUserRepository('User'),
-      );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
-          _NoopCapabilityEventRepo(),
+    test(
+      'throws beaconNotClosable when beacon is not in open family',
+      () async {
+        beaconRepo = _TransactionStubBeaconRepo(
+          BeaconEntity(
+            id: beaconId,
+            title: 't',
+            author: UserEntity(id: userId),
+            createdAt: DateTime.timestamp(),
+            updatedAt: DateTime.timestamp(),
+            status: BeaconStatus.closed,
+          ),
+        );
+        final graphBuilder = EvaluationParticipantGraphBuilder(
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphCoordinationRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        );
+        evaluationCase = EvaluationCase(
+          beaconRepo,
+          EmptyGraphForwardEdgeRepository(),
+          evalRepo,
+          StubUserProfileBatchLookup('User'),
+          _NoopBeaconRoomNotificationPort(),
+          graphBuilder,
+          EvaluationDraftPurger(evalRepo),
+          CapabilityCase(
+            _NoopCapabilityEventRepo(),
+            env: Env(environment: Environment.test),
+            logger: Logger('EvaluationCaseTest'),
+          ),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
-        ),
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
-      );
+        );
 
-      expect(
-        () => evaluationCase.beaconClose(
-          beaconId: beaconId,
-          userId: userId,
-          expectedRequiresReviewWindow: false,
-        ),
-        throwsA(
-          isA<EvaluationException>().having(
-            (e) => e.code.codeNumber,
-            'codeNumber',
-            const EvaluationExceptionCodes(
-              EvaluationExceptionCode.beaconNotClosable,
-            ).codeNumber,
+        expect(
+          () => evaluationCase.beaconClose(
+            beaconId: beaconId,
+            userId: userId,
+            expectedRequiresReviewWindow: false,
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.beaconNotClosable,
+              ).codeNumber,
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('closeNow', () {
@@ -1224,37 +1280,42 @@ void main() {
       expect(evalRepo.closeBeaconReviewWindowCalls, isEmpty);
     });
 
-    test('throws reviewWindowNotOpen when review window already closed', () async {
-      final now = DateTime.timestamp();
-      evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
-        beaconId: beaconId,
-        openedAt: now.subtract(const Duration(days: 8)),
-        closesAt: now.subtract(const Duration(days: 1)),
-        status: 1,
-        extensionsUsed: 0,
-        createdAt: now.subtract(const Duration(days: 8)),
-        updatedAt: now,
-      );
+    test(
+      'throws reviewWindowNotOpen when review window already closed',
+      () async {
+        final now = DateTime.timestamp();
+        evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
+          beaconId: beaconId,
+          openedAt: now.subtract(const Duration(days: 8)),
+          closesAt: now.subtract(const Duration(days: 1)),
+          status: 1,
+          extensionsUsed: 0,
+          createdAt: now.subtract(const Duration(days: 8)),
+          updatedAt: now,
+        );
 
-      expect(
-        () => evaluationCase.closeNow(beaconId: beaconId, userId: userId),
-        throwsA(
-          isA<EvaluationException>().having(
-            (e) => e.code.codeNumber,
-            'codeNumber',
-            const EvaluationExceptionCodes(
-              EvaluationExceptionCode.reviewWindowNotOpen,
-            ).codeNumber,
+        expect(
+          () => evaluationCase.closeNow(beaconId: beaconId, userId: userId),
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.reviewWindowNotOpen,
+              ).codeNumber,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 }
 
-class MockBeaconRoomNotificationPort extends Mock implements BeaconRoomNotificationPort {}
+class MockBeaconRoomNotificationPort extends Mock
+    implements BeaconRoomNotificationPort {}
 
-class _NoopBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {
+class _NoopBeaconRoomNotificationPort extends Fake
+    implements BeaconRoomNotificationPort {
   @override
   Future<void> notifyReviewOpened({
     required String beaconId,
@@ -1270,8 +1331,9 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
   final HelpOfferEntity _offer;
 
   @override
-  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
-      [_offer];
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async => [
+    _offer,
+  ];
 
   @override
   Future<void> upsert({
@@ -1280,8 +1342,7 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> withdraw({
@@ -1289,8 +1350,7 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
@@ -1304,11 +1364,11 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
   Future<bool> hasActiveHelpOffer({
     required String beaconId,
     required String userId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
-final class _SingleCommitterCoordinationRepo implements CoordinationRepositoryPort {
+final class _SingleCommitterCoordinationRepo
+    implements CoordinationRepositoryPort {
   _SingleCommitterCoordinationRepo(this._responseType);
 
   final int _responseType;
@@ -1316,15 +1376,13 @@ final class _SingleCommitterCoordinationRepo implements CoordinationRepositoryPo
   @override
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
-  ) async =>
-      {'helper1': _responseType};
+  ) async => {'helper1': _responseType};
 
   @override
   Future<void> deleteForCommit({
     required String beaconId,
     required String userId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> upsertResponse({
@@ -1332,19 +1390,40 @@ final class _SingleCommitterCoordinationRepo implements CoordinationRepositoryPo
     required String offerUserId,
     required String authorUserId,
     required int responseType,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})>
+  beaconStatusSnapshot(
     String beaconId,
-  ) async =>
-      (status: BeaconStatus.open, statusChangedAt: null);
+  ) async => (status: BeaconStatus.open, statusChangedAt: null);
 
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }

@@ -7,8 +7,10 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -30,6 +32,7 @@ void main() {
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
+  late MockHelpOfferAdmissionRepositoryPort admissionRepo;
   late MockBeaconRoomNotificationPort roomPush;
   late CapabilityCase capabilityCase;
   late HelpOfferCase case_;
@@ -39,15 +42,14 @@ void main() {
     required String id,
     required BeaconStatus status,
     String authorId = 'Uauth',
-  }) =>
-      BeaconEntity(
-        id: id,
-        title: 't',
-        author: UserEntity(id: authorId),
-        createdAt: now,
-        updatedAt: now,
-        status: status,
-      );
+  }) => BeaconEntity(
+    id: id,
+    title: 't',
+    author: UserEntity(id: authorId),
+    createdAt: now,
+    updatedAt: now,
+    status: status,
+  );
 
   void stubBeacon(BeaconEntity b) {
     when(
@@ -63,6 +65,7 @@ void main() {
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
+    admissionRepo = MockHelpOfferAdmissionRepositoryPort();
     roomPush = MockBeaconRoomNotificationPort();
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -77,6 +80,7 @@ void main() {
       capabilityCase,
       roomRepo,
       forwardEdgeRepo,
+      admissionRepo,
       roomPush,
       FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
@@ -95,6 +99,14 @@ void main() {
         beaconId: anyNamed('beaconId'),
         helpOffererId: anyNamed('helpOffererId'),
         authorId: anyNamed('authorId'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      admissionRepo.record(
+        beaconId: anyNamed('beaconId'),
+        offerUserId: anyNamed('offerUserId'),
+        actorUserId: anyNamed('actorUserId'),
+        action: anyNamed('action'),
       ),
     ).thenAnswer((_) async {});
   });
@@ -384,119 +396,144 @@ void main() {
       ).thenAnswer((_) => Future.value());
     }
 
-    test('admits when author directly forwarded beacon to help offerer', () async {
-      stubNewHelpOffer();
-      when(
-        forwardEdgeRepo.isDirectAuthorForward(
-          beaconId: 'B1',
-          authorId: 'Uauth',
-          userId: 'U1',
-        ),
-      ).thenAnswer((_) async => true);
-      stubAdmitCalls();
+    test(
+      'admits when author directly forwarded beacon to help offerer',
+      () async {
+        stubNewHelpOffer();
+        when(
+          forwardEdgeRepo.isDirectAuthorForward(
+            beaconId: 'B1',
+            authorId: 'Uauth',
+            userId: 'U1',
+          ),
+        ).thenAnswer((_) async => true);
+        stubAdmitCalls();
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verify(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: 'B1',
-          offerUserId: 'U1',
-          authorUserId: 'Uauth',
-        ),
-      ).called(1);
-      verify(
-        roomPush.notifyRoomAdmitted(
-          receiverId: 'U1',
-          beaconId: 'B1',
-          actorUserId: 'Uauth',
-        ),
-      ).called(1);
-    });
+        verify(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'Uauth',
+          ),
+        ).called(1);
+        verify(
+          roomPush.notifyRoomAdmitted(
+            receiverId: 'U1',
+            beaconId: 'B1',
+            actorUserId: 'Uauth',
+          ),
+        ).called(1);
+      },
+    );
 
-    test('skips admit when help offerer is a mutual friend but not directly forwarded',
-        () async {
-      stubNewHelpOffer();
+    test(
+      'skips admit when help offerer is a mutual friend but not directly forwarded',
+      () async {
+        stubNewHelpOffer();
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verifyNever(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: anyNamed('beaconId'),
-          offerUserId: anyNamed('offerUserId'),
-          authorUserId: anyNamed('authorUserId'),
-        ),
-      );
-    });
+        verifyNever(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            authorUserId: anyNamed('authorUserId'),
+          ),
+        );
+      },
+    );
 
-    test('skips admit when author explicitly revoked access (roomAccess=none)',
-        () async {
-      stubNewHelpOffer();
-      when(
-        forwardEdgeRepo.isDirectAuthorForward(
-          beaconId: 'B1',
-          authorId: 'Uauth',
-          userId: 'U1',
-        ),
-      ).thenAnswer((_) async => true);
-      when(
-        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) async => participant(roomAccess: RoomAccessBits.none));
+    test(
+      'skips admit when author explicitly revoked access (roomAccess=none)',
+      () async {
+        stubNewHelpOffer();
+        when(
+          forwardEdgeRepo.isDirectAuthorForward(
+            beaconId: 'B1',
+            authorId: 'Uauth',
+            userId: 'U1',
+          ),
+        ).thenAnswer((_) async => true);
+        when(
+          roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => participant(roomAccess: RoomAccessBits.none));
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verifyNever(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: anyNamed('beaconId'),
-          offerUserId: anyNamed('offerUserId'),
-          authorUserId: anyNamed('authorUserId'),
-        ),
-      );
-    });
+        verifyNever(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            authorUserId: anyNamed('authorUserId'),
+          ),
+        );
+      },
+    );
 
-    test('re-admits trusted user when participant exists with non-none access',
-        () async {
-      stubNewHelpOffer();
-      when(
-        forwardEdgeRepo.isDirectAuthorForward(
-          beaconId: 'B1',
-          authorId: 'Uauth',
-          userId: 'U1',
-        ),
-      ).thenAnswer((_) async => true);
-      when(
-        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer(
-        (_) async => participant(roomAccess: RoomAccessBits.requested),
-      );
-      when(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: 'B1',
-          offerUserId: 'U1',
-          authorUserId: 'Uauth',
-        ),
-      ).thenAnswer((_) => Future.value());
-      when(
-        roomPush.notifyRoomAdmitted(
-          receiverId: 'U1',
-          beaconId: 'B1',
-          actorUserId: 'Uauth',
-        ),
-      ).thenAnswer((_) => Future.value());
+    test(
+      're-admits trusted user when participant exists with non-none access',
+      () async {
+        stubNewHelpOffer();
+        when(
+          forwardEdgeRepo.isDirectAuthorForward(
+            beaconId: 'B1',
+            authorId: 'Uauth',
+            userId: 'U1',
+          ),
+        ).thenAnswer((_) async => true);
+        when(
+          roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer(
+          (_) async => participant(roomAccess: RoomAccessBits.requested),
+        );
+        when(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'Uauth',
+          ),
+        ).thenAnswer((_) => Future.value());
+        when(
+          roomPush.notifyRoomAdmitted(
+            receiverId: 'U1',
+            beaconId: 'B1',
+            actorUserId: 'Uauth',
+          ),
+        ).thenAnswer((_) => Future.value());
+        when(
+          coordinationRepo.upsertResponse(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'Uauth',
+            responseType: CoordinationResponseType.useful.smallintValue,
+          ),
+        ).thenAnswer((_) => Future.value());
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verify(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: 'B1',
-          offerUserId: 'U1',
-          authorUserId: 'Uauth',
-        ),
-      ).called(1);
-    });
+        verify(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'Uauth',
+          ),
+        ).called(1);
+        verify(
+          admissionRepo.record(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            actorUserId: 'Uauth',
+            action: HelpOfferAdmissionAction.autoAdmit,
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('helpOffersWithCoordination after auto-admit (contract)', () {
-    test('row may have admitted roomAccess before author coordination response', () {
+    test('row carries useful response and auto-admit event', () {
       const user = UserPublicRecord(
         id: 'U1',
         displayName: 't',
@@ -511,9 +548,15 @@ void main() {
         updatedAt: DateTime.utc(2025),
         user: user,
         roomAccess: RoomAccessBits.admitted,
+        responseType: CoordinationResponseType.useful.smallintValue,
+        admissionAction: HelpOfferAdmissionAction.autoAdmit.smallintValue,
       );
-      expect(row.responseType, isNull);
+      expect(row.responseType, CoordinationResponseType.useful.smallintValue);
       expect(row.roomAccess, RoomAccessBits.admitted);
+      expect(
+        row.admissionAction,
+        HelpOfferAdmissionAction.autoAdmit.smallintValue,
+      );
     });
   });
 
@@ -542,24 +585,27 @@ void main() {
       ).called(1);
     });
 
-    test('does NOT notify author on help offer update (hasActive=true)', () async {
-      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
-      when(
-        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) async => true);
-      when(
-        helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) => Future.value());
+    test(
+      'does NOT notify author on help offer update (hasActive=true)',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => true);
+        when(
+          helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) => Future.value());
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verifyNever(
-        roomPush.notifyHelpOfferToAuthor(
-          beaconId: anyNamed('beaconId'),
-          helpOffererId: anyNamed('helpOffererId'),
-          authorId: anyNamed('authorId'),
-        ),
-      );
-    });
+        verifyNever(
+          roomPush.notifyHelpOfferToAuthor(
+            beaconId: anyNamed('beaconId'),
+            helpOffererId: anyNamed('helpOffererId'),
+            authorId: anyNamed('authorId'),
+          ),
+        );
+      },
+    );
   });
 }

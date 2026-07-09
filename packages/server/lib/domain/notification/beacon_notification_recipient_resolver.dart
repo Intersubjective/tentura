@@ -74,10 +74,18 @@ class BeaconNotificationRecipientResolver {
           intent.priority,
         );
         for (final uid in ctx.admittedUserIds) {
-          add(uid, NotificationRecipientReason.admittedRoomMember, intent.priority);
+          add(
+            uid,
+            NotificationRecipientReason.admittedRoomMember,
+            intent.priority,
+          );
         }
         for (final uid in ctx.usersWithActiveCoordination) {
-          add(uid, NotificationRecipientReason.activeParticipant, intent.priority);
+          add(
+            uid,
+            NotificationRecipientReason.activeParticipant,
+            intent.priority,
+          );
         }
 
       case NotificationKind.blockerOpened:
@@ -113,9 +121,24 @@ class BeaconNotificationRecipientResolver {
           );
         }
 
+      case NotificationKind.commitmentDeclined:
+      case NotificationKind.commitmentRemoved:
+        final affected = intent.targetPersonId;
+        if (affected != null && affected.isNotEmpty) {
+          add(
+            affected,
+            NotificationRecipientReason.affectedParticipant,
+            intent.priority,
+          );
+        }
+
       case NotificationKind.newRelay:
         for (final rid in intent.forwardRecipientIds) {
-          add(rid, NotificationRecipientReason.forwardRecipient, intent.priority);
+          add(
+            rid,
+            NotificationRecipientReason.forwardRecipient,
+            intent.priority,
+          );
         }
 
       case NotificationKind.commitmentEvent:
@@ -141,12 +164,20 @@ class BeaconNotificationRecipientResolver {
 
       case NotificationKind.reviewReady:
         for (final uid in intent.admittedUserIds) {
-          add(uid, NotificationRecipientReason.reviewParticipant, intent.priority);
+          add(
+            uid,
+            NotificationRecipientReason.reviewParticipant,
+            intent.priority,
+          );
         }
 
       case NotificationKind.roomActivityLowPriority:
         for (final uid in ctx.admittedUserIds) {
-          add(uid, NotificationRecipientReason.admittedRoomMember, intent.priority);
+          add(
+            uid,
+            NotificationRecipientReason.admittedRoomMember,
+            intent.priority,
+          );
         }
 
       case NotificationKind.staleRemind:

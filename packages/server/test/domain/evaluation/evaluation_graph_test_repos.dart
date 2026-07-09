@@ -14,13 +14,13 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 
 /// Returns no coordination responses for graph builder tests.
-final class EmptyGraphCoordinationRepository implements CoordinationRepositoryPort {
+final class EmptyGraphCoordinationRepository
+    implements CoordinationRepositoryPort {
   @override
   Future<void> deleteForCommit({
     required String beaconId,
     required String userId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> upsertResponse({
@@ -28,27 +28,47 @@ final class EmptyGraphCoordinationRepository implements CoordinationRepositoryPo
     required String offerUserId,
     required String authorUserId,
     required int responseType,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<({BeaconStatus status, DateTime? statusChangedAt})>
+  beaconStatusSnapshot(
     String beaconId,
-  ) async =>
-      (status: BeaconStatus.open, statusChangedAt: null);
+  ) async => (status: BeaconStatus.open, statusChangedAt: null);
 
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
-  ) async =>
-      {};
+  ) async => {};
 }
 
 /// Minimal fakes so `EvaluationParticipantGraphBuilder` returns an empty graph.
@@ -60,8 +80,7 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> withdraw({
@@ -69,8 +88,7 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async => [];
@@ -87,19 +105,22 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
   Future<bool> hasActiveHelpOffer({
     required String beaconId,
     required String userId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
-final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort {
+final class EmptyGraphForwardEdgeRepository
+    implements ForwardEdgeRepositoryPort {
   @override
-  Future<ForwardEdgeEntity?> fetchById(String edgeId) => throw UnimplementedError();
+  Future<ForwardEdgeEntity?> fetchById(String edgeId) =>
+      throw UnimplementedError();
 
   @override
-  Future<bool> existsWithParent(String parentEdgeId) => throw UnimplementedError();
+  Future<bool> existsWithParent(String parentEdgeId) =>
+      throw UnimplementedError();
 
   @override
-  Future<void> cancel(String edgeId, String senderId) => throw UnimplementedError();
+  Future<void> cancel(String edgeId, String senderId) =>
+      throw UnimplementedError();
 
   @override
   Future<void> updateNote(String edgeId, String senderId, String note) =>
@@ -118,8 +139,7 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
     String? context,
     String? parentEdgeId,
     String? batchId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<String>> createBatch({
@@ -131,8 +151,7 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) async => [];
@@ -142,15 +161,13 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
     required String beaconId,
     required String helpOffererId,
     required String viewerId,
-  }) async =>
-      [];
+  }) async => [];
 
   @override
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
@@ -167,16 +184,14 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
   Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
     required String beaconId,
     required String recipientId,
-  }) async =>
-      [];
+  }) async => [];
 
   @override
   Future<ForwardEdgeEntity?> findActiveEdge({
     required String beaconId,
     required String senderId,
     required String recipientId,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<void> createForInviteAccept({
@@ -201,8 +216,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<UserEntity> createInvited({
@@ -210,8 +224,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<UserEntity> createWithCredential({
@@ -221,8 +234,7 @@ final class StubUserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<UserEntity> createInvitedWithCredential({
@@ -233,8 +245,7 @@ final class StubUserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<UserEntity> getByPublicKey(String publicKey) =>
@@ -244,14 +255,12 @@ final class StubUserRepository implements UserRepositoryPort {
   Future<UserEntity> getByCredential({
     required String type,
     required String identifier,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<List<AccountCredentialEntity>> listCredentials({
     required String accountId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<AccountCredentialEntity> addCredential({
@@ -259,15 +268,13 @@ final class StubUserRepository implements UserRepositoryPort {
     required CredentialType type,
     required String identifier,
     Map<String, Object?>? publicData,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> removeCredential({
     required String accountId,
     required String credentialId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<String> linkCredentialWithContacts({
@@ -276,8 +283,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String identifier,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<AccountCredentialEntity> linkCredentialToAccountStrict({
@@ -286,23 +292,20 @@ final class StubUserRepository implements UserRepositoryPort {
     required String identifier,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<String?> findCredentialId({
     required CredentialType type,
     required String identifier,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> addVerifiedContacts({
     required String accountId,
     required CredentialType source,
     List<AssertedContact> contacts = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> update({
@@ -313,8 +316,7 @@ final class StubUserRepository implements UserRepositoryPort {
     bool dropImage = false,
     bool setHandle = false,
     String? handle,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteById({required String id}) => throw UnimplementedError();
@@ -324,8 +326,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
@@ -334,21 +335,23 @@ final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
   final String _displayName;
 
   @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids) async =>
-      {for (final id in ids) id: UserEntity(id: id, displayName: _displayName)};
+  Future<Map<String, UserEntity>> userEntitiesByIds(
+    Iterable<String> ids,
+  ) async => {
+    for (final id in ids) id: UserEntity(id: id, displayName: _displayName),
+  };
 
   @override
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
-  }) async =>
-      {
-        for (final id in ids)
-          id: UserPublicRecord(
-            id: id,
-            displayName: _displayName,
-            description: '',
-            isMutualFriend: reciprocalPeerIds.contains(id),
-          ),
-      };
+  }) async => {
+    for (final id in ids)
+      id: UserPublicRecord(
+        id: id,
+        displayName: _displayName,
+        description: '',
+        isMutualFriend: reciprocalPeerIds.contains(id),
+      ),
+  };
 }

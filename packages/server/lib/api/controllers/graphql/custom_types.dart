@@ -616,6 +616,9 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('responseUpdatedAt', graphQLString),
         field('responseAuthorUserId', graphQLString),
         field('roomAccess', graphQLInt),
+        field('admissionAction', graphQLInt),
+        field('lastDeclineReason', graphQLString),
+        field('lastRemoveReason', graphQLString),
         field('user', gqlTypeUserPublic.nonNullable()),
       ]);
 

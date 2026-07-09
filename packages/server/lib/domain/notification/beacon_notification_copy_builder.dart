@@ -31,65 +31,79 @@ class BeaconNotificationCopyBuilder {
 
     final (title, body) = switch (intent.kind) {
       NotificationKind.needsMe => (
-          'Asked of you',
-          excerpt.isNotEmpty ? excerpt : 'Action needed in the request chat',
-        ),
-      NotificationKind.promiseMade => intent.promiseWithdrawn
-          ? (
-              '$actor withdrew a promise',
-              excerpt.isNotEmpty ? excerpt : 'Promise withdrawn',
-            )
-          : (
-              '$actor promised',
-              excerpt.isNotEmpty ? excerpt : 'New promise in the request chat',
-            ),
+        'Asked of you',
+        excerpt.isNotEmpty ? excerpt : 'Action needed in the request chat',
+      ),
+      NotificationKind.promiseMade =>
+        intent.promiseWithdrawn
+            ? (
+                '$actor withdrew a promise',
+                excerpt.isNotEmpty ? excerpt : 'Promise withdrawn',
+              )
+            : (
+                '$actor promised',
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : 'New promise in the request chat',
+              ),
       NotificationKind.coordinationChanged => (
-          'Plan updated',
-          excerpt.isNotEmpty ? excerpt : 'Coordination changed',
-        ),
+        'Plan updated',
+        excerpt.isNotEmpty ? excerpt : 'Coordination changed',
+      ),
       NotificationKind.blockerOpened => (
-          'Blocker opened',
-          excerpt.isNotEmpty ? excerpt : 'A blocker was opened',
-        ),
+        'Blocker opened',
+        excerpt.isNotEmpty ? excerpt : 'A blocker was opened',
+      ),
       NotificationKind.blockerResolved => (
-          'Blocker resolved',
-          excerpt.isNotEmpty ? excerpt : 'A blocker was resolved',
-        ),
+        'Blocker resolved',
+        excerpt.isNotEmpty ? excerpt : 'A blocker was resolved',
+      ),
       NotificationKind.roomAccess => (
-          'Chat access',
-          'You were admitted to the request chat',
-        ),
+        'Chat access',
+        'You were admitted to the request chat',
+      ),
+      NotificationKind.commitmentDeclined => (
+        'Offer declined',
+        excerpt.isNotEmpty ? excerpt : 'Your offer was declined',
+      ),
+      NotificationKind.commitmentRemoved => (
+        'Removed from chat',
+        excerpt.isNotEmpty ? excerpt : 'You were removed from the request chat',
+      ),
       NotificationKind.newRelay => (
-          actor,
-          excerpt.isNotEmpty
-              ? '$actor: $excerpt'
-              : '$actor forwarded a request to you',
-        ),
-      NotificationKind.commitmentEvent => intent.promiseWithdrawn
-          ? (
-              actor,
-              excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
-            )
-          : (
-              actor,
-              excerpt.isNotEmpty ? excerpt : '$actor offered help',
-            ),
+        actor,
+        excerpt.isNotEmpty
+            ? '$actor: $excerpt'
+            : '$actor forwarded a request to you',
+      ),
+      NotificationKind.commitmentEvent =>
+        intent.promiseWithdrawn
+            ? (
+                actor,
+                excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
+              )
+            : (
+                actor,
+                excerpt.isNotEmpty ? excerpt : '$actor offered help',
+              ),
       NotificationKind.reviewReady => (
-          'Request closed — close the loop',
-          beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
-        ),
+        'Request closed — close the loop',
+        beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
+      ),
       NotificationKind.roomActivityLowPriority => (
-          beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
-          excerpt.isNotEmpty ? excerpt : 'New chat update',
-        ),
+        beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
+        excerpt.isNotEmpty ? excerpt : 'New chat update',
+      ),
       NotificationKind.staleRemind => (
-          'Still needs attention',
-          excerpt.isNotEmpty ? excerpt : 'Something in the request chat needs attention',
-        ),
+        'Still needs attention',
+        excerpt.isNotEmpty
+            ? excerpt
+            : 'Something in the request chat needs attention',
+      ),
       NotificationKind.inviteAccepted => (
-          'Invitation accepted',
-          '$actor accepted your invitation',
-        ),
+        'Invitation accepted',
+        '$actor accepted your invitation',
+      ),
     };
 
     return BeaconNotificationCopy(
@@ -105,21 +119,21 @@ class BeaconNotificationCopyBuilder {
   BeaconNotificationCopy lockScreenSafe(BeaconNotificationIntent intent) {
     final (title, body) = switch (categoryOf(intent.kind)) {
       NotificationCategory.asksOfMe => (
-          'Tentura',
-          'Something needs your response',
-        ),
+        'Tentura',
+        'Something needs your response',
+      ),
       NotificationCategory.unblocksMe => (
-          'Tentura',
-          'An update is ready for you',
-        ),
+        'Tentura',
+        'An update is ready for you',
+      ),
       NotificationCategory.coordination => (
-          'Tentura',
-          'New activity in a request chat',
-        ),
+        'Tentura',
+        'New activity in a request chat',
+      ),
       NotificationCategory.connections => (
-          'Tentura',
-          'New connection activity',
-        ),
+        'Tentura',
+        'New connection activity',
+      ),
       NotificationCategory.ambient => ('Tentura', 'New activity'),
     };
     return BeaconNotificationCopy(
@@ -137,6 +151,9 @@ class BeaconNotificationCopyBuilder {
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',
       NotificationKind.commitmentEvent =>
+        '/#$kPathAppLinkView?id=$id&dest=people',
+      NotificationKind.commitmentDeclined ||
+      NotificationKind.commitmentRemoved =>
         '/#$kPathAppLinkView?id=$id&dest=people',
       NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
       NotificationKind.inviteAccepted => '/#/',

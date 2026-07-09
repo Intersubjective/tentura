@@ -6,6 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -69,6 +70,10 @@ TimelineHelpOffer _helpOffer({
   String message = '',
   bool isWithdrawn = false,
   CoordinationResponseType? coordinationResponse,
+  int? roomAccess,
+  HelpOfferAdmissionAction? admissionAction,
+  String? lastDeclineReason,
+  String? lastRemoveReason,
 }) {
   final t = DateTime.utc(2025);
   return TimelineHelpOffer(
@@ -79,6 +84,10 @@ TimelineHelpOffer _helpOffer({
     helpType: helpType,
     isWithdrawn: isWithdrawn,
     coordinationResponse: coordinationResponse,
+    roomAccess: roomAccess,
+    admissionAction: admissionAction,
+    lastDeclineReason: lastDeclineReason,
+    lastRemoveReason: lastRemoveReason,
   );
 }
 
@@ -231,7 +240,7 @@ void main() {
     },
   );
 
-  testWidgets('author view pending review shows red author review required', (
+  testWidgets('author view pending review shows accept and decline actions', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -242,41 +251,45 @@ void main() {
           beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
           isAuthorView: true,
-          onAuthorTapCoordination: () {},
+          onAccept: () {},
+          onDecline: () {},
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('author review required'), findsOneWidget);
-    final text = tester.widget<Text>(find.text('author review required'));
-    expect(text.style?.color, TenturaTokens.light.danger);
+    expect(find.text('Accept'), findsOneWidget);
+    expect(find.text('Decline'), findsOneWidget);
+    expect(find.text('Set coordination signal'), findsNothing);
   });
 
-  testWidgets('needDifferentSkill author reaction uses warn ink', (
+  testWidgets('committer sees declined reason without actions', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(
         HelpOfferTile(
           helpOffer: _helpOffer(
-            userId: 'c1',
-            coordinationResponse: CoordinationResponseType.needDifferentSkill,
+            userId: 'me',
+            admissionAction: HelpOfferAdmissionAction.decline,
+            lastDeclineReason: 'Wrong fit',
           ),
           beaconId: 'B1',
           beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
-          isAuthorView: true,
+          isMine: true,
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Need different skill'), findsOneWidget);
+    expect(find.text('Declined: Wrong fit'), findsOneWidget);
     final text = tester.widget<Text>(
-      find.textContaining('Need different skill'),
+      find.text('Declined: Wrong fit'),
     );
-    expect(text.style?.color, TenturaTokens.light.warn);
+    expect(text.style?.color, TenturaTokens.light.danger);
+    expect(find.text('Accept'), findsNothing);
+    expect(find.text('Decline'), findsNothing);
   });
 
   testWidgets('message link opens via launchUserLink', (tester) async {

@@ -24,22 +24,21 @@ enum NotificationCategory {
 
 /// Single source of truth mapping a raw kind to its semantic category.
 NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
-      NotificationKind.needsMe ||
-      NotificationKind.staleRemind ||
-      NotificationKind.roomAccess =>
-        NotificationCategory.asksOfMe,
-      NotificationKind.blockerResolved ||
-      NotificationKind.reviewReady =>
-        NotificationCategory.unblocksMe,
-      NotificationKind.promiseMade ||
-      NotificationKind.coordinationChanged ||
-      NotificationKind.blockerOpened ||
-      NotificationKind.commitmentEvent ||
-      NotificationKind.newRelay =>
-        NotificationCategory.coordination,
-      NotificationKind.inviteAccepted => NotificationCategory.connections,
-      NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
-    };
+  NotificationKind.needsMe ||
+  NotificationKind.staleRemind ||
+  NotificationKind.roomAccess => NotificationCategory.asksOfMe,
+  NotificationKind.blockerResolved ||
+  NotificationKind.reviewReady => NotificationCategory.unblocksMe,
+  NotificationKind.promiseMade ||
+  NotificationKind.coordinationChanged ||
+  NotificationKind.blockerOpened ||
+  NotificationKind.commitmentEvent ||
+  NotificationKind.commitmentDeclined ||
+  NotificationKind.commitmentRemoved ||
+  NotificationKind.newRelay => NotificationCategory.coordination,
+  NotificationKind.inviteAccepted => NotificationCategory.connections,
+  NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
+};
 
 /// Parse a category from its persisted name, or null if unknown.
 NotificationCategory? notificationCategoryFromName(String name) {

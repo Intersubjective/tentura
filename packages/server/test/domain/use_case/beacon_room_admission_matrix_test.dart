@@ -7,10 +7,14 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -41,20 +45,20 @@ const _outsiderId = 'Uoutsider0001';
 final _now = DateTime.utc(2025);
 
 BeaconEntity _beacon({BeaconStatus status = BeaconStatus.open}) => BeaconEntity(
-      id: _beaconId,
-      title: 't',
-      author: UserEntity(id: _authorId),
-      createdAt: _now,
-      updatedAt: _now,
-      status: status,
-    );
+  id: _beaconId,
+  title: 't',
+  author: UserEntity(id: _authorId),
+  createdAt: _now,
+  updatedAt: _now,
+  status: status,
+);
 
 HelpOfferEntity _activeOffer() => HelpOfferEntity(
-      beaconId: _beaconId,
-      userId: _helperId,
-      createdAt: _now,
-      updatedAt: _now,
-    );
+  beaconId: _beaconId,
+  userId: _helperId,
+  createdAt: _now,
+  updatedAt: _now,
+);
 
 class _AdmitStubRoom extends Fake implements BeaconRoomRepositoryPort {
   _AdmitStubRoom({
@@ -72,15 +76,13 @@ class _AdmitStubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      authorIds.contains(userId);
+  }) async => authorIds.contains(userId);
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      stewardIds.contains(userId);
+  }) async => stewardIds.contains(userId);
 
   @override
   Future<void> admitParticipant({
@@ -226,6 +228,7 @@ void main() {
       late MockHelpOfferRepositoryPort helpOfferRepo;
       late MockCoordinationRepositoryPort coordinationRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
+      late MockBeaconRoomNotificationPort roomPush;
       late CoordinationCase sut;
 
       setUp(() {
@@ -233,12 +236,15 @@ void main() {
         helpOfferRepo = MockHelpOfferRepositoryPort();
         coordinationRepo = MockCoordinationRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
+        roomPush = MockBeaconRoomNotificationPort();
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
           _MinimalEvaluationRepo(),
+          roomPush: roomPush,
+          guard: FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
         );
@@ -284,43 +290,42 @@ void main() {
       Future<void> respond({
         required bool inviteToRoom,
         required bool removeFromRoom,
-      }) =>
-          sut.setCoordinationResponse(
-            beaconId: _beaconId,
-            offerUserId: _helperId,
-            authorUserId: _authorId,
-            responseType: CoordinationResponseType.useful.smallintValue,
-            inviteToRoom: inviteToRoom,
-            removeFromRoom: removeFromRoom,
-          );
+      }) => sut.setCoordinationResponse(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        authorUserId: _authorId,
+        responseType: CoordinationResponseType.useful.smallintValue,
+        inviteToRoom: inviteToRoom,
+        removeFromRoom: removeFromRoom,
+      );
 
       for (final row
           in <({bool invite, bool remove, String expected, String label})>[
-        (
-          invite: true,
-          remove: false,
-          expected: 'invite',
-          label: 'author invite re-admits helper',
-        ),
-        (
-          invite: false,
-          remove: true,
-          expected: 'revoke',
-          label: 'author revoke removes helper',
-        ),
-        (
-          invite: true,
-          remove: true,
-          expected: 'revoke',
-          label: 'removeFromRoom wins over inviteToRoom',
-        ),
-        (
-          invite: false,
-          remove: false,
-          expected: 'none',
-          label: 'response only leaves room access unchanged',
-        ),
-      ]) {
+            (
+              invite: true,
+              remove: false,
+              expected: 'invite',
+              label: 'author invite re-admits helper',
+            ),
+            (
+              invite: false,
+              remove: true,
+              expected: 'revoke',
+              label: 'author revoke removes helper',
+            ),
+            (
+              invite: true,
+              remove: true,
+              expected: 'revoke',
+              label: 'removeFromRoom wins over inviteToRoom',
+            ),
+            (
+              invite: false,
+              remove: false,
+              expected: 'none',
+              label: 'response only leaves room access unchanged',
+            ),
+          ]) {
         test(row.label, () async {
           await respond(inviteToRoom: row.invite, removeFromRoom: row.remove);
 
@@ -375,6 +380,377 @@ void main() {
       }
     });
 
+    group('CoordinationCase admission actions', () {
+      late MockBeaconRepositoryPort beaconRepo;
+      late MockHelpOfferRepositoryPort helpOfferRepo;
+      late MockCoordinationRepositoryPort coordinationRepo;
+      late MockBeaconRoomRepositoryPort roomRepo;
+      late MockBeaconRoomNotificationPort roomPush;
+      late CoordinationCase sut;
+
+      BeaconParticipantRecord participant({required int roomAccess}) =>
+          testBeaconParticipant(
+            beaconId: _beaconId,
+            userId: _helperId,
+            roomAccess: roomAccess,
+          );
+
+      Matcher throwsCoordinationCode(HelpOfferCoordinationExceptionCode code) =>
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              HelpOfferCoordinationExceptionCodes(code).codeNumber,
+            ),
+          );
+
+      void buildSut({FakeBeaconAccessGuard? guard}) {
+        sut = CoordinationCase(
+          beaconRepo,
+          helpOfferRepo,
+          coordinationRepo,
+          roomRepo,
+          _MinimalEvaluationRepo(),
+          roomPush: roomPush,
+          guard: guard ?? FakeBeaconAccessGuard(),
+          env: Env(environment: Environment.test),
+          logger: Logger('BeaconRoomAdmissionMatrixTest'),
+        );
+      }
+
+      void stubOpenActiveOffer({String authorId = _authorId}) {
+        when(
+          beaconRepo.getBeaconById(beaconId: _beaconId),
+        ).thenAnswer((_) async => _beacon());
+        when(
+          helpOfferRepo.fetchByBeaconId(_beaconId),
+        ).thenAnswer((_) async => [_activeOffer()]);
+      }
+
+      setUp(() {
+        beaconRepo = MockBeaconRepositoryPort();
+        helpOfferRepo = MockHelpOfferRepositoryPort();
+        coordinationRepo = MockCoordinationRepositoryPort();
+        roomRepo = MockBeaconRoomRepositoryPort();
+        roomPush = MockBeaconRoomNotificationPort();
+        buildSut();
+
+        when(
+          roomPush.notifyRoomAdmitted(
+            receiverId: anyNamed('receiverId'),
+            beaconId: anyNamed('beaconId'),
+            actorUserId: anyNamed('actorUserId'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          roomPush.notifyCommitmentDeclined(
+            receiverId: anyNamed('receiverId'),
+            beaconId: anyNamed('beaconId'),
+            actorUserId: anyNamed('actorUserId'),
+            reason: anyNamed('reason'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          roomPush.notifyCommitmentRemoved(
+            receiverId: anyNamed('receiverId'),
+            beaconId: anyNamed('beaconId'),
+            actorUserId: anyNamed('actorUserId'),
+            reason: anyNamed('reason'),
+          ),
+        ).thenAnswer((_) async {});
+      });
+
+      test(
+        'author accepts an active offer and notifies the committer',
+        () async {
+          stubOpenActiveOffer();
+          when(
+            coordinationRepo.acceptHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+            ),
+          ).thenAnswer(
+            (_) async =>
+                (status: BeaconStatus.enoughHelp, statusChangedAt: _now),
+          );
+
+          final result = await sut.acceptHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+          );
+
+          expect(result.status, BeaconStatus.enoughHelp.smallintValue);
+          verify(
+            coordinationRepo.acceptHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+            ),
+          ).called(1);
+          verify(
+            roomPush.notifyRoomAdmitted(
+              receiverId: _helperId,
+              beaconId: _beaconId,
+              actorUserId: _authorId,
+            ),
+          ).called(1);
+        },
+      );
+
+      test('steward can decline with a trimmed mandatory reason', () async {
+        stubOpenActiveOffer();
+        when(
+          roomRepo.isBeaconSteward(beaconId: _beaconId, userId: _stewardId),
+        ).thenAnswer((_) async => true);
+        when(
+          roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
+        ).thenAnswer(
+          (_) async => participant(roomAccess: RoomAccessBits.requested),
+        );
+        when(
+          coordinationRepo.declineHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _stewardId,
+            reason: 'not a fit',
+          ),
+        ).thenAnswer(
+          (_) async => (status: BeaconStatus.open, statusChangedAt: null),
+        );
+
+        await sut.declineHelpOffer(
+          beaconId: _beaconId,
+          offerUserId: _helperId,
+          actorUserId: _stewardId,
+          reason: '  not a fit  ',
+        );
+
+        verify(
+          coordinationRepo.declineHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _stewardId,
+            reason: 'not a fit',
+          ),
+        ).called(1);
+        verify(
+          roomPush.notifyCommitmentDeclined(
+            receiverId: _helperId,
+            beaconId: _beaconId,
+            actorUserId: _stewardId,
+            reason: 'not a fit',
+          ),
+        ).called(1);
+      });
+
+      test('outsider cannot accept', () async {
+        stubOpenActiveOffer();
+        when(
+          roomRepo.isBeaconSteward(beaconId: _beaconId, userId: _outsiderId),
+        ).thenAnswer((_) async => false);
+
+        await expectLater(
+          sut.acceptHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _outsiderId,
+          ),
+          throwsCoordinationCode(
+            HelpOfferCoordinationExceptionCode.notBeaconAuthor,
+          ),
+        );
+        verifyNever(
+          coordinationRepo.acceptHelpOffer(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            actorUserId: anyNamed('actorUserId'),
+          ),
+        );
+      });
+
+      test('decline rejects empty and over-length reasons', () async {
+        await expectLater(
+          sut.declineHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+            reason: '  ',
+          ),
+          throwsCoordinationCode(
+            HelpOfferCoordinationExceptionCode.reasonRequired,
+          ),
+        );
+
+        await expectLater(
+          sut.declineHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+            reason: 'x' * 501,
+          ),
+          throwsCoordinationCode(
+            HelpOfferCoordinationExceptionCode.reasonTooLong,
+          ),
+        );
+        verifyNever(
+          coordinationRepo.declineHelpOffer(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            actorUserId: anyNamed('actorUserId'),
+            reason: anyNamed('reason'),
+          ),
+        );
+      });
+
+      test('decline rejects already admitted committer', () async {
+        stubOpenActiveOffer();
+        when(
+          roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
+        ).thenAnswer(
+          (_) async => participant(roomAccess: RoomAccessBits.admitted),
+        );
+
+        await expectLater(
+          sut.declineHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+            reason: 'not now',
+          ),
+          throwsCoordinationCode(
+            HelpOfferCoordinationExceptionCode.alreadyAdmitted,
+          ),
+        );
+      });
+
+      test(
+        'remove requires admitted committer and notifies with reason',
+        () async {
+          stubOpenActiveOffer();
+          when(
+            roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
+          ).thenAnswer(
+            (_) async => participant(roomAccess: RoomAccessBits.admitted),
+          );
+          when(
+            coordinationRepo.removeFromRoom(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+              reason: 'capacity changed',
+            ),
+          ).thenAnswer(
+            (_) async => (status: BeaconStatus.open, statusChangedAt: null),
+          );
+
+          await sut.removeFromRoom(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+            reason: 'capacity changed',
+          );
+
+          verify(
+            coordinationRepo.removeFromRoom(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+              reason: 'capacity changed',
+            ),
+          ).called(1);
+          verify(
+            roomPush.notifyCommitmentRemoved(
+              receiverId: _helperId,
+              beaconId: _beaconId,
+              actorUserId: _authorId,
+              reason: 'capacity changed',
+            ),
+          ).called(1);
+
+          when(
+            roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
+          ).thenAnswer(
+            (_) async => participant(roomAccess: RoomAccessBits.requested),
+          );
+          await expectLater(
+            sut.removeFromRoom(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+              reason: 'capacity changed',
+            ),
+            throwsCoordinationCode(
+              HelpOfferCoordinationExceptionCode.notAdmitted,
+            ),
+          );
+        },
+      );
+
+      test('help offer admission reasons are redacted per viewer', () async {
+        const rowUser = UserPublicRecord(
+          id: _helperId,
+          displayName: 'helper',
+          description: '',
+        );
+        final rows = [
+          HelpOfferWithCoordinationRow(
+            beaconId: _beaconId,
+            userId: _helperId,
+            message: '',
+            status: 0,
+            createdAt: _now,
+            updatedAt: _now,
+            user: rowUser,
+            admissionAction: HelpOfferAdmissionAction.decline.smallintValue,
+            lastDeclineReason: 'private reason',
+          ),
+        ];
+        when(
+          beaconRepo.getBeaconById(beaconId: _beaconId),
+        ).thenAnswer((_) async => _beacon());
+        when(
+          coordinationRepo.helpOffersWithCoordination(
+            _beaconId,
+            viewerId: anyNamed('viewerId'),
+          ),
+        ).thenAnswer((_) async => rows);
+        when(
+          roomRepo.isBeaconSteward(
+            beaconId: _beaconId,
+            userId: anyNamed('userId'),
+          ),
+        ).thenAnswer((_) async => false);
+
+        final authorRows = await sut.helpOffersWithCoordination(
+          beaconId: _beaconId,
+          viewerId: _authorId,
+        );
+        final helperRows = await sut.helpOffersWithCoordination(
+          beaconId: _beaconId,
+          viewerId: _helperId,
+        );
+        final outsiderRows = await sut.helpOffersWithCoordination(
+          beaconId: _beaconId,
+          viewerId: _outsiderId,
+        );
+
+        expect(authorRows.single.lastDeclineReason, 'private reason');
+        expect(helperRows.single.lastDeclineReason, 'private reason');
+        expect(outsiderRows.single.lastDeclineReason, isNull);
+
+        buildSut(guard: FakeBeaconAccessGuard(contentAllowed: false));
+        await expectLater(
+          sut.helpOffersWithCoordination(
+            beaconId: _beaconId,
+            viewerId: _helperId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+      });
+    });
+
     group('HelpOfferCase.offerHelp — auto-admit matrix', () {
       late MockBeaconRepositoryPort beaconRepo;
       late MockHelpOfferRepositoryPort helpOfferRepo;
@@ -383,6 +759,7 @@ void main() {
       late MockPersonCapabilityEventRepositoryPort capabilityRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
       late MockForwardEdgeRepositoryPort forwardEdgeRepo;
+      late MockHelpOfferAdmissionRepositoryPort admissionRepo;
       late MockBeaconRoomNotificationPort roomPush;
       late HelpOfferCase sut;
 
@@ -401,6 +778,7 @@ void main() {
         capabilityRepo = MockPersonCapabilityEventRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
         forwardEdgeRepo = MockForwardEdgeRepositoryPort();
+        admissionRepo = MockHelpOfferAdmissionRepositoryPort();
         roomPush = MockBeaconRoomNotificationPort();
         final capabilityCase = CapabilityCase(
           capabilityRepo,
@@ -415,6 +793,7 @@ void main() {
           capabilityCase,
           roomRepo,
           forwardEdgeRepo,
+          admissionRepo,
           roomPush,
           FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
@@ -454,40 +833,50 @@ void main() {
             actorUserId: anyNamed('actorUserId'),
           ),
         ).thenAnswer((_) async {});
+        when(
+          admissionRepo.record(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            actorUserId: anyNamed('actorUserId'),
+            action: anyNamed('action'),
+          ),
+        ).thenAnswer((_) async {});
       });
 
-      for (final row in <
-          ({
-            bool trusted,
-            int? roomAccess,
-            bool expectAdmit,
-            String label,
-          })>[
-        (
-          trusted: true,
-          roomAccess: null,
-          expectAdmit: true,
-          label: 'trusted direct forward admits new helper',
-        ),
-        (
-          trusted: true,
-          roomAccess: RoomAccessBits.none,
-          expectAdmit: false,
-          label: 'author revoke (none) blocks auto-admit',
-        ),
-        (
-          trusted: true,
-          roomAccess: RoomAccessBits.requested,
-          expectAdmit: true,
-          label: 'trusted helper with requested access is re-admitted',
-        ),
-        (
-          trusted: false,
-          roomAccess: null,
-          expectAdmit: false,
-          label: 'non-trusted helper is not auto-admitted',
-        ),
-      ]) {
+      for (final row
+          in <
+            ({
+              bool trusted,
+              int? roomAccess,
+              bool expectAdmit,
+              String label,
+            })
+          >[
+            (
+              trusted: true,
+              roomAccess: null,
+              expectAdmit: true,
+              label: 'trusted direct forward admits new helper',
+            ),
+            (
+              trusted: true,
+              roomAccess: RoomAccessBits.none,
+              expectAdmit: false,
+              label: 'author revoke (none) blocks auto-admit',
+            ),
+            (
+              trusted: true,
+              roomAccess: RoomAccessBits.requested,
+              expectAdmit: true,
+              label: 'trusted helper with requested access is re-admitted',
+            ),
+            (
+              trusted: false,
+              roomAccess: null,
+              expectAdmit: false,
+              label: 'non-trusted helper is not auto-admitted',
+            ),
+          ]) {
         test(row.label, () async {
           when(
             forwardEdgeRepo.isDirectAuthorForward(
@@ -532,6 +921,14 @@ void main() {
                 actorUserId: _authorId,
               ),
             ).called(1);
+            verify(
+              admissionRepo.record(
+                beaconId: _beaconId,
+                offerUserId: _helperId,
+                actorUserId: _authorId,
+                action: HelpOfferAdmissionAction.autoAdmit,
+              ),
+            ).called(1);
           } else {
             verifyNever(
               roomRepo.inviteOfferUserToBeaconRoom(
@@ -545,6 +942,14 @@ void main() {
                 receiverId: anyNamed('receiverId'),
                 beaconId: anyNamed('beaconId'),
                 actorUserId: anyNamed('actorUserId'),
+              ),
+            );
+            verifyNever(
+              admissionRepo.record(
+                beaconId: anyNamed('beaconId'),
+                offerUserId: anyNamed('offerUserId'),
+                actorUserId: anyNamed('actorUserId'),
+                action: anyNamed('action'),
               ),
             );
           }

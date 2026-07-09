@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 part 'beacon_people_row.freezed.dart';
@@ -14,6 +15,9 @@ class BeaconPeopleHelpOfferInput {
     required this.isWithdrawn,
     this.roomAccess,
     this.coordinationResponse,
+    this.admissionAction,
+    this.lastDeclineReason,
+    this.lastRemoveReason,
   });
 
   final String userId;
@@ -21,6 +25,9 @@ class BeaconPeopleHelpOfferInput {
   final bool isWithdrawn;
   final int? roomAccess;
   final CoordinationResponseType? coordinationResponse;
+  final HelpOfferAdmissionAction? admissionAction;
+  final String? lastDeclineReason;
+  final String? lastRemoveReason;
 }
 
 @freezed

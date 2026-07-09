@@ -24,6 +24,7 @@ abstract final class BeaconActivityEventTypeBits {
   static const factVisibilityChanged = 14;
   static const beaconPublished = 15;
   static const beaconLifecycleChanged = 16;
+  static const participantRemoved = 17;
 
   /// Inclusive lower bound of the `kind * 100 + eventKind` coordination range.
   static const coordinationTypeMin = 100;

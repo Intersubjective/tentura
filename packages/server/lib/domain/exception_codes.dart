@@ -127,6 +127,10 @@ enum HelpOfferCoordinationExceptionCode {
   helpOfferNotActive,
   authorCannotCommit,
   beaconWithdrawForbidden,
+  reasonRequired,
+  reasonTooLong,
+  notAdmitted,
+  alreadyAdmitted,
 }
 
 class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {

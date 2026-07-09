@@ -39,6 +39,7 @@ class TenturaTextAction extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             )
           : Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 IconTheme(
                   data: IconThemeData(size: 14, color: color),

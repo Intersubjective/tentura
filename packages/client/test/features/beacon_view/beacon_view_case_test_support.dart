@@ -45,6 +45,9 @@ typedef FakeHelpOfferCoordinationRow = ({
   DateTime? responseUpdatedAt,
   String? responseAuthorUserId,
   int? roomAccess,
+  int? admissionAction,
+  String? lastDeclineReason,
+  String? lastRemoveReason,
 });
 
 Never _throwTestError(Object error) {
@@ -177,6 +180,11 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
           bool removeFromRoom,
         })
       >[];
+  final acceptHelpOfferCalls = <({String beaconId, String offerUserId})>[];
+  final declineHelpOfferCalls =
+      <({String beaconId, String offerUserId, String reason})>[];
+  final removeFromRoomCalls =
+      <({String beaconId, String offerUserId, String reason})>[];
 
   @override
   Future<List<FakeHelpOfferCoordinationRow>> fetchHelpOffersWithCoordination({
@@ -210,6 +218,43 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
       responseType: responseType,
       inviteToRoom: inviteToRoom,
       removeFromRoom: removeFromRoom,
+    ));
+    return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
+  }
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+  }) async {
+    acceptHelpOfferCalls.add((beaconId: beaconId, offerUserId: offerUserId));
+    return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
+  }
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    declineHelpOfferCalls.add((
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
+    ));
+    return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
+  }
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    removeFromRoomCalls.add((
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
     ));
     return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
   }

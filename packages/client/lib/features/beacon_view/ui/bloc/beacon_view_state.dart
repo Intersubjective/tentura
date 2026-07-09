@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -38,6 +39,9 @@ class TimelineHelpOffer {
     this.coordinationResponse,
     this.withdrawReason,
     this.roomAccess,
+    this.admissionAction,
+    this.lastDeclineReason,
+    this.lastRemoveReason,
   });
   final Profile user;
   final String message;
@@ -50,6 +54,9 @@ class TimelineHelpOffer {
 
   /// `beacon_participants.room_access` for this helpOfferer when known.
   final int? roomAccess;
+  final HelpOfferAdmissionAction? admissionAction;
+  final String? lastDeclineReason;
+  final String? lastRemoveReason;
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
@@ -64,6 +71,9 @@ class TimelineHelpOffer {
     CoordinationResponseType? coordinationResponse,
     String? withdrawReason,
     int? roomAccess,
+    HelpOfferAdmissionAction? admissionAction,
+    String? lastDeclineReason,
+    String? lastRemoveReason,
   }) => TimelineHelpOffer(
     user: user ?? this.user,
     message: message ?? this.message,
@@ -74,6 +84,9 @@ class TimelineHelpOffer {
     coordinationResponse: coordinationResponse ?? this.coordinationResponse,
     withdrawReason: withdrawReason ?? this.withdrawReason,
     roomAccess: roomAccess ?? this.roomAccess,
+    admissionAction: admissionAction ?? this.admissionAction,
+    lastDeclineReason: lastDeclineReason ?? this.lastDeclineReason,
+    lastRemoveReason: lastRemoveReason ?? this.lastRemoveReason,
   );
 }
 

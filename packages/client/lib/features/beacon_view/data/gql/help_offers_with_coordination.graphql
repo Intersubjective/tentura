@@ -14,6 +14,9 @@ query HelpOffersWithCoordination($beaconId: String!) {
     responseUpdatedAt
     responseAuthorUserId
     roomAccess
+    admissionAction
+    lastDeclineReason
+    lastRemoveReason
     user {
       id
       displayName

@@ -3376,6 +3376,48 @@
   },
   "beaconNoActivityYetShort": "Пока нет событий",
   "helpOffersTabNoAuthorLabelYet": "требуется оценка автора",
+  "helpOfferAdmissionAccept": "Принять",
+  "helpOfferAdmissionDecline": "Отклонить",
+  "helpOfferAdmissionRemove": "Убрать из чата",
+  "helpOfferAdmittedLabel": "Допущен(а)",
+  "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
+  "helpOfferAdmittedAutomaticallyHint": "Вы переслали этот запрос напрямую",
+  "helpOfferDeclineDialogTitle": "Отклонить предложение",
+  "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
+  "helpOfferRemoveDialogTitle": "Убрать из чата",
+  "helpOfferRemoveDialogHint": "Напишите причину. Это обязательно",
+  "helpOfferDeclinedWithReason": "Отклонено: {reason}",
+  "@helpOfferDeclinedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferRemovedWithReason": "Убрано из чата: {reason}",
+  "@helpOfferRemovedWithReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferPreviousDeclineContext": "Вы раньше отклонили: \"{reason}\"",
+  "@helpOfferPreviousDeclineContext": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferPreviousRemoveContext": "Вы раньше убрали из чата: \"{reason}\"",
+  "@helpOfferPreviousRemoveContext": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "helpOffersTabActionEdit": "правка",
   "helpOffersTabActionWithdraw": "снять",
   "helpOffersTabSummaryUseful": "{n} полезн.",
@@ -3527,6 +3569,7 @@
   "beaconActivityLifecycleClosedAfterReview": "Закрыто после обзора",
   "beaconActivityLifecycleReopened": "Снова открыто",
   "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
+  "beaconActivityParticipantRemoved": "Участник убран из чата",
   "beaconActivityCoordinationFallback": "Обновление чаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",
@@ -3573,6 +3616,7 @@
   "beaconPeopleStatusHelpOffered": "Предложил помощь",
   "beaconPeopleStatusHelpOfferedUseful": "Предложил помощь · полезно",
   "beaconPeopleStatusHelpOfferedNeedCoordination": "Предложил помощь · нужна координация",
+  "beaconPeopleStatusRemovedFromChat": "Убран(а) из чата",
   "beaconPeopleStatusNeedsInfo": "Нужна информация",
   "beaconPeopleStatusBlocked": "Заблокирован",
   "beaconPeopleStatusDone": "Готово",

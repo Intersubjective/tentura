@@ -193,6 +193,142 @@ void main() {
       },
     );
 
+    test(
+      'acceptHelpOffer emits help, participant, and beacon refresh',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final forward = FakeBeaconViewForwardRepository();
+        addTearDown(forward.dispose);
+        final coordination = FakeBeaconViewCoordinationRepository();
+        final room = FakeBeaconViewRoomRepository();
+        addTearDown(room.dispose);
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          forward: forward,
+          coordinationRepo: coordination,
+          roomRepo: room,
+        );
+
+        await case_.acceptHelpOffer(
+          beaconId: 'B-accept',
+          offerUserId: 'u-offer',
+        );
+
+        expect(coordination.acceptHelpOfferCalls, [
+          (beaconId: 'B-accept', offerUserId: 'u-offer'),
+        ]);
+        expect(
+          forward.notifiedHelpOfferEvents.single,
+          isA<HelpOfferInvalidated>().having(
+            (e) => e.beaconId,
+            'beaconId',
+            'B-accept',
+          ),
+        );
+        expect(room.localChanges, [
+          const BeaconRoomInvalidation(
+            beaconId: 'B-accept',
+            entityType: BeaconRoomEntityType.participant,
+          ),
+        ]);
+        expect(beacon.refreshAndNotifyCalls, ['B-accept']);
+      },
+    );
+
+    test(
+      'declineHelpOffer emits help, participant, and beacon refresh',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final forward = FakeBeaconViewForwardRepository();
+        addTearDown(forward.dispose);
+        final coordination = FakeBeaconViewCoordinationRepository();
+        final room = FakeBeaconViewRoomRepository();
+        addTearDown(room.dispose);
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          forward: forward,
+          coordinationRepo: coordination,
+          roomRepo: room,
+        );
+
+        await case_.declineHelpOffer(
+          beaconId: 'B-decline',
+          offerUserId: 'u-offer',
+          reason: 'not enough context',
+        );
+
+        expect(coordination.declineHelpOfferCalls, [
+          (
+            beaconId: 'B-decline',
+            offerUserId: 'u-offer',
+            reason: 'not enough context',
+          ),
+        ]);
+        expect(
+          forward.notifiedHelpOfferEvents.single,
+          isA<HelpOfferInvalidated>().having(
+            (e) => e.beaconId,
+            'beaconId',
+            'B-decline',
+          ),
+        );
+        expect(room.localChanges, [
+          const BeaconRoomInvalidation(
+            beaconId: 'B-decline',
+            entityType: BeaconRoomEntityType.participant,
+          ),
+        ]);
+        expect(beacon.refreshAndNotifyCalls, ['B-decline']);
+      },
+    );
+
+    test(
+      'removeFromRoom emits help, participant, and beacon refresh',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final forward = FakeBeaconViewForwardRepository();
+        addTearDown(forward.dispose);
+        final coordination = FakeBeaconViewCoordinationRepository();
+        final room = FakeBeaconViewRoomRepository();
+        addTearDown(room.dispose);
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          forward: forward,
+          coordinationRepo: coordination,
+          roomRepo: room,
+        );
+
+        await case_.removeFromRoom(
+          beaconId: 'B-remove',
+          offerUserId: 'u-offer',
+          reason: 'chat is full',
+        );
+
+        expect(coordination.removeFromRoomCalls, [
+          (
+            beaconId: 'B-remove',
+            offerUserId: 'u-offer',
+            reason: 'chat is full',
+          ),
+        ]);
+        expect(
+          forward.notifiedHelpOfferEvents.single,
+          isA<HelpOfferInvalidated>().having(
+            (e) => e.beaconId,
+            'beaconId',
+            'B-remove',
+          ),
+        );
+        expect(room.localChanges, [
+          const BeaconRoomInvalidation(
+            beaconId: 'B-remove',
+            entityType: BeaconRoomEntityType.participant,
+          ),
+        ]);
+        expect(beacon.refreshAndNotifyCalls, ['B-remove']);
+      },
+    );
+
     test('publishBeacon publishes draft then refreshes beacon', () async {
       final beacon = TrackingBeaconRepository();
       final case_ = buildTestBeaconViewCase(beaconRepo: beacon);

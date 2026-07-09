@@ -15,6 +15,7 @@ abstract final class BeaconActivityEventTypeBits {
   static const factVisibilityChanged = 14;
   static const beaconPublished = 15;
   static const beaconLifecycleChanged = 16;
+  static const participantRemoved = 17;
 }
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].

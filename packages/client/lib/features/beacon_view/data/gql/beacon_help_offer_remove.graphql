@@ -1,0 +1,15 @@
+mutation RemoveFromRoom(
+  $beaconId: String!
+  $offerUserId: String!
+  $reason: String!
+) {
+  removeFromRoom(
+    id: $beaconId
+    offerUserId: $offerUserId
+    reason: $reason
+  ) {
+    beaconId
+    status
+    statusChangedAt
+  }
+}

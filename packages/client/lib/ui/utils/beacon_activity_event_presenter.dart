@@ -42,8 +42,7 @@ BeaconActivityLogTier beaconActivityLogTier(BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.planUpdated ||
     BeaconActivityEventTypeBits.factPinned ||
     BeaconActivityEventTypeBits.needInfoOpened ||
-    BeaconActivityEventTypeBits.beaconPublished =>
-      BeaconActivityLogTier.medium,
+    BeaconActivityEventTypeBits.beaconPublished => BeaconActivityLogTier.medium,
     _ => BeaconActivityLogTier.low,
   };
 }
@@ -54,26 +53,26 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
     final ev = e.type % 100;
     return switch (kind) {
       1 => switch (ev) {
-          6 => Icons.swap_horiz,
-          3 => Icons.check_box_outlined,
-          _ => Icons.checklist_rtl_rounded,
-        },
+        6 => Icons.swap_horiz,
+        3 => Icons.check_box_outlined,
+        _ => Icons.checklist_rtl_rounded,
+      },
       2 => switch (ev) {
-          2 => Icons.thumb_up_alt_outlined,
-          3 => Icons.check_circle_outline,
-          4 => Icons.cancel_outlined,
-          _ => Icons.contact_support_outlined,
-        },
+        2 => Icons.thumb_up_alt_outlined,
+        3 => Icons.check_circle_outline,
+        4 => Icons.cancel_outlined,
+        _ => Icons.contact_support_outlined,
+      },
       3 => switch (ev) {
-          3 => Icons.lock_open_outlined,
-          4 => Icons.cancel_outlined,
-          _ => Icons.warning_amber_rounded,
-        },
+        3 => Icons.lock_open_outlined,
+        4 => Icons.cancel_outlined,
+        _ => Icons.warning_amber_rounded,
+      },
       4 => switch (ev) {
-          3 => Icons.task_alt,
-          4 => Icons.highlight_off,
-          _ => Icons.lightbulb_outline,
-        },
+        3 => Icons.task_alt,
+        4 => Icons.highlight_off,
+        _ => Icons.lightbulb_outline,
+      },
       _ => Icons.hub_outlined,
     };
   }
@@ -89,105 +88,120 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.beaconPublished => Icons.campaign_outlined,
     BeaconActivityEventTypeBits.beaconLifecycleChanged =>
       _beaconLifecycleLogIcon(lifecycleChangeReasonFromEvent(e)),
+    BeaconActivityEventTypeBits.participantRemoved =>
+      Icons.person_remove_outlined,
     _ => Icons.hub_outlined,
   };
 }
 
 IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
-      BeaconLifecycleChangeReason.reviewWindowOpened =>
-        Icons.hourglass_top_outlined,
-      BeaconLifecycleChangeReason.directClose ||
-      BeaconLifecycleChangeReason.authorCloseNow =>
-        Icons.flag_circle_outlined,
-      BeaconLifecycleChangeReason.reviewExpired => Icons.timer_off_outlined,
-      BeaconLifecycleChangeReason.reopenedFromReview => Icons.replay_outlined,
-      BeaconLifecycleChangeReason.cancelled => Icons.cancel_outlined,
-      _ => Icons.flag_circle_outlined,
-    };
+  BeaconLifecycleChangeReason.reviewWindowOpened =>
+    Icons.hourglass_top_outlined,
+  BeaconLifecycleChangeReason.directClose ||
+  BeaconLifecycleChangeReason.authorCloseNow => Icons.flag_circle_outlined,
+  BeaconLifecycleChangeReason.reviewExpired => Icons.timer_off_outlined,
+  BeaconLifecycleChangeReason.reopenedFromReview => Icons.replay_outlined,
+  BeaconLifecycleChangeReason.cancelled => Icons.cancel_outlined,
+  _ => Icons.flag_circle_outlined,
+};
 
 Color _coordinationSemanticAccentColor(TenturaTokens tt, int type) {
   final kind = type ~/ 100;
   final ev = type % 100;
   return switch (kind) {
     1 => switch (ev) {
-        1 ||
-        5 =>
-          coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.plan,
-              CoordinationItemStatus.resolved,
-            ),
-        6 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.plan,
-              CoordinationItemStatus.superseded,
-            ),
-        _ => coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
-      },
+      1 || 5 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.plan,
+        CoordinationItemStatus.open,
+      ),
+      3 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.plan,
+        CoordinationItemStatus.resolved,
+      ),
+      6 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.plan,
+        CoordinationItemStatus.superseded,
+      ),
+      _ => coordinationItemColor(
+        tt,
+        CoordinationItemKind.plan,
+        CoordinationItemStatus.open,
+      ),
+    },
     2 => switch (ev) {
-        1 => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
-        2 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.accepted,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
-      },
+      1 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.ask,
+        CoordinationItemStatus.open,
+      ),
+      2 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.ask,
+        CoordinationItemStatus.accepted,
+      ),
+      3 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.ask,
+        CoordinationItemStatus.resolved,
+      ),
+      4 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.ask,
+        CoordinationItemStatus.cancelled,
+      ),
+      _ => coordinationItemColor(
+        tt,
+        CoordinationItemKind.ask,
+        CoordinationItemStatus.open,
+      ),
+    },
     3 => switch (ev) {
-        1 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.open,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.open,
-            ),
-      },
+      1 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.blocker,
+        CoordinationItemStatus.open,
+      ),
+      3 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.blocker,
+        CoordinationItemStatus.resolved,
+      ),
+      4 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.blocker,
+        CoordinationItemStatus.cancelled,
+      ),
+      _ => coordinationItemColor(
+        tt,
+        CoordinationItemKind.blocker,
+        CoordinationItemStatus.open,
+      ),
+    },
     4 => switch (ev) {
-        1 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.open,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.open,
-            ),
-      },
+      1 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.resolution,
+        CoordinationItemStatus.open,
+      ),
+      3 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.resolution,
+        CoordinationItemStatus.resolved,
+      ),
+      4 => coordinationItemColor(
+        tt,
+        CoordinationItemKind.resolution,
+        CoordinationItemStatus.cancelled,
+      ),
+      _ => coordinationItemColor(
+        tt,
+        CoordinationItemKind.resolution,
+        CoordinationItemStatus.open,
+      ),
+    },
     _ => tt.textMuted,
   };
 }
@@ -205,6 +219,7 @@ Color beaconActivityLogIconColor(ThemeData theme, BeaconActivityEvent e) {
   }
   return switch (e.type) {
     BeaconActivityEventTypeBits.blockerOpened => tt.danger,
+    BeaconActivityEventTypeBits.participantRemoved => tt.danger,
     BeaconActivityEventTypeBits.needInfoOpened => tt.warn,
     BeaconActivityEventTypeBits.doneMarked => tt.good,
     _ => tt.textMuted,
@@ -241,31 +256,31 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
     final ev = e.type % 100;
     return switch (kind) {
       1 => switch (ev) {
-          1 => l10n.coordinationSemanticPlanOpened,
-          5 => l10n.coordinationSemanticPlanOpened,
-          6 => l10n.coordinationSemanticPlanSuperseded,
-          3 => l10n.coordinationSemanticPlanStepResolved,
-          _ => l10n.coordinationPlanCardLabel,
-        },
+        1 => l10n.coordinationSemanticPlanOpened,
+        5 => l10n.coordinationSemanticPlanOpened,
+        6 => l10n.coordinationSemanticPlanSuperseded,
+        3 => l10n.coordinationSemanticPlanStepResolved,
+        _ => l10n.coordinationPlanCardLabel,
+      },
       2 => switch (ev) {
-          1 => l10n.coordinationSemanticAskOpened,
-          2 => l10n.coordinationSemanticAskAccepted,
-          3 => l10n.coordinationSemanticAskResolved,
-          4 => l10n.coordinationSemanticAskCancelled,
-          _ => l10n.coordinationAskCardLabel,
-        },
+        1 => l10n.coordinationSemanticAskOpened,
+        2 => l10n.coordinationSemanticAskAccepted,
+        3 => l10n.coordinationSemanticAskResolved,
+        4 => l10n.coordinationSemanticAskCancelled,
+        _ => l10n.coordinationAskCardLabel,
+      },
       3 => switch (ev) {
-          1 => l10n.coordinationSemanticBlockerOpened,
-          3 => l10n.coordinationSemanticBlockerResolved,
-          4 => l10n.coordinationSemanticBlockerCancelled,
-          _ => l10n.coordinationBlockerCardLabel,
-        },
+        1 => l10n.coordinationSemanticBlockerOpened,
+        3 => l10n.coordinationSemanticBlockerResolved,
+        4 => l10n.coordinationSemanticBlockerCancelled,
+        _ => l10n.coordinationBlockerCardLabel,
+      },
       4 => switch (ev) {
-          1 => l10n.coordinationSemanticResolutionOpened,
-          3 => l10n.coordinationSemanticResolutionResolved,
-          4 => l10n.coordinationSemanticResolutionCancelled,
-          _ => l10n.coordinationResolutionCardLabel,
-        },
+        1 => l10n.coordinationSemanticResolutionOpened,
+        3 => l10n.coordinationSemanticResolutionResolved,
+        4 => l10n.coordinationSemanticResolutionCancelled,
+        _ => l10n.coordinationResolutionCardLabel,
+      },
       _ => l10n.beaconActivityCoordinationFallback,
     };
   }
@@ -286,6 +301,8 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
       l10n.beaconActivityBeaconPublished,
     BeaconActivityEventTypeBits.beaconLifecycleChanged =>
       beaconLifecycleEventLabel(l10n, e),
+    BeaconActivityEventTypeBits.participantRemoved =>
+      l10n.beaconActivityParticipantRemoved,
     _ => l10n.beaconActivityCoordinationFallback,
   };
 }

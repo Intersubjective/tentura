@@ -1186,6 +1186,44 @@ class MockBeaconRoomNotificationPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> notifyCommitmentDeclined({
+    required String? receiverId,
+    required String? beaconId,
+    required String? actorUserId,
+    required String? reason,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyCommitmentDeclined, [], {
+              #receiverId: receiverId,
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #reason: reason,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> notifyCommitmentRemoved({
+    required String? receiverId,
+    required String? beaconId,
+    required String? actorUserId,
+    required String? reason,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyCommitmentRemoved, [], {
+              #receiverId: receiverId,
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #reason: reason,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> notifyHelpWithdrawn({
     required String? beaconId,
     required String? withdrawerUserId,

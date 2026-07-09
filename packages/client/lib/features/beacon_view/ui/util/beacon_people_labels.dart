@@ -1,5 +1,6 @@
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 String beaconPeopleRoleLabel(L10n l10n, int role) {
@@ -17,12 +18,17 @@ String beaconPeopleRoleLabel(L10n l10n, int role) {
 String beaconPeopleStatusLabel(
   L10n l10n,
   int status,
-  CoordinationResponseType? authorResponseForOffered,
-) {
+  CoordinationResponseType? authorResponseForOffered, {
+  HelpOfferAdmissionAction? admissionAction,
+}) {
+  if (admissionAction == HelpOfferAdmissionAction.remove) {
+    return l10n.beaconPeopleStatusRemovedFromChat;
+  }
   if (status == BeaconParticipantStatusBits.committed &&
       authorResponseForOffered != null) {
     return switch (authorResponseForOffered) {
-      CoordinationResponseType.useful => l10n.beaconPeopleStatusHelpOfferedUseful,
+      CoordinationResponseType.useful =>
+        l10n.beaconPeopleStatusHelpOfferedUseful,
       CoordinationResponseType.needCoordination =>
         l10n.beaconPeopleStatusHelpOfferedNeedCoordination,
       _ => l10n.beaconPeopleStatusHelpOffered,

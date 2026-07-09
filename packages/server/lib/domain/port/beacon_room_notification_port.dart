@@ -34,6 +34,20 @@ abstract class BeaconRoomNotificationPort {
     required List<String> moderatorUserIds,
   });
 
+  Future<void> notifyCommitmentDeclined({
+    required String receiverId,
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+  });
+
+  Future<void> notifyCommitmentRemoved({
+    required String receiverId,
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+  });
+
   Future<void> notifyHelpWithdrawn({
     required String beaconId,
     required String withdrawerUserId,

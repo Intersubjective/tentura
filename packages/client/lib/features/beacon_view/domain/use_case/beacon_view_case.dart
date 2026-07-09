@@ -194,6 +194,61 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  Future<({BeaconStatus status, DateTime? updatedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+  }) async {
+    final result = await _coordinationRepository.acceptHelpOffer(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    _beaconRoomCase.notifyLocalChange(
+      beaconId: beaconId,
+      entityType: BeaconRoomEntityType.participant,
+    );
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    final result = await _coordinationRepository.declineHelpOffer(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    _beaconRoomCase.notifyLocalChange(
+      beaconId: beaconId,
+      entityType: BeaconRoomEntityType.participant,
+    );
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    final result = await _coordinationRepository.removeFromRoom(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    _beaconRoomCase.notifyLocalChange(
+      beaconId: beaconId,
+      entityType: BeaconRoomEntityType.participant,
+    );
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
+
   Future<void> setBeaconStatus({
     required String beaconId,
     required int status,
@@ -275,6 +330,9 @@ final class BeaconViewCase extends UseCaseBase {
         DateTime? responseUpdatedAt,
         String? responseAuthorUserId,
         int? roomAccess,
+        int? admissionAction,
+        String? lastDeclineReason,
+        String? lastRemoveReason,
       })
     >
   >

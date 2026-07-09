@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -30,6 +33,7 @@ final class HelpOfferCase extends UseCaseBase {
     this._capabilityCase,
     this._beaconRoomRepository,
     this._forwardEdgeRepository,
+    this._admissionRepository,
     this._roomPush,
     this._guard, {
     required super.env,
@@ -43,6 +47,7 @@ final class HelpOfferCase extends UseCaseBase {
   final CapabilityCase _capabilityCase;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+  final HelpOfferAdmissionRepositoryPort _admissionRepository;
   final BeaconRoomNotificationPort _roomPush;
   final BeaconAccessGuard _guard;
 
@@ -56,7 +61,8 @@ final class HelpOfferCase extends UseCaseBase {
       for (final type in helpTypes) {
         if (!isAllowedHelpType(type)) {
           throw HelpOfferCoordinationException(
-            coordinationCode: HelpOfferCoordinationExceptionCode.invalidHelpType,
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.invalidHelpType,
           );
         }
       }
@@ -129,13 +135,17 @@ final class HelpOfferCase extends UseCaseBase {
       helpOffererId: userId,
     );
     unawaited(
-      _roomPush.notifyHelpOfferToAuthor(
-        beaconId: beaconId,
-        helpOffererId: userId,
-        authorId: beacon.author.id,
-      ).catchError((Object e) {
-        logger.warning('HelpOfferCase: failed to enqueue help offer notification: $e');
-      }),
+      _roomPush
+          .notifyHelpOfferToAuthor(
+            beaconId: beaconId,
+            helpOffererId: userId,
+            authorId: beacon.author.id,
+          )
+          .catchError((Object e) {
+            logger.warning(
+              'HelpOfferCase: failed to enqueue help offer notification: $e',
+            );
+          }),
     );
   }
 
@@ -164,6 +174,18 @@ final class HelpOfferCase extends UseCaseBase {
       offerUserId: helpOffererId,
       authorUserId: beacon.author.id,
     );
+    await _coordinationRepository.upsertResponse(
+      beaconId: beacon.id,
+      offerUserId: helpOffererId,
+      authorUserId: beacon.author.id,
+      responseType: CoordinationResponseType.useful.smallintValue,
+    );
+    await _admissionRepository.record(
+      beaconId: beacon.id,
+      offerUserId: helpOffererId,
+      actorUserId: beacon.author.id,
+      action: HelpOfferAdmissionAction.autoAdmit,
+    );
     unawaited(
       _roomPush.notifyRoomAdmitted(
         receiverId: helpOffererId,
@@ -181,7 +203,8 @@ final class HelpOfferCase extends UseCaseBase {
   }) async {
     if (!isAllowedWithdrawReason(withdrawReason)) {
       throw HelpOfferCoordinationException(
-        coordinationCode: HelpOfferCoordinationExceptionCode.invalidWithdrawReason,
+        coordinationCode:
+            HelpOfferCoordinationExceptionCode.invalidWithdrawReason,
       );
     }
     if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
@@ -206,7 +229,9 @@ final class HelpOfferCase extends UseCaseBase {
       message: message,
       withdrawReason: withdrawReason,
     );
-    final beaconAfter = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final beaconAfter = await _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+    );
     if (beaconAfter.status.isOpenFamily) {
       await _inboxRepository.upsertWatchingForSender(
         senderId: userId,

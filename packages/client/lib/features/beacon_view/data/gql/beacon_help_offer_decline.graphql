@@ -1,0 +1,15 @@
+mutation DeclineHelpOffer(
+  $beaconId: String!
+  $offerUserId: String!
+  $reason: String!
+) {
+  declineHelpOffer(
+    id: $beaconId
+    offerUserId: $offerUserId
+    reason: $reason
+  ) {
+    beaconId
+    status
+    statusChangedAt
+  }
+}

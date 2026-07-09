@@ -15,7 +15,28 @@ abstract class CoordinationRepositoryPort {
     required int responseType,
   });
 
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> beaconStatusSnapshot(
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+  });
+
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> declineHelpOffer({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  });
+
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> removeFromRoom({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+  });
+
+  Future<({BeaconStatus status, DateTime? statusChangedAt})>
+  beaconStatusSnapshot(
     String beaconId,
   );
 

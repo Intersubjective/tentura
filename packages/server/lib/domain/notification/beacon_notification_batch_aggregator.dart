@@ -56,6 +56,8 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.blockerResolved => '$n blockers resolved$suffix',
       NotificationKind.newRelay => '$n requests forwarded to you$suffix',
       NotificationKind.commitmentEvent => '$n commitment updates$suffix',
+      NotificationKind.commitmentDeclined => '$n declined offers$suffix',
+      NotificationKind.commitmentRemoved => '$n chat removals$suffix',
       NotificationKind.reviewReady => '$n requests ready to review$suffix',
       NotificationKind.staleRemind => '$n items need attention$suffix',
       _ => '$n request updates$suffix',
@@ -63,13 +65,12 @@ class BeaconNotificationBatchAggregator {
   }
 
   bool _isActionable(NotificationKind kind) => switch (kind) {
-        NotificationKind.needsMe ||
-        NotificationKind.staleRemind ||
-        NotificationKind.blockerOpened ||
-        NotificationKind.reviewReady =>
-          true,
-        _ => false,
-      };
+    NotificationKind.needsMe ||
+    NotificationKind.staleRemind ||
+    NotificationKind.blockerOpened ||
+    NotificationKind.reviewReady => true,
+    _ => false,
+  };
 
   NotificationKind pickDominantKind(Map<NotificationKind, int> kindCounts) {
     NotificationKind? best;

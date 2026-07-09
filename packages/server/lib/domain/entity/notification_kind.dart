@@ -12,4 +12,6 @@ enum NotificationKind {
   roomActivityLowPriority,
   staleRemind,
   inviteAccepted,
+  commitmentDeclined,
+  commitmentRemoved,
 }
