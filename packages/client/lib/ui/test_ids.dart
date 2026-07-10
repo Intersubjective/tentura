@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+
+abstract final class TestIds {
+  static const requestTitle = 'request.title';
+  static const requestDescription = 'request.description';
+  static const requestPublish = 'request.publish';
+  static const requestRecipientsTab = 'request.tab.recipients';
+
+  static const forwardInviteNewPerson = 'forward.invite_new_person';
+  static const forwardNote = 'forward.note';
+  static const forwardSubmit = 'forward.submit';
+
+  static String forwardRecipient(String userId) => 'forward.recipient.$userId';
+
+  static const inboxOfferHelp = 'inbox.offer_help';
+  static const inboxForward = 'inbox.forward';
+  static const inboxDismiss = 'inbox.dismiss';
+  static const helpOfferSearch = 'help_offer.search';
+  static const helpOfferMessage = 'help_offer.message';
+  static const helpOfferSubmit = 'help_offer.submit';
+  static String capabilityChip(String slug) => 'capability.$slug';
+
+  static const roomMessageInput = 'room.message.input';
+  static const roomMessageSend = 'room.message.send';
+  static const beaconRoomOpen = 'beacon.room.open';
+  static const beaconTabItems = 'beacon.tab.items';
+  static const beaconTabPeople = 'beacon.tab.people';
+  static const beaconTabLog = 'beacon.tab.log';
+
+  static const coordinationAskCreate = 'coordination.ask.create';
+  static const coordinationPromiseCreate = 'coordination.promise.create';
+  static const coordinationBlockerCreate = 'coordination.blocker.create';
+  static const coordinationComposerTitle = 'coordination.composer.title';
+  static const coordinationComposerBody = 'coordination.composer.body';
+  static const coordinationComposerSubmit = 'coordination.composer.submit';
+
+  static String coordinationItemMenu(String itemId) =>
+      'coordination.item.$itemId.menu';
+  static String coordinationItemResolve(String itemId) =>
+      'coordination.item.$itemId.resolve';
+
+  static String helpOfferAccept(String userId) => 'help_offer.$userId.accept';
+  static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';
+  static String helpOfferRemove(String userId) => 'help_offer.$userId.remove';
+
+  static const beaconOverflowMenu = 'beacon.overflow.menu';
+  static const beaconOverflowClose = 'beacon.overflow.close';
+  static const beaconCloseConfirm = 'beacon.close.confirm';
+
+  static String evaluationParticipant(String userId) =>
+      'evaluation.participant.$userId';
+  static const evaluationSave = 'evaluation.save';
+  static const evaluationSubmit = 'evaluation.submit';
+
+  static ValueKey<String> key(String id) => ValueKey<String>(id);
+}

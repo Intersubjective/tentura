@@ -18,6 +18,7 @@ class TenturaUnderlineTabs extends StatefulWidget {
     this.badges,
     this.badgeBackgroundColors,
     this.secondaryBadges,
+    this.tabIds,
     this.attentionIndex,
     this.attentionActive = false,
     super.key,
@@ -35,6 +36,9 @@ class TenturaUnderlineTabs extends StatefulWidget {
   /// Optional per-tab second count (e.g. warn-styled chip). Same length as
   /// [tabs] when non-null; entries null or <=0 are hidden.
   final List<int?>? secondaryBadges;
+
+  /// Optional stable ids for test keys. Same length as [tabs] when non-null.
+  final List<String>? tabIds;
 
   /// Tab index to emphasize when [attentionActive] is true.
   final int? attentionIndex;
@@ -162,6 +166,9 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         _attentionController != null;
 
     final cell = _TabCell(
+      key: widget.tabIds != null && index < widget.tabIds!.length
+          ? ValueKey<String>(widget.tabIds![index])
+          : null,
       label: widget.tabs[index],
       selected: index == widget.selectedIndex,
       onTap: () => widget.onChanged(index),
@@ -183,6 +190,9 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
             _animatedAttentionOpacityMin +
             controller.value * _animatedAttentionOpacityRange;
         return _TabCell(
+          key: widget.tabIds != null && index < widget.tabIds!.length
+              ? ValueKey<String>(widget.tabIds![index])
+              : null,
           label: widget.tabs[index],
           selected: index == widget.selectedIndex,
           onTap: () => widget.onChanged(index),
@@ -205,6 +215,7 @@ class _TabCell extends StatelessWidget {
     this.badgeBackgroundColor,
     this.secondaryBadge,
     this.attentionBackgroundOpacity = 0.0,
+    super.key,
   });
 
   final String label;
@@ -222,8 +233,7 @@ class _TabCell extends StatelessWidget {
     final active = tt.info;
     final inactive = tt.textMuted;
     final hasPrimaryBadge = badge != null && badge! > 0;
-    final hasSecondaryBadge =
-        secondaryBadge != null && secondaryBadge! > 0;
+    final hasSecondaryBadge = secondaryBadge != null && secondaryBadge! > 0;
     final hasAnyBadge = hasPrimaryBadge || hasSecondaryBadge;
     final showAttention = attentionBackgroundOpacity > 0;
 
