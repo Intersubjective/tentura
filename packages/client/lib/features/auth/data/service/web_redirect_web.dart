@@ -11,6 +11,9 @@ import 'package:tentura/consts.dart';
 /// Returns `true` so the caller knows a top-level navigation was triggered
 /// (the page unloads immediately after).
 bool goToLanding({String? invitePath}) {
+  if (kQaDisableWebRedirects) {
+    return false;
+  }
   final target = Uri.parse(kServerName).replace(
     path: invitePath ?? '/invite/',
     queryParameters: const <String, String>{},

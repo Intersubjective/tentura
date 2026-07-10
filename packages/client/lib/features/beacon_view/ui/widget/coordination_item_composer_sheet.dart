@@ -8,6 +8,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'coordination_target_candidates.dart';
@@ -429,6 +430,7 @@ class _CoordinationItemComposerBodyState
                 )
               else ...[
                 TextField(
+                  key: TestIds.key(TestIds.coordinationComposerTitle),
                   controller: _titleController,
                   onChanged: (_) => setState(() {}),
                   maxLines: 2,
@@ -439,6 +441,7 @@ class _CoordinationItemComposerBodyState
                 ),
                 SizedBox(height: tt.rowGap),
                 TextField(
+                  key: TestIds.key(TestIds.coordinationComposerBody),
                   controller: _bodyController,
                   onChanged: (_) => setState(() {}),
                   maxLines: 4,
@@ -501,6 +504,7 @@ class _CoordinationItemComposerBodyState
               ],
               SizedBox(height: tt.sectionGap),
               FilledButton(
+                key: TestIds.key(TestIds.coordinationComposerSubmit),
                 onPressed: !_canSubmitContent ? null : _onSubmit,
                 child: _submitting
                     ? const SizedBox(

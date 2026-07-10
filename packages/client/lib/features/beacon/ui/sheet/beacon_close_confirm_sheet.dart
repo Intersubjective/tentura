@@ -4,6 +4,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Author close confirmation: copy and actions depend on [BeaconClosureReadiness]
 /// and whether closing opens a review window ([BeaconClosureConfirmationSummary.requiresReviewWindow]).
@@ -143,6 +144,7 @@ Future<bool> showBeaconCloseConfirmSheet({
               else ...[
                 if (r == BeaconClosureReadiness.readyToClose) ...[
                   FilledButton(
+                    key: TestIds.key(TestIds.beaconCloseConfirm),
                     onPressed: () async {
                       Navigator.of(ctx).pop();
                       confirmed = await onCloseBeacon(reviewBranch);
@@ -156,6 +158,7 @@ Future<bool> showBeaconCloseConfirmSheet({
                 ],
                 if (r == BeaconClosureReadiness.waitingForReview) ...[
                   FilledButton(
+                    key: TestIds.key(TestIds.beaconCloseConfirm),
                     onPressed: () async {
                       Navigator.of(ctx).pop();
                       confirmed = await onCloseBeacon(reviewBranch);
@@ -177,6 +180,7 @@ Future<bool> showBeaconCloseConfirmSheet({
                 if (r == BeaconClosureReadiness.premature ||
                     r == BeaconClosureReadiness.notCloseable) ...[
                   FilledButton(
+                    key: TestIds.key(TestIds.beaconCloseConfirm),
                     onPressed: () async {
                       Navigator.of(ctx).pop();
                       confirmed = await onCloseBeacon(reviewBranch);

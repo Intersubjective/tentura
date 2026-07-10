@@ -8,6 +8,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/beacon_send_confirmation_dialog.dart';
@@ -272,7 +273,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
           tabs: [
             Tab(text: l10n.beaconInfo),
             Tab(text: l10n.beaconImage),
-            Tab(text: l10n.beaconRecipients),
+            Tab(
+              key: TestIds.key(TestIds.requestRecipientsTab),
+              text: l10n.beaconRecipients,
+            ),
           ],
         ),
       ),
@@ -336,7 +340,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                             padding: EdgeInsets.only(bottom: tt.rowGap),
                             child: Material(
                               color: scheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(tt.cardRadius),
+                              borderRadius: BorderRadius.circular(
+                                tt.cardRadius,
+                              ),
                               child: Padding(
                                 padding: EdgeInsets.all(tt.cardPadding.top),
                                 child: Row(

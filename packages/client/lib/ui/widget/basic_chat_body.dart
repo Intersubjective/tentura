@@ -24,6 +24,7 @@ import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Shared chat surface: scroll + message list + composer. Cubit-agnostic;
@@ -366,8 +367,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
                           final toggle = widget.onToggleReaction;
                           final vote = widget.onVotePoll;
-                          final pinnedFact =
-                              widget.pinnedFactForMessage?.call(m);
+                          final pinnedFact = widget.pinnedFactForMessage?.call(
+                            m,
+                          );
                           final messageTile = RoomMessageTile(
                             key: _messageKey(m.id),
                             message: m,
@@ -393,7 +395,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                 widget.onOpenCoordinationItem,
                             hideCoordinationLifecycleFooter:
                                 widget.hideCoordinationLifecycleFooter,
-                            pinnedFact: pinnedFact != null &&
+                            pinnedFact:
+                                pinnedFact != null &&
                                     roomPinnedFactIsVisible(pinnedFact)
                                 ? pinnedFact
                                 : null,
@@ -1035,50 +1038,60 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             Expanded(
               child: KeyedSubtree(
                 key: _composerAnchorKey,
-                child: TextField(
-                  controller: _text,
-                  focusNode: _composerFocus,
-                  decoration: InputDecoration(
-                    hintText: l10n.beaconRoomMessageHint,
-                    suffixIcon: widget.enableAttachments
-                        ? AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOut,
-                            switchOutCurve: Curves.easeIn,
-                            child: showAttach
-                                ? _attachMenuButton(l10n, theme, busy)
-                                : const SizedBox.shrink(
-                                    key: ValueKey('attach-hidden'),
-                                  ),
-                          )
-                        : null,
+                child: Semantics(
+                  identifier: TestIds.roomMessageInput,
+                  textField: true,
+                  child: TextField(
+                    key: TestIds.key(TestIds.roomMessageInput),
+                    controller: _text,
+                    focusNode: _composerFocus,
+                    decoration: InputDecoration(
+                      hintText: l10n.beaconRoomMessageHint,
+                      suffixIcon: widget.enableAttachments
+                          ? AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              child: showAttach
+                                  ? _attachMenuButton(l10n, theme, busy)
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('attach-hidden'),
+                                    ),
+                            )
+                          : null,
+                    ),
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    enabled: !busy,
+                    onTapAlwaysCalled: true,
+                    onTap: _requestComposerKeyboardFromTap,
+                    onSubmitted: (_) {
+                      if (_acceptFirstMentionSuggestion()) {
+                        return;
+                      }
+                      unawaited(_submit());
+                    },
+                    onTapOutside: (_) {
+                      _removeOverlay();
+                      // Only dismiss our own keyboard; don't yank focus from
+                      // poll interactives (sliders/buttons) elsewhere on screen.
+                      if (_composerFocus.hasFocus) {
+                        _composerFocus.unfocus();
+                      }
+                    },
                   ),
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  enabled: !busy,
-                  onTapAlwaysCalled: true,
-                  onTap: _requestComposerKeyboardFromTap,
-                  onSubmitted: (_) {
-                    if (_acceptFirstMentionSuggestion()) {
-                      return;
-                    }
-                    unawaited(_submit());
-                  },
-                  onTapOutside: (_) {
-                    _removeOverlay();
-                    // Only dismiss our own keyboard; don't yank focus from
-                    // poll interactives (sliders/buttons) elsewhere on screen.
-                    if (_composerFocus.hasFocus) {
-                      _composerFocus.unfocus();
-                    }
-                  },
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.send_rounded),
-              onPressed: busy ? null : () => unawaited(_submit()),
+            Semantics(
+              identifier: TestIds.roomMessageSend,
+              button: true,
+              child: IconButton(
+                key: TestIds.key(TestIds.roomMessageSend),
+                icon: const Icon(Icons.send_rounded),
+                onPressed: busy ? null : () => unawaited(_submit()),
+              ),
             ),
           ],
         ),

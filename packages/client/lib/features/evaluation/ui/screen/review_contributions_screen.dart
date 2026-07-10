@@ -15,6 +15,7 @@ import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.da
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -178,6 +179,7 @@ class ReviewContributionsScreen extends StatelessWidget
                               ),
                               SizedBox(height: tt.rowGap),
                               FilledButton(
+                                key: TestIds.key(TestIds.evaluationSubmit),
                                 style: actionButtonStyle,
                                 onPressed: state.isLoading
                                     ? null
@@ -392,6 +394,9 @@ class _ParticipantTile extends StatelessWidget {
       child: Semantics(
         label: '$displayName. $status',
         child: ListTile(
+          key: TestIds.key(
+            TestIds.evaluationParticipant(participant.userId),
+          ),
           leading: SelfAwareAvatar.small(
             profile: profile,
           ),

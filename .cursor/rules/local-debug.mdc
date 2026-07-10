@@ -1,0 +1,25 @@
+---
+description: Run/debug the local Tentura stack (compose infra, server console, Flutter web debug, Caddy, Playwright), QA login/signup bypass, direct API/Hasura/Postgres state setup. Use for local e2e, QA-login, stack-health, or reproduce-locally work.
+alwaysApply: false
+---
+
+# Local debug stack (pointer)
+
+The full runbook lives in [`.claude/skills/local-debug/SKILL.md`](../../.claude/skills/local-debug/SKILL.md)
+— read it before starting, driving, or debugging the local stack. It covers:
+
+- Startup order & ports: `docker compose up -d` (Postgres + MeritRank + Hasura
+  + MinIO) → `./scripts/run-server-local.sh` (console, foreground) →
+  `./scripts/run-flutter-web-local.sh` (debug dartdevc on :8888, no WASM) →
+  `caddy run --config Caddyfile.local` → open https://dev.lvh.me:9443.
+- QA login/signup bypass via `.env` `QA_*` params (`test-login`,
+  `/_qa/latest-email`, email-sink files) — never script the real email flow.
+- Direct state setup / action triggering: API v2 + session access-token,
+  Hasura admin GraphQL & remote-schema reload, `psql` into the compose
+  Postgres (MeritRank caveats).
+- Playwright driving notes (Flutter semantics, no DOM text input, cache traps).
+
+Non-negotiable even without reading the runbook: **never** start the server
+with a bare `dart run bin/tentura.dart` (wrong port + default JWT keys →
+`JWSInvalidSignature`); always use `scripts/run-server-local.sh`, and never
+background it with `nohup`/`&`.

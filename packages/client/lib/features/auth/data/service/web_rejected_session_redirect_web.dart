@@ -1,5 +1,7 @@
 import 'package:web/web.dart' as web;
 
+import 'package:tentura/consts.dart';
+
 import 'stale_session_redirect_policy.dart';
 
 const _staleSessionReloadKey = 'tentura.staleSessionReload';
@@ -8,6 +10,9 @@ const _publicInviteFallback = '/invite/';
 
 /// After a rejected browser session bootstrap, navigate to landing.
 void reloadAfterRejectedSession({required bool clearAcknowledged}) {
+  if (kQaDisableWebRedirects) {
+    return;
+  }
   if (!shouldBounceRejectedSessionToLanding(
     pathname: web.window.location.pathname,
     hash: web.window.location.hash,
@@ -41,5 +46,8 @@ void clearStaleSessionBrowserGuard() {
 /// `/` uses cookie-presence routing — a lingering session cookie would reload
 /// WASM instead of the landing surface. `/invite/` is always landing HTML.
 void redirectAfterSignOut({required bool clearAcknowledged}) {
+  if (kQaDisableWebRedirects) {
+    return;
+  }
   web.window.location.assign(_publicInviteFallback);
 }

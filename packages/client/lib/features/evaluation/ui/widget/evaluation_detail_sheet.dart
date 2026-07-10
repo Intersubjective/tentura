@@ -7,6 +7,7 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_participant
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Modal sheet to set one participant evaluation.
 Future<void> showEvaluationDetailSheet({
@@ -56,7 +57,8 @@ class _EvaluationDetailSheetBody extends StatefulWidget {
       _EvaluationDetailSheetBodyState();
 }
 
-class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> {
+class _EvaluationDetailSheetBodyState
+    extends State<_EvaluationDetailSheetBody> {
   late EvaluationValue _value;
   late final List<String> _tags;
   final _ackTags = <String>{};
@@ -182,107 +184,110 @@ class _EvaluationDetailSheetBodyState extends State<_EvaluationDetailSheetBody> 
     return TenturaSheetDismissGuard(
       isDirty: _isDirty,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.rowGap,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              contactNameOf(participant.userId).isNotEmpty
-                  ? contactNameOf(participant.userId)
-                  : participant.displayName,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: tt.tightGap * 2),
-            Text(
-              _promptText(),
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            SizedBox(height: tt.sectionGap),
-            Wrap(
-              spacing: tt.iconTextGap,
-              runSpacing: tt.iconTextGap,
-              children: [
-                for (final v in EvaluationValue.values)
-                  ChoiceChip(
-                    label: Text(_label(v, l10n)),
-                    selected: _value == v,
-                    onSelected: (_) => setState(() => _value = v),
-                  ),
-              ],
-            ),
-            if (allowTags && pool.isNotEmpty) ...[
-              SizedBox(height: tt.sectionGap),
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.rowGap,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                needs
-                    ? l10n.evaluationReasonRequiredHeading
-                    : l10n.evaluationReasonOptionalHeading,
-                style: Theme.of(context).textTheme.labelLarge,
+                contactNameOf(participant.userId).isNotEmpty
+                    ? contactNameOf(participant.userId)
+                    : participant.displayName,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              SizedBox(height: tt.iconTextGap),
+              SizedBox(height: tt.tightGap * 2),
+              Text(
+                _promptText(),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              SizedBox(height: tt.sectionGap),
               Wrap(
                 spacing: tt.iconTextGap,
                 runSpacing: tt.iconTextGap,
                 children: [
-                  for (final t in pool)
-                    FilterChip(
-                      label: Text(_tagLabelBySlug[t] ?? l10n.evaluationReasonUnknown),
-                      selected: _tags.contains(t),
-                      onSelected: (sel) => setState(() {
-                        if (sel) {
-                          _tags.add(t);
-                        } else {
-                          _tags.remove(t);
-                        }
-                      }),
+                  for (final v in EvaluationValue.values)
+                    ChoiceChip(
+                      label: Text(_label(v, l10n)),
+                      selected: _value == v,
+                      onSelected: (_) => setState(() => _value = v),
                     ),
                 ],
               ),
-            ],
-            SizedBox(height: tt.sectionGap),
-            Text(
-              l10n.closeAckPrompt,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            SizedBox(height: tt.iconTextGap),
-            CapabilityChipSet(
-              selectedSlugs: _ackTags,
-              onChanged: (slugs) => setState(() {
-                _ackTags
-                  ..clear()
-                  ..addAll(slugs);
-              }),
-            ),
-            SizedBox(height: tt.rowGap),
-            TextField(
-              controller: _noteController,
-              decoration: InputDecoration(
-                labelText: l10n.evaluationNoteLabelOptional,
-                border: const OutlineInputBorder(),
+              if (allowTags && pool.isNotEmpty) ...[
+                SizedBox(height: tt.sectionGap),
+                Text(
+                  needs
+                      ? l10n.evaluationReasonRequiredHeading
+                      : l10n.evaluationReasonOptionalHeading,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                SizedBox(height: tt.iconTextGap),
+                Wrap(
+                  spacing: tt.iconTextGap,
+                  runSpacing: tt.iconTextGap,
+                  children: [
+                    for (final t in pool)
+                      FilterChip(
+                        label: Text(
+                          _tagLabelBySlug[t] ?? l10n.evaluationReasonUnknown,
+                        ),
+                        selected: _tags.contains(t),
+                        onSelected: (sel) => setState(() {
+                          if (sel) {
+                            _tags.add(t);
+                          } else {
+                            _tags.remove(t);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+              ],
+              SizedBox(height: tt.sectionGap),
+              Text(
+                l10n.closeAckPrompt,
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-              maxLines: 3,
-              maxLength: 280,
-              onChanged: (_) => setState(() {}),
-            ),
-            EvaluationPrivacyInfoRow(
-              shortLabel: l10n.evaluationPrivacyShort,
-              fullText: l10n.evaluationPrivateHint,
-            ),
-            SizedBox(height: tt.sectionGap),
-            FilledButton(
-              onPressed: _save,
-              child: Text(l10n.evaluationSave),
-            ),
-          ],
+              SizedBox(height: tt.iconTextGap),
+              CapabilityChipSet(
+                selectedSlugs: _ackTags,
+                onChanged: (slugs) => setState(() {
+                  _ackTags
+                    ..clear()
+                    ..addAll(slugs);
+                }),
+              ),
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: _noteController,
+                decoration: InputDecoration(
+                  labelText: l10n.evaluationNoteLabelOptional,
+                  border: const OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                maxLength: 280,
+                onChanged: (_) => setState(() {}),
+              ),
+              EvaluationPrivacyInfoRow(
+                shortLabel: l10n.evaluationPrivacyShort,
+                fullText: l10n.evaluationPrivateHint,
+              ),
+              SizedBox(height: tt.sectionGap),
+              FilledButton(
+                key: TestIds.key(TestIds.evaluationSave),
+                onPressed: _save,
+                child: Text(l10n.evaluationSave),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

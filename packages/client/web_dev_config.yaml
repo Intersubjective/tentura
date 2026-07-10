@@ -12,6 +12,9 @@ server:
 
   proxy:
     - target: 'http://localhost:2080/'
+      prefix: '/api/v2/'
+
+    - target: 'http://localhost:2080/'
       prefix: '/api/v2/graphql'
 
     - target: 'http://localhost:8080/'
@@ -26,3 +29,6 @@ server:
 
     - target: 'http://localhost:2080/'
       prefix: '/firebase-messaging-sw.js'
+
+    - target: 'http://localhost:2080/'
+      prefix: '/_qa/'

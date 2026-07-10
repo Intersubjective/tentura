@@ -110,6 +110,14 @@ const kBeaconAllowForceCloseWhenBlocked = false;
 /// First part of FQDN: `https://dev.tentura.io` (single public origin).
 const kServerName = String.fromEnvironment('SERVER_NAME');
 
+/// QA/integration-test only: suppress web top-level navigations to the static
+/// landing (unauthenticated bounce, post-sign-out redirect). Those unload the
+/// page, which kills an `integration_test` run mid-flight. Set via
+/// `--dart-define=QA_DISABLE_WEB_REDIRECTS=true`; never in production builds.
+const kQaDisableWebRedirects = bool.fromEnvironment(
+  'QA_DISABLE_WEB_REDIRECTS',
+);
+
 /// Share URL for invitation codes — `/invite/I…` on the public origin.
 Uri inviteShareUri(String invitationId) {
   return Uri.parse(kServerName).replace(path: '/invite/$invitationId');

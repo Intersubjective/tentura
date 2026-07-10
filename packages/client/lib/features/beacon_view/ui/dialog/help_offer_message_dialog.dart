@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/withdraw_reason.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Result of [HelpOfferMessageDialog.show].
 typedef HelpOfferDialogOutcome = ({
@@ -154,7 +155,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
               ),
               SizedBox(height: tt.rowGap),
               TextField(
-                key: const Key('help-offer-search'),
+                key: TestIds.key(TestIds.helpOfferSearch),
                 controller: _searchController,
                 decoration: InputDecoration(
                   labelText: l10n.helpOfferSearchLabel,
@@ -213,6 +214,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
               SizedBox(height: tt.sectionGap),
             ],
             TextField(
+              key: TestIds.key(TestIds.helpOfferMessage),
               autofocus: !widget.requireWithdrawReason,
               controller: _controller,
               maxLines: 3,
@@ -266,6 +268,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
+                key: TestIds.key(TestIds.helpOfferSubmit),
                 onPressed: _canSubmit ? () => _submit(l10n) : null,
                 child: Text(
                   widget.showHelpTypeChips

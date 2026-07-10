@@ -46,3 +46,6 @@ temp/
 packages/client/env/local-web.env
 .enable-ollama-compress
 packages/client/test/**/failures/
+
+# local tool cache (chromedriver etc.)
+.local/

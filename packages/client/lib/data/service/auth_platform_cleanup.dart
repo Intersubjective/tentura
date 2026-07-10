@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/domain/entity/auth_recovery_outcome.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_platform_cleanup_port.dart';
@@ -14,12 +15,18 @@ import '../../features/auth/data/service/web_rejected_session_redirect.dart';
 @Singleton(as: AuthPlatformCleanupPort)
 final class AuthPlatformCleanup implements AuthPlatformCleanupPort {
   @override
-  AuthRecoveryNavigation get signOutNavigationTarget =>
-      kIsWeb ? AuthRecoveryNavigation.webInviteLanding : AuthRecoveryNavigation.nativeBack;
+  AuthRecoveryNavigation get signOutNavigationTarget => kIsWeb
+      ? (kQaDisableWebRedirects
+            ? AuthRecoveryNavigation.none
+            : AuthRecoveryNavigation.webInviteLanding)
+      : AuthRecoveryNavigation.nativeBack;
 
   @override
-  AuthRecoveryNavigation get resetNavigationTarget =>
-      kIsWeb ? AuthRecoveryNavigation.webInviteLanding : AuthRecoveryNavigation.nativeLogin;
+  AuthRecoveryNavigation get resetNavigationTarget => kIsWeb
+      ? (kQaDisableWebRedirects
+            ? AuthRecoveryNavigation.none
+            : AuthRecoveryNavigation.webInviteLanding)
+      : AuthRecoveryNavigation.nativeLogin;
 
   @override
   Future<void> clearLocalAuthOnSignOut(AuthLocalRepositoryPort local) =>

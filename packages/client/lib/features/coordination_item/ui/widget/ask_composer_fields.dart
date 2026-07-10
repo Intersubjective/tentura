@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Initial values when opening an ask composer (e.g. from a room message).
@@ -33,10 +34,10 @@ class AskComposerSeed {
   }
 
   factory AskComposerSeed.fromItem(CoordinationItem item) => AskComposerSeed(
-        initialTitle: item.title,
-        initialBody: item.body,
-        linkedMessageId: item.linkedMessageId,
-      );
+    initialTitle: item.title,
+    initialBody: item.body,
+    linkedMessageId: item.linkedMessageId,
+  );
 }
 
 /// Title (optional) + body (required) fields for ask and draft ask sheets.
@@ -86,6 +87,7 @@ class AskComposerFields extends StatelessWidget {
             const SizedBox(height: kSpacingSmall),
           ],
           TextField(
+            key: TestIds.key(TestIds.coordinationComposerTitle),
             controller: titleController,
             onChanged: (_) => onChanged(),
             maxLines: 2,
@@ -98,6 +100,7 @@ class AskComposerFields extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           TextField(
+            key: TestIds.key(TestIds.coordinationComposerBody),
             controller: bodyController,
             onChanged: (_) => onChanged(),
             maxLines: 6,

@@ -6,6 +6,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -36,12 +37,16 @@ class ForwardRecipientRow extends StatelessWidget {
   final VoidCallback? onToggle;
   final bool personalizedNoteEditorOpen;
   final VoidCallback? onTogglePersonalizedNoteEditor;
+
   /// Capability reason slugs currently selected for this recipient.
   final List<String> reasonSlugs;
+
   /// Called when the user taps the Why? button; opens reason picker.
   final VoidCallback? onEditReasons;
+
   /// Called when the user wants to edit an existing forward (note / reasons).
   final VoidCallback? onEditForward;
+
   /// Called when the user wants to cancel an existing forward.
   final VoidCallback? onCancelForward;
 
@@ -59,8 +64,7 @@ class ForwardRecipientRow extends StatelessWidget {
       CandidateInvolvement.declined => l10n.forwardDeclined,
       CandidateInvolvement.author => l10n.forwardAuthor,
       CandidateInvolvement.forwardedByMe =>
-        candidate.myForwardNote != null &&
-                candidate.myForwardNote!.isNotEmpty
+        candidate.myForwardNote != null && candidate.myForwardNote!.isNotEmpty
             ? l10n.forwardedByMeWithNote(candidate.myForwardNote!)
             : l10n.forwardedByMe,
       CandidateInvolvement.forwarded => l10n.forwardAlreadyForwarded,
@@ -88,12 +92,12 @@ class ForwardRecipientRow extends StatelessWidget {
   }
 
   Color _relationStatusColor(TenturaTokens tt) => switch (_relationTone()) {
-        TenturaTone.neutral => tt.textMuted,
-        TenturaTone.info => tt.info,
-        TenturaTone.good => tt.good,
-        TenturaTone.warn => tt.warn,
-        TenturaTone.danger => tt.danger,
-      };
+    TenturaTone.neutral => tt.textMuted,
+    TenturaTone.info => tt.info,
+    TenturaTone.good => tt.good,
+    TenturaTone.warn => tt.warn,
+    TenturaTone.danger => tt.danger,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +108,8 @@ class ForwardRecipientRow extends StatelessWidget {
     final relationLabel = _relationLabel(l10n);
     final forwardedByMeWithNote =
         candidate.involvement == CandidateInvolvement.forwardedByMe &&
-            candidate.myForwardNote != null &&
-            candidate.myForwardNote!.isNotEmpty;
+        candidate.myForwardNote != null &&
+        candidate.myForwardNote!.isNotEmpty;
     final presence = profilePresenceDisplayLine(
       l10n: l10n,
       locale: Localizations.localeOf(context),
@@ -120,201 +124,217 @@ class ForwardRecipientRow extends StatelessWidget {
         if (s.trim().isNotEmpty) s.trim(),
     };
 
-    return InkWell(
-      onTap: canSelect ? onToggle : null,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: tt.rowGap,
-          horizontal: tt.screenHPadding,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelfAwareAvatar.medium(
-              profile: candidate.profile,
-              withRating: true,
-            ),
-            SizedBox(width: tt.avatarTextGap),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  BlocBuilder<ProfileCubit, ProfileState>(
-                    buildWhen: (p, c) => p.profile.id != c.profile.id,
-                    builder: (context, state) {
-                      final displayProfile = profileWithContactOverlay(
-                        candidate.profile,
-                      );
-                      return Text(
-                        SelfUserHighlight.displayName(
-                          l10n,
-                          displayProfile,
-                          state.profile.id,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: SelfUserHighlight.nameStyle(
-                          theme,
-                          nameBaseStyle,
-                          SelfUserHighlight.profileIsSelf(
-                            candidate.profile,
+    return Semantics(
+      identifier: TestIds.forwardRecipient(candidate.id),
+      button: canSelect,
+      child: InkWell(
+        key: TestIds.key(TestIds.forwardRecipient(candidate.id)),
+        onTap: canSelect ? onToggle : null,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: tt.rowGap,
+            horizontal: tt.screenHPadding,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelfAwareAvatar.medium(
+                profile: candidate.profile,
+                withRating: true,
+              ),
+              SizedBox(width: tt.avatarTextGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BlocBuilder<ProfileCubit, ProfileState>(
+                      buildWhen: (p, c) => p.profile.id != c.profile.id,
+                      builder: (context, state) {
+                        final displayProfile = profileWithContactOverlay(
+                          candidate.profile,
+                        );
+                        return Text(
+                          SelfUserHighlight.displayName(
+                            l10n,
+                            displayProfile,
                             state.profile.id,
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Tight before presence / relation (do not use rowGap: a 44px-tall
-                  // name+checkbox row was forcing extra empty space under one-line names).
-                  SizedBox(height: tt.tightGap),
-                  Wrap(
-                    spacing: tt.iconTextGap,
-                    runSpacing: tt.tightGap,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (presence.isNotEmpty)
-                        Text(
-                          presence,
-                          style: TenturaText.bodySmall(tt.textMuted),
-                        ),
-                      if (forwardedByMeWithNote)
-                        ShowMoreText(
-                          l10n.forwardedByMeWithNote(candidate.myForwardNote!),
-                          style: TenturaText.status(
-                            _relationStatusColor(tt),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: SelfUserHighlight.nameStyle(
+                            theme,
+                            nameBaseStyle,
+                            SelfUserHighlight.profileIsSelf(
+                              candidate.profile,
+                              state.profile.id,
+                            ),
                           ),
-                          colorClickableText: theme.colorScheme.primary,
-                          trimLines: 1,
-                          trimCollapsedText: l10n.forwardMyNoteViewMore,
-                          trimExpandedText: l10n.forwardMyNoteShowLess,
-                        )
-                      else
-                        TenturaStatusText(
-                          relationLabel,
-                          tone: _relationTone(),
-                        ),
-                      if (candidate.involvement ==
-                          CandidateInvolvement.forwardedByMe)
-                        _ForwardReadReceipt(
-                          readAt: candidate.recipientReadAt,
-                          l10n: l10n,
-                          tt: tt,
-                        ),
-                    ],
-                  ),
-                  if (candidate.topCapabilities.isNotEmpty) ...[
+                        );
+                      },
+                    ),
+                    // Tight before presence / relation (do not use rowGap: a 44px-tall
+                    // name+checkbox row was forcing extra empty space under one-line names).
                     SizedBox(height: tt.tightGap),
                     Wrap(
                       spacing: tt.iconTextGap,
                       runSpacing: tt.tightGap,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        for (final slug in candidate.topCapabilities)
-                          if (CapabilityTag.fromSlug(slug.trim()) case final tag?)
-                            _CapabilityHintChip(
-                              label: tag.labelOf(l10n),
-                              icon: tag.icon,
-                              matchesNeed: requiredSet.contains(slug.trim()),
-                              matchSemanticsLabel:
-                                  l10n.forwardRecipientCapabilityMatchesNeed,
-                              tt: tt,
+                        if (presence.isNotEmpty)
+                          Text(
+                            presence,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          ),
+                        if (forwardedByMeWithNote)
+                          ShowMoreText(
+                            l10n.forwardedByMeWithNote(
+                              candidate.myForwardNote!,
                             ),
+                            style: TenturaText.status(
+                              _relationStatusColor(tt),
+                            ),
+                            colorClickableText: theme.colorScheme.primary,
+                            trimLines: 1,
+                            trimCollapsedText: l10n.forwardMyNoteViewMore,
+                            trimExpandedText: l10n.forwardMyNoteShowLess,
+                          )
+                        else
+                          TenturaStatusText(
+                            relationLabel,
+                            tone: _relationTone(),
+                          ),
+                        if (candidate.involvement ==
+                            CandidateInvolvement.forwardedByMe)
+                          _ForwardReadReceipt(
+                            readAt: candidate.recipientReadAt,
+                            l10n: l10n,
+                            tt: tt,
+                          ),
                       ],
                     ),
-                  ],
-                  if (candidate.lineageGroup != null) ...[
-                    SizedBox(height: tt.tightGap * 2),
-                    _LineageMemoryBadge(l10n: l10n, tt: tt),
-                    TenturaStatusText(
-                      lineageReasonLabel(
-                        l10n,
-                        candidate.lineageReasonCode ?? '',
-                        arg: candidate.lineageReasonArg,
+                    if (candidate.topCapabilities.isNotEmpty) ...[
+                      SizedBox(height: tt.tightGap),
+                      Wrap(
+                        spacing: tt.iconTextGap,
+                        runSpacing: tt.tightGap,
+                        children: [
+                          for (final slug in candidate.topCapabilities)
+                            if (CapabilityTag.fromSlug(slug.trim())
+                                case final tag?)
+                              _CapabilityHintChip(
+                                label: tag.labelOf(l10n),
+                                icon: tag.icon,
+                                matchesNeed: requiredSet.contains(slug.trim()),
+                                matchSemanticsLabel:
+                                    l10n.forwardRecipientCapabilityMatchesNeed,
+                                tt: tt,
+                              ),
+                        ],
                       ),
-                      tone: candidate.lineageGroup ==
-                              LineageSuggestionGroup.involved
-                          ? TenturaTone.good
-                          : TenturaTone.info,
-                    ),
+                    ],
+                    if (candidate.lineageGroup != null) ...[
+                      SizedBox(height: tt.tightGap * 2),
+                      _LineageMemoryBadge(l10n: l10n, tt: tt),
+                      TenturaStatusText(
+                        lineageReasonLabel(
+                          l10n,
+                          candidate.lineageReasonCode ?? '',
+                          arg: candidate.lineageReasonArg,
+                        ),
+                        tone:
+                            candidate.lineageGroup ==
+                                LineageSuggestionGroup.involved
+                            ? TenturaTone.good
+                            : TenturaTone.info,
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            SizedBox(width: tt.rowGap),
-            if (candidate.involvement ==
-                    CandidateInvolvement.forwardedByMe &&
-                onEditForward != null) ...[
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                tooltip: l10n.forwardEditAction,
-                icon: Icon(
-                  Icons.edit_outlined,
-                  size: tt.iconSize,
-                  color: tt.textMuted,
                 ),
-                onPressed: onEditForward,
               ),
-              SizedBox(width: tt.iconTextGap),
+              SizedBox(width: tt.rowGap),
+              if (candidate.involvement == CandidateInvolvement.forwardedByMe &&
+                  onEditForward != null) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: l10n.forwardEditAction,
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    size: tt.iconSize,
+                    color: tt.textMuted,
+                  ),
+                  onPressed: onEditForward,
+                ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (candidate.involvement == CandidateInvolvement.forwardedByMe &&
+                  onCancelForward != null) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: l10n.forwardCancelAction,
+                  icon: Icon(
+                    Icons.cancel_outlined,
+                    size: tt.iconSize,
+                    color: tt.warn,
+                  ),
+                  onPressed: onCancelForward,
+                ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (isSelected && canSelect && onEditReasons != null) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: l10n.forwardReasonPrompt,
+                  icon: Icon(
+                    Icons.label_outline,
+                    size: tt.iconSize,
+                    color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
+                  ),
+                  onPressed: onEditReasons,
+                ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (isSelected &&
+                  canSelect &&
+                  onTogglePersonalizedNoteEditor != null) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  tooltip: personalizedNoteEditorOpen
+                      ? l10n.forwardHidePersonalizedNote
+                      : l10n.forwardAddPersonalizedNote,
+                  icon: Icon(
+                    personalizedNoteEditorOpen
+                        ? Icons.expand_less
+                        : Icons.add_comment_outlined,
+                    size: tt.iconSize,
+                    color: personalizedNoteEditorOpen ? tt.info : tt.textMuted,
+                  ),
+                  onPressed: onTogglePersonalizedNoteEditor,
+                ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              _ForwardRowCheckbox(
+                isSelected: isSelected,
+                enabled: canSelect,
+                onTap: onToggle,
+              ),
             ],
-            if (candidate.involvement ==
-                    CandidateInvolvement.forwardedByMe &&
-                onCancelForward != null) ...[
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                tooltip: l10n.forwardCancelAction,
-                icon: Icon(
-                  Icons.cancel_outlined,
-                  size: tt.iconSize,
-                  color: tt.warn,
-                ),
-                onPressed: onCancelForward,
-              ),
-              SizedBox(width: tt.iconTextGap),
-            ],
-            if (isSelected && canSelect && onEditReasons != null) ...[
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                tooltip: l10n.forwardReasonPrompt,
-                icon: Icon(
-                  Icons.label_outline,
-                  size: tt.iconSize,
-                  color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
-                ),
-                onPressed: onEditReasons,
-              ),
-              SizedBox(width: tt.iconTextGap),
-            ],
-            if (isSelected &&
-                canSelect &&
-                onTogglePersonalizedNoteEditor != null) ...[
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 44,
-                  minHeight: 44,
-                ),
-                tooltip: personalizedNoteEditorOpen
-                    ? l10n.forwardHidePersonalizedNote
-                    : l10n.forwardAddPersonalizedNote,
-                icon: Icon(
-                  personalizedNoteEditorOpen
-                      ? Icons.expand_less
-                      : Icons.add_comment_outlined,
-                  size: tt.iconSize,
-                  color: personalizedNoteEditorOpen ? tt.info : tt.textMuted,
-                ),
-                onPressed: onTogglePersonalizedNoteEditor,
-              ),
-              SizedBox(width: tt.iconTextGap),
-            ],
-            _ForwardRowCheckbox(
-              isSelected: isSelected,
-              enabled: canSelect,
-              onTap: onToggle,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -348,8 +368,9 @@ class _ForwardReadReceipt extends StatelessWidget {
       );
     }
     final locale = Localizations.localeOf(context);
-    final formatted =
-        DateFormat.yMMMd(locale.toString()).add_jm().format(readAt!.toLocal());
+    final formatted = DateFormat.yMMMd(
+      locale.toString(),
+    ).add_jm().format(readAt!.toLocal());
     return Tooltip(
       message: l10n.forwardStatusSeenAt(formatted),
       child: icon,

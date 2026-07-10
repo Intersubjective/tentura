@@ -13,12 +13,12 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/capability/ui/widget/removable_capability_chips.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
-
 
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
@@ -266,32 +266,42 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       child: ListView(
         children: [
           // Title
-          TextFormField(
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            controller: _titleController,
-            decoration: _createFieldDecoration(
-              hintText: _l10n.beaconTitleRequired,
+          Semantics(
+            identifier: TestIds.requestTitle,
+            textField: true,
+            child: TextFormField(
+              key: TestIds.key(TestIds.requestTitle),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              controller: _titleController,
+              decoration: _createFieldDecoration(
+                hintText: _l10n.beaconTitleRequired,
+              ),
+              keyboardType: TextInputType.text,
+              maxLength: kBeaconTitleMaxLength,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              onChanged: _cubit.setTitle,
+              validator: (text) => beaconTitleValidator(_l10n, text),
             ),
-            keyboardType: TextInputType.text,
-            maxLength: kBeaconTitleMaxLength,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            onChanged: _cubit.setTitle,
-            validator: (text) => beaconTitleValidator(_l10n, text),
           ),
 
           // Description
-          TextFormField(
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            controller: _descriptionController,
-            decoration: _createFieldDecoration(
-              hintText: _l10n.labelDescription,
+          Semantics(
+            identifier: TestIds.requestDescription,
+            textField: true,
+            child: TextFormField(
+              key: TestIds.key(TestIds.requestDescription),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              controller: _descriptionController,
+              decoration: _createFieldDecoration(
+                hintText: _l10n.labelDescription,
+              ),
+              keyboardType: TextInputType.multiline,
+              maxLength: kDescriptionMaxLength,
+              maxLines: null,
+              onChanged: _cubit.setDescription,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              validator: (text) => beaconDescriptionValidator(_l10n, text),
             ),
-            keyboardType: TextInputType.multiline,
-            maxLength: kDescriptionMaxLength,
-            maxLines: null,
-            onChanged: _cubit.setDescription,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
-            validator: (text) => beaconDescriptionValidator(_l10n, text),
           ),
 
           // Requirements — same bottom sheet pattern as forward “Why?” picker

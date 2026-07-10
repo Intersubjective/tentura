@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/item_actions_cubit.dart';
 
@@ -40,7 +41,7 @@ String _participantDisplayName(BeaconParticipant? participant) {
 
 /// Builds status/action entries for item discussion overflow (AppBar).
 List<(CoordinationItemDiscussionMenuAction, String)>
-    coordinationItemDiscussionMenuEntries({
+coordinationItemDiscussionMenuEntries({
   required L10n l10n,
   required CoordinationItem item,
   required String viewerId,
@@ -170,9 +171,7 @@ List<(CoordinationItemCardMenuAction, String)> coordinationItemCardMenuEntries({
       l10n.helpOffersTabActionEdit,
     ));
   }
-  if (includeRemind &&
-      viewerId != null &&
-      item.canRemind(viewerId)) {
+  if (includeRemind && viewerId != null && item.canRemind(viewerId)) {
     final name = _participantDisplayName(responsibleParticipant);
     entries.add((
       CoordinationItemCardMenuAction.remind,
@@ -382,6 +381,7 @@ class CoordinationItemCardOverflowMenu extends StatelessWidget {
     if (menuEntries.isEmpty) return const SizedBox.shrink();
     final l10n = L10n.of(context)!;
     return PopupMenuButton<CoordinationItemCardMenuAction>(
+      key: TestIds.key(TestIds.coordinationItemMenu(item.id)),
       tooltip: l10n.beaconHudOverflowMore,
       padding: EdgeInsets.zero,
       icon: Icon(Icons.more_vert, size: context.tt.iconSize),
@@ -389,6 +389,9 @@ class CoordinationItemCardOverflowMenu extends StatelessWidget {
       itemBuilder: (_) => [
         for (final e in menuEntries)
           PopupMenuItem(
+            key: e.$1 == CoordinationItemCardMenuAction.resolve
+                ? TestIds.key(TestIds.coordinationItemResolve(item.id))
+                : null,
             value: e.$1,
             child: Text(e.$2),
           ),

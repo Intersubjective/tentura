@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Owner CTA row stacks vertically below this width (`BeaconOperationalHeaderCard` chips).
@@ -43,44 +44,54 @@ class CardTriageActionRow extends StatelessWidget {
         onSecondary != null &&
         (secondaryLabel != null || secondaryIcon != null);
 
-    final forwardBtn = Tooltip(
-      message: l10n.forwardActionTooltip,
-      child: OutlinedButton.icon(
-        onPressed: onForward,
-        icon: Icon(Icons.send, size: 18, color: tt.info),
-        label: Text(
-          l10n.labelForward,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          softWrap: false,
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: tt.info,
-          textStyle: actionLabelStyle.copyWith(color: tt.info),
-          visualDensity: VisualDensity.compact,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          alignment: Alignment.center,
+    final forwardBtn = Semantics(
+      identifier: TestIds.inboxForward,
+      button: true,
+      child: Tooltip(
+        message: l10n.forwardActionTooltip,
+        child: OutlinedButton.icon(
+          key: TestIds.key(TestIds.inboxForward),
+          onPressed: onForward,
+          icon: Icon(Icons.send, size: 18, color: tt.info),
+          label: Text(
+            l10n.labelForward,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: tt.info,
+            textStyle: actionLabelStyle.copyWith(color: tt.info),
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            alignment: Alignment.center,
+          ),
         ),
       ),
     );
 
-    final offerHelpBtn = FilledButton.icon(
-      onPressed: () async {
-        await onOfferHelp?.call();
-      },
-      icon: const Icon(Icons.volunteer_activism_outlined, size: 20),
-      label: Text(
-        l10n.labelOfferHelp,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        softWrap: false,
-      ),
-      style: FilledButton.styleFrom(
-        textStyle: actionLabelStyle.copyWith(color: scheme.onPrimary),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        alignment: Alignment.center,
+    final offerHelpBtn = Semantics(
+      identifier: TestIds.inboxOfferHelp,
+      button: true,
+      child: FilledButton.icon(
+        key: TestIds.key(TestIds.inboxOfferHelp),
+        onPressed: () async {
+          await onOfferHelp?.call();
+        },
+        icon: const Icon(Icons.volunteer_activism_outlined, size: 20),
+        label: Text(
+          l10n.labelOfferHelp,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+        ),
+        style: FilledButton.styleFrom(
+          textStyle: actionLabelStyle.copyWith(color: scheme.onPrimary),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          alignment: Alignment.center,
+        ),
       ),
     );
 
@@ -112,19 +123,24 @@ class CardTriageActionRow extends StatelessWidget {
         );
       } else if (secondaryIcon != null) {
         final tip = secondaryTooltip?.trim();
-        tertiary = IconButton(
-          onPressed: () async {
-            await onTap();
-          },
-          icon: Icon(secondaryIcon, size: 22),
-          style: IconButton.styleFrom(
-            foregroundColor: scheme.onSurfaceVariant,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(8),
-            minimumSize: const Size(44, 44),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        tertiary = Semantics(
+          identifier: TestIds.inboxDismiss,
+          button: true,
+          child: IconButton(
+            key: TestIds.key(TestIds.inboxDismiss),
+            onPressed: () async {
+              await onTap();
+            },
+            icon: Icon(secondaryIcon, size: 22),
+            style: IconButton.styleFrom(
+              foregroundColor: scheme.onSurfaceVariant,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(8),
+              minimumSize: const Size(44, 44),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            tooltip: tip != null && tip.isNotEmpty ? tip : null,
           ),
-          tooltip: tip != null && tip.isNotEmpty ? tip : null,
         );
       } else {
         tertiary = TextButton(

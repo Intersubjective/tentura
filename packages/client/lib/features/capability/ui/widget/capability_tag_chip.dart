@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Whether `wire` should show a capability chip row (non-empty after trim).
 bool capabilitySlugHasDisplay(String? wire) => wire?.trim().isNotEmpty ?? false;
@@ -29,6 +30,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chip = FilterChip(
+      key: TestIds.key(TestIds.capabilityChip(tag.slug)),
       label: Text(tag.labelOf(l10n)),
       // Show the tag icon when unselected; the Material checkmark replaces it
       // when selected so the selection state is unmistakable.

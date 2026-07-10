@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_edit_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
@@ -85,11 +86,11 @@ VoidCallback? _itemsTabEditHandler(
           item.kind == CoordinationItemKind.promise ||
           item.kind == CoordinationItemKind.blocker)) {
     return () => _openCoordinationComposer(
-          context,
-          state: state,
-          kind: item.kind,
-          existingDraft: item,
-        );
+      context,
+      state: state,
+      kind: item.kind,
+      existingDraft: item,
+    );
   }
 
   if (!item.published || !item.isActive) {
@@ -97,12 +98,12 @@ VoidCallback? _itemsTabEditHandler(
   }
 
   return () => unawaited(
-        showCoordinationItemEditSheet(
-          context,
-          item: item,
-          onSaved: () => context.read<ItemsTabCubit>().fetch(),
-        ),
-      );
+    showCoordinationItemEditSheet(
+      context,
+      item: item,
+      onSaved: () => context.read<ItemsTabCubit>().fetch(),
+    ),
+  );
 }
 
 class ItemsTab extends StatelessWidget {
@@ -158,12 +159,13 @@ class ItemsTab extends StatelessWidget {
           lookupItems: lookupItems,
           userId: myUserId,
           forMeOnly: tabState.activeForMeOnly,
-          alwaysIncludeItemId:
-              hasFocus && openItems.any((i) => i.id == focusId) ? focusId : null,
+          alwaysIncludeItemId: hasFocus && openItems.any((i) => i.id == focusId)
+              ? focusId
+              : null,
         );
         final activeForMeOnly = tabState.activeForMeOnly;
-        final activeFoldTitle = activeForMeOnly &&
-                displayedOpenItems.length < openItems.length
+        final activeFoldTitle =
+            activeForMeOnly && displayedOpenItems.length < openItems.length
             ? l10n.beaconItemsActiveFoldTitleFiltered(
                 displayedOpenItems.length,
                 openItems.length,
@@ -172,9 +174,8 @@ class ItemsTab extends StatelessWidget {
                 activeForMeOnly ? displayedOpenItems.length : openItems.length,
               );
         final myDraftCount = myDrafts.length;
-        final hasItems = openItems.isNotEmpty ||
-            closedItems.isNotEmpty ||
-            myDraftCount > 0;
+        final hasItems =
+            openItems.isNotEmpty || closedItems.isNotEmpty || myDraftCount > 0;
 
         final canCoordinate = state.canCoordinateInBeaconRoom;
         final inRoom = state.canNavigateBeaconRoom || canCoordinate;
@@ -213,9 +214,8 @@ class ItemsTab extends StatelessWidget {
                           ? l10n.beaconRoomNoAdmission
                           : l10n.beaconRoomWaitingForApproval,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 )
@@ -226,9 +226,8 @@ class ItemsTab extends StatelessWidget {
                     child: Text(
                       l10n.beaconItemsEmptyPlaceholder,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
@@ -262,114 +261,122 @@ class ItemsTab extends StatelessWidget {
                           ),
                         ),
                         children: [
-                      if (activeForMeOnly &&
-                          displayedOpenItems.isEmpty &&
-                          openItems.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Center(
-                            child: Text(
-                              l10n.beaconItemsActiveForMeEmpty,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                          if (activeForMeOnly &&
+                              displayedOpenItems.isEmpty &&
+                              openItems.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Center(
+                                child: Text(
+                                  l10n.beaconItemsActiveForMeEmpty,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          _StaleDeadlineTicker(
+                            items: displayedOpenItems,
+                            child: Column(
+                              children: [
+                                for (final item in displayedOpenItems)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: FocusFlashHighlight(
+                                      active: hasFocus && item.id == focusId,
+                                      child: _ItemCardAnimatedRow(
+                                        key: ValueKey(item.id),
+                                        item: item,
+                                        viewerId: myUserId,
+                                        creatorParticipant: _participantForUser(
+                                          state.roomParticipants,
+                                          item.creatorId,
+                                        ),
+                                        targetParticipant: _participantForUser(
+                                          state.roomParticipants,
+                                          item.targetPersonId,
+                                        ),
+                                        responsibleParticipant:
+                                            _participantForUser(
+                                              state.roomParticipants,
+                                              item.responsibleUserId,
+                                            ),
+                                        onEdit: _itemsTabEditHandler(
+                                          context,
+                                          item: item,
+                                          state: state,
+                                        ),
+                                        onOpenItemThread: onOpenItemThread,
+                                        resolveAction: () async {
+                                          final cubit = context
+                                              .read<ItemsTabCubit>();
+                                          if (item.kind ==
+                                                  CoordinationItemKind.plan &&
+                                              item.isPlanStep) {
+                                            await cubit.resolvePlanStep(
+                                              item.id,
+                                            );
+                                          } else if (item.kind ==
+                                              CoordinationItemKind.ask) {
+                                            await cubit.resolveAsk(item.id);
+                                          } else if (item.kind ==
+                                              CoordinationItemKind.promise) {
+                                            await cubit.resolvePromise(item.id);
+                                          } else {
+                                            await cubit.resolveBlocker(item.id);
+                                          }
+                                        },
+                                        cancelAction: () async {
+                                          final cubit = context
+                                              .read<ItemsTabCubit>();
+                                          if (item.kind ==
+                                              CoordinationItemKind.ask) {
+                                            await cubit.cancelAsk(item.id);
+                                          } else if (item.kind ==
+                                              CoordinationItemKind.promise) {
+                                            await cubit.cancelPromise(item.id);
+                                          } else {
+                                            await cubit.cancelBlocker(item.id);
+                                          }
+                                        },
+                                        acceptAction: switch (item.kind) {
+                                          CoordinationItemKind.ask =>
+                                            () => context
+                                                .read<ItemsTabCubit>()
+                                                .acceptAsk(item.id),
+                                          CoordinationItemKind.promise =>
+                                            item.isOpen &&
+                                                    item.targetPersonId ==
+                                                        myUserId
+                                                ? () => context
+                                                      .read<ItemsTabCubit>()
+                                                      .acceptPromise(item.id)
+                                                : null,
+                                          CoordinationItemKind.resolution =>
+                                            () => context
+                                                .read<ItemsTabCubit>()
+                                                .acceptResolution(item.id),
+                                          _ => null,
+                                        },
+                                        rejectAction:
+                                            item.kind ==
+                                                CoordinationItemKind.resolution
+                                            ? () => context
+                                                  .read<ItemsTabCubit>()
+                                                  .rejectResolution(item.id)
+                                            : null,
+                                        remindAction: () => context
+                                            .read<ItemsTabCubit>()
+                                            .remindItem(item.id),
+                                      ),
+                                    ),
                                   ),
+                              ],
                             ),
                           ),
-                        ),
-                      _StaleDeadlineTicker(
-                        items: displayedOpenItems,
-                        child: Column(
-                          children: [
-                      for (final item in displayedOpenItems)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: FocusFlashHighlight(
-                              active: hasFocus && item.id == focusId,
-                              child: _ItemCardAnimatedRow(
-                              key: ValueKey(item.id),
-                              item: item,
-                              viewerId: myUserId,
-                              creatorParticipant: _participantForUser(
-                                state.roomParticipants,
-                                item.creatorId,
-                              ),
-                              targetParticipant: _participantForUser(
-                                state.roomParticipants,
-                                item.targetPersonId,
-                              ),
-                              responsibleParticipant: _participantForUser(
-                                state.roomParticipants,
-                                item.responsibleUserId,
-                              ),
-                              onEdit: _itemsTabEditHandler(
-                                context,
-                                item: item,
-                                state: state,
-                              ),
-                              onOpenItemThread: onOpenItemThread,
-                              resolveAction: () async {
-                                final cubit = context.read<ItemsTabCubit>();
-                                if (item.kind == CoordinationItemKind.plan &&
-                                    item.isPlanStep) {
-                                  await cubit.resolvePlanStep(item.id);
-                                } else if (item.kind ==
-                                    CoordinationItemKind.ask) {
-                                  await cubit.resolveAsk(item.id);
-                                } else if (item.kind ==
-                                    CoordinationItemKind.promise) {
-                                  await cubit.resolvePromise(item.id);
-                                } else {
-                                  await cubit.resolveBlocker(item.id);
-                                }
-                              },
-                              cancelAction: () async {
-                                final cubit = context.read<ItemsTabCubit>();
-                                if (item.kind == CoordinationItemKind.ask) {
-                                  await cubit.cancelAsk(item.id);
-                                } else if (item.kind ==
-                                    CoordinationItemKind.promise) {
-                                  await cubit.cancelPromise(item.id);
-                                } else {
-                                  await cubit.cancelBlocker(item.id);
-                                }
-                              },
-                              acceptAction: switch (item.kind) {
-                                CoordinationItemKind.ask => () => context
-                                    .read<ItemsTabCubit>()
-                                    .acceptAsk(item.id),
-                                CoordinationItemKind.promise =>
-                                  item.isOpen &&
-                                          item.targetPersonId == myUserId
-                                      ? () => context
-                                          .read<ItemsTabCubit>()
-                                          .acceptPromise(item.id)
-                                      : null,
-                                CoordinationItemKind.resolution => () =>
-                                    context
-                                        .read<ItemsTabCubit>()
-                                        .acceptResolution(item.id),
-                                _ => null,
-                              },
-                              rejectAction:
-                                  item.kind == CoordinationItemKind.resolution
-                                      ? () => context
-                                          .read<ItemsTabCubit>()
-                                          .rejectResolution(item.id)
-                                      : null,
-                              remindAction: () => context
-                                  .read<ItemsTabCubit>()
-                                  .remindItem(item.id),
-                            ),
-                            ),
-                          ),
-                          ],
-                        ),
-                      ),
                         ],
                       ),
                     ],
@@ -384,30 +391,30 @@ class ItemsTab extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         children: [
-                      for (final item in closedItems)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: FocusFlashHighlight(
-                            active: hasFocus && item.id == focusId,
-                            child: ItemCard(
-                              item: item,
-                              creatorParticipant: _participantForUser(
-                                state.roomParticipants,
-                                item.creatorId,
+                          for (final item in closedItems)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: FocusFlashHighlight(
+                                active: hasFocus && item.id == focusId,
+                                child: ItemCard(
+                                  item: item,
+                                  creatorParticipant: _participantForUser(
+                                    state.roomParticipants,
+                                    item.creatorId,
+                                  ),
+                                  targetParticipant: _participantForUser(
+                                    state.roomParticipants,
+                                    item.targetPersonId,
+                                  ),
+                                  onEdit: _itemsTabEditHandler(
+                                    context,
+                                    item: item,
+                                    state: state,
+                                  ),
+                                  onOpenItemThread: onOpenItemThread,
+                                ),
                               ),
-                              targetParticipant: _participantForUser(
-                                state.roomParticipants,
-                                item.targetPersonId,
-                              ),
-                              onEdit: _itemsTabEditHandler(
-                                context,
-                                item: item,
-                                state: state,
-                              ),
-                              onOpenItemThread: onOpenItemThread,
                             ),
-                          ),
-                        ),
                         ],
                       ),
                     ],
@@ -422,17 +429,17 @@ class ItemsTab extends StatelessWidget {
                         ),
                         leading: const Icon(Icons.drafts_outlined),
                         children: [
-                      for (final draft in myDrafts)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: FocusFlashHighlight(
-                            active: hasFocus && draft.id == focusId,
-                            child: _MyDraftItemRow(
-                              draft: draft,
-                              state: state,
+                          for (final draft in myDrafts)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: FocusFlashHighlight(
+                                active: hasFocus && draft.id == focusId,
+                                child: _MyDraftItemRow(
+                                  draft: draft,
+                                  state: state,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                         ],
                       ),
                     ],
@@ -458,6 +465,7 @@ class _ActiveCoordinationCtas extends StatelessWidget {
     final wide = context.windowClass != WindowClass.compact;
 
     final askBtn = BeaconHudActionButton(
+      key: TestIds.key(TestIds.coordinationAskCreate),
       icon: coordinationKindIcon(CoordinationItemKind.ask),
       label: l10n.coordinationAskCardLabel,
       onPressed: () => _openCoordinationComposer(
@@ -467,6 +475,7 @@ class _ActiveCoordinationCtas extends StatelessWidget {
       ),
     );
     final promiseBtn = BeaconHudActionButton(
+      key: TestIds.key(TestIds.coordinationPromiseCreate),
       icon: coordinationKindIcon(CoordinationItemKind.promise),
       label: l10n.coordinationPromiseCardLabel,
       onPressed: () => _openCoordinationComposer(
@@ -478,17 +487,12 @@ class _ActiveCoordinationCtas extends StatelessWidget {
 
     return Row(
       children: [
-        if (wide)
-          askBtn
-        else
-          Expanded(child: askBtn),
+        if (wide) askBtn else Expanded(child: askBtn),
         const SizedBox(width: 8),
-        if (wide)
-          promiseBtn
-        else
-          Expanded(child: promiseBtn),
+        if (wide) promiseBtn else Expanded(child: promiseBtn),
         const SizedBox(width: 8),
         BeaconHudIconActionButton(
+          key: TestIds.key(TestIds.coordinationBlockerCreate),
           icon: coordinationKindIcon(CoordinationItemKind.blocker),
           tooltip: l10n.coordinationBlockerCardLabel,
           onPressed: () => _openCoordinationComposer(
@@ -585,8 +589,8 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
                 onRemind: widget.remindAction == null
                     ? null
                     : () => unawaited(
-                          _animateThenCall(widget.remindAction!),
-                        ),
+                        _animateThenCall(widget.remindAction!),
+                      ),
                 onResolve: () => unawaited(
                   _animateThenCall(widget.resolveAction),
                 ),
@@ -596,13 +600,13 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
                 onAccept: widget.acceptAction == null
                     ? null
                     : () => unawaited(
-                          _animateThenCall(widget.acceptAction!),
-                        ),
+                        _animateThenCall(widget.acceptAction!),
+                      ),
                 onReject: widget.rejectAction == null
                     ? null
                     : () => unawaited(
-                          _animateThenCall(widget.rejectAction!),
-                        ),
+                        _animateThenCall(widget.rejectAction!),
+                      ),
               )
             : const SizedBox.shrink(),
       ),
