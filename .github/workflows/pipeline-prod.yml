@@ -189,6 +189,7 @@ jobs:
                   --source-maps \\
                   --base-href=/ \\
                   --dart-define-from-file=/app/.env \\
+                  --dart-define=ENV=prod \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\
@@ -202,6 +203,7 @@ jobs:
                   --pwa-strategy=none \\
                   --source-maps \\
                   --base-href=/ \\
+                  --dart-define=ENV=prod \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\

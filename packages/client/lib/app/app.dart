@@ -47,10 +47,11 @@ class App extends StatelessWidget {
     GetIt.I<FcmCubit>();
     fcmLog('App: FcmCubit resolved at startup');
     FlutterNativeSplash.remove();
-    // Web: defer ensureSemantics() until after layout is stable. A single post-frame
-    // tick can still race deep-link / first-frame pointer delivery; two ticks avoids
-    // hit-testing the root Semantics node before constraints exist.
-    if (kIsWeb) {
+    // Web (non-prod): defer ensureSemantics() until after layout is stable. A single
+    // post-frame tick can still race deep-link / first-frame pointer delivery; two
+    // ticks avoids hit-testing the root Semantics node before constraints exist.
+    // Disabled in release / ENV=prod — see [kEnableWebSemantics].
+    if (kEnableWebSemantics) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           SemanticsBinding.instance.ensureSemantics();
