@@ -270,6 +270,21 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  /// Refreshes review-window snapshot when lifecycle is wrapping up.
+  Future<void> refreshReviewWindowInfo() async {
+    if (state.beacon.status != BeaconStatus.reviewOpen) return;
+    try {
+      final reviewWindowInfo = await _case.fetchReviewWindowStatusIfReviewOpen(
+        state.beacon.id,
+      );
+      if (!isClosed) {
+        emit(state.copyWith(reviewWindowInfo: reviewWindowInfo));
+      }
+    } on Object catch (_) {
+      // Keep stale snapshot; never infer Close now from partial data.
+    }
+  }
+
   Future<void> extendReview() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

@@ -10,5 +10,6 @@ query ReviewWindowStatus($id: String!) {
     reviewedCount
     totalCount
     extensionsUsed
+    canCloseNow
   }
 }

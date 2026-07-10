@@ -100,6 +100,7 @@ void main() {
           totalCount: 3,
           windowComplete: false,
           extensionsUsed: 0,
+          canCloseNow: false,
         ),
       ),
     );
@@ -119,6 +120,7 @@ void main() {
           totalCount: 3,
           windowComplete: false,
           extensionsUsed: 0,
+          canCloseNow: true,
         ),
       ),
     );

@@ -6,8 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
-Widget _beaconOverflowMenuRow(BuildContext context, IconData icon, String label) {
+Widget _beaconOverflowMenuRow(
+  BuildContext context,
+  IconData icon,
+  String label,
+) {
   final scheme = Theme.of(context).colorScheme;
   return Row(
     children: [
@@ -24,10 +29,12 @@ class BeaconOverflowMenu extends StatelessWidget {
   const BeaconOverflowMenu({
     required this.beacon,
     super.key,
+
     /// Overrides default edit-beacon label for the edit row (e.g. draft).
     this.editActionLabel,
     this.onOpenBeacon,
     this.onShare,
+    this.onRequestStatus,
     this.onCloseBeacon,
     this.onCancelBeacon,
     this.onEdit,
@@ -56,6 +63,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onOpenBeacon;
 
   final VoidCallback? onShare;
+  final Future<void> Function()? onRequestStatus;
   final Future<void> Function()? onCloseBeacon;
   final Future<void> Function()? onCancelBeacon;
   final VoidCallback? onEdit;
@@ -100,6 +108,9 @@ class BeaconOverflowMenu extends StatelessWidget {
     void add(String value, IconData icon, String label) {
       entries.add(
         PopupMenuItem<String>(
+          key: value == 'close_beacon'
+              ? TestIds.key(TestIds.beaconOverflowClose)
+              : null,
           value: value,
           child: _beaconOverflowMenuRow(context, icon, label),
         ),
@@ -111,6 +122,13 @@ class BeaconOverflowMenu extends StatelessWidget {
     }
     if (onShare != null) {
       add('share', Icons.qr_code, l10n.shareLink);
+    }
+    if (onRequestStatus != null) {
+      add(
+        'request_status',
+        Icons.tune_outlined,
+        l10n.beaconStatusSheetTitle,
+      );
     }
     if (onCloseBeacon != null && beacon.status == BeaconStatus.open) {
       add(
@@ -158,9 +176,7 @@ class BeaconOverflowMenu extends StatelessWidget {
       );
     }
     if (onOfferHelp != null) {
-      final useOfferHelpAnyway =
-          beacon.status ==
-          BeaconStatus.enoughHelp;
+      final useOfferHelpAnyway = beacon.status == BeaconStatus.enoughHelp;
       add(
         'offerHelp',
         Icons.handshake,
@@ -236,6 +252,7 @@ class BeaconOverflowMenu extends StatelessWidget {
       width: hitSize,
       height: hitSize,
       child: PopupMenuButton<String>(
+        key: TestIds.key(TestIds.beaconOverflowMenu),
         tooltip: l10n.beaconHudOverflowMore,
         padding: EdgeInsets.zero,
         constraints: BoxConstraints(
@@ -247,6 +264,9 @@ class BeaconOverflowMenu extends StatelessWidget {
         onSelected: (value) => switch (value) {
           'open_beacon' => onOpenBeacon?.call(),
           'share' => onShare?.call(),
+          'request_status' => unawaited(
+            _deferPopupAction(context, onRequestStatus),
+          ),
           'close_beacon' => unawaited(
             _deferPopupAction(context, onCloseBeacon),
           ),

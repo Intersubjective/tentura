@@ -1,21 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
-import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-
-class _ReviewWindowRepoFake extends Fake implements EvaluationRepository {
-  ReviewWindowInfo? response;
-
-  @override
-  Future<ReviewWindowInfo> fetchReviewWindowStatus(String beaconId) async =>
-      response!;
-}
 
 ReviewWindowInfo _window({
   bool hasWindow = true,
@@ -23,6 +12,7 @@ ReviewWindowInfo _window({
   int? userReviewStatus = 0,
   int totalCount = 2,
   int reviewedCount = 0,
+  bool? canCloseNow,
 }) =>
     ReviewWindowInfo(
       beaconId: 'b1',
@@ -32,29 +22,15 @@ ReviewWindowInfo _window({
       userReviewStatus: userReviewStatus,
       reviewedCount: reviewedCount,
       totalCount: totalCount,
+      canCloseNow: canCloseNow,
     );
 
 void main() {
-  late _ReviewWindowRepoFake repo;
-
-  setUp(() {
-    repo = _ReviewWindowRepoFake();
-  });
-
-  tearDown(() async {
-    if (GetIt.I.isRegistered<EvaluationRepository>()) {
-      await GetIt.I.reset();
-    }
-  });
-
   Future<void> pumpBanner(
     WidgetTester tester, {
-    required ReviewWindowInfo window,
+    required ReviewWindowInfo? window,
     bool isAuthor = false,
   }) async {
-    repo.response = window;
-    GetIt.I.registerSingleton<EvaluationRepository>(repo);
-
     await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
@@ -64,7 +40,7 @@ void main() {
         home: TenturaResponsiveScope(
           child: Scaffold(
             body: ReviewWindowBannerHost(
-              beaconId: 'b1',
+              reviewWindowInfo: window,
               isAuthor: isAuthor,
             ),
           ),
@@ -72,7 +48,9 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pumpAndSettle();
+    if (window != null) {
+      await tester.pumpAndSettle();
+    }
   }
 
   group('ReviewWindowInfo.viewerHasOutstandingReviewWork', () {
@@ -94,6 +72,11 @@ void main() {
   });
 
   group('ReviewWindowBannerHost', () {
+    testWidgets('shows loading when snapshot is null', (tester) async {
+      await pumpBanner(tester, window: null);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    });
+
     testWidgets('shows Review for enrolled viewer with outstanding work', (
       tester,
     ) async {
@@ -102,33 +85,28 @@ void main() {
       expect(find.text('Review'), findsOneWidget);
     });
 
-    testWidgets('hides Review when viewer finalized review', (tester) async {
-      await pumpBanner(tester, window: _window(userReviewStatus: 2));
+    testWidgets('author waiting shows waiting copy', (tester) async {
+      await pumpBanner(
+        tester,
+        window: _window(userReviewStatus: 2, canCloseNow: false),
+        isAuthor: true,
+      );
 
-      expect(find.text('Review'), findsNothing);
+      expect(find.text('Waiting for reviews'), findsOneWidget);
+      expect(find.text('Extend review'), findsNothing);
     });
 
-    testWidgets('hides Review when viewer has no evaluation targets', (
-      tester,
-    ) async {
-      await pumpBanner(tester, window: _window(totalCount: 0));
-
-      expect(find.text('Review'), findsNothing);
-    });
-
-    testWidgets('author management actions visible when isAuthor', (
+    testWidgets('author with personal review work hides waiting banner', (
       tester,
     ) async {
       await pumpBanner(
         tester,
-        window: _window(userReviewStatus: 2),
+        window: _window(userReviewStatus: 0),
         isAuthor: true,
       );
 
+      expect(find.text('Waiting for reviews'), findsNothing);
       expect(find.text('Review'), findsNothing);
-      expect(find.text('Extend review'), findsOneWidget);
-      expect(find.text('Reopen'), findsOneWidget);
-      expect(find.text('Close now'), findsOneWidget);
     });
   });
 }

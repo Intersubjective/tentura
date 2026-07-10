@@ -147,6 +147,7 @@ class EvaluationRepository {
               reviewedCount: s.reviewedCount ?? 0,
               totalCount: s.totalCount ?? 0,
               extensionsUsed: s.extensionsUsed ?? 0,
+              canCloseNow: s.canCloseNow,
             );
           });
 

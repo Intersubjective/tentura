@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart'
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_poll_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -216,6 +217,60 @@ Future<void> beaconViewRunAuthorCloseSheet({
   );
 }
 
+Future<void> beaconViewHandleAuthorHudAction({
+  required BuildContext context,
+  required BeaconViewCubit cubit,
+  required L10n l10n,
+  required BeaconHudAuthorAction action,
+  required void Function() onOpenPeopleTab,
+  required void Function() onActivatePeopleAttention,
+  required void Function(CoordinationItem item) onFocusCoordinationItem,
+  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
+}) async {
+  if (!context.mounted || cubit.state.isLoading) return;
+  final expected = deriveBeaconHudAuthorAction(cubit.state);
+  if (expected != action) return;
+
+  switch (action) {
+    case BeaconHudAuthorAction.resolveBlocker:
+      final blocker = cubit.state.openCoordinationBlocker;
+      if (blocker != null) {
+        onFocusCoordinationItem(blocker);
+      }
+    case BeaconHudAuthorAction.reviewOffers:
+      onActivatePeopleAttention();
+      onOpenPeopleTab();
+    case BeaconHudAuthorAction.markEnoughHelp:
+      await cubit.setBeaconStatus(BeaconStatus.enoughHelp);
+    case BeaconHudAuthorAction.wrapUpForReview:
+      await beaconViewRunAuthorCloseSheet(
+        context: context,
+        cubit: cubit,
+        l10n: l10n,
+        onOpenPeopleTab: onOpenPeopleTab,
+        onEnterRoomSurface: onEnterRoomSurface,
+      );
+    case BeaconHudAuthorAction.reviewContributions:
+      final beaconId = cubit.state.beacon.id;
+      await context.router.push(ReviewContributionsRoute(id: beaconId));
+      if (context.mounted) {
+        await cubit.refreshReviewWindowInfo();
+      }
+    case BeaconHudAuthorAction.closeNow:
+      await cubit.closeBeaconNow();
+    case BeaconHudAuthorAction.forward:
+      await beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n);
+  }
+}
+
+bool beaconViewShowsRequestStatusOverflow(BeaconViewState state) {
+  if (!state.isAuthorOrSteward) return false;
+  final lifecycle = state.beacon.status;
+  return lifecycle == BeaconStatus.draft ||
+      lifecycle.isOpenFamily ||
+      lifecycle == BeaconStatus.reviewOpen;
+}
+
 bool canShowCreatePromise(BeaconViewState state) {
   final b = state.beacon;
   if (b.status != BeaconStatus.open) return false;
@@ -320,22 +375,17 @@ Widget beaconViewAppBarOverflow({
   );
 
   if (state.isBeaconMine) {
+    final hideHudForward = forwardShownInAuthorHud(state);
     return BeaconOverflowMenu(
       beacon: b,
       onShare: showBeaconManagementOverflow && b.allowsForward
           ? () => unawaited(showBeaconShareSheet(context, beacon: b))
           : null,
-      onCloseBeacon: showBeaconManagementOverflow &&
-              state.isBeaconMine &&
-              state.beacon.status == BeaconStatus.open &&
-              state.closureActionPriority != ClosureActionPriority.hidden
+      onRequestStatus: showBeaconManagementOverflow &&
+              beaconViewShowsRequestStatusOverflow(state)
           ? () async {
               if (!context.mounted) return;
-              await onAuthorManageStatus();
-            }
-          : null,
-      onCancelBeacon: state.isBeaconMine && beaconAllowsCancel(b)
-          ? () async {
+              await cubit.refreshReviewWindowInfo();
               if (!context.mounted) return;
               await onAuthorManageStatus();
             }
@@ -356,7 +406,9 @@ Widget beaconViewAppBarOverflow({
       onCreatePromise: onCreatePromise,
       onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
-      onForward: showBeaconManagementOverflow
+      onForward: showBeaconManagementOverflow &&
+              b.allowsForward &&
+              !hideHudForward
           ? () => unawaited(
               beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
             )
@@ -390,6 +442,16 @@ Widget beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
+    onRequestStatus: showBeaconManagementOverflow &&
+            state.isAuthorOrSteward &&
+            beaconViewShowsRequestStatusOverflow(state)
+        ? () async {
+            if (!context.mounted) return;
+            await cubit.refreshReviewWindowInfo();
+            if (!context.mounted) return;
+            await onAuthorManageStatus();
+          }
+        : null,
     onCreatePromise: onCreatePromise,
     onCreatePoll: onCreatePoll,
     onUpdatePlan: onUpdatePlan,

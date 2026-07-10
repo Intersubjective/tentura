@@ -13,6 +13,9 @@ class FocusFlashHighlight extends StatefulWidget {
     required this.child,
     this.borderRadius = const BorderRadius.all(Radius.circular(12)),
     this.scrollAlignment = 0.15,
+    this.autoScroll = true,
+    this.animateFlash = true,
+    this.staticHighlight = false,
     super.key,
   });
 
@@ -22,6 +25,15 @@ class FocusFlashHighlight extends StatefulWidget {
 
   /// Target alignment passed to [Scrollable.ensureVisible] (0 = top edge).
   final double scrollAlignment;
+
+  /// When false, the wrapper does not call [Scrollable.ensureVisible].
+  final bool autoScroll;
+
+  /// When false, uses a static border instead of an animated flash.
+  final bool animateFlash;
+
+  /// Persistent highlight (no animation) for attention rows.
+  final bool staticHighlight;
 
   @override
   State<FocusFlashHighlight> createState() => _FocusFlashHighlightState();
@@ -37,8 +49,10 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
   @override
   void initState() {
     super.initState();
-    if (widget.active) {
+    if (widget.active && !widget.staticHighlight) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _trigger());
+    } else if (widget.active && widget.autoScroll) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollIntoView());
     }
   }
 
@@ -50,11 +64,12 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
     }
   }
 
-  void _trigger() {
-    if (!mounted) return;
+  void _scrollIntoView({bool animated = true}) {
+    if (!mounted || !widget.autoScroll) return;
     final ctx = context;
     final scrollable = Scrollable.maybeOf(ctx);
-    if (scrollable != null) {
+    if (scrollable == null) return;
+    if (animated && widget.animateFlash) {
       unawaited(
         Scrollable.ensureVisible(
           ctx,
@@ -63,8 +78,27 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
           alignment: widget.scrollAlignment,
         ),
       );
+      return;
     }
-    unawaited(_controller.forward(from: 0));
+    unawaited(
+      Scrollable.ensureVisible(
+        ctx,
+        duration: Duration.zero,
+        alignment: widget.scrollAlignment,
+      ),
+    );
+  }
+
+  void _trigger() {
+    if (!mounted) return;
+    if (widget.staticHighlight) {
+      _scrollIntoView(animated: widget.animateFlash);
+      return;
+    }
+    _scrollIntoView(animated: widget.animateFlash);
+    if (widget.animateFlash) {
+      unawaited(_controller.forward(from: 0));
+    }
   }
 
   @override
@@ -76,11 +110,23 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    if (widget.staticHighlight && widget.active) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: widget.borderRadius,
+          border: Border.all(color: primary, width: 2),
+          color: primary.withValues(alpha: 0.08),
+        ),
+        child: widget.child,
+      );
+    }
+    if (!widget.animateFlash || !widget.active) {
+      return widget.child;
+    }
     return AnimatedBuilder(
       animation: _controller,
       child: widget.child,
       builder: (context, child) {
-        // Full intensity at the start, easing out to none.
         final intensity = 1 - Curves.easeInOut.transform(_controller.value);
         if (intensity <= 0.001) return child!;
         return DecoratedBox(

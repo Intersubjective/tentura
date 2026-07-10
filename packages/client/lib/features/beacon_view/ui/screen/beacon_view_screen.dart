@@ -793,11 +793,33 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void _switchToTab(int tab) {
     if (tab < 0 || tab >= kBeaconTabCount) return;
     setState(() {
+      if (_tabIndex == kBeaconTabPeople && tab != kBeaconTabPeople) {
+        _peopleTabAttentionActive = false;
+      }
       _tabIndex = tab;
       _bannerMessage = null;
-      _peopleTabAttentionActive = false;
       _focusItemId = null;
       _focusUserId = null;
+    });
+  }
+
+  void _activatePeopleTabAttention() {
+    setState(() {
+      _tabIndex = kBeaconTabPeople;
+      _peopleTabAttentionActive = true;
+      _bannerMessage = null;
+      _focusItemId = null;
+      _focusUserId = null;
+    });
+  }
+
+  void _focusCoordinationItem(CoordinationItem item) {
+    setState(() {
+      _tabIndex = kBeaconTabItems;
+      _focusItemId = item.id;
+      _focusUserId = null;
+      _bannerMessage = null;
+      _peopleTabAttentionActive = false;
     });
   }
 
@@ -855,6 +877,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           onPeopleTabAttentionCleared: () => setState(() {
             _peopleTabAttentionActive = false;
           }),
+          onActivatePeopleTabAttention: _activatePeopleTabAttention,
+          onFocusCoordinationItem: _focusCoordinationItem,
           focusItemId: _focusItemId,
           focusUserId: _focusUserId,
           onOperationalFocusCleared: _clearOperationalFocus,
@@ -1121,9 +1145,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                 : null,
                             onItemsTabRefresh: _refreshItemsTab,
                             onAuthorManageStatus: () async {
+                              await beaconViewCubit.refreshReviewWindowInfo();
+                              if (!context.mounted) return;
                               await showBeaconViewUpdateStatusSheet(
                                 context,
-                                state,
+                                beaconViewCubit.state,
                                 beaconViewCubit,
                                 onOpenPeopleTab: () =>
                                     _switchToTab(kBeaconTabPeople),
@@ -1150,9 +1176,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   roomCubit: null,
                                   onItemsTabRefresh: _refreshItemsTab,
                                   onAuthorManageStatus: () async {
+                                    await beaconViewCubit.refreshReviewWindowInfo();
+                                    if (!context.mounted) return;
                                     await showBeaconViewUpdateStatusSheet(
                                       context,
-                                      state,
+                                      beaconViewCubit.state,
                                       beaconViewCubit,
                                       onOpenPeopleTab: () =>
                                           _switchToTab(kBeaconTabPeople),

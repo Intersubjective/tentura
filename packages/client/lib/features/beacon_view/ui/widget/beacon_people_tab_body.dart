@@ -24,6 +24,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     required this.beaconViewCubit,
     required this.l10n,
     this.focusUserId,
+    this.peopleTabAttentionActive = false,
     super.key,
   });
 
@@ -34,16 +35,74 @@ class BeaconPeopleTabBody extends StatelessWidget {
   /// When set, the matching participant card is scrolled into view and flashed.
   final String? focusUserId;
 
+  /// Highlights all unanswered offers; scroll/focus only the first.
+  final bool peopleTabAttentionActive;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final beacon = state.beacon;
     final focusUid = focusUserId?.trim();
     final hasFocus = focusUid != null && focusUid.isNotEmpty;
-    Widget focusWrap(String userId, Widget child) => FocusFlashHighlight(
-      active: hasFocus && userId == focusUid,
-      child: child,
-    );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    String? firstUnansweredUserId;
+    if (peopleTabAttentionActive) {
+      for (final c in state.helpOffers) {
+        if (!c.isWithdrawn && c.coordinationResponse == null) {
+          firstUnansweredUserId = c.user.id;
+          break;
+        }
+      }
+    }
+
+    bool isUnansweredOffer(String userId) {
+      for (final c in state.helpOffers) {
+        if (c.user.id == userId &&
+            !c.isWithdrawn &&
+            c.coordinationResponse == null) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    Widget focusWrap(String userId, Widget child) {
+      final attentionTarget =
+          peopleTabAttentionActive && isUnansweredOffer(userId);
+      if (!hasFocus && !attentionTarget) return child;
+
+      final isFirstAttentionTarget =
+          attentionTarget && userId == firstUnansweredUserId;
+      final wrapped = FocusFlashHighlight(
+        active: hasFocus ? userId == focusUid : attentionTarget,
+        autoScroll:
+            (hasFocus && userId == focusUid) ||
+            (attentionTarget && isFirstAttentionTarget),
+        animateFlash: hasFocus && !reduceMotion,
+        staticHighlight: attentionTarget,
+        child: child,
+      );
+
+      if (!attentionTarget) return wrapped;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              l10n.beaconHudNeedsResponse,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          wrapped,
+        ],
+      );
+    }
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
@@ -71,11 +130,13 @@ class BeaconPeopleTabBody extends StatelessWidget {
     );
 
     final showWithdrawn = withdrawn.isNotEmpty;
-    final requestedSectionId = peopleTabAccordionSectionId(
-      sections: sections,
-      focusUserId: focusUserId,
-      showWithdrawn: showWithdrawn,
-    );
+    final requestedSectionId = peopleTabAttentionActive
+        ? BeaconPeopleAccordionSection.willingToHelp
+        : peopleTabAccordionSectionId(
+            sections: sections,
+            focusUserId: focusUserId,
+            showWithdrawn: showWithdrawn,
+          );
 
     TimelineHelpOffer helpOfferForRow(BeaconPeopleRow row) {
       for (final c in state.helpOffers) {

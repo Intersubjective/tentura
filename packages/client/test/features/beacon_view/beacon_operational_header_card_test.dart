@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -43,7 +44,7 @@ Beacon _openAuthorBeacon({
 Future<void> _pumpHeaderCard(
   WidgetTester tester, {
   required BeaconViewState state,
-  VoidCallback? onUpdateStatus,
+  void Function(BeaconHudAuthorAction action)? onAuthorHudAction,
   VoidCallback? onForward,
   VoidCallback? onEditHelpOffer,
 }) async {
@@ -60,7 +61,7 @@ Future<void> _pumpHeaderCard(
             body: BeaconOperationalHeaderCard(
               state: state,
               onAuthorTap: () {},
-              onUpdateStatus: onUpdateStatus,
+              onAuthorHudAction: onAuthorHudAction,
               onForward: onForward ?? () {},
               onEditHelpOffer: onEditHelpOffer,
             ),
@@ -96,6 +97,7 @@ void main() {
           updatedAt: t,
         ),
       ],
+      beaconContextLoaded: true,
     );
 
     await tester.pumpWidget(
@@ -139,6 +141,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      beaconContextLoaded: true,
     );
 
     var editTaps = 0;
@@ -174,11 +177,14 @@ void main() {
     expect(editTaps, 1);
   });
 
-  group('Update status CTA visibility', () {
-    testWidgets('shown when author has unanswered help offers', (tester) async {
+  group('author single ACT', () {
+    testWidgets('shows Review offers when unanswered help offers exist', (
+      tester,
+    ) async {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
+        beaconContextLoaded: true,
         helpOffers: [
           TimelineHelpOffer(
             user: const Profile(id: 'h1', displayName: 'Helper'),
@@ -192,55 +198,37 @@ void main() {
       await _pumpHeaderCard(
         tester,
         state: state,
-        onUpdateStatus: () {},
+        onAuthorHudAction: (_) {},
       );
 
-      expect(find.text('Update status'), findsOneWidget);
+      expect(find.text('Review offers'), findsOneWidget);
+      expect(find.text('Update status'), findsNothing);
+      expect(find.text('Forward'), findsNothing);
     });
 
-    testWidgets('Update status shown when coordination is blocked', (
-      tester,
-    ) async {
+    testWidgets('idle open author shows muted Forward', (tester) async {
       final state = BeaconViewState(
-        beacon: _openAuthorBeacon(
-          status: BeaconStatus.needsMoreHelp,
-        ),
+        beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
+        beaconContextLoaded: true,
       );
 
       await _pumpHeaderCard(
         tester,
         state: state,
-        onUpdateStatus: () {},
+        onAuthorHudAction: (_) {},
       );
 
-      expect(find.text('Resolve'), findsNothing);
-      expect(find.text('Update status'), findsOneWidget);
       expect(find.text('Forward'), findsOneWidget);
-    });
-
-    testWidgets('hidden on closed beacon even when callback wired', (
-      tester,
-    ) async {
-      final state = BeaconViewState(
-        beacon: _openAuthorBeacon(status: BeaconStatus.closed),
-        myProfile: authorProfile,
-      );
-
-      await _pumpHeaderCard(
-        tester,
-        state: state,
-        onUpdateStatus: () {},
-      );
-
       expect(find.text('Update status'), findsNothing);
     });
 
-    testWidgets('shown for steward when callback wired', (tester) async {
+    testWidgets('steward shows no author HUD actions', (tester) async {
       const stewardProfile = Profile(id: 'uSteward', displayName: 'Steward');
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: stewardProfile,
+        beaconContextLoaded: true,
         roomParticipants: [
           BeaconParticipant(
             id: 'p1',
@@ -258,92 +246,22 @@ void main() {
       await _pumpHeaderCard(
         tester,
         state: state,
-        onUpdateStatus: () {},
+        onAuthorHudAction: (_) {},
       );
 
-      expect(find.text('Update status'), findsOneWidget);
+      expect(find.text('Forward'), findsNothing);
+      expect(find.text('Update status'), findsNothing);
     });
   });
 
   group('removed HUD CTAs', () {
-    testWidgets('open author shows Forward and Update status without Close', (
-      tester,
-    ) async {
-      final state = BeaconViewState(
-        beacon: _openAuthorBeacon(),
-        myProfile: authorProfile,
-      );
-
-      await _pumpHeaderCard(
-        tester,
-        state: state,
-        onUpdateStatus: () {},
-      );
-
-      expect(find.text('Forward'), findsOneWidget);
-      expect(find.text('Update status'), findsOneWidget);
-      expect(find.text('Close'), findsNothing);
-    });
-
-    testWidgets('steward shows Forward and Update status without Close', (
-      tester,
-    ) async {
-      const stewardProfile = Profile(id: 'uSteward', displayName: 'Steward');
-      final state = BeaconViewState(
-        beacon: _openAuthorBeacon(),
-        myProfile: stewardProfile,
-        roomParticipants: [
-          BeaconParticipant(
-            id: 'p1',
-            beaconId: 'b1',
-            userId: 'uSteward',
-            role: BeaconParticipantRoleBits.steward,
-            status: BeaconParticipantStatusBits.committed,
-            roomAccess: RoomAccessBits.admitted,
-            createdAt: t,
-            updatedAt: t,
-          ),
-        ],
-      );
-
-      await _pumpHeaderCard(
-        tester,
-        state: state,
-        onUpdateStatus: () {},
-      );
-
-      expect(find.text('Forward'), findsOneWidget);
-      expect(find.text('Update status'), findsOneWidget);
-      expect(find.text('Close'), findsNothing);
-    });
-
-    testWidgets('closed author shows no Review Log or View chain CTAs', (
-      tester,
-    ) async {
-      final state = BeaconViewState(
-        beacon: _openAuthorBeacon(status: BeaconStatus.closed),
-        myProfile: authorProfile,
-      );
-
-      await _pumpHeaderCard(
-        tester,
-        state: state,
-        onUpdateStatus: () {},
-      );
-
-      expect(find.text('Review'), findsNothing);
-      expect(find.text('Log'), findsNothing);
-      expect(find.text('View chain'), findsNothing);
-      expect(find.text('Forward'), findsNothing);
-      expect(find.text('Update status'), findsNothing);
-    });
-
     testWidgets('waiting help offerer shows Edit help offer CTA', (tester) async {
       const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: viewer,
         isHelpOffered: true,
+        beaconContextLoaded: true,
         helpOffers: [
           TimelineHelpOffer(
             user: viewer,
@@ -372,6 +290,7 @@ void main() {
         beacon: _openAuthorBeacon(),
         myProfile: viewer,
         isHelpOffered: true,
+        beaconContextLoaded: true,
         helpOffers: [
           TimelineHelpOffer(
             user: viewer,

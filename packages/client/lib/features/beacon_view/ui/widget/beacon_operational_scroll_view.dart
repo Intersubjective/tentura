@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_strip.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
@@ -18,9 +19,9 @@ import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import 'beacon_view_constants.dart';
-import 'beacon_view_status_bottom_sheet.dart';
 import 'beacon_view_app_bar_overflow.dart';
 import '../util/pinned_facts.dart';
 
@@ -32,12 +33,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
     required this.onTabChanged,
     required this.peopleTabAttentionActive,
     required this.onPeopleTabAttentionCleared,
+    required this.onActivatePeopleTabAttention,
+    required this.onFocusCoordinationItem,
     required this.focusItemId,
     required this.focusUserId,
     required this.onOperationalFocusCleared,
     required this.onTapCoordinationLogEvent,
     required this.onEnterRoomSurface,
     required this.onOpenItemDiscussion,
+    super.key,
   });
 
   final BeaconViewCubit beaconViewCubit;
@@ -48,6 +52,8 @@ class BeaconOperationalScrollView extends StatelessWidget {
   /// Pulse/highlight People tab until first pointer interaction or tab change.
   final bool peopleTabAttentionActive;
   final VoidCallback onPeopleTabAttentionCleared;
+  final VoidCallback onActivatePeopleTabAttention;
+  final void Function(CoordinationItem item) onFocusCoordinationItem;
 
   /// Coordination item / participant to focus + flash (Log row tap-to-focus).
   final String? focusItemId;
@@ -68,9 +74,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
   }
 
   void _onPointerDown(PointerDownEvent _) {
-    if (peopleTabAttentionActive) {
-      onPeopleTabAttentionCleared();
-    }
     if (focusItemId != null || focusUserId != null) {
       onOperationalFocusCleared();
     }
@@ -127,7 +130,9 @@ class BeaconOperationalScrollView extends StatelessWidget {
           p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
           p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
           p.needCoordinationHelpOffersCount !=
-              c.needCoordinationHelpOffersCount,
+              c.needCoordinationHelpOffersCount ||
+          p.reviewWindowInfo != c.reviewWindowInfo ||
+          p.beaconContextLoaded != c.beaconContextLoaded,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         final pinnedFacts = pinnedFactsForStrip(state.factCards);
@@ -143,6 +148,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
             beaconViewCubit: beaconViewCubit,
             l10n: l10n,
             focusUserId: focusUserId,
+            peopleTabAttentionActive: peopleTabAttentionActive,
           ),
           kBeaconTabLog => BeaconActivityList(
             timeline: const [],
@@ -203,19 +209,18 @@ class BeaconOperationalScrollView extends StatelessWidget {
                     state: state,
                     onAuthorTap: () =>
                         screenCubit.showProfile(state.beacon.author.id),
-                    onUpdateStatus:
-                        state.isAuthorOrSteward &&
-                            (state.beacon.status == BeaconStatus.draft ||
-                                state.beacon.status.isOpenFamily ||
-                                state.beacon.status ==
-                                    BeaconStatus.reviewOpen)
-                        ? () => unawaited(
-                            showBeaconViewUpdateStatusSheet(
-                              context,
-                              state,
-                              beaconViewCubit,
-                              onOpenPeopleTab: () =>
-                                  _setTab(kBeaconTabPeople),
+                    onAuthorHudAction: state.isBeaconMine
+                        ? (action) => unawaited(
+                            beaconViewHandleAuthorHudAction(
+                              context: context,
+                              cubit: beaconViewCubit,
+                              l10n: l10n,
+                              action: action,
+                              onOpenPeopleTab: () => _setTab(kBeaconTabPeople),
+                              onActivatePeopleAttention:
+                                  onActivatePeopleTabAttention,
+                              onFocusCoordinationItem: onFocusCoordinationItem,
+                              onEnterRoomSurface: onEnterRoomSurface,
                             ),
                           )
                         : null,
@@ -311,6 +316,11 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 l10n.labelBeaconTabItems,
                                 l10n.labelBeaconTabPeople,
                                 l10n.labelBeaconTabLog,
+                              ],
+                              tabIds: const [
+                                TestIds.beaconTabItems,
+                                TestIds.beaconTabPeople,
+                                TestIds.beaconTabLog,
                               ],
                               selectedIndex: idx,
                               onChanged: _setTab,

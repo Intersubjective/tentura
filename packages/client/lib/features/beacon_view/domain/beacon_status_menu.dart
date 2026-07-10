@@ -50,6 +50,7 @@ class ReviewWindowMenuSnapshot {
     required this.totalCount,
     required this.windowComplete,
     required this.extensionsUsed,
+    this.canCloseNow,
     this.maxExtensions = kMaxBeaconReviewExtensions,
   });
 
@@ -59,14 +60,12 @@ class ReviewWindowMenuSnapshot {
   final int totalCount;
   final bool windowComplete;
   final int extensionsUsed;
+  final bool? canCloseNow;
   final int maxExtensions;
 
   bool get canExtend => extensionsUsed < maxExtensions;
 
-  bool get canCloseNow =>
-      !windowComplete &&
-      totalCount > 0 &&
-      reviewedCount >= totalCount;
+  bool get serverCanCloseNow => canCloseNow == true;
 }
 
 class BeaconStatusMenuInput {
@@ -361,7 +360,7 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (lifecycle == BeaconStatus.reviewOpen) {
-    final canClose = input.canManageLifecycle && (review?.canCloseNow ?? false);
+    final canClose = input.canManageLifecycle && (review?.serverCanCloseNow ?? false);
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeNow,

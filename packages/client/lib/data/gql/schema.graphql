@@ -5848,6 +5848,7 @@ input v2_PollingInput {
 type v2_ReviewWindowStatus {
   beaconId: String!
   beaconTitle: String!
+  canCloseNow: Boolean
   closesAt: String
   extensionsUsed: Int
   hasWindow: Boolean!

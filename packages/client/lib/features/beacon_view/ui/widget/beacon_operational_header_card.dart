@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -19,7 +20,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   const BeaconOperationalHeaderCard({
     required this.state,
     required this.onAuthorTap,
-    this.onUpdateStatus,
+    this.onAuthorHudAction,
     this.onOfferHelp,
     this.onEditHelpOffer,
     this.onForward,
@@ -35,7 +36,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   final VoidCallback onAuthorTap;
 
-  final VoidCallback? onUpdateStatus;
+  final void Function(BeaconHudAuthorAction action)? onAuthorHudAction;
   final VoidCallback? onOfferHelp;
   final VoidCallback? onEditHelpOffer;
   final VoidCallback? onForward;
@@ -81,11 +82,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           BeaconDefinitionHudRow(beacon: state.beacon),
           if (state.beacon.status == BeaconStatus.reviewOpen)
             ReviewWindowBannerHost(
-              beaconId: state.beacon.id,
+              reviewWindowInfo: state.reviewWindowInfo,
               isAuthor: state.isBeaconMine,
-              onManageStatus: onUpdateStatus,
-            )
-          else if (specs.isNotEmpty) ...[
+            ),
+          if (specs.isNotEmpty) ...[
             const SizedBox(height: 10),
             _HudActionRail(actions: specs),
             const SizedBox(height: 10),
@@ -101,34 +101,30 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final openFamily = b.status.isOpenFamily;
 
     if (b.status == BeaconStatus.deleted ||
-        b.status == BeaconStatus.reviewOpen ||
-        !openFamily) {
+        b.status == BeaconStatus.closed ||
+        b.status == BeaconStatus.cancelled) {
       return const [];
     }
 
-    if (state.isAuthorOrSteward) {
-      final specs = <_HudActionSpec>[];
-      if (onForward != null) {
-        specs.add(
+    if (state.isBeaconMine) {
+      final authorSpec = deriveBeaconHudAuthorActSpec(l10n: l10n, state: state);
+      if (authorSpec != null && onAuthorHudAction != null) {
+        return [
           _HudActionSpec(
-            icon: Icons.send_outlined,
-            label: l10n.labelForward,
-            onPressed: onForward,
-            filled: false,
+            icon: authorSpec.icon,
+            label: authorSpec.label,
+            onPressed: state.isLoading
+                ? null
+                : () => onAuthorHudAction!(authorSpec.action),
+            filled: authorSpec.filled,
           ),
-        );
+        ];
       }
-      if (onUpdateStatus != null) {
-        specs.add(
-          _HudActionSpec(
-            icon: Icons.tune_outlined,
-            label: l10n.beaconCtaUpdateStatus,
-            onPressed: onUpdateStatus,
-            filled: false,
-          ),
-        );
-      }
-      return specs;
+      return const [];
+    }
+
+    if (state.isSteward || b.status == BeaconStatus.reviewOpen || !openFamily) {
+      return const [];
     }
 
     final canOfferHelp = openFamily &&
