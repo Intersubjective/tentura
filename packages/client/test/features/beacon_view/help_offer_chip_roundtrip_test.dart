@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 // Pumps a MaterialApp that shows HelpOfferMessageDialog with
 // showHelpTypeChips enabled and allowEmptyMessage so the submit button
@@ -177,7 +178,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.byKey(const Key('help-offer-search')),
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
         'time',
       );
       await tester.pumpAndSettle();
@@ -203,7 +204,7 @@ void main() {
       expect(button.onPressed, isNull);
 
       await tester.enterText(
-        find.byKey(const Key('help-offer-search')),
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
         'time',
       );
       await tester.pumpAndSettle();
@@ -267,7 +268,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.byKey(const Key('help-offer-search')),
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
         'physical help',
       );
       await tester.pumpAndSettle();
@@ -287,7 +288,7 @@ void main() {
     await _pumpDialog(tester);
 
     await tester.enterText(
-      find.byKey(const Key('help-offer-search')),
+      find.byKey(TestIds.key(TestIds.helpOfferSearch)),
       'software',
     );
     await tester.pumpAndSettle();
@@ -309,7 +310,7 @@ void main() {
       'Tools',
     ]) {
       await tester.enterText(
-        find.byKey(const Key('help-offer-search')),
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
         label,
       );
       await tester.pumpAndSettle();
@@ -321,7 +322,7 @@ void main() {
     }
 
     await tester.enterText(
-      find.byKey(const Key('help-offer-search')),
+      find.byKey(TestIds.key(TestIds.helpOfferSearch)),
       'Physical help',
     );
     await tester.pumpAndSettle();
