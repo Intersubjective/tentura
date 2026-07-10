@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
@@ -162,6 +163,42 @@ void main() {
         isNull,
       );
     });
+
+    test('blocked coordination suppresses forward', () {
+      expect(
+        deriveBeaconHudAuthorAction(
+          _authorState(status: BeaconStatus.needsMoreHelp),
+        ),
+        isNull,
+      );
+    });
+
+    test('enoughHelp waitingForReview offers wrap up', () {
+      final state = _authorState(
+        status: BeaconStatus.enoughHelp,
+        helpOffers: [
+          _offer(response: CoordinationResponseType.useful),
+        ],
+      );
+      expect(
+        deriveBeaconHudAuthorAction(state),
+        BeaconHudAuthorAction.wrapUpForReview,
+      );
+    });
+
+    test('open blocker without personal responsibility offers resolve', () {
+      final state = _authorState().copyWith(
+        beaconRoomCue: BeaconRoomState(
+          beaconId: 'b1',
+          updatedAt: DateTime.utc(2026, 6, 20),
+          openBlockerTitle: 'Waiting on vendor',
+        ),
+      );
+      expect(
+        deriveBeaconHudAuthorAction(state),
+        BeaconHudAuthorAction.resolveBlocker,
+      );
+    });
   });
 
   group('deriveBeaconHudAuthorActSpec labels', () {
@@ -173,6 +210,14 @@ void main() {
       );
       expect(spec?.label, 'Review offers');
       expect(spec?.filled, isTrue);
+      expect(
+        spec?.effectLine,
+        'Opens People; accept adds helper to chat',
+      );
+      expect(
+        spec?.semanticsLabel,
+        'Review offers. Opens People; accept adds helper to chat',
+      );
     });
   });
 }

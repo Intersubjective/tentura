@@ -86,16 +86,41 @@ class BeaconPeopleTabBody extends StatelessWidget {
 
       if (!attentionTarget) return wrapped;
 
+      final unansweredCount = state.unansweredHelpOffersCount;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              l10n.beaconHudNeedsResponse,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
+          Semantics(
+            liveRegion: true,
+            label: l10n.beaconHudNeedsResponse,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active_outlined,
+                    size: theme.textTheme.labelMedium?.fontSize ?? 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      l10n.beaconHudNeedsResponse,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (unansweredCount > 0)
+                    Text(
+                      '$unansweredCount',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

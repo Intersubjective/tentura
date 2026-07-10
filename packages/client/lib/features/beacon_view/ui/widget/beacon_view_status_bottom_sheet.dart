@@ -69,9 +69,19 @@ Future<void> showBeaconViewUpdateStatusSheet(
                     tt.screenHPadding,
                     tt.tightGap,
                   ),
-                  child: Text(
-                    l10n.beaconStatusSheetTitle,
-                    style: Theme.of(ctx).textTheme.titleSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.beaconStatusSheetTitle,
+                        style: Theme.of(ctx).textTheme.titleSmall,
+                      ),
+                      SizedBox(height: tt.tightGap),
+                      Text(
+                        l10n.beaconStatusSheetAdvancedHint,
+                        style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
                 for (final row in rows)
@@ -152,7 +162,10 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
         ? beaconStatusMenuOpenRowLabel(l10n, beacon)
         : beaconStatusMenuRowLabel(l10n, row.id);
     final hint = beaconStatusMenuDisabledReasonLabel(l10n, row.disabledReason);
-    final subtitle = hint.isNotEmpty ? hint : null;
+    final outcome = beaconStatusMenuRowOutcomeLabel(l10n, row.id);
+    final subtitle = !row.isEnabled && hint.isNotEmpty
+        ? hint
+        : outcome;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,12 +183,10 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
                   )
                 : null,
           ),
-          subtitle: subtitle != null
-              ? Text(
-                  subtitle,
-                  style: TenturaText.status(scheme.onSurfaceVariant),
-                )
-              : null,
+          subtitle: Text(
+            subtitle,
+            style: TenturaText.status(scheme.onSurfaceVariant),
+          ),
           onTap: onTap == null
               ? null
               : () {

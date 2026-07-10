@@ -77,6 +77,19 @@ void main() {
     });
   });
 
+  group('requestStatusActivityLabel', () {
+    test('maps open family statuses for timeline copy', () {
+      expect(
+        requestStatusActivityLabel(l10n, BeaconStatus.enoughHelp),
+        l10n.requestStatusActivityEnoughHelp,
+      );
+      expect(
+        requestStatusActivityLabel(l10n, BeaconStatus.reviewOpen),
+        l10n.requestStatusActivityReviewOpen,
+      );
+    });
+  });
+
   group('beaconSituationStateLine', () {
     test('open with unreviewed offers shows coordinating', () {
       expect(

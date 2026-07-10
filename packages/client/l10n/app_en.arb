@@ -3280,6 +3280,58 @@
   "beaconHudActMarkEnoughHelp": "We have enough help",
   "beaconHudActWrapUpForReview": "Wrap up for review",
   "beaconHudActReviewContributions": "Review contributions",
+  "beaconHudActEffectResolveBlocker": "Opens Items to clear the blocker",
+  "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to chat",
+  "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
+  "beaconHudActEffectWrapUpForReview": "Starts review window; helpers can acknowledge",
+  "beaconHudActEffectReviewContributions": "Opens your review checklist",
+  "beaconHudActEffectCloseNow": "Closes request when all reviews are in",
+  "beaconHudActEffectForward": "Shares request; does not change chat access",
+  "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
+  "beaconHudConfirmMarkEnoughHelpTitle": "Mark enough help?",
+  "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you wrap up or close.",
+  "beaconHudConfirmMarkEnoughHelpAction": "Mark enough help",
+  "beaconHudConfirmCloseNowTitle": "Close request now?",
+  "beaconHudConfirmCloseNowBody": "Closes the request immediately. Chat stays read-only.",
+  "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
+  "beaconHudConfirmCloseNowAction": "Close now",
+  "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
+  "helpOfferAdmissionAcceptHint": "Adds {name} to chat",
+  "@helpOfferAdmissionAcceptHint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferAdmissionDeclineHint": "Declines offer; no chat access",
+  "beaconStatusSheetAdvancedHint": "Advanced changes; most authors follow the button above.",
+  "beaconStatusRowOutcomeDraft": "Save as draft until you publish",
+  "beaconStatusRowOutcomeOpen": "Request accepts new offers",
+  "beaconStatusRowOutcomeMoreHelp": "Asks network for more responses",
+  "beaconStatusRowOutcomeEnoughHelp": "Signals sufficient help; stays open",
+  "beaconStatusRowOutcomeWrappingUp": "Review window for contributors",
+  "beaconStatusRowOutcomeClosed": "Request is closed; chat is read-only",
+  "beaconStatusRowOutcomeCancelled": "Request is cancelled; no further coordination",
+  "timelineRequestStatusChanged": "{author} marked the request as {status}",
+  "@timelineRequestStatusChanged": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "requestStatusActivityOpen": "open for offers",
+  "requestStatusActivityMoreHelp": "needing more help",
+  "requestStatusActivityEnoughHelp": "having enough help",
+  "requestStatusActivityWrappingUp": "wrapping up",
+  "requestStatusActivityClosed": "closed",
+  "requestStatusActivityCancelled": "cancelled",
+  "requestStatusActivityDraft": "draft",
+  "requestStatusActivityReviewOpen": "in review",
   "beaconHudNeedsResponse": "Needs response",
   "beaconHudWaitingForReviews": "Waiting for reviews",
   "beaconCtaEditHelpOffer": "Edit help offer",

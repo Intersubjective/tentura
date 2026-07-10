@@ -12,6 +12,7 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -236,6 +237,8 @@ class HelpOfferTile extends StatelessWidget {
               onAccept: onAccept,
               onDecline: onDecline,
               onRemoveFromChat: onRemoveFromChat,
+              offerUserId: helpOffer.user.id,
+              offerUserName: helpOffer.user.shownName,
             ),
           ],
           if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
@@ -286,6 +289,8 @@ class _AdmissionFooter extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     required this.onRemoveFromChat,
+    required this.offerUserId,
+    required this.offerUserName,
   });
 
   final L10n l10n;
@@ -299,6 +304,8 @@ class _AdmissionFooter extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onRemoveFromChat;
+  final String offerUserId;
+  final String offerUserName;
 
   @override
   Widget build(BuildContext context) {
@@ -318,6 +325,8 @@ class _AdmissionFooter extends StatelessWidget {
         onAccept: onAccept,
         onDecline: onDecline,
         onRemoveFromChat: onRemoveFromChat,
+        offerUserId: offerUserId,
+        offerUserName: offerUserName,
       );
     }
 
@@ -350,6 +359,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     required this.onRemoveFromChat,
+    required this.offerUserId,
+    required this.offerUserName,
   });
 
   final L10n l10n;
@@ -360,6 +371,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onRemoveFromChat;
+  final String offerUserId;
+  final String offerUserName;
 
   @override
   Widget build(BuildContext context) {
@@ -393,6 +406,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
           if (onRemoveFromChat != null) ...[
             SizedBox(width: tt.rowGap),
             TenturaTextAction(
+              key: TestIds.key(TestIds.helpOfferRemove(offerUserId)),
               label: l10n.helpOfferAdmissionRemove,
               onPressed: onRemoveFromChat,
               tone: TenturaTone.neutral,
@@ -421,26 +435,74 @@ class _AuthorAdmissionFooter extends StatelessWidget {
           ),
           SizedBox(height: tt.tightGap),
         ],
-        Row(
-          children: [
-            if (onAccept != null)
-              TenturaTextAction(
-                label: l10n.helpOfferAdmissionAccept,
-                onPressed: onAccept,
-                tone: TenturaTone.good,
-                icon: const Icon(Icons.check_outlined),
-              ),
-            if (onAccept != null && onDecline != null)
-              SizedBox(width: tt.tightGap),
-            if (onDecline != null)
-              TenturaTextAction(
-                label: l10n.helpOfferAdmissionDecline,
-                onPressed: onDecline,
-                tone: TenturaTone.danger,
-                icon: const Icon(Icons.close_outlined),
-              ),
-          ],
-        ),
+        if (context.windowClass == WindowClass.compact)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (onAccept != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TenturaTextAction(
+                    key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                    label: l10n.helpOfferAdmissionAccept,
+                    onPressed: onAccept,
+                    tone: TenturaTone.good,
+                    icon: const Icon(Icons.check_outlined),
+                  ),
+                ),
+              if (onDecline != null) ...[
+                if (onAccept != null) SizedBox(height: tt.tightGap),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TenturaTextAction(
+                    key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                    label: l10n.helpOfferAdmissionDecline,
+                    onPressed: onDecline,
+                    tone: TenturaTone.danger,
+                    icon: const Icon(Icons.close_outlined),
+                  ),
+                ),
+              ],
+            ],
+          )
+        else
+          Row(
+            children: [
+              if (onAccept != null)
+                TenturaTextAction(
+                  key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                  label: l10n.helpOfferAdmissionAccept,
+                  onPressed: onAccept,
+                  tone: TenturaTone.good,
+                  icon: const Icon(Icons.check_outlined),
+                ),
+              if (onAccept != null && onDecline != null)
+                SizedBox(width: tt.tightGap),
+              if (onDecline != null)
+                TenturaTextAction(
+                  key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                  label: l10n.helpOfferAdmissionDecline,
+                  onPressed: onDecline,
+                  tone: TenturaTone.danger,
+                  icon: const Icon(Icons.close_outlined),
+                ),
+            ],
+          ),
+        if (onAccept != null || onDecline != null) ...[
+          SizedBox(height: tt.tightGap),
+          if (onAccept != null)
+            Text(
+              l10n.helpOfferAdmissionAcceptHint(offerUserName),
+              style: TenturaText.bodySmall(tt.textFaint),
+            ),
+          if (onAccept != null && onDecline != null)
+            SizedBox(height: tt.tightGap),
+          if (onDecline != null)
+            Text(
+              l10n.helpOfferAdmissionDeclineHint,
+              style: TenturaText.bodySmall(tt.textFaint),
+            ),
+        ],
       ],
     );
   }

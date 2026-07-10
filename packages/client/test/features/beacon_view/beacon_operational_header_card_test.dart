@@ -202,8 +202,42 @@ void main() {
       );
 
       expect(find.text('Review offers'), findsOneWidget);
+      expect(
+        find.text('Opens People; accept adds helper to chat'),
+        findsOneWidget,
+      );
       expect(find.text('Update status'), findsNothing);
       expect(find.text('Forward'), findsNothing);
+    });
+
+    testWidgets('author ACT effect line wraps at compact width', (tester) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: authorProfile,
+        beaconContextLoaded: true,
+        helpOffers: [
+          TimelineHelpOffer(
+            user: const Profile(id: 'h1', displayName: 'Helper'),
+            message: 'help',
+            createdAt: t,
+            updatedAt: t,
+          ),
+        ],
+      );
+
+      await tester.binding.setSurfaceSize(const Size(375, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onAuthorHudAction: (_) {},
+      );
+
+      expect(
+        find.text('Opens People; accept adds helper to chat'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('idle open author shows muted Forward', (tester) async {

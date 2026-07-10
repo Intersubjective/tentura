@@ -28,6 +28,7 @@ import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import 'beacon_hud_author_confirm_sheets.dart';
 import 'beacon_view_status_bottom_sheet.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
@@ -225,6 +226,7 @@ Future<void> beaconViewHandleAuthorHudAction({
   required void Function() onOpenPeopleTab,
   required void Function() onActivatePeopleAttention,
   required void Function(CoordinationItem item) onFocusCoordinationItem,
+  required void Function() onOpenItemsTab,
   required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
 }) async {
   if (!context.mounted || cubit.state.isLoading) return;
@@ -236,11 +238,22 @@ Future<void> beaconViewHandleAuthorHudAction({
       final blocker = cubit.state.openCoordinationBlocker;
       if (blocker != null) {
         onFocusCoordinationItem(blocker);
+      } else {
+        onOpenItemsTab();
       }
     case BeaconHudAuthorAction.reviewOffers:
       onActivatePeopleAttention();
       onOpenPeopleTab();
     case BeaconHudAuthorAction.markEnoughHelp:
+      final confirmed = await showBeaconHudMarkEnoughHelpConfirmSheet(
+        context: context,
+      );
+      if (!context.mounted) return;
+      if (!confirmed) return;
+      if (deriveBeaconHudAuthorAction(cubit.state) !=
+          BeaconHudAuthorAction.markEnoughHelp) {
+        return;
+      }
       await cubit.setBeaconStatus(BeaconStatus.enoughHelp);
     case BeaconHudAuthorAction.wrapUpForReview:
       await beaconViewRunAuthorCloseSheet(
@@ -257,6 +270,17 @@ Future<void> beaconViewHandleAuthorHudAction({
         await cubit.refreshReviewWindowInfo();
       }
     case BeaconHudAuthorAction.closeNow:
+      final canClose = cubit.state.reviewWindowInfo?.canCloseNow == true;
+      final confirmed = await showBeaconHudCloseNowConfirmSheet(
+        context: context,
+        canCloseNow: canClose,
+      );
+      if (!context.mounted) return;
+      if (!confirmed) return;
+      if (deriveBeaconHudAuthorAction(cubit.state) !=
+          BeaconHudAuthorAction.closeNow) {
+        return;
+      }
       await cubit.closeBeaconNow();
     case BeaconHudAuthorAction.forward:
       await beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n);

@@ -22,12 +22,16 @@ class BeaconHudAuthorActSpec {
   const BeaconHudAuthorActSpec({
     required this.action,
     required this.label,
+    required this.effectLine,
+    required this.semanticsLabel,
     required this.icon,
     required this.filled,
   });
 
   final BeaconHudAuthorAction action;
   final String label;
+  final String effectLine;
+  final String semanticsLabel;
   final IconData icon;
   final bool filled;
 }
@@ -53,6 +57,9 @@ bool authorPersonallyOwnsBlocker(BeaconViewState state) {
   );
 }
 
+bool authorHasOpenBlocker(BeaconViewState state) =>
+    buildClosureConfirmationSummary(state).hasOpenBlocker;
+
 bool authorForwardAllowed(BeaconViewState state) {
   final b = state.beacon;
   if (!b.allowsForward) return false;
@@ -76,7 +83,7 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
 
   if (!lifecycle.isOpenFamily) return null;
 
-  if (authorPersonallyOwnsBlocker(state)) {
+  if (authorHasOpenBlocker(state)) {
     return BeaconHudAuthorAction.resolveBlocker;
   }
 
@@ -87,7 +94,15 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
   final readiness = computeClosureReadiness(state);
   final blocked = readiness == BeaconClosureReadiness.blocked;
   final ready = readiness == BeaconClosureReadiness.readyToClose;
+  final waitingForReview =
+      readiness == BeaconClosureReadiness.waitingForReview;
   final hasCommitters = beaconStateHasCommitters(state);
+
+  if (lifecycle == BeaconStatus.enoughHelp &&
+      hasCommitters &&
+      (waitingForReview || ready)) {
+    return BeaconHudAuthorAction.wrapUpForReview;
+  }
 
   if (!blocked && hasCommitters) {
     if (ready) {
@@ -98,7 +113,7 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
     }
   }
 
-  if (authorForwardAllowed(state)) {
+  if (!blocked && authorForwardAllowed(state)) {
     return BeaconHudAuthorAction.forward;
   }
 
@@ -151,6 +166,23 @@ String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
   };
 }
 
+String effectLineForBeaconHudAuthorAction(
+  L10n l10n,
+  BeaconHudAuthorAction action,
+) {
+  return switch (action) {
+    BeaconHudAuthorAction.resolveBlocker => l10n.beaconHudActEffectResolveBlocker,
+    BeaconHudAuthorAction.reviewOffers => l10n.beaconHudActEffectReviewOffers,
+    BeaconHudAuthorAction.markEnoughHelp => l10n.beaconHudActEffectMarkEnoughHelp,
+    BeaconHudAuthorAction.wrapUpForReview =>
+      l10n.beaconHudActEffectWrapUpForReview,
+    BeaconHudAuthorAction.reviewContributions =>
+      l10n.beaconHudActEffectReviewContributions,
+    BeaconHudAuthorAction.closeNow => l10n.beaconHudActEffectCloseNow,
+    BeaconHudAuthorAction.forward => l10n.beaconHudActEffectForward,
+  };
+}
+
 /// Derives at most one author HUD action from loaded beacon view state.
 BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
   required L10n l10n,
@@ -158,9 +190,13 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
 }) {
   final action = deriveBeaconHudAuthorAction(state);
   if (action == null) return null;
+  final label = labelForBeaconHudAuthorAction(l10n, action);
+  final effectLine = effectLineForBeaconHudAuthorAction(l10n, action);
   return BeaconHudAuthorActSpec(
     action: action,
-    label: labelForBeaconHudAuthorAction(l10n, action),
+    label: label,
+    effectLine: effectLine,
+    semanticsLabel: '$label. $effectLine',
     icon: iconForBeaconHudAuthorAction(action),
     filled: filledBeaconHudAuthorAction(action),
   );
@@ -169,3 +205,9 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
 /// Whether Forward should appear in overflow (not duplicated in the HUD ACT).
 bool forwardShownInAuthorHud(BeaconViewState state) =>
     deriveBeaconHudAuthorAction(state) == BeaconHudAuthorAction.forward;
+
+/// Whether Request status overflow is the author's fallback when HUD ACT is null.
+bool authorHudShowsStatusOverflowFallback(BeaconViewState state) =>
+    authorHudActGate(state) &&
+    deriveBeaconHudAuthorAction(state) == null &&
+    state.beacon.status.isOpenFamily;

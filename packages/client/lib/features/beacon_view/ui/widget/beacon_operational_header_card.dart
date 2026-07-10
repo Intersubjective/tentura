@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 import 'beacon_definition_hud_row.dart';
 import 'beacon_hud_action_button.dart';
+import 'beacon_hud_author_act_block.dart';
 
 /// Compact HUD header: metadata strip, NOW/YOU, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
@@ -56,7 +57,12 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final specs = _buildHudActions(l10n);
+    final authorSpec = state.isBeaconMine && onAuthorHudAction != null
+        ? deriveBeaconHudAuthorActSpec(l10n: l10n, state: state)
+        : null;
+    final specs = authorSpec == null
+        ? _buildHelperHudActions(l10n)
+        : const <_HudActionSpec>[];
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -85,7 +91,16 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               reviewWindowInfo: state.reviewWindowInfo,
               isAuthor: state.isBeaconMine,
             ),
-          if (specs.isNotEmpty) ...[
+          if (authorSpec != null) ...[
+            const SizedBox(height: 10),
+            BeaconHudAuthorActBlock(
+              spec: authorSpec,
+              onPressed: state.isLoading
+                  ? null
+                  : () => onAuthorHudAction!(authorSpec.action),
+            ),
+            const SizedBox(height: 10),
+          ] else if (specs.isNotEmpty) ...[
             const SizedBox(height: 10),
             _HudActionRail(actions: specs),
             const SizedBox(height: 10),
@@ -96,7 +111,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
   }
 
-  List<_HudActionSpec> _buildHudActions(L10n l10n) {
+  List<_HudActionSpec> _buildHelperHudActions(L10n l10n) {
     final b = state.beacon;
     final openFamily = b.status.isOpenFamily;
 
@@ -107,19 +122,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     }
 
     if (state.isBeaconMine) {
-      final authorSpec = deriveBeaconHudAuthorActSpec(l10n: l10n, state: state);
-      if (authorSpec != null && onAuthorHudAction != null) {
-        return [
-          _HudActionSpec(
-            icon: authorSpec.icon,
-            label: authorSpec.label,
-            onPressed: state.isLoading
-                ? null
-                : () => onAuthorHudAction!(authorSpec.action),
-            filled: authorSpec.filled,
-          ),
-        ];
-      }
       return const [];
     }
 

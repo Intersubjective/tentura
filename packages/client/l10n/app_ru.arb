@@ -3245,6 +3245,58 @@
   "beaconHudActMarkEnoughHelp": "Помощи достаточно",
   "beaconHudActWrapUpForReview": "Завершить для отзыва",
   "beaconHudActReviewContributions": "Проверить вклад",
+  "beaconHudActEffectResolveBlocker": "Открывает «Элементы» для снятия блокера",
+  "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в чат",
+  "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
+  "beaconHudActEffectWrapUpForReview": "Запускает окно отзыва; помощники могут подтвердить",
+  "beaconHudActEffectReviewContributions": "Открывает ваш чек-лист отзыва",
+  "beaconHudActEffectCloseNow": "Закрывает запрос, когда все отзывы получены",
+  "beaconHudActEffectForward": "Делится запросом; доступ в чат не меняется",
+  "beaconHudYouChangeStatusInOverflow": "Измените статус запроса в меню ⋮",
+  "beaconHudConfirmMarkEnoughHelpTitle": "Отметить достаточно помощи?",
+  "beaconHudConfirmMarkEnoughHelpBody": "Помощники увидят, что помощи достаточно. Запрос остаётся открытым, пока вы не завершите или не закроете его.",
+  "beaconHudConfirmMarkEnoughHelpAction": "Помощи достаточно",
+  "beaconHudConfirmCloseNowTitle": "Закрыть запрос сейчас?",
+  "beaconHudConfirmCloseNowBody": "Закрывает запрос немедленно. Чат остаётся только для чтения.",
+  "beaconHudConfirmCloseNowBlockedBody": "Закрытие доступно, когда все обязательные рецензенты завершили или пропустили отзыв.",
+  "beaconHudConfirmCloseNowAction": "Закрыть сейчас",
+  "beaconHudConfirmChangeLaterInStatus": "Изменить позже в «Статус запроса»",
+  "helpOfferAdmissionAcceptHint": "Добавляет {name} в чат",
+  "@helpOfferAdmissionAcceptHint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferAdmissionDeclineHint": "Отклоняет предложение; без доступа в чат",
+  "beaconStatusSheetAdvancedHint": "Расширенные изменения; большинству авторов достаточно кнопки выше.",
+  "beaconStatusRowOutcomeDraft": "Черновик до публикации",
+  "beaconStatusRowOutcomeOpen": "Запрос принимает новые предложения",
+  "beaconStatusRowOutcomeMoreHelp": "Просит сеть о дополнительных откликах",
+  "beaconStatusRowOutcomeEnoughHelp": "Сигнал достаточной помощи; запрос открыт",
+  "beaconStatusRowOutcomeWrappingUp": "Окно отзыва для участников",
+  "beaconStatusRowOutcomeClosed": "Запрос закрыт; чат только для чтения",
+  "beaconStatusRowOutcomeCancelled": "Запрос отменён; координация прекращена",
+  "timelineRequestStatusChanged": "{author} отметил(а) запрос как {status}",
+  "@timelineRequestStatusChanged": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "requestStatusActivityOpen": "открытый для предложений",
+  "requestStatusActivityMoreHelp": "нуждающийся в помощи",
+  "requestStatusActivityEnoughHelp": "с достаточной помощью",
+  "requestStatusActivityWrappingUp": "на завершении",
+  "requestStatusActivityClosed": "закрытый",
+  "requestStatusActivityCancelled": "отменённый",
+  "requestStatusActivityDraft": "черновик",
+  "requestStatusActivityReviewOpen": "на отзыве",
   "beaconHudNeedsResponse": "Нужен ответ",
   "beaconHudWaitingForReviews": "Ожидаем отзывы",
   "beaconCtaEditHelpOffer": "Изменить предложение помощи",

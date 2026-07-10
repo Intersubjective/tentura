@@ -52,6 +52,30 @@ String beaconStatusMenuDisabledReasonLabel(
       BeaconStatusMenuDisabledReason.terminalState => '',
     };
 
+String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRowId id) =>
+    switch (id) {
+      BeaconStatusMenuRowId.draft => l10n.beaconStatusRowOutcomeDraft,
+      BeaconStatusMenuRowId.open => l10n.beaconStatusRowOutcomeOpen,
+      BeaconStatusMenuRowId.moreHelp => l10n.beaconStatusRowOutcomeMoreHelp,
+      BeaconStatusMenuRowId.enoughHelp => l10n.beaconStatusRowOutcomeEnoughHelp,
+      BeaconStatusMenuRowId.wrappingUp => l10n.beaconStatusRowOutcomeWrappingUp,
+      BeaconStatusMenuRowId.closed => l10n.beaconStatusRowOutcomeClosed,
+      BeaconStatusMenuRowId.cancelled => l10n.beaconStatusRowOutcomeCancelled,
+    };
+
+/// User-facing request status label for activity timeline entries (status only).
+String requestStatusActivityLabel(L10n l10n, BeaconStatus status) =>
+    switch (status) {
+      BeaconStatus.draft => l10n.requestStatusActivityDraft,
+      BeaconStatus.open => l10n.requestStatusActivityOpen,
+      BeaconStatus.needsMoreHelp => l10n.requestStatusActivityMoreHelp,
+      BeaconStatus.enoughHelp => l10n.requestStatusActivityEnoughHelp,
+      BeaconStatus.reviewOpen => l10n.requestStatusActivityReviewOpen,
+      BeaconStatus.closed => l10n.requestStatusActivityClosed,
+      BeaconStatus.cancelled => l10n.requestStatusActivityCancelled,
+      BeaconStatus.deleted => l10n.beaconHudBeaconUnavailable,
+    };
+
 /// Overview / NOW detail situation state line (replaces publicStatus).
 String beaconSituationStateLine(L10n l10n, Beacon beacon) {
   return switch (beacon.status) {

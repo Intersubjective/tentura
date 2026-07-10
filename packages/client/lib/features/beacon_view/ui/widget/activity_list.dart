@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -291,9 +292,9 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       final TimelineHelpOfferWithdrawn e =>
         l10n.timelineWithdrew(e.helpOfferer.shownName),
       final TimelineBeaconCoordinationStatusChanged e =>
-        l10n.timelineBeaconCoordinationStatusChanged(
+        l10n.timelineRequestStatusChanged(
           e.author.shownName,
-          coordinationStatusLabel(l10n, e.status),
+          requestStatusActivityLabel(l10n, e.status),
         ),
       final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
     };

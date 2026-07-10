@@ -8,12 +8,14 @@ class BeaconHudActionButton extends StatelessWidget {
     super.key,
     this.onPressed,
     this.filled = false,
+    this.minimumSize,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
   final bool filled;
+  final Size? minimumSize;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,7 @@ class BeaconHudActionButton extends StatelessWidget {
           textStyle: labelStyle,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           visualDensity: VisualDensity.compact,
+          minimumSize: minimumSize,
         ),
       );
     }
@@ -46,6 +49,7 @@ class BeaconHudActionButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         visualDensity: VisualDensity.compact,
+        minimumSize: minimumSize,
       ),
     );
   }

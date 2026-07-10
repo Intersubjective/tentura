@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -204,26 +205,16 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   if (state.isBeaconMine) {
-    if (state.unansweredHelpOffersCount > 0) {
-      return l10n.beaconHudYouAuthorReview(state.unansweredHelpOffersCount);
-    }
-    final blockerTitle = state.beaconRoomCue?.openBlockerTitle?.trim();
-    if (blockerTitle != null && blockerTitle.isNotEmpty) {
-      return l10n.beaconHudYouAuthorResolveBlocker;
-    }
-    if (beacon.status == BeaconStatus.open) {
-      switch (computeClosureReadiness(state)) {
-        case BeaconClosureReadiness.readyToClose:
-          return l10n.beaconHudYouAuthorReadyToClose;
-        case BeaconClosureReadiness.waitingForReview:
-          return l10n.beaconHudYouAuthorReviewBeforeClose;
-        case BeaconClosureReadiness.premature:
-          return l10n.beaconHudYouAuthorCoordinationActive;
-        case BeaconClosureReadiness.blocked:
-          return l10n.beaconHudYouAuthorResolveBlocker;
-        case BeaconClosureReadiness.notCloseable:
-          break;
+    final act = deriveBeaconHudAuthorAction(state);
+    if (act == null) {
+      if (beacon.status == BeaconStatus.reviewOpen) {
+        return l10n.beaconHudWaitingForReviews;
       }
+      if (authorHudShowsStatusOverflowFallback(state)) {
+        return l10n.beaconHudYouChangeStatusInOverflow;
+      }
+    } else {
+      return _authorYouSituationLine(l10n, state, act);
     }
     return l10n.beaconHudYouAuthorIdle;
   }
@@ -252,6 +243,32 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   return l10n.beaconHudYouNoAction;
+}
+
+String _authorYouSituationLine(
+  L10n l10n,
+  BeaconViewState state,
+  BeaconHudAuthorAction act,
+) {
+  return switch (act) {
+    BeaconHudAuthorAction.reviewOffers =>
+      l10n.beaconHudYouAuthorReview(state.unansweredHelpOffersCount),
+    BeaconHudAuthorAction.resolveBlocker => () {
+      final blockerTitle = state.beaconRoomCue?.openBlockerTitle?.trim();
+      if (blockerTitle != null && blockerTitle.isNotEmpty) {
+        return blockerTitle;
+      }
+      return l10n.beaconHudYouAuthorResolveBlocker;
+    }(),
+    BeaconHudAuthorAction.markEnoughHelp =>
+      l10n.beaconHudYouAuthorCoordinationActive,
+    BeaconHudAuthorAction.forward => l10n.beaconHudYouForward,
+    BeaconHudAuthorAction.wrapUpForReview ||
+    BeaconHudAuthorAction.closeNow =>
+      l10n.beaconHudYouAuthorReadyToClose,
+    BeaconHudAuthorAction.reviewContributions =>
+      l10n.beaconHudYouAuthorReviewBeforeClose,
+  };
 }
 
 String? _myNextMoveText(BeaconViewState state) {

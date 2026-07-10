@@ -220,6 +220,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                               onActivatePeopleAttention:
                                   onActivatePeopleTabAttention,
                               onFocusCoordinationItem: onFocusCoordinationItem,
+                              onOpenItemsTab: () => _setTab(kBeaconTabItems),
                               onEnterRoomSurface: onEnterRoomSurface,
                             ),
                           )
