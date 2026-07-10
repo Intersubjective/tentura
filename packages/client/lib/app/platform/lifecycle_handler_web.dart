@@ -30,9 +30,12 @@ class _LifecycleHandlerState extends State<LifecycleHandler> {
   }
 
   @override
-  Future<void> dispose() async {
-    await _webEvents.cancel();
-    return super.dispose();
+  void dispose() {
+    // dispose() must stay synchronous and end in super.dispose(); an async
+    // override returns at the first await and trips the framework's
+    // "failed to call super.dispose" assert when the tree is finalized.
+    unawaited(_webEvents.cancel());
+    super.dispose();
   }
 
   @override

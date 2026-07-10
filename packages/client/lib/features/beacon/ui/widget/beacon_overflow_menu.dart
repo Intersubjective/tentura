@@ -108,9 +108,13 @@ class BeaconOverflowMenu extends StatelessWidget {
     void add(String value, IconData icon, String label) {
       entries.add(
         PopupMenuItem<String>(
-          key: value == 'close_beacon'
-              ? TestIds.key(TestIds.beaconOverflowClose)
-              : null,
+          key: switch (value) {
+            'close_beacon' => TestIds.key(TestIds.beaconOverflowClose),
+            'request_status' => TestIds.key(
+              TestIds.beaconOverflowRequestStatus,
+            ),
+            _ => null,
+          },
           value: value,
           child: _beaconOverflowMenuRow(context, icon, label),
         ),

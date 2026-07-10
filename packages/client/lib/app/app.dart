@@ -51,7 +51,9 @@ class App extends StatelessWidget {
     // post-frame tick can still race deep-link / first-frame pointer delivery; two
     // ticks avoids hit-testing the root Semantics node before constraints exist.
     // Disabled in release / ENV=prod — see [kEnableWebSemantics].
-    if (kEnableWebSemantics) {
+    // Skipped in integration-test mode: the handle is never disposed, which
+    // fails flutter_test's end-of-test SemanticsHandle verification.
+    if (kEnableWebSemantics && !kQaIntegrationTestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           SemanticsBinding.instance.ensureSemantics();

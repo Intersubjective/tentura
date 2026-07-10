@@ -123,14 +123,39 @@ Future<void> pumpUntil(
       return;
     }
   }
+  _dumpScreenTexts();
   throw TimeoutException('Timed out waiting for condition');
+}
+
+/// Prints the current route and on-screen texts so a timed-out wait explains
+/// what the app was actually showing.
+void _dumpScreenTexts() {
+  final texts = find
+      .byType(Text)
+      .evaluate()
+      .map((e) => (e.widget as Text).data ?? '<rich>')
+      .where((t) => t.trim().isNotEmpty)
+      .take(40)
+      .join(' | ');
+  debugPrint(
+    '[e2e] TIMEOUT url=${GetIt.I<RootRouter>().currentUrl} texts: $texts',
+  );
+}
+
+/// `.first`-style finders throw StateError instead of returning an empty set.
+bool finderHasMatch(Finder finder) {
+  try {
+    return finder.evaluate().isNotEmpty;
+  } on StateError {
+    return false;
+  }
 }
 
 Future<void> pumpUntilVisible(
   WidgetTester tester,
   Finder finder, {
   Duration timeout = const Duration(seconds: 20),
-}) => pumpUntil(tester, () => finder.evaluate().isNotEmpty, timeout: timeout);
+}) => pumpUntil(tester, () => finderHasMatch(finder), timeout: timeout);
 
 Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // finder.description, not $finder: toString() evaluates the finder and
@@ -231,6 +256,20 @@ Future<void> openRequestFromInbox(
   await tapAndSettle(tester, find.text(requestTitle).first);
 }
 
+Future<bool> tryPumpUntilVisible(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  try {
+    await pumpUntil(tester, () => finder.evaluate().isNotEmpty,
+        timeout: timeout);
+    return true;
+  } on TimeoutException {
+    return false;
+  }
+}
+
 Future<void> acceptHelpOffer(
   WidgetTester tester, {
   required IntegrationFixture fixture,
@@ -239,13 +278,27 @@ Future<void> acceptHelpOffer(
   await loginAs(tester, fixture.authorEmail);
   await openRequestFromMyWork(tester, requestTitle: requestTitle);
   final peopleTab = find.byKey(TestIds.key(TestIds.beaconTabPeople));
-  if (peopleTab.evaluate().isNotEmpty) {
+  if (await tryPumpUntilVisible(tester, peopleTab)) {
     await tapAndSettle(tester, peopleTab.first);
   }
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.helpOfferAccept(fixture.helperUserId))),
+  final accept = find.byKey(
+    TestIds.key(TestIds.helpOfferAccept(fixture.helperUserId)),
   );
+  final remove = find.byKey(
+    TestIds.key(TestIds.helpOfferRemove(fixture.helperUserId)),
+  );
+  // Direct-forward recipients are auto-admitted (admit/decline
+  // simplification): their card shows only "Remove from chat". Treat an
+  // already-admitted helper as accepted.
+  await pumpUntil(
+    tester,
+    () => accept.evaluate().isNotEmpty || remove.evaluate().isNotEmpty,
+  );
+  if (accept.evaluate().isNotEmpty) {
+    await tapAndSettle(tester, accept);
+  } else {
+    debugPrint('[e2e] acceptHelpOffer: already admitted (auto-admit)');
+  }
 }
 
 Future<void> removeHelperFromChat(
@@ -256,11 +309,15 @@ Future<void> removeHelperFromChat(
     tester,
     find.byKey(TestIds.key(TestIds.helpOfferRemove(fixture.helperUserId))),
   );
-  await tester.enterText(
-    find.byType(TextField).last,
-    'Integration cleanup',
+  // Remove opens HelpOfferAdmissionReasonDialog; a non-empty reason enables OK.
+  final reasonField = find.byKey(TestIds.key(TestIds.admissionReasonInput));
+  await pumpUntilVisible(tester, reasonField);
+  await tester.enterText(reasonField, 'Integration cleanup');
+  await tester.pumpAndSettle();
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.admissionReasonSubmit)),
   );
-  await tapAndSettle(tester, find.text('OK').last);
 }
 
 Future<void> enterChatIfNeeded(WidgetTester tester) async {
@@ -341,19 +398,51 @@ Future<void> resolveFirstCoordinationItem(WidgetTester tester) async {
   await tapAndSettle(tester, find.text('Resolve').last);
 }
 
+Finder _hudAction(String action) =>
+    find.byKey(TestIds.key(TestIds.beaconHudAuthorAction(action)));
+
 Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
-  await tapAndSettle(
+  // The author closes via the operational HUD primary action (not the overflow
+  // menu). The HUD is a small state machine that depends on closure readiness:
+  //   markEnoughHelp → wrapUpForReview → (close) → reviewContributions.
+  // Drive it until the review screen is reached, handling whichever action the
+  // HUD currently offers.
+  await pumpUntil(
     tester,
-    find.byKey(TestIds.key(TestIds.beaconOverflowMenu)).first,
+    () =>
+        finderHasMatch(_hudAction('markEnoughHelp')) ||
+        finderHasMatch(_hudAction('wrapUpForReview')) ||
+        finderHasMatch(_hudAction('reviewContributions')),
+    timeout: const Duration(seconds: 30),
   );
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.beaconOverflowClose)).first,
-  );
+
+  if (finderHasMatch(_hudAction('markEnoughHelp'))) {
+    await tapAndSettle(tester, _hudAction('markEnoughHelp').first);
+    await tapAndSettle(
+      tester,
+      find.byKey(TestIds.key(TestIds.beaconHudMarkEnoughHelpConfirm)),
+    );
+    await pumpUntilVisible(
+      tester,
+      _hudAction('wrapUpForReview'),
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  await tapAndSettle(tester, _hudAction('wrapUpForReview').first);
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.beaconCloseConfirm)).first,
   );
+
+  // Close completes → review window opens → HUD offers review contributions.
+  await pumpUntilVisible(
+    tester,
+    _hudAction('reviewContributions'),
+    timeout: const Duration(seconds: 30),
+  );
+  await tapAndSettle(tester, _hudAction('reviewContributions').first);
+
   await pumpUntilVisible(
     tester,
     find.byKey(TestIds.key(TestIds.evaluationSubmit)),

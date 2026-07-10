@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 Future<void> showBeaconViewUpdateStatusSheet(
   BuildContext context,
@@ -171,6 +172,7 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
+          key: TestIds.key(TestIds.beaconStatusRow(row.id.name)),
           enabled: row.isEnabled && !isLoading,
           leading: row.isSelected
               ? Icon(Icons.check, size: tt.iconSize, color: scheme.primary)

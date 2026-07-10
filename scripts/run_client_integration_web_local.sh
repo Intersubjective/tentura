@@ -128,7 +128,7 @@ for target in "${TARGETS[@]}"; do
     --browser-name=chrome \
     --dart-define-from-file=env/integration-web.env \
     --dart-define=QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
-    --dart-define=QA_DISABLE_WEB_REDIRECTS=true; then
+    --dart-define=QA_INTEGRATION_TEST_MODE=true; then
     log "PASS: $target"
   else
     log "FAIL: $target"

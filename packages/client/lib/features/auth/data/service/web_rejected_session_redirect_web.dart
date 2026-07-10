@@ -10,7 +10,7 @@ const _publicInviteFallback = '/invite/';
 
 /// After a rejected browser session bootstrap, navigate to landing.
 void reloadAfterRejectedSession({required bool clearAcknowledged}) {
-  if (kQaDisableWebRedirects) {
+  if (kQaIntegrationTestMode) {
     return;
   }
   if (!shouldBounceRejectedSessionToLanding(
@@ -46,7 +46,7 @@ void clearStaleSessionBrowserGuard() {
 /// `/` uses cookie-presence routing — a lingering session cookie would reload
 /// WASM instead of the landing surface. `/invite/` is always landing HTML.
 void redirectAfterSignOut({required bool clearAcknowledged}) {
-  if (kQaDisableWebRedirects) {
+  if (kQaIntegrationTestMode) {
     return;
   }
   web.window.location.assign(_publicInviteFallback);

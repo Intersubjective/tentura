@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class HelpOfferAdmissionReasonDialog extends StatefulWidget {
   const HelpOfferAdmissionReasonDialog({
@@ -82,6 +83,7 @@ class _HelpOfferAdmissionReasonDialogState
             ),
             SizedBox(height: tt.sectionGap),
             TextField(
+              key: TestIds.key(TestIds.admissionReasonInput),
               autofocus: true,
               controller: _controller,
               maxLines: 4,
@@ -103,6 +105,7 @@ class _HelpOfferAdmissionReasonDialogState
             SizedBox(
               width: double.infinity,
               child: FilledButton(
+                key: TestIds.key(TestIds.admissionReasonSubmit),
                 onPressed: _canSubmit ? _submit : null,
                 child: Text(l10n.buttonOk),
               ),

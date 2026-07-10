@@ -43,7 +43,9 @@ void main() {
 
     await logout(tester);
     await loginAs(tester, fixture.helperEmail);
-    await openRequestFromInbox(tester, requestTitle: title);
+    // After offering help the request moves from Inbox to the helper's
+    // My Work (involved) list.
+    await openRequestFromMyWork(tester, requestTitle: title);
     await sendRoomMessage(tester, 'Integration test room message');
 
     await createCoordinationItem(

@@ -16,14 +16,14 @@ import '../../features/auth/data/service/web_rejected_session_redirect.dart';
 final class AuthPlatformCleanup implements AuthPlatformCleanupPort {
   @override
   AuthRecoveryNavigation get signOutNavigationTarget => kIsWeb
-      ? (kQaDisableWebRedirects
+      ? (kQaIntegrationTestMode
             ? AuthRecoveryNavigation.none
             : AuthRecoveryNavigation.webInviteLanding)
       : AuthRecoveryNavigation.nativeBack;
 
   @override
   AuthRecoveryNavigation get resetNavigationTarget => kIsWeb
-      ? (kQaDisableWebRedirects
+      ? (kQaIntegrationTestMode
             ? AuthRecoveryNavigation.none
             : AuthRecoveryNavigation.webInviteLanding)
       : AuthRecoveryNavigation.nativeLogin;

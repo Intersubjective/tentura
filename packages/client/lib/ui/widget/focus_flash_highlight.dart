@@ -41,10 +41,17 @@ class FocusFlashHighlight extends StatefulWidget {
 
 class _FocusFlashHighlightState extends State<FocusFlashHighlight>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1600),
-  );
+  // Nullable, created on first use — NOT `late final`: a lazy initializer
+  // first touched from dispose() would call createTicker → TickerMode
+  // ancestor lookup on a deactivated element and throw ("Looking up a
+  // deactivated widget's ancestor is unsafe").
+  AnimationController? _controllerOrNull;
+
+  AnimationController get _controller => _controllerOrNull ??=
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1600),
+      );
 
   @override
   void initState() {
@@ -103,7 +110,7 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controllerOrNull?.dispose();
     super.dispose();
   }
 

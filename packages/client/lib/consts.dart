@@ -110,12 +110,17 @@ const kBeaconAllowForceCloseWhenBlocked = false;
 /// First part of FQDN: `https://dev.tentura.io` (single public origin).
 const kServerName = String.fromEnvironment('SERVER_NAME');
 
-/// QA/integration-test only: suppress web top-level navigations to the static
-/// landing (unauthenticated bounce, post-sign-out redirect). Those unload the
-/// page, which kills an `integration_test` run mid-flight. Set via
-/// `--dart-define=QA_DISABLE_WEB_REDIRECTS=true`; never in production builds.
-const kQaDisableWebRedirects = bool.fromEnvironment(
-  'QA_DISABLE_WEB_REDIRECTS',
+/// True when the app runs under `integration_test` (flutter drive). Set via
+/// `--dart-define=QA_INTEGRATION_TEST_MODE=true`; never in production builds.
+///
+/// Effects:
+/// - web top-level navigations to the static landing (unauthenticated bounce,
+///   post-sign-out redirect) are suppressed — they unload the page, which
+///   kills an integration_test run mid-flight;
+/// - the startup `ensureSemantics()` call is skipped — its SemanticsHandle is
+///   never disposed, which fails flutter_test's end-of-test verification.
+const kQaIntegrationTestMode = bool.fromEnvironment(
+  'QA_INTEGRATION_TEST_MODE',
 );
 
 /// Share URL for invitation codes — `/invite/I…` on the public origin.

@@ -49,15 +49,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     child: BlocSelector<AuthCubit, AuthState, String>(
       bloc: GetIt.I<AuthCubit>(),
       selector: (state) => state.currentAccountId,
-      builder: (_, accountId) {
-        final home = KeyedSubtree(key: _shellSubtreeKey, child: this);
-        if (accountId.isEmpty) return home;
-        return BlocProvider(
-          key: ValueKey(accountId),
-          create: (_) => InboxCubit(userId: accountId),
-          child: InboxNeedsMeReporter(child: home),
-        );
-      },
+      builder: (_, accountId) => _InboxScope(
+        accountId: accountId,
+        child: KeyedSubtree(key: _shellSubtreeKey, child: this),
+      ),
     ),
   );
 
@@ -248,6 +243,43 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Provides the account-scoped [InboxCubit] and keeps the **last** account's
+/// cubit alive while [accountId] is transiently empty (sign-out / account
+/// switch). The kept-alive tab shell above still holds account-scoped screens
+/// (Inbox); rebuilding them without `Provider<InboxCubit>` throws before the
+/// router replaces the Home route. Prod web never sees that window — sign-out
+/// unloads the page — but in-place sign-out (native, integration tests) does.
+class _InboxScope extends StatefulWidget {
+  const _InboxScope({
+    required this.accountId,
+    required this.child,
+  });
+
+  final String accountId;
+  final Widget child;
+
+  @override
+  State<_InboxScope> createState() => _InboxScopeState();
+}
+
+class _InboxScopeState extends State<_InboxScope> {
+  var _lastAccountId = '';
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.accountId.isNotEmpty) {
+      _lastAccountId = widget.accountId;
+    }
+    final id = _lastAccountId;
+    if (id.isEmpty) return widget.child;
+    return BlocProvider(
+      key: ValueKey(id),
+      create: (_) => InboxCubit(userId: id),
+      child: InboxNeedsMeReporter(child: widget.child),
     );
   }
 }

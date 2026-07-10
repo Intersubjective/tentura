@@ -43,9 +43,24 @@ abstract final class TestIds {
   static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';
   static String helpOfferRemove(String userId) => 'help_offer.$userId.remove';
 
+  static const admissionReasonInput = 'help_offer.admission_reason.input';
+  static const admissionReasonSubmit = 'help_offer.admission_reason.submit';
+
   static const beaconOverflowMenu = 'beacon.overflow.menu';
   static const beaconOverflowClose = 'beacon.overflow.close';
+  static const beaconOverflowRequestStatus = 'beacon.overflow.request_status';
   static const beaconCloseConfirm = 'beacon.close.confirm';
+
+  /// Status bottom-sheet row, keyed by [BeaconStatusMenuRowId.name].
+  static String beaconStatusRow(String rowId) => 'beacon.status_row.$rowId';
+
+  /// Author HUD primary action, keyed by [BeaconHudAuthorAction.name]
+  /// (e.g. `wrapUpForReview`, `reviewContributions`, `closeNow`).
+  static String beaconHudAuthorAction(String action) =>
+      'beacon.hud_author_action.$action';
+
+  static const beaconHudMarkEnoughHelpConfirm =
+      'beacon.hud.mark_enough_help.confirm';
 
   static String evaluationParticipant(String userId) =>
       'evaluation.participant.$userId';
