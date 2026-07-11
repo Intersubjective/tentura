@@ -23,6 +23,11 @@ void main() {
       EvaluationTrustSelectionX.fromEvaluationValue(null),
       EvaluationTrustSelection.unselected,
     );
+    // Legacy "no basis" saves fold into the merged "no trust change" option.
+    expect(
+      EvaluationTrustSelectionX.fromEvaluationValue(EvaluationValue.noBasis),
+      EvaluationTrustSelection.zero,
+    );
     expect(
       EvaluationTrustSelection.pos2.evaluationValue,
       EvaluationValue.pos2,
@@ -152,7 +157,7 @@ void main() {
       onSave: (_, __, ___, ____) async => false,
     );
 
-    await evaluationSelectNoBasis(tester);
+    await evaluationSelectNoChange(tester);
     await evaluationScrollAndTap(tester, find.text('Save'));
 
     expect(find.byType(BottomSheet), findsOneWidget);
@@ -165,7 +170,7 @@ void main() {
       onSave: (_, __, ___, ____) async => true,
     );
 
-    await evaluationSelectNoBasis(tester);
+    await evaluationSelectNoChange(tester);
     await evaluationScrollAndTap(tester, find.text('Save'));
 
     expect(find.byType(BottomSheet), findsNothing);
@@ -184,7 +189,7 @@ void main() {
       },
     );
 
-    await evaluationSelectNoBasis(tester);
+    await evaluationSelectNoChange(tester);
     await tester.ensureVisible(find.text('Save'));
     await tester.tap(find.text('Save'));
     await tester.pump();

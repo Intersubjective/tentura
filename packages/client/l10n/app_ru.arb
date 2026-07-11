@@ -2867,8 +2867,6 @@
   },
   "evaluationSubmitFinish": "Отправить и завершить",
   "evaluationSkipForNow": "Пропустить",
-  "evaluationAllNoBasisConfirmTitle": "Сохранено",
-  "evaluationAllNoBasisConfirmBody": "Этот запрос всё равно поможет откалибровать ваше локальное представление.",
   "evaluationProgress": "{reviewed} из {total} оценено",
   "@evaluationProgress": {
     "placeholders": {
@@ -2899,7 +2897,6 @@
       }
     }
   },
-  "evaluationTrustNoBasisContribution": "Недостаточно оснований для оценки этого вклада",
   "evaluationTrustNoChangeContribution": "Этот вклад не изменил моё доверие",
   "evaluationTrustDecreasedContribution": "Моё доверие к этому человеку уменьшилось",
   "evaluationTrustIncreasedContribution": "Моё доверие к этому человеку увеличилось",

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_trust_selection.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Contribution-grounded two-step trust picker (fully controlled).
 class EvaluationTrustControl extends StatelessWidget {
@@ -43,18 +44,20 @@ class EvaluationTrustControl extends StatelessWidget {
         ),
         SizedBox(height: tt.rowGap),
         _TrustOptionTile(
-          label: l10n.evaluationTrustNoBasisContribution,
-          icon: Icons.help_outline,
-          selected: selection == EvaluationTrustSelection.noBasis,
-          onTap: () => onChanged(EvaluationTrustSelection.noBasis),
-        ),
-        _TrustOptionTile(
+          key: TestIds.key(
+            TestIds.evaluationTrustOption(EvaluationTrustSelection.zero.name),
+          ),
           label: l10n.evaluationTrustNoChangeContribution,
           icon: Icons.remove,
           selected: selection == EvaluationTrustSelection.zero,
           onTap: () => onChanged(EvaluationTrustSelection.zero),
         ),
         _TrustOptionTile(
+          key: TestIds.key(
+            TestIds.evaluationTrustOption(
+              EvaluationTrustSelection.decreasePending.name,
+            ),
+          ),
           label: l10n.evaluationTrustDecreasedContribution,
           icon: Icons.trending_down,
           iconColor: tt.danger,
@@ -62,6 +65,11 @@ class EvaluationTrustControl extends StatelessWidget {
           onTap: () => onChanged(EvaluationTrustSelection.decreasePending),
         ),
         _TrustOptionTile(
+          key: TestIds.key(
+            TestIds.evaluationTrustOption(
+              EvaluationTrustSelection.increasePending.name,
+            ),
+          ),
           label: l10n.evaluationTrustIncreasedContribution,
           icon: Icons.trending_up,
           iconColor: tt.good,
@@ -103,6 +111,7 @@ class EvaluationTrustControl extends StatelessWidget {
               final lotRequiresReason = true;
 
               final littleTile = _IntensityOption(
+                key: TestIds.key(TestIds.evaluationTrustIntensityLittle),
                 label: l10n.evaluationTrustIntensityLittle,
                 requiresReason: littleRequiresReason,
                 reasonRequiredLabel: l10n.evaluationTrustIntensityReasonRequired,
@@ -110,6 +119,7 @@ class EvaluationTrustControl extends StatelessWidget {
                 onTap: () => onChanged(little),
               );
               final lotTile = _IntensityOption(
+                key: TestIds.key(TestIds.evaluationTrustIntensityLot),
                 label: l10n.evaluationTrustIntensityLot,
                 requiresReason: lotRequiresReason,
                 reasonRequiredLabel: l10n.evaluationTrustIntensityReasonRequired,
@@ -169,8 +179,6 @@ class EvaluationTrustControl extends StatelessWidget {
     String name,
   ) =>
       switch (value) {
-        EvaluationTrustSelection.noBasis =>
-          l10n.evaluationTrustPreviewNoBasis(name),
         EvaluationTrustSelection.zero =>
           l10n.evaluationTrustPreviewZero(name),
         EvaluationTrustSelection.neg1 =>
@@ -192,6 +200,7 @@ class _TrustOptionTile extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.iconColor,
+    super.key,
   });
 
   final String label;
@@ -226,6 +235,7 @@ class _IntensityOption extends StatelessWidget {
     required this.reasonRequiredLabel,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final String label;

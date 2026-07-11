@@ -25,10 +25,10 @@ Future<void> evaluationScrollAndTap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> evaluationSelectNoBasis(WidgetTester tester) async {
+Future<void> evaluationSelectNoChange(WidgetTester tester) async {
   await evaluationScrollAndTap(
     tester,
-    find.text('Not enough basis to judge this contribution'),
+    find.text('This contribution did not change my trust'),
   );
 }
 

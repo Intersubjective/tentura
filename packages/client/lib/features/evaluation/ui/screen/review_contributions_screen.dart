@@ -44,35 +44,6 @@ class ReviewContributionsScreen extends StatelessWidget
     child: this,
   );
 
-  Future<void> _onSubmitFinish(
-    BuildContext context,
-    EvaluationCubit cubit,
-    EvaluationState state,
-  ) async {
-    final l10n = L10n.of(context)!;
-    final allNoBasis =
-        state.participants.isNotEmpty &&
-        state.participants.every(
-          (p) => p.currentValue == EvaluationValue.noBasis,
-        );
-    if (allNoBasis && context.mounted) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.evaluationAllNoBasisConfirmTitle),
-          content: Text(l10n.evaluationAllNoBasisConfirmBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
-            ),
-          ],
-        ),
-      );
-    }
-    await cubit.finalize();
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -183,13 +154,7 @@ class ReviewContributionsScreen extends StatelessWidget
                                 style: actionButtonStyle,
                                 onPressed: state.isLoading
                                     ? null
-                                    : () => draft
-                                          ? cubit.finalize()
-                                          : _onSubmitFinish(
-                                              context,
-                                              cubit,
-                                              state,
-                                            ),
+                                    : cubit.finalize,
                                 child: Text(
                                   draft
                                       ? l10n.evaluationDraftDone

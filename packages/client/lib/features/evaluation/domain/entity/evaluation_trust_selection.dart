@@ -3,7 +3,6 @@ import 'evaluation_value.dart';
 /// UI selection state for the contribution-grounded trust control.
 enum EvaluationTrustSelection {
   unselected,
-  noBasis,
   zero,
   decreasePending,
   neg1,
@@ -48,7 +47,6 @@ extension EvaluationTrustSelectionX on EvaluationTrustSelection {
       };
 
   EvaluationValue? get evaluationValue => switch (this) {
-        EvaluationTrustSelection.noBasis => EvaluationValue.noBasis,
         EvaluationTrustSelection.zero => EvaluationValue.zero,
         EvaluationTrustSelection.neg1 => EvaluationValue.neg1,
         EvaluationTrustSelection.neg2 => EvaluationValue.neg2,
@@ -62,8 +60,11 @@ extension EvaluationTrustSelectionX on EvaluationTrustSelection {
       return EvaluationTrustSelection.unselected;
     }
     return switch (value) {
-      EvaluationValue.noBasis => EvaluationTrustSelection.noBasis,
-      EvaluationValue.zero => EvaluationTrustSelection.zero,
+      // Legacy "no basis to judge" saves fold into "no trust change": both
+      // leave trust untouched, and the picker no longer offers them apart.
+      EvaluationValue.noBasis ||
+      EvaluationValue.zero =>
+        EvaluationTrustSelection.zero,
       EvaluationValue.neg1 => EvaluationTrustSelection.neg1,
       EvaluationValue.neg2 => EvaluationTrustSelection.neg2,
       EvaluationValue.pos1 => EvaluationTrustSelection.pos1,

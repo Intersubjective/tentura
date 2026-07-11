@@ -67,5 +67,14 @@ abstract final class TestIds {
   static const evaluationSave = 'evaluation.save';
   static const evaluationSubmit = 'evaluation.submit';
 
+  /// Trust category tile, keyed by [EvaluationTrustSelection.name] of the
+  /// option it selects (`zero`, `decreasePending`, `increasePending`).
+  static String evaluationTrustOption(String selection) =>
+      'evaluation.trust.$selection';
+  static const evaluationTrustIntensityLittle =
+      'evaluation.trust.intensity.little';
+  static const evaluationTrustIntensityLot = 'evaluation.trust.intensity.lot';
+  static String evaluationReasonChip(String slug) => 'evaluation.reason.$slug';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

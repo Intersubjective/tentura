@@ -449,6 +449,9 @@ class _EvaluationDetailSheetBodyState
                           children: [
                             for (final t in pool)
                               FilterChip(
+                                key: TestIds.key(
+                                  TestIds.evaluationReasonChip(t),
+                                ),
                                 label: Text(
                                   _tagLabelBySlug[t] ??
                                       l10n.evaluationReasonUnknown,

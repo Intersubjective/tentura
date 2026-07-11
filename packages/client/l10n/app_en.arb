@@ -2871,8 +2871,6 @@
   },
   "evaluationSubmitFinish": "Submit and finish",
   "evaluationSkipForNow": "Skip for now",
-  "evaluationAllNoBasisConfirmTitle": "Saved",
-  "evaluationAllNoBasisConfirmBody": "This request will still help calibrate your local view.",
   "evaluationProgress": "{reviewed} of {total} reviewed",
   "@evaluationProgress": {
     "placeholders": {
@@ -2903,7 +2901,6 @@
       }
     }
   },
-  "evaluationTrustNoBasisContribution": "Not enough basis to judge this contribution",
   "evaluationTrustNoChangeContribution": "This contribution did not change my trust",
   "evaluationTrustDecreasedContribution": "My trust in this person decreased",
   "evaluationTrustIncreasedContribution": "My trust in this person increased",

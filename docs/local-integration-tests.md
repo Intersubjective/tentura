@@ -24,13 +24,14 @@ Hasura + Tentura API). They are not widget tests with mocks — they create real
 beacons, forward them, offer/admit help, chat, and close/review, asserting on
 real UI and real data.
 
-Three scenarios (each its own `flutter drive` process):
+Four scenarios (each its own `flutter drive` process):
 
 | File | Scenario |
 |---|---|
 | `request_lifecycle_create_forward_inbox_test.dart` | create a request, publish, forward to a helper, confirm it reaches their inbox |
 | `request_lifecycle_offer_admit_chat_test.dart` | offer help, admit, chat, create/resolve coordination items, remove from chat |
 | `request_lifecycle_close_review_test.dart` | close a request (wrap-up-for-review) and complete the contribution review |
+| `request_lifecycle_review_trust_control_test.dart` | post-close review two-step trust control: save validation gates (category → intensity → reason), trust-impact preview, saved status on the participant list |
 
 Shared helpers: `integration_test/support/e2e_test_helpers.dart`.
 Test IDs used to find widgets: `packages/client/lib/ui/test_ids.dart`.

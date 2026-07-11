@@ -162,6 +162,10 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // throws "Bad state: No element" for empty `.first`-style finders.
   debugPrint('[e2e] tapAndSettle(${finder.description})');
   await pumpUntilVisible(tester, finder);
+  // Long scrollables (e.g. the evaluation sheet) can keep the target off
+  // screen; ensureVisible is a no-op without a Scrollable ancestor.
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
   await tester.tap(finder);
   await tester.pumpAndSettle();
   debugPrint('[e2e] tapAndSettle(${finder.description}): done');
@@ -449,16 +453,28 @@ Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
   );
 }
 
-Future<void> reviewParticipant(WidgetTester tester, String userId) async {
+Future<void> reviewParticipant(
+  WidgetTester tester,
+  String userId, {
+  // EvaluationTrustSelection.name of the category to pick; `zero` needs no
+  // intensity step and no reason tag, so Save succeeds right away.
+  String trustOption = 'zero',
+}) async {
   final tile = find.byKey(TestIds.key(TestIds.evaluationParticipant(userId)));
   if (tile.evaluate().isEmpty) {
     return;
   }
   await tapAndSettle(tester, tile.first);
+  // The trust control validates on Save: a completed selection is required
+  // before the sheet closes.
   await tapAndSettle(
     tester,
-    find.byKey(TestIds.key(TestIds.evaluationSave)),
+    find.byKey(TestIds.key(TestIds.evaluationTrustOption(trustOption))),
   );
+  final saveButton = find.byKey(TestIds.key(TestIds.evaluationSave));
+  await tapAndSettle(tester, saveButton);
+  // The sheet pops only when the save round-trip succeeded.
+  await pumpUntil(tester, () => saveButton.evaluate().isEmpty);
 }
 
 Future<Map<String, dynamic>> _postJson(

@@ -22,7 +22,7 @@ void main() {
         onSave: (_, __, ___, ____) async => true,
       );
 
-      await evaluationSelectNoBasis(tester);
+      await evaluationSelectNoChange(tester);
 
       await tester.ensureVisible(
         find.text('What did this person actually help with?'),
@@ -57,7 +57,7 @@ void main() {
         },
       );
 
-      await evaluationSelectNoBasis(tester);
+      await evaluationSelectNoChange(tester);
       await evaluationScrollAndTap(tester, find.text('Logistics'));
       await evaluationScrollAndTap(tester, find.text('Transport').first);
       await evaluationScrollAndTap(tester, find.text('Save'));
@@ -81,7 +81,7 @@ void main() {
         },
       );
 
-      await evaluationSelectNoBasis(tester);
+      await evaluationSelectNoChange(tester);
       await evaluationScrollAndTap(tester, find.text('Save'));
 
       expect(capturedAckTags, isNotNull);
@@ -103,7 +103,7 @@ void main() {
         },
       );
 
-      await evaluationSelectNoBasis(tester);
+      await evaluationSelectNoChange(tester);
       await evaluationScrollAndTap(tester, find.text('Logistics'));
       await evaluationScrollAndTap(tester, find.text('Transport').first);
       await evaluationScrollAndTap(tester, find.text('Resources'));
@@ -130,7 +130,7 @@ void main() {
         },
       );
 
-      await evaluationSelectNoBasis(tester);
+      await evaluationSelectNoChange(tester);
       await evaluationScrollAndTap(tester, find.text('Logistics'));
       await evaluationScrollAndTap(tester, find.text('Transport').first);
       await evaluationScrollAndTap(tester, find.text('Transport').first);
