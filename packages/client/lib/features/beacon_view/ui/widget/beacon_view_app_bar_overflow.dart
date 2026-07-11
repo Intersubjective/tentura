@@ -242,8 +242,10 @@ Future<void> beaconViewHandleAuthorHudAction({
         onOpenItemsTab();
       }
     case BeaconHudAuthorAction.reviewOffers:
+      // [onActivatePeopleAttention] already selects People and sets attention
+      // (expands "Willing to help"). Do not call [onOpenPeopleTab] here — it
+      // routes through _setTab, which clears attention when already on People.
       onActivatePeopleAttention();
-      onOpenPeopleTab();
     case BeaconHudAuthorAction.markEnoughHelp:
       final confirmed = await showBeaconHudMarkEnoughHelpConfirmSheet(
         context: context,
