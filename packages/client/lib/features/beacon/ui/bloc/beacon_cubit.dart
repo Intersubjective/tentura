@@ -90,7 +90,7 @@ class BeaconCubit extends Cubit<BeaconState> {
       emit(
         state.copyWith(
           isMine: isMine,
-          beacons: reset ? beacons : (state.beacons..addAll(beacons)),
+          beacons: reset ? beacons : [...state.beacons, ...beacons],
           hasReachedLast: beacons.length < kFetchWindowSize,
           loadError: null,
           status: StateStatus.isSuccess,

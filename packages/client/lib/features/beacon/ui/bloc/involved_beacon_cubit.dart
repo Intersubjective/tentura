@@ -71,7 +71,7 @@ class InvolvedBeaconCubit extends Cubit<InvolvedBeaconState> {
       final beacons = fetched.toList();
       emit(
         state.copyWith(
-          beacons: reset ? beacons : (state.beacons..addAll(beacons)),
+          beacons: reset ? beacons : [...state.beacons, ...beacons],
           hasReachedLast: beacons.length < kFetchWindowSize,
           loadError: null,
           status: StateStatus.isSuccess,
