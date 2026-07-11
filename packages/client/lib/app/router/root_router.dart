@@ -16,6 +16,7 @@ import 'credential_link_deep_link.dart';
 import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
 import 'notification_deep_link.dart';
+import 'recover_route_guard.dart';
 import 'root_router.gr.dart';
 
 export 'package:auto_route/auto_route.dart';
@@ -268,11 +269,16 @@ class RootRouter extends RootStackRouter {
       page: RecoverRoute.page,
       path: kPathRecover,
       guards: [
-        AutoRouteGuard.redirect((_) {
+        AutoRouteGuard.redirect((resolver) {
           if (_authCubit.state.deferAuthRedirects) {
             return null;
           }
-          return _authCubit.state.isAuthenticated ? const HomeRoute() : null;
+          if (!_authCubit.state.isAuthenticated) {
+            return null;
+          }
+          return resolveRecoverAuthenticatedRedirect(
+            inviteQuery: resolver.route.queryParams.optString('invite'),
+          );
         }),
       ],
     ),

@@ -8,7 +8,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:tentura/app/sentry/auth_telemetry.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/auth_cubit.dart';
@@ -28,35 +27,7 @@ class RecoverScreen extends StatefulWidget implements AutoRouteWrapper {
   final String? authAttemptId;
 
   @override
-  Widget wrappedRoute(BuildContext context) {
-    final inviteCode = _normalizedInviteCode(invite);
-    return BlocListener<AuthCubit, AuthState>(
-      listenWhen: (previous, current) =>
-          previous.isNotAuthenticated && current.isAuthenticated,
-      listener: (context, state) {
-        if (state.isAuthenticated) {
-          if (inviteCode != null) {
-            unawaited(
-              context.router.replaceAll([
-                AcceptInviteRoute(id: inviteCode),
-              ]),
-            );
-          } else {
-            unawaited(context.router.replaceAll([const HomeRoute()]));
-          }
-        }
-      },
-      child: this,
-    );
-  }
-
-  static String? _normalizedInviteCode(String? raw) {
-    final code = normalizeInviteCode(raw ?? '');
-    if (code.isEmpty || !isValidInviteCode(code)) {
-      return null;
-    }
-    return code;
-  }
+  Widget wrappedRoute(BuildContext context) => this;
 
   @override
   State<RecoverScreen> createState() => _RecoverScreenState();

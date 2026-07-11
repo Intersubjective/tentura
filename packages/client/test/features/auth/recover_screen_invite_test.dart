@@ -12,17 +12,8 @@ void main() {
     expect(recoverSource, contains('final String? invite;'));
   });
 
-  test('RecoverScreen navigates to accept-invite after recovery when invite valid', () {
-    expect(recoverSource, contains('AcceptInviteRoute(id: inviteCode)'));
-    expect(recoverSource, contains('isValidInviteCode'));
-    expect(recoverSource, contains('normalizeInviteCode'));
-    expect(recoverSource, contains('const HomeRoute()'));
-  });
-
-  test('RecoverScreen wrappedRoute listens for auth success', () {
-    expect(
-      recoverSource,
-      contains('previous.isNotAuthenticated && current.isAuthenticated'),
-    );
+  test('RecoverScreen does not navigate on auth success (router guard owns it)', () {
+    expect(recoverSource, isNot(contains('replaceAll([')));
+    expect(recoverSource, isNot(contains('BlocListener<AuthCubit, AuthState>')));
   });
 }

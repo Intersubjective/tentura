@@ -11,6 +11,6 @@ void main() {
     );
     expect(recoverBlock, contains('path: kPathRecover'));
     expect(recoverBlock, isNot(contains('goToLanding')));
-    expect(recoverBlock, contains('HomeRoute'));
+    expect(recoverBlock, contains('resolveRecoverAuthenticatedRedirect'));
   });
 }
