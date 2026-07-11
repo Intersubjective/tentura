@@ -1,62 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
-import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
-import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
-import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Scrolls to [finder] inside the bottom sheet's [SingleChildScrollView],
-/// then taps it.
-Future<void> _scrollAndTap(WidgetTester tester, Finder finder) async {
-  await tester.ensureVisible(finder);
-  await tester.pumpAndSettle();
-  await tester.tap(finder);
-  await tester.pumpAndSettle();
-}
-
-/// Helper: pump a minimal app that opens [showEvaluationDetailSheet]
-/// immediately via an [ElevatedButton].
-Future<void> _pumpSheet({
-  required WidgetTester tester,
-  required EvaluationParticipant participant,
-  required Future<void> Function(
-    EvaluationValue,
-    List<String>,
-    String,
-    List<String>,
-  )
-  onSave,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      locale: const Locale('en'),
-      localizationsDelegates: L10n.localizationsDelegates,
-      supportedLocales: L10n.supportedLocales,
-      theme: TenturaTheme.light(),
-      home: MediaQuery(
-        data: const MediaQueryData(size: Size(400, 900)),
-        child: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              key: const Key('open_sheet'),
-              onPressed: () => showEvaluationDetailSheet(
-                context: context,
-                participant: participant,
-                onSave: onSave,
-              ),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  await tester.tap(find.byKey(const Key('open_sheet')));
-  await tester.pumpAndSettle();
-}
+import 'evaluation_sheet_test_support.dart';
 
 void main() {
   const participant = EvaluationParticipant(
@@ -70,13 +16,14 @@ void main() {
   testWidgets(
     'close-ack section is visible inside the sheet',
     (tester) async {
-      await _pumpSheet(
+      await pumpEvaluationDetailSheet(
         tester: tester,
         participant: participant,
-        onSave: (v, tags, note, ackTags) async {},
+        onSave: (_, __, ___, ____) async => true,
       );
 
-      // Scroll to the ack prompt so it is in view.
+      await evaluationSelectNoBasis(tester);
+
       await tester.ensureVisible(
         find.text('What did this person actually help with?'),
       );
@@ -87,11 +34,9 @@ void main() {
         findsOneWidget,
       );
 
-      // Chips are inside collapsed accordion sections; expand Logistics first.
       await tester.tap(find.text('Logistics'));
       await tester.pumpAndSettle();
 
-      // "Transport" (first logistics chip) must be present somewhere in the tree.
       await tester.ensureVisible(find.text('Transport').first);
       await tester.pumpAndSettle();
       expect(find.text('Transport'), findsWidgets);
@@ -103,22 +48,19 @@ void main() {
     (tester) async {
       List<String>? capturedAckTags;
 
-      await _pumpSheet(
+      await pumpEvaluationDetailSheet(
         tester: tester,
         participant: participant,
         onSave: (v, tags, note, ackTags) async {
           capturedAckTags = ackTags;
+          return true;
         },
       );
 
-      // Expand Logistics so Transport chip exists in the tree.
-      await _scrollAndTap(tester, find.text('Logistics'));
-
-      // Scroll to Transport chip and tap it.
-      await _scrollAndTap(tester, find.text('Transport').first);
-
-      // Scroll to the Save button and tap it.
-      await _scrollAndTap(tester, find.text('Save'));
+      await evaluationSelectNoBasis(tester);
+      await evaluationScrollAndTap(tester, find.text('Logistics'));
+      await evaluationScrollAndTap(tester, find.text('Transport').first);
+      await evaluationScrollAndTap(tester, find.text('Save'));
 
       expect(capturedAckTags, isNotNull);
       expect(capturedAckTags, contains('transport'));
@@ -130,16 +72,17 @@ void main() {
     (tester) async {
       List<String>? capturedAckTags;
 
-      await _pumpSheet(
+      await pumpEvaluationDetailSheet(
         tester: tester,
         participant: participant,
         onSave: (v, tags, note, ackTags) async {
           capturedAckTags = ackTags;
+          return true;
         },
       );
 
-      // No chip tapped — go straight to Save.
-      await _scrollAndTap(tester, find.text('Save'));
+      await evaluationSelectNoBasis(tester);
+      await evaluationScrollAndTap(tester, find.text('Save'));
 
       expect(capturedAckTags, isNotNull);
       expect(capturedAckTags, isEmpty);
@@ -151,23 +94,21 @@ void main() {
     (tester) async {
       List<String>? capturedAckTags;
 
-      await _pumpSheet(
+      await pumpEvaluationDetailSheet(
         tester: tester,
         participant: participant,
         onSave: (v, tags, note, ackTags) async {
           capturedAckTags = ackTags;
+          return true;
         },
       );
 
-      // Expand Logistics so Transport exists.
-      await _scrollAndTap(tester, find.text('Logistics'));
-
-      await _scrollAndTap(tester, find.text('Transport').first);
-
-      // Money is in Resources.
-      await _scrollAndTap(tester, find.text('Resources'));
-      await _scrollAndTap(tester, find.text('Money').first);
-      await _scrollAndTap(tester, find.text('Save'));
+      await evaluationSelectNoBasis(tester);
+      await evaluationScrollAndTap(tester, find.text('Logistics'));
+      await evaluationScrollAndTap(tester, find.text('Transport').first);
+      await evaluationScrollAndTap(tester, find.text('Resources'));
+      await evaluationScrollAndTap(tester, find.text('Money').first);
+      await evaluationScrollAndTap(tester, find.text('Save'));
 
       expect(capturedAckTags, isNotNull);
       expect(capturedAckTags, containsAll(['transport', 'money']));
@@ -180,20 +121,20 @@ void main() {
     (tester) async {
       List<String>? capturedAckTags;
 
-      await _pumpSheet(
+      await pumpEvaluationDetailSheet(
         tester: tester,
         participant: participant,
         onSave: (v, tags, note, ackTags) async {
           capturedAckTags = ackTags;
+          return true;
         },
       );
 
-      // Select then deselect Transport.
-      await _scrollAndTap(tester, find.text('Logistics'));
-      await _scrollAndTap(tester, find.text('Transport').first);
-      await _scrollAndTap(tester, find.text('Transport').first);
-
-      await _scrollAndTap(tester, find.text('Save'));
+      await evaluationSelectNoBasis(tester);
+      await evaluationScrollAndTap(tester, find.text('Logistics'));
+      await evaluationScrollAndTap(tester, find.text('Transport').first);
+      await evaluationScrollAndTap(tester, find.text('Transport').first);
+      await evaluationScrollAndTap(tester, find.text('Save'));
 
       expect(capturedAckTags, isNotNull);
       expect(capturedAckTags, isNot(contains('transport')));

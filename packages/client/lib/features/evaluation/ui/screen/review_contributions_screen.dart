@@ -373,11 +373,9 @@ class _ParticipantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final status = participant.currentValue == null
-        ? l10n.evaluationNotReviewed
-        : (participant.currentValue == EvaluationValue.noBasis
-              ? l10n.evaluationNoBasisLabel
-              : l10n.evaluationReviewed);
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final value = participant.currentValue;
     final profile = Profile(
       id: participant.userId,
       displayName: participant.displayName,
@@ -386,46 +384,144 @@ class _ParticipantTile extends StatelessWidget {
           ? ImageEntity(id: participant.imageId, authorId: participant.userId)
           : null,
     );
-    final tt = context.tt;
     final meId = context.read<ProfileCubit>().state.profile.id;
     final displayName = SelfUserHighlight.displayName(l10n, profile, meId);
+    final (compactLabel, icon, iconColor, semanticsDetail) =
+        _trustStatusParts(l10n, tt, value, displayName);
+    final semanticsLabel = value == null
+        ? '$displayName. ${l10n.evaluationNotReviewed}'
+        : '$displayName. $semanticsDetail';
+
     return Card(
       margin: EdgeInsets.only(bottom: tt.rowGap),
-      child: Semantics(
-        label: '$displayName. $status',
-        child: ListTile(
-          key: TestIds.key(
-            TestIds.evaluationParticipant(participant.userId),
-          ),
-          leading: SelfAwareAvatar.small(
-            profile: profile,
-          ),
-          title: BlocBuilder<ProfileCubit, ProfileState>(
-            buildWhen: (p, c) => p.profile.id != c.profile.id,
-            builder: (context, state) {
-              return Text(
-                SelfUserHighlight.displayName(
-                  l10n,
-                  profile,
-                  state.profile.id,
-                ),
-                style: SelfUserHighlight.nameStyle(
-                  Theme.of(context),
-                  Theme.of(context).textTheme.bodyLarge,
-                  SelfUserHighlight.profileIsSelf(profile, state.profile.id),
-                ),
-              );
-            },
-          ),
-          subtitle: Text(
-            '${participant.contributionSummary}\n${participant.causalHint}',
-            maxLines: 3,
-          ),
-          isThreeLine: true,
-          trailing: Text(status, style: Theme.of(context).textTheme.labelSmall),
-          onTap: onTap,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final useSubtitleStatus =
+              constraints.maxWidth < 320 || textScale > 1.2;
+          final statusWidget = icon == null
+              ? Text(
+                  compactLabel,
+                  style: theme.textTheme.labelSmall,
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: iconColor),
+                    SizedBox(width: tt.tightGap),
+                    Flexible(
+                      child: Text(
+                        compactLabel,
+                        style: theme.textTheme.labelSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+
+          final subtitleLines = <String>[
+            if (participant.contributionSummary.isNotEmpty)
+              participant.contributionSummary,
+            if (participant.causalHint.isNotEmpty) participant.causalHint,
+            if (useSubtitleStatus && value != null) compactLabel,
+          ];
+
+          return Semantics(
+            label: semanticsLabel,
+            child: ListTile(
+              key: TestIds.key(
+                TestIds.evaluationParticipant(participant.userId),
+              ),
+              leading: SelfAwareAvatar.small(
+                profile: profile,
+              ),
+              title: BlocBuilder<ProfileCubit, ProfileState>(
+                buildWhen: (p, c) => p.profile.id != c.profile.id,
+                builder: (context, state) {
+                  return Text(
+                    SelfUserHighlight.displayName(
+                      l10n,
+                      profile,
+                      state.profile.id,
+                    ),
+                    style: SelfUserHighlight.nameStyle(
+                      theme,
+                      theme.textTheme.bodyLarge,
+                      SelfUserHighlight.profileIsSelf(profile, state.profile.id),
+                    ),
+                  );
+                },
+              ),
+              subtitle: subtitleLines.isEmpty
+                  ? null
+                  : Text(
+                      subtitleLines.join('\n'),
+                      maxLines: 4,
+                    ),
+              isThreeLine: subtitleLines.length > 1,
+              trailing: useSubtitleStatus ? null : statusWidget,
+              onTap: onTap,
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+(
+  String compactLabel,
+  IconData? icon,
+  Color? iconColor,
+  String semanticsDetail,
+) _trustStatusParts(
+  L10n l10n,
+  TenturaTokens tt,
+  EvaluationValue? value,
+  String name,
+) {
+  return switch (value) {
+    null => (
+        l10n.evaluationNotReviewed,
+        null,
+        null,
+        l10n.evaluationNotReviewed,
+      ),
+    EvaluationValue.noBasis => (
+        l10n.evaluationNoBasisLabel,
+        null,
+        null,
+        l10n.evaluationTrustPreviewNoBasis(name),
+      ),
+    EvaluationValue.zero => (
+        l10n.evaluationTrustNoChangeSummary,
+        null,
+        null,
+        l10n.evaluationTrustPreviewZero(name),
+      ),
+    EvaluationValue.neg1 => (
+        l10n.evaluationTrustLessSummary,
+        Icons.trending_down,
+        tt.danger,
+        l10n.evaluationTrustPreviewNeg1(name),
+      ),
+    EvaluationValue.neg2 => (
+        l10n.evaluationTrustLessSummary,
+        Icons.trending_down,
+        tt.danger,
+        l10n.evaluationTrustPreviewNeg2(name),
+      ),
+    EvaluationValue.pos1 => (
+        l10n.evaluationTrustMoreSummary,
+        Icons.trending_up,
+        tt.good,
+        l10n.evaluationTrustPreviewPos1(name),
+      ),
+    EvaluationValue.pos2 => (
+        l10n.evaluationTrustMoreSummary,
+        Icons.trending_up,
+        tt.good,
+        l10n.evaluationTrustPreviewPos2(name),
+      ),
+  };
 }

@@ -1,19 +1,29 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart' show View;
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_trust_selection.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
-import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
+import 'package:tentura/features/evaluation/ui/widget/evaluation_trust_control.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 /// Modal sheet to set one participant evaluation.
 Future<void> showEvaluationDetailSheet({
   required BuildContext context,
   required EvaluationParticipant participant,
-  required Future<void> Function(
+  required Future<bool> Function(
     EvaluationValue value,
     List<String> tags,
     String note,
@@ -22,16 +32,31 @@ Future<void> showEvaluationDetailSheet({
   onSave,
 }) async {
   final l10n = L10n.of(context)!;
+  ProfileCubit? profileCubit;
+  try {
+    profileCubit = context.read<ProfileCubit>();
+  } on ProviderNotFoundException {
+    profileCubit = null;
+  }
   await showTenturaAdaptiveSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     enableDrag: false,
-    builder: (ctx) => _EvaluationDetailSheetBody(
-      l10n: l10n,
-      participant: participant,
-      onSave: onSave,
-    ),
+    builder: (ctx) {
+      Widget body = _EvaluationDetailSheetBody(
+        l10n: l10n,
+        participant: participant,
+        onSave: onSave,
+      );
+      if (profileCubit != null) {
+        body = BlocProvider<ProfileCubit>.value(
+          value: profileCubit,
+          child: body,
+        );
+      }
+      return body;
+    },
   );
 }
 
@@ -44,7 +69,7 @@ class _EvaluationDetailSheetBody extends StatefulWidget {
 
   final L10n l10n;
   final EvaluationParticipant participant;
-  final Future<void> Function(
+  final Future<bool> Function(
     EvaluationValue value,
     List<String> tags,
     String note,
@@ -59,24 +84,37 @@ class _EvaluationDetailSheetBody extends StatefulWidget {
 
 class _EvaluationDetailSheetBodyState
     extends State<_EvaluationDetailSheetBody> {
-  late EvaluationValue _value;
+  late EvaluationTrustSelection _selection;
   late final List<String> _tags;
   final _ackTags = <String>{};
   late final TextEditingController _noteController;
-  late final EvaluationValue _initialValue;
+  late final EvaluationTrustSelection _initialSelection;
   late final List<String> _initialTags;
   late final String _initialNote;
+  late final Set<String> _initialAckTags;
   late final Map<String, String> _tagLabelBySlug;
+
+  bool _saveAttempted = false;
+  bool _isSaving = false;
+  String? _categoryError;
+  String? _intensityError;
+  String? _reasonError;
+
+  final _trustSectionKey = GlobalKey();
+  final _reasonSectionKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _value = widget.participant.currentValue ?? EvaluationValue.noBasis;
+    _selection = EvaluationTrustSelectionX.fromEvaluationValue(
+      widget.participant.currentValue,
+    );
     _tags = List<String>.from(widget.participant.reasonTags);
     _noteController = TextEditingController(text: widget.participant.note);
-    _initialValue = _value;
+    _initialSelection = _selection;
     _initialTags = List<String>.from(_tags);
     _initialNote = widget.participant.note;
+    _initialAckTags = <String>{};
     _tagLabelBySlug = _buildTagLabelBySlug(widget.l10n);
   }
 
@@ -84,6 +122,14 @@ class _EvaluationDetailSheetBodyState
   void dispose() {
     _noteController.dispose();
     super.dispose();
+  }
+
+  String get _displayName {
+    final contact = contactNameOf(widget.participant.userId);
+    if (contact.isNotEmpty) {
+      return contact;
+    }
+    return widget.participant.displayName;
   }
 
   List<String> _allowedTags(EvaluationValue v) {
@@ -135,6 +181,12 @@ class _EvaluationDetailSheetBodyState
     };
   }
 
+  String _roleLabel(L10n l10n) => switch (widget.participant.role) {
+        EvaluationParticipantRole.author => l10n.evaluationRoleAuthor,
+        EvaluationParticipantRole.committer => l10n.evaluationRoleHelpOfferer,
+        EvaluationParticipantRole.forwarder => l10n.evaluationRoleForwarder,
+      };
+
   String _promptText() {
     if (widget.participant.role == EvaluationParticipantRole.committer &&
         widget.participant.promptVariant == 'handoff') {
@@ -149,25 +201,135 @@ class _EvaluationDetailSheetBodyState
     };
   }
 
-  bool get _isDirty =>
-      _value != _initialValue ||
-      _tags.length != _initialTags.length ||
-      !_tags.every(_initialTags.contains) ||
-      _noteController.text != _initialNote ||
-      _ackTags.isNotEmpty;
+  bool get _isDirty {
+    if (_selection == EvaluationTrustSelection.decreasePending ||
+        _selection == EvaluationTrustSelection.increasePending) {
+      return true;
+    }
+    return _selection != _initialSelection ||
+        _tags.length != _initialTags.length ||
+        !_tags.every(_initialTags.contains) ||
+        _noteController.text != _initialNote ||
+        !_setEquals(_ackTags, _initialAckTags);
+  }
 
-  Future<void> _save() async {
-    final needs = _value.requiresReasonTag;
-    if (needs && _tags.isEmpty) {
+  bool _setEquals(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  void _onSelectionChanged(EvaluationTrustSelection selection) {
+    setState(() {
+      _selection = selection;
+      if (!selection.showsReasonCard) {
+        _tags.clear();
+      } else {
+        final value = selection.evaluationValue!;
+        final pool = _allowedTags(value);
+        _tags.retainWhere(pool.contains);
+      }
+      if (_selection != EvaluationTrustSelection.unselected) {
+        _categoryError = null;
+      }
+      if (_selection.isComplete) {
+        _intensityError = null;
+      }
+      final value = selection.evaluationValue;
+      if (value == null || !value.requiresReasonTag || _tags.isNotEmpty) {
+        _reasonError = null;
+      }
+    });
+  }
+
+  Future<void> _scrollTo(GlobalKey key) async {
+    final ctx = key.currentContext;
+    if (ctx == null) {
       return;
     }
-    await widget.onSave(
-      _value,
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      alignment: 0.1,
+    );
+  }
+
+  bool _validate() {
+    final l10n = widget.l10n;
+    String? categoryError;
+    String? intensityError;
+    String? reasonError;
+
+    if (_selection == EvaluationTrustSelection.unselected) {
+      categoryError = l10n.evaluationTrustChoiceRequired;
+    } else if (_selection == EvaluationTrustSelection.decreasePending ||
+        _selection == EvaluationTrustSelection.increasePending) {
+      intensityError = l10n.evaluationTrustIntensityRequired;
+    } else {
+      final value = _selection.evaluationValue;
+      if (value != null &&
+          value.requiresReasonTag &&
+          _tags.isEmpty &&
+          _selection.showsReasonCard) {
+        reasonError = l10n.evaluationReasonValidationError;
+      }
+    }
+
+    setState(() {
+      _categoryError = categoryError;
+      _intensityError = intensityError;
+      _reasonError = reasonError;
+    });
+
+    if (categoryError != null) {
+      unawaited(_scrollTo(_trustSectionKey));
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        categoryError,
+        TextDirection.ltr,
+      );
+      return false;
+    }
+    if (intensityError != null) {
+      unawaited(_scrollTo(_trustSectionKey));
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        intensityError,
+        TextDirection.ltr,
+      );
+      return false;
+    }
+    if (reasonError != null) {
+      unawaited(_scrollTo(_reasonSectionKey));
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        reasonError,
+        TextDirection.ltr,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) {
+      return;
+    }
+    setState(() => _saveAttempted = true);
+    if (!_validate()) {
+      return;
+    }
+    final value = _selection.evaluationValue!;
+    setState(() => _isSaving = true);
+    final ok = await widget.onSave(
+      value,
       _tags,
       _noteController.text,
       _ackTags.toList(),
     );
-    if (mounted) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSaving = false);
+    if (ok) {
       Navigator.of(context).pop();
     }
   }
@@ -177,9 +339,28 @@ class _EvaluationDetailSheetBodyState
     final l10n = widget.l10n;
     final participant = widget.participant;
     final tt = context.tt;
-    final needs = _value.requiresReasonTag;
-    final allowTags = _value.allowsReasonTag;
-    final pool = allowTags ? _allowedTags(_value) : <String>[];
+    final theme = Theme.of(context);
+    final resolvedValue = _selection.evaluationValue;
+    final showReasonCard = _selection.showsReasonCard;
+    final pool = showReasonCard && resolvedValue != null
+        ? _allowedTags(resolvedValue)
+        : <String>[];
+    final needsReason = resolvedValue?.requiresReasonTag ?? false;
+
+    final profile = Profile(
+      id: participant.userId,
+      displayName: participant.displayName,
+      contactName: contactNameOf(participant.userId),
+      image: participant.imageId.isNotEmpty
+          ? ImageEntity(id: participant.imageId, authorId: participant.userId)
+          : null,
+    );
+
+    final contributionLine = [
+      _roleLabel(l10n),
+      if (participant.contributionSummary.isNotEmpty)
+        participant.contributionSummary,
+    ].join(' · ');
 
     return TenturaSheetDismissGuard(
       isDirty: _isDirty,
@@ -195,64 +376,125 @@ class _EvaluationDetailSheetBodyState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                contactNameOf(participant.userId).isNotEmpty
-                    ? contactNameOf(participant.userId)
-                    : participant.displayName,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.tightGap * 2),
-              Text(
-                _promptText(),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              SizedBox(height: tt.sectionGap),
-              Wrap(
-                spacing: tt.iconTextGap,
-                runSpacing: tt.iconTextGap,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final v in EvaluationValue.values)
-                    ChoiceChip(
-                      label: Text(_label(v, l10n)),
-                      selected: _value == v,
-                      onSelected: (_) => setState(() => _value = v),
+                  SelfAwareAvatar.small(profile: profile),
+                  SizedBox(width: tt.avatarTextGap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _displayName,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        if (contributionLine.isNotEmpty) ...[
+                          SizedBox(height: tt.tightGap),
+                          Text(
+                            contributionLine,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        if (participant.causalHint.isNotEmpty) ...[
+                          SizedBox(height: tt.tightGap),
+                          Text(
+                            participant.causalHint,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
                 ],
               ),
-              if (allowTags && pool.isNotEmpty) ...[
-                SizedBox(height: tt.sectionGap),
-                Text(
-                  needs
-                      ? l10n.evaluationReasonRequiredHeading
-                      : l10n.evaluationReasonOptionalHeading,
-                  style: Theme.of(context).textTheme.labelLarge,
+              SizedBox(height: tt.rowGap),
+              Text(
+                _promptText(),
+                style: theme.textTheme.bodyMedium,
+              ),
+              SizedBox(height: tt.sectionGap),
+              KeyedSubtree(
+                key: _trustSectionKey,
+                child: EvaluationTrustControl(
+                  selection: _selection,
+                  onChanged: _onSelectionChanged,
+                  participantName: _displayName,
+                  categoryError: _saveAttempted ? _categoryError : null,
+                  intensityError: _saveAttempted ? _intensityError : null,
                 ),
-                SizedBox(height: tt.iconTextGap),
-                Wrap(
-                  spacing: tt.iconTextGap,
-                  runSpacing: tt.iconTextGap,
-                  children: [
-                    for (final t in pool)
-                      FilterChip(
-                        label: Text(
-                          _tagLabelBySlug[t] ?? l10n.evaluationReasonUnknown,
+              ),
+              if (showReasonCard && pool.isNotEmpty) ...[
+                SizedBox(height: tt.sectionGap),
+                KeyedSubtree(
+                  key: _reasonSectionKey,
+                  child: TenturaTechCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          needsReason
+                              ? l10n.evaluationReasonRequiredHeading
+                              : l10n.evaluationReasonOptionalHeading,
+                          style: theme.textTheme.labelLarge,
                         ),
-                        selected: _tags.contains(t),
-                        onSelected: (sel) => setState(() {
-                          if (sel) {
-                            _tags.add(t);
-                          } else {
-                            _tags.remove(t);
-                          }
-                        }),
-                      ),
-                  ],
+                        SizedBox(height: tt.iconTextGap),
+                        Wrap(
+                          spacing: tt.iconTextGap,
+                          runSpacing: tt.iconTextGap,
+                          children: [
+                            for (final t in pool)
+                              FilterChip(
+                                label: Text(
+                                  _tagLabelBySlug[t] ??
+                                      l10n.evaluationReasonUnknown,
+                                ),
+                                selected: _tags.contains(t),
+                                onSelected: (sel) => setState(() {
+                                  if (sel) {
+                                    _tags.add(t);
+                                  } else {
+                                    _tags.remove(t);
+                                  }
+                                  if (_tags.isNotEmpty) {
+                                    _reasonError = null;
+                                  }
+                                }),
+                              ),
+                          ],
+                        ),
+                        if (_saveAttempted && _reasonError != null) ...[
+                          SizedBox(height: tt.tightGap),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              _reasonError!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: tt.danger,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ],
               SizedBox(height: tt.sectionGap),
               Text(
+                l10n.evaluationAckOptionalHeading,
+                style: theme.textTheme.labelLarge,
+              ),
+              SizedBox(height: tt.iconTextGap),
+              Text(
                 l10n.closeAckPrompt,
-                style: Theme.of(context).textTheme.labelLarge,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               SizedBox(height: tt.iconTextGap),
               CapabilityChipSet(
@@ -274,15 +516,29 @@ class _EvaluationDetailSheetBodyState
                 maxLength: 280,
                 onChanged: (_) => setState(() {}),
               ),
-              EvaluationPrivacyInfoRow(
-                shortLabel: l10n.evaluationPrivacyShort,
-                fullText: l10n.evaluationPrivateHint,
-              ),
               SizedBox(height: tt.sectionGap),
+              Text(
+                l10n.evaluationSubjectiveTrustHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              SizedBox(height: tt.rowGap),
               FilledButton(
                 key: TestIds.key(TestIds.evaluationSave),
-                onPressed: _save,
-                child: Text(l10n.evaluationSave),
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      )
+                    : Text(l10n.evaluationSave),
               ),
             ],
           ),
@@ -292,38 +548,29 @@ class _EvaluationDetailSheetBodyState
   }
 }
 
-String _label(EvaluationValue v, L10n l10n) => switch (v) {
-  EvaluationValue.noBasis => l10n.evaluationNoBasisLabel,
-  EvaluationValue.neg2 => l10n.evaluationVeryBadLabel,
-  EvaluationValue.neg1 => l10n.evaluationBadLabel,
-  EvaluationValue.zero => l10n.evaluationNoEffectLabel,
-  EvaluationValue.pos1 => l10n.evaluationGoodLabel,
-  EvaluationValue.pos2 => l10n.evaluationVeryGoodLabel,
-};
-
 Map<String, String> _buildTagLabelBySlug(L10n l10n) => {
-  'clear_request': l10n.evaluationReasonClearRequest,
-  'fair_closure': l10n.evaluationReasonFairClosure,
-  'useful_updates': l10n.evaluationReasonUsefulUpdates,
-  'coordinated_well': l10n.evaluationReasonCoordinatedWell,
-  'unclear_request': l10n.evaluationReasonUnclearRequest,
-  'poor_updates': l10n.evaluationReasonPoorUpdates,
-  'closed_unfairly': l10n.evaluationReasonClosedUnfairly,
-  'hard_to_coordinate': l10n.evaluationReasonHardToCoordinate,
-  'delivered_as_promised': l10n.evaluationReasonDeliveredAsPromised,
-  'very_useful': l10n.evaluationReasonVeryUseful,
-  'communicated_honestly': l10n.evaluationReasonCommunicatedHonestly,
-  'above_expectation': l10n.evaluationReasonAboveExpectation,
-  'did_not_follow_through': l10n.evaluationReasonDidNotFollowThrough,
-  'overpromised': l10n.evaluationReasonOverpromised,
-  'created_extra_work': l10n.evaluationReasonCreatedExtraWork,
-  'poor_communication': l10n.evaluationReasonPoorCommunication,
-  'reached_right_person': l10n.evaluationReasonReachedRightPerson,
-  'forwarded_quickly': l10n.evaluationReasonForwardedQuickly,
-  'useful_routing_note': l10n.evaluationReasonUsefulRoutingNote,
-  'crucial_bridge': l10n.evaluationReasonCrucialBridge,
-  'sent_to_wrong_people': l10n.evaluationReasonSentToWrongPeople,
-  'created_noise': l10n.evaluationReasonCreatedNoise,
-  'forwarded_too_late': l10n.evaluationReasonForwardedTooLate,
-  'misleading_note': l10n.evaluationReasonMisleadingNote,
-};
+      'clear_request': l10n.evaluationReasonClearRequest,
+      'fair_closure': l10n.evaluationReasonFairClosure,
+      'useful_updates': l10n.evaluationReasonUsefulUpdates,
+      'coordinated_well': l10n.evaluationReasonCoordinatedWell,
+      'unclear_request': l10n.evaluationReasonUnclearRequest,
+      'poor_updates': l10n.evaluationReasonPoorUpdates,
+      'closed_unfairly': l10n.evaluationReasonClosedUnfairly,
+      'hard_to_coordinate': l10n.evaluationReasonHardToCoordinate,
+      'delivered_as_promised': l10n.evaluationReasonDeliveredAsPromised,
+      'very_useful': l10n.evaluationReasonVeryUseful,
+      'communicated_honestly': l10n.evaluationReasonCommunicatedHonestly,
+      'above_expectation': l10n.evaluationReasonAboveExpectation,
+      'did_not_follow_through': l10n.evaluationReasonDidNotFollowThrough,
+      'overpromised': l10n.evaluationReasonOverpromised,
+      'created_extra_work': l10n.evaluationReasonCreatedExtraWork,
+      'poor_communication': l10n.evaluationReasonPoorCommunication,
+      'reached_right_person': l10n.evaluationReasonReachedRightPerson,
+      'forwarded_quickly': l10n.evaluationReasonForwardedQuickly,
+      'useful_routing_note': l10n.evaluationReasonUsefulRoutingNote,
+      'crucial_bridge': l10n.evaluationReasonCrucialBridge,
+      'sent_to_wrong_people': l10n.evaluationReasonSentToWrongPeople,
+      'created_noise': l10n.evaluationReasonCreatedNoise,
+      'forwarded_too_late': l10n.evaluationReasonForwardedTooLate,
+      'misleading_note': l10n.evaluationReasonMisleadingNote,
+    };

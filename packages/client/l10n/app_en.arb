@@ -2895,11 +2895,81 @@
   "evaluationNotReviewed": "Not reviewed",
   "evaluationReviewed": "Reviewed",
   "evaluationNoBasisLabel": "No basis",
-  "evaluationVeryBadLabel": "Very bad",
-  "evaluationBadLabel": "Bad",
-  "evaluationNoEffectLabel": "No effect",
-  "evaluationGoodLabel": "Good",
-  "evaluationVeryGoodLabel": "Very good",
+  "evaluationTrustQuestion": "How did this contribution affect your personal trust in {name}?",
+  "@evaluationTrustQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustNoBasisContribution": "Not enough basis to judge this contribution",
+  "evaluationTrustNoChangeContribution": "This contribution did not change my trust",
+  "evaluationTrustDecreasedContribution": "My trust in this person decreased",
+  "evaluationTrustIncreasedContribution": "My trust in this person increased",
+  "evaluationTrustIntensityHeading": "How much?",
+  "evaluationTrustIntensityLittle": "A little",
+  "evaluationTrustIntensityLot": "A lot",
+  "evaluationTrustIntensityReasonRequired": "reason required",
+  "evaluationTrustPreviewNoBasis": "Your personal trust in {name} will not be updated.",
+  "@evaluationTrustPreviewNoBasis": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewZero": "This contribution will not change your personal trust in {name}.",
+  "@evaluationTrustPreviewZero": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewNeg1": "After this contribution, your personal trust in {name} will decrease slightly.",
+  "@evaluationTrustPreviewNeg1": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewNeg2": "After this contribution, your personal trust in {name} will decrease noticeably.",
+  "@evaluationTrustPreviewNeg2": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewPos1": "After this contribution, your personal trust in {name} will increase slightly.",
+  "@evaluationTrustPreviewPos1": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewPos2": "After this contribution, your personal trust in {name} will increase noticeably.",
+  "@evaluationTrustPreviewPos2": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustChoiceRequired": "Choose how this contribution affected your trust.",
+  "evaluationTrustIntensityRequired": "Choose how much your trust changed.",
+  "evaluationReasonValidationError": "Choose at least one reason.",
+  "evaluationRoleAuthor": "Author",
+  "evaluationRoleHelpOfferer": "Helper",
+  "evaluationRoleForwarder": "Forwarder",
+  "evaluationTrustLessSummary": "Less",
+  "evaluationTrustMoreSummary": "More",
+  "evaluationTrustNoChangeSummary": "No change",
+  "evaluationSubjectiveTrustHint": "This is your subjective assessment of a specific interaction. It is not a public rating.",
+  "evaluationAckOptionalHeading": "Acknowledge skills (optional)",
   "evaluationReasonRequiredHeading": "Choose reason (required)",
   "@evaluationReasonRequiredHeading": {
     "context": "EvaluationDetailSheet"

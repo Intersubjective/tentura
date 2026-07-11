@@ -113,7 +113,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
   }
 
-  Future<void> submitOne({
+  Future<bool> submitOne({
     required String evaluatedUserId,
     required EvaluationValue value,
     required List<String> reasonTags,
@@ -138,7 +138,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
             status: StateStatus.isSuccess,
           ),
         );
-        return;
+        return true;
       }
       await _evaluationCase.submit(
         beaconId: state.beaconId,
@@ -158,8 +158,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           status: StateStatus.isSuccess,
         ),
       );
+      return true;
     } catch (e) {
       _emitSnackError(e);
+      return false;
     }
   }
 

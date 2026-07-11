@@ -2891,11 +2891,81 @@
   "evaluationNotReviewed": "Не оценено",
   "evaluationReviewed": "Оценено",
   "evaluationNoBasisLabel": "Нет оснований",
-  "evaluationVeryBadLabel": "Очень плохо",
-  "evaluationBadLabel": "Плохо",
-  "evaluationNoEffectLabel": "Без эффекта",
-  "evaluationGoodLabel": "Хорошо",
-  "evaluationVeryGoodLabel": "Очень хорошо",
+  "evaluationTrustQuestion": "Как этот вклад повлиял на ваше личное доверие к {name}?",
+  "@evaluationTrustQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustNoBasisContribution": "Недостаточно оснований для оценки этого вклада",
+  "evaluationTrustNoChangeContribution": "Этот вклад не изменил моё доверие",
+  "evaluationTrustDecreasedContribution": "Моё доверие к этому человеку уменьшилось",
+  "evaluationTrustIncreasedContribution": "Моё доверие к этому человеку увеличилось",
+  "evaluationTrustIntensityHeading": "Насколько?",
+  "evaluationTrustIntensityLittle": "Немного",
+  "evaluationTrustIntensityLot": "Заметно",
+  "evaluationTrustIntensityReasonRequired": "нужна причина",
+  "evaluationTrustPreviewNoBasis": "Ваше личное доверие к {name} не будет обновлено.",
+  "@evaluationTrustPreviewNoBasis": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewZero": "Этот вклад не изменит ваше личное доверие к {name}.",
+  "@evaluationTrustPreviewZero": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewNeg1": "После этого вклада ваше личное доверие к {name} немного уменьшится.",
+  "@evaluationTrustPreviewNeg1": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewNeg2": "После этого вклада ваше личное доверие к {name} заметно уменьшится.",
+  "@evaluationTrustPreviewNeg2": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewPos1": "После этого вклада ваше личное доверие к {name} немного увеличится.",
+  "@evaluationTrustPreviewPos1": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustPreviewPos2": "После этого вклада ваше личное доверие к {name} заметно увеличится.",
+  "@evaluationTrustPreviewPos2": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationTrustChoiceRequired": "Выберите, как этот вклад повлиял на ваше доверие.",
+  "evaluationTrustIntensityRequired": "Выберите, насколько изменилось ваше доверие.",
+  "evaluationReasonValidationError": "Выберите хотя бы одну причину.",
+  "evaluationRoleAuthor": "Автор",
+  "evaluationRoleHelpOfferer": "Помощник",
+  "evaluationRoleForwarder": "Переславший",
+  "evaluationTrustLessSummary": "Меньше",
+  "evaluationTrustMoreSummary": "Больше",
+  "evaluationTrustNoChangeSummary": "Без изменений",
+  "evaluationSubjectiveTrustHint": "Это ваша субъективная оценка конкретного взаимодействия. Она не является публичным рейтингом.",
+  "evaluationAckOptionalHeading": "Отметить навыки (необязательно)",
   "evaluationReasonRequiredHeading": "Выберите причину (обязательно)",
   "@evaluationReasonRequiredHeading": {
     "context": "EvaluationDetailSheet"
