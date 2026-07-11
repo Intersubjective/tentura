@@ -53,6 +53,26 @@ void main() {
       );
     });
 
+    test(
+      'bounces when recover pathname is stale but hash is an in-app route',
+      () {
+        expect(
+          shouldBounceRejectedSessionToLanding(
+            pathname: '/recover',
+            hash: '#/home/profile',
+          ),
+          isTrue,
+        );
+        expect(
+          shouldBounceRejectedSessionToLanding(
+            pathname: '/recover',
+            hash: '#/home/work',
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('does not bounce when recover path has invite query (landing link)', () {
       // Query string is ignored by policy; pathname `/recover` still whitelisted.
       expect(

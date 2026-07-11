@@ -2,6 +2,7 @@ import 'package:web/web.dart' as web;
 
 import 'package:tentura/consts.dart';
 
+import 'seed_recovery_landing_url.dart';
 import 'stale_session_redirect_policy.dart';
 
 const _staleSessionReloadKey = 'tentura.staleSessionReload';
@@ -35,6 +36,7 @@ void reloadAfterRejectedSession({required bool clearAcknowledged}) {
 /// Clears the per-tab stale-session guard after a successful authenticated boot.
 void noteAuthenticatedBoot() {
   web.window.sessionStorage.removeItem(_staleSessionReloadKey);
+  stripStaleSeedRecoveryLandingEntry();
 }
 
 void clearStaleSessionBrowserGuard() {
