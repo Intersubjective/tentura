@@ -4,8 +4,14 @@ import 'package:injectable/injectable.dart';
 import 'package:sentry_drift/sentry_drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/domain/port/realtime_sync_port.dart';
+
 @module
 abstract class RegisterModule {
+  @singleton
+  RealtimeSyncPort realtimeSyncPort(InvalidationService service) => service;
+
   @singleton
   Logger get logger => Logger.root;
 
