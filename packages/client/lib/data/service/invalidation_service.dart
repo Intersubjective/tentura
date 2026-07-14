@@ -5,47 +5,60 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/data/service/remote_api_client/realtime_transport_status.dart';
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
 import 'remote_api_service.dart';
 
-/// Receives entity-change invalidation signals from the V2 WebSocket and
-/// exposes per-entity-type streams that repositories can listen to.
+/// Maps the V2 WebSocket wire protocol into the shared domain sync boundary.
 ///
-/// Incoming IDs are buffered for [_debounceWindow] and deduplicated so that
-/// batch operations (e.g. multi-recipient forwards) produce a single
-/// invalidation event per entity ID.
-///
-/// See DEV_GUIDELINES.md § "Entity invalidation (real-time)" for the full
-/// data flow and the checklist for adding new entity types.
+/// Entity hints identify server-owned projections. They never carry derived
+/// state, and bursts are coalesced by `(kind, aggregateId)` before consumers
+/// refetch authoritative snapshots.
 @singleton
 class InvalidationService implements RealtimeSyncPort {
   InvalidationService(RemoteApiService remoteApiService) {
-    _subscription = _subscribe(remoteApiService.webSocketMessages);
+    _messageSubscription = _subscribe(remoteApiService.webSocketMessages);
+    _transportSubscription = remoteApiService.realtimeTransportStatus.listen(
+      _onTransportStatus,
+    );
   }
 
   /// Unit tests without [RemoteApiService] / WebSocket wiring.
   @visibleForTesting
-  InvalidationService.forTesting(Stream<Map<String, dynamic>> messages) {
-    _subscription = _subscribe(messages);
+  InvalidationService.forTesting(
+    Stream<Map<String, dynamic>> messages, {
+    Stream<RealtimeTransportStatus>? transportStatuses,
+  }) {
+    _messageSubscription = _subscribe(messages);
+    _transportSubscription =
+        (transportStatuses ?? const Stream<RealtimeTransportStatus>.empty())
+            .listen(_onTransportStatus);
   }
-
-  StreamSubscription<Map<String, dynamic>> _subscribe(
-    Stream<Map<String, dynamic>> messages,
-  ) => messages
-      .where(
-        (e) => e['type'] == 'subscription' && e['path'] == 'entity_changes',
-      )
-      .listen(_onInvalidation);
 
   static const _debounceWindow = Duration(milliseconds: 500);
 
-  late final StreamSubscription<Map<String, dynamic>> _subscription;
+  late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
+  late final StreamSubscription<RealtimeTransportStatus> _transportSubscription;
+
+  String? _activeAccountId;
+  int _latestConnectionEpoch = 0;
+  bool _hasAuthenticatedCurrentAccount = false;
 
   final _entityChangeController =
       StreamController<RealtimeEntityChange>.broadcast();
+  final _catchUpController = StreamController<RealtimeCatchUp>.broadcast();
+  final _connectionStatusSubject =
+      BehaviorSubject<RealtimeConnectionStatus>.seeded(
+        const RealtimeConnectionStatus(
+          connectionEpoch: 0,
+          phase: RealtimeConnectionPhase.unbound,
+        ),
+      );
 
   @override
   late final Stream<RealtimeEntityChange> entityChanges =
@@ -55,40 +68,64 @@ class InvalidationService implements RealtimeSyncPort {
           .expand(_deduplicateEntityChanges)
           .asBroadcastStream();
 
-  /// Beacon ID that was changed by another user or session (debounced).
+  @override
+  late final Stream<RealtimeCatchUp> catchUps = _catchUpController.stream
+      .bufferTime(_debounceWindow)
+      .where((batch) => batch.isNotEmpty)
+      .expand(_deduplicateCatchUps)
+      .asBroadcastStream();
+
+  @override
+  Stream<RealtimeConnectionStatus> get connectionStatuses =>
+      _connectionStatusSubject.stream;
+
+  /// Temporary compatibility stream for repositories migrating to [entityChanges].
   late final Stream<String> beaconInvalidations = entityChanges
       .where((change) => change.kind == RealtimeEntityKind.beacon)
       .map((change) => change.aggregateId)
       .asBroadcastStream();
 
-  /// Beacon ID whose help offers changed (debounced).
+  /// Temporary compatibility stream for repositories migrating to [entityChanges].
   late final Stream<String> helpOfferInvalidations = entityChanges
       .where((change) => change.kind == RealtimeEntityKind.helpOffer)
       .map((change) => change.aggregateId)
       .asBroadcastStream();
 
-  /// Beacon ID whose forwards changed (debounced).
+  /// Temporary compatibility stream for repositories migrating to [entityChanges].
   late final Stream<String> forwardInvalidations = entityChanges
       .where((change) => change.kind == RealtimeEntityKind.forward)
       .map((change) => change.aggregateId)
       .asBroadcastStream();
 
-  /// Beacon room slice invalidation (`room_message`, `participant`, etc.);
-  /// payload `id` is the beacon id.
+  /// Temporary compatibility stream for room repositories during migration.
   late final Stream<BeaconRoomInvalidation> beaconRoomInvalidations =
       entityChanges
           .map(_toBeaconRoomInvalidation)
           .whereType<BeaconRoomInvalidation>()
           .asBroadcastStream();
 
-  /// Subject user ID whose capability cues changed (`person_capability_event` NOTIFY branch).
+  /// Temporary compatibility stream for capability repositories.
   late final Stream<String> capabilityInvalidations = entityChanges
       .where((change) => change.kind == RealtimeEntityKind.capability)
       .map((change) => change.aggregateId)
       .asBroadcastStream();
 
-  void _onInvalidation(Map<String, dynamic> msg) {
-    final payload = _normalizeJsonObject(msg['payload']);
+  StreamSubscription<Map<String, dynamic>> _subscribe(
+    Stream<Map<String, dynamic>> messages,
+  ) => messages.listen(_onMessage);
+
+  void _onMessage(Map<String, dynamic> message) {
+    if (message['path'] != 'entity_changes') return;
+    switch (message['type']) {
+      case 'subscription':
+        _onInvalidation(message);
+      case 'control':
+        _onServerControl(message);
+    }
+  }
+
+  void _onInvalidation(Map<String, dynamic> message) {
+    final payload = _normalizeJsonObject(message['payload']);
     if (payload == null) return;
     final id = payload['id'];
     final kind = _entityKindFromWire(payload['entity']);
@@ -112,6 +149,75 @@ class InvalidationService implements RealtimeSyncPort {
     );
   }
 
+  void _onServerControl(Map<String, dynamic> message) {
+    final payload = _normalizeJsonObject(message['payload']);
+    if (payload == null || payload['intent'] != 'catch_up') return;
+    final reason = switch (payload['reason']) {
+      'pg_listener_recovered' => RealtimeCatchUpReason.pgListenerRecovered,
+      'server_requested' ||
+      'protocol_change' => RealtimeCatchUpReason.serverRequested,
+      _ => null,
+    };
+    if (reason != null) requestCatchUp(reason);
+  }
+
+  void _onTransportStatus(RealtimeTransportStatus transportStatus) {
+    if (transportStatus.connectionEpoch < _latestConnectionEpoch) return;
+
+    final accountChanged =
+        transportStatus.accountId != null &&
+        transportStatus.accountId != _activeAccountId;
+    if (transportStatus.connectionEpoch > _latestConnectionEpoch) {
+      _latestConnectionEpoch = transportStatus.connectionEpoch;
+    }
+    if (transportStatus.phase == RealtimeTransportPhase.unbound) {
+      _activeAccountId = null;
+      _hasAuthenticatedCurrentAccount = false;
+    } else if (accountChanged) {
+      _activeAccountId = transportStatus.accountId;
+      _hasAuthenticatedCurrentAccount = false;
+    }
+
+    final status = RealtimeConnectionStatus(
+      accountId: transportStatus.accountId,
+      connectionEpoch: transportStatus.connectionEpoch,
+      phase: _connectionPhase(transportStatus.phase),
+    );
+    if (_connectionStatusSubject.value != status) {
+      _connectionStatusSubject.add(status);
+    }
+
+    if (transportStatus.phase != RealtimeTransportPhase.authenticated ||
+        transportStatus.accountId == null) {
+      return;
+    }
+    if (_hasAuthenticatedCurrentAccount) {
+      _catchUpController.add(
+        RealtimeCatchUp(
+          accountId: transportStatus.accountId!,
+          connectionEpoch: transportStatus.connectionEpoch,
+          reason: transportStatus.cause == RealtimeReconnectCause.pongTimeout
+              ? RealtimeCatchUpReason.pongTimeout
+              : RealtimeCatchUpReason.webSocketReconnected,
+        ),
+      );
+    }
+    _hasAuthenticatedCurrentAccount = true;
+  }
+
+  @override
+  void requestCatchUp(RealtimeCatchUpReason reason) {
+    final accountId = _activeAccountId;
+    if (accountId == null) return;
+    _catchUpController.add(
+      RealtimeCatchUp(
+        accountId: accountId,
+        connectionEpoch: _latestConnectionEpoch,
+        reason: reason,
+      ),
+    );
+  }
+
   static Iterable<RealtimeEntityChange> _deduplicateEntityChanges(
     List<RealtimeEntityChange> batch,
   ) {
@@ -122,6 +228,29 @@ class InvalidationService implements RealtimeSyncPort {
     }
     return latestByProjectionKey.values;
   }
+
+  static Iterable<RealtimeCatchUp> _deduplicateCatchUps(
+    List<RealtimeCatchUp> batch,
+  ) {
+    final latestByGeneration = <(String, int), RealtimeCatchUp>{};
+    for (final catchUp in batch) {
+      latestByGeneration[(catchUp.accountId, catchUp.connectionEpoch)] =
+          catchUp;
+    }
+    return latestByGeneration.values;
+  }
+
+  static RealtimeConnectionPhase _connectionPhase(
+    RealtimeTransportPhase phase,
+  ) => switch (phase) {
+    RealtimeTransportPhase.unbound => RealtimeConnectionPhase.unbound,
+    RealtimeTransportPhase.connecting => RealtimeConnectionPhase.connecting,
+    RealtimeTransportPhase.authenticating =>
+      RealtimeConnectionPhase.authenticating,
+    RealtimeTransportPhase.authenticated =>
+      RealtimeConnectionPhase.authenticated,
+    RealtimeTransportPhase.disconnected => RealtimeConnectionPhase.disconnected,
+  };
 
   static RealtimeEntityKind? _entityKindFromWire(Object? raw) => switch (raw) {
     'beacon' => RealtimeEntityKind.beacon,
@@ -173,8 +302,8 @@ class InvalidationService implements RealtimeSyncPort {
           );
   }
 
-  /// WebSocket `jsonDecode` may retain JS-backed values; round-trip so
-  /// `payload['entity']` / `id` are plain Dart strings for the switch above.
+  /// WebSocket `jsonDecode` may retain JS-backed values; round-trip so payload
+  /// values are plain Dart objects before closed-enum mapping.
   static Map<String, dynamic>? _normalizeJsonObject(Object? value) {
     if (value == null) return null;
     try {
@@ -188,7 +317,10 @@ class InvalidationService implements RealtimeSyncPort {
 
   @disposeMethod
   Future<void> dispose() async {
-    await _subscription.cancel();
+    await _messageSubscription.cancel();
+    await _transportSubscription.cancel();
     await _entityChangeController.close();
+    await _catchUpController.close();
+    await _connectionStatusSubject.close();
   }
 }

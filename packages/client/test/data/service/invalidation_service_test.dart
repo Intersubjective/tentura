@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/data/service/remote_api_client/realtime_transport_status.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
@@ -22,6 +25,18 @@ Map<String, dynamic> _entityChange({
     'actor_user_id': ?actorUserId,
   },
 };
+
+RealtimeTransportStatus _transport({
+  required String? accountId,
+  required int epoch,
+  required RealtimeTransportPhase phase,
+  RealtimeReconnectCause cause = RealtimeReconnectCause.network,
+}) => RealtimeTransportStatus(
+  accountId: accountId,
+  connectionEpoch: epoch,
+  phase: phase,
+  cause: cause,
+);
 
 void main() {
   group('InvalidationService', () {
@@ -260,6 +275,253 @@ void main() {
               )
               .operation,
           RealtimeOperation.update,
+        );
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('first authentication is quiet and reconnect emits one catch-up', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          wsMessages.stream,
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+          await transport.close();
+        });
+
+        final received = <RealtimeCatchUp>[];
+        final sub = service.catchUps.listen(received.add);
+        transport
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 1,
+              phase: RealtimeTransportPhase.authenticating,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 1,
+              phase: RealtimeTransportPhase.authenticated,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          );
+        async.elapse(const Duration(milliseconds: 500));
+        expect(received, isEmpty);
+
+        transport
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 2,
+              phase: RealtimeTransportPhase.authenticating,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 2,
+              phase: RealtimeTransportPhase.authenticated,
+            ),
+          );
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(
+          received,
+          [
+            const RealtimeCatchUp(
+              accountId: 'account-a',
+              connectionEpoch: 2,
+              reason: RealtimeCatchUpReason.webSocketReconnected,
+            ),
+          ],
+        );
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('pong reconstruction preserves its typed catch-up reason', () {
+      fakeAsync((async) {
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          const Stream.empty(),
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await transport.close();
+        });
+
+        final received = <RealtimeCatchUp>[];
+        final sub = service.catchUps.listen(received.add);
+        transport
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 1,
+              phase: RealtimeTransportPhase.authenticated,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 2,
+              phase: RealtimeTransportPhase.authenticated,
+              cause: RealtimeReconnectCause.pongTimeout,
+            ),
+          );
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(received.single.reason, RealtimeCatchUpReason.pongTimeout);
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('account switch rejects late old-account connection transitions', () {
+      fakeAsync((async) {
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          const Stream.empty(),
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await transport.close();
+        });
+
+        final catchUps = <RealtimeCatchUp>[];
+        final statuses = <RealtimeConnectionStatus>[];
+        final catchUpSub = service.catchUps.listen(catchUps.add);
+        final statusSub = service.connectionStatuses.listen(statuses.add);
+        transport
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 1,
+              phase: RealtimeTransportPhase.authenticated,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-b',
+              epoch: 2,
+              phase: RealtimeTransportPhase.connecting,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-a',
+              epoch: 1,
+              phase: RealtimeTransportPhase.authenticated,
+            ),
+          )
+          ..add(
+            _transport(
+              accountId: 'account-b',
+              epoch: 2,
+              phase: RealtimeTransportPhase.authenticated,
+              cause: RealtimeReconnectCause.initial,
+            ),
+          );
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(catchUps, isEmpty);
+        expect(statuses.last.accountId, 'account-b');
+        unawaited(catchUpSub.cancel());
+        unawaited(statusSub.cancel());
+      });
+    });
+
+    test('server listener recovery emits a jittered typed catch-up', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          wsMessages.stream,
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+          await transport.close();
+        });
+
+        final received = <RealtimeCatchUp>[];
+        final sub = service.catchUps.listen(received.add);
+        transport.add(
+          _transport(
+            accountId: 'account-a',
+            epoch: 7,
+            phase: RealtimeTransportPhase.authenticated,
+            cause: RealtimeReconnectCause.initial,
+          ),
+        );
+        async.flushMicrotasks();
+        wsMessages.add({
+          'type': 'control',
+          'path': 'entity_changes',
+          'payload': {
+            'intent': 'catch_up',
+            'reason': 'pg_listener_recovered',
+          },
+        });
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(
+          received.single.reason,
+          RealtimeCatchUpReason.pgListenerRecovered,
+        );
+        expect(received.single.shouldJitter, isTrue);
+        expect(received.single.connectionEpoch, 7);
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('explicit resume catch-up is account and epoch scoped', () {
+      fakeAsync((async) {
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          const Stream.empty(),
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await transport.close();
+        });
+
+        final received = <RealtimeCatchUp>[];
+        final sub = service.catchUps.listen(received.add);
+        service.requestCatchUp(RealtimeCatchUpReason.appResumed);
+        transport.add(
+          _transport(
+            accountId: 'account-a',
+            epoch: 4,
+            phase: RealtimeTransportPhase.connecting,
+          ),
+        );
+        async.flushMicrotasks();
+        service.requestCatchUp(RealtimeCatchUpReason.appResumed);
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(
+          received,
+          [
+            const RealtimeCatchUp(
+              accountId: 'account-a',
+              connectionEpoch: 4,
+              reason: RealtimeCatchUpReason.appResumed,
+            ),
+          ],
         );
         unawaited(sub.cancel());
       });

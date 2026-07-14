@@ -18,7 +18,6 @@ export 'package:web_socket_client/src/connection_state.dart';
 export 'remote_api_client/auth_link.dart' show AuthHeaderMode, HttpAuthHeaders;
 export 'remote_api_client/remote_api_client_base.dart';
 export 'remote_api_client/realtime_socket.dart';
-export 'remote_api_client/realtime_transport_status.dart';
 export 'package:tentura_root/domain/enums.dart' show WebSocketState;
 
 @singleton
