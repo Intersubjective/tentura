@@ -10,6 +10,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 @RoutePage()
@@ -30,6 +31,7 @@ class InviteGenealogyScreen extends StatelessWidget
       child: BlocProvider(
         create: (context) => GraphCubit(
           me: GetIt.I<ProfileCubit>().state.profile,
+          graphSourceRepository: GetIt.I<InviteGenealogyRepository>(),
           genealogyMode: true,
           genealogyTargetId: (targetId?.isEmpty ?? true) ? null : targetId,
           genealogyAnonymousNodeLabel: l10n.inviteGenealogyAnonymousNode,

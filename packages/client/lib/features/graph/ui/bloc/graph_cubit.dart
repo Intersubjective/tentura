@@ -7,21 +7,26 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/message/common_messages.dart';
 
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../../data/repository/forwards_graph_repository.dart';
+import '../../data/repository/graph_repository.dart';
+import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/graph_edge_colors.dart';
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
-import '../../domain/use_case/graph_case.dart';
 import 'graph_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,11 +35,13 @@ export '../../domain/forward_graph_focus_rules.dart';
 export 'graph_state.dart';
 
 class GraphCubit extends Cubit<GraphState> {
+  // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
   GraphCubit({
     required Profile me,
     required GraphEdgeColors edgeColors,
     String? focus,
-    GraphCase? graphCase,
+    GraphSourceRepository? graphSourceRepository,
 
     /// When set, [GraphCubit] always loads forwards for this beacon id and
     /// does not refetch on node focus changes (forwards graph is static).
@@ -48,6 +55,8 @@ class GraphCubit extends Cubit<GraphState> {
     this.genealogyMode = false,
     this.genealogyTargetId,
     this.genealogyAnonymousNodeLabel,
+    BeaconRepository? beaconRepository,
+    ProfileRepositoryPort? profileRepository,
     UiEffectPort? effects,
   }) : assert(
          !genealogyMode || forwardsGraphBeaconId == null,
@@ -64,7 +73,10 @@ class GraphCubit extends Cubit<GraphState> {
          size: 80,
          positionHint: 0,
        ),
-       _case = graphCase ?? GetIt.I<GraphCase>(),
+       _graphSource = graphSourceRepository ?? GetIt.I<GraphRepository>(),
+       _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
+       _profileRepository =
+           profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          GraphState(
@@ -74,20 +86,10 @@ class GraphCubit extends Cubit<GraphState> {
        ) {
     _pinnedNodeIds.add(_egoNode.id);
     _focusPathIds.add(_egoNode.id);
-    _projectionChangesSub = _case
-        .projectionChanges(
-          mode: _projectionMode,
-          beaconId: forwardsGraphBeaconId,
-        )
-        .listen(_onProjectionChanged, cancelOnError: false);
-    _accountChangesSub = _case.accountChanges.listen(
-      _onAccountChanged,
-      cancelOnError: false,
-    );
     unawaited(_fetch());
   }
 
-  final GraphCase _case;
+  final GraphSourceRepository _graphSource;
 
   final String? forwardsGraphBeaconId;
 
@@ -99,23 +101,13 @@ class GraphCubit extends Cubit<GraphState> {
 
   final String? genealogyAnonymousNodeLabel;
 
+  final BeaconRepository _beaconRepository;
+
+  final ProfileRepositoryPort _profileRepository;
+
   final UiEffectPort _effects;
 
   final GraphEdgeColors _edgeColors;
-
-  late final StreamSubscription<GraphProjectionChange> _projectionChangesSub;
-  late final StreamSubscription<String> _accountChangesSub;
-
-  static const _refreshDebounce = Duration(milliseconds: 100);
-  Timer? _refreshTimer;
-  int _fetchGeneration = 0;
-  bool _accountObserved = false;
-
-  GraphProjectionMode get _projectionMode => genealogyMode
-      ? GraphProjectionMode.inviteGenealogy
-      : forwardsGraphBeaconId != null
-      ? GraphProjectionMode.forwards
-      : GraphProjectionMode.meritRank;
 
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
@@ -166,12 +158,7 @@ class GraphCubit extends Cubit<GraphState> {
       genealogyMode ? _genealogyParentChainNodeIds : const <String>{};
 
   @override
-  Future<void> close() async {
-    _refreshTimer?.cancel();
-    _fetchGeneration++;
-    await _projectionChangesSub.cancel();
-    await _accountChangesSub.cancel();
-    _case.disposeProjection();
+  Future<void> close() {
     graphController.dispose();
     return super.close();
   }
@@ -301,11 +288,10 @@ class GraphCubit extends Cubit<GraphState> {
         hiddenNeighborCounts: const {},
       ),
     );
-    _prepareProjectionReplacement();
+    graphController.clear();
     _fetchLimits.clear();
-    _pinnedNodeIds
-      ..clear()
-      ..add(_egoNode.id);
+    _addedEdgeEndpoints.clear();
+    _allEdges.clear();
     _focusPathIds
       ..clear()
       ..add(_egoNode.id);
@@ -326,11 +312,10 @@ class GraphCubit extends Cubit<GraphState> {
         hiddenNeighborCounts: const {},
       ),
     );
-    _prepareProjectionReplacement();
+    graphController.clear();
     _fetchLimits.clear();
-    _pinnedNodeIds
-      ..clear()
-      ..add(_egoNode.id);
+    _addedEdgeEndpoints.clear();
+    _allEdges.clear();
     _focusPathIds
       ..clear()
       ..add(_egoNode.id);
@@ -339,43 +324,24 @@ class GraphCubit extends Cubit<GraphState> {
 
   ///
   ///
-  Future<void> _fetch({
-    bool silent = false,
-    bool replace = false,
-  }) async {
-    final generation = ++_fetchGeneration;
-    final replacementBackup = replace ? _captureProjection() : null;
-    var replacementApplied = false;
-
-    void prepareReplacement() {
-      replacementApplied = true;
-      _prepareProjectionReplacement();
-    }
-
-    if (!silent) {
-      emit(state.copyWith(status: StateStatus.isLoading));
-    }
+  Future<void> _fetch() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final fetchFocus = replace && genealogyMode
-          ? ''
-          : forwardsGraphBeaconId ?? state.focus;
+      final fetchFocus = forwardsGraphBeaconId ?? state.focus;
       final limitKey = fetchFocus;
 
       Set<EdgeDirected> edges;
+      final source = _graphSource;
       var showNoHelpOffererPathMessage = false;
       String? noPathHelpOffererId;
       var forwardsAuthorId = '';
-      if (helpOffererFocusUserId != null && forwardsGraphBeaconId != null) {
-        final payload =
-            await _case.load(
-                  ForwardsGraphLoad(
-                    beaconId: forwardsGraphBeaconId!,
-                    helpOffererId: helpOffererFocusUserId,
-                  ),
-                )
-                as GraphEdgesResult;
-        if (!_isCurrentFetch(generation)) return;
-        if (replace) prepareReplacement();
+      if (helpOffererFocusUserId != null &&
+          forwardsGraphBeaconId != null &&
+          source is ForwardsGraphRepository) {
+        final payload = await source.fetchHelpOffererForwardsGraph(
+          beaconId: forwardsGraphBeaconId!,
+          helpOffererId: helpOffererFocusUserId!,
+        );
         edges = payload.edges;
         _helpOffererIds = payload.helpOffererIds;
         forwardsAuthorId = payload.authorId;
@@ -418,28 +384,20 @@ class GraphCubit extends Cubit<GraphState> {
         );
         showNoHelpOffererPathMessage = !hasHelpOffererEndpoint;
         noPathHelpOffererId = !hasHelpOffererEndpoint ? helpOffererId : null;
-      } else if (forwardsGraphBeaconId != null) {
-        final payload =
-            await _case.load(
-                  ForwardsGraphLoad(beaconId: forwardsGraphBeaconId!),
-                )
-                as GraphEdgesResult;
-        if (!_isCurrentFetch(generation)) return;
-        if (replace) prepareReplacement();
+      } else if (forwardsGraphBeaconId != null &&
+          source is ForwardsGraphRepository) {
+        final payload = await source.fetchForwardsGraph(
+          beaconId: forwardsGraphBeaconId!,
+        );
         edges = payload.edges;
         _helpOffererIds = payload.helpOffererIds;
         forwardsAuthorId = payload.authorId;
-      } else if (genealogyMode) {
+      } else if (genealogyMode && source is InviteGenealogyRepository) {
         List<EdgeDirected> rawEdges;
         if (fetchFocus.isEmpty) {
-          final result =
-              await _case.load(
-                    GenealogyBootstrapGraphLoad(targetId: genealogyTargetId),
-                  )
-                  as GenealogyBootstrapResult;
-          if (!_isCurrentFetch(generation)) return;
-          if (replace) prepareReplacement();
-          final graph = result.graph;
+          final graph = await source.fetchGenealogyBootstrap(
+            targetId: genealogyTargetId,
+          );
           if (state.egoNodeId.isEmpty) {
             emit(
               state.copyWith(
@@ -454,25 +412,18 @@ class GraphCubit extends Cubit<GraphState> {
           );
           _preloadGenealogyNodes(graph.nodes);
           await _fetchGenealogyChildCounts(
+            source,
             graph.nodes.map((node) => node.nodeKey),
           );
-          if (!_isCurrentFetch(generation)) return;
           rawEdges = _genealogyEdgesFromGraph(graph);
         } else {
           final cursor = _genealogyChildrenCursors[fetchFocus];
-          final result =
-              await _case.load(
-                    GenealogyChildrenGraphLoad(
-                      nodeKey: fetchFocus,
-                      afterCreatedAt: cursor?.$1,
-                      afterNodeKey: cursor?.$2,
-                      limit: kFetchWindowSize,
-                    ),
-                  )
-                  as GenealogyChildrenResult;
-          if (!_isCurrentFetch(generation)) return;
-          if (replace) prepareReplacement();
-          final page = result.page;
+          final page = await source.fetchChildren(
+            nodeKey: fetchFocus,
+            afterCreatedAt: cursor?.$1,
+            afterNodeKey: cursor?.$2,
+            limit: kFetchWindowSize,
+          );
           if (page.edges.isNotEmpty) {
             final last = page.edges.last;
             _genealogyChildrenCursors[fetchFocus] = (
@@ -482,12 +433,12 @@ class GraphCubit extends Cubit<GraphState> {
           }
           _preloadGenealogyNodes(page.nodes);
           await _fetchGenealogyChildCounts(
+            source,
             {
               fetchFocus,
               for (final edge in page.edges) edge.descendantNodeKey,
             },
           );
-          if (!_isCurrentFetch(generation)) return;
           rawEdges = [
             for (final e in page.edges)
               (
@@ -502,22 +453,19 @@ class GraphCubit extends Cubit<GraphState> {
           ];
         }
         edges = rawEdges.toSet();
+      } else if (genealogyMode) {
+        throw StateError(
+          'GraphCubit(genealogyMode: true) requires InviteGenealogyRepository',
+        );
       } else {
-        final result =
-            await _case.load(
-                  MeritRankGraphLoad(
-                    positiveOnly: state.positiveOnly,
-                    context: state.context,
-                    focus: fetchFocus.isEmpty ? null : fetchFocus,
-                    limit: _fetchLimits[limitKey] =
-                        (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize,
-                    viewerUserId: state.me.id,
-                  ),
-                )
-                as GraphEdgesResult;
-        if (!_isCurrentFetch(generation)) return;
-        if (replace) prepareReplacement();
-        edges = result.edges;
+        edges = await _graphSource.fetch(
+          positiveOnly: state.positiveOnly,
+          context: state.context,
+          focus: fetchFocus.isEmpty ? null : fetchFocus,
+          limit: _fetchLimits[limitKey] =
+              (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize,
+          viewerUserId: state.me.id,
+        );
       }
 
       for (final e in edges) {
@@ -533,7 +481,6 @@ class GraphCubit extends Cubit<GraphState> {
             e.dst,
             pinned: isFocus,
           );
-          if (!_isCurrentFetch(generation)) return;
           if (lazy != null) {
             _nodes[e.dst] = lazy;
           }
@@ -546,7 +493,6 @@ class GraphCubit extends Cubit<GraphState> {
       for (final e in edges) {
         if (_nodes.containsKey(e.src)) continue;
         final lazy = await _resolveNodeById(e.src);
-        if (!_isCurrentFetch(generation)) return;
         if (lazy != null) {
           _nodes[e.src] = lazy;
         }
@@ -555,7 +501,6 @@ class GraphCubit extends Cubit<GraphState> {
       // Add FocusNode in case there were no edges containing it
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
         final lazy = await _resolveNodeById(state.focus, pinned: true);
-        if (!_isCurrentFetch(generation)) return;
         if (lazy != null) {
           // When the focused help offerer has no path edges, we still want to show
           // them as an isolated focus node. Give it a stable hint north of root.
@@ -577,7 +522,6 @@ class GraphCubit extends Cubit<GraphState> {
           forwardsAuthorId,
           pinned: state.focus == forwardsAuthorId,
         );
-        if (!_isCurrentFetch(generation)) return;
         if (lazy != null) {
           _nodes[forwardsAuthorId] = lazy;
         }
@@ -585,12 +529,9 @@ class GraphCubit extends Cubit<GraphState> {
 
       _applyHelpOffererHighlights();
 
-      if (replace) _pruneReplacedProjectionViewState();
-
       emit(state.copyWith(status: StateStatus.isSuccess));
 
       _updateGraph(edges);
-      unawaited(_replaceWatch());
 
       if (showNoHelpOffererPathMessage) {
         _effects.emit(const ShowMessage(NoHelpOffererForwardPathMessage()));
@@ -624,178 +565,36 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
     } catch (e) {
-      if (!_isCurrentFetch(generation)) return;
-      if (replacementApplied && replacementBackup != null) {
-        _restoreProjection(replacementBackup);
-      } else {
-        emit(state.copyWith(status: const StateIsSuccess()));
-      }
-      if (!silent) _effects.emit(ShowError(e));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
-
-  bool _isCurrentFetch(int generation) =>
-      !isClosed && generation == _fetchGeneration;
-
-  void _onProjectionChanged(GraphProjectionChange change) {
-    final kind = change.kind;
-    final shouldRefresh = switch (kind) {
-      null || RealtimeEntityKind.contact => true,
-      RealtimeEntityKind.relationship || RealtimeEntityKind.profile =>
-        _visibleUserIds().contains(change.aggregateId),
-      RealtimeEntityKind.beacon =>
-        change.aggregateId == forwardsGraphBeaconId ||
-            _nodes.containsKey(change.aggregateId),
-      RealtimeEntityKind.forward || RealtimeEntityKind.helpOffer => true,
-      _ => false,
-    };
-    if (shouldRefresh) _scheduleProjectionRefresh();
-  }
-
-  void _scheduleProjectionRefresh() {
-    if (isClosed) return;
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer(_refreshDebounce, () {
-      _refreshTimer = null;
-      if (!isClosed) unawaited(_fetch(silent: true, replace: true));
-    });
-  }
-
-  void _onAccountChanged(String accountId) {
-    if (!_accountObserved) {
-      _accountObserved = true;
-      if (accountId.isEmpty) return;
-    }
-    if (accountId == state.me.id) return;
-    _refreshTimer?.cancel();
-    _fetchGeneration++;
-    _case.disposeProjection();
-    _prepareProjectionReplacement();
-    emit(
-      state.copyWith(
-        focus: '',
-        hiddenNeighborCounts: const {},
-        status: StateStatus.isSuccess,
-      ),
-    );
-  }
-
-  void _prepareProjectionReplacement() {
-    graphController.clear();
-    _nodes.clear();
-    if (!genealogyMode) _nodes[_egoNode.id] = _egoNode;
-    _genealogyChildrenCursors.clear();
-    _genealogyParentChainNodeIds.clear();
-    _totalNeighborCounts.clear();
-    _addedEdgeEndpoints.clear();
-    _allEdges.clear();
-    _helpOffererIds = const {};
-  }
-
-  _GraphProjectionBackup _captureProjection() => _GraphProjectionBackup(
-    state: state,
-    nodes: Map.of(_nodes),
-    renderedNodes: List.of(graphController.nodes),
-    renderedEdges: List.of(graphController.edges),
-    fetchLimits: Map.of(_fetchLimits),
-    genealogyChildrenCursors: Map.of(_genealogyChildrenCursors),
-    genealogyParentChainNodeIds: Set.of(_genealogyParentChainNodeIds),
-    totalNeighborCounts: Map.of(_totalNeighborCounts),
-    addedEdgeEndpoints: Set.of(_addedEdgeEndpoints),
-    pinnedNodeIds: Set.of(_pinnedNodeIds),
-    focusPathIds: List.of(_focusPathIds),
-    allEdges: Map.of(_allEdges),
-    helpOffererIds: Set.of(_helpOffererIds),
-  );
-
-  void _restoreProjection(_GraphProjectionBackup backup) {
-    _nodes
-      ..clear()
-      ..addAll(backup.nodes);
-    _fetchLimits
-      ..clear()
-      ..addAll(backup.fetchLimits);
-    _genealogyChildrenCursors
-      ..clear()
-      ..addAll(backup.genealogyChildrenCursors);
-    _genealogyParentChainNodeIds
-      ..clear()
-      ..addAll(backup.genealogyParentChainNodeIds);
-    _totalNeighborCounts
-      ..clear()
-      ..addAll(backup.totalNeighborCounts);
-    _addedEdgeEndpoints
-      ..clear()
-      ..addAll(backup.addedEdgeEndpoints);
-    _pinnedNodeIds
-      ..clear()
-      ..addAll(backup.pinnedNodeIds);
-    _focusPathIds
-      ..clear()
-      ..addAll(backup.focusPathIds);
-    _allEdges
-      ..clear()
-      ..addAll(backup.allEdges);
-    _helpOffererIds = Set.of(backup.helpOffererIds);
-
-    graphController
-      ..clear()
-      ..mutate((mutator) {
-        backup.renderedNodes.forEach(mutator.addNode);
-        backup.renderedEdges.forEach(mutator.addEdge);
-      });
-    emit(backup.state.copyWith(status: const StateIsSuccess()));
-  }
-
-  void _pruneReplacedProjectionViewState() {
-    _pinnedNodeIds.removeWhere((id) => !_nodes.containsKey(id));
-    if (!genealogyMode) _pinnedNodeIds.add(_egoNode.id);
-    _focusPathIds.removeWhere((id) => !_nodes.containsKey(id));
-    if (state.focus.isEmpty || _nodes.containsKey(state.focus)) return;
-    final fallback = genealogyMode ? state.egoNodeId : _egoNode.id;
-    emit(state.copyWith(focus: _nodes.containsKey(fallback) ? fallback : ''));
-    _resetFocusPathRoot(fallback);
-  }
-
-  Future<void> _replaceWatch() => _case.replaceWatch(
-    GraphWatchProjection(
-      focusId: _watchFocusId,
-      context: state.context,
-      positiveOnly: state.positiveOnly,
-      userIds: _visibleUserIds(),
-    ),
-  );
-
-  String get _watchFocusId {
-    final forwardsId = forwardsGraphBeaconId;
-    if (forwardsId != null && forwardsId.isNotEmpty) return forwardsId;
-    final genealogyTarget = genealogyTargetId;
-    if (genealogyTarget != null && genealogyTarget.isNotEmpty) {
-      return genealogyTarget;
-    }
-    final focus = state.focus;
-    return focus.startsWith('U') || focus.startsWith('B') ? focus : state.me.id;
-  }
-
-  Set<String> _visibleUserIds() => {
-    for (final node in _nodes.values)
-      switch (node) {
-        UserNode(:final user) => user.id,
-        GenealogyUserNode(:final user) => user.id,
-        _ => '',
-      },
-  }..removeWhere((id) => id.isEmpty);
 
   Future<NodeDetails?> _resolveNodeById(
     String id, {
     bool pinned = false,
   }) async {
-    return _case.resolveNodeById(
-      id,
-      positionHint: _nodes.length,
-      pinned: pinned,
-      helpOffererIds: _helpOffererIds,
-    );
+    if (id.startsWith('U')) {
+      final profile = await _profileRepository.fetchById(id);
+      return UserNode(
+        user: profile,
+        positionHint: _nodes.length,
+        pinned: pinned,
+        isHelpOfferer: _helpOffererIds.contains(id),
+      );
+    }
+    if (id.startsWith('B')) {
+      try {
+        return BeaconNode(
+          beacon: await _beaconRepository.fetchBeaconById(id),
+          positionHint: _nodes.length,
+          pinned: pinned,
+        );
+      } on BeaconFetchException {
+        return null;
+      }
+    }
+    return null;
   }
 
   void _preloadGenealogyNodes(List<InviteGenealogyNode> nodes) {
@@ -891,13 +690,14 @@ class GraphCubit extends Cubit<GraphState> {
   }
 
   Future<void> _fetchGenealogyChildCounts(
+    InviteGenealogyRepository source,
     Iterable<String> nodeKeys,
   ) async {
     final keys = nodeKeys.where((key) => key.isNotEmpty).toSet();
     if (keys.isEmpty) {
       return;
     }
-    final counts = await _case.fetchGenealogyChildCounts(keys);
+    final counts = await source.fetchChildCounts(nodeKeys: keys.toList());
     _totalNeighborCounts.addAll(counts);
   }
 
@@ -1154,36 +954,4 @@ class GraphCubit extends Cubit<GraphState> {
     });
     _emitHiddenNeighborCounts();
   }
-}
-
-final class _GraphProjectionBackup {
-  const _GraphProjectionBackup({
-    required this.state,
-    required this.nodes,
-    required this.renderedNodes,
-    required this.renderedEdges,
-    required this.fetchLimits,
-    required this.genealogyChildrenCursors,
-    required this.genealogyParentChainNodeIds,
-    required this.totalNeighborCounts,
-    required this.addedEdgeEndpoints,
-    required this.pinnedNodeIds,
-    required this.focusPathIds,
-    required this.allEdges,
-    required this.helpOffererIds,
-  });
-
-  final GraphState state;
-  final Map<String, NodeDetails> nodes;
-  final List<NodeDetails> renderedNodes;
-  final List<EdgeDetails<NodeDetails>> renderedEdges;
-  final Map<String, int> fetchLimits;
-  final Map<String, (DateTime, String)> genealogyChildrenCursors;
-  final Set<String> genealogyParentChainNodeIds;
-  final Map<String, int> totalNeighborCounts;
-  final Set<(String, String)> addedEdgeEndpoints;
-  final Set<String> pinnedNodeIds;
-  final List<String> focusPathIds;
-  final Map<(String, String), EdgeDirected> allEdges;
-  final Set<String> helpOffererIds;
 }

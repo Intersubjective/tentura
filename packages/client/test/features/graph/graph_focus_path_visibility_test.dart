@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -8,10 +7,8 @@ import 'package:tentura/features/graph/data/repository/graph_source_repository.d
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/domain/use_case/graph_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
-import 'package:tentura/env.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -93,14 +90,10 @@ EdgeDirected _e(
 
 GraphCubit _cubit(_FakeGraphSource source) => GraphCubit(
   me: _me,
-  graphCase: GraphCase.forTesting(
-    meritRank: source,
-    beacons: _FakeBeaconRepository(),
-    profiles: _FakeProfileRepository(),
-    env: const Env(),
-    logger: Logger('test'),
-  ),
+  graphSourceRepository: source,
   edgeColors: _edgeColors,
+  beaconRepository: _FakeBeaconRepository(),
+  profileRepository: _FakeProfileRepository(),
   effects: FakeUiEffectPort(),
 );
 
