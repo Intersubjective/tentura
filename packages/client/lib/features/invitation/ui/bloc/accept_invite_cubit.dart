@@ -3,9 +3,8 @@ import 'package:injectable/injectable.dart';
 
 import '../../data/repository/invitation_repository.dart';
 
-import 'package:tentura/consts.dart';
+import 'package:tentura/app/platform/landing_redirect.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';

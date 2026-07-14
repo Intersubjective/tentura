@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/app/platform/landing_redirect.dart';
 import 'package:tentura/domain/exception/credential_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
-import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/credentials/data/repository/credentials_repository.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_entity.dart';
 

@@ -4,8 +4,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/app/platform/landing_redirect.dart';
 
-import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';

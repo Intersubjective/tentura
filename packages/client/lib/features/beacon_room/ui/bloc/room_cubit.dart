@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
-import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -17,6 +16,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import '../../domain/coordination_item_room_sync.dart';
 import '../../domain/entity/beacon_room_invalidation.dart';
 import '../../domain/entity/room_seen_outcome.dart';
+import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/use_case/beacon_room_case.dart';
 import '../message/beacon_room_fact_messages.dart';
 import 'room_message_reaction_local.dart';
@@ -102,7 +102,7 @@ class RoomCubit extends Cubit<RoomState> {
     unawaited(_fetchRoomData(silent: true));
   }
 
-  /// Patches joined item snapshots on all messages referencing [item].
+  /// Patches joined item snapshots on all messages referencing the item.
   /// Patches each message's linked-item reply counts from [items] (keyed by id).
   static List<RoomMessage> _joinCoordinationCounts(
     List<RoomMessage> messages,
@@ -445,7 +445,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
       _showMessage(const BeaconFactPinSuccessMessage());
-    } on BeaconFactAlreadyPinnedRemoteException catch (e) {
+    } on BeaconFactAlreadyPinnedException catch (e) {
       _showMessage(
         BeaconFactAlreadyPinnedSnackMessage(
           onOpenFacts: () => emit(

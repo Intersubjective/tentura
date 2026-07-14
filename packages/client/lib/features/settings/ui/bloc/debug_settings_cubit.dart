@@ -9,8 +9,8 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/notification/data/service/direct_notification_probe.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
+import 'package:tentura/features/notification/domain/port/direct_notification_probe_port.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/settings/domain/port/email_test_remote_repository_port.dart';
@@ -30,6 +30,7 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     this._fcmCubit,
     this._emailTestRepository,
     this._bookkeepingRefreshCase,
+    this._directNotificationProbe,
     this._effects,
   ) : super(const DebugSettingsState());
 
@@ -38,6 +39,7 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
   final FcmCubit _fcmCubit;
   final EmailTestRemoteRepositoryPort _emailTestRepository;
   final BookkeepingRefreshCase _bookkeepingRefreshCase;
+  final DirectNotificationProbePort _directNotificationProbe;
   final UiEffectPort _effects;
 
   Timer? _fcmCooldownTimer;
@@ -147,7 +149,7 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
 
   Future<void> testDirectNotification() async {
     try {
-      await showDirectTestNotification();
+      await _directNotificationProbe.show();
       _effects.emit(
         const ShowMessage(DebugDirectNotificationTestSentMessage()),
       );

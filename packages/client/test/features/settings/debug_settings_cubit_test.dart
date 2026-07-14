@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
+import 'package:tentura/features/notification/domain/port/direct_notification_probe_port.dart';
 import 'package:tentura/features/notification/domain/use_case/fcm_case.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/settings/domain/entity/email_test_send_result.dart';
@@ -23,14 +23,19 @@ void main() {
     late FakeUiEffectPort effects;
     late FcmCubit fcmCubit;
     late FakeBookkeepingRefreshRepository bookkeepingRepo;
+    late _FakeDirectNotificationProbe directNotificationProbe;
     late DebugSettingsCubit cubit;
 
     setUp(() {
       fcmCase = _FcmCaseSpy(FakeFcmLocal(), FakeFcmRemote(), FakeSettings());
       emailRepo = FakeEmailTestRepository();
       bookkeepingRepo = FakeBookkeepingRefreshRepository();
+      directNotificationProbe = _FakeDirectNotificationProbe();
       effects = FakeUiEffectPort();
-      final authCase = buildTestAuthCase(SignedInAuthLocal(), EmptyAuthRemote());
+      final authCase = buildTestAuthCase(
+        SignedInAuthLocal(),
+        EmptyAuthRemote(),
+      );
       fcmCubit = FcmCubit(fcmCase, authCase);
       cubit = DebugSettingsCubit(
         fcmCase,
@@ -38,14 +43,14 @@ void main() {
         fcmCubit,
         emailRepo,
         buildTestBookkeepingRefreshCase(repository: bookkeepingRepo),
+        directNotificationProbe,
         effects,
       );
     });
 
     tearDown(() => cubit.close());
 
-    test(
-        'loadFcmInfo reflects a live permission re-check, not the FcmCubit '
+    test('loadFcmInfo reflects a live permission re-check, not the FcmCubit '
         "state's stale cache", () async {
       // FcmCubit.state.permissions never got refreshed here (its account
       // stream never emits, so _onAccountChanges never ran) — it's stuck at
@@ -98,20 +103,33 @@ void main() {
       );
     });
 
-    test('recalculate counters starts cooldown and reports repair counts', () async {
-      await cubit.recalculateCounters();
+    test(
+      'recalculate counters starts cooldown and reports repair counts',
+      () async {
+        await cubit.recalculateCounters();
 
-      expect(bookkeepingRepo.callCount, 1);
-      expect(cubit.state.isRecalculateCountersEnabled, isFalse);
+        expect(bookkeepingRepo.callCount, 1);
+        expect(cubit.state.isRecalculateCountersEnabled, isFalse);
+        expect(
+          effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+          contains(
+            isA<DebugRecalculateCountersDoneMessage>().having(
+              (m) => m.coordination,
+              'coordination',
+              1,
+            ),
+          ),
+        );
+      },
+    );
+
+    test('direct notification delegates through the platform port', () async {
+      await cubit.testDirectNotification();
+
+      expect(directNotificationProbe.showCalls, 1);
       expect(
         effects.emitted.whereType<ShowMessage>().map((e) => e.message),
-        contains(
-          isA<DebugRecalculateCountersDoneMessage>().having(
-            (m) => m.coordination,
-            'coordination',
-            1,
-          ),
-        ),
+        contains(isA<DebugDirectNotificationTestSentMessage>()),
       );
     });
   });
@@ -141,6 +159,7 @@ void main() {
         FcmCubit(fcmCase, authCase),
         FakeEmailTestRepository(),
         buildTestBookkeepingRefreshCase(),
+        _FakeDirectNotificationProbe(),
         effects,
       );
     }
@@ -197,7 +216,7 @@ void main() {
 
 class _FcmCaseSpy extends FcmCase {
   _FcmCaseSpy(this.local, this.remote, FakeSettings settings)
-      : super(local, remote, settings);
+    : super(local, remote, settings);
 
   final FakeFcmLocal local;
   final FakeFcmRemote remote;
@@ -220,4 +239,14 @@ class FakeEmailTestRepository implements EmailTestRemoteRepositoryPort {
 
   @override
   Future<EmailTestSendResult> sendTestEmail() async => result;
+}
+
+final class _FakeDirectNotificationProbe
+    implements DirectNotificationProbePort {
+  int showCalls = 0;
+
+  @override
+  Future<void> show() async {
+    showCalls++;
+  }
 }

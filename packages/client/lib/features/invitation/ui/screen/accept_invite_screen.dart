@@ -5,8 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
-import 'package:tentura/features/auth/data/service/web_redirect.dart';
+import 'package:tentura/app/platform/landing_redirect.dart';
 import '../bloc/accept_invite_cubit.dart';
 import '../dialog/invitation_accept_dialog.dart';
 
@@ -42,28 +41,29 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => BlocConsumer<AcceptInviteCubit, AcceptInviteState>(
-    listener: (context, state) {
-      if (state.needsConfirmation && !_confirmStarted) {
-        _confirmStarted = true;
-        unawaited(_runConfirmation(context, state));
-        return;
-      }
-      final signupCode = state.pendingSignupCode;
-      if (signupCode != null && signupCode.isNotEmpty) {
-        unawaited(_handleSignupNavigation(context, state, signupCode));
-      }
-    },
-    builder: (context, state) => Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: state.isLoading || state.needsConfirmation
-              ? const CircularProgressIndicator.adaptive()
-              : const SizedBox.shrink(),
+  Widget build(BuildContext context) =>
+      BlocConsumer<AcceptInviteCubit, AcceptInviteState>(
+        listener: (context, state) {
+          if (state.needsConfirmation && !_confirmStarted) {
+            _confirmStarted = true;
+            unawaited(_runConfirmation(context, state));
+            return;
+          }
+          final signupCode = state.pendingSignupCode;
+          if (signupCode != null && signupCode.isNotEmpty) {
+            unawaited(_handleSignupNavigation(context, state, signupCode));
+          }
+        },
+        builder: (context, state) => Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: state.isLoading || state.needsConfirmation
+                  ? const CircularProgressIndicator.adaptive()
+                  : const SizedBox.shrink(),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   Future<void> _runConfirmation(
     BuildContext context,

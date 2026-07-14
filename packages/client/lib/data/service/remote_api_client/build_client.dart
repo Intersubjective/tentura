@@ -9,11 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/app/sentry/sentry_init.dart';
+import 'package:tentura/features/beacon_room/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
 import 'auth_loss_classifier.dart';
-import 'graphql_v2_exceptions.dart';
 import 'v2_upload_multipart_link.dart';
 
 typedef ClientParams = ({
@@ -65,10 +65,10 @@ Future<Client> buildClient({
             if (ext != null) {
               final code = int.tryParse(ext['code']?.toString() ?? '');
               final factId = ext['factCardId'] as String?;
-              if (code == BeaconFactAlreadyPinnedRemoteException.codeNumber &&
+              if (code == BeaconFactAlreadyPinnedException.codeNumber &&
                   factId != null &&
                   factId.isNotEmpty) {
-                throw BeaconFactAlreadyPinnedRemoteException(
+                throw BeaconFactAlreadyPinnedException(
                   factCardId: factId,
                 );
               }
