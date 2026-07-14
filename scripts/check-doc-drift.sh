@@ -40,9 +40,13 @@ RULE_DOC_PATTERNS=(
 )
 
 found=0
+mapfile -d '' TRACKED_DOC_FILES < <(
+  git ls-files -z -- 'docs/**' ':!docs/README.md'
+)
 
 for pat in "${DOC_PATTERNS[@]}"; do
-  if rg -n --glob 'docs/**' --glob '!docs/README.md' "$pat" docs/ 2>/dev/null; then
+  if ((${#TRACKED_DOC_FILES[@]} > 0)) && \
+    rg -n "$pat" "${TRACKED_DOC_FILES[@]}" 2>/dev/null; then
     found=1
   fi
 done

@@ -143,6 +143,8 @@ ORDER BY c.relname
           for (var i = 0; i < 350; i++)
             'U${i.toRadixString(16).padLeft(12, '0')}',
         ];
+        final entityId =
+            'Brealtime${DateTime.timestamp().microsecondsSinceEpoch}';
         const actor = 'U000000000001';
         final sqlArray = recipients.map((id) => "'$id'").join(',');
 
@@ -153,13 +155,18 @@ ORDER BY c.relname
         );
         await writer.execute('''
 SELECT public.emit_realtime_entity_change(
-  'beacon', 'Brealtime0001', 'update', ARRAY[$sqlArray]::text[]
+  'beacon', '$entityId', 'update', ARRAY[$sqlArray]::text[]
 )
 ''');
         await writer.execute('COMMIT');
 
-        await _waitUntil(() => _ofKind(notifications, 'beacon').length == 4);
-        final chunks = _ofKind(notifications, 'beacon');
+        List<Map<String, dynamic>> testChanges() => _ofKind(
+          notifications,
+          'beacon',
+        ).where((message) => message['id'] == entityId).toList();
+
+        await _waitUntil(() => testChanges().length == 4);
+        final chunks = testChanges();
         expect(chunks, hasLength(4));
         expect(
           chunks.expand((message) => message['user_ids']! as List).toSet(),
@@ -177,6 +184,12 @@ SELECT public.emit_realtime_entity_change(
     test(
       'bulk relationship writes coalesce through a statement trigger',
       () async {
+        final subjectPrefix =
+            'realtime_${DateTime.timestamp().microsecondsSinceEpoch}_';
+        final subjects = [
+          for (var i = 0; i < 600; i++)
+            '$subjectPrefix${i.toRadixString(16).padLeft(3, '0')}',
+        ];
         await writer.execute('''
 CREATE TEMP TABLE realtime_relationship_batch (
   subject text NOT NULL,
@@ -191,7 +204,7 @@ CREATE TRIGGER realtime_relationship_batch_notify
 ''');
         final values = [
           for (var i = 0; i < 300; i++)
-            "('U${i.toRadixString(16).padLeft(12, '0')}','U${(i + 300).toRadixString(16).padLeft(12, '0')}')",
+            "('${subjects[i]}','${subjects[i + 300]}')",
         ].join(',');
 
         await writer.execute('BEGIN');
@@ -200,14 +213,26 @@ CREATE TRIGGER realtime_relationship_batch_notify
         );
         await writer.execute('COMMIT');
 
+        List<Map<String, dynamic>> testChanges() =>
+            _ofKind(
+                  notifications,
+                  'relationship',
+                )
+                .where(
+                  (message) =>
+                      (message['id']! as String).startsWith(subjectPrefix),
+                )
+                .toList();
+
         await _waitUntil(
-          () => _ofKind(notifications, 'relationship').length == 6,
+          () => testChanges().length == 6,
+          timeout: const Duration(seconds: 10),
         );
-        final changes = _ofKind(notifications, 'relationship');
+        final changes = testChanges();
         expect(changes, hasLength(6));
         expect(
           changes.expand((message) => message['user_ids']! as List).toSet(),
-          hasLength(600),
+          subjects.toSet(),
         );
         expect(
           changes.every((message) => !message.containsKey('subject_ids')),
@@ -263,8 +288,12 @@ ON CONFLICT (id) DO NOTHING
             },
           );
           await writer.execute('COMMIT');
-          await _waitUntil(() => _ofKind(notifications, 'contact').isNotEmpty);
-          final change = _ofKind(notifications, 'contact').single;
+          List<Map<String, dynamic>> testChanges() => _ofKind(
+            notifications,
+            'contact',
+          ).where((message) => message['id'] == subjectId).toList();
+          await _waitUntil(() => testChanges().isNotEmpty);
+          final change = testChanges().single;
           expect(change['event'], operation);
           expect(change['id'], subjectId);
           expect(change['user_ids'], [viewerId]);
@@ -319,6 +348,11 @@ ON CONFLICT (id) DO NOTHING
       await _settle();
       notifications.clear();
 
+      List<Map<String, dynamic>> testChanges() => _ofKind(
+        notifications,
+        'room_seen',
+      ).where((message) => message['id'] == beaconId).toList();
+
       await writer.execute(
         Sql.named('''
 INSERT INTO public.beacon_room_seen (
@@ -329,7 +363,7 @@ DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at
 '''),
         parameters: {'userId': userId, 'beaconId': beaconId},
       );
-      await _waitUntil(() => _ofKind(notifications, 'room_seen').length == 1);
+      await _waitUntil(() => testChanges().length == 1);
       notifications.clear();
 
       await writer.execute(
@@ -341,7 +375,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId AND thread_item_id IS NULL
         parameters: {'userId': userId, 'beaconId': beaconId},
       );
       await _settle();
-      expect(_ofKind(notifications, 'room_seen'), isEmpty);
+      expect(testChanges(), isEmpty);
 
       await writer.execute(
         Sql.named('''
@@ -351,7 +385,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId AND thread_item_id IS NULL
 '''),
         parameters: {'userId': userId, 'beaconId': beaconId},
       );
-      await _waitUntil(() => _ofKind(notifications, 'room_seen').length == 1);
+      await _waitUntil(() => testChanges().length == 1);
     }, skip: skipReason);
   }, skip: skipReason);
 }
