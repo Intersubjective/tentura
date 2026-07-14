@@ -175,7 +175,7 @@ actor account's sessions converge through the same server hint as other affected
 sessions. Do not reintroduce SQL actor removal or a session-local derived-state
 bus.
 
-The client coalesces `(kind, aggregateId)` bursts for 500 ms. Cubits use one
+The client coalesces `(kind, aggregateId)` bursts for 100 ms. Cubits use one
 in-flight silent refresh plus at most one queued rerun and reject stale account or
 generation results. Command success/failure owns user-visible effects; an echoed
 invalidation only reconciles server truth and must not show a second success.

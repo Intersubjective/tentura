@@ -11,6 +11,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_realtime_multiclient:
+        description: Run the five-pass simultaneous-browser realtime gate
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -144,6 +149,51 @@ jobs:
             coverage/lcov.handwritten.merged.info
             coverage/handwritten-summary.txt
           retention-days: 30
+
+  realtime-multiclient:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_realtime_multiclient == 'true'
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install browser-runner dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq caddy jq unzip
+
+      - name: Configure local QA stack
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          printf '%s\n' \
+            'QA_AUTH_ENABLED=true' \
+            'QA_AUTH_TOKEN=ci-realtime-multiclient' \
+            'QA_EMAIL_DOMAINS=test.tentura.local,qa.tentura.local,example.test' \
+            'QA_SIMPLE_LOGIN_MODE=true' \
+            'MIN_CLIENT_VERSION=0.0.0' >> .env
+
+      - name: Resolve workspace dependencies
+        run: |
+          dart pub get
+          flutter pub get
+
+      - name: Run simultaneous-client realtime gate
+        run: bash scripts/run_realtime_multiclient_web_local.sh
+
+      - name: Upload realtime browser artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: realtime-multiclient
+          path: reports/realtime-multiclient/
+          if-no-files-found: warn
+          retention-days: 14
 
   build-web:
     runs-on: ubuntu-latest
