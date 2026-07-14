@@ -192,6 +192,8 @@ BEGIN
     END LOOP;
 
     IF payload IS NOT NULL THEN
+      -- Notification-queue exhaustion is raised at COMMIT, outside this block,
+      -- so it still fails the transaction instead of being swallowed here.
       BEGIN
         PERFORM pg_notify('entity_changes', payload);
       EXCEPTION
@@ -433,6 +435,13 @@ DECLARE
   subject_index integer := 1;
   subject_count integer;
 BEGIN
+  -- Bulk trust maintenance (full recompute / single-source resync) rewrites
+  -- prev_sent_weight for decay bookkeeping without changing any client-visible
+  -- relationship. Those paths set this transaction-local flag so the rewrite
+  -- does not fan a relationship invalidation out to every recipient.
+  IF current_setting('tentura.suppress_relationship_notify', true) = '1' THEN
+    RETURN NULL;
+  END IF;
   IF TG_OP = 'INSERT' THEN
     SELECT array_agg(DISTINCT id ORDER BY id)
     INTO changed_subject_ids
@@ -482,6 +491,86 @@ EXCEPTION
   WHEN OTHERS THEN
     RAISE WARNING 'notify_relationship_change failed without aborting write: %', SQLERRM;
     RETURN NULL;
+END;
+$$;
+''',
+
+  // Bulk trust maintenance must not storm the relationship fan-out. Full
+  // recompute is a bookkeeping-only rewrite of prev_sent_weight (no
+  // client-visible relationship moves), so it (a) suppresses the notify via
+  // the transaction-local flag and (b) runs as a single set-based UPDATE
+  // instead of a per-row PL/pgSQL loop. Both were previously m0088 loops that
+  // fired the statement trigger once per edge.
+  r'''
+CREATE OR REPLACE FUNCTION public.trust_recompute_all(
+  _half_life_seconds double precision
+) RETURNS integer
+  LANGUAGE plpgsql
+  VOLATILE
+  AS $$
+DECLARE
+  _updated integer;
+BEGIN
+  PERFORM set_config('tentura.suppress_relationship_notify', '1', true);
+  UPDATE public.user_trust_edge SET
+    prev_sent_weight = public.trust_edge_weight(
+      s_very_bad, s_bad, s_no_effect, s_good, s_very_good,
+      CASE
+        WHEN _half_life_seconds <= 0 THEN 1
+        ELSE pow(
+          2,
+          -greatest(EXTRACT(EPOCH FROM (now() - anchor_at)), 0) / _half_life_seconds
+        )
+      END
+    ),
+    updated_at = now();
+  GET DIAGNOSTICS _updated = ROW_COUNT;
+  RETURN _updated;
+END;
+$$;
+''',
+  // Single-source resync keeps its per-row loop because it pushes each edge to
+  // the MeritRank engine (mr_put_edge) individually, but it is still a
+  // bookkeeping resync, so it suppresses the relationship fan-out the same way.
+  r'''
+CREATE OR REPLACE FUNCTION public.trust_resync_source(
+  _subject text,
+  _half_life_seconds double precision
+) RETURNS integer
+  LANGUAGE plpgsql
+  VOLATILE
+  AS $$
+DECLARE
+  _r public.user_trust_edge%ROWTYPE;
+  _f double precision;
+  _w double precision;
+  _pushed integer := 0;
+BEGIN
+  PERFORM set_config('tentura.suppress_relationship_notify', '1', true);
+  FOR _r IN
+    SELECT * FROM public.user_trust_edge WHERE subject = _subject FOR UPDATE
+  LOOP
+    IF _half_life_seconds <= 0 THEN
+      _f := 1;
+    ELSE
+      _f := pow(
+        2,
+        -greatest(EXTRACT(EPOCH FROM (now() - _r.anchor_at)), 0) / _half_life_seconds
+      );
+    END IF;
+
+    _w := public.trust_edge_weight(
+      _r.s_very_bad, _r.s_bad, _r.s_no_effect, _r.s_good, _r.s_very_good, _f
+    );
+
+    PERFORM mr_put_edge(_r.subject, _r.object, _w, ''::text, 0);
+    UPDATE public.user_trust_edge
+    SET prev_sent_weight = _w, updated_at = now()
+    WHERE subject = _r.subject AND object = _r.object;
+    _pushed := _pushed + 1;
+  END LOOP;
+
+  RETURN _pushed;
 END;
 $$;
 ''',
@@ -537,9 +626,23 @@ CREATE TRIGGER room_seen_update_entity_notify
 ''',
   'DROP TRIGGER IF EXISTS profile_entity_notify ON public."user";',
   '''
+DROP TRIGGER IF EXISTS profile_update_entity_notify ON public."user";''',
+  '''
 CREATE TRIGGER profile_entity_notify
-  AFTER INSERT OR UPDATE OR DELETE ON public."user"
+  AFTER INSERT OR DELETE ON public."user"
   FOR EACH ROW EXECUTE FUNCTION public.notify_entity_change('profile');
+''',
+  '''
+CREATE TRIGGER profile_update_entity_notify
+  AFTER UPDATE ON public."user"
+  FOR EACH ROW
+  WHEN (
+    OLD.display_name IS DISTINCT FROM NEW.display_name
+    OR OLD.description IS DISTINCT FROM NEW.description
+    OR OLD.handle IS DISTINCT FROM NEW.handle
+    OR OLD.image_id IS DISTINCT FROM NEW.image_id
+  )
+  EXECUTE FUNCTION public.notify_entity_change('profile');
 ''',
   '''
 DROP TRIGGER IF EXISTS notification_outbox_entity_notify

@@ -429,6 +429,63 @@ INSERT INTO public.beacon_room_message (
       skip: skipReason,
     );
 
+    test(
+      'profile updates emit only for profile-visible columns',
+      () async {
+        final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();
+        final userId = 'Urtprofile$suffix';
+        addTearDown(() async {
+          await writer.execute(
+            Sql.named('DELETE FROM public."user" WHERE id = @userId'),
+            parameters: {'userId': userId},
+          );
+        });
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@userId, 'Profile before', @publicKey)
+'''),
+          parameters: {
+            'userId': userId,
+            'publicKey': 'realtime-profile-$userId',
+          },
+        );
+        await _settle();
+        notifications.clear();
+
+        List<Map<String, dynamic>> testChanges() => _ofKind(
+          notifications,
+          'profile',
+        ).where((message) => message['id'] == userId).toList();
+
+        await writer.execute(
+          Sql.named('''
+UPDATE public."user"
+SET updated_at = updated_at + interval '1 second'
+WHERE id = @userId
+'''),
+          parameters: {'userId': userId},
+        );
+        await _settle();
+        expect(testChanges(), isEmpty);
+
+        await writer.execute(
+          Sql.named('''
+UPDATE public."user"
+SET display_name = 'Profile after'
+WHERE id = @userId
+'''),
+          parameters: {'userId': userId},
+        );
+        await _waitUntil(() => testChanges().isNotEmpty);
+
+        final change = testChanges().single;
+        expect(change['event'], 'update');
+        expect(change['user_ids'], [userId]);
+      },
+      skip: skipReason,
+    );
+
     test('room_seen no-op update emits no feedback invalidation', () async {
       const userId = 'Urtseen000001';
       const beaconId = 'Brtseen000001';
@@ -496,6 +553,86 @@ WHERE user_id = @userId AND beacon_id = @beaconId AND thread_item_id IS NULL
       );
       await _waitUntil(() => testChanges().length == 1);
     }, skip: skipReason);
+
+    test(
+      'full trust recompute refreshes weights without relationship fan-out',
+      () async {
+        final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();
+        final subjectId = 'Urttrustsubj$suffix';
+        final objectId = 'Urttrustobj$suffix';
+        final ids = [subjectId, objectId];
+        addTearDown(() async {
+          await writer.execute(
+            Sql.named('DELETE FROM public."user" WHERE id = ANY(@ids)'),
+            parameters: {'ids': ids},
+          );
+        });
+        for (final id in ids) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+'''),
+            parameters: {'id': id, 'key': 'realtime-trust-$id'},
+          );
+        }
+        await _settle();
+        notifications.clear();
+
+        List<Map<String, dynamic>> ownEdgeChanges() =>
+            _ofKind(notifications, 'relationship')
+                .where(
+                  (message) => ((message['user_ids'] as List?) ?? const [])
+                      .contains(subjectId),
+                )
+                .toList();
+
+        // An ordinary trust-edge write still fans out: the suppression flag is
+        // scoped to bulk maintenance, not applied to real relationship changes.
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.user_trust_edge (subject, object, anchor_at, s_good)
+VALUES (@subject, @object, now() - interval '1 hour', 10)
+'''),
+          parameters: {'subject': subjectId, 'object': objectId},
+        );
+        await _waitUntil(() => ownEdgeChanges().isNotEmpty);
+
+        final before = await writer.execute(
+          Sql.named('''
+SELECT prev_sent_weight FROM public.user_trust_edge
+WHERE subject = @s AND object = @o
+'''),
+          parameters: {'s': subjectId, 'o': objectId},
+        );
+
+        await _settle();
+        notifications.clear();
+
+        // Full-graph decay recompute refreshes prev_sent_weight but must emit
+        // no relationship invalidation for any edge (bookkeeping-only rewrite).
+        await writer.execute(
+          r'SELECT public.trust_recompute_all($1)',
+          parameters: [3600.0],
+        );
+        await _settle();
+        expect(_ofKind(notifications, 'relationship'), isEmpty);
+
+        final after = await writer.execute(
+          Sql.named('''
+SELECT prev_sent_weight FROM public.user_trust_edge
+WHERE subject = @s AND object = @o
+'''),
+          parameters: {'s': subjectId, 'o': objectId},
+        );
+        expect((before.single.single! as num).toDouble(), 0);
+        // s_good = 10, ~one half-life old ⇒ f ≈ 0.5 ⇒ weight = 5 / 10 ≈ 0.5
+        // (marginally under 0.5 since elapsed time exceeds the half-life by the
+        // test's own runtime). The point is prev_sent_weight was refreshed off 0.
+        expect((after.single.single! as num).toDouble(), closeTo(0.5, 0.01));
+      },
+      skip: skipReason,
+    );
   }, skip: skipReason);
 }
 

@@ -13,6 +13,48 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import 'remote_api_service.dart';
 
+Stream<List<T>> _bufferAfterFirstEvent<T>(
+  Stream<T> source,
+  Duration window,
+) {
+  late final StreamController<List<T>> output;
+  StreamSubscription<T>? input;
+  Timer? timer;
+  final pending = <T>[];
+
+  void flush() {
+    timer = null;
+    if (pending.isEmpty) return;
+    output.add(List<T>.of(pending));
+    pending.clear();
+  }
+
+  output = StreamController<List<T>>(
+    onListen: () {
+      input = source.listen(
+        (event) {
+          pending.add(event);
+          timer ??= Timer(window, flush);
+        },
+        onError: output.addError,
+        onDone: () {
+          timer?.cancel();
+          flush();
+          unawaited(output.close());
+        },
+      );
+    },
+    onPause: () => input?.pause(),
+    onResume: () => input?.resume(),
+    onCancel: () async {
+      timer?.cancel();
+      pending.clear();
+      await input?.cancel();
+    },
+  );
+  return output.stream;
+}
+
 /// Maps the V2 WebSocket wire protocol into the shared domain sync boundary.
 ///
 /// Entity hints identify server-owned projections. They never carry derived
@@ -41,7 +83,7 @@ class InvalidationService implements RealtimeSyncPort {
 
   // Leave enough room to collapse one transaction's trigger burst while
   // preserving the 1.5 s end-to-end connected-delivery budget.
-  static const _debounceWindow = Duration(milliseconds: 100);
+  static const _batchWindow = Duration(milliseconds: 100);
 
   late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
   late final StreamSubscription<RealtimeTransportStatus> _transportSubscription;
@@ -63,18 +105,16 @@ class InvalidationService implements RealtimeSyncPort {
 
   @override
   late final Stream<RealtimeEntityChange> entityChanges =
-      _entityChangeController.stream
-          .bufferTime(_debounceWindow)
-          .where((batch) => batch.isNotEmpty)
-          .expand(_deduplicateEntityChanges)
-          .asBroadcastStream();
+      _bufferAfterFirstEvent(
+        _entityChangeController.stream,
+        _batchWindow,
+      ).expand(_deduplicateEntityChanges).asBroadcastStream();
 
   @override
-  late final Stream<RealtimeCatchUp> catchUps = _catchUpController.stream
-      .bufferTime(_debounceWindow)
-      .where((batch) => batch.isNotEmpty)
-      .expand(_deduplicateCatchUps)
-      .asBroadcastStream();
+  late final Stream<RealtimeCatchUp> catchUps = _bufferAfterFirstEvent(
+    _catchUpController.stream,
+    _batchWindow,
+  ).expand(_deduplicateCatchUps).asBroadcastStream();
 
   @override
   Stream<RealtimeConnectionStatus> get connectionStatuses =>

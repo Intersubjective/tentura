@@ -40,6 +40,40 @@ RealtimeTransportStatus _transport({
 
 void main() {
   group('InvalidationService', () {
+    test('batch timers are armed only while activity is pending', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final transport = StreamController<RealtimeTransportStatus>.broadcast();
+        final service = InvalidationService.forTesting(
+          wsMessages.stream,
+          transportStatuses: transport.stream,
+        );
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+          await transport.close();
+        });
+
+        final entitySub = service.entityChanges.listen((_) {});
+        final catchUpSub = service.catchUps.listen((_) {});
+        async.flushMicrotasks();
+
+        expect(async.periodicTimerCount, 0);
+        expect(async.nonPeriodicTimerCount, 0);
+
+        wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-1'));
+        async.flushMicrotasks();
+        expect(async.periodicTimerCount, 0);
+        expect(async.nonPeriodicTimerCount, 1);
+
+        async.elapse(const Duration(milliseconds: 100));
+        expect(async.pendingTimers, isEmpty);
+
+        unawaited(entitySub.cancel());
+        unawaited(catchUpSub.cancel());
+      });
+    });
+
     test('ignores non-entity_changes websocket frames', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
