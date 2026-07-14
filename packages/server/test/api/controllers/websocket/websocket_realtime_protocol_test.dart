@@ -17,14 +17,11 @@ import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
-import 'package:tentura_server/domain/port/realtime_watch_authorization_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
-import 'package:tentura_server/domain/use_case/realtime_watch_grant_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
-import 'package:tentura_server/domain/entity/realtime_watch_grant.dart';
 import 'package:tentura_server/env.dart';
 
 import 'websocket_realtime_protocol_test.mocks.dart';
@@ -35,9 +32,6 @@ const _unauthorizedId = 'Ucccccccccccc';
 const _accountId = 'Udddddddddddd';
 const _firstId = 'Ueeeeeeeeeeee';
 const _secondId = 'Uffffffffffff';
-const _watchedId = 'U111111111111';
-const _replacementWatchedId = 'U222222222222';
-const _privateSubjectId = 'U333333333333';
 
 @GenerateNiceMocks([
   MockSpec<UserRepositoryPort>(),
@@ -158,7 +152,6 @@ void main() {
           dependencies.userPresenceCase,
           dependencies.friendshipLookup,
           dependencies.coParticipantLookup,
-          dependencies.realtimeWatchGrantCase,
           dependencies.qaRealtimeSocketGate,
           notificationService,
         );
@@ -184,82 +177,6 @@ void main() {
           message['payload'],
           containsPair('reason', 'pg_listener_recovered'),
         );
-      },
-    );
-
-    test(
-      'watch replacement routes only the authorized subject intersection',
-      () async {
-        final dependencies = _Dependencies();
-        final handler = _EntityChangeHarness(
-          Env(realtimeActorEchoEnabled: true),
-          dependencies,
-        );
-        final watcher = _RecordingSession();
-        await dependencies.authenticate(handler, watcher, _accountId);
-        watcher.sent.clear();
-
-        Future<void> register(String subjectId) async {
-          final grant = await dependencies.realtimeWatchGrantCase.issue(
-            viewerId: _accountId,
-            descriptor: RealtimeWatchDescriptor(
-              scope: RealtimeWatchScope.profile,
-              requestedSubjectIds: {subjectId},
-              profileId: subjectId,
-            ),
-          );
-          await handler.onEntityChangeSubscription(watcher, {
-            'intent': 'replace_watch',
-            'scope': 'profile',
-            'grant': grant.token,
-          });
-          watcher.sent.clear();
-        }
-
-        await register(_watchedId);
-        expect(handler.activeEntityWatchSessionCount, 1);
-        expect(handler.activeEntityWatchSubjectCount, 1);
-        handler.fanOutEntityChange({
-          'entity': 'relationship',
-          'id': _privateSubjectId,
-          'event': 'update',
-          'user_ids': [_affectedId],
-          'subject_ids': [_privateSubjectId, _watchedId],
-        });
-
-        expect(watcher.sent, hasLength(1));
-        var payload =
-            (jsonDecode(watcher.sent.single! as String) as Map)['payload']
-                as Map;
-        expect(payload['id'], _watchedId);
-        expect(payload['subject_ids'], [_watchedId]);
-
-        watcher.sent.clear();
-        await register(_replacementWatchedId);
-        handler.fanOutEntityChange({
-          'entity': 'profile',
-          'id': _watchedId,
-          'event': 'update',
-          'user_ids': [_affectedId],
-          'subject_ids': [_watchedId],
-        });
-        expect(watcher.sent, isEmpty);
-        handler.fanOutEntityChange({
-          'entity': 'profile',
-          'id': _replacementWatchedId,
-          'event': 'update',
-          'user_ids': [_affectedId],
-          'subject_ids': [_replacementWatchedId],
-        });
-        expect(watcher.sent, hasLength(1));
-        payload =
-            (jsonDecode(watcher.sent.single! as String) as Map)['payload']
-                as Map;
-        expect(payload['subject_ids'], [_replacementWatchedId]);
-
-        handler.removeSession(watcher);
-        expect(handler.activeEntityWatchSessionCount, 0);
-        expect(handler.activeEntityWatchSubjectCount, 0);
       },
     );
   });
@@ -293,17 +210,11 @@ final class _Dependencies {
       env: env,
       logger: logger,
     );
-    realtimeWatchGrantCase = RealtimeWatchGrantCase(
-      _AllowingWatchAuthorizationPort(),
-      env: env,
-      logger: logger,
-    );
   }
 
   final env = Env.test();
   late final AuthCase authCase;
   late final UserPresenceCase userPresenceCase;
-  late final RealtimeWatchGrantCase realtimeWatchGrantCase;
   final qaRealtimeSocketGate = QaRealtimeSocketGate();
   final friendshipLookup = MockVoteUserFriendshipLookupPort();
   final coParticipantLookup = MockBeaconRoomCoParticipantLookupPort();
@@ -331,18 +242,8 @@ final class _EntityChangeHarness extends WebsocketSessionHandlerBase
         dependencies.userPresenceCase,
         dependencies.friendshipLookup,
         dependencies.coParticipantLookup,
-        dependencies.realtimeWatchGrantCase,
         dependencies.qaRealtimeSocketGate,
       );
-}
-
-final class _AllowingWatchAuthorizationPort
-    implements RealtimeWatchAuthorizationPort {
-  @override
-  Future<Set<String>> authorizeSubjects({
-    required String viewerId,
-    required RealtimeWatchDescriptor descriptor,
-  }) async => descriptor.requestedSubjectIds;
 }
 
 final class _RecordingSession extends WebSocketSession {

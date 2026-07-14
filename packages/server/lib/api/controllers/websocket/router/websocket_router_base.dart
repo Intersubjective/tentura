@@ -23,7 +23,6 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     super.userPresenceCase,
     super.friendshipLookup,
     super.coParticipantLookup,
-    super.realtimeWatchGrantCase,
     super.qaRealtimeSocketGate,
     this.pgNotificationService,
   ) {
