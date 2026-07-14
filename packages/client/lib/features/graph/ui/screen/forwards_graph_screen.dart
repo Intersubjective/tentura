@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -42,7 +41,6 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
         return GraphCubit(
           me: me,
           focus: me.id,
-          graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
           forwardsGraphBeaconId: focus,
           helpOffererFocusUserId: helpOffererId,
           edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),

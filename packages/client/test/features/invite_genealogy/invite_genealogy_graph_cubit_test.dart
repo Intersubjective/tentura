@@ -11,6 +11,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/domain/use_case/graph_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
@@ -139,6 +140,15 @@ class _FakeBeaconRepository implements BeaconRepository {
       throw UnimplementedError('${invocation.memberName}');
 }
 
+GraphCase _regularGraphCase(GraphSourceRepository source) =>
+    GraphCase.forTesting(
+      meritRank: source,
+      beacons: _FakeBeaconRepository(),
+      profiles: _FakeProfileRepository(),
+      env: const Env(),
+      logger: Logger('test'),
+    );
+
 const _edgeColors = GraphEdgeColors(
   negative: Colors.red,
   ego: Colors.orange,
@@ -180,13 +190,17 @@ GraphCubit _cubit({
   String? targetId,
 }) => GraphCubit(
   me: _viewer,
-  graphSourceRepository: repo,
+  graphCase: GraphCase.forTesting(
+    genealogy: repo,
+    beacons: _FakeBeaconRepository(),
+    profiles: _FakeProfileRepository(),
+    env: const Env(),
+    logger: Logger('test'),
+  ),
   genealogyMode: true,
   genealogyTargetId: targetId,
   genealogyAnonymousNodeLabel: 'Anonymous',
   edgeColors: _edgeColors,
-  beaconRepository: _FakeBeaconRepository(),
-  profileRepository: _FakeProfileRepository(),
   effects: FakeUiEffectPort(),
 );
 
@@ -706,10 +720,8 @@ void main() {
       final source = _FakeGraphSourceRepository();
       final cubit = GraphCubit(
         me: _viewer,
-        graphSourceRepository: source,
+        graphCase: _regularGraphCase(source),
         edgeColors: _edgeColors,
-        beaconRepository: _FakeBeaconRepository(),
-        profileRepository: _FakeProfileRepository(),
         effects: FakeUiEffectPort(),
       );
       await _settleCubitFetch();
@@ -742,10 +754,8 @@ void main() {
         };
       final cubit = GraphCubit(
         me: _viewer,
-        graphSourceRepository: source,
+        graphCase: _regularGraphCase(source),
         edgeColors: _edgeColors,
-        beaconRepository: _FakeBeaconRepository(),
-        profileRepository: _FakeProfileRepository(),
         effects: FakeUiEffectPort(),
       );
 
@@ -804,10 +814,8 @@ void main() {
         ..fetchResult = () => fetches.removeAt(0);
       final cubit = GraphCubit(
         me: _viewer,
-        graphSourceRepository: source,
+        graphCase: _regularGraphCase(source),
         edgeColors: _edgeColors,
-        beaconRepository: _FakeBeaconRepository(),
-        profileRepository: _FakeProfileRepository(),
         effects: FakeUiEffectPort(),
       );
 
