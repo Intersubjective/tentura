@@ -132,9 +132,10 @@ class TenturaDb extends _$TenturaDb {
   @override
   int get schemaVersion => 1;
 
-  /// Runs [action] inside a transaction with the `tentura.mutating_user_id`
-  /// GUC set to [userId], so `notify_entity_change()` can suppress the
-  /// echo notification back to the originating user.
+  /// Runs [action] in a transaction with `tentura.mutating_user_id` set to
+  /// [userId]. Realtime publishers attach this actor context to invalidations;
+  /// router compatibility policy, not this transaction boundary, decides
+  /// whether the actor's sessions receive the hint.
   Future<T> withMutatingUser<T>(
     String userId,
     Future<T> Function() action,
