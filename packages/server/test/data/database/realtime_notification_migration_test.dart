@@ -633,6 +633,64 @@ WHERE subject = @s AND object = @o
       },
       skip: skipReason,
     );
+
+    test(
+      'a single evidence application emits one relationship invalidation',
+      () async {
+        final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();
+        final subjectId = 'Urtapplysubj$suffix';
+        final objectId = 'Urtapplyobj$suffix';
+        final ids = [subjectId, objectId];
+        addTearDown(() async {
+          await writer.execute(
+            Sql.named('DELETE FROM public."user" WHERE id = ANY(@ids)'),
+            parameters: {'ids': ids},
+          );
+        });
+        for (final id in ids) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+'''),
+            parameters: {'id': id, 'key': 'realtime-apply-$id'},
+          );
+        }
+        await _settle();
+        notifications.clear();
+
+        List<Map<String, dynamic>> edgeChanges() =>
+            _ofKind(notifications, 'relationship')
+                .where(
+                  (message) => ((message['user_ids'] as List?) ?? const [])
+                      .contains(subjectId),
+                )
+                .toList();
+
+        // A large epsilon means no engine push, so prev_sent_weight is left
+        // alone: the only write that should reach the wire is the single bump
+        // UPDATE, not the former upsert + bump (+ prev_sent_weight) trio that
+        // each fired the statement trigger.
+        await writer.execute(
+          r'SELECT public.trust_apply_evidence($1, $2, $3, $4, $5, $6)',
+          parameters: [subjectId, objectId, 'good', 4.0, 3600.0, 1000000.0],
+        );
+        await _waitUntil(() => edgeChanges().isNotEmpty);
+        await _settle();
+        expect(edgeChanges(), hasLength(1));
+
+        final edge = await writer.execute(
+          Sql.named('''
+SELECT s_good, prev_sent_weight FROM public.user_trust_edge
+WHERE subject = @s AND object = @o
+'''),
+          parameters: {'s': subjectId, 'o': objectId},
+        );
+        expect((edge.single[0]! as num).toDouble(), greaterThan(0));
+        expect((edge.single[1]! as num).toDouble(), 0);
+      },
+      skip: skipReason,
+    );
   }, skip: skipReason);
 }
 

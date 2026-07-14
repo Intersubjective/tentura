@@ -574,6 +574,98 @@ BEGIN
 END;
 $$;
 ''',
+  // Per-evidence apply collapsed to one state-bearing write. The atomic upsert
+  // still establishes/locks the edge (safe under concurrent first writes) but
+  // its fan-out is suppressed; only the single bump UPDATE emits. This replaces
+  // the former upsert + bump + prev_sent_weight trio that fired the relationship
+  // statement trigger — and re-ran realtime_subject_recipients — 2-3x per vote.
+  r'''
+CREATE OR REPLACE FUNCTION public.trust_apply_evidence(
+  _subject text,
+  _object text,
+  _bin text,
+  _count double precision,
+  _half_life_seconds double precision,
+  _epsilon double precision
+) RETURNS double precision
+  LANGUAGE plpgsql
+  VOLATILE
+  AS $$
+DECLARE
+  _r public.user_trust_edge%ROWTYPE;
+  _prev_suppress text;
+  _f_inflate double precision;
+  _f double precision;
+  _bump double precision;
+  _new_very_bad double precision;
+  _new_bad double precision;
+  _new_no_effect double precision;
+  _new_good double precision;
+  _new_very_good double precision;
+  _w double precision;
+  _do_push boolean;
+BEGIN
+  -- Establish/lock the edge atomically; anchor_at is fixed on conflict (never
+  -- advanced by evidence). This bookkeeping write suppresses its relationship
+  -- fan-out so only the bump UPDATE below emits. The prior suppression value is
+  -- restored so nesting (e.g. an outer suppressed context) is honored.
+  _prev_suppress := current_setting('tentura.suppress_relationship_notify', true);
+  PERFORM set_config('tentura.suppress_relationship_notify', '1', true);
+  INSERT INTO public.user_trust_edge (subject, object, anchor_at)
+  VALUES (_subject, _object, now())
+  ON CONFLICT (subject, object) DO UPDATE
+    SET updated_at = now()
+  RETURNING * INTO _r;
+  PERFORM set_config(
+    'tentura.suppress_relationship_notify',
+    COALESCE(_prev_suppress, ''),
+    true
+  );
+
+  IF _half_life_seconds <= 0 THEN
+    _f_inflate := 1;
+  ELSE
+    _f_inflate := pow(
+      2,
+      greatest(EXTRACT(EPOCH FROM (now() - _r.anchor_at)), 0) / _half_life_seconds
+    );
+  END IF;
+
+  _bump := _count * _f_inflate;
+  _f := 1.0 / _f_inflate;
+
+  _new_very_bad := _r.s_very_bad + CASE WHEN _bin = 'very_bad' THEN _bump ELSE 0 END;
+  _new_bad := _r.s_bad + CASE WHEN _bin = 'bad' THEN _bump ELSE 0 END;
+  _new_no_effect := _r.s_no_effect + CASE WHEN _bin = 'no_effect' THEN _bump ELSE 0 END;
+  _new_good := _r.s_good + CASE WHEN _bin = 'good' THEN _bump ELSE 0 END;
+  _new_very_good := _r.s_very_good + CASE WHEN _bin = 'very_good' THEN _bump ELSE 0 END;
+
+  _w := public.trust_edge_weight(
+    _new_very_bad, _new_bad, _new_no_effect, _new_good, _new_very_good, _f
+  );
+  _do_push := abs(_w - _r.prev_sent_weight) > _epsilon;
+
+  -- Single state-bearing write: bump the evidence sums and, only when the edge
+  -- is actually pushed to the engine, advance prev_sent_weight (preserving
+  -- cumulative-epsilon semantics). Fires the relationship trigger exactly once.
+  UPDATE public.user_trust_edge SET
+    s_very_bad = _new_very_bad,
+    s_bad = _new_bad,
+    s_no_effect = _new_no_effect,
+    s_good = _new_good,
+    s_very_good = _new_very_good,
+    prev_sent_weight = CASE WHEN _do_push THEN _w ELSE _r.prev_sent_weight END,
+    updated_at = now()
+  WHERE subject = _subject AND object = _object;
+
+  IF _do_push THEN
+    PERFORM mr_put_edge(_subject, _object, _w, ''::text, 0);
+  END IF;
+
+  RETURN _w;
+END;
+$$;
+''',
 
   // Missing row-level projection sources.
   'DROP TRIGGER IF EXISTS inbox_item_entity_notify ON public.inbox_item;',
