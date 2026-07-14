@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
 Map<String, dynamic> _entityChange({
@@ -40,6 +42,41 @@ RealtimeTransportStatus _transport({
 
 void main() {
   group('InvalidationService', () {
+    test('registers and removes watches using opaque subscription frames', () {
+      final sent = <Object>[];
+      final service = InvalidationService.forTesting(
+        const Stream.empty(),
+        send: sent.add,
+      );
+      addTearDown(service.dispose);
+
+      service
+        ..replaceWatch(
+          RealtimeWatchGrant(
+            token: 'signed-value',
+            scope: RealtimeWatchScope.profile,
+            authorizedSubjectIds: const {'user-a'},
+            expiresAt: DateTime.utc(2026, 7, 14, 12, 2),
+          ),
+        )
+        ..removeWatch(RealtimeWatchScope.profile);
+
+      expect(jsonDecode(sent.first as String), {
+        'type': 'subscription',
+        'path': 'entity_changes',
+        'payload': {
+          'intent': 'replace_watch',
+          'scope': 'profile',
+          'grant': 'signed-value',
+        },
+      });
+      expect(jsonDecode(sent.last as String), {
+        'type': 'subscription',
+        'path': 'entity_changes',
+        'payload': {'intent': 'remove_watch', 'scope': 'profile'},
+      });
+    });
+
     test('ignores non-entity_changes websocket frames', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();

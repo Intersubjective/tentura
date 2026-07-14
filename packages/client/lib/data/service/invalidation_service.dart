@@ -9,6 +9,7 @@ import 'package:tentura/data/service/remote_api_client/realtime_transport_status
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
@@ -22,6 +23,7 @@ import 'remote_api_service.dart';
 @singleton
 class InvalidationService implements RealtimeSyncPort {
   InvalidationService(RemoteApiService remoteApiService) {
+    _send = remoteApiService.webSocketSend;
     _messageSubscription = _subscribe(remoteApiService.webSocketMessages);
     _transportSubscription = remoteApiService.realtimeTransportStatus.listen(
       _onTransportStatus,
@@ -33,7 +35,9 @@ class InvalidationService implements RealtimeSyncPort {
   InvalidationService.forTesting(
     Stream<Map<String, dynamic>> messages, {
     Stream<RealtimeTransportStatus>? transportStatuses,
+    void Function(Object message)? send,
   }) {
+    _send = send ?? (_) {};
     _messageSubscription = _subscribe(messages);
     _transportSubscription =
         (transportStatuses ?? const Stream<RealtimeTransportStatus>.empty())
@@ -44,6 +48,7 @@ class InvalidationService implements RealtimeSyncPort {
 
   late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
   late final StreamSubscription<RealtimeTransportStatus> _transportSubscription;
+  late final void Function(Object message) _send;
 
   String? _activeAccountId;
   int _latestConnectionEpoch = 0;
@@ -215,6 +220,32 @@ class InvalidationService implements RealtimeSyncPort {
         connectionEpoch: _latestConnectionEpoch,
         reason: reason,
       ),
+    );
+  }
+
+  @override
+  void replaceWatch(RealtimeWatchGrant grant) {
+    _send(
+      jsonEncode({
+        'type': 'subscription',
+        'path': 'entity_changes',
+        'payload': {
+          'intent': 'replace_watch',
+          'scope': grant.scope.name,
+          'grant': grant.token,
+        },
+      }),
+    );
+  }
+
+  @override
+  void removeWatch(RealtimeWatchScope scope) {
+    _send(
+      jsonEncode({
+        'type': 'subscription',
+        'path': 'entity_changes',
+        'payload': {'intent': 'remove_watch', 'scope': scope.name},
+      }),
     );
   }
 
