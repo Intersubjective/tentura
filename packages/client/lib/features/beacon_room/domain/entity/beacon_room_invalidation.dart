@@ -11,7 +11,6 @@ enum BeaconRoomEntityType {
   activityEvent,
   participant,
   factCard,
-  blocker,
   coordinationItem,
   roomSeen,
 }
@@ -41,7 +40,6 @@ final class BeaconRoomInvalidation {
       RealtimeEntityKind.activityEvent => BeaconRoomEntityType.activityEvent,
       RealtimeEntityKind.participant => BeaconRoomEntityType.participant,
       RealtimeEntityKind.factCard => BeaconRoomEntityType.factCard,
-      RealtimeEntityKind.blocker => BeaconRoomEntityType.blocker,
       RealtimeEntityKind.coordinationItem =>
         BeaconRoomEntityType.coordinationItem,
       RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,

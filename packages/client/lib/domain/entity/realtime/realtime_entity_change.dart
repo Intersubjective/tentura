@@ -13,7 +13,6 @@ enum RealtimeEntityKind {
   roomPoll,
   participant,
   factCard,
-  blocker,
   activityEvent,
   coordinationItem,
   capability,
@@ -22,6 +21,29 @@ enum RealtimeEntityKind {
   relationship,
   profile,
   notification,
+  ;
+
+  /// Maps the closed WebSocket protocol vocabulary into a domain kind.
+  static RealtimeEntityKind? fromWire(Object? raw) => switch (raw) {
+    'beacon' => RealtimeEntityKind.beacon,
+    'forward' => RealtimeEntityKind.forward,
+    'help_offer' => RealtimeEntityKind.helpOffer,
+    'inbox_item' => RealtimeEntityKind.inboxItem,
+    'room_message' => RealtimeEntityKind.roomMessage,
+    'room_reaction' => RealtimeEntityKind.roomReaction,
+    'room_poll' => RealtimeEntityKind.roomPoll,
+    'participant' => RealtimeEntityKind.participant,
+    'fact_card' => RealtimeEntityKind.factCard,
+    'activity_event' => RealtimeEntityKind.activityEvent,
+    'coordination_item' => RealtimeEntityKind.coordinationItem,
+    'capability' || 'person_capability_event' => RealtimeEntityKind.capability,
+    'contact' => RealtimeEntityKind.contact,
+    'room_seen' => RealtimeEntityKind.roomSeen,
+    'relationship' => RealtimeEntityKind.relationship,
+    'profile' => RealtimeEntityKind.profile,
+    'notification' => RealtimeEntityKind.notification,
+    _ => null,
+  };
 }
 
 enum RealtimeOperation { insert, update, delete }

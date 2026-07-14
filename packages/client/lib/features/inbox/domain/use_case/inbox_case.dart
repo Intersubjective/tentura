@@ -61,7 +61,6 @@ final class InboxCase extends UseCaseBase {
           RealtimeEntityKind.roomPoll,
           RealtimeEntityKind.participant,
           RealtimeEntityKind.factCard,
-          RealtimeEntityKind.blocker,
           RealtimeEntityKind.activityEvent,
           RealtimeEntityKind.coordinationItem,
           RealtimeEntityKind.roomSeen,

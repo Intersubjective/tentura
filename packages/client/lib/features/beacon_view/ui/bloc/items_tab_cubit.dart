@@ -28,8 +28,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
               (e.entityType == BeaconRoomEntityType.coordinationItem ||
                   e.entityType == BeaconRoomEntityType.roomMessage ||
                   e.entityType == BeaconRoomEntityType.participant ||
-                  e.entityType == BeaconRoomEntityType.factCard ||
-                  e.entityType == BeaconRoomEntityType.blocker),
+                  e.entityType == BeaconRoomEntityType.factCard),
         )
         .listen((_) => unawaited(fetch(silent: true)));
   }

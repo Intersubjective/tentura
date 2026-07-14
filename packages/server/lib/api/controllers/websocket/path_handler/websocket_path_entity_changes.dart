@@ -43,17 +43,20 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
         !const {'insert', 'update', 'delete'}.contains(event) ||
         (actorUserId != null && actorUserId is! String) ||
         (subjectIds != null && subjectIds is! List)) {
-      logger.warning('[WebsocketPathEntityChanges] Ignored malformed payload');
+      logger.warning(
+        '[RealtimeFanout] realtime_event=malformed_payload reason=envelope',
+      );
       return;
     }
     if (subjectIds is List && subjectIds.any((id) => id is! String)) {
       logger.warning(
-        '[WebsocketPathEntityChanges] Ignored malformed subject_ids',
+        '[RealtimeFanout] realtime_event=malformed_payload '
+        'reason=subject_ids',
       );
       return;
     }
 
-    final List<String> normalizedSubjectIds = subjectIds is List
+    final normalizedSubjectIds = subjectIds is List
         ? subjectIds.cast<String>()
         : const [];
     final message = _entityChangeMessage(
@@ -66,16 +69,19 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
 
     final seen = <String>{};
     final sentSessions = <WebSocketSession>{};
+    var frameCount = 0;
     for (final userId in userIds) {
       if (userId is! String || userId.isEmpty || !seen.add(userId)) continue;
       if (!env.realtimeActorEchoEnabled && userId == actorUserId) continue;
       for (final session in getSessionsByUserId(userId)) {
         session.send(message);
         sentSessions.add(session);
+        frameCount++;
       }
     }
 
     final watchTargets = watchIntersections(normalizedSubjectIds);
+    final watchSessions = <WebSocketSession>{};
     for (final entry in watchTargets.entries) {
       final session = entry.key;
       if (sentSessions.contains(session)) continue;
@@ -100,8 +106,16 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
             subjectIds: chunk,
           ),
         );
+        watchSessions.add(session);
+        frameCount++;
       }
     }
+    logger.info(
+      '[RealtimeFanout] realtime_event=fanout kind=$entity '
+      'recipients=${seen.length} direct_sessions=${sentSessions.length} '
+      'watch_sessions=${watchSessions.length} frames=$frameCount '
+      'actor_echo=${env.realtimeActorEchoEnabled}',
+    );
   }
 
   String _entityChangeMessage({

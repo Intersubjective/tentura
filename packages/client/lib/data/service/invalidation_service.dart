@@ -101,7 +101,7 @@ class InvalidationService implements RealtimeSyncPort {
     final payload = _normalizeJsonObject(message['payload']);
     if (payload == null) return;
     final id = payload['id'];
-    final kind = _entityKindFromWire(payload['entity']);
+    final kind = RealtimeEntityKind.fromWire(payload['entity']);
     final operation = _operationFromWire(payload['event']);
     final actorUserId = payload['actor_user_id'];
     if (id is! String || id.isEmpty || kind == null || operation == null) {
@@ -249,28 +249,6 @@ class InvalidationService implements RealtimeSyncPort {
     RealtimeTransportPhase.authenticated =>
       RealtimeConnectionPhase.authenticated,
     RealtimeTransportPhase.disconnected => RealtimeConnectionPhase.disconnected,
-  };
-
-  static RealtimeEntityKind? _entityKindFromWire(Object? raw) => switch (raw) {
-    'beacon' => RealtimeEntityKind.beacon,
-    'forward' => RealtimeEntityKind.forward,
-    'help_offer' => RealtimeEntityKind.helpOffer,
-    'inbox_item' => RealtimeEntityKind.inboxItem,
-    'room_message' => RealtimeEntityKind.roomMessage,
-    'room_reaction' => RealtimeEntityKind.roomReaction,
-    'room_poll' => RealtimeEntityKind.roomPoll,
-    'participant' => RealtimeEntityKind.participant,
-    'fact_card' => RealtimeEntityKind.factCard,
-    'blocker' => RealtimeEntityKind.blocker,
-    'activity_event' => RealtimeEntityKind.activityEvent,
-    'coordination_item' => RealtimeEntityKind.coordinationItem,
-    'capability' || 'person_capability_event' => RealtimeEntityKind.capability,
-    'contact' => RealtimeEntityKind.contact,
-    'room_seen' => RealtimeEntityKind.roomSeen,
-    'relationship' => RealtimeEntityKind.relationship,
-    'profile' => RealtimeEntityKind.profile,
-    'notification' => RealtimeEntityKind.notification,
-    _ => null,
   };
 
   static RealtimeOperation? _operationFromWire(Object? raw) => switch (raw) {

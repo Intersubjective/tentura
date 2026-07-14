@@ -75,7 +75,6 @@ class BeaconRoomRepository {
         inv.entityType == BeaconRoomEntityType.roomPoll ||
         inv.entityType == BeaconRoomEntityType.participant ||
         inv.entityType == BeaconRoomEntityType.factCard ||
-        inv.entityType == BeaconRoomEntityType.blocker ||
         inv.entityType == BeaconRoomEntityType.coordinationItem ||
         inv.entityType == BeaconRoomEntityType.roomSeen) {
       _roomRefreshController.add(inv.beaconId);

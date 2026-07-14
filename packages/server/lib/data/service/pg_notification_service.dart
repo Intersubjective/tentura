@@ -98,7 +98,7 @@ class PgNotificationService {
           _controller.add,
           onError: (Object error, StackTrace stackTrace) {
             _log.severe(
-              '[PgNotificationService] Channel error',
+              '[RealtimeRecovery] realtime_event=listener_error',
               error,
               stackTrace,
             );
@@ -107,7 +107,7 @@ class PgNotificationService {
           onDone: () {
             if (!_disposed) {
               _log.warning(
-                '[PgNotificationService] Connection closed unexpectedly',
+                '[RealtimeRecovery] realtime_event=listener_closed',
               );
               _scheduleReconnect();
             }
@@ -126,8 +126,8 @@ class PgNotificationService {
     final delay = _reconnectDelay(_reconnectAttempts);
     _reconnectAttempts++;
     _log.info(
-      '[PgNotificationService] Reconnecting in ${delay.inMilliseconds}ms '
-      '(attempt $_reconnectAttempts)',
+      '[RealtimeRecovery] realtime_event=reconnect_scheduled '
+      'delay_ms=${delay.inMilliseconds} attempt=$_reconnectAttempts',
     );
     _reconnectTimer = Timer(delay, () => unawaited(_reconnect()));
   }
@@ -141,10 +141,13 @@ class PgNotificationService {
       _connection = null;
       await _connect(isRecovery: true);
       _reconnectAttempts = 0;
-      _log.info('[PgNotificationService] Reconnected');
+      _log.info(
+        '[RealtimeRecovery] realtime_event=reconnected '
+        'sequence=$_recoverySequence',
+      );
     } on Object catch (error, stackTrace) {
       _log.severe(
-        '[PgNotificationService] Reconnect failed',
+        '[RealtimeRecovery] realtime_event=reconnect_failed',
         error,
         stackTrace,
       );

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "channel": "entity_changes",
+  "contractTests": [
+    "packages/server/test/architecture/realtime_entity_contract_test.dart",
+    "packages/server/test/data/database/realtime_notification_migration_test.dart",
+    "packages/client/test/architecture/realtime_entity_contract_test.dart",
+    "packages/client/test/data/service/invalidation_service_test.dart"
+  ],
+  "kinds": [
+    {
+      "wireKind": "beacon",
+      "acceptedWireKinds": ["beacon"],
+      "clientKind": "beacon",
+      "genericTriggerArgs": ["beacon"],
+      "specializedPublishers": [],
+      "impacts": ["request_detail", "inbox", "my_work", "profile_requests", "forward_graph"],
+      "tests": ["packages/client/test/features/beacon_view/beacon_view_case_orchestration_test.dart"]
+    },
+    {
+      "wireKind": "forward",
+      "acceptedWireKinds": ["forward"],
+      "clientKind": "forward",
+      "genericTriggerArgs": ["forward"],
+      "specializedPublishers": [],
+      "impacts": ["inbox", "request_people", "forward_graph", "my_work"],
+      "tests": ["packages/client/test/features/forward/forward_cubit_live_sync_test.dart"]
+    },
+    {
+      "wireKind": "help_offer",
+      "acceptedWireKinds": ["help_offer"],
+      "clientKind": "helpOffer",
+      "genericTriggerArgs": ["help_offer"],
+      "specializedPublishers": ["notify_coordination_change", "notify_help_offer_admission_event_change"],
+      "impacts": ["request_people", "inbox", "my_work", "chat_access"],
+      "tests": ["packages/client/test/features/beacon_view/beacon_view_case_orchestration_test.dart"]
+    },
+    {
+      "wireKind": "inbox_item",
+      "acceptedWireKinds": ["inbox_item"],
+      "clientKind": "inboxItem",
+      "genericTriggerArgs": ["inbox_item"],
+      "specializedPublishers": [],
+      "impacts": ["inbox", "request_detail_context", "shell_counters"],
+      "tests": ["packages/client/test/features/inbox/inbox_case_test.dart"]
+    },
+    {
+      "wireKind": "room_message",
+      "acceptedWireKinds": ["room_message"],
+      "clientKind": "roomMessage",
+      "genericTriggerArgs": ["room_message"],
+      "specializedPublishers": [],
+      "impacts": ["chat", "request_activity", "unread", "inbox", "my_work"],
+      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+    },
+    {
+      "wireKind": "room_reaction",
+      "acceptedWireKinds": ["room_reaction"],
+      "clientKind": "roomReaction",
+      "genericTriggerArgs": ["room_reaction"],
+      "specializedPublishers": [],
+      "impacts": ["chat_reactions"],
+      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+    },
+    {
+      "wireKind": "room_poll",
+      "acceptedWireKinds": ["room_poll"],
+      "clientKind": "roomPoll",
+      "genericTriggerArgs": ["room_poll", "room_poll_act"],
+      "specializedPublishers": [],
+      "impacts": ["chat_poll_results"],
+      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+    },
+    {
+      "wireKind": "participant",
+      "acceptedWireKinds": ["participant"],
+      "clientKind": "participant",
+      "genericTriggerArgs": ["participant"],
+      "specializedPublishers": [],
+      "impacts": ["chat_access", "request_people", "presence", "request_detail", "inbox", "my_work"],
+      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+    },
+    {
+      "wireKind": "fact_card",
+      "acceptedWireKinds": ["fact_card"],
+      "clientKind": "factCard",
+      "genericTriggerArgs": ["fact_card"],
+      "specializedPublishers": [],
+      "impacts": ["chat", "request_detail", "inbox", "my_work"],
+      "tests": ["packages/client/test/features/beacon_view/beacon_view_initial_load_test.dart"]
+    },
+    {
+      "wireKind": "activity_event",
+      "acceptedWireKinds": ["activity_event"],
+      "clientKind": "activityEvent",
+      "genericTriggerArgs": ["activity_event"],
+      "specializedPublishers": [],
+      "impacts": ["request_timeline", "my_work_last_activity"],
+      "tests": ["packages/client/test/features/beacon_view/beacon_view_case_orchestration_test.dart"]
+    },
+    {
+      "wireKind": "coordination_item",
+      "acceptedWireKinds": ["coordination_item"],
+      "clientKind": "coordinationItem",
+      "genericTriggerArgs": ["coordination_item"],
+      "specializedPublishers": [],
+      "impacts": ["items", "chat_thread", "request_detail", "inbox", "my_work"],
+      "tests": ["packages/client/test/features/coordination_item/coordination_item_case_test.dart"]
+    },
+    {
+      "wireKind": "capability",
+      "acceptedWireKinds": ["capability", "person_capability_event"],
+      "clientKind": "capability",
+      "genericTriggerArgs": ["person_capability_event"],
+      "specializedPublishers": [],
+      "impacts": ["profile", "people_capability_cues", "friends"],
+      "tests": ["packages/client/test/features/friends/friends_cubit_test.dart"]
+    },
+    {
+      "wireKind": "contact",
+      "acceptedWireKinds": ["contact"],
+      "clientKind": "contact",
+      "genericTriggerArgs": ["contact"],
+      "specializedPublishers": [],
+      "impacts": ["contact_name_overlays", "friends", "profile", "people", "forward_picker"],
+      "tests": ["packages/client/test/features/contacts/contacts_case_test.dart"]
+    },
+    {
+      "wireKind": "room_seen",
+      "acceptedWireKinds": ["room_seen"],
+      "clientKind": "roomSeen",
+      "genericTriggerArgs": ["room_seen"],
+      "specializedPublishers": [],
+      "impacts": ["chat_watermark", "inbox_unread", "my_work_unread", "shell_counters"],
+      "tests": ["packages/client/test/features/beacon_room/beacon_room_case_test.dart"]
+    },
+    {
+      "wireKind": "relationship",
+      "acceptedWireKinds": ["relationship"],
+      "clientKind": "relationship",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_relationship_change"],
+      "impacts": ["friends", "profile_controls", "people_visibility", "graph", "forward_candidates"],
+      "tests": ["packages/client/test/features/graph/graph_realtime_test.dart"]
+    },
+    {
+      "wireKind": "profile",
+      "acceptedWireKinds": ["profile"],
+      "clientKind": "profile",
+      "genericTriggerArgs": ["profile"],
+      "specializedPublishers": [],
+      "impacts": ["profile", "people", "avatars", "graph_nodes"],
+      "tests": ["packages/client/test/features/profile/profile_cubit_realtime_test.dart"]
+    },
+    {
+      "wireKind": "notification",
+      "acceptedWireKinds": ["notification"],
+      "clientKind": "notification",
+      "genericTriggerArgs": ["notification"],
+      "specializedPublishers": [],
+      "impacts": ["notification_center", "notification_count", "shell_badge"],
+      "tests": ["packages/client/test/features/notification_center/notification_center_cubit_test.dart"]
+    }
+  ]
+}

@@ -31,6 +31,8 @@ Short pointers for agents — read only what your task needs. Full inventory: **
 | [`beacon-ontology-icon-mapping.md`](beacon-ontology-icon-mapping.md) | Ontology leaf → `Icons.*_rounded` catalog |
 | [`client-ui-inventory.md`](client-ui-inventory.md) | Screens, routes, dialogs — **regenerate before trusting** |
 | [`test-coverage-misses.md`](test-coverage-misses.md) | COV-* test backlog for agents claiming coverage work |
+| [`realtime-sync-operations.md`](realtime-sync-operations.md) | Realtime contract, dashboards/log queries, alerts, local verification |
+| [`contracts/realtime-entity-contract.json`](contracts/realtime-entity-contract.json) | Machine-checked server/client wire-kind and projection-impact manifest |
 | [`adr/0001-capability-event-storage.md`](adr/0001-capability-event-storage.md) | Private capability events, derived reads |
 | [`adr/0002-root-session-routing.md`](adr/0002-root-session-routing.md) | `/` cookie routing, landing vs WASM |
 | [`adr/0003-settings-credential-linking.md`](adr/0003-settings-credential-linking.md) | Settings credential linking |

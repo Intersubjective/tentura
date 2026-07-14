@@ -56,7 +56,6 @@ final class BeaconRoomCase extends UseCaseBase {
     BeaconRoomEntityType.activityEvent,
     BeaconRoomEntityType.participant,
     BeaconRoomEntityType.factCard,
-    BeaconRoomEntityType.blocker,
     BeaconRoomEntityType.coordinationItem,
     BeaconRoomEntityType.roomSeen,
   };

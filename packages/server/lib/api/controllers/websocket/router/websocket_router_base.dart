@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 
@@ -64,8 +65,9 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
       session.send(message);
     }
     logger.info(
-      '[WebsocketRouterBase] PG listener recovery catch-up broadcast '
-      '(sequence ${recovery.sequence}, sessions ${sessions.length})',
+      '[RealtimeRecovery] realtime_event=listener_recovered '
+      'sequence=${recovery.sequence} sessions=${sessions.length} '
+      'isolate=${Isolate.current.debugName ?? 'unnamed'}',
     );
   }
 
@@ -75,7 +77,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
       fanOutEntityChange(data);
     } catch (e) {
       logger.severe(
-        '[WebsocketRouterBase] Failed to handle entity change: $e',
+        '[RealtimeFanout] realtime_event=payload_failure error=$e',
       );
     }
   }

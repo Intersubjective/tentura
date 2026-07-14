@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
@@ -66,28 +67,13 @@ ORDER BY 1
             .map((row) => (row[0]! as String).replaceAll(r'\000', ''))
             .toSet();
 
-        expect(
-          arguments,
-          containsAll(<String>{
-            'beacon',
-            'forward',
-            'help_offer',
-            'room_message',
-            'participant',
-            'fact_card',
-            'activity_event',
-            'coordination_item',
-            'person_capability_event',
-            'inbox_item',
-            'contact',
-            'room_reaction',
-            'room_poll',
-            'room_poll_act',
-            'room_seen',
-            'profile',
-            'notification',
-          }),
-        );
+        final contractEntries = _contractEntries();
+        final expectedArguments = contractEntries
+            .expand(
+              (entry) => (entry['genericTriggerArgs']! as List).cast<String>(),
+            )
+            .toSet();
+        expect(arguments, expectedArguments);
 
         final publisherRows = await writer.execute('''
 SELECT p.proname
@@ -102,6 +88,25 @@ ORDER BY p.proname
           publisherRows.map((row) => row[0]),
           ['emit_realtime_entity_change'],
         );
+
+        final expectedSpecializedPublishers = contractEntries
+            .expand(
+              (entry) =>
+                  (entry['specializedPublishers']! as List).cast<String>(),
+            )
+            .toSet();
+        final specializedRows = await writer.execute('''
+SELECT DISTINCT p.proname
+FROM pg_trigger t
+JOIN pg_proc p ON p.oid = t.tgfoid
+WHERE NOT t.tgisinternal
+ORDER BY p.proname
+''');
+        final attachedPublishers = specializedRows
+            .map((row) => row[0]! as String)
+            .where(expectedSpecializedPublishers.contains)
+            .toSet();
+        expect(attachedPublishers, expectedSpecializedPublishers);
 
         final relationshipRows = await writer.execute('''
 SELECT c.relname, count(*), bool_and((t.tgtype & 1) = 0)
@@ -382,3 +387,21 @@ Env _testEnv() => Env(
   printEnv: false,
   isDebugModeOn: false,
 );
+
+List<Map<String, dynamic>> _contractEntries() {
+  final contract = jsonDecode(_contractFile().readAsStringSync()) as Map;
+  return (contract['kinds']! as List)
+      .map((entry) => Map<String, dynamic>.from(entry as Map))
+      .toList(growable: false);
+}
+
+File _contractFile() {
+  for (final path in const [
+    '../../docs/contracts/realtime-entity-contract.json',
+    'docs/contracts/realtime-entity-contract.json',
+  ]) {
+    final file = File(path);
+    if (file.existsSync()) return file.absolute;
+  }
+  throw StateError('Realtime entity contract manifest not found');
+}

@@ -144,9 +144,9 @@ base class WebsocketSessionHandlerBase {
       }),
     );
     logger.info(
-      '[WebsocketSessionHandlerBase] Replaced ${scope.name} watch '
-      '(subjects ${claims.subjectIds.length}, active sessions '
-      '${_entityWatchesBySession.length})',
+      '[RealtimeWatch] realtime_event=watch_replaced scope=${scope.name} '
+      'subjects=${claims.subjectIds.length} '
+      'active_sessions=${_entityWatchesBySession.length}',
     );
   }
 

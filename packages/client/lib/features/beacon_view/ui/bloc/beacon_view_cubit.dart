@@ -664,8 +664,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         needRoomState = true;
       } else if (t == BeaconRoomEntityType.factCard) {
         needFactCards = true;
-      } else if (t == BeaconRoomEntityType.blocker) {
-        needRoomState = true;
       } else if (t == BeaconRoomEntityType.coordinationItem) {
         needRoomState = true;
         needActivity = true;

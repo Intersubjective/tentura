@@ -122,28 +122,29 @@ Deep-link normalization lives in `invite_deep_link.dart` and `root_router.dart`.
 Landing CTAs in `packages/landing/main.js`. Full flow diagrams and corner cases:
 [`docs/invite-signup-landing-flow.md`](docs/invite-signup-landing-flow.md).
 
-## Entity invalidation (real-time)
+## Realtime projection convergence
 
-Near-real-time updates for entity changes (beacons, help offers, forwards) are
-delivered via lightweight **invalidation signals** over the existing V2 WebSocket
-(`/api/v2/ws`). This is **not** Hasura GraphQL subscriptions and **not** HTTP
-polling.
+State-bearing server changes are delivered as lightweight invalidation hints on
+the V2 WebSocket (`/api/v2/ws`). A hint never contains projection data and never
+grants access; it tells an already-authorized client projection to refetch its
+authoritative snapshot. This is not a Hasura subscription and not polling.
 
-### Data flow
+The machine-checked entity/impact matrix is
+[`docs/contracts/realtime-entity-contract.json`](docs/contracts/realtime-entity-contract.json).
+Update that manifest with every new wire kind. Client and server architecture
+tests fail when a kind lacks a producer, enum mapping, impact, or test evidence.
+
+### Data flow and envelope
 
 ```
-PG trigger (AFTER INSERT/UPDATE/DELETE)
-  → NOTIFY entity_changes (JSON: entity, id, user_ids)
-  → PgNotificationService (packages/server/…/pg_notification_service.dart)
-  → WebsocketRouterBase._onEntityChangeNotification
-  → WebsocketPathEntityChanges.fanOutEntityChange (targets sessions by user_ids)
-  → WS message to client
-  → InvalidationService (packages/client/…/invalidation_service.dart)
-  → Repository emits RepositoryEventInvalidate / HelpOfferInvalidated
-  → Cubit refetches via existing fetch()
+PG trigger/publisher
+  → byte-bounded NOTIFY entity_changes envelope
+  → isolate-local PgNotificationService LISTEN
+  → authenticated-session and authorized-watch fan-out
+  → RealtimeSyncPort typed entityChanges
+  → owning use case selects affected projections
+  → Cubit performs a guarded silent snapshot refresh
 ```
-
-### WebSocket message format
 
 ```json
 {
@@ -152,99 +153,83 @@ PG trigger (AFTER INSERT/UPDATE/DELETE)
   "payload": {
     "entity": "beacon",
     "id": "beacon-uuid",
-    "event": "update"
+    "event": "update",
+    "actor_user_id": "actor-account-id",
+    "subject_ids": ["optional-watched-subject-id"]
   }
 }
 ```
 
-`entity` is one of `"beacon"`, `"help offer"`, `"forward"`, or beacon-room–related
-keys such as `"room_message"`, `"participant"`, `"fact_card"`, `"blocker"`,
-`"activity_event"` (see migrations using `notify_entity_change(...)`).
-`event` is the lowercase Postgres `TG_OP`: `"insert"`, `"update"`, or `"delete"`.
+`event` is `insert`, `update`, or `delete`. `user_ids` exists only inside the PG
+envelope and is stripped from the client frame. Recipient arrays are normalized,
+deduplicated, null-filtered, and split under both the recipient-count and NOTIFY
+byte ceilings. Relationship/profile visibility watches use short-lived signed
+grants; watch intersections are per authenticated session and never replace the
+normal recipient authorization query.
 
-### Fan-out strategy (phase 1)
+### Actor semantics and duplicate control
 
-Relationship-based targeting — the PG trigger embeds the affected user IDs:
+`TenturaDb.withMutatingUser` sets `tentura.mutating_user_id` for attribution.
+SQL always retains that account in `user_ids` and adds it as `actor_user_id`.
+During compatibility rollout only, `REALTIME_ACTOR_ECHO_ENABLED=false` makes the
+WebSocket router filter the actor's sessions. The final mode is `true`: all of an
+actor account's sessions converge through the same server hint as other affected
+sessions. Do not reintroduce SQL actor removal or a session-local derived-state
+bus.
 
-| Entity | Notified users |
-|--------|----------------|
-| `beacon` | Beacon author (`user_id`) |
-| `help offer` | Committing user + beacon author (looked up from `beacon`) |
-| `forward` | Sender + recipient of the forward edge |
+The client coalesces `(kind, aggregateId)` bursts for 500 ms. Cubits use one
+in-flight silent refresh plus at most one queued rerun and reject stale account or
+generation results. Command success/failure owns user-visible effects; an echoed
+invalidation only reconciles server truth and must not show a second success.
 
-No client-side subscription registration is needed. Phase 2 may add
-`watch_authors` subscriptions similar to how `user_presence` tracks `peer_ids`.
+### Catch-up protocol and lifecycle
 
-### Echo suppression
+A catch-up is a reasoned request to refresh currently active projections, not a
+replay log. `RealtimeSyncPort.catchUps` carries the account and connection epoch.
+Supported reasons cover authenticated reconnect, pong-timeout reconstruction,
+PG listener recovery, native resume, restored web visibility, and explicit server
+requests. First authentication is quiet; later authentication of the same account
+emits one reconnect catch-up. Old-account/old-epoch events are discarded.
 
-When a V2 mutation modifies a trigger-carrying table, the originating user
-should **not** receive the invalidation signal back (the client already handled
-the change locally). Two layers prevent this:
+When the PG LISTEN connection recovers, that server isolate broadcasts a
+`control/entity_changes` frame with `intent=catch_up` to its authenticated
+sessions. Native `LifecycleHandler` requests catch-up on `resumed`; web requests
+it when `document.visibilityState` becomes `visible`. A live-channel outage over
+two seconds shows the non-blocking localized paused banner; HTTP reads and writes
+remain available.
 
-**Server side (primary):** The PG trigger function `notify_entity_change()`
-reads `current_setting('tentura.mutating_user_id', true)` and removes that
-user from the `user_ids` array before calling `pg_notify`. Server-side
-repositories set this GUC inside a transaction via
-`TenturaDb.withMutatingUser(userId, () => ...)`. External writes (Hasura,
-raw SQL) never set the GUC, so all users are still notified normally.
+### Checklist for a new state-bearing entity
 
-When adding a new V2 mutation that touches a trigger-carrying table, wrap
-the repository call in `_database.withMutatingUser(userId, () => ...)`.
+1. Add a forward migration with the generic trigger mapping or a bounded
+   specialized publisher. Reuse current visibility rules and indexed relations.
+2. Include all affected accounts, including the actor, plus `actor_user_id`.
+   Include bounded `subject_ids` only when an authorized projection watch needs
+   them. Test INSERT/UPDATE/DELETE and lost-authorization snapshots.
+3. Add the canonical and any compatibility wire aliases to
+   `RealtimeEntityKind.fromWire`; do not add a feature-specific transport stream.
+4. Add the manifest row with `genericTriggerArgs`/`specializedPublishers`, client
+   enum name, affected projections, and current test evidence.
+5. Route the typed change through an owning use case. A Cubit may inject that
+   case/port, never `data/service`; a Cubit coordinating two or more repositories
+   still requires a `*Case`.
+6. Implement a guarded background refresh that retains usable state on failure,
+   handles delete/access loss, coalesces bursts, and suppresses stale results.
+7. Add server producer/recipient tests, client impact-filter tests, Cubit
+   convergence tests, and two-session integration evidence where user-visible.
+8. Run both architecture contract tests and the full verification commands.
 
-**Client side (residual):** `InvalidationService` buffers incoming IDs using
-`rxdart` `bufferTime(500ms)` and deduplicates within each window. This
-collapses batch operations (e.g. multi-recipient forwards) into a single
-invalidation event per entity ID.
+### What not to do
 
-**Beacon room slice:** `beaconRoomInvalidations` is a
-`Stream<({String beaconId, BeaconRoomEntityType entityType})>` (see
-`features/beacon_room/domain/entity/beacon_room_invalidation.dart`). The WS
-`payload['entity']` string is mapped to `BeaconRoomEntityType` before emit;
-debouncing deduplicates identical `(beaconId, entityType)` pairs in the same
-window. `BeaconViewCase` exposes this stream so UI cubits do not import
-`data/service/` directly. `BeaconViewCubit` routes each type to a minimal
-subset of `BeaconViewCase` fetches (e.g. `room_message` → room activity list +
-unread count only), instead of re-running the full beacon timeline fetch.
+- Do not add Hasura GraphQL subscriptions or HTTP polling timers.
+- Do not parse WebSocket frames outside `InvalidationService`.
+- Do not inject `InvalidationService` into features; depend on
+  `RealtimeSyncPort`/`RealtimeSyncCase` and domain projection streams.
+- Do not append entities directly from hints; refetch and merge/replace by stable
+  server IDs.
+- Do not create a global derived-state bus or show command effects from an echo.
 
-### Adding real-time updates for a new entity
-
-**Server side:**
-
-1. Add a PG trigger on the table in a new migration
-   (`EXECUTE FUNCTION public.notify_entity_change('entity_name')`).
-   The generic `notify_entity_change()` function handles the entity via
-   `TG_ARGV[0]`; add an `ELSIF entity_type = '...'` branch that sets
-   `entity_id` and `user_ids`.
-2. Wrap the repository mutation in `_database.withMutatingUser(userId, ...)`
-   so the trigger suppresses the echo back to the originating user.
-3. No changes needed in `PgNotificationService` — it listens on the
-   `entity_changes` channel generically.
-4. No changes needed in `WebsocketPathEntityChanges.fanOutEntityChange` —
-   it reads `user_ids` from the payload generically.
-
-**Client side:**
-
-1. Add a new broadcast stream to `InvalidationService`
-   (e.g. `Stream<String> get fooInvalidations`).
-2. Add a `case` in `InvalidationService._onInvalidation` for the new entity
-   key.
-3. Inject `InvalidationService` into the relevant repository; listen and emit
-   on the repository's existing `changes` stream using
-   `RepositoryEventInvalidate` (or an equivalent domain event type).
-4. Ensure the cubit already reacts to the repository event stream. If the
-   cubit uses an exhaustive `switch`, add the new variant. Add debouncing if
-   rapid-fire invalidations are expected.
-
-### What NOT to do
-
-- Do **not** add Hasura GraphQL subscriptions (`gql_websocket_link`,
-  `subscription` operations) for this purpose.
-- Do **not** add HTTP polling timers (`Timer.periodic` with `fetch()`).
-- Do **not** parse WS messages directly in repositories — all invalidation
-  goes through the single `InvalidationService` singleton
-  (`packages/client/lib/data/service/invalidation_service.dart`).
-- Do **not** put refetch logic in repositories; repositories emit signals,
-  cubits own the fetch lifecycle.
+Operational queries, alert thresholds, and the local runtime procedure live in
+[`docs/realtime-sync-operations.md`](docs/realtime-sync-operations.md).
 
 ## Client version gate (`MIN_CLIENT_VERSION`)
 

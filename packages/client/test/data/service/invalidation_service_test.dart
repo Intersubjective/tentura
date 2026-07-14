@@ -206,7 +206,6 @@ void main() {
           'room_poll': RealtimeEntityKind.roomPoll,
           'participant': RealtimeEntityKind.participant,
           'fact_card': RealtimeEntityKind.factCard,
-          'blocker': RealtimeEntityKind.blocker,
           'activity_event': RealtimeEntityKind.activityEvent,
           'coordination_item': RealtimeEntityKind.coordinationItem,
           'capability': RealtimeEntityKind.capability,
