@@ -22,6 +22,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/test_realtime_sync.dart';
 
 class _FakeForwardRepository implements ForwardRepository {
   final _forwardChanges = StreamController<String>.broadcast();
@@ -137,6 +138,7 @@ _buildHarness({
     contactsRepo,
     buildTestAuthCase(authLocal, EmptyAuthRemote()),
     store,
+    buildTestRealtimeSync().case_,
     env: const Env(),
     logger: Logger('test'),
   );

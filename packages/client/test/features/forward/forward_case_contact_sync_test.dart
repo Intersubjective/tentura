@@ -18,6 +18,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
+import '../../support/test_realtime_sync.dart';
 
 class _FakeForwardRepository implements ForwardRepository {
   _FakeForwardRepository({
@@ -111,6 +112,7 @@ void main() {
         contactsRepo,
         buildTestAuthCase(authLocal, EmptyAuthRemote()),
         store,
+        buildTestRealtimeSync().case_,
         env: const Env(),
         logger: Logger('test'),
       );

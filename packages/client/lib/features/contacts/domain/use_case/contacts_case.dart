@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
@@ -16,11 +19,19 @@ final class ContactsCase extends UseCaseBase {
   ContactsCase(
     this._repository,
     this._authCase,
-    this._store, {
+    this._store,
+    this._realtimeSyncCase, {
     required super.env,
     required super.logger,
   }) {
     _accountSub = _authCase.currentAccountChanges().listen(_onAccountChanged);
+    _contactSub = _realtimeSyncCase
+        .changesFor(const {RealtimeEntityKind.contact})
+        .listen((_) => _scheduleRefresh(), cancelOnError: false);
+    _catchUpSub = _realtimeSyncCase.catchUps.listen(
+      (_) => _scheduleRefresh(),
+      cancelOnError: false,
+    );
   }
 
   final ContactsRepository _repository;
@@ -29,7 +40,17 @@ final class ContactsCase extends UseCaseBase {
 
   final ContactNameStore _store;
 
+  final RealtimeSyncCase _realtimeSyncCase;
+
   late final StreamSubscription<String> _accountSub;
+  late final StreamSubscription<RealtimeEntityChange> _contactSub;
+  late final StreamSubscription<RealtimeCatchUp> _catchUpSub;
+
+  static const _refreshDebounce = Duration(milliseconds: 100);
+  Timer? _refreshTimer;
+  Future<void>? _activeRefresh;
+  bool _refreshPending = false;
+  bool _disposed = false;
 
   String _accountId = '';
 
@@ -39,30 +60,75 @@ final class ContactsCase extends UseCaseBase {
   String? nameOf(String userId) => _store.nameOf(userId);
 
   @disposeMethod
-  Future<void> dispose() => _accountSub.cancel();
+  Future<void> dispose() async {
+    _disposed = true;
+    _refreshTimer?.cancel();
+    await _accountSub.cancel();
+    await _contactSub.cancel();
+    await _catchUpSub.cancel();
+  }
 
   Future<void> _onAccountChanged(String accountId) async {
     _accountId = accountId;
+    _activeRefresh = null;
+    _refreshPending = false;
     if (accountId.isEmpty) {
       _store.clear();
       return;
     }
-    _store.replaceAll(await _repository.getCached(accountId: accountId));
+    final cached = await _repository.getCached(accountId: accountId);
+    if (_disposed || accountId != _accountId) return;
+    _store.replaceAll(cached);
     await refresh();
+  }
+
+  void _scheduleRefresh() {
+    if (_disposed || _accountId.isEmpty) return;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(_refreshDebounce, () {
+      _refreshTimer = null;
+      unawaited(refresh());
+    });
   }
 
   /// Re-fetches the full contact map from the server. Keeps the cached map
   /// on network failure — contact names degrade gracefully offline.
-  Future<void> refresh() async {
+  Future<void> refresh() {
+    final active = _activeRefresh;
+    if (active != null) {
+      _refreshPending = true;
+      return active;
+    }
+    late final Future<void> future;
     final accountId = _accountId;
-    if (accountId.isEmpty) return;
+    future = _runRefreshLoop(accountId).whenComplete(() {
+      if (identical(_activeRefresh, future)) {
+        _activeRefresh = null;
+      }
+    });
+    _activeRefresh = future;
+    return future;
+  }
+
+  Future<void> _runRefreshLoop(String accountId) async {
+    do {
+      _refreshPending = false;
+      await _refreshOnce(accountId);
+    } while (_refreshPending && !_disposed && accountId == _accountId);
+  }
+
+  Future<void> _refreshOnce(String accountId) async {
+    if (_disposed || accountId.isEmpty) return;
     try {
       final names = await _repository.fetchMine();
-      if (accountId != _accountId) return; // account switched mid-fetch
+      if (_disposed || accountId != _accountId) return;
       await _repository.replaceCache(accountId: accountId, names: names);
+      if (_disposed || accountId != _accountId) return;
       _store.replaceAll(names);
     } catch (e) {
-      logger.warning('Contacts sync failed, using cached names', e);
+      if (!_disposed && accountId == _accountId) {
+        logger.warning('Contacts sync failed, using cached names', e);
+      }
     }
   }
 

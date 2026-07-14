@@ -4,12 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/contacts/data/repository/contacts_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 
 import '../auth/auth_test_helpers.dart';
+import '../../support/test_realtime_sync.dart';
 
 void main() {
   group('ContactNameStore', () {
@@ -68,16 +71,22 @@ void main() {
     late FakeContactsRepository repository;
     late ContactNameStore store;
     late ContactsCase case_;
+    late TestRealtimeSyncPort realtimePort;
+    late RealtimeSyncCase realtimeSyncCase;
     late Future<void> Function(String accountId) switchAccount;
 
     setUp(() {
       authLocal = StreamingAuthLocal();
       repository = FakeContactsRepository();
       store = ContactNameStore();
+      final realtime = buildTestRealtimeSync();
+      realtimePort = realtime.port;
+      realtimeSyncCase = realtime.case_;
       case_ = ContactsCase(
         repository,
         buildTestAuthCase(authLocal, EmptyAuthRemote()),
         store,
+        realtimeSyncCase,
         env: const Env(),
         logger: Logger('test'),
       );
@@ -96,6 +105,8 @@ void main() {
 
     tearDown(() async {
       await case_.dispose();
+      await realtimeSyncCase.dispose();
+      await realtimePort.dispose();
       await store.dispose();
       await authLocal.dispose();
     });
@@ -233,6 +244,55 @@ void main() {
 
       expect(case_.nameOf('u1'), 'Updated');
     });
+
+    test('remote contact change refreshes the full private map', () async {
+      await switchAccount('acc-1');
+      repository.fetchMineResult = {'u2': 'Renamed elsewhere'};
+
+      realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.contact,
+          aggregateId: 'u2',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(store.all, {'u2': 'Renamed elsewhere'});
+      expect(repository.lastReplaceCache?.accountId, 'acc-1');
+    });
+
+    test('catch-up refreshes contacts after a missed event', () async {
+      await switchAccount('acc-1');
+      repository.fetchMineResult = {'u3': 'Caught up'};
+
+      realtimePort.emitCatchUp();
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(store.all, {'u3': 'Caught up'});
+    });
+
+    test('contact invalidation burst coalesces into one refresh', () async {
+      await switchAccount('acc-1');
+      final callsBefore = repository.fetchMineCalls;
+      repository.fetchMineResult = {'u4': 'Once'};
+      const change = RealtimeEntityChange(
+        kind: RealtimeEntityKind.contact,
+        aggregateId: 'u4',
+        operation: RealtimeOperation.update,
+        source: RealtimeChangeSource.serverInvalidation,
+      );
+
+      realtimePort
+        ..emitChange(change)
+        ..emitChange(change)
+        ..emitChange(change);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(repository.fetchMineCalls, callsBefore + 1);
+      expect(store.all, {'u4': 'Once'});
+    });
   });
 }
 
@@ -278,6 +338,7 @@ class FakeContactsRepository implements ContactsRepository {
   Map<String, String> fetchMineResult = {};
   Object? fetchMineError;
   Future<Map<String, String>> Function()? fetchMineHandler;
+  int fetchMineCalls = 0;
 
   final _cacheGates = <Completer<void>>[];
   final _syncGates = <Completer<void>>[];
@@ -318,6 +379,7 @@ class FakeContactsRepository implements ContactsRepository {
 
   @override
   Future<Map<String, String>> fetchMine() async {
+    fetchMineCalls++;
     try {
       if (fetchMineHandler != null) {
         return await fetchMineHandler!();

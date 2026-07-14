@@ -20,6 +20,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/test_realtime_sync.dart';
 
 /// Simulates route pop disposing the cubit when [NavigateBack] fires.
 class _NavigateBackClosesCubitPort extends FakeUiEffectPort {
@@ -126,6 +127,7 @@ _buildForwardCaseHarness() async {
     contactsRepo,
     buildTestAuthCase(authLocal, EmptyAuthRemote()),
     store,
+    buildTestRealtimeSync().case_,
     env: const Env(),
     logger: Logger('test'),
   );
