@@ -18,6 +18,20 @@ void main() {
     });
   });
 
+  group('resolveRealtimeActorEchoEnabled', () {
+    test('defaults to actor-account convergence', () {
+      expect(resolveRealtimeActorEchoEnabled(null), isTrue);
+      expect(resolveRealtimeActorEchoEnabled(''), isTrue);
+      expect(resolveRealtimeActorEchoEnabled('true'), isTrue);
+    });
+
+    test('only an explicit false activates compatibility filtering', () {
+      expect(resolveRealtimeActorEchoEnabled('false'), isFalse);
+      expect(resolveRealtimeActorEchoEnabled(' FALSE '), isFalse);
+      expect(resolveRealtimeActorEchoEnabled('unexpected'), isTrue);
+    });
+  });
+
   group('isFcmConfigured', () {
     test('false when all three server creds are empty', () {
       final env = Env(

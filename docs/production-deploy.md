@@ -101,6 +101,7 @@ NEED_INVITE=false
 DEBUG_MODE=false
 IMAGE_SERVER=https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura
 SESSION_EXPIRES_IN=2592000
+REALTIME_ACTOR_ECHO_ENABLED=true
 MIN_CLIENT_VERSION=4.0.0
 
 # === S3 (DO Spaces) ===

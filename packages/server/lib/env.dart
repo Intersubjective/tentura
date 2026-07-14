@@ -12,6 +12,11 @@ export 'consts.dart';
 String resolveServerEnvironment(String? environment) =>
     environment == Environment.dev ? Environment.dev : Environment.prod;
 
+/// Actor-account convergence is the final mode; only an explicit `false`
+/// activates the compatibility/rollback filter.
+bool resolveRealtimeActorEchoEnabled(String? value) =>
+    value?.trim().toLowerCase() != 'false';
+
 class Env {
   Env({
     // Common
@@ -232,7 +237,9 @@ class Env {
            listenWebPort ?? int.tryParse(_env['PORT'] ?? '') ?? 2080,
        realtimeActorEchoEnabled =
            realtimeActorEchoEnabled ??
-           _env['REALTIME_ACTOR_ECHO_ENABLED'] == 'true',
+           resolveRealtimeActorEchoEnabled(
+             _env['REALTIME_ACTOR_ECHO_ENABLED'],
+           ),
        minClientVersion =
            minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
 
@@ -503,7 +510,7 @@ class Env {
 
   final int listenWebPort;
 
-  /// Compatibility gate. SQL includes the actor; the router filters it while false.
+  /// Defaults on for cross-device convergence; false is a compatibility gate.
   final bool realtimeActorEchoEnabled;
 
   /// Minimum Tentura client semver required; `0.0.0` disables the check.

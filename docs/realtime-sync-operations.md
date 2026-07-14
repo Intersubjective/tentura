@@ -18,6 +18,19 @@ architecture and PG tests enforce it.
 - A brief disconnect is invisible. After two seconds the client shows the
   non-blocking live-updates-paused banner; it clears after authentication.
 
+## Actor echo compatibility switch
+
+`REALTIME_ACTOR_ECHO_ENABLED` defaults to `true`, so every active session of an
+actor's account receives the same invalidation and converges across tabs and
+devices. Set it to `false` only as a compatibility rollback.
+
+The switch is deliberately narrow: filtering requires a non-null
+`actor_user_id`, which is populated by server-mediated writes using
+`TenturaDb.withMutatingUser`. Direct Hasura mutations do not set that PostgreSQL
+GUC and continue to echo to the actor even when the switch is `false`. Therefore
+`false` is not a global actor-echo disable; it temporarily creates asymmetric
+convergence and should not be treated as a steady-state configuration.
+
 ## Stable server log fields
 
 Realtime logs use a searchable `realtime_event` marker and contain counts, not
@@ -115,7 +128,8 @@ do not retain screenshots.
 2. Check for `fanout` on every worker. No envelope points to the trigger or
    recipient query; an envelope with zero frames points to session targeting.
 3. Check `actor_echo`. A false value is the compatibility kill switch and may
-   intentionally exclude all sessions of the actor account.
+   intentionally exclude all sessions of the actor account for server-mediated
+   mutations; Hasura mutations without `actor_user_id` remain echoed.
 4. Check listener recovery markers and `pg_notification_queue_usage()`.
 5. Confirm the client authenticated a new connection epoch and emitted catch-up.
 6. Verify the affected Cubit kept its existing snapshot and did not discard a
