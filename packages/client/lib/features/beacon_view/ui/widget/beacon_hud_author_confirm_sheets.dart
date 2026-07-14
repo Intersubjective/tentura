@@ -38,13 +38,17 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
                 style: TenturaText.body(Theme.of(ctx).colorScheme.onSurface),
               ),
               SizedBox(height: tt.sectionGap),
-              FilledButton(
-                key: TestIds.key(TestIds.beaconHudMarkEnoughHelpConfirm),
-                onPressed: () {
-                  confirmed = true;
-                  Navigator.of(ctx).pop();
-                },
-                child: Text(l10n.beaconHudConfirmMarkEnoughHelpAction),
+              Semantics(
+                identifier: TestIds.beaconHudMarkEnoughHelpConfirm,
+                button: true,
+                child: FilledButton(
+                  key: TestIds.key(TestIds.beaconHudMarkEnoughHelpConfirm),
+                  onPressed: () {
+                    confirmed = true;
+                    Navigator.of(ctx).pop();
+                  },
+                  child: Text(l10n.beaconHudConfirmMarkEnoughHelpAction),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),

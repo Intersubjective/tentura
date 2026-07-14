@@ -154,26 +154,30 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                 style: theme.textTheme.bodySmall,
               ),
               SizedBox(height: tt.rowGap),
-              TextField(
-                key: TestIds.key(TestIds.helpOfferSearch),
-                controller: _searchController,
-                decoration: InputDecoration(
-                  labelText: l10n.helpOfferSearchLabel,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: MaterialLocalizations.of(
-                            context,
-                          ).deleteButtonTooltip,
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                          icon: const Icon(Icons.clear),
-                        ),
+              Semantics(
+                identifier: TestIds.helpOfferSearch,
+                textField: true,
+                child: TextField(
+                  key: TestIds.key(TestIds.helpOfferSearch),
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: l10n.helpOfferSearchLabel,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).deleteButtonTooltip,
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.clear),
+                          ),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
               SizedBox(height: tt.rowGap),
               CapabilityChipSet(
@@ -267,13 +271,18 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
             ),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                key: TestIds.key(TestIds.helpOfferSubmit),
-                onPressed: _canSubmit ? () => _submit(l10n) : null,
-                child: Text(
-                  widget.showHelpTypeChips
-                      ? l10n.helpOfferSubmit(_helpTypeSlugs.length, 4)
-                      : l10n.buttonOk,
+              child: Semantics(
+                identifier: TestIds.helpOfferSubmit,
+                button: true,
+                enabled: _canSubmit,
+                child: FilledButton(
+                  key: TestIds.key(TestIds.helpOfferSubmit),
+                  onPressed: _canSubmit ? () => _submit(l10n) : null,
+                  child: Text(
+                    widget.showHelpTypeChips
+                        ? l10n.helpOfferSubmit(_helpTypeSlugs.length, 4)
+                        : l10n.buttonOk,
+                  ),
                 ),
               ),
             ),

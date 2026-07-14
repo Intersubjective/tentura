@@ -12,18 +12,20 @@ class TenturaTextAction extends StatelessWidget {
     this.onPressed,
     this.tone = TenturaTone.info,
     this.icon,
+    this.semanticsIdentifier,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final TenturaTone tone;
   final Widget? icon;
+  final String? semanticsIdentifier;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final color = _toneToColor(tt, tone);
-    return TextButton(
+    final button = TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -57,6 +59,15 @@ class TenturaTextAction extends StatelessWidget {
               ],
             ),
     );
+    final identifier = semanticsIdentifier;
+    return identifier == null
+        ? button
+        : Semantics(
+            identifier: identifier,
+            button: true,
+            enabled: onPressed != null,
+            child: button,
+          );
   }
 
   static Color _toneToColor(TenturaTokens tt, TenturaTone tone) {

@@ -150,6 +150,7 @@ class ForwardBottomComposer extends StatelessWidget {
               child: Semantics(
                 identifier: TestIds.forwardSubmit,
                 button: true,
+                enabled: enabled,
                 child: OutlinedButton(
                   key: TestIds.key(TestIds.forwardSubmit),
                   onPressed: onForward,

@@ -24,13 +24,17 @@ class BeaconViewRoomAppBarButton extends StatelessWidget {
     return Badge(
       isLabelVisible: state.roomUnreadCount > 0,
       label: Text('${state.roomUnreadCount}'),
-      child: IconButton(
-        key: TestIds.key(TestIds.beaconRoomOpen),
-        // On Flutter web desktop, hovered IconButton tooltips can trigger an
-        // Overlay layout assert while the window is resizing.
-        tooltip: kIsWeb ? null : tooltipText,
-        icon: Icon(Icons.forum_rounded, semanticLabel: tooltipText),
-        onPressed: onPressed,
+      child: Semantics(
+        identifier: TestIds.beaconRoomOpen,
+        button: true,
+        child: IconButton(
+          key: TestIds.key(TestIds.beaconRoomOpen),
+          // On Flutter web desktop, hovered IconButton tooltips can trigger an
+          // Overlay layout assert while the window is resizing.
+          tooltip: kIsWeb ? null : tooltipText,
+          icon: Icon(Icons.forum_rounded, semanticLabel: tooltipText),
+          onPressed: onPressed,
+        ),
       ),
     );
   }

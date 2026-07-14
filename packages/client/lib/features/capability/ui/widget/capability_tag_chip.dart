@@ -52,6 +52,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
           : null,
     );
     final semanticChip = Semantics(
+      identifier: TestIds.capabilityChip(tag.slug),
       button: true,
       selected: selected,
       label: '${tag.labelOf(l10n)}, ${_groupLabel(l10n, tag.group)}',

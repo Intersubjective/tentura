@@ -170,6 +170,10 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           ? ValueKey<String>(widget.tabIds![index])
           : null,
       label: widget.tabs[index],
+      semanticsIdentifier:
+          widget.tabIds != null && index < widget.tabIds!.length
+          ? widget.tabIds![index]
+          : null,
       selected: index == widget.selectedIndex,
       onTap: () => widget.onChanged(index),
       badge: badge,
@@ -194,6 +198,10 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
               ? ValueKey<String>(widget.tabIds![index])
               : null,
           label: widget.tabs[index],
+          semanticsIdentifier:
+              widget.tabIds != null && index < widget.tabIds!.length
+              ? widget.tabIds![index]
+              : null,
           selected: index == widget.selectedIndex,
           onTap: () => widget.onChanged(index),
           badge: badge,
@@ -209,6 +217,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
 class _TabCell extends StatelessWidget {
   const _TabCell({
     required this.label,
+    required this.semanticsIdentifier,
     required this.selected,
     required this.onTap,
     this.badge,
@@ -219,6 +228,7 @@ class _TabCell extends StatelessWidget {
   });
 
   final String label;
+  final String? semanticsIdentifier;
   final bool selected;
   final VoidCallback onTap;
   final int? badge;
@@ -237,89 +247,94 @@ class _TabCell extends StatelessWidget {
     final hasAnyBadge = hasPrimaryBadge || hasSecondaryBadge;
     final showAttention = attentionBackgroundOpacity > 0;
 
-    return InkWell(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (showAttention)
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: tt.rowGap,
-                ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(
-                      alpha: attentionBackgroundOpacity,
+    return Semantics(
+      identifier: semanticsIdentifier,
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (showAttention)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: tt.rowGap,
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(
+                        alpha: attentionBackgroundOpacity,
+                      ),
+                      borderRadius: BorderRadius.circular(tt.buttonRadius),
                     ),
-                    borderRadius: BorderRadius.circular(tt.buttonRadius),
                   ),
                 ),
               ),
-            ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TenturaText.tabLabel(
-                          selected ? active : inactive,
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TenturaText.tabLabel(
+                            selected ? active : inactive,
+                          ),
                         ),
                       ),
-                    ),
-                    if (hasAnyBadge) ...[
-                      const SizedBox(width: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (hasPrimaryBadge)
-                              TenturaCountBadge(
-                                count: badge!,
-                                backgroundColor:
-                                    badgeBackgroundColor ?? tt.info,
-                              ),
-                            if (hasPrimaryBadge && hasSecondaryBadge)
-                              const SizedBox(width: 6),
-                            if (hasSecondaryBadge)
-                              TenturaCountBadge(
-                                count: secondaryBadge!,
-                                backgroundColor: tt.warn,
-                              ),
-                          ],
+                      if (hasAnyBadge) ...[
+                        const SizedBox(width: 10),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasPrimaryBadge)
+                                TenturaCountBadge(
+                                  count: badge!,
+                                  backgroundColor:
+                                      badgeBackgroundColor ?? tt.info,
+                                ),
+                              if (hasPrimaryBadge && hasSecondaryBadge)
+                                const SizedBox(width: 6),
+                              if (hasSecondaryBadge)
+                                TenturaCountBadge(
+                                  count: secondaryBadge!,
+                                  backgroundColor: tt.warn,
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 2,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: selected ? active : Colors.transparent,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(1),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 2,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: selected ? active : Colors.transparent,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(1),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

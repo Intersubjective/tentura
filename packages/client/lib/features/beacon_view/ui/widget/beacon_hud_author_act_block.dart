@@ -21,6 +21,7 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     return Semantics(
+      identifier: TestIds.beaconHudAuthorAction(spec.action.name),
       button: true,
       label: spec.semanticsLabel,
       enabled: onPressed != null,

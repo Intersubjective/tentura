@@ -97,6 +97,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  webdriver: ^3.1.0
 
   # From Workspace
   lints:

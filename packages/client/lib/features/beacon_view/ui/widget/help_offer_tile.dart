@@ -407,6 +407,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
             SizedBox(width: tt.rowGap),
             TenturaTextAction(
               key: TestIds.key(TestIds.helpOfferRemove(offerUserId)),
+              semanticsIdentifier: TestIds.helpOfferRemove(offerUserId),
               label: l10n.helpOfferAdmissionRemove,
               onPressed: onRemoveFromChat,
               tone: TenturaTone.neutral,
@@ -444,6 +445,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: TenturaTextAction(
                     key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                    semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
                     label: l10n.helpOfferAdmissionAccept,
                     onPressed: onAccept,
                     tone: TenturaTone.good,
@@ -456,6 +458,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: TenturaTextAction(
                     key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                    semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
                     label: l10n.helpOfferAdmissionDecline,
                     onPressed: onDecline,
                     tone: TenturaTone.danger,
@@ -471,6 +474,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
               if (onAccept != null)
                 TenturaTextAction(
                   key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                  semanticsIdentifier: TestIds.helpOfferAccept(offerUserId),
                   label: l10n.helpOfferAdmissionAccept,
                   onPressed: onAccept,
                   tone: TenturaTone.good,
@@ -481,6 +485,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
               if (onDecline != null)
                 TenturaTextAction(
                   key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                  semanticsIdentifier: TestIds.helpOfferDecline(offerUserId),
                   label: l10n.helpOfferAdmissionDecline,
                   onPressed: onDecline,
                   tone: TenturaTone.danger,
