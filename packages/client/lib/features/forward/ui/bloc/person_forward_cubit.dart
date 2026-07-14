@@ -45,13 +45,13 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
   final PersonForwardCase? _case;
   final UiEffectPort _effects;
 
-  StreamSubscription<String>? _forwardCompletedSub;
+  StreamSubscription<String>? _forwardChangesSub;
   StreamSubscription<void>? _contactChangesSub;
 
   void _subscribeLiveUpdates() {
     final case_ = _case;
     if (case_ == null) return;
-    _forwardCompletedSub = case_.forwardCompleted.listen((beaconId) {
+    _forwardChangesSub = case_.forwardChanges.listen((beaconId) {
       if (isClosed || !state.rows.any((r) => r.beacon.id == beaconId)) {
         return;
       }
@@ -68,7 +68,7 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
 
   @override
   Future<void> close() async {
-    await _forwardCompletedSub?.cancel();
+    await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     return super.close();
   }

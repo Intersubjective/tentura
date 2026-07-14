@@ -50,7 +50,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
            coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
-    _forwardCompletedSub = _case.forwardCompleted.listen(
+    _forwardChangesSub = _case.forwardChanges.listen(
       (beaconId) {
         if (isClosed || beaconId != state.beacon.id) return;
         if (_fetchInProgress) {
@@ -99,7 +99,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  late final StreamSubscription<String> _forwardCompletedSub;
+  late final StreamSubscription<String> _forwardChangesSub;
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChangesSub;
 
@@ -117,7 +117,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   @override
   Future<void> close() async {
-    await _forwardCompletedSub.cancel();
+    await _forwardChangesSub.cancel();
     await _helpOfferChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
     await _readWatermarkSub.cancel();

@@ -52,7 +52,7 @@ class ForwardCubit extends Cubit<ForwardState> {
   bool _appliedInitialLineagePreselect = false;
   bool _appliedInitialUserPreselect = false;
 
-  StreamSubscription<String>? _forwardCompletedSub;
+  StreamSubscription<String>? _forwardChangesSub;
 
   StreamSubscription<void>? _contactChangesSub;
 
@@ -61,7 +61,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (forwardCase == null) {
       return;
     }
-    _forwardCompletedSub = forwardCase.forwardCompleted
+    _forwardChangesSub = forwardCase.forwardChanges
         .where((id) => id == state.beaconId)
         .listen((_) {
           if (!isClosed) {
@@ -186,7 +186,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   @override
   Future<void> close() async {
-    await _forwardCompletedSub?.cancel();
+    await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     return super.close();
   }

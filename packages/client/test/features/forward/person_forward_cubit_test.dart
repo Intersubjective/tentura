@@ -24,14 +24,14 @@ import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _FakeForwardRepository implements ForwardRepository {
-  final _forwardCompleted = StreamController<String>.broadcast();
+  final _forwardChanges = StreamController<String>.broadcast();
   final involvementByBeaconId = <String, BeaconInvolvementData>{};
   final sent = <({String beaconId, List<String> recipientIds, String? note})>[];
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompleted.stream;
+  Stream<String> get forwardChanges => _forwardChanges.stream;
 
-  void emitForwardCompleted(String beaconId) => _forwardCompleted.add(beaconId);
+  void emitForwardCompleted(String beaconId) => _forwardChanges.add(beaconId);
 
   @override
   Future<BeaconInvolvementData> fetchInvolvementForBeacon(
@@ -69,7 +69,7 @@ class _FakeForwardRepository implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<void> dispose() => _forwardCompleted.close();
+  Future<void> dispose() => _forwardChanges.close();
 }
 
 class _FakeBeaconRepository implements BeaconRepository {
@@ -275,7 +275,7 @@ void main() {
       expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
     });
 
-    test('forwardCompleted for a listed beacon reloads rows', () async {
+    test('forwardChanges for a listed beacon reloads rows', () async {
       final harness = await _buildHarness(beacons: [_beacon('B-open')]);
       addTearDown(() async {
         await harness.forwardRepo.dispose();

@@ -38,7 +38,7 @@ final class PersonForwardCase extends UseCaseBase {
   final AuthLocalRepositoryPort _authLocalRepository;
   final ContactsCase _contactsCase;
 
-  Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
+  Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
   Stream<void> get contactChanges => _contactsCase.changes;
 

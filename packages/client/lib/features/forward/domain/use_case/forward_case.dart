@@ -41,7 +41,7 @@ final class ForwardCase extends UseCaseBase {
   final ContactsCase _contactsCase;
 
   /// Emits beacon ids when a forward edge changes (debounced WS invalidation).
-  Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
+  Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
   /// Emits when the viewer's contact-name map changes.
   Stream<void> get contactChanges => _contactsCase.changes;
@@ -63,8 +63,7 @@ final class ForwardCase extends UseCaseBase {
 
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) =>
-      _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
+  }) => _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
 
   Future<String> getCurrentAccountId() =>
       _authLocalRepository.getCurrentAccountId();
@@ -96,29 +95,28 @@ final class ForwardCase extends UseCaseBase {
 
     final myId = await getCurrentAccountId();
 
-    var candidates = profiles
-        .where((p) => p.id != myId)
-        .map(
-          (p) => ForwardCandidate(
-            profile: p,
-            involvement: computeInvolvement(p.id, involvement),
-            myForwardNote: involvement.myForwardedRecipientNotes[p.id],
-            forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
-            recipientReadAt: involvement.myForwardedRecipientReadAts[p.id],
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.mrScore.compareTo(a.mrScore));
+    var candidates =
+        profiles
+            .where((p) => p.id != myId)
+            .map(
+              (p) => ForwardCandidate(
+                profile: p,
+                involvement: computeInvolvement(p.id, involvement),
+                myForwardNote: involvement.myForwardedRecipientNotes[p.id],
+                forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
+                recipientReadAt: involvement.myForwardedRecipientReadAts[p.id],
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.mrScore.compareTo(a.mrScore));
 
     final ids = candidates.map((c) => c.id).toList();
     if (ids.isNotEmpty) {
       try {
         final needs = involvement.beacon.needs;
-        final prioritizeList = needs
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList()
-          ..sort();
+        final prioritizeList =
+            needs.map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+              ..sort();
         final topCaps = await fetchTopCapabilitiesForCandidates(
           ids,
           prioritizeSlugs: prioritizeList,
@@ -170,7 +168,8 @@ final class ForwardCase extends UseCaseBase {
       );
     }
     lineageSuggestions.sort(
-      (a, b) => groupOrder[a.lineageGroup]!.compareTo(groupOrder[b.lineageGroup]!),
+      (a, b) =>
+          groupOrder[a.lineageGroup]!.compareTo(groupOrder[b.lineageGroup]!),
     );
 
     final autoSelectIds = lineageSuggestions
@@ -270,16 +269,15 @@ final class ForwardCase extends UseCaseBase {
     Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
-  }) =>
-      _forwardRepository.forwardBeacon(
-        beaconId: beaconId,
-        recipientIds: recipientIds,
-        note: note,
-        perRecipientNotes: perRecipientNotes,
-        recipientReasons: recipientReasons,
-        context: context,
-        parentEdgeId: parentEdgeId,
-      );
+  }) => _forwardRepository.forwardBeacon(
+    beaconId: beaconId,
+    recipientIds: recipientIds,
+    note: note,
+    perRecipientNotes: perRecipientNotes,
+    recipientReasons: recipientReasons,
+    context: context,
+    parentEdgeId: parentEdgeId,
+  );
 
   Future<bool> cancelForward(String edgeId) =>
       _forwardRepository.cancelForward(edgeId);
@@ -288,10 +286,9 @@ final class ForwardCase extends UseCaseBase {
     required String edgeId,
     String? note,
     List<String>? reasonSlugs,
-  }) =>
-      _forwardRepository.updateForward(
-        edgeId: edgeId,
-        note: note,
-        reasonSlugs: reasonSlugs,
-      );
+  }) => _forwardRepository.updateForward(
+    edgeId: edgeId,
+    note: note,
+    reasonSlugs: reasonSlugs,
+  );
 }

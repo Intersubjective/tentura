@@ -9,9 +9,7 @@ import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/contacts/data/repository/contacts_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
@@ -29,13 +27,15 @@ class _FakeForwardRepository implements ForwardRepository {
   final List<Profile> candidates;
   int fetchForwardCandidatesCalls = 0;
 
-  final _forwardCompleted = StreamController<String>.broadcast();
+  final _forwardChanges = StreamController<String>.broadcast();
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompleted.stream;
+  Stream<String> get forwardChanges => _forwardChanges.stream;
 
   @override
-  Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) async {
+  Future<Iterable<Profile>> fetchForwardCandidates({
+    String context = '',
+  }) async {
     fetchForwardCandidatesCalls++;
     return candidates;
   }
@@ -43,19 +43,18 @@ class _FakeForwardRepository implements ForwardRepository {
   @override
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) async =>
-      (
-        beacon: Beacon.empty.copyWith(id: beaconId),
-        forwardedToIds: <String>{},
-        helpOfferedIds: <String>{},
-        withdrawnIds: <String>{},
-        rejectedIds: <String>{},
-        watchingIds: <String>{},
-        onwardForwarderIds: <String>{},
-        myForwardedRecipientNotes: <String, String>{},
-        myForwardedRecipientEdgeIds: <String, String>{},
-        myForwardedRecipientReadAts: <String, DateTime?>{},
-      );
+  }) async => (
+    beacon: Beacon.empty.copyWith(id: beaconId),
+    forwardedToIds: <String>{},
+    helpOfferedIds: <String>{},
+    withdrawnIds: <String>{},
+    rejectedIds: <String>{},
+    watchingIds: <String>{},
+    onwardForwarderIds: <String>{},
+    myForwardedRecipientNotes: <String, String>{},
+    myForwardedRecipientEdgeIds: <String, String>{},
+    myForwardedRecipientReadAts: <String, DateTime?>{},
+  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

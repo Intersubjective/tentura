@@ -22,13 +22,13 @@ import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 
 class _FakeForwardRepository implements ForwardRepository {
-  final _forwardCompleted = StreamController<String>.broadcast();
+  final _forwardChanges = StreamController<String>.broadcast();
   final involvementByBeaconId = <String, BeaconInvolvementData>{};
   final involvementFailures = <String>{};
   final sent = <({String beaconId, List<String> recipientIds, String? note})>[];
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompleted.stream;
+  Stream<String> get forwardChanges => _forwardChanges.stream;
 
   @override
   Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) async {
@@ -61,7 +61,7 @@ class _FakeForwardRepository implements ForwardRepository {
     String? parentEdgeId,
   }) async {
     sent.add((beaconId: beaconId, recipientIds: recipientIds, note: note));
-    _forwardCompleted.add(beaconId);
+    _forwardChanges.add(beaconId);
     return 'edge-1';
   }
 
@@ -69,7 +69,7 @@ class _FakeForwardRepository implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<void> dispose() => _forwardCompleted.close();
+  Future<void> dispose() => _forwardChanges.close();
 }
 
 class _FakeBeaconRepository implements BeaconRepository {

@@ -8,13 +8,13 @@ import 'beacon_view_case_test_support.dart';
 
 void main() {
   group('BeaconViewCase stream wiring', () {
-    test('forwardCompleted forwards repository events', () async {
+    test('forwardChanges forwards repository events', () async {
       final forward = FakeBeaconViewForwardRepository();
       addTearDown(forward.dispose);
       final case_ = buildTestBeaconViewCase(forward: forward);
 
       final ids = <String>[];
-      final sub = case_.forwardCompleted.listen(ids.add);
+      final sub = case_.forwardChanges.listen(ids.add);
       addTearDown(sub.cancel);
 
       forward.emitForwardCompleted('B1');

@@ -64,7 +64,7 @@ final class BeaconViewCase extends UseCaseBase {
 
   final BeaconActivityEventRepository _activityEvents;
 
-  Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
+  Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;

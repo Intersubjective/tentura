@@ -25,6 +25,9 @@ import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+
+import '../../support/test_realtime_sync.dart';
 
 class FakeMyWorkRepository implements MyWorkRepository {
   MyWorkInitResult initResult = (
@@ -88,26 +91,26 @@ class FakeArchiveRepository implements ArchiveRepository {
 class FakeForwardRepository implements ForwardRepository {
   FakeForwardRepository()
     : _helpOfferController = StreamController<HelpOfferEvent>.broadcast(),
-      _forwardCompletedController = StreamController<String>.broadcast();
+      _forwardChangesController = StreamController<String>.broadcast();
 
   final StreamController<HelpOfferEvent> _helpOfferController;
-  final StreamController<String> _forwardCompletedController;
+  final StreamController<String> _forwardChangesController;
 
   @override
   Stream<HelpOfferEvent> get helpOfferChanges => _helpOfferController.stream;
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompletedController.stream;
+  Stream<String> get forwardChanges => _forwardChangesController.stream;
 
   void emitHelpOffer(HelpOfferEvent event) => _helpOfferController.add(event);
 
   void emitForwardCompleted(String beaconId) =>
-      _forwardCompletedController.add(beaconId);
+      _forwardChangesController.add(beaconId);
 
   @override
   Future<void> dispose() async {
     await _helpOfferController.close();
-    await _forwardCompletedController.close();
+    await _forwardChangesController.close();
   }
 
   @override
@@ -278,6 +281,7 @@ MyWorkCase buildTestMyWorkCase({
   RoomReadWatermarkStore? watermarkStore,
   FakeBeaconRoomRepository? roomRepo,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
+  RealtimeSyncCase? realtimeSyncCase,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
@@ -285,6 +289,7 @@ MyWorkCase buildTestMyWorkCase({
   final beacon = beaconRepo ?? FakeBeaconRepository();
   final forward = forwardRepo ?? FakeForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
+  final realtime = realtimeSyncCase ?? buildTestRealtimeSync().case_;
   return MyWorkCase(
     repo ?? FakeMyWorkRepository(),
     FakeArchiveRepository(),
@@ -298,6 +303,7 @@ MyWorkCase buildTestMyWorkCase({
     ),
     hints,
     prefs,
+    realtime,
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     env: const Env(),
     logger: Logger('test'),

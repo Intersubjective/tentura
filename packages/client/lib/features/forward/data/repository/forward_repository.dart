@@ -10,6 +10,7 @@ import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../../domain/entity/help_offer_event.dart';
@@ -54,24 +55,27 @@ class ForwardRepository {
     this._beaconRepository,
     InvalidationService invalidationService,
   ) {
-    _helpOfferInvalidationSub = invalidationService.helpOfferInvalidations
+    _helpOfferInvalidationSub = invalidationService.entityChanges
+        .where((change) => change.kind == RealtimeEntityKind.helpOffer)
         .listen(
-          (id) => _helpOfferController.add(HelpOfferInvalidated(id)),
+          (change) => _helpOfferController.add(
+            HelpOfferInvalidated(change.aggregateId),
+          ),
         );
-    _forwardInvalidationSub = invalidationService.forwardInvalidations.listen(
-      (id) {
-        if (!_forwardCompletedController.isClosed) {
-          _forwardCompletedController.add(id);
-        }
-      },
-    );
+    _forwardInvalidationSub = invalidationService.entityChanges
+        .where((change) => change.kind == RealtimeEntityKind.forward)
+        .listen((change) {
+          if (!_forwardChangesController.isClosed) {
+            _forwardChangesController.add(change.aggregateId);
+          }
+        });
   }
 
   final RemoteApiService _remoteApiService;
   final BeaconRepository _beaconRepository;
 
-  late final StreamSubscription<String> _helpOfferInvalidationSub;
-  late final StreamSubscription<String> _forwardInvalidationSub;
+  late final StreamSubscription<RealtimeEntityChange> _helpOfferInvalidationSub;
+  late final StreamSubscription<RealtimeEntityChange> _forwardInvalidationSub;
 
   final _helpOfferController = StreamController<HelpOfferEvent>.broadcast();
 
@@ -82,18 +86,24 @@ class ForwardRepository {
     _helpOfferController.add(event);
   }
 
-  final _forwardCompletedController = StreamController<String>.broadcast();
+  final _forwardChangesController = StreamController<String>.broadcast();
+  final _forwardCommandCompletedController =
+      StreamController<String>.broadcast();
 
-  /// Fires after a successful [forwardBeacon] (sender may move to Watching).
-  /// Carries the beacon ID that was forwarded.
-  Stream<String> get forwardCompleted => _forwardCompletedController.stream;
+  /// Local command success and remote/echoed changes for silent convergence.
+  Stream<String> get forwardChanges => _forwardChangesController.stream;
+
+  /// Only this process's successful [forwardBeacon] commands.
+  Stream<String> get forwardCommandCompleted =>
+      _forwardCommandCompletedController.stream;
 
   @disposeMethod
   Future<void> dispose() async {
     await _helpOfferInvalidationSub.cancel();
     await _forwardInvalidationSub.cancel();
     await _helpOfferController.close();
-    await _forwardCompletedController.close();
+    await _forwardChangesController.close();
+    await _forwardCommandCompletedController.close();
   }
 
   Future<String> forwardBeacon({
@@ -136,8 +146,11 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
         final id = r.dataOrThrow(label: _label).beaconForward;
-        if (!_forwardCompletedController.isClosed) {
-          _forwardCompletedController.add(beaconId);
+        if (!_forwardChangesController.isClosed) {
+          _forwardChangesController.add(beaconId);
+        }
+        if (!_forwardCommandCompletedController.isClosed) {
+          _forwardCommandCompletedController.add(beaconId);
         }
         return id;
       });

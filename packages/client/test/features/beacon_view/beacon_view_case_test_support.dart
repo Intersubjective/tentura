@@ -61,17 +61,17 @@ Never _throwTestError(Object error) {
 }
 
 class FakeBeaconViewForwardRepository implements ForwardRepository {
-  final _forwardCompleted = StreamController<String>.broadcast();
+  final _forwardChanges = StreamController<String>.broadcast();
   final _helpOfferChanges = StreamController<HelpOfferEvent>.broadcast();
   final notifiedHelpOfferEvents = <HelpOfferEvent>[];
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompleted.stream;
+  Stream<String> get forwardChanges => _forwardChanges.stream;
 
   @override
   Stream<HelpOfferEvent> get helpOfferChanges => _helpOfferChanges.stream;
 
-  void emitForwardCompleted(String beaconId) => _forwardCompleted.add(beaconId);
+  void emitForwardCompleted(String beaconId) => _forwardChanges.add(beaconId);
 
   void emitHelpOfferChange(HelpOfferEvent event) =>
       _helpOfferChanges.add(event);
@@ -84,7 +84,7 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
 
   @override
   Future<void> dispose() async {
-    await _forwardCompleted.close();
+    await _forwardChanges.close();
     await _helpOfferChanges.close();
   }
 

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
-import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -21,29 +20,31 @@ class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
     required String userId,
     InboxCase? inboxCase,
-    ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
     UiEffectPort? effects,
   }) : _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
-       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(InboxState(currentUserId: userId)) {
-    _helpOfferChanges = _forwardRepository.helpOfferChanges.listen(
+    _helpOfferChanges = _inboxCase.helpOfferChanges.listen(
       _onHelpOfferChanged,
       cancelOnError: false,
     );
-    _forwardCompleted = _forwardRepository.forwardCompleted.listen(
+    _forwardCommandCompleted = _inboxCase.forwardCommandCompleted.listen(
       _fetchAndNotifyIfMoved,
       cancelOnError: false,
     );
     _inboxLocalMutations = _inboxCase.localMutations.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      (_) => unawaited(fetch(showLoading: false, showError: false)),
       cancelOnError: false,
     );
     _deskRelevantChanges = _inboxCase.deskRelevantChanges.listen(
       _onDeskRelevantChanged,
+      cancelOnError: false,
+    );
+    _catchUps = _inboxCase.catchUps.listen(
+      (_) => unawaited(fetch(showLoading: false, showError: false)),
       cancelOnError: false,
     );
     unawaited(fetch());
@@ -53,7 +54,6 @@ class InboxCubit extends Cubit<InboxState> {
 
   final String _userId;
   final InboxCase _inboxCase;
-  final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
 
   final UiEffectPort _effects;
@@ -61,9 +61,12 @@ class InboxCubit extends Cubit<InboxState> {
   final _deskRelevantTimers = <String, Timer>{};
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
-  late final StreamSubscription<String> _forwardCompleted;
+  late final StreamSubscription<String> _forwardCommandCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
   late final StreamSubscription<String> _deskRelevantChanges;
+  late final StreamSubscription<void> _catchUps;
+
+  int _fetchSequence = 0;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -74,8 +77,9 @@ class InboxCubit extends Cubit<InboxState> {
 
   void _onHelpOfferChanged(HelpOfferEvent event) => switch (event) {
     HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
-    HelpOfferWithdrawn() ||
-    HelpOfferInvalidated() => unawaited(fetch(showLoading: false)),
+    HelpOfferWithdrawn() || HelpOfferInvalidated() => unawaited(
+      fetch(showLoading: false, showError: false),
+    ),
   };
 
   void _removeInboxItem(String beaconId) {
@@ -105,7 +109,7 @@ class InboxCubit extends Cubit<InboxState> {
     _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
       _deskRelevantTimers.remove(beaconId);
       if (!isClosed) {
-        unawaited(fetch(showLoading: false));
+        unawaited(fetch(showLoading: false, showError: false));
       }
     });
   }
@@ -117,7 +121,7 @@ class InboxCubit extends Cubit<InboxState> {
         ? state.items[previousIdx].status
         : null;
 
-    final ok = await fetch(showLoading: false);
+    final ok = await fetch(showLoading: false, showError: false);
 
     if (isClosed || !ok) return;
 
@@ -159,9 +163,10 @@ class InboxCubit extends Cubit<InboxState> {
     }
     _deskRelevantTimers.clear();
     await _helpOfferChanges.cancel();
-    await _forwardCompleted.cancel();
+    await _forwardCommandCompleted.cancel();
     await _inboxLocalMutations.cancel();
     await _deskRelevantChanges.cancel();
+    await _catchUps.cancel();
     return super.close();
   }
 
@@ -179,12 +184,17 @@ class InboxCubit extends Cubit<InboxState> {
     );
   }
 
-  Future<bool> fetch({bool showLoading = true}) async {
+  Future<bool> fetch({
+    bool showLoading = true,
+    bool showError = true,
+  }) async {
+    final sequence = ++_fetchSequence;
     if (showLoading) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
       final raw = await _inboxCase.fetch(userId: _userId);
+      if (isClosed || sequence != _fetchSequence) return false;
       final items = [
         for (final item in raw) _withResolvedRoomUnread(item),
       ];
@@ -197,7 +207,8 @@ class InboxCubit extends Cubit<InboxState> {
       _reportInboxActivity();
       return true;
     } catch (e) {
-      _emitSnackError(e);
+      if (isClosed || sequence != _fetchSequence) return false;
+      if (showError) _emitSnackError(e);
       return false;
     }
   }

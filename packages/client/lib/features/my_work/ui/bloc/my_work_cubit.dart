@@ -28,7 +28,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
-    _forwardCompleted = _myWorkCase.forwardCompleted.listen(
+    _forwardChanges = _myWorkCase.forwardChanges.listen(
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
@@ -44,11 +44,16 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
+    _catchUps = _myWorkCase.catchUps.listen(
+      (_) => _scheduleCatchUp(),
+      cancelOnError: false,
+    );
     unawaited(fetch());
   }
 
   static const _pendingRetryDelay = Duration(milliseconds: 400);
   static const _deskRelevantDebounce = Duration(milliseconds: 100);
+  static const _catchUpDebounce = Duration(milliseconds: 100);
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -60,6 +65,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final _pendingDeskBeaconIds = <String>{};
 
   Timer? _pendingRetryTimer;
+  Timer? _catchUpTimer;
 
   final _deskRelevantTimers = <String, Timer>{};
 
@@ -67,28 +73,42 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<dynamic> _helpOfferChanges;
 
-  late final StreamSubscription<String> _forwardCompleted;
+  late final StreamSubscription<String> _forwardChanges;
 
   late final StreamSubscription<String> _readWatermarkSub;
 
   late final StreamSubscription<String> _deskRelevantChanges;
 
   late final StreamSubscription<void> _bookkeepingRefresh;
+  late final StreamSubscription<void> _catchUps;
 
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
+    _catchUpTimer?.cancel();
     for (final timer in _deskRelevantTimers.values) {
       timer.cancel();
     }
     _deskRelevantTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
-    await _forwardCompleted.cancel();
+    await _forwardChanges.cancel();
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
     await _bookkeepingRefresh.cancel();
+    await _catchUps.cancel();
     return super.close();
+  }
+
+  void _scheduleCatchUp() {
+    if (isClosed) return;
+    _catchUpTimer?.cancel();
+    _catchUpTimer = Timer(_catchUpDebounce, () {
+      _catchUpTimer = null;
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false));
+      }
+    });
   }
 
   void _onDeskRelevantChanged(String beaconId) {

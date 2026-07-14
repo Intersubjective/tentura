@@ -37,14 +37,14 @@ class _PreselectForwardRepository implements ForwardRepository {
   final LineageForwardSuggestions lineage;
 
   int fetchCandidatesCalls = 0;
-  final _forwardCompleted = StreamController<String>.broadcast();
+  final _forwardChanges = StreamController<String>.broadcast();
 
   @override
-  Stream<String> get forwardCompleted => _forwardCompleted.stream;
+  Stream<String> get forwardChanges => _forwardChanges.stream;
 
   void emitForwardCompleted(String beaconId) {
-    if (!_forwardCompleted.isClosed) {
-      _forwardCompleted.add(beaconId);
+    if (!_forwardChanges.isClosed) {
+      _forwardChanges.add(beaconId);
     }
   }
 
@@ -70,7 +70,7 @@ class _PreselectForwardRepository implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<void> dispose() => _forwardCompleted.close();
+  Future<void> dispose() => _forwardChanges.close();
 }
 
 class _PreselectProfileRepository implements ProfileRepositoryPort {

@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -11,6 +12,7 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../../support/test_realtime_sync.dart';
 import 'my_work_test_support.dart';
 
 void main() {
@@ -76,7 +78,7 @@ void main() {
     });
 
     test(
-      'forwardCompleted forwards beacon ids from forward repository',
+      'forwardChanges forwards beacon ids from forward repository',
       () async {
         final case_ = buildTestMyWorkCase(
           beaconRepo: beaconRepo,
@@ -85,7 +87,7 @@ void main() {
           roomRepo: roomRepo,
         );
         final ids = <String>[];
-        final sub = case_.forwardCompleted.listen(ids.add);
+        final sub = case_.forwardChanges.listen(ids.add);
 
         forwardRepo.emitForwardCompleted('b3');
         await Future<void>.delayed(Duration.zero);
@@ -144,12 +146,17 @@ void main() {
     late RoomReadWatermarkStore watermarkStore;
     late FakeBeaconRoomRepository roomRepo;
     late FakeMyWorkRepository repo;
+    late TestRealtimeSyncPort realtimePort;
+    late RealtimeSyncCase realtimeSyncCase;
 
     setUp(() {
       beaconRepo = FakeBeaconRepository();
       forwardRepo = FakeForwardRepository();
       watermarkStore = RoomReadWatermarkStore.testing();
       roomRepo = FakeBeaconRoomRepository();
+      final realtime = buildTestRealtimeSync();
+      realtimePort = realtime.port;
+      realtimeSyncCase = realtime.case_;
       repo = FakeMyWorkRepository()
         ..initResult = (
           authoredNonArchived: [
@@ -170,6 +177,8 @@ void main() {
       await forwardRepo.dispose();
       await watermarkStore.dispose();
       await roomRepo.dispose();
+      await realtimeSyncCase.dispose();
+      await realtimePort.dispose();
     });
 
     MyWorkCase buildCase() => buildTestMyWorkCase(
@@ -178,6 +187,7 @@ void main() {
       forwardRepo: forwardRepo,
       watermarkStore: watermarkStore,
       roomRepo: roomRepo,
+      realtimeSyncCase: realtimeSyncCase,
     );
 
     Future<void> waitForFetchCount(int expected) async {
@@ -251,12 +261,29 @@ void main() {
       await cubit.close();
     });
 
-    test('forward completed triggers desk refetch', () async {
+    test('forward change triggers desk refetch', () async {
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
       await cubit.stream.firstWhere((s) => s.isSuccess);
 
       forwardRepo.emitForwardCompleted('b1');
       await waitForFetchCount(2);
+      expect(repo.fetchInitCallCount, 2);
+
+      await cubit.close();
+    });
+
+    test('catch-up bursts coalesce into one silent desk refetch', () async {
+      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      expect(repo.fetchInitCallCount, 1);
+
+      realtimePort
+        ..emitCatchUp(connectionEpoch: 2)
+        ..emitCatchUp(connectionEpoch: 3)
+        ..emitCatchUp(connectionEpoch: 4);
+
+      await waitForFetchCount(2);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(repo.fetchInitCallCount, 2);
 
       await cubit.close();
