@@ -22,6 +22,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     super.userPresenceCase,
     super.friendshipLookup,
     super.coParticipantLookup,
+    super.realtimeWatchGrantCase,
     this.pgNotificationService,
   ) {
     _entityChangeSubscription = pgNotificationService.entityChangeNotifications

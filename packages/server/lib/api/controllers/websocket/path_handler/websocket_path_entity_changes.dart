@@ -1,9 +1,32 @@
 import 'dart:convert';
 
+import 'package:tentura_server/domain/entity/realtime_watch_grant.dart';
+
 import '../session/websocket_session_handler_base.dart';
 
 /// Fans out validated Postgres invalidation hints to isolate-local sessions.
 base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
+  Future<void> onEntityChangeSubscription(
+    WebSocketSession session,
+    Map<String, dynamic> payload,
+  ) async {
+    final scope = RealtimeWatchScope.fromWire(payload['scope']);
+    if (scope == null) throw const FormatException('Invalid watch scope');
+    switch (payload['intent']) {
+      case 'replace_watch':
+        final grant = payload['grant'];
+        if (grant is! String) {
+          throw const FormatException('Invalid watch grant');
+        }
+        await replaceEntityWatch(session, scope: scope, grantToken: grant);
+      case 'remove_watch':
+        getJwtBySession(session);
+        removeEntityWatch(session, scope);
+      default:
+        throw UnsupportedError('Unsupported entity_changes intent');
+    }
+  }
+
   void fanOutEntityChange(Map<String, dynamic> data) {
     final userIds = data['user_ids'];
     final entity = data['entity'];
@@ -30,25 +53,72 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
       return;
     }
 
-    final message = jsonEncode({
-      'type': 'subscription',
-      'path': 'entity_changes',
-      'payload': {
-        'entity': entity,
-        'id': aggregateId,
-        'event': event,
-        'actor_user_id': actorUserId,
-        'subject_ids': ?subjectIds,
-      },
-    });
+    final List<String> normalizedSubjectIds = subjectIds is List
+        ? subjectIds.cast<String>()
+        : const [];
+    final message = _entityChangeMessage(
+      entity: entity,
+      aggregateId: aggregateId,
+      event: event,
+      actorUserId: actorUserId as String?,
+      subjectIds: normalizedSubjectIds,
+    );
 
     final seen = <String>{};
+    final sentSessions = <WebSocketSession>{};
     for (final userId in userIds) {
       if (userId is! String || userId.isEmpty || !seen.add(userId)) continue;
       if (!env.realtimeActorEchoEnabled && userId == actorUserId) continue;
       for (final session in getSessionsByUserId(userId)) {
         session.send(message);
+        sentSessions.add(session);
+      }
+    }
+
+    final watchTargets = watchIntersections(normalizedSubjectIds);
+    for (final entry in watchTargets.entries) {
+      final session = entry.key;
+      if (sentSessions.contains(session)) continue;
+      if (!env.realtimeActorEchoEnabled &&
+          getJwtBySession(session).sub == actorUserId) {
+        continue;
+      }
+      final authorizedSubjects = entry.value.toList()..sort();
+      for (var start = 0; start < authorizedSubjects.length; start += 100) {
+        final end = start + 100 < authorizedSubjects.length
+            ? start + 100
+            : authorizedSubjects.length;
+        final chunk = authorizedSubjects.sublist(start, end);
+        session.send(
+          _entityChangeMessage(
+            entity: entity,
+            // A relationship batch aggregate may name another changed user.
+            // Watch-only sessions receive an authorized aggregate identifier.
+            aggregateId: chunk.first,
+            event: event,
+            actorUserId: actorUserId,
+            subjectIds: chunk,
+          ),
+        );
       }
     }
   }
+
+  String _entityChangeMessage({
+    required String entity,
+    required String aggregateId,
+    required String event,
+    required String? actorUserId,
+    required List<String> subjectIds,
+  }) => jsonEncode({
+    'type': 'subscription',
+    'path': 'entity_changes',
+    'payload': {
+      'entity': entity,
+      'id': aggregateId,
+      'event': event,
+      'actor_user_id': actorUserId,
+      if (subjectIds.isNotEmpty) 'subject_ids': subjectIds,
+    },
+  });
 }

@@ -20,6 +20,7 @@ import 'controllers/qa_email_sink_controller.dart';
 import 'controllers/qa_integration_controller.dart';
 import 'controllers/qa_send_fcm_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
+import 'controllers/realtime_watch_grant_controller.dart';
 import 'controllers/session_controller.dart';
 import 'controllers/app_link_redirect_controller.dart';
 import 'http/request_log_sanitizer.dart';
@@ -47,6 +48,7 @@ class RootRouter {
     this._qaIntegrationController,
     this._qaSendFcmController,
     this._unsubscribeController,
+    this._realtimeWatchGrantController,
   );
 
   final Env _env;
@@ -86,6 +88,8 @@ class RootRouter {
   final QaSendFcmController _qaSendFcmController;
 
   final UnsubscribeController _unsubscribeController;
+
+  final RealtimeWatchGrantController _realtimeWatchGrantController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -139,6 +143,11 @@ class RootRouter {
       ..post(
         '/api/v2/session/from-bearer',
         _sessionController.fromBearer,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..post(
+        '/api/v2/realtime/watch-grant',
+        _realtimeWatchGrantController.handler,
         use: _authMiddleware.verifyBearerJwt,
       )
       ..get(

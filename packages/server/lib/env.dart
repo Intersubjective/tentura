@@ -61,6 +61,10 @@ class Env {
     String? bindAddress,
     int? listenWebPort,
     bool? realtimeActorEchoEnabled,
+    bool? realtimeWatchEnabled,
+    Duration? realtimeWatchGrantTtl,
+    int? realtimeWatchMaxSubjects,
+    int? realtimeWatchMaxBytes,
     String? minClientVersion,
 
     // Postgres
@@ -233,6 +237,21 @@ class Env {
        realtimeActorEchoEnabled =
            realtimeActorEchoEnabled ??
            _env['REALTIME_ACTOR_ECHO_ENABLED'] == 'true',
+       realtimeWatchEnabled =
+           realtimeWatchEnabled ?? _env['REALTIME_WATCH_ENABLED'] != 'false',
+       realtimeWatchGrantTtl = realtimeWatchGrantTtl ??
+           Duration(
+             seconds: int.tryParse(
+                   _env['REALTIME_WATCH_GRANT_TTL_SECONDS'] ?? '',
+                 ) ??
+                 120,
+           ),
+       realtimeWatchMaxSubjects = realtimeWatchMaxSubjects ??
+           int.tryParse(_env['REALTIME_WATCH_MAX_SUBJECTS'] ?? '') ??
+           100,
+       realtimeWatchMaxBytes = realtimeWatchMaxBytes ??
+           int.tryParse(_env['REALTIME_WATCH_MAX_BYTES'] ?? '') ??
+           4096,
        minClientVersion =
            minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
 
@@ -505,6 +524,15 @@ class Env {
 
   /// Compatibility gate. SQL includes the actor; the router filters it while false.
   final bool realtimeActorEchoEnabled;
+
+  /// Independent kill switch for active projection watch registration.
+  final bool realtimeWatchEnabled;
+
+  final Duration realtimeWatchGrantTtl;
+
+  final int realtimeWatchMaxSubjects;
+
+  final int realtimeWatchMaxBytes;
 
   /// Minimum Tentura client semver required; `0.0.0` disables the check.
   final String minClientVersion;

@@ -10,7 +10,9 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
+import 'package:tentura_server/domain/entity/realtime_watch_grant.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/use_case/realtime_watch_grant_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
@@ -27,6 +29,7 @@ base class WebsocketSessionHandlerBase {
     this.userPresenceCase,
     this.friendshipLookup,
     this.coParticipantLookup,
+    this.realtimeWatchGrantCase,
   );
 
   final Env env;
@@ -41,6 +44,8 @@ base class WebsocketSessionHandlerBase {
 
   final BeaconRoomCoParticipantLookupPort coParticipantLookup;
 
+  final RealtimeWatchGrantCase realtimeWatchGrantCase;
+
   final _sessions = <WebSocketSession, WebsocketUserSession>{};
 
   /// Reverse index: userId -> set of WebSocket sessions for that user.
@@ -48,6 +53,12 @@ base class WebsocketSessionHandlerBase {
 
   /// Per session: peer user ids this client wants presence updates for.
   final _presencePeerIdsBySession = <WebSocketSession, Set<String>>{};
+
+  final _entityWatchesBySession =
+      <WebSocketSession, Map<RealtimeWatchScope, _EntityWatchRegistration>>{};
+
+  /// Isolate-local reverse watch index; it is never shared between workers.
+  final _watchSessionsBySubject = <String, Set<WebSocketSession>>{};
 
   /// Returns all active sessions for a given userId (possibly empty).
   Set<WebSocketSession> getSessionsByUserId(String userId) =>
@@ -70,6 +81,7 @@ base class WebsocketSessionHandlerBase {
   JwtEntity? removeSession(WebSocketSession session) {
     final removedSession = _sessions.remove(session);
     _presencePeerIdsBySession.remove(session);
+    _removeAllEntityWatches(session);
     if (removedSession != null) {
       removedSession.cancel();
       final userId = removedSession.jwt.sub;
@@ -82,6 +94,123 @@ base class WebsocketSessionHandlerBase {
       }
     }
     return removedSession?.jwt;
+  }
+
+  Future<void> replaceEntityWatch(
+    WebSocketSession session, {
+    required RealtimeWatchScope scope,
+    required String grantToken,
+  }) async {
+    if (!env.realtimeWatchEnabled) {
+      throw UnsupportedError('Realtime watches are disabled');
+    }
+    final jwt = getJwtBySession(session);
+    final claims = realtimeWatchGrantCase.verify(
+      token: grantToken,
+      accountId: jwt.sub,
+      expectedScope: scope,
+    );
+    if (claims == null || !claims.expiresAt.isAfter(DateTime.timestamp())) {
+      throw const UnauthorizedException(
+        description: 'Invalid realtime watch grant',
+      );
+    }
+
+    _removeEntityWatch(session, scope);
+    final registration = _EntityWatchRegistration(claims);
+    (_entityWatchesBySession[session] ??= {})[scope] = registration;
+    for (final subjectId in claims.subjectIds) {
+      (_watchSessionsBySubject[subjectId] ??= {}).add(session);
+    }
+    registration.expiryTimer = Timer(
+      claims.expiresAt.difference(DateTime.timestamp()),
+      () {
+        final current = _entityWatchesBySession[session]?[scope];
+        if (current?.claims.tokenId == claims.tokenId) {
+          _removeEntityWatch(session, scope);
+        }
+      },
+    );
+    session.send(
+      jsonEncode({
+        'type': 'subscription',
+        'path': 'entity_changes',
+        'payload': {
+          'intent': 'watch_registered',
+          'scope': scope.name,
+          'subject_count': claims.subjectIds.length,
+          'expires_at': claims.expiresAt.toIso8601String(),
+        },
+      }),
+    );
+    logger.info(
+      '[WebsocketSessionHandlerBase] Replaced ${scope.name} watch '
+      '(subjects ${claims.subjectIds.length}, active sessions '
+      '${_entityWatchesBySession.length})',
+    );
+  }
+
+  void removeEntityWatch(
+    WebSocketSession session,
+    RealtimeWatchScope scope,
+  ) => _removeEntityWatch(session, scope);
+
+  /// Returns only each session's authorized intersection with [subjectIds].
+  Map<WebSocketSession, Set<String>> watchIntersections(
+    Iterable<String> subjectIds,
+  ) {
+    final intersections = <WebSocketSession, Set<String>>{};
+    final now = DateTime.timestamp();
+    for (final subjectId in subjectIds.toSet()) {
+      final sessions = {...?_watchSessionsBySubject[subjectId]};
+      for (final session in sessions) {
+        final registrations = _entityWatchesBySession[session];
+        if (registrations == null) continue;
+        var authorized = false;
+        for (final entry in registrations.entries.toList()) {
+          if (!entry.value.claims.expiresAt.isAfter(now)) {
+            _removeEntityWatch(session, entry.key);
+          } else if (entry.value.claims.subjectIds.contains(subjectId)) {
+            authorized = true;
+          }
+        }
+        if (authorized) {
+          (intersections[session] ??= {}).add(subjectId);
+        }
+      }
+    }
+    return intersections;
+  }
+
+  int get activeEntityWatchSessionCount => _entityWatchesBySession.length;
+
+  int get activeEntityWatchSubjectCount => _watchSessionsBySubject.length;
+
+  void _removeEntityWatch(
+    WebSocketSession session,
+    RealtimeWatchScope scope,
+  ) {
+    final registrations = _entityWatchesBySession[session];
+    final removed = registrations?.remove(scope);
+    if (removed == null) return;
+    removed.expiryTimer?.cancel();
+    for (final subjectId in removed.claims.subjectIds) {
+      final sessions = _watchSessionsBySubject[subjectId];
+      sessions?.remove(session);
+      if (sessions?.isEmpty ?? false) {
+        _watchSessionsBySubject.remove(subjectId);
+      }
+    }
+    if (registrations!.isEmpty) {
+      _entityWatchesBySession.remove(session);
+    }
+  }
+
+  void _removeAllEntityWatches(WebSocketSession session) {
+    final scopes = _entityWatchesBySession[session]?.keys.toList() ?? const [];
+    for (final scope in scopes) {
+      _removeEntityWatch(session, scope);
+    }
   }
 
   void setPresenceWatchPeers(
@@ -245,4 +374,11 @@ base class WebsocketSessionHandlerBase {
       '{"type":"auth", '
       '"result":"success", '
       '"intent":"${AuthRequestIntent.cnameSignOut}"}';
+}
+
+final class _EntityWatchRegistration {
+  _EntityWatchRegistration(this.claims);
+
+  final RealtimeWatchGrantClaims claims;
+  Timer? expiryTimer;
 }

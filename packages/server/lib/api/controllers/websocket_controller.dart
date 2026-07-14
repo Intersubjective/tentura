@@ -15,6 +15,7 @@ final class WebSocketController extends WebsocketRouterBase {
     super.userPresenceCase,
     super.friendshipLookup,
     super.coParticipantLookup,
+    super.realtimeWatchGrantCase,
     super.pgNotificationService,
   );
 
