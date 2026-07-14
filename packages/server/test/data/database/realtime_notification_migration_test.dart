@@ -29,6 +29,13 @@ Future<void> main() async {
         settings: env.pgEndpointSettings,
       );
       await migrateDbSchema(writer);
+      // The developer database may already record version 0114 while this
+      // unpushed migration is still being refined. Reapply its idempotent
+      // statements so this contract test always exercises the checked-out
+      // source, not a stale function body from an earlier local run.
+      for (final statement in m0114.statements) {
+        await writer.execute(statement);
+      }
       listener = await Connection.open(
         env.pgEndpoint,
         settings: env.pgEndpointSettings,
@@ -199,8 +206,12 @@ CREATE TRIGGER realtime_relationship_batch_notify
         final changes = _ofKind(notifications, 'relationship');
         expect(changes, hasLength(6));
         expect(
-          changes.expand((message) => message['subject_ids']! as List).toSet(),
+          changes.expand((message) => message['user_ids']! as List).toSet(),
           hasLength(600),
+        );
+        expect(
+          changes.every((message) => !message.containsKey('subject_ids')),
+          isTrue,
         );
       },
       skip: skipReason,
@@ -257,7 +268,7 @@ ON CONFLICT (id) DO NOTHING
           expect(change['event'], operation);
           expect(change['id'], subjectId);
           expect(change['user_ids'], [viewerId]);
-          expect(change['subject_ids'], [subjectId]);
+          expect(change, isNot(contains('subject_ids')));
           expect(change['actor_user_id'], viewerId);
           notifications.clear();
           return change;

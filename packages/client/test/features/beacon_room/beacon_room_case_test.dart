@@ -49,7 +49,6 @@ void main() {
 
   tearDown(() async {
     await watermark.dispose();
-    await realtimeSyncCase.dispose();
     await realtimePort.dispose();
   });
 

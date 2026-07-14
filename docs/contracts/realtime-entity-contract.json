@@ -140,8 +140,8 @@
       "clientKind": "relationship",
       "genericTriggerArgs": [],
       "specializedPublishers": ["notify_relationship_change"],
-      "impacts": ["friends", "profile_controls", "people_visibility", "graph", "forward_candidates"],
-      "tests": ["packages/client/test/features/graph/graph_realtime_test.dart"]
+      "impacts": ["friends", "profile_controls", "people_visibility", "forward_candidates"],
+      "tests": ["packages/client/test/features/friends/friends_cubit_test.dart"]
     },
     {
       "wireKind": "profile",
@@ -149,7 +149,7 @@
       "clientKind": "profile",
       "genericTriggerArgs": ["profile"],
       "specializedPublishers": [],
-      "impacts": ["profile", "people", "avatars", "graph_nodes"],
+      "impacts": ["profile", "people", "avatars"],
       "tests": ["packages/client/test/features/profile/profile_cubit_realtime_test.dart"]
     },
     {

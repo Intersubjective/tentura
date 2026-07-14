@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
@@ -11,9 +10,6 @@ final class TestRealtimeSyncPort implements RealtimeSyncPort {
   final _changes = StreamController<RealtimeEntityChange>.broadcast();
   final _catchUps = StreamController<RealtimeCatchUp>.broadcast();
   final _statuses = StreamController<RealtimeConnectionStatus>.broadcast();
-
-  final replacedWatches = <RealtimeWatchGrant>[];
-  final removedWatches = <RealtimeWatchScope>[];
 
   @override
   Stream<RealtimeCatchUp> get catchUps => _catchUps.stream;
@@ -41,15 +37,10 @@ final class TestRealtimeSyncPort implements RealtimeSyncPort {
   void emitStatus(RealtimeConnectionStatus status) => _statuses.add(status);
 
   @override
-  void removeWatch(RealtimeWatchScope scope) => removedWatches.add(scope);
-
-  @override
-  void replaceWatch(RealtimeWatchGrant grant) => replacedWatches.add(grant);
-
-  @override
   void requestCatchUp(RealtimeCatchUpReason reason) =>
       emitCatchUp(reason: reason);
 
+  @override
   Future<void> dispose() async {
     await _changes.close();
     await _catchUps.close();

@@ -183,7 +183,6 @@ void main() {
     expect(cubit.state.unreadCount, 2);
     await cubit.close();
     await repo.dispose();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 
@@ -203,7 +202,6 @@ void main() {
     expect(cubit.state.items.single.isRead, isTrue);
     await cubit.close();
     await repo.dispose();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 
@@ -228,7 +226,6 @@ void main() {
     expect(cubit.state.items.single.id, 'fresh');
     await cubit.close();
     await repo.dispose();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 

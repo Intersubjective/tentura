@@ -147,7 +147,6 @@ void main() {
       await cubit.close();
       await auth.disposeFake();
       await repository.dispose();
-      await realtime.case_.dispose();
       await realtime.port.dispose();
     },
   );

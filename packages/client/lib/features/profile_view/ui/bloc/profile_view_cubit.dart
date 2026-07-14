@@ -62,7 +62,6 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   @override
   Future<void> close() async {
     _refreshTimer?.cancel();
-    _case.disposeProjection();
     await _projectionSub?.cancel();
     return super.close();
   }

@@ -34,11 +34,9 @@ void main() {
 
   group('BeaconViewCubit initial load', () {
     test(
-      'visible People profile change silently refreshes and renews watch',
+      'visible People profile change silently refreshes',
       () async {
         final realtime = buildTestRealtimeSync();
-        final grants = FakeBeaconViewWatchGrantPort();
-        addTearDown(realtime.case_.dispose);
         addTearDown(realtime.port.dispose);
         final beaconRepo = TrackingBeaconRepository()
           ..fetchByIdHandler = (_) async => readableBeacon();
@@ -46,7 +44,6 @@ void main() {
         final case_ = buildTestBeaconViewCase(
           beaconRepo: beaconRepo,
           realtimeSyncCase: realtime.case_,
-          realtimeWatchGrantPort: grants,
         );
         final cubit = BeaconViewCubit(
           id: beaconId,
@@ -56,11 +53,7 @@ void main() {
           effects: effects,
         );
         addTearDown(cubit.close);
-        await pumpUntil(
-          cubit.stream,
-          () =>
-              cubit.state.beaconContextLoaded && grants.descriptors.isNotEmpty,
-        );
+        await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
 
         realtime.port.emitChange(
           const RealtimeEntityChange(
@@ -73,10 +66,6 @@ void main() {
         await pumpUntil(cubit.stream, () => beaconRepo.fetchByIdCalls >= 2);
 
         expect(effects.emitted, isEmpty);
-        expect(
-          grants.descriptors.last.requestedSubjectIds,
-          contains('Uauthor'),
-        );
       },
     );
 
@@ -417,7 +406,6 @@ void main() {
     test('catch-up always performs a full silent snapshot', () async {
       var current = readableBeacon();
       final realtime = buildTestRealtimeSync();
-      addTearDown(realtime.case_.dispose);
       addTearDown(realtime.port.dispose);
       final beaconRepo = TrackingBeaconRepository()
         ..fetchByIdHandler = (_) async => current;

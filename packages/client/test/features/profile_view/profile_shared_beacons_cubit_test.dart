@@ -155,7 +155,6 @@ final class _SharedBeaconsHarness {
 
   Future<void> dispose() async {
     await _cubit?.close();
-    await realtimeCase.dispose();
     await realtimePort.dispose();
   }
 }

@@ -123,19 +123,18 @@ $$;
 ''',
 
   // One failure-contained, byte-safe emission path for every producer.
+  'DROP FUNCTION IF EXISTS public.emit_realtime_entity_change(text, text, text, text[], text[]);',
   r'''
 CREATE OR REPLACE FUNCTION public.emit_realtime_entity_change(
   p_entity text,
   p_id text,
   p_event text,
-  p_user_ids text[],
-  p_subject_ids text[] DEFAULT NULL
+  p_user_ids text[]
 ) RETURNS void
   LANGUAGE plpgsql
   AS $$
 DECLARE
   normalized_user_ids text[];
-  normalized_subject_ids text[];
   actor_user_id text;
   recipient_index integer := 1;
   recipient_count integer;
@@ -160,11 +159,6 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT COALESCE(array_agg(DISTINCT subject_id ORDER BY subject_id), ARRAY[]::text[])
-  INTO normalized_subject_ids
-  FROM unnest(COALESCE(p_subject_ids, ARRAY[]::text[])) AS subject_id
-  WHERE subject_id IS NOT NULL AND subject_id <> '';
-
   actor_user_id := NULLIF(
     current_setting('tentura.mutating_user_id', true),
     ''
@@ -183,11 +177,7 @@ BEGIN
         'entity', p_entity,
         'id', p_id,
         'user_ids', to_jsonb(recipient_chunk),
-        'actor_user_id', actor_user_id,
-        'subject_ids', CASE
-          WHEN cardinality(normalized_subject_ids) = 0 THEN NULL
-          ELSE to_jsonb(normalized_subject_ids)
-        END
+        'actor_user_id', actor_user_id
       ))::text;
 
       EXIT WHEN octet_length(payload) < 7900;
@@ -233,7 +223,6 @@ DECLARE
   wire_entity text := entity_type;
   entity_id text;
   user_ids text[] := ARRAY[]::text[];
-  subject_ids text[] := ARRAY[]::text[];
   visibility smallint;
   thread_item_id text;
   polling_id text;
@@ -304,7 +293,6 @@ BEGIN
       COALESCE(NEW.subject_user_id, OLD.subject_user_id),
       COALESCE(NEW.observer_user_id, OLD.observer_user_id)
     ];
-    subject_ids := ARRAY[entity_id];
 
   ELSIF entity_type = 'inbox_item' THEN
     entity_id := COALESCE(NEW.beacon_id, OLD.beacon_id);
@@ -313,7 +301,6 @@ BEGIN
   ELSIF entity_type = 'contact' THEN
     entity_id := COALESCE(NEW.subject_id, OLD.subject_id);
     user_ids := ARRAY[COALESCE(NEW.viewer_id, OLD.viewer_id)];
-    subject_ids := ARRAY[entity_id];
 
   ELSIF entity_type = 'room_reaction' THEN
     SELECT message.beacon_id
@@ -347,8 +334,7 @@ BEGIN
 
   ELSIF entity_type = 'profile' THEN
     entity_id := COALESCE(NEW.id, OLD.id);
-    subject_ids := ARRAY[entity_id];
-    user_ids := public.realtime_subject_recipients(subject_ids);
+    user_ids := public.realtime_subject_recipients(ARRAY[entity_id]);
 
   ELSIF entity_type = 'notification' THEN
     entity_id := COALESCE(NEW.account_id, OLD.account_id);
@@ -363,8 +349,7 @@ BEGIN
     wire_entity,
     entity_id,
     lower(TG_OP),
-    user_ids,
-    subject_ids
+    user_ids
   );
   RETURN NULL;
 EXCEPTION
@@ -430,9 +415,8 @@ END;
 $$;
 ''',
 
-  // Coalesce relationship mutations once per SQL statement. Subject IDs are
-  // split before emission so watcher metadata is bounded independently from
-  // recipient chunks.
+  // Coalesce relationship mutations once per SQL statement. Changed users are
+  // split before the indexed bounded-recipient lookup and emission.
   r'''
 CREATE OR REPLACE FUNCTION public.notify_relationship_change()
   RETURNS trigger
@@ -485,8 +469,7 @@ BEGIN
       'relationship',
       subject_chunk[1],
       lower(TG_OP),
-      user_ids,
-      subject_chunk
+      user_ids
     );
     subject_index := subject_index + cardinality(subject_chunk);
   END LOOP;
@@ -621,7 +604,7 @@ CREATE TRIGGER trust_edge_relationship_delete_notify
 
   // Indexes cover every new recipient/aggregate lookup. The broad subject
   // helper is deliberately capped; EXPLAIN in the PG contract test verifies
-  // these indexable predicates rather than an all-row watcher scan.
+  // these indexable predicates rather than an all-row observer scan.
   '''
 CREATE INDEX IF NOT EXISTS vote_user_object_amount_idx
   ON public.vote_user (object, amount);

@@ -84,10 +84,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onPeopleChanged,
       cancelOnError: false,
     );
-    _peopleWatchRefreshSub = _case.peopleWatchRefreshes.listen(
-      (_) => _requestFullRefresh(),
-      cancelOnError: false,
-    );
     unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
@@ -121,8 +117,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
 
-  late final StreamSubscription<void> _peopleWatchRefreshSub;
-
   int _serverUnreadCount = 0;
   DateTime? _serverSeenAt;
 
@@ -140,8 +134,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     await _readWatermarkSub.cancel();
     await _catchUpsSub.cancel();
     await _peopleChangesSub.cancel();
-    await _peopleWatchRefreshSub.cancel();
-    _case.removePeopleWatch();
     return super.close();
   }
 
@@ -160,7 +152,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   void _onPeopleChanged(RealtimeEntityChange change) {
-    if (_peopleSubjectIds().contains(change.aggregateId)) {
+    if (change.kind == RealtimeEntityKind.relationship ||
+        _visiblePeopleIds().contains(change.aggregateId)) {
       _requestFullRefresh();
     }
   }
@@ -995,7 +988,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           status: StateStatus.isSuccess,
         ),
       );
-      unawaited(_replacePeopleWatch());
       if (wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       }
@@ -1092,16 +1084,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
         ),
       );
-      unawaited(_replacePeopleWatch());
     }
   }
 
-  Future<void> _replacePeopleWatch() => _case.replacePeopleWatch(
-    beaconId: state.beacon.id,
-    subjectIds: _peopleSubjectIds(),
-  );
-
-  Set<String> _peopleSubjectIds() => {
+  Set<String> _visiblePeopleIds() => {
     state.beacon.author.id,
     for (final offer in state.helpOffers) offer.user.id,
     for (final participant in state.roomParticipants) participant.userId,

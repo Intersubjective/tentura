@@ -105,7 +105,6 @@ void main() {
 
     tearDown(() async {
       await case_.dispose();
-      await realtimeSyncCase.dispose();
       await realtimePort.dispose();
       await store.dispose();
       await authLocal.dispose();

@@ -230,7 +230,6 @@ final class _FriendsHarness {
   Future<void> dispose() async {
     await cubit.close();
     await contactsCase.dispose();
-    await realtimeCase.dispose();
     await realtimePort.dispose();
     await contactStore.dispose();
     await likes.dispose();

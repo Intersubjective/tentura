@@ -31,7 +31,6 @@ void main() {
 
     expect(cubit.state.showPausedBanner, isFalse);
     await cubit.close();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 
@@ -54,7 +53,6 @@ void main() {
 
     expect(cubit.state.showPausedBanner, isFalse);
     await cubit.close();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 
@@ -75,7 +73,6 @@ void main() {
 
     expect(cubit.state.showPausedBanner, isFalse);
     await cubit.close();
-    await realtime.case_.dispose();
     await realtime.port.dispose();
   });
 }

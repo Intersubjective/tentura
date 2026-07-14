@@ -25,14 +25,13 @@ recipient IDs or payload content.
 
 | Marker | Useful fields | Meaning |
 |---|---|---|
-| `realtime_event=fanout` | `kind`, `recipients`, `direct_sessions`, `watch_sessions`, `frames`, `actor_echo` | one validated PG envelope was routed |
+| `realtime_event=fanout` | `kind`, `recipients`, `direct_sessions`, `frames`, `actor_echo` | one validated PG envelope was routed |
 | `realtime_event=malformed_payload` | `reason` | invalid envelope was dropped |
 | `realtime_event=payload_failure` | `error` | PG payload could not be decoded/routed |
 | `realtime_event=listener_error` / `listener_closed` | — | worker lost its LISTEN connection |
 | `realtime_event=reconnect_scheduled` | `delay_ms`, `attempt` | listener backoff |
 | `realtime_event=reconnected` | `sequence` | listener recovered |
 | `realtime_event=listener_recovered` | `sequence`, `sessions`, `isolate` | isolate-local catch-up broadcast |
-| `realtime_event=watch_replaced` | `scope`, `subjects`, `active_sessions` | authorized projection watch replaced |
 
 Local log queries:
 
@@ -57,8 +56,8 @@ Create three log-derived dashboards per environment:
    artifacts.
 2. **Recovery:** listener errors, reconnect attempts/failures, recovery sequence,
    sessions notified, and client reconnect/catch-up duration.
-3. **Watch pressure:** active watch sessions, subjects per replacement, rejected
-   grants, and watch-only delivery volume.
+3. **Database transport pressure:** notification queue usage, sustained NOTIFY
+   commit-lock waiters, and p95 write-transaction commit latency.
 
 Alert when any of these holds for five minutes:
 
@@ -118,8 +117,6 @@ do not retain screenshots.
 3. Check `actor_echo`. A false value is the compatibility kill switch and may
    intentionally exclude all sessions of the actor account.
 4. Check listener recovery markers and `pg_notification_queue_usage()`.
-5. Check watch replacement only for relationship/profile visibility surfaces;
-   normal recipients do not require a watch.
-6. Confirm the client authenticated a new connection epoch and emitted catch-up.
-7. Verify the affected Cubit kept its existing snapshot and did not discard a
+5. Confirm the client authenticated a new connection epoch and emitted catch-up.
+6. Verify the affected Cubit kept its existing snapshot and did not discard a
    newer generation for a stale response.

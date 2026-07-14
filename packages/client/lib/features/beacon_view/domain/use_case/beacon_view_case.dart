@@ -11,9 +11,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/port/realtime_watch_grant_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -48,7 +46,6 @@ final class BeaconViewCase extends UseCaseBase {
     this._beaconRoomCase,
     this._activityEvents,
     this._realtimeSyncCase, {
-    required this._realtimeWatchGrantPort,
     required super.env,
     required super.logger,
   });
@@ -73,10 +70,6 @@ final class BeaconViewCase extends UseCaseBase {
 
   final RealtimeSyncCase _realtimeSyncCase;
 
-  final RealtimeWatchGrantPort _realtimeWatchGrantPort;
-
-  int _peopleWatchGeneration = 0;
-
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
 
@@ -86,41 +79,6 @@ final class BeaconViewCase extends UseCaseBase {
       _realtimeSyncCase.changesFor(
         const {RealtimeEntityKind.relationship, RealtimeEntityKind.profile},
       );
-
-  Stream<void> get peopleWatchRefreshes => _realtimeSyncCase
-      .watchRefreshRequests
-      .where((scope) => scope == RealtimeWatchScope.people)
-      .map((_) {});
-
-  Future<void> replacePeopleWatch({
-    required String beaconId,
-    required Set<String> subjectIds,
-  }) async {
-    final generation = ++_peopleWatchGeneration;
-    final users = subjectIds.where((id) => id.startsWith('U')).toSet();
-    try {
-      final grant = await _realtimeWatchGrantPort.requestGrant(
-        RealtimeWatchDescriptor.people(
-          requestedSubjectIds: users,
-          beaconId: beaconId,
-        ),
-      );
-      if (generation == _peopleWatchGeneration) {
-        _realtimeSyncCase.replaceWatch(grant);
-      }
-    } catch (error, stackTrace) {
-      logger.warning(
-        'People realtime watch grant failed',
-        error,
-        stackTrace,
-      );
-    }
-  }
-
-  void removePeopleWatch() {
-    _peopleWatchGeneration++;
-    _realtimeSyncCase.removeWatch(RealtimeWatchScope.people);
-  }
 
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 

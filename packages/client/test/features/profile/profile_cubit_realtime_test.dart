@@ -173,7 +173,6 @@ final class _ProfileHarness {
 
   Future<void> dispose() async {
     await cubit.dispose();
-    await realtimeCase.dispose();
     await realtimePort.dispose();
     await profiles.dispose();
     await authLocal.dispose();

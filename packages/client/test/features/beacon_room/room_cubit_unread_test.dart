@@ -738,7 +738,6 @@ void main() {
       _registerProfileCubit(_kMyUserId);
       final realtime = buildTestRealtimeSync();
       addTearDown(realtime.port.dispose);
-      addTearDown(realtime.case_.dispose);
       final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
         ..messages = [_msg('m1', _kAnchorTime)];
       addTearDown(fakeRoom.dispose);

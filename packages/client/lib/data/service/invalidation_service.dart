@@ -241,6 +241,7 @@ class InvalidationService implements RealtimeSyncPort {
   }
 
   @disposeMethod
+  @override
   Future<void> dispose() async {
     await _messageSubscription.cancel();
     await _transportSubscription.cancel();

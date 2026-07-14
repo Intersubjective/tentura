@@ -9,4 +9,5 @@ abstract interface class RealtimeSyncPort {
   Stream<RealtimeConnectionStatus> get connectionStatuses;
 
   void requestCatchUp(RealtimeCatchUpReason reason);
+  Future<void> dispose();
 }

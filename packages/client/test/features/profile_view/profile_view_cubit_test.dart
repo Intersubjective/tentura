@@ -9,10 +9,8 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
-import 'package:tentura/domain/port/realtime_watch_grant_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -36,7 +34,7 @@ void main() {
     tearDown(() => harness.dispose());
 
     test(
-      'loads the contact overlay, capability cues, and bounded watch',
+      'loads the contact overlay and capability cues',
       () async {
         harness
           ..contactStore.set('U-target', 'Private name')
@@ -51,17 +49,11 @@ void main() {
 
         expect(harness.cubit.state.profile.shownName, 'Private name');
         expect(harness.cubit.state.cues.privateLabels, ['translation']);
-        expect(harness.watchGrants.descriptors, hasLength(1));
-        final descriptor = harness.watchGrants.descriptors.single;
-        expect(descriptor.scope, RealtimeWatchScope.profile);
-        expect(descriptor.profileId, 'U-target');
-        expect(descriptor.requestedSubjectIds, {'U-target'});
-        expect(harness.realtimePort.replacedWatches, hasLength(1));
       },
     );
 
     test(
-      'matching relationship invalidation silently replaces profile',
+      'delivered relationship invalidation silently replaces profile',
       () async {
         harness
           ..profiles.result = _profile()
@@ -73,7 +65,7 @@ void main() {
         harness.realtimePort.emitChange(
           const RealtimeEntityChange(
             kind: RealtimeEntityKind.relationship,
-            aggregateId: 'U-target',
+            aggregateId: 'U-coalesced-batch-representative',
             operation: RealtimeOperation.update,
             source: RealtimeChangeSource.serverInvalidation,
           ),
@@ -173,15 +165,6 @@ void main() {
         expect(harness.cubit.state.profile.myVote, 0);
       },
     );
-
-    test('closing the route removes its profile watch', () async {
-      harness.start();
-      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
-
-      await harness.closeCubit();
-
-      expect(harness.realtimePort.removedWatches, [RealtimeWatchScope.profile]);
-    });
   });
 }
 
@@ -211,7 +194,6 @@ final class _ProfileViewHarness {
       capabilities,
       contactsCase,
       realtimeCase,
-      watchGrants,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -223,7 +205,6 @@ final class _ProfileViewHarness {
   final profiles = _FakeProfileRepository();
   final likes = _FakeLikeRepository();
   final capabilities = _FakeCapabilityRepository();
-  final watchGrants = _FakeWatchGrantPort();
   final effects = FakeUiEffectPort();
 
   late final AuthCase authCase;
@@ -260,7 +241,6 @@ final class _ProfileViewHarness {
   Future<void> dispose() async {
     await closeCubit();
     await contactsCase.dispose();
-    await realtimeCase.dispose();
     await realtimePort.dispose();
     await contactStore.dispose();
     await profiles.dispose();
@@ -350,21 +330,4 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-final class _FakeWatchGrantPort implements RealtimeWatchGrantPort {
-  final descriptors = <RealtimeWatchDescriptor>[];
-
-  @override
-  Future<RealtimeWatchGrant> requestGrant(
-    RealtimeWatchDescriptor descriptor,
-  ) async {
-    descriptors.add(descriptor);
-    return RealtimeWatchGrant(
-      token: 'grant-${descriptors.length}',
-      scope: descriptor.scope,
-      authorizedSubjectIds: descriptor.requestedSubjectIds,
-      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-    );
-  }
 }

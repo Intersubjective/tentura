@@ -7,8 +7,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
-import 'package:tentura/domain/port/realtime_watch_grant_port.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -392,7 +390,6 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
   FakeBeaconViewRoomRepository? roomRepo,
   RealtimeSyncCase? realtimeSyncCase,
-  RealtimeWatchGrantPort? realtimeWatchGrantPort,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -415,26 +412,7 @@ BeaconViewCase buildTestBeaconViewCase({
     buildTestBeaconRoomCaseForView(watermark, room: roomRepo),
     activityEvents,
     realtimeSyncCase ?? buildTestRealtimeSync().case_,
-    realtimeWatchGrantPort:
-        realtimeWatchGrantPort ?? FakeBeaconViewWatchGrantPort(),
     env: const Env(),
     logger: Logger('test'),
   );
-}
-
-class FakeBeaconViewWatchGrantPort implements RealtimeWatchGrantPort {
-  final descriptors = <RealtimeWatchDescriptor>[];
-
-  @override
-  Future<RealtimeWatchGrant> requestGrant(
-    RealtimeWatchDescriptor descriptor,
-  ) async {
-    descriptors.add(descriptor);
-    return RealtimeWatchGrant(
-      token: 'test-${descriptors.length}',
-      scope: descriptor.scope,
-      authorizedSubjectIds: descriptor.requestedSubjectIds,
-      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-    );
-  }
 }

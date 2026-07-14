@@ -140,7 +140,7 @@ tests fail when a kind lacks a producer, enum mapping, impact, or test evidence.
 PG trigger/publisher
   → byte-bounded NOTIFY entity_changes envelope
   → isolate-local PgNotificationService LISTEN
-  → authenticated-session and authorized-watch fan-out
+  → authenticated-session fan-out to bounded affected accounts
   → RealtimeSyncPort typed entityChanges
   → owning use case selects affected projections
   → Cubit performs a guarded silent snapshot refresh
@@ -154,8 +154,7 @@ PG trigger/publisher
     "entity": "beacon",
     "id": "beacon-uuid",
     "event": "update",
-    "actor_user_id": "actor-account-id",
-    "subject_ids": ["optional-watched-subject-id"]
+    "actor_user_id": "actor-account-id"
   }
 }
 ```
@@ -163,9 +162,8 @@ PG trigger/publisher
 `event` is `insert`, `update`, or `delete`. `user_ids` exists only inside the PG
 envelope and is stripped from the client frame. Recipient arrays are normalized,
 deduplicated, null-filtered, and split under both the recipient-count and NOTIFY
-byte ceilings. Relationship/profile visibility watches use short-lived signed
-grants; watch intersections are per authenticated session and never replace the
-normal recipient authorization query.
+byte ceilings. Relationship/profile fan-out uses bounded, indexed recipient
+queries; there is no client-supplied subject watch or open-screen registry.
 
 ### Actor semantics and duplicate control
 
@@ -203,8 +201,7 @@ remain available.
 1. Add a forward migration with the generic trigger mapping or a bounded
    specialized publisher. Reuse current visibility rules and indexed relations.
 2. Include all affected accounts, including the actor, plus `actor_user_id`.
-   Include bounded `subject_ids` only when an authorized projection watch needs
-   them. Test INSERT/UPDATE/DELETE and lost-authorization snapshots.
+   Test INSERT/UPDATE/DELETE and lost-authorization snapshots.
 3. Add the canonical and any compatibility wire aliases to
    `RealtimeEntityKind.fromWire`; do not add a feature-specific transport stream.
 4. Add the manifest row with `genericTriggerArgs`/`specializedPublishers`, client

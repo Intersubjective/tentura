@@ -13,7 +13,6 @@ import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
@@ -61,7 +60,6 @@ void main() {
     await repo.dispose();
     await roomRepo.dispose();
     await forwardRepo.dispose();
-    await realtimeSyncCase.dispose();
     await realtimePort.dispose();
   });
 
@@ -518,14 +516,9 @@ final class _TestRealtimeSyncPort implements RealtimeSyncPort {
   Stream<RealtimeEntityChange> get entityChanges => const Stream.empty();
 
   @override
-  void removeWatch(RealtimeWatchScope scope) {}
-
-  @override
-  void replaceWatch(RealtimeWatchGrant grant) {}
-
-  @override
   void requestCatchUp(RealtimeCatchUpReason reason) {}
 
+  @override
   Future<void> dispose() => _catchUps.close();
 }
 

@@ -177,7 +177,6 @@ void main() {
       await forwardRepo.dispose();
       await watermarkStore.dispose();
       await roomRepo.dispose();
-      await realtimeSyncCase.dispose();
       await realtimePort.dispose();
     });
 
