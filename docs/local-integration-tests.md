@@ -20,10 +20,11 @@ For simultaneous realtime convergence and reconnect proof, run:
 ./scripts/run_realtime_multiclient_web_local.sh
 ```
 
-That runner keeps two independently authenticated Chrome sessions open against
-the HTTPS Caddy origin, executes five consecutive positive journeys, records a
-p95 timing summary, then verifies the same driver fails when live delivery and
-catch-up are each disabled through the QA socket gate.
+That runner keeps an author session plus two independently authenticated
+same-account helper sessions open against the HTTPS Caddy origin, executes five
+consecutive positive journeys, records a p95 timing summary, then verifies the
+same driver fails when live delivery and catch-up are each disabled through the
+QA socket gate.
 
 ---
 
@@ -204,8 +205,10 @@ dialog, status-sheet rows, HUD author action).
 
 `scripts/run_realtime_multiclient_web_local.sh` owns one Flutter profile web
 server, ChromeDriver, and (when not already running) the local Caddy HTTPS
-proxy. Its Dart WebDriver process creates two isolated browser sessions; it
-does not switch accounts inside one app instance.
+proxy. Its Dart WebDriver process creates three isolated browser sessions: one
+author and two sessions for the helper account. When the runner starts the
+server, it enables the final `REALTIME_ACTOR_ECHO_ENABLED=true` mode required
+for same-account tab convergence.
 
 The journey keeps the receiving projection mounted while another browser
 mutates Inbox, People, Chat, My Work, and Profile state. It also uses the
@@ -213,6 +216,13 @@ QA-only `/_qa/integration/realtime-socket` route to close and temporarily deny
 one user's socket, then proves authenticated reconnect catch-up without reloads
 or duplicate content. The route accepts only users issued by that run's QA
 bootstrap and is absent when QA auth is disabled.
+
+The second helper session also reads Chat while the first helper session keeps
+My Work mounted, proving `room_seen` clears the unread projection without
+navigation or reload. Inbox consumes the same desk-relevant invalidation stream;
+its focused Cubit contract proves that the same event refetches and clears the
+Inbox unread count (an offered Request is no longer present in Inbox during the
+browser journey).
 
 Artifacts are written under a timestamped
 `reports/realtime-multiclient/<session>/` directory:

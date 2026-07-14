@@ -13,6 +13,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dar
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
@@ -239,6 +240,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             beacon: b,
             titleMaxLines: 1,
             statusLine: headerStatus.statusLine,
+            statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
@@ -368,6 +370,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             beacon: b,
             titleMaxLines: 1,
             statusLine: headerStatus.statusLine,
+            statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
@@ -448,6 +451,7 @@ class _DraftAuthoredCard extends StatelessWidget {
             beacon: b,
             titleMaxLines: 1,
             statusLine: headerStatus.statusLine,
+            statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
@@ -525,6 +529,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
             beacon: b,
             titleMaxLines: 1,
             statusLine: headerStatus.statusLine,
+            statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
@@ -646,6 +651,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             beacon: b,
             titleMaxLines: 1,
             statusLine: headerStatus.statusLine,
+            statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,

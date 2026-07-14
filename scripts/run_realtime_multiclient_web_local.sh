@@ -2,7 +2,8 @@
 # Full-stack simultaneous-browser realtime proof.
 #
 # Starts one Tentura server, one Flutter web dev server, and Chromedriver. The
-# Dart WebDriver test then owns two independent Chrome sessions/profiles. Five
+# Dart WebDriver test then owns three independent Chrome sessions/profiles
+# (author plus two same-account helper tabs). Five
 # consecutive runs are the default exit gate; set REALTIME_MULTICLIENT_RUNS=1
 # and REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false while iterating locally.
 set -euo pipefail
@@ -58,7 +59,8 @@ curl -sf -m 2 http://127.0.0.1:8080/healthz >/dev/null || die "Hasura did not be
 
 if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
   log "starting Tentura server"
-  nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
+  REALTIME_ACTOR_ECHO_ENABLED=true \
+    nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
   STARTED_SERVER=$!
   for _ in $(seq 1 90); do
     curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null 2>&1 && break

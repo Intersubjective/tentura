@@ -202,6 +202,36 @@ void main() {
       await cubit.close();
     });
 
+    test('room-seen invalidation refetches and clears room unread', () async {
+      repo.fetchResult = [
+        _item(status: InboxItemStatus.watching, roomUnreadCount: 1),
+      ];
+      final effects = FakeUiEffectPort();
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        newStuffCubit: _FakeNewStuffCubit(),
+        effects: effects,
+      );
+      await cubit.stream.firstWhere((state) => state.isSuccess);
+      expect(cubit.state.items.single.roomHints?.roomUnreadCount, 1);
+      repo.fetchResult = [
+        _item(status: InboxItemStatus.watching, roomUnreadCount: 0),
+      ];
+
+      roomRepo.emitRoomInvalidation(
+        const BeaconRoomInvalidation(
+          beaconId: 'b-forward',
+          entityType: BeaconRoomEntityType.roomSeen,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(cubit.state.items.single.roomHints?.roomUnreadCount, 0);
+      expect(effects.emitted, isEmpty);
+      await cubit.close();
+    });
+
     test(
       'remote forward echo refreshes silently without movement nudge',
       () async {
@@ -294,10 +324,19 @@ void main() {
   });
 }
 
-InboxItem _item({required InboxItemStatus status}) => InboxItem(
+InboxItem _item({
+  required InboxItemStatus status,
+  int? roomUnreadCount,
+}) => InboxItem(
   beaconId: 'b-forward',
   latestForwardAt: DateTime.utc(2026),
   status: status,
+  roomHints: roomUnreadCount == null
+      ? null
+      : InboxRoomCardHints(
+          isRoomMember: true,
+          roomUnreadCount: roomUnreadCount,
+        ),
 );
 
 InboxCase buildTestInboxCase(

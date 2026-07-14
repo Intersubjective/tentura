@@ -15,6 +15,8 @@ abstract final class TestIds {
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';
+  static String myWorkRoomStatus(String beaconId) =>
+      'my_work.room_status.$beaconId';
   static const helpOfferSearch = 'help_offer.search';
   static const helpOfferMessage = 'help_offer.message';
   static const helpOfferSubmit = 'help_offer.submit';

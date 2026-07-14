@@ -392,6 +392,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
     this.onTitleBlockTap,
     this.titleStyle,
     this.statusLine,
+    this.statusSemanticsIdentifier,
     this.statusTone = TenturaTone.neutral,
     super.key,
   });
@@ -413,6 +414,9 @@ class BeaconCardHeaderRow extends StatelessWidget {
 
   /// Optional single-line operational status under the title (My Work cards).
   final String? statusLine;
+
+  /// Stable automation/accessibility identifier for the operational status.
+  final String? statusSemanticsIdentifier;
 
   /// Semantic tone for [statusLine].
   final TenturaTone statusTone;
@@ -443,17 +447,24 @@ class BeaconCardHeaderRow extends StatelessWidget {
     }
 
     final subtitle = statusLine?.trim() ?? '';
+    Widget statusText = TenturaStatusText(
+      subtitle,
+      tone: statusTone,
+    );
+    final statusIdentifier = statusSemanticsIdentifier;
+    if (statusIdentifier != null) {
+      statusText = Semantics(
+        identifier: statusIdentifier,
+        child: statusText,
+      );
+    }
     final titleColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         titleBlock,
-        if (subtitle.isNotEmpty)
-          TenturaStatusText(
-            subtitle,
-            tone: statusTone,
-          ),
+        if (subtitle.isNotEmpty) statusText,
       ],
     );
 

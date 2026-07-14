@@ -35,14 +35,17 @@ Future<void> main() async {
   final fixture = await _bootstrap(qaToken, runId);
   BrowserSession? author;
   BrowserSession? helper;
+  BrowserSession? helperPeer;
   Object? failure;
   StackTrace? failureStack;
   try {
     author = await BrowserSession.start('author', artifactDir);
     helper = await BrowserSession.start('helper', artifactDir);
+    helperPeer = await BrowserSession.start('helper-peer', artifactDir);
     await Future.wait([
       author.login(fixture.authorEmail),
       helper.login(fixture.helperEmail),
+      helperPeer.login(fixture.helperEmail),
     ]);
     if (disabledPath == 'live') {
       final suspended = await _controlSocket(
@@ -58,18 +61,20 @@ Future<void> main() async {
     await _runJourney(
       author: author,
       helper: helper,
+      helperPeer: helperPeer,
       fixture: fixture,
       qaToken: qaToken,
       timings: timings,
       disabledPath: disabledPath,
     );
-    await _assertNoUncaughtFlutterErrors([author, helper]);
+    await _assertNoUncaughtFlutterErrors([author, helper, helperPeer]);
   } catch (error, stackTrace) {
     failure = error;
     failureStack = stackTrace;
     await Future.wait([
       if (author != null) author.captureFailure(),
       if (helper != null) helper.captureFailure(),
+      if (helperPeer != null) helperPeer.captureFailure(),
     ]);
   } finally {
     await _controlSocket(
@@ -80,6 +85,7 @@ Future<void> main() async {
     await Future.wait([
       if (author != null) author.finish(),
       if (helper != null) helper.finish(),
+      if (helperPeer != null) helperPeer.finish(),
     ]);
     File('${artifactDir.path}/timings.json').writeAsStringSync(
       const JsonEncoder.withIndent('  ').convert(timings),
@@ -97,6 +103,7 @@ Future<void> main() async {
 Future<void> _runJourney({
   required BrowserSession author,
   required BrowserSession helper,
+  required BrowserSession helperPeer,
   required Fixture fixture,
   required String qaToken,
   required Map<String, int> timings,
@@ -107,6 +114,7 @@ Future<void> _runJourney({
   final chatMessage = 'Realtime chat $suffix';
   final failedMessage = 'Must not deliver $suffix';
   final gapMessage = 'Reconnect catch-up $suffix';
+  final myWorkUnreadMessage = 'Same account My Work unread $suffix';
 
   // 1. Helper Inbox stays mounted while the author publishes and forwards.
   await helper.open('/home/inbox');
@@ -182,6 +190,35 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 5),
   );
   _require(await author.textCount(chatMessage) == 1, 'Chat bubble duplicated');
+
+  // 3a. Two independently authenticated sessions for the helper account prove
+  // room_seen convergence. One tab remains mounted on My Work while its
+  // same-account peer reads Chat; the mounted projection never navigates or
+  // reloads. Inbox uses the same desk-relevant stream and has a focused Cubit
+  // contract because offered Requests are no longer present in Inbox.
+  await Future.wait([
+    helper.open('/home/work'),
+    helperPeer.open('/home/work'),
+  ]);
+  await Future.wait([
+    helper.waitForText(title),
+    helperPeer.waitForText(title),
+  ]);
+  await author.sendChatMessage(myWorkUnreadMessage);
+  await helper.waitForTestIdText(
+    'my_work.room_status.$beaconId',
+    '+1',
+  );
+  await helperPeer.open('/beacon/view/$beaconId');
+  await helperPeer.clickTestId('beacon.room.open');
+  await helperPeer.waitForText(myWorkUnreadMessage);
+  timings['same_account_my_work_read_ms'] = await _measureUntil(
+    () async => !await helper.testIdTextContains(
+      'my_work.room_status.$beaconId',
+      '+1',
+    ),
+    timeout: const Duration(seconds: 5),
+  );
 
   // 4. Helper My Work stays mounted while the author enters review.
   await helper.open('/home/work');
@@ -517,6 +554,28 @@ final class BrowserSession {
   });
 
   Future<bool> hasTestId(String id) async => await _elementByTestId(id) != null;
+
+  Future<void> waitForTestIdText(String id, String text) =>
+      _waitUntil(() => testIdTextContains(id, text));
+
+  Future<bool> testIdTextContains(String id, String text) async {
+    final element = await _elementByTestId(id);
+    if (element == null) return false;
+    return await driver.execute(
+          '''
+      const root = arguments[0];
+      const wanted = arguments[1];
+      const nodes = [root, ...root.querySelectorAll('*')];
+      return nodes.some(element => {
+        const value = element.getAttribute('aria-label') ||
+          element.innerText || element.textContent || '';
+        return value.includes(wanted);
+      });
+    ''',
+          [element, text],
+        ) ==
+        true;
+  }
 
   Future<WebElement?> _elementByTestId(String id) async {
     final result = await driver.execute(
