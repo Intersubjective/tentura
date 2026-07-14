@@ -51,7 +51,11 @@ base class WebsocketSessionHandlerBase {
 
   /// Returns all active sessions for a given userId (possibly empty).
   Set<WebSocketSession> getSessionsByUserId(String userId) =>
-      _sessionsByUserId[userId] ?? const {};
+      Set.unmodifiable(_sessionsByUserId[userId] ?? const {});
+
+  /// Isolate-local snapshot used for control broadcasts.
+  List<WebSocketSession> get authenticatedSessions =>
+      List.unmodifiable(_sessions.keys);
 
   /// Returns true if any session exists for the given userId.
   bool hasSessionsForUser(String userId) =>
@@ -170,14 +174,12 @@ base class WebsocketSessionHandlerBase {
   ) async {
     final jwt = touchSession(session);
     if (jwt != null) {
-      if (env.isPongEnabled) {
-        session.send(
-          jsonEncode({
-            'type': 'pong',
-            'min_client_version': env.minClientVersion,
-          }),
-        );
-      }
+      session.send(
+        jsonEncode({
+          'type': 'pong',
+          'min_client_version': env.minClientVersion,
+        }),
+      );
       await userPresenceCase.touch(userId: jwt.sub);
     }
   }

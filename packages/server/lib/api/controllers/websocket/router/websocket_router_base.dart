@@ -24,11 +24,17 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     super.coParticipantLookup,
     this.pgNotificationService,
   ) {
-    _entityChangeSubscription =
-        pgNotificationService.entityChangeNotifications.listen(
-      _onEntityChangeNotification,
+    _entityChangeSubscription = pgNotificationService.entityChangeNotifications
+        .listen(
+          _onEntityChangeNotification,
+          onError: (Object e) => logger.severe(
+            '[WebsocketRouterBase] PG entity_changes error: $e',
+          ),
+        );
+    _recoverySubscription = pgNotificationService.recoveryNotifications.listen(
+      _onPgListenerRecovery,
       onError: (Object e) => logger.severe(
-        '[WebsocketRouterBase] PG entity_changes error: $e',
+        '[WebsocketRouterBase] PG recovery stream error: $e',
       ),
     );
   }
@@ -36,9 +42,30 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   final PgNotificationService pgNotificationService;
 
   late final StreamSubscription<String> _entityChangeSubscription;
+  late final StreamSubscription<PgNotificationRecovery> _recoverySubscription;
 
   Future<void> dispose() async {
     await _entityChangeSubscription.cancel();
+    await _recoverySubscription.cancel();
+  }
+
+  void _onPgListenerRecovery(PgNotificationRecovery recovery) {
+    final sessions = authenticatedSessions;
+    final message = jsonEncode({
+      'type': 'control',
+      'path': 'entity_changes',
+      'payload': {
+        'intent': 'catch_up',
+        'reason': 'pg_listener_recovered',
+      },
+    });
+    for (final session in sessions) {
+      session.send(message);
+    }
+    logger.info(
+      '[WebsocketRouterBase] PG listener recovery catch-up broadcast '
+      '(sequence ${recovery.sequence}, sessions ${sessions.length})',
+    );
   }
 
   void _onEntityChangeNotification(String payload) {

@@ -60,7 +60,7 @@ class Env {
     // Web server
     String? bindAddress,
     int? listenWebPort,
-    bool? isPongEnabled,
+    bool? realtimeActorEchoEnabled,
     String? minClientVersion,
 
     // Postgres
@@ -230,7 +230,9 @@ class Env {
        bindAddress = bindAddress ?? _env['HOST'] ?? '0.0.0.0',
        listenWebPort =
            listenWebPort ?? int.tryParse(_env['PORT'] ?? '') ?? 2080,
-       isPongEnabled = isPongEnabled ?? _env['PONG_ENABLED'] != 'false',
+       realtimeActorEchoEnabled =
+           realtimeActorEchoEnabled ??
+           _env['REALTIME_ACTOR_ECHO_ENABLED'] == 'true',
        minClientVersion =
            minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
 
@@ -501,7 +503,8 @@ class Env {
 
   final int listenWebPort;
 
-  final bool isPongEnabled;
+  /// Compatibility gate. SQL includes the actor; the router filters it while false.
+  final bool realtimeActorEchoEnabled;
 
   /// Minimum Tentura client semver required; `0.0.0` disables the check.
   final String minClientVersion;

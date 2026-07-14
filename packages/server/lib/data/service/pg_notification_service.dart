@@ -1,106 +1,164 @@
 import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
-import 'package:postgres/postgres.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura_server/env.dart';
 
-/// Maintains a dedicated Postgres connection for LISTEN/NOTIFY.
-///
-/// Pools cannot hold LISTEN state, so this service opens a single
-/// long-lived connection per isolate. A supervisor reconnects with
-/// exponential backoff if the connection drops.
+import 'pg_notification_connection.dart';
+
+final class PgNotificationRecovery {
+  const PgNotificationRecovery({required this.sequence});
+
+  final int sequence;
+}
+
+/// Maintains one dedicated Postgres LISTEN connection per server isolate.
 @singleton
 class PgNotificationService {
-  PgNotificationService._(this._env);
+  PgNotificationService._(
+    this._env,
+    this._connector,
+    this._reconnectDelay,
+  );
 
   static final _log = Logger('PgNotificationService');
+  static const _channel = 'entity_changes';
 
   final Env _env;
+  final PgNotificationConnector _connector;
+  final Duration Function(int attempt) _reconnectDelay;
   final _controller = StreamController<String>.broadcast();
+  final _recoveryController =
+      StreamController<PgNotificationRecovery>.broadcast();
 
-  Connection? _connection;
+  PgNotificationConnection? _connection;
   StreamSubscription<String>? _sub;
+  Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
+  int _recoverySequence = 0;
   bool _disposed = false;
   bool _reconnectScheduled = false;
 
   @factoryMethod
-  static Future<PgNotificationService> create(Env env) async {
-    final svc = PgNotificationService._(env);
-    await svc._connect();
-    return svc;
+  static Future<PgNotificationService> create(
+    Env env,
+    PgNotificationConnector connector,
+  ) async {
+    final service = PgNotificationService._(
+      env,
+      connector,
+      (attempt) => Duration(seconds: (1 << attempt).clamp(1, 60)),
+    );
+    await service._connect(isRecovery: false);
+    return service;
   }
 
-  /// Stream of payloads arriving on the `entity_changes` channel.
+  @visibleForTesting
+  static Future<PgNotificationService> createForTesting(
+    Env env,
+    PgNotificationConnector connector, {
+    Duration reconnectDelay = Duration.zero,
+  }) async {
+    final service = PgNotificationService._(
+      env,
+      connector,
+      (_) => reconnectDelay,
+    );
+    await service._connect(isRecovery: false);
+    return service;
+  }
+
   Stream<String> get entityChangeNotifications => _controller.stream;
 
-  /// Send a NOTIFY on the given channel with the given payload.
+  /// Emits once after a failed LISTEN connection has been replaced.
+  /// Initial startup deliberately emits nothing.
+  Stream<PgNotificationRecovery> get recoveryNotifications =>
+      _recoveryController.stream;
+
   Future<void> notify(String channel, String payload) {
-    final conn = _connection;
-    if (conn == null) {
+    final connection = _connection;
+    if (connection == null) {
       throw StateError('No active PG notification connection');
     }
-    return conn.channels.notify(channel, payload);
+    return connection.notify(channel, payload);
   }
 
-  Future<void> _connect() async {
-    final conn = await Connection.open(
+  Future<void> _connect({required bool isRecovery}) async {
+    final connection = await _connector.open(
       _env.pgEndpoint,
       settings: _env.pgEndpointSettings,
     );
-    await conn.execute('LISTEN entity_changes');
-    _connection = conn;
-    _sub = conn.channels['entity_changes'].listen(
-      _controller.add,
-      onError: (Object e, StackTrace st) {
-        _log.severe('[PgNotificationService] Channel error', e, st);
-        _scheduleReconnect();
-      },
-      onDone: () {
-        if (!_disposed) {
-          _log.warning('[PgNotificationService] Connection closed unexpectedly');
-          _scheduleReconnect();
-        }
-      },
-    );
+    await connection.listen(_channel);
+    _connection = connection;
+    _sub = connection
+        .channel(_channel)
+        .listen(
+          _controller.add,
+          onError: (Object error, StackTrace stackTrace) {
+            _log.severe(
+              '[PgNotificationService] Channel error',
+              error,
+              stackTrace,
+            );
+            _scheduleReconnect();
+          },
+          onDone: () {
+            if (!_disposed) {
+              _log.warning(
+                '[PgNotificationService] Connection closed unexpectedly',
+              );
+              _scheduleReconnect();
+            }
+          },
+        );
+    if (isRecovery && !_recoveryController.isClosed) {
+      _recoveryController.add(
+        PgNotificationRecovery(sequence: ++_recoverySequence),
+      );
+    }
   }
 
   void _scheduleReconnect() {
-    if (_disposed) return;
-    // A single dropped connection fires both `onError` and `onDone`; guard
-    // against scheduling overlapping reconnect timers (which would open
-    // duplicate connections and reset backoff).
-    if (_reconnectScheduled) return;
+    if (_disposed || _reconnectScheduled) return;
     _reconnectScheduled = true;
-    final delay = Duration(seconds: (1 << _reconnectAttempts).clamp(1, 60));
+    final delay = _reconnectDelay(_reconnectAttempts);
     _reconnectAttempts++;
     _log.info(
-      '[PgNotificationService] Reconnecting in ${delay.inSeconds}s '
+      '[PgNotificationService] Reconnecting in ${delay.inMilliseconds}ms '
       '(attempt $_reconnectAttempts)',
     );
-    Future.delayed(delay, () async {
-      _reconnectScheduled = false;
-      if (_disposed) return;
-      try {
-        await _sub?.cancel();
-        await _connection?.close();
-        _connection = null;
-        await _connect();
-        _reconnectAttempts = 0;
-        _log.info('[PgNotificationService] Reconnected');
-      } catch (e, st) {
-        _log.severe('[PgNotificationService] Reconnect failed', e, st);
-        _scheduleReconnect();
-      }
-    });
+    _reconnectTimer = Timer(delay, () => unawaited(_reconnect()));
+  }
+
+  Future<void> _reconnect() async {
+    _reconnectScheduled = false;
+    if (_disposed) return;
+    try {
+      await _sub?.cancel();
+      await _connection?.close();
+      _connection = null;
+      await _connect(isRecovery: true);
+      _reconnectAttempts = 0;
+      _log.info('[PgNotificationService] Reconnected');
+    } on Object catch (error, stackTrace) {
+      _log.severe(
+        '[PgNotificationService] Reconnect failed',
+        error,
+        stackTrace,
+      );
+      _scheduleReconnect();
+    }
   }
 
   @disposeMethod
   Future<void> dispose() async {
     _disposed = true;
+    _reconnectTimer?.cancel();
     await _sub?.cancel();
     await _connection?.close();
     await _controller.close();
+    await _recoveryController.close();
   }
 }
