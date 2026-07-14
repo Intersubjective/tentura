@@ -320,6 +320,115 @@ WHERE viewer_id = @viewerId AND subject_id = @subjectId
       skip: skipReason,
     );
 
+    test(
+      'cascade-deleted thread message retains room recipients',
+      () async {
+        final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();
+        final ownerId = 'Urtmsgowner$suffix';
+        final participantId = 'Urtmsgparticipant$suffix';
+        final authorId = 'Urtmsgauthor$suffix';
+        final mentionedId = 'Urtmsgmentioned$suffix';
+        final beaconId = 'Brtmsg$suffix';
+        final participantRowId = 'Prtmsg$suffix';
+        final itemId = 'Irtmsg$suffix';
+        final messageId = 'Rrtmsg$suffix';
+        final userIds = [ownerId, participantId, authorId, mentionedId];
+
+        addTearDown(() async {
+          await writer.execute(
+            Sql.named('DELETE FROM public.beacon WHERE id = @beaconId'),
+            parameters: {'beaconId': beaconId},
+          );
+          await writer.execute(
+            Sql.named('DELETE FROM public."user" WHERE id = ANY(@userIds)'),
+            parameters: {'userIds': userIds},
+          );
+        });
+
+        for (final userId in userIds) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@userId, @userId, @publicKey)
+'''),
+            parameters: {
+              'userId': userId,
+              'publicKey': 'realtime-room-message-$userId',
+            },
+          );
+        }
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description)
+VALUES (@beaconId, @ownerId, 'Realtime', 'Thread cascade test')
+'''),
+          parameters: {'beaconId': beaconId, 'ownerId': ownerId},
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access
+) VALUES (@id, @beaconId, @userId, 2, 0, 3)
+'''),
+          parameters: {
+            'id': participantRowId,
+            'beaconId': beaconId,
+            'userId': participantId,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.coordination_item (
+  id, beacon_id, kind, creator_id, target_person_id, accepted_by_id, published
+) VALUES (
+  @id, @beaconId, 2, @ownerId, @participantId, @authorId, true
+)
+'''),
+          parameters: {
+            'id': itemId,
+            'beaconId': beaconId,
+            'ownerId': ownerId,
+            'participantId': participantId,
+            'authorId': authorId,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_room_message (
+  id, beacon_id, author_id, body, mentions, thread_item_id
+) VALUES (
+  @id, @beaconId, @authorId, 'Thread reply', ARRAY[@mentionedId]::text[], @itemId
+)
+'''),
+          parameters: {
+            'id': messageId,
+            'beaconId': beaconId,
+            'authorId': authorId,
+            'mentionedId': mentionedId,
+            'itemId': itemId,
+          },
+        );
+        await _settle();
+        notifications.clear();
+
+        await writer.execute(
+          Sql.named('DELETE FROM public.coordination_item WHERE id = @itemId'),
+          parameters: {'itemId': itemId},
+        );
+
+        List<Map<String, dynamic>> testChanges() => _ofKind(
+          notifications,
+          'room_message',
+        ).where((message) => message['id'] == beaconId).toList();
+        await _waitUntil(() => testChanges().isNotEmpty);
+
+        final change = testChanges().single;
+        expect(change['event'], 'delete');
+        expect(change['user_ids'], unorderedEquals(userIds));
+      },
+      skip: skipReason,
+    );
+
     test('room_seen no-op update emits no feedback invalidation', () async {
       const userId = 'Urtseen000001';
       const beaconId = 'Brtseen000001';

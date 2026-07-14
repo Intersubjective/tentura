@@ -254,10 +254,14 @@ BEGIN
       ELSE COALESCE(NEW.mentions, ARRAY[]::text[])
     END;
     IF thread_item_id IS NOT NULL THEN
-      SELECT user_ids || ARRAY[ci.creator_id, ci.target_person_id, ci.accepted_by_id]
-      INTO user_ids
-      FROM public.coordination_item ci
-      WHERE ci.id = thread_item_id;
+      user_ids := user_ids || COALESCE(
+        (
+          SELECT ARRAY[ci.creator_id, ci.target_person_id, ci.accepted_by_id]
+          FROM public.coordination_item ci
+          WHERE ci.id = thread_item_id
+        ),
+        ARRAY[]::text[]
+      );
     END IF;
 
   ELSIF entity_type = 'participant' THEN
