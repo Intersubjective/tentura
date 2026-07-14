@@ -179,6 +179,95 @@ void main() {
         );
       },
     );
+
+    test(
+      'independent worker listeners both fan out and recover isolate-locally',
+      () async {
+        final connector = _FakePgNotificationConnector();
+        final firstNotifications = await PgNotificationService.createForTesting(
+          Env.test(),
+          connector,
+        );
+        final secondNotifications =
+            await PgNotificationService.createForTesting(
+              Env.test(),
+              connector,
+            );
+        final firstDependencies = _Dependencies();
+        final secondDependencies = _Dependencies();
+        final firstRouter = WebsocketRouterBase(
+          Env(),
+          Logger('WebsocketWorkerOneTest'),
+          firstDependencies.authCase,
+          firstDependencies.userPresenceCase,
+          firstDependencies.friendshipLookup,
+          firstDependencies.coParticipantLookup,
+          firstDependencies.qaRealtimeSocketGate,
+          firstNotifications,
+        );
+        final secondRouter = WebsocketRouterBase(
+          Env(),
+          Logger('WebsocketWorkerTwoTest'),
+          secondDependencies.authCase,
+          secondDependencies.userPresenceCase,
+          secondDependencies.friendshipLookup,
+          secondDependencies.coParticipantLookup,
+          secondDependencies.qaRealtimeSocketGate,
+          secondNotifications,
+        );
+        addTearDown(() async {
+          await firstRouter.dispose();
+          await secondRouter.dispose();
+          await firstNotifications.dispose();
+          await secondNotifications.dispose();
+        });
+
+        final firstSession = _RecordingSession();
+        final secondSession = _RecordingSession();
+        await firstDependencies.authenticate(
+          firstRouter,
+          firstSession,
+          _affectedId,
+        );
+        await secondDependencies.authenticate(
+          secondRouter,
+          secondSession,
+          _affectedId,
+        );
+        firstSession.sent.clear();
+        secondSession.sent.clear();
+
+        connector.publish(
+          jsonEncode({
+            'entity': 'beacon',
+            'id': 'beacon-two-workers',
+            'event': 'update',
+            'actor_user_id': _actorId,
+            'user_ids': [_affectedId],
+          }),
+        );
+        await _waitUntil(
+          () => firstSession.sent.length == 1 && secondSession.sent.length == 1,
+        );
+
+        firstSession.sent.clear();
+        secondSession.sent.clear();
+        await connector.connections.first.failAndClose();
+        await _waitUntil(
+          () =>
+              connector.connections.length == 3 && firstSession.sent.isNotEmpty,
+        );
+
+        expect(firstSession.sent, hasLength(1));
+        expect(secondSession.sent, isEmpty);
+        final recovery = jsonDecode(firstSession.sent.single! as String) as Map;
+        expect(recovery['type'], 'control');
+        expect(
+          recovery['payload'],
+          containsPair('reason', 'pg_listener_recovered'),
+        );
+      },
+    );
   });
 }
 
@@ -256,6 +345,14 @@ final class _RecordingSession extends WebSocketSession {
 final class _FakePgNotificationConnector implements PgNotificationConnector {
   final connections = <_FakePgNotificationConnection>[];
 
+  void publish(String payload) {
+    for (final connection in connections.where(
+      (connection) => !connection.closed,
+    )) {
+      connection.add(payload);
+    }
+  }
+
   @override
   Future<PgNotificationConnection> open(
     Endpoint endpoint, {
@@ -269,11 +366,15 @@ final class _FakePgNotificationConnector implements PgNotificationConnector {
 
 final class _FakePgNotificationConnection implements PgNotificationConnection {
   final _controller = StreamController<String>.broadcast();
+  bool closed = false;
 
   @override
   Stream<String> channel(String name) => _controller.stream;
 
+  void add(String payload) => _controller.add(payload);
+
   Future<void> failAndClose() async {
+    closed = true;
     _controller.addError(StateError('connection lost'));
     await _controller.close();
   }
@@ -285,5 +386,7 @@ final class _FakePgNotificationConnection implements PgNotificationConnection {
   Future<void> notify(String channel, String payload) async {}
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    closed = true;
+  }
 }

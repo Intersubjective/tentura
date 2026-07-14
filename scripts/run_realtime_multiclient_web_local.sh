@@ -4,7 +4,7 @@
 # Starts one Tentura server, one Flutter web dev server, and Chromedriver. The
 # Dart WebDriver test then owns two independent Chrome sessions/profiles. Five
 # consecutive runs are the default exit gate; set REALTIME_MULTICLIENT_RUNS=1
-# while iterating locally.
+# and REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false while iterating locally.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,7 +13,9 @@ CHROMEDRIVER_PORT="${CHROMEDRIVER_PORT:-4444}"
 CHROMEDRIVER_DIR="$ROOT/.local/chromedriver"
 WEB_PORT=8888
 RUNS="${REALTIME_MULTICLIENT_RUNS:-5}"
-ARTIFACT_ROOT="${REALTIME_MULTICLIENT_ARTIFACT_ROOT:-$ROOT/reports/realtime-multiclient}"
+NEGATIVE_PROOFS="${REALTIME_MULTICLIENT_NEGATIVE_PROOFS:-true}"
+SESSION_ID="${REALTIME_MULTICLIENT_SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
+ARTIFACT_ROOT="${REALTIME_MULTICLIENT_ARTIFACT_ROOT:-$ROOT/reports/realtime-multiclient/$SESSION_ID}"
 SERVER_LOG="$ARTIFACT_ROOT/server.log"
 WEB_LOG="$ARTIFACT_ROOT/flutter-web.log"
 
@@ -26,12 +28,16 @@ QA_AUTH_TOKEN="${QA_AUTH_TOKEN:-$(grep -E '^QA_AUTH_TOKEN=' "$ROOT/.env" | cut -
 grep -qE '^QA_AUTH_ENABLED=true' "$ROOT/.env" || die ".env needs QA_AUTH_ENABLED=true"
 grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ROOT/.env" || die ".env needs QA_SIMPLE_LOGIN_MODE=true"
 [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || die "REALTIME_MULTICLIENT_RUNS must be a positive integer"
+[[ "$NEGATIVE_PROOFS" == true || "$NEGATIVE_PROOFS" == false ]] \
+  || die "REALTIME_MULTICLIENT_NEGATIVE_PROOFS must be true or false"
 mkdir -p "$ARTIFACT_ROOT"
 
 STARTED_SERVER=""
 STARTED_CHROMEDRIVER=""
 STARTED_WEB=""
+STARTED_CADDY=""
 cleanup() {
+  [[ -n "$STARTED_CADDY" ]] && kill "$STARTED_CADDY" >/dev/null 2>&1 || true
   [[ -n "$STARTED_WEB" ]] && pkill -P "$STARTED_WEB" >/dev/null 2>&1 || true
   [[ -n "$STARTED_WEB" ]] && kill "$STARTED_WEB" >/dev/null 2>&1 || true
   [[ -n "$STARTED_CHROMEDRIVER" ]] && kill "$STARTED_CHROMEDRIVER" >/dev/null 2>&1 || true
@@ -117,6 +123,16 @@ for _ in $(seq 1 180); do
 done
 rg -q 'is being served at|Flutter run key commands' "$WEB_LOG" || die "Flutter web server did not finish compiling"
 curl -sf -m 2 "http://localhost:$WEB_PORT/main.dart.js" >/dev/null || die "Flutter web output is unavailable"
+if ! curl -ksf -m 3 https://dev.lvh.me:9443/ >/dev/null 2>&1; then
+  command -v caddy >/dev/null || die "Caddy is required for the HTTPS app origin"
+  log "starting local Caddy HTTPS proxy"
+  (cd "$ROOT" && caddy run --config Caddyfile.local) >"$ARTIFACT_ROOT/caddy.log" 2>&1 &
+  STARTED_CADDY=$!
+  for _ in $(seq 1 30); do
+    curl -ksf -m 2 https://dev.lvh.me:9443/ >/dev/null 2>&1 && break
+    sleep 1
+  done
+fi
 curl -ksf -m 5 https://dev.lvh.me:9443/ >/dev/null || die "Caddy local origin is unavailable"
 
 cd "$CLIENT_DIR"
@@ -130,4 +146,31 @@ for run in $(seq 1 "$RUNS"); do
     dart run test_driver/realtime_multiclient_web_test.dart
 done
 
-log "PASS: $RUNS consecutive simultaneous-client runs"
+jq -s '
+  . as $runs |
+  ([$runs[] | keys[]] | unique) as $keys |
+  reduce $keys[] as $key ({};
+    ($runs | map(.[$key]) | map(select(. != null)) | sort) as $samples |
+    .[$key] = {
+      samples_ms: $samples,
+      p95_ms: $samples[((($samples | length) * 0.95 | ceil) - 1)]
+    }
+  )
+' "$ARTIFACT_ROOT"/run-*/timings.json >"$ARTIFACT_ROOT/timings-summary.json"
+
+if [[ "$NEGATIVE_PROOFS" == true ]]; then
+  for disabled_path in live catch_up; do
+    NEGATIVE_DIR="$ARTIFACT_ROOT/negative-$disabled_path"
+    log "negative proof: disabling $disabled_path convergence"
+    if QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
+      REALTIME_MULTICLIENT_RUN_ID="negative-$disabled_path-$(date +%s)" \
+      REALTIME_MULTICLIENT_ARTIFACT_DIR="$NEGATIVE_DIR" \
+      REALTIME_MULTICLIENT_DISABLE_PATH="$disabled_path" \
+        dart run test_driver/realtime_multiclient_web_test.dart; then
+      die "driver unexpectedly passed with $disabled_path disabled"
+    fi
+    log "expected failure observed with $disabled_path disabled"
+  done
+fi
+
+log "PASS: $RUNS consecutive simultaneous-client runs and negative proofs=$NEGATIVE_PROOFS"

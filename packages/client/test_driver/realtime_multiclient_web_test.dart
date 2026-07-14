@@ -17,6 +17,15 @@ Future<void> main() async {
   final runId =
       Platform.environment['REALTIME_MULTICLIENT_RUN_ID'] ??
       'realtime-${DateTime.now().microsecondsSinceEpoch}';
+  final disabledPath =
+      Platform.environment['REALTIME_MULTICLIENT_DISABLE_PATH']?.trim() ?? '';
+  if (disabledPath.isNotEmpty &&
+      disabledPath != 'live' &&
+      disabledPath != 'catch_up') {
+    throw StateError(
+      'REALTIME_MULTICLIENT_DISABLE_PATH must be live or catch_up',
+    );
+  }
   final artifactDir = Directory(
     Platform.environment['REALTIME_MULTICLIENT_ARTIFACT_DIR'] ??
         'realtime-multiclient-artifacts/$runId',
@@ -35,12 +44,24 @@ Future<void> main() async {
       author.login(fixture.authorEmail),
       helper.login(fixture.helperEmail),
     ]);
+    if (disabledPath == 'live') {
+      final suspended = await _controlSocket(
+        qaToken,
+        fixture.helperUserId,
+        action: 'suspend',
+      );
+      _require(
+        suspended.sessionsClosed > 0,
+        'Live-delivery negative proof closed no helper session',
+      );
+    }
     await _runJourney(
       author: author,
       helper: helper,
       fixture: fixture,
       qaToken: qaToken,
       timings: timings,
+      disabledPath: disabledPath,
     );
     await _assertNoUncaughtFlutterErrors([author, helper]);
   } catch (error, stackTrace) {
@@ -79,6 +100,7 @@ Future<void> _runJourney({
   required Fixture fixture,
   required String qaToken,
   required Map<String, int> timings,
+  required String disabledPath,
 }) async {
   final suffix = DateTime.now().microsecondsSinceEpoch;
   final title = 'Realtime request $suffix';
@@ -199,7 +221,9 @@ Future<void> _runJourney({
     !await helper.hasText(gapMessage),
     'Gap mutation arrived while gated',
   );
-  await _controlSocket(qaToken, fixture.helperUserId, action: 'resume');
+  if (disabledPath != 'catch_up') {
+    await _controlSocket(qaToken, fixture.helperUserId, action: 'resume');
+  }
   timings['reconnect_catch_up_ms'] = await _measureUntil(
     () => helper.hasText(gapMessage),
     timeout: const Duration(seconds: 8),
