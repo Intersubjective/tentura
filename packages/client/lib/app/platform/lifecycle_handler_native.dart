@@ -6,14 +6,18 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/platform/orientation_policy.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 class LifecycleHandler extends StatefulWidget {
   const LifecycleHandler({
     required this.child,
+    this.attachNotificationRouting = true,
     super.key,
   });
 
   final Widget child;
+  final bool attachNotificationRouting;
 
   @override
   State<LifecycleHandler> createState() => _LifecycleHandlerState();
@@ -21,14 +25,13 @@ class LifecycleHandler extends StatefulWidget {
 
 class _LifecycleHandlerState extends State<LifecycleHandler>
     with WidgetsBindingObserver {
-  final _appLifecycleListener = AppLifecycleListener();
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _appLifecycleListener.hashCode;
-    unawaited(_attachFcmNotificationRouting());
+    if (widget.attachNotificationRouting) {
+      unawaited(_attachFcmNotificationRouting());
+    }
   }
 
   @override
@@ -38,6 +41,14 @@ class _LifecycleHandlerState extends State<LifecycleHandler>
       return;
     }
     unawaited(applyOrientationPolicyForView(views.first));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    GetIt.I<RealtimeSyncCase>().requestCatchUp(
+      RealtimeCatchUpReason.appResumed,
+    );
   }
 
   Future<void> _attachFcmNotificationRouting() async {
@@ -65,7 +76,6 @@ class _LifecycleHandlerState extends State<LifecycleHandler>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _appLifecycleListener.dispose();
     super.dispose();
   }
 

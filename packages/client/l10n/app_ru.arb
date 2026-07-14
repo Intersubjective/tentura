@@ -1299,6 +1299,10 @@
   "@notificationsMarkAllRead": {
     "context": "NotificationCenter"
   },
+  "realtimeUpdatesPausedBanner": "Онлайн-обновления приостановлены. Изменения появятся после восстановления соединения.",
+  "@realtimeUpdatesPausedBanner": {
+    "context": "RealtimeStatus"
+  },
   "notificationSettings": "Настройки уведомлений",
   "notificationSettingsPush": "Push-уведомления",
   "notificationSettingsEmail": "Уведомления по эл. почте",

@@ -8,12 +8,14 @@ import 'package:tentura/config/web_build_config.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
+import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/realtime_status_presenter.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 
@@ -91,134 +93,141 @@ class App extends StatelessWidget {
   @override
   Widget build(
     BuildContext context,
-  ) => BlocSelector<
-    SettingsCubit,
-    SettingsState,
-    ({ThemeMode themeMode, Locale? locale})
-  >(
-    bloc: GetIt.I<SettingsCubit>(),
-    selector: (state) => (
-      themeMode: state.themeMode,
-      locale: state.resolvedAppLocale,
-    ),
-    builder: (_, selected) {
-      final router = GetIt.I<RootRouter>();
-      return MaterialApp.router(
-        title: kAppTitle,
-        themeMode: selected.themeMode,
-        locale: selected.locale,
-        scaffoldMessengerKey: snackbarKey,
-        debugShowCheckedModeBanner: false,
-        theme: TenturaTheme.light(),
-        darkTheme: TenturaTheme.dark(),
-        routerConfig: router.config(
-          deepLinkBuilder: router.deepLinkBuilder,
-          deepLinkTransformer: router.deepLinkTransformer,
-          reevaluateListenable: router.reevaluateListenable,
-          // One observer instance per Navigator. Nested AutoRouter inherits
-          // observers from ancestors; GetIt singleton caused observer.navigator
-          // assertion failures on nested stacks (e.g. web).
-          navigatorObservers: () => [
-            SentryNavigatorObserver(),
-            ClearSnackBarsOnPushObserver(),
-          ],
+  ) =>
+      BlocSelector<
+        SettingsCubit,
+        SettingsState,
+        ({ThemeMode themeMode, Locale? locale})
+      >(
+        bloc: GetIt.I<SettingsCubit>(),
+        selector: (state) => (
+          themeMode: state.themeMode,
+          locale: state.resolvedAppLocale,
         ),
-        supportedLocales: L10n.supportedLocales,
-        localizationsDelegates: L10n.localizationsDelegates,
-        onGenerateTitle: (context) => L10n.of(context)?.appTitle ?? kAppTitle,
-        builder: (context, child) {
-          if (child == null) {
-            return const SizedBox();
-          }
-          return MultiBlocProvider(
-            providers: [
-              BlocProvider.value(
-                value: GetIt.I<ScreenCubit>(),
-              ),
-              BlocProvider.value(
-                value: GetIt.I<SettingsCubit>(),
-              ),
-              BlocProvider.value(
-                value: GetIt.I<AuthCubit>(),
-              ),
-              BlocProvider.value(
-                value: GetIt.I<ProfileCubit>(),
-              ),
-              BlocProvider.value(
-                value: GetIt.I<PresenceCubit>(),
-              ),
-              BlocProvider.value(
-                value: GetIt.I<AppUpdateCubit>(),
-              ),
-            ],
-            child: MultiBlocListener(
-              listeners: [
-                BlocListener<AuthCubit, AuthState>(
-                  listenWhen: (previous, current) =>
-                      previous.currentAccountId != current.currentAccountId,
-                  listener: (context, state) {
-                    // ignore: discarded_futures
-                    Sentry.configureScope((scope) {
-                      final accountId = state.currentAccountId;
-                      if (accountId.isEmpty) {
-                        scope.setUser(null);
-                      } else {
-                        scope.setUser(SentryUser(id: accountId));
-                      }
-                    });
-                  },
-                ),
-                BlocListener<AppUpdateCubit, AppUpdateState>(
-                  listenWhen: (previous, current) =>
-                      previous.updateAvailable != current.updateAvailable ||
-                      previous.dismissed != current.dismissed,
-                  listener: (context, state) {
-                    final messenger = ScaffoldMessenger.maybeOf(context);
-                    if (messenger == null) {
-                      return;
-                    }
-                    if (!state.updateAvailable || state.dismissed) {
-                      messenger.clearMaterialBanners();
-                      return;
-                    }
-                    messenger
-                      ..clearMaterialBanners()
-                      ..showMaterialBanner(
-                        MaterialBanner(
-                          content: const Text(
-                            kIsWeb
-                                ? 'A new version is available. '
-                                      'Refresh the page to update.'
-                                : 'A new version is available. '
-                                      'Please update the app.',
-                          ),
-                          actions: [
-                            if (kIsWeb)
-                              const TextButton(
-                                onPressed: reloadWebApp,
-                                child: Text('Refresh'),
-                              ),
-                            TextButton(
-                              onPressed: () =>
-                                  context.read<AppUpdateCubit>().dismiss(),
-                              child: const Text('Dismiss'),
-                            ),
-                          ],
-                        ),
-                      );
-                  },
-                ),
+        builder: (_, selected) {
+          final router = GetIt.I<RootRouter>();
+          return MaterialApp.router(
+            title: kAppTitle,
+            themeMode: selected.themeMode,
+            locale: selected.locale,
+            scaffoldMessengerKey: snackbarKey,
+            debugShowCheckedModeBanner: false,
+            theme: TenturaTheme.light(),
+            darkTheme: TenturaTheme.dark(),
+            routerConfig: router.config(
+              deepLinkBuilder: router.deepLinkBuilder,
+              deepLinkTransformer: router.deepLinkTransformer,
+              reevaluateListenable: router.reevaluateListenable,
+              // One observer instance per Navigator. Nested AutoRouter inherits
+              // observers from ancestors; GetIt singleton caused observer.navigator
+              // assertion failures on nested stacks (e.g. web).
+              navigatorObservers: () => [
+                SentryNavigatorObserver(),
+                ClearSnackBarsOnPushObserver(),
               ],
-              child: UiEffectHandler(
-                effects: GetIt.I<UiEffectPort>(),
-                child: TenturaResponsiveScope(
-                  child: AuthRecoveryListener(child: child),
-                ),
-              ),
             ),
+            supportedLocales: L10n.supportedLocales,
+            localizationsDelegates: L10n.localizationsDelegates,
+            onGenerateTitle: (context) =>
+                L10n.of(context)?.appTitle ?? kAppTitle,
+            builder: (context, child) {
+              if (child == null) {
+                return const SizedBox();
+              }
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(
+                    value: GetIt.I<ScreenCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<SettingsCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<AuthCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<ProfileCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<PresenceCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<AppUpdateCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: GetIt.I<RealtimeStatusCubit>(),
+                  ),
+                ],
+                child: MultiBlocListener(
+                  listeners: [
+                    BlocListener<AuthCubit, AuthState>(
+                      listenWhen: (previous, current) =>
+                          previous.currentAccountId != current.currentAccountId,
+                      listener: (context, state) {
+                        // ignore: discarded_futures
+                        Sentry.configureScope((scope) {
+                          final accountId = state.currentAccountId;
+                          if (accountId.isEmpty) {
+                            scope.setUser(null);
+                          } else {
+                            scope.setUser(SentryUser(id: accountId));
+                          }
+                        });
+                      },
+                    ),
+                    BlocListener<AppUpdateCubit, AppUpdateState>(
+                      listenWhen: (previous, current) =>
+                          previous.updateAvailable != current.updateAvailable ||
+                          previous.dismissed != current.dismissed,
+                      listener: (context, state) {
+                        final messenger = ScaffoldMessenger.maybeOf(context);
+                        if (messenger == null) {
+                          return;
+                        }
+                        if (!state.updateAvailable || state.dismissed) {
+                          messenger.clearMaterialBanners();
+                          return;
+                        }
+                        messenger
+                          ..clearMaterialBanners()
+                          ..showMaterialBanner(
+                            MaterialBanner(
+                              content: const Text(
+                                kIsWeb
+                                    ? 'A new version is available. '
+                                          'Refresh the page to update.'
+                                    : 'A new version is available. '
+                                          'Please update the app.',
+                              ),
+                              actions: [
+                                if (kIsWeb)
+                                  const TextButton(
+                                    onPressed: reloadWebApp,
+                                    child: Text('Refresh'),
+                                  ),
+                                TextButton(
+                                  onPressed: () =>
+                                      context.read<AppUpdateCubit>().dismiss(),
+                                  child: const Text('Dismiss'),
+                                ),
+                              ],
+                            ),
+                          );
+                      },
+                    ),
+                  ],
+                  child: UiEffectHandler(
+                    effects: GetIt.I<UiEffectPort>(),
+                    child: TenturaResponsiveScope(
+                      child: RealtimeStatusPresenter(
+                        child: AuthRecoveryListener(child: child),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
       );
-    },
-  );
 }

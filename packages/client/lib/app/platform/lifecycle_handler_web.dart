@@ -1,14 +1,20 @@
 import 'dart:async';
 import 'package:web/web.dart';
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
+
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 class LifecycleHandler extends StatefulWidget {
   const LifecycleHandler({
     required this.child,
+    this.attachNotificationRouting = true,
     super.key,
   });
 
   final Widget child;
+  final bool attachNotificationRouting;
 
   @override
   State<LifecycleHandler> createState() => _LifecycleHandlerState();
@@ -21,10 +27,11 @@ class _LifecycleHandlerState extends State<LifecycleHandler> {
   void initState() {
     super.initState();
     _webEvents = document.onVisibilityChange.listen(
-      (event) {
-        if (event.type == 'webkitvisibilitychange') {
-          //
-        }
+      (_) {
+        if (document.visibilityState != 'visible') return;
+        GetIt.I<RealtimeSyncCase>().requestCatchUp(
+          RealtimeCatchUpReason.webVisibilityRestored,
+        );
       },
     );
   }

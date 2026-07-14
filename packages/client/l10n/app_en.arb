@@ -1299,6 +1299,10 @@
   "@notificationsMarkAllRead": {
     "context": "NotificationCenter"
   },
+  "realtimeUpdatesPausedBanner": "Live updates are paused. Changes will catch up when the connection returns.",
+  "@realtimeUpdatesPausedBanner": {
+    "context": "RealtimeStatus"
+  },
   "notificationSettings": "Notification settings",
   "notificationSettingsPush": "Push notifications",
   "notificationSettingsEmail": "Email notifications",
