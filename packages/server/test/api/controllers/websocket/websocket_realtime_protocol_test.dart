@@ -11,6 +11,7 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_server/api/controllers/websocket/path_handler/websocket_path_entity_changes.dart';
 import 'package:tentura_server/api/controllers/websocket/router/websocket_router_base.dart';
 import 'package:tentura_server/api/controllers/websocket/session/websocket_session_handler_base.dart';
+import 'package:tentura_server/api/controllers/websocket/session/qa_realtime_socket_gate.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
@@ -158,6 +159,7 @@ void main() {
           dependencies.friendshipLookup,
           dependencies.coParticipantLookup,
           dependencies.realtimeWatchGrantCase,
+          dependencies.qaRealtimeSocketGate,
           notificationService,
         );
         addTearDown(() async {
@@ -302,6 +304,7 @@ final class _Dependencies {
   late final AuthCase authCase;
   late final UserPresenceCase userPresenceCase;
   late final RealtimeWatchGrantCase realtimeWatchGrantCase;
+  final qaRealtimeSocketGate = QaRealtimeSocketGate();
   final friendshipLookup = MockVoteUserFriendshipLookupPort();
   final coParticipantLookup = MockBeaconRoomCoParticipantLookupPort();
 
@@ -329,6 +332,7 @@ final class _EntityChangeHarness extends WebsocketSessionHandlerBase
         dependencies.friendshipLookup,
         dependencies.coParticipantLookup,
         dependencies.realtimeWatchGrantCase,
+        dependencies.qaRealtimeSocketGate,
       );
 }
 

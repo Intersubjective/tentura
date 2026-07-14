@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_por
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 import 'websocket_user_session.dart';
+import 'qa_realtime_socket_gate.dart';
 
 export 'package:shelf_plus/shelf_plus.dart' show WebSocketSession;
 
@@ -30,6 +31,7 @@ base class WebsocketSessionHandlerBase {
     this.friendshipLookup,
     this.coParticipantLookup,
     this.realtimeWatchGrantCase,
+    this.qaRealtimeSocketGate,
   );
 
   final Env env;
@@ -45,6 +47,8 @@ base class WebsocketSessionHandlerBase {
   final BeaconRoomCoParticipantLookupPort coParticipantLookup;
 
   final RealtimeWatchGrantCase realtimeWatchGrantCase;
+
+  final QaRealtimeSocketGate qaRealtimeSocketGate;
 
   final _sessions = <WebSocketSession, WebsocketUserSession>{};
 
@@ -80,6 +84,7 @@ base class WebsocketSessionHandlerBase {
 
   JwtEntity? removeSession(WebSocketSession session) {
     final removedSession = _sessions.remove(session);
+    qaRealtimeSocketGate.unregisterSession(session);
     _presencePeerIdsBySession.remove(session);
     _removeAllEntityWatches(session);
     if (removedSession != null) {
@@ -322,6 +327,10 @@ base class WebsocketSessionHandlerBase {
         final jwt = authCase.parseAndVerifyJwt(
           token: message['token']! as String,
         );
+        if (qaRealtimeSocketGate.isAuthenticationSuspended(jwt.sub)) {
+          await session.sender.close(4003, 'QA realtime authentication paused');
+          return;
+        }
         final previousJwt = removeSession(session);
         // If this socket was authenticated as a different user, surface that
         // user's offline transition to their watchers (removeSession does not
@@ -337,6 +346,11 @@ base class WebsocketSessionHandlerBase {
         }
         _sessions[session] = WebsocketUserSession(jwt);
         (_sessionsByUserId[jwt.sub] ??= {}).add(session);
+        qaRealtimeSocketGate.registerSession(
+          userId: jwt.sub,
+          session: session,
+          close: () => session.sender.close(4003, 'QA realtime suspended'),
+        );
         session.send(_authLogInResponse);
         await userPresenceCase.setStatus(
           userId: jwt.sub,

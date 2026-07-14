@@ -192,10 +192,7 @@ class RootRouter {
         '/_qa/latest-email',
         _qaEmailSinkController.latestEmail,
       )
-      ..post(
-        '/_qa/integration/bootstrap',
-        _qaIntegrationController.bootstrap,
-      )
+      ..post('/_qa/integration/bootstrap', _qaIntegrationController.bootstrap)
       ..post(
         '/_qa/send-fcm',
         _qaSendFcmController.sendFcm,
@@ -245,6 +242,15 @@ class RootRouter {
         _accountProfileController.patch,
         use: _authMiddleware.extractJwtOrSessionClaims,
       );
+
+    // Unlike the legacy QA helpers, the realtime suspension route is not
+    // registered at all in non-QA environments.
+    if (_env.isQaAuthEnabled) {
+      router.post(
+        '/_qa/integration/realtime-socket',
+        _qaIntegrationController.realtimeSocket,
+      );
+    }
 
     return router.call;
   }

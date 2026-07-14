@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_base_controller.dart';
 import '../http/cookies.dart';
+import 'websocket/session/qa_realtime_socket_gate.dart';
 
 @Injectable(order: 3)
 final class QaIntegrationController extends BaseController {
@@ -22,12 +23,14 @@ final class QaIntegrationController extends BaseController {
     this._userRepository,
     this._invitationCase,
     this._friendshipLookup,
+    this._realtimeSocketGate,
   );
 
   final EmailAuthCase _emailAuthCase;
   final UserRepositoryPort _userRepository;
   final InvitationCase _invitationCase;
   final VoteUserFriendshipLookupPort _friendshipLookup;
+  final QaRealtimeSocketGate _realtimeSocketGate;
 
   Future<Response> bootstrap(Request request) async {
     if (!_qaAllowed(request)) {
@@ -61,6 +64,9 @@ final class QaIntegrationController extends BaseController {
 
     final author = await _ensureQaUser(authorEmail);
     final helper = await _ensureQaUser(helperEmail);
+    _realtimeSocketGate
+      ..registerBootstrappedUser(author.id)
+      ..registerBootstrappedUser(helper.id);
     await _ensureFriendship(author: author, helper: helper, runId: runId);
 
     return Response.ok(
@@ -69,6 +75,46 @@ final class QaIntegrationController extends BaseController {
         'authorUserId': author.id,
         'helperEmail': helperEmail,
         'helperUserId': helper.id,
+      }),
+      headers: _jsonNoStore,
+    );
+  }
+
+  Future<Response> realtimeSocket(Request request) async {
+    if (!_qaAllowed(request)) {
+      return Response.notFound(null);
+    }
+
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+
+    final userId = (body['userId'] as String? ?? '').trim();
+    final action = (body['action'] as String? ?? '').trim();
+    if (!_realtimeSocketGate.wasBootstrapped(userId)) {
+      return Response.forbidden('user was not issued by QA bootstrap');
+    }
+
+    final sessionsClosed = switch (action) {
+      'suspend' => await _realtimeSocketGate.suspendAndClose(userId),
+      'resume' => () {
+        _realtimeSocketGate.resume(userId);
+        return 0;
+      }(),
+      _ => -1,
+    };
+    if (sessionsClosed < 0) {
+      return Response.badRequest(body: 'action must be suspend or resume');
+    }
+
+    return Response.ok(
+      jsonEncode({
+        'userId': userId,
+        'suspended': _realtimeSocketGate.isAuthenticationSuspended(userId),
+        'sessionsClosed': sessionsClosed,
       }),
       headers: _jsonNoStore,
     );

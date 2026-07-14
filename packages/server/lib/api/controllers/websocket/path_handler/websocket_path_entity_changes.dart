@@ -58,7 +58,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
 
     final normalizedSubjectIds = subjectIds is List
         ? subjectIds.cast<String>()
-        : const [];
+        : const <String>[];
     final message = _entityChangeMessage(
       entity: entity,
       aggregateId: aggregateId,
