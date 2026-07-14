@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
@@ -79,6 +80,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       (_) => _requestFullRefresh(),
       cancelOnError: false,
     );
+    _peopleChangesSub = _case.peopleChanges.listen(
+      _onPeopleChanged,
+      cancelOnError: false,
+    );
+    _peopleWatchRefreshSub = _case.peopleWatchRefreshes.listen(
+      (_) => _requestFullRefresh(),
+      cancelOnError: false,
+    );
     unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
@@ -110,6 +119,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<void> _catchUpsSub;
 
+  late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
+
+  late final StreamSubscription<void> _peopleWatchRefreshSub;
+
   int _serverUnreadCount = 0;
   DateTime? _serverSeenAt;
 
@@ -126,6 +139,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     await _beaconRoomRefreshSub.cancel();
     await _readWatermarkSub.cancel();
     await _catchUpsSub.cancel();
+    await _peopleChangesSub.cancel();
+    await _peopleWatchRefreshSub.cancel();
+    _case.removePeopleWatch();
     return super.close();
   }
 
@@ -141,6 +157,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       return;
     }
     unawaited(_runFetchWithGate());
+  }
+
+  void _onPeopleChanged(RealtimeEntityChange change) {
+    if (_peopleSubjectIds().contains(change.aggregateId)) {
+      _requestFullRefresh();
+    }
   }
 
   void _onReadWatermarkChanged(String beaconId) {
@@ -975,6 +997,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           status: StateStatus.isSuccess,
         ),
       );
+      unawaited(_replacePeopleWatch());
       if (wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       }
@@ -1071,8 +1094,28 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
         ),
       );
+      unawaited(_replacePeopleWatch());
     }
   }
+
+  Future<void> _replacePeopleWatch() => _case.replacePeopleWatch(
+    beaconId: state.beacon.id,
+    subjectIds: _peopleSubjectIds(),
+  );
+
+  Set<String> _peopleSubjectIds() => {
+    state.beacon.author.id,
+    for (final offer in state.helpOffers) offer.user.id,
+    for (final participant in state.roomParticipants) participant.userId,
+    for (final edge in state.viewerForwardEdges) ...{
+      edge.sender.id,
+      edge.recipient.id,
+    },
+    for (final edge in state.myForwards) ...{
+      edge.sender.id,
+      edge.recipient.id,
+    },
+  }..removeWhere((id) => id.isEmpty);
 
   /// Best-effort refresh after main fetch when forwards were already shown.
   Future<void> _refreshForwards(String beaconId, String myUserId) async {

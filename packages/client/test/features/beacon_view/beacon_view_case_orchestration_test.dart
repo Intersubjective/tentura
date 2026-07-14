@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
@@ -58,6 +60,64 @@ void main() {
 
       expect(events, hasLength(1));
     });
+
+    test('People watch uses the exact fetched subject set', () async {
+      final realtime = buildTestRealtimeSync();
+      final grants = FakeBeaconViewWatchGrantPort();
+      addTearDown(realtime.case_.dispose);
+      addTearDown(realtime.port.dispose);
+      final case_ = buildTestBeaconViewCase(
+        realtimeSyncCase: realtime.case_,
+        realtimeWatchGrantPort: grants,
+      );
+
+      await case_.replacePeopleWatch(
+        beaconId: 'B1',
+        subjectIds: {'U-author', 'U-helper', 'B-not-a-user'},
+      );
+
+      final descriptor = grants.descriptors.single;
+      expect(descriptor.scope, RealtimeWatchScope.people);
+      expect(descriptor.beaconId, 'B1');
+      expect(descriptor.requestedSubjectIds, {'U-author', 'U-helper'});
+      expect(realtime.port.replacedWatches, hasLength(1));
+    });
+
+    test(
+      'peopleChanges forwards only relationship and profile signals',
+      () async {
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.case_.dispose);
+        addTearDown(realtime.port.dispose);
+        final case_ = buildTestBeaconViewCase(
+          realtimeSyncCase: realtime.case_,
+        );
+        final changes = <RealtimeEntityChange>[];
+        final sub = case_.peopleChanges.listen(changes.add);
+        addTearDown(sub.cancel);
+
+        for (final kind in const {
+          RealtimeEntityKind.relationship,
+          RealtimeEntityKind.profile,
+          RealtimeEntityKind.beacon,
+        }) {
+          realtime.port.emitChange(
+            RealtimeEntityChange(
+              kind: kind,
+              aggregateId: 'U-author',
+              operation: RealtimeOperation.update,
+              source: RealtimeChangeSource.serverInvalidation,
+            ),
+          );
+        }
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          changes.map((change) => change.kind),
+          [RealtimeEntityKind.relationship, RealtimeEntityKind.profile],
+        );
+      },
+    );
 
     test('helpOfferChanges forwards repository events', () async {
       final forward = FakeBeaconViewForwardRepository();

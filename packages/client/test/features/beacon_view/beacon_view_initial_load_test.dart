@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -32,6 +33,53 @@ void main() {
   );
 
   group('BeaconViewCubit initial load', () {
+    test(
+      'visible People profile change silently refreshes and renews watch',
+      () async {
+        final realtime = buildTestRealtimeSync();
+        final grants = FakeBeaconViewWatchGrantPort();
+        addTearDown(realtime.case_.dispose);
+        addTearDown(realtime.port.dispose);
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon();
+        final effects = FakeUiEffectPort();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          realtimeSyncCase: realtime.case_,
+          realtimeWatchGrantPort: grants,
+        );
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: case_,
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+        await pumpUntil(
+          cubit.stream,
+          () =>
+              cubit.state.beaconContextLoaded && grants.descriptors.isNotEmpty,
+        );
+
+        realtime.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.profile,
+            aggregateId: 'Uauthor',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await pumpUntil(cubit.stream, () => beaconRepo.fetchByIdCalls >= 2);
+
+        expect(effects.emitted, isEmpty);
+        expect(
+          grants.descriptors.last.requestedSubjectIds,
+          contains('Uauthor'),
+        );
+      },
+    );
+
     test('shows beacon content before enrichment completes', () async {
       final beaconRepo = TrackingBeaconRepository()
         ..fetchByIdHandler = (_) async => readableBeacon();
