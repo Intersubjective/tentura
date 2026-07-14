@@ -30,6 +30,9 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+
+import '../../support/test_realtime_sync.dart';
 
 typedef FakeHelpOfferCoordinationRow = ({
   String beaconId,
@@ -93,13 +96,23 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
 }
 
 class TrackingBeaconRepository implements BeaconRepository {
+  final _changes = StreamController<RepositoryEvent<Beacon>>.broadcast();
   final publishDraftCalls = <String>[];
   final refreshAndNotifyCalls = <String>[];
   int fetchByIdCalls = 0;
   Future<Beacon> Function(String id)? fetchByIdHandler;
 
   @override
-  Stream<RepositoryEvent<Beacon>> get changes => const Stream.empty();
+  Stream<RepositoryEvent<Beacon>> get changes => _changes.stream;
+
+  void emitInvalidation(String beaconId) {
+    _changes.add(
+      RepositoryEventInvalidate(Beacon.empty.copyWith(id: beaconId)),
+    );
+  }
+
+  @override
+  Future<void> dispose() => _changes.close();
 
   @override
   Future<Beacon> fetchBeaconById(String id) async {
@@ -390,6 +403,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewFactCardRepository? factCardsRepo,
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
   FakeBeaconViewRoomRepository? roomRepo,
+  RealtimeSyncCase? realtimeSyncCase,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -411,6 +425,7 @@ BeaconViewCase buildTestBeaconViewCase({
     factCards,
     buildTestBeaconRoomCaseForView(watermark, room: roomRepo),
     activityEvents,
+    realtimeSyncCase ?? buildTestRealtimeSync().case_,
     env: const Env(),
     logger: Logger('test'),
   );

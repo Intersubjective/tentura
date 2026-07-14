@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -51,24 +52,18 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
     _forwardChangesSub = _case.forwardChanges.listen(
-      (beaconId) {
-        if (isClosed || beaconId != state.beacon.id) return;
-        if (_fetchInProgress) {
-          _fetchPending = true;
-          return;
-        }
-        unawaited(_runFetchWithGate());
-      },
+      _requestFullRefreshFor,
       cancelOnError: false,
     );
     _helpOfferChangesSub = _case.helpOfferChanges.listen(
+      (event) => _requestFullRefreshFor(event.beaconId),
+      cancelOnError: false,
+    );
+    _beaconChangesSub = _case.beaconChanges.listen(
       (event) {
-        if (isClosed || event.beaconId != state.beacon.id) return;
-        if (_fetchInProgress) {
-          _fetchPending = true;
-          return;
+        if (event is RepositoryEventInvalidate<Beacon>) {
+          _requestFullRefreshFor(event.id);
         }
-        unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
     );
@@ -80,7 +75,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onReadWatermarkChanged,
       cancelOnError: false,
     );
-    unawaited(_runFetchWithGate());
+    _catchUpsSub = _case.catchUps.listen(
+      (_) => _requestFullRefresh(),
+      cancelOnError: false,
+    );
+    unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
     }
@@ -103,9 +102,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChangesSub;
 
+  late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChangesSub;
+
   late final StreamSubscription<BeaconRoomInvalidation> _beaconRoomRefreshSub;
 
   late final StreamSubscription<String> _readWatermarkSub;
+
+  late final StreamSubscription<void> _catchUpsSub;
 
   int _serverUnreadCount = 0;
   DateTime? _serverSeenAt;
@@ -119,9 +122,25 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> close() async {
     await _forwardChangesSub.cancel();
     await _helpOfferChangesSub.cancel();
+    await _beaconChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
     await _readWatermarkSub.cancel();
+    await _catchUpsSub.cancel();
     return super.close();
+  }
+
+  void _requestFullRefreshFor(String beaconId) {
+    if (beaconId != state.beacon.id) return;
+    _requestFullRefresh();
+  }
+
+  void _requestFullRefresh() {
+    if (isClosed) return;
+    if (_fetchInProgress) {
+      _fetchPending = true;
+      return;
+    }
+    unawaited(_runFetchWithGate());
   }
 
   void _onReadWatermarkChanged(String beaconId) {
@@ -549,12 +568,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   /// starts once the current one finishes. Explicit callers (offerHelp, withdraw,
   /// etc.) call [_fetchBeaconByIdWithTimeline] directly — they already hold
   /// the "source of truth" guarantee because they run after the mutation.
-  Future<void> _runFetchWithGate() async {
+  Future<void> _runFetchWithGate({bool background = true}) async {
     _fetchInProgress = true;
     _fetchPending = false;
     _pendingRoomTypes.clear();
     try {
-      await _fetchBeaconByIdWithTimeline();
+      await _fetchBeaconByIdWithTimeline(background: background);
     } finally {
       _fetchInProgress = false;
       if (!isClosed) {
@@ -583,8 +602,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     _fetchInProgress = true;
     try {
       await _fetchForEntityTypes(types);
-    } catch (e) {
-      if (!isClosed) _showSnackError(e);
+    } on Object catch (_) {
+      // Keep the usable snapshot. A later hint, catch-up, or manual action
+      // retries targeted background convergence without a duplicate UI effect.
     } finally {
       _fetchInProgress = false;
       if (!isClosed) {
@@ -769,7 +789,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     if (!isClosed) emit(state.copyWith(factCards: cards));
   }
 
-  Future<void> _fetchBeaconByIdWithTimeline() async {
+  Future<void> _fetchBeaconByIdWithTimeline({bool background = false}) async {
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
@@ -780,7 +800,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         beacon = await _fetchBeaconByIdOrRetry(beaconId);
       } on BeaconFetchException {
         if (isClosed) return;
-        if (state.timeline.isEmpty && state.helpOffers.isEmpty) {
+        if (!state.beaconContentLoaded) {
           emit(
             state.copyWith(
               beaconContentLoaded: false,
@@ -789,7 +809,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
               status: const StateIsSuccess(),
             ),
           );
-        } else {
+        } else if (!background) {
           _showSnackError(const BeaconFetchException());
         }
         return;
@@ -961,7 +981,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (isClosed) return;
       if (!state.beaconContentLoaded) {
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
-      } else {
+      } else if (!background) {
         _showSnackError(e);
       }
     }

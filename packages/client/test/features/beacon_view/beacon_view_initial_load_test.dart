@@ -14,6 +14,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_room/fake_coordination_item_case.dart';
+import '../../support/test_realtime_sync.dart';
 import 'beacon_view_case_test_support.dart';
 
 void main() {
@@ -279,6 +280,151 @@ void main() {
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
       },
     );
+
+    test(
+      'matching same-actor invalidation silently replaces beacon truth',
+      () async {
+        var current = readableBeacon();
+        final effects = FakeUiEffectPort();
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => current;
+        addTearDown(beaconRepo.dispose);
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+        await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+        current = current.copyWith(title: 'Closed elsewhere');
+        beaconRepo.emitInvalidation(beaconId);
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beacon.title == 'Closed elsewhere',
+        );
+
+        expect(effects.emitted, isEmpty);
+      },
+    );
+
+    test('unrelated beacon invalidation does not refetch', () async {
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon();
+      addTearDown(beaconRepo.dispose);
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+      final calls = beaconRepo.fetchByIdCalls;
+
+      beaconRepo.emitInvalidation('Bother');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(beaconRepo.fetchByIdCalls, calls);
+    });
+
+    test('invalidation burst queues at most one full rerun', () async {
+      final firstRefresh = Completer<Beacon>();
+      final beaconRepo = TrackingBeaconRepository();
+      beaconRepo.fetchByIdHandler = (_) {
+        if (beaconRepo.fetchByIdCalls == 1) {
+          return Future.value(readableBeacon());
+        }
+        if (beaconRepo.fetchByIdCalls == 2) return firstRefresh.future;
+        return Future.value(readableBeacon().copyWith(title: 'Final'));
+      };
+      addTearDown(beaconRepo.dispose);
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+      beaconRepo.emitInvalidation(beaconId);
+      await pumpUntilCondition(() => beaconRepo.fetchByIdCalls == 2);
+      beaconRepo
+        ..emitInvalidation(beaconId)
+        ..emitInvalidation(beaconId);
+      firstRefresh.complete(readableBeacon().copyWith(title: 'Intermediate'));
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.beacon.title == 'Final',
+      );
+
+      expect(beaconRepo.fetchByIdCalls, 3);
+    });
+
+    test('catch-up always performs a full silent snapshot', () async {
+      var current = readableBeacon();
+      final realtime = buildTestRealtimeSync();
+      addTearDown(realtime.case_.dispose);
+      addTearDown(realtime.port.dispose);
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => current;
+      addTearDown(beaconRepo.dispose);
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          realtimeSyncCase: realtime.case_,
+        ),
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+      current = current.copyWith(title: 'Caught up');
+      realtime.port.emitCatchUp();
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.beacon.title == 'Caught up',
+      );
+
+      expect(beaconRepo.fetchByIdCalls, 2);
+    });
+
+    test(
+      'failed background convergence keeps usable state without effect',
+      () async {
+        final effects = FakeUiEffectPort();
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon();
+        addTearDown(beaconRepo.dispose);
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+        await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+        beaconRepo.fetchByIdHandler = (_) async => throw StateError('offline');
+        beaconRepo.emitInvalidation(beaconId);
+        await pumpUntilCondition(() => beaconRepo.fetchByIdCalls == 2);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.beacon.title, 'Mutual friend beacon');
+        expect(cubit.state.beaconContentLoaded, isTrue);
+        expect(cubit.state.beaconUnavailable, isFalse);
+        expect(effects.emitted, isEmpty);
+      },
+    );
   });
 }
 
@@ -301,4 +447,16 @@ Future<void> pumpUntilEffects(
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   throw TimeoutException('Effect condition not met', timeout);
+}
+
+Future<void> pumpUntilCondition(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  throw TimeoutException('Condition not met', timeout);
 }

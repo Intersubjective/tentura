@@ -1,9 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
+import '../../support/test_realtime_sync.dart';
 import 'beacon_view_case_test_support.dart';
 
 void main() {
@@ -21,6 +24,39 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(ids, ['B1']);
+    });
+
+    test('beaconChanges forwards repository invalidations', () async {
+      final beacon = TrackingBeaconRepository();
+      addTearDown(beacon.dispose);
+      final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
+
+      final events = <RepositoryEvent<Beacon>>[];
+      final sub = case_.beaconChanges.listen(events.add);
+      addTearDown(sub.cancel);
+
+      beacon.emitInvalidation('B1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events.single.id, 'B1');
+      expect(events.single, isA<RepositoryEventInvalidate<Beacon>>());
+    });
+
+    test('catchUps forwards the shared realtime recovery signal', () async {
+      final realtime = buildTestRealtimeSync();
+      final syncCase = realtime.case_;
+      addTearDown(syncCase.dispose);
+      addTearDown(realtime.port.dispose);
+      final case_ = buildTestBeaconViewCase(realtimeSyncCase: syncCase);
+
+      final events = <void>[];
+      final sub = case_.catchUps.listen(events.add);
+      addTearDown(sub.cancel);
+
+      realtime.port.emitCatchUp();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, hasLength(1));
     });
 
     test('helpOfferChanges forwards repository events', () async {

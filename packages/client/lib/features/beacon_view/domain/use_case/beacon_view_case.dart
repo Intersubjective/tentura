@@ -10,6 +10,8 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
@@ -41,7 +43,8 @@ final class BeaconViewCase extends UseCaseBase {
     this._inboxRepository,
     this._factCards,
     this._beaconRoomCase,
-    this._activityEvents, {
+    this._activityEvents,
+    this._realtimeSyncCase, {
     required super.env,
     required super.logger,
   });
@@ -63,6 +66,13 @@ final class BeaconViewCase extends UseCaseBase {
   final BeaconRoomCase _beaconRoomCase;
 
   final BeaconActivityEventRepository _activityEvents;
+
+  final RealtimeSyncCase _realtimeSyncCase;
+
+  Stream<RepositoryEvent<Beacon>> get beaconChanges =>
+      _beaconRepository.changes;
+
+  Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
