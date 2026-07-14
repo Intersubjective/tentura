@@ -327,6 +327,7 @@ BeaconRoomCase _buildTestBeaconRoomCase({
   _FakeRoomHints(),
   RoomReadWatermarkStore.testing(),
   CoordinationItemCase(_FakeCoordinationItemRepository()),
+  RealtimeSyncCase(_TestRealtimeSyncPort()),
   env: const Env(),
   logger: Logger('test'),
 );

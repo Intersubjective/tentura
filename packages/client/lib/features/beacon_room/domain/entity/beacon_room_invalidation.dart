@@ -4,11 +4,14 @@ import 'package:meta/meta.dart';
 /// invalidation routing over the V2 `entity_changes` WebSocket path.
 enum BeaconRoomEntityType {
   roomMessage,
+  roomReaction,
+  roomPoll,
   activityEvent,
   participant,
   factCard,
   blocker,
   coordinationItem,
+  roomSeen,
 }
 
 /// One debounced invalidation for the current user's beacon room slice.

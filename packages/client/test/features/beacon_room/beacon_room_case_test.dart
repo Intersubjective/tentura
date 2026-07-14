@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
@@ -14,12 +15,15 @@ import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.da
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
+import '../../support/test_realtime_sync.dart';
 import 'fake_coordination_item_case.dart';
 
 void main() {
   late FakeBeaconRoomRepository room;
   late RoomReadWatermarkStore watermark;
   late BeaconRoomCase case_;
+  late TestRealtimeSyncPort realtimePort;
+  late RealtimeSyncCase realtimeSyncCase;
 
   const beaconId = 'b-room';
   const messageId = 'msg-1';
@@ -27,6 +31,9 @@ void main() {
   setUp(() {
     room = FakeBeaconRoomRepository();
     watermark = RoomReadWatermarkStore.testing();
+    final realtime = buildTestRealtimeSync();
+    realtimePort = realtime.port;
+    realtimeSyncCase = realtime.case_;
     case_ = BeaconRoomCase(
       room,
       _FakeBeaconFactCardRepository(),
@@ -34,12 +41,17 @@ void main() {
       _FakeBeaconRoomHintsRepository(),
       watermark,
       const FakeCoordinationItemCaseForRoom(),
+      realtimeSyncCase,
       env: const Env(),
       logger: Logger('test'),
     );
   });
 
-  tearDown(() => watermark.dispose());
+  tearDown(() async {
+    await watermark.dispose();
+    await realtimeSyncCase.dispose();
+    await realtimePort.dispose();
+  });
 
   group('createMessage', () {
     test('no-ops when body is blank and uploads empty', () async {
@@ -75,7 +87,11 @@ void main() {
     test('sends upload-only message when body is blank', () async {
       final upload = _upload('only.bin');
 
-      await case_.createMessage(beaconId: beaconId, body: '', uploads: [upload]);
+      await case_.createMessage(
+        beaconId: beaconId,
+        body: '',
+        uploads: [upload],
+      );
 
       expect(room.createMessageCalls, 1);
       expect(room.lastFirstAttachment, upload);
@@ -96,8 +112,14 @@ void main() {
       expect(room.createMessageCalls, 1);
       expect(room.lastFirstAttachment, first);
       expect(room.addAttachmentCalls, 2);
-      expect(room.addedAttachments.map((e) => e.upload.fileName), ['b.png', 'c.png']);
-      expect(room.addedAttachments.every((e) => e.messageId == messageId), isTrue);
+      expect(room.addedAttachments.map((e) => e.upload.fileName), [
+        'b.png',
+        'c.png',
+      ]);
+      expect(
+        room.addedAttachments.every((e) => e.messageId == messageId),
+        isTrue,
+      );
     });
 
     test('propagates createMessage failure without retry', () async {
@@ -160,13 +182,36 @@ void main() {
       expect(watermark.hasPendingSync(beaconId), isTrue);
     });
   });
+
+  group('realtime convergence', () {
+    test('forwards catch-up without mutating room seen state', () async {
+      final events = <void>[];
+      final sub = case_.catchUps.listen(events.add);
+      addTearDown(sub.cancel);
+
+      realtimePort.emitCatchUp();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, hasLength(1));
+      expect(room.markRoomSeenCalls, 0);
+    });
+
+    test('records a server read-through without writing it back', () {
+      final seenAt = DateTime.utc(2026, 7, 14);
+
+      case_.observeServerReadThrough(beaconId, seenAt);
+
+      expect(case_.readThrough(beaconId), seenAt);
+      expect(room.markRoomSeenCalls, 0);
+    });
+  });
 }
 
 RoomPendingUpload _upload(String fileName) => RoomPendingUpload(
-      bytes: Uint8List.fromList([1, 2, 3]),
-      fileName: fileName,
-      mimeType: 'application/octet-stream',
-    );
+  bytes: Uint8List.fromList([1, 2, 3]),
+  fileName: fileName,
+  mimeType: 'application/octet-stream',
+);
 
 class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   int createMessageCalls = 0;
@@ -180,6 +225,7 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   Object? addAttachmentError;
   DateTime? markRoomSeenResult;
   Object? markRoomSeenError;
+  int markRoomSeenCalls = 0;
 
   @override
   Stream<String> get beaconRoomRefresh => const Stream.empty();
@@ -221,6 +267,7 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
     required DateTime readThroughAt,
     String? threadItemId,
   }) async {
+    markRoomSeenCalls++;
     if (markRoomSeenError != null) {
       throw markRoomSeenError!;
     }

@@ -579,6 +579,9 @@ void main() {
         wsMessages.add(_entityChange(entity: 'room_message', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_message', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'participant', id: 'room-1'));
+        wsMessages.add(_entityChange(entity: 'room_reaction', id: 'room-1'));
+        wsMessages.add(_entityChange(entity: 'room_poll', id: 'room-1'));
+        wsMessages.add(_entityChange(entity: 'room_seen', id: 'room-1'));
         async.elapse(const Duration(milliseconds: 500));
 
         expect(
@@ -591,6 +594,18 @@ void main() {
             const BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.participant,
+            ),
+            const BeaconRoomInvalidation(
+              beaconId: 'room-1',
+              entityType: BeaconRoomEntityType.roomReaction,
+            ),
+            const BeaconRoomInvalidation(
+              beaconId: 'room-1',
+              entityType: BeaconRoomEntityType.roomPoll,
+            ),
+            const BeaconRoomInvalidation(
+              beaconId: 'room-1',
+              entityType: BeaconRoomEntityType.roomSeen,
             ),
           },
         );

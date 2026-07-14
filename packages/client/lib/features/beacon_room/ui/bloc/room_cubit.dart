@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
@@ -16,6 +15,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
+import '../../domain/entity/beacon_room_invalidation.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/use_case/beacon_room_case.dart';
 import '../message/beacon_room_fact_messages.dart';
@@ -36,8 +36,10 @@ class RoomCubit extends Cubit<RoomState> {
     PresenceRepository? presenceRepository,
     UiEffectPort? effects,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
-       _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
-       _presenceRepository = presenceRepository ?? GetIt.I<PresenceRepository>(),
+       _itemSync =
+           coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
+       _presenceRepository =
+           presenceRepository ?? GetIt.I<PresenceRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          RoomState(
@@ -48,7 +50,11 @@ class RoomCubit extends Cubit<RoomState> {
            status: const StateIsLoading(),
          ),
        ) {
-    _refreshSub = _case.beaconRoomRefresh.listen(_onRemoteRefresh);
+    _refreshSub = _case.beaconRoomInvalidations.listen(_onRoomInvalidation);
+    _catchUpsSub = _case.catchUps.listen(
+      (_) => unawaited(_fetchRoomData(silent: true)),
+      cancelOnError: false,
+    );
     if (threadItemId == null) {
       _itemSyncSub = _itemSync.changes
           .where((item) => item.beaconId == beaconId)
@@ -76,7 +82,9 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  late final StreamSubscription<String> _refreshSub;
+  late final StreamSubscription<BeaconRoomInvalidation> _refreshSub;
+
+  late final StreamSubscription<void> _catchUpsSub;
 
   StreamSubscription<CoordinationItem>? _itemSyncSub;
 
@@ -87,12 +95,11 @@ class RoomCubit extends Cubit<RoomState> {
   bool _initialLoadDone = false;
   bool _loadInProgress = false;
   bool _loadQueued = false;
+  bool _queuedLoadSilent = true;
 
-  void _onRemoteRefresh(String id) {
-    if (isClosed) return;
-    if (id == state.beaconId) {
-      unawaited(reloadMessages(silent: true));
-    }
+  void _onRoomInvalidation(BeaconRoomInvalidation invalidation) {
+    if (isClosed || invalidation.beaconId != state.beaconId) return;
+    unawaited(_fetchRoomData(silent: true));
   }
 
   /// Patches joined item snapshots on all messages referencing [item].
@@ -261,6 +268,7 @@ class RoomCubit extends Cubit<RoomState> {
     if (isClosed) return;
     if (_loadInProgress) {
       _loadQueued = true;
+      _queuedLoadSilent = _queuedLoadSilent && silent;
       return;
     }
     _loadInProgress = true;
@@ -277,8 +285,9 @@ class RoomCubit extends Cubit<RoomState> {
       final roomState = inThread
           ? null
           : await _case.fetchBeaconRoomState(state.beaconId);
-      final factCards =
-          inThread ? const <BeaconFactCard>[] : await _case.fetchFactCards(state.beaconId);
+      final factCards = inThread
+          ? const <BeaconFactCard>[]
+          : await _case.fetchFactCards(state.beaconId);
       final openCoordinationBlocker = inThread
           ? null
           : await _case.fetchOpenCoordinationBlocker(state.beaconId);
@@ -290,8 +299,10 @@ class RoomCubit extends Cubit<RoomState> {
       final coordinationItems = inThread
           ? const <CoordinationItem>[]
           : await _case.fetchCoordinationItems(state.beaconId);
-      final messages =
-          _joinCoordinationCounts(rawMessages, coordinationItems);
+      final messages = _joinCoordinationCounts(
+        _normalizeMessages(rawMessages),
+        coordinationItems,
+      );
 
       if (isClosed) return;
 
@@ -310,6 +321,9 @@ class RoomCubit extends Cubit<RoomState> {
             serverSeen = p.lastSeenRoomAt;
             break;
           }
+        }
+        if (serverSeen != null) {
+          _case.observeServerReadThrough(state.beaconId, serverSeen);
         }
         if (anchor == null) {
           anchor = serverSeen;
@@ -346,7 +360,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) {
         if (state.messages.isEmpty) {
           emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
-        } else {
+        } else if (!silent) {
           _showSnackError(e);
         }
       }
@@ -354,9 +368,19 @@ class RoomCubit extends Cubit<RoomState> {
       _loadInProgress = false;
       if (_loadQueued && !isClosed) {
         _loadQueued = false;
-        unawaited(_fetchRoomData(silent: silent));
+        final queuedSilent = _queuedLoadSilent;
+        _queuedLoadSilent = true;
+        unawaited(_fetchRoomData(silent: queuedSilent));
       }
     }
+  }
+
+  static List<RoomMessage> _normalizeMessages(List<RoomMessage> messages) {
+    final byId = <String, RoomMessage>{};
+    for (final message in messages) {
+      byId[message.id] = message;
+    }
+    return byId.values.toList(growable: false);
   }
 
   Future<void> updatePlan(
@@ -367,8 +391,9 @@ class RoomCubit extends Cubit<RoomState> {
   }) async {
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
-    final optimisticRoomState =
-        state.roomState?.copyWith(currentLine: currentLine);
+    final optimisticRoomState = state.roomState?.copyWith(
+      currentLine: currentLine,
+    );
     emit(
       state.copyWith(
         status: const StateIsLoading(),
@@ -394,9 +419,11 @@ class RoomCubit extends Cubit<RoomState> {
     required String factText,
     required int visibility,
   }) async {
-    final existing = state.factCards.where(
-      (f) => f.sourceMessageId == sourceMessageId,
-    ).firstOrNull;
+    final existing = state.factCards
+        .where(
+          (f) => f.sourceMessageId == sourceMessageId,
+        )
+        .firstOrNull;
     if (existing != null) {
       _showMessage(
         BeaconFactAlreadyPinnedSnackMessage(
@@ -511,8 +538,9 @@ class RoomCubit extends Cubit<RoomState> {
     required String emoji,
   }) async {
     final idx = state.messages.indexWhere((m) => m.id == messageId);
-    final previousMessages =
-        idx >= 0 ? List<RoomMessage>.from(state.messages) : null;
+    final previousMessages = idx >= 0
+        ? List<RoomMessage>.from(state.messages)
+        : null;
 
     if (idx >= 0) {
       final optimistic = List<RoomMessage>.from(state.messages);
@@ -662,7 +690,8 @@ class RoomCubit extends Cubit<RoomState> {
           score: score,
         );
         final updated = msg.copyWith(pollDataJson: optimisticPoll.encode());
-        final optimistic = List<RoomMessage>.from(state.messages)..[idx] = updated;
+        final optimistic = List<RoomMessage>.from(state.messages)
+          ..[idx] = updated;
         emit(state.copyWith(messages: optimistic));
       }
     }
@@ -726,6 +755,7 @@ class RoomCubit extends Cubit<RoomState> {
   Future<void> close() async {
     _presenceRepository.unwatch('room:${state.beaconId}');
     await _refreshSub.cancel();
+    await _catchUpsSub.cancel();
     await _itemSyncSub?.cancel();
     await markSeenNowIfNeeded();
     return super.close();

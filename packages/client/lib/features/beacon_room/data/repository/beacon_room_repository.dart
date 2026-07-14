@@ -76,10 +76,13 @@ class BeaconRoomRepository {
     }
     if (_roomRefreshController.isClosed) return;
     if (inv.entityType == BeaconRoomEntityType.roomMessage ||
+        inv.entityType == BeaconRoomEntityType.roomReaction ||
+        inv.entityType == BeaconRoomEntityType.roomPoll ||
         inv.entityType == BeaconRoomEntityType.participant ||
         inv.entityType == BeaconRoomEntityType.factCard ||
         inv.entityType == BeaconRoomEntityType.blocker ||
-        inv.entityType == BeaconRoomEntityType.coordinationItem) {
+        inv.entityType == BeaconRoomEntityType.coordinationItem ||
+        inv.entityType == BeaconRoomEntityType.roomSeen) {
       _roomRefreshController.add(inv.beaconId);
     }
   }
@@ -543,7 +546,7 @@ class BeaconRoomRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
     if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
+      _notifyLocalChange(beaconId, BeaconRoomEntityType.roomReaction);
     }
     return ok;
   }
@@ -570,7 +573,7 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
+    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomPoll);
   }
 
   @disposeMethod

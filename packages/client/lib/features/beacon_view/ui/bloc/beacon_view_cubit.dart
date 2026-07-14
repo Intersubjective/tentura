@@ -632,6 +632,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (t == BeaconRoomEntityType.roomMessage) {
         needActivity = true;
         needUnread = true;
+      } else if (t == BeaconRoomEntityType.roomSeen) {
+        needUnread = true;
       } else if (t == BeaconRoomEntityType.activityEvent) {
         needActivity = true;
       } else if (t == BeaconRoomEntityType.participant) {

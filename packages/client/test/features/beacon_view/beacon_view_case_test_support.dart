@@ -390,6 +390,7 @@ BeaconRoomCase buildTestBeaconRoomCaseForView(
   FakeBeaconViewRoomHintsRepository(),
   watermark,
   CoordinationItemCase(FakeBeaconViewCoordinationItemRepository()),
+  buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('test'),
 );

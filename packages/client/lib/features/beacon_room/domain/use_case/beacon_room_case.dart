@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
@@ -28,7 +29,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._polling,
     this._hints,
     this._watermark,
-    this._coordinationItemCase, {
+    this._coordinationItemCase,
+    this._realtimeSyncCase, {
     required super.env,
     required super.logger,
   });
@@ -45,16 +47,23 @@ final class BeaconRoomCase extends UseCaseBase {
 
   final CoordinationItemCase _coordinationItemCase;
 
+  final RealtimeSyncCase _realtimeSyncCase;
+
   static const _deskRelevantEntityTypes = {
     BeaconRoomEntityType.roomMessage,
+    BeaconRoomEntityType.roomReaction,
+    BeaconRoomEntityType.roomPoll,
     BeaconRoomEntityType.activityEvent,
     BeaconRoomEntityType.participant,
     BeaconRoomEntityType.factCard,
     BeaconRoomEntityType.blocker,
     BeaconRoomEntityType.coordinationItem,
+    BeaconRoomEntityType.roomSeen,
   };
 
   Stream<String> get readWatermarkChanges => _watermark.changes;
+
+  Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _room.beaconRoomInvalidations;
@@ -74,6 +83,9 @@ final class BeaconRoomCase extends UseCaseBase {
 
   bool observeReadThrough(String beaconId, DateTime at) =>
       _watermark.observeReadThrough(beaconId, at);
+
+  void observeServerReadThrough(String beaconId, DateTime at) =>
+      _watermark.confirmSynced(beaconId, at);
 
   int resolveUnread({
     required String beaconId,

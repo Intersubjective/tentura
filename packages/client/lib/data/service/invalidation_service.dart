@@ -317,12 +317,15 @@ class InvalidationService implements RealtimeSyncPort {
   ) {
     final entityType = switch (change.kind) {
       RealtimeEntityKind.roomMessage => BeaconRoomEntityType.roomMessage,
+      RealtimeEntityKind.roomReaction => BeaconRoomEntityType.roomReaction,
+      RealtimeEntityKind.roomPoll => BeaconRoomEntityType.roomPoll,
       RealtimeEntityKind.participant => BeaconRoomEntityType.participant,
       RealtimeEntityKind.factCard => BeaconRoomEntityType.factCard,
       RealtimeEntityKind.blocker => BeaconRoomEntityType.blocker,
       RealtimeEntityKind.activityEvent => BeaconRoomEntityType.activityEvent,
       RealtimeEntityKind.coordinationItem =>
         BeaconRoomEntityType.coordinationItem,
+      RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
       _ => null,
     };
     return entityType == null
