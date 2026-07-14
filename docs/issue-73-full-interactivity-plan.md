@@ -1,8 +1,8 @@
 # Issue 73: Full Interactivity and Deterministic Convergence Plan
 
-Status: Final after critique loop 3; implementation in progress. Revised
-2026-07-14: live Graph updates de-scoped — a stale open Graph is accepted (see
-AD-8 and the section 18 scope-change note).
+Status: Implemented and verified 2026-07-14 after critique loop 3. Live Graph
+updates remain de-scoped — a stale open Graph is accepted (see AD-8 and the
+section 18 scope-change note).
 Issue: https://github.com/Intersubjective/tentura/issues/73
 Scope: `packages/client`, `packages/server`, integration tooling, architecture docs
 Terminology: user-facing Request / Chat; internal Beacon / Room
