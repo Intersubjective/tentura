@@ -1,9 +1,10 @@
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
-import 'package:tentura/data/repository/remote_repository.dart';
 import 'package:tentura/data/service/remote_api_client/credentials.dart';
+import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/app/sentry/auth_telemetry.dart';
 import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
@@ -19,12 +20,14 @@ import '../gql/_g/sign_up.req.gql.dart';
   as: AuthRemoteRepositoryPort,
   env: [Environment.dev, Environment.prod],
 )
-class AuthRemoteRepository extends RemoteRepository
-    implements AuthRemoteRepositoryPort {
+class AuthRemoteRepository implements AuthRemoteRepositoryPort {
   AuthRemoteRepository({
-    required super.remoteApiService,
-    required super.log,
+    required this.remoteApiService,
+    required this.log,
   });
+
+  final AuthRemoteClient remoteApiService;
+  final Logger log;
 
   ///
   /// Returns id of created account

@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/env.dart';
 
 import 'remote_api_client/auth_loss_classifier.dart';
+import 'remote_api_client/auth_remote_client.dart';
 import 'remote_api_client/exception.dart';
 import 'remote_api_client/remote_api_client_web.dart';
 import 'remote_api_client/remote_api_client_ws.dart';
@@ -21,7 +22,9 @@ export 'remote_api_client/realtime_socket.dart';
 export 'package:tentura_root/domain/enums.dart' show WebSocketState;
 
 @singleton
-final class RemoteApiService extends RemoteApiClient with RemoteApiClientWs {
+final class RemoteApiService extends RemoteApiClient
+    with RemoteApiClientWs
+    implements AuthRemoteClient {
   RemoteApiService(Env env, this.realtimeSocketFactory)
     : wsPingInterval = env.wsPingInterval,
       wsEndpointUrl = kWsServerName + kPathWebSocketEndpoint,
