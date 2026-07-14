@@ -1,6 +1,8 @@
 # Issue 73: Full Interactivity and Deterministic Convergence Plan
 
-Status: Final after critique loop 3; implementation in progress
+Status: Final after critique loop 3; implementation in progress. Revised
+2026-07-14: live Graph updates de-scoped — a stale open Graph is accepted (see
+AD-8 and the section 18 scope-change note).
 Issue: https://github.com/Intersubjective/tentura/issues/73
 Scope: `packages/client`, `packages/server`, integration tooling, architecture docs
 Terminology: user-facing Request / Chat; internal Beacon / Room
@@ -38,7 +40,9 @@ Acceptance criteria carried into this plan:
 1. A forwarded Request appears in the recipient Inbox without refresh.
 2. Help offers and author coordination responses update for all affected users.
 3. New Chat messages appear while Chat or another app screen is open.
-4. Contact and visibility changes update People, Profile, and Graph.
+4. Contact and visibility changes update People and Profile. Graph is exempt
+   (2026-07-14 scope change): an open Graph may go stale; it renders fresh
+   authoritative data on route entry and manual refresh.
 5. Request status changes update Inbox, My Work, and detail.
 6. Reconnect and resume perform deterministic catch-up without duplicate data or
    one-shot UI effects.
@@ -75,6 +79,10 @@ Acceptance criteria carried into this plan:
 - Replacing BLoC/Cubit, Ferry, Drift, or the V2 WebSocket.
 - Treating push notifications as the live-state transport. FCM remains an
   attention mechanism; WebSocket invalidation plus catch-up owns convergence.
+- Live updates for the open Graph screen (2026-07-14 scope change). Graph is a
+  transient visualization the user is not supposed to linger on; it renders a
+  fresh authoritative snapshot on route entry and manual refresh, and an open
+  Graph may go stale.
 
 ## 4. Current-state audit
 
@@ -172,8 +180,8 @@ Missing state-bearing entities include:
 
 - `inbox_item` for server corrections and same-account status changes;
 - `user_contact` for private contact-name synchronization across sessions;
-- `vote_user` and `user_trust_edge` for friendship/visibility/Graph changes;
-- `user` profile changes relevant to open Profile/People/Graph views;
+- `vote_user` and `user_trust_edge` for friendship/visibility changes;
+- `user` profile changes relevant to open Profile/People views;
 - `beacon_room_message_reaction`;
 - `polling_act` and poll changes;
 - `notification_outbox` for notification feed/count convergence.
@@ -206,7 +214,9 @@ than speculate about orphaned triggers.
   capability changes.
 - `ProfileSharedBeaconsCubit` only fetches at route creation/manual refresh.
 - `GraphCubit` coordinates several repositories directly and has no live event
-  subscription.
+  subscription. The missing live subscription is accepted (2026-07-14 scope
+  change: a stale open Graph is fine); the multi-repository coordination
+  remains a structural exception outside issue 73.
 - `NotificationCenterCubit` only fetches on route entry and local mark-read.
 - `NewStuffCubit` is a derived local cursor store; it only becomes correct after
   Inbox/My Work report a newly fetched projection.
@@ -230,7 +240,7 @@ existing `BookkeepingRefreshSignal` wiring in `InboxCase`, `MyWorkCase`, and
 
 At the 2026-07-14 baseline: custom lint tests and all 1,185 client tests pass
 (14 skipped); client and server analyze exit zero; server bookkeeping unit tests
-pass. The REST watch-grant design does not modify `custom_types.dart`. Issue 73
+pass. Issue 73
 verification must not regress or remove bookkeeping refresh behavior.
 
 ## 5. Architectural decisions
@@ -368,61 +378,24 @@ existing localized `ShowError`, and committed success updates/reconciles the
 initiating projection. An invalidation or catch-up may refresh data but must never
 create a command success/failure nudge, snackbar, dialog, or navigation effect.
 
-### AD-8: server-granted active projection watches cover Graph/Profile/People
+### AD-8: bounded recipients only; an open Graph may go stale (revised 2026-07-14)
 
 Bounded recipient SQL covers actor/edge endpoints, mutual friends, and authorized
-shared-Beacon participants. That is enough for direct relationship visibility,
-but not for every third-party node currently rendered in a Graph. Arbitrary
-client-supplied subject IDs would leak private change timing and are forbidden.
-To keep an open authorized projection current without global profile/relationship
-broadcast, add a bounded, server-granted WebSocket watch protocol:
+shared-Beacon participants. That is enough for direct relationship visibility on
+Friends, Profile, and People. It is not enough for every third-party node
+currently rendered in a Graph — and that is now accepted: the Graph screen is a
+transient visualization the user is not supposed to linger on, so live Graph
+updates are a non-goal (section 3). Graph renders a fresh authoritative snapshot
+on route entry and manual refresh; while open it may go stale.
 
-- authenticated `POST /api/v2/realtime/watch-grant` delegates to a server-domain
-  `RealtimeWatchGrantCase`. It accepts a closed projection descriptor plus the
-  exact subject IDs the client just fetched, re-runs the same authorization, and
-  returns an EdDSA-signed, `aud=realtime-watch`, TTL-bound opaque grant containing
-  viewer account, projection scope, authorized subject IDs, expiry, token ID, and
-  protocol version. It reuses the env-injected EdDSA keypair and the purpose-bound
-  OAuth-state precedent (`aud`, TTL, and verification against `env.publicKey`),
-  not an isolate-local nonce store or client GraphQL custom type. Key rollover is
-  currently manual, so the short grant TTL bounds the revocation window;
-- for Graph, authorization executes the same `public.graph`/`mr_graph` context as
-  `GraphFetch` using the authenticated `jwt.sub`, `focus`, `context`, and
-  `positiveOnly`. `public.graph` itself uses a bounded `mr_graph(..., 0, 100)`;
-  the case intersects requested user-node IDs with that full result rather than
-  trying to reproduce Hasura's outer ordering/offset/limit. A Beacon focus ID is
-  valid context but is never a grantable relationship/profile subject.
-  Profile/People grants reuse their existing V2
-  profile/capability/relationship authorization cases rather than trusting client
-  attestation;
-- `RealtimeSyncCase.replaceWatch(scope, grant)` replaces, never unions, a route's
-  current watch. Graph/Profile/People refresh the grant after each authoritative
-  snapshot, before expiry, and after reconnect; disposal removes it;
-- the WebSocket path verifies grant signature, viewer/account match, expiry,
-  protocol version, scope, and count/byte limits before registration. It never
-  accepts a raw subject-ID registration;
-- each server isolate stores both per-session/per-scope sets and a reverse
-  `subjectId -> sessions` index. Replacement, expiry, auth switch, disconnect,
-  and session cleanup update both indexes atomically;
-- relationship/profile publisher batches carry changed `subject_ids` for routing,
-  but the router intersects them with each session's exact granted set and sends
-  only that intersection, chunked to the wire byte limit. A session authorized
-  for one subject never receives the rest of the batch;
-- grant expiry removes routing immediately. The client first refetches the
-  projection, obtains a newly authorized grant, and replaces the watch; a grant
-  never extends read access and all subsequent data reads remain authorization
-  checked.
-
-The client boundary adds pure `RealtimeWatchDescriptor`/`RealtimeWatchGrant`
-entities and `RealtimeWatchGrantPort`; its data repository alone calls the REST
-endpoint. The server boundary adds `RealtimeWatchAuthorizationPort`, implemented
-by a data repository that executes the authorized graph/profile/people lookups.
-The grant endpoint, maximum subjects/bytes, TTL/renewal, signing/manual rollover,
-authorization-query cost, reverse-index complexity, replay behavior, and
-timing-metadata threat model are Phase 2 gates. If the grant cannot reuse the
-authoritative visibility path cheaply and safely, implementation returns to
-architecture review rather than accepting a privacy leak or an open Graph that
-stays stale.
+Arbitrary client-supplied subject IDs would leak private change timing and
+remain forbidden. The previously planned server-granted watch protocol
+(watch-grant REST endpoint, signed grants, WebSocket watch registration,
+reverse `subjectId -> sessions` indexes, per-session batch intersection) is
+removed with this scope change, together with its wire control frames
+(section 7.3), security gates, metrics, tests, and rollout switches. If a
+future product requirement needs a live third-party projection, that is a
+separate ADR and architecture review, not a piecemeal revival of this section.
 
 ## 6. Target architecture
 
@@ -433,9 +406,9 @@ mutation use case                     RealtimeSyncPort (owned inward)
        -> state tables                    |
        -> AFTER triggers              RealtimeSyncCase
               |                       /     |       \
-SERVER DATA   |                  InboxCase RoomCase Graph/Profile cases
+SERVER DATA   |                  InboxCase RoomCase Profile/People cases
               v                       |       |       |
-entity_changes NOTIFY             InboxCubit RoomCubit Graph/Profile cubits
+entity_changes NOTIFY             InboxCubit RoomCubit Profile/People cubits
               |
 SERVER API    v
 PgNotificationService -> WebSocket fan-out/control
@@ -454,12 +427,11 @@ server API/data -> server domain ports/entities
 
 Production is an N-isolate topology, not one shared in-memory server. Every
 isolate owns its own `PgNotificationService` LISTEN connection, router,
-authenticated-session index, presence index, and projection-watch indexes. Each
+authenticated-session index, and presence index. Each
 isolate receives the same committed PG notification and fans it out only to its
 local sessions. A recovered listener emits catch-up only to sessions on that
-recovering isolate because other isolates did not share its loss window. Watch
-grants and reverse indexes are deliberately isolate-local and are rebuilt by
-client re-registration after reconnect; metrics carry an isolate/worker label.
+recovering isolate because other isolates did not share its loss window.
+Metrics carry an isolate/worker label.
 
 ## 7. Wire protocol
 
@@ -475,8 +447,7 @@ Retain the compatible envelope and add actor metadata:
     "entity": "room_message",
     "id": "B...",
     "event": "insert",
-    "actor_user_id": "U...",
-    "subject_ids": []
+    "actor_user_id": "U..."
   }
 }
 ```
@@ -485,8 +456,7 @@ Retain the compatible envelope and add actor metadata:
 necessarily the changed row primary key. Room-related kinds use `beacon_id`;
 relationship/profile kinds emit one envelope per affected endpoint and `id` is
 that endpoint user ID; Inbox uses `beacon_id`; notification uses the recipient
-account ID. `subject_ids` is optional and present only for watch-routed
-relationship/profile batches.
+account ID.
 `actor_user_id` is nullable for Hasura, console, migration, or other writes that
 did not set `tentura.mutating_user_id`; client behavior must never infer that a
 null actor means "another user".
@@ -513,27 +483,11 @@ generate the same typed domain catch-up locally.
 
 ### 7.3 Projection-watch control
 
-The client first obtains an opaque server grant over authenticated V2 HTTP, then
-registers only that grant on the socket:
-
-```json
-{
-  "type": "control",
-  "path": "entity_changes/watch",
-  "payload": {
-    "intent": "replace",
-    "scope": "graph:route-instance-id",
-    "grant": "opaque-signed-value"
-  }
-}
-```
-
-`scope` is a client route-instance key but is also bound inside the grant.
-Removal sends `intent: "remove"`; replacement with a new grant atomically drops
-the prior subjects. Server acknowledgement includes accepted count and expiry but
-never echoes the authorized subject list. Invalid/expired grants fail closed and
-produce no timing signal beyond the requesting session's generic rejection. The
-client refetches/regrants rather than extending an expired grant locally.
+Removed (2026-07-14 scope change). The projection-watch control frames existed
+solely to keep an open Graph (and third-party Profile/People subjects) live;
+a stale open Graph is now accepted, so the socket carries only entity changes
+(7.1) and catch-up control (7.2). The heading is kept so the critique log's
+section references stay valid.
 
 ### 7.4 Connection transition rules
 
@@ -545,7 +499,7 @@ client refetches/regrants rather than extending an expired grant locally.
    authoritative user ID, `AuthRemoteRepository` calls an explicit
    `bindRealtimeAccount(accountId)` transport method. Drop/signout calls unbind.
    Rebinding disposes the old socket, invalidates all prior
-   `(accountId, connectionEpoch)` state and watches, and prevents a late
+   `(accountId, connectionEpoch)` state, and prevents a late
    old-account transition from refreshing new-account projections.
 4. Foreground resume emits catch-up even when the socket library reports it stayed
    connected, because browsers can suspend timers/network delivery.
@@ -572,7 +526,7 @@ client refetches/regrants rather than extending an expired grant locally.
 
 | Wire kind | Server source | Aggregate ID | Recipients | Client projections |
 |---|---|---|---|---|
-| `beacon` | `beacon` | beacon ID | author, active offerers, active forward recipients/other involved users | detail, Inbox, My Work, profile shared Requests, forward graph |
+| `beacon` | `beacon` | beacon ID | author, active offerers, active forward recipients/other involved users | detail, Inbox, My Work, profile shared Requests |
 | `forward` | `beacon_forward_edge` | beacon ID | sender, recipient, author, affected active chain users as required by visibility | Inbox, detail People/forward graph, My Work |
 | `help_offer` | help offer + admission event + help-offer coordination | beacon ID | offerer, author/stewards, admitted affected users | detail People, Inbox, My Work, Chat access |
 | `inbox_item` | `inbox_item` | beacon ID | row account | Inbox/detail inbox context, counters |
@@ -587,8 +541,8 @@ client refetches/regrants rather than extending an expired grant locally.
 | `capability` | person capability event | subject user ID | subject and observer | Profile/People capability cues |
 | `contact` | user contact | subject user ID | contact viewer only | all contact-name overlays, Friends, Profile, People, forward picker |
 | `room_seen` | `beacon_room_seen` | beacon ID | row account only | same-account Chat watermark, Inbox/My Work unread hints and counters |
-| `relationship` | vote/trust edge | one affected endpoint user ID per envelope | both endpoints, bounded mutual/shared-context recipients, server-granted active subject watchers | Friends, Profile controls, People visibility, Graph, forward candidates |
-| `profile` | user row | subject user ID | self, bounded mutual/shared-context recipients, authorized active subject watchers | Profile, People avatars/names, Graph nodes |
+| `relationship` | vote/trust edge | one affected endpoint user ID per envelope | both endpoints, bounded mutual/shared-context recipients | Friends, Profile controls, People visibility, forward candidates |
+| `profile` | user row | subject user ID | self, bounded mutual/shared-context recipients | Profile, People avatars/names |
 | `notification` | notification outbox | account ID | outbox account | notification center and count |
 
 Recipient SQL must use current authorization/visibility concepts, not a new
@@ -596,8 +550,10 @@ approximation. Reuse shared SQL helpers where available (`beacon_can_read_conten
 active participant/forward/help-offer rules). Private contact names notify only the
 viewer. An invalidation must never grant read access; every refetch remains
 authorization checked. Trigger recipient sets must be computable from indexed
-database relations. Open-screen awareness belongs only to the bounded session
-watch registry in AD-8, never to SQL triggers.
+database relations. Open-screen awareness is not modeled anywhere: SQL triggers
+never see open screens, and there is no watch registry (AD-8, revised). A
+projection whose subjects fall outside the bounded recipient sets — most
+notably an open Graph — converges on the next route entry or manual refresh.
 
 ## 9. Implementation sub-goals
 
@@ -638,7 +594,6 @@ Refactor `InvalidationService` to:
 - deduplicate `(kind, aggregateId)` bursts;
 - guard malformed/unknown frames;
 - derive reconnect catch-up only after a previously authenticated connection;
-- re-register active AD-8 watch scopes after every authenticated reconnect;
 - reset safely on auth account switch/disposal; and
 - key all catch-up state by the current account identity/epoch emitted from the
   explicit post-auth bind/unbind lifecycle in `RemoteApiClientWs`.
@@ -678,8 +633,8 @@ move; mark them for deletion in Phase 5. Do not let domain import
 `InvalidationService`.
 
 Exit gate: old tests remain green; DI/codegen succeeds; new port tests prove
-mapping, malformed-frame isolation, account-keyed reconnect generation, watch
-re-registration, and no duplicate catch-up per transition. Transport-mixin tests
+mapping, malformed-frame isolation, account-keyed reconnect generation, and no
+duplicate catch-up per transition. Transport-mixin tests
 prove pong-timeout socket reconstruction/reauthentication and a late old-account
 catch-up cannot affect the new account. Auth repository tests prove signup, seed
 signin, and cookie-session signin each bind only after obtaining the user ID,
@@ -718,29 +673,19 @@ Add migration `m0114` (or the next live migration number at implementation time)
 8. Use statement-level transition-table triggers or an explicit transaction bulk
    coalescing mechanism for `vote_user`/`user_trust_edge`; never emit one expensive
    recipient query and NOTIFY per trust row during bulk recalculation.
-9. Add the AD-8 V2 watch-grant case and bounded WebSocket registration path. The
-   Graph grant re-runs the bounded full `public.graph` result with `jwt.sub`,
-   `focus`, `context`, and `positiveOnly`, then intersects requested user-node
-   IDs; it does not accept/apply Hasura's outer offset/limit/order.
-   Profile/People grants
-   reuse their existing authorization cases. Add TTL/signature validation,
-   replacement semantics, strict count/byte limits, per-session scopes, reverse
-   `subjectId -> sessions` indexes, per-session payload intersection/chunking,
-   expiry/revalidation, reconnect behavior, and cleanup.
+9. Removed (2026-07-14 scope change): the AD-8 watch-grant case and bounded
+   WebSocket watch registration are dropped because a stale open Graph is
+   accepted. The item number is kept so the critique log's references stay
+   valid.
 10. Drop obsolete trigger/function combinations only when verified by an
     enumerated live trigger/function contract.
 11. Guard the `beacon_room_seen` UPDATE trigger with
     `OLD.last_seen_at IS DISTINCT FROM NEW.last_seen_at` (or equivalent upsert
     predicate) so no-op writes emit no hint.
-12. Index every recipient lookup and document `EXPLAIN` cost; watch routing uses
-    the isolate-local reverse in-memory index, never an all-session scan.
+12. Index every recipient lookup and document `EXPLAIN` cost.
 
 Server service/API changes:
 
-- add `POST /api/v2/realtime/watch-grant` behind
-  `AuthMiddleware.verifyBearerJwt`; the controller maps JSON only, the domain
-  case authorizes/signs, and a data `RealtimeWatchAuthorizationPort` adapter
-  owns SQL. Do not add this contract to `custom_types.dart`;
 - `PgNotificationService` exposes a typed recovery stream only after recovery,
   not initial startup;
 - its concrete `Connection.open` call is behind a data-internal injectable
@@ -754,7 +699,7 @@ Server service/API changes:
 - fan-out owns the temporary actor-echo compatibility filter and logs/metrics
   its enabled mode without logging user IDs;
 - listener-recovery catch-up is marked for client jitter;
-- recovery broadcast, session/watch registries, and metrics are explicitly
+- recovery broadcast, session registries, and metrics are explicitly
   isolate-local and labeled by worker/isolate;
 - logs/metrics include kind, recipient count, recovery count, and malformed
   payload count without logging private content.
@@ -765,6 +710,10 @@ Server service/API changes:
 
 Update `TenturaDb.withMutatingUser` documentation: it supplies actor context and a
 transaction boundary; it no longer suppresses all of the actor's sessions.
+Document the NOTIFY transaction discipline alongside it: a transaction that
+fires realtime triggers stays short and must not hold hot locks while waiting
+to commit, because NOTIFY serializes notifying commits behind a cluster-global
+lock (section 13's commit-serialization residual risk).
 
 Exit gate: PG-tagged tests exercise INSERT/UPDATE/DELETE payload production and
 verify SQL always includes actor metadata/recipient. Router tests verify both
@@ -774,11 +723,9 @@ trigger argument and every function that publishes `entity_changes`, cover a
 several-hundred-recipient Beacon without exceeding the NOTIFY payload limit for
 normal operation, cover bulk trust changes without row-level storms, prove a
 no-op `room_seen` upsert emits nothing, and prove PG listener recovery sends one
-control event but none at startup. Watch tests prove grant forgery/expiry/account
-mismatch fail closed, requested IDs are intersected with server-authorized IDs,
-the reverse index cleans up, and each session receives only its own intersection.
+control event but none at startup.
 A two-worker WebSocket integration test proves independent LISTEN delivery,
-isolate-local watch/session indexes, and recovery catch-up only on the recovering
+isolate-local session indexes, and recovery catch-up only on the recovering
 worker; if CI cannot launch two workers, the test runs in a dedicated integration
 job and the single-isolate unit coverage is explicitly insufficient.
 
@@ -840,7 +787,7 @@ Exit gate: focused Cubit tests cover remote and local-actor echo, coalesced burs
 stale completion prevention, catch-up, error-with-usable-state behavior, and zero
 nudges/snackbars/navigation effects from echoed invalidations.
 
-### Phase 4: relationship, Profile, People, Graph, and notifications
+### Phase 4: relationship, Profile, People, and notifications
 
 #### Contacts
 
@@ -867,23 +814,13 @@ nudges/snackbars/navigation effects from echoed invalidations.
 
 #### Graph
 
-- Add `GraphCase` to own repository selection/orchestration for MeritRank,
-  forwards, and invite genealogy modes, removing the current multi-repository
-  Cubit exception.
-- Route relationship/profile/contact events and mode-relevant
-  beacon/forward/help events through `GraphCase`.
-- `GraphCubit` performs a silent guarded replacement that preserves view-only
-  state where valid (focus, pan/zoom, pinned node IDs) and prunes pins/focus that
-  no longer exist after visibility changes.
-- Do not patch edges from event payloads; refetch authorized graph truth.
-- After every graph snapshot, request an AD-8 grant with the exact GraphFetch
-  projection descriptor and returned node IDs, then replace the route's watch
-  with the opaque grant. Refresh the snapshot/grant before TTL expiry and discard
-  both on account switch/disposal; never send raw node IDs on the socket.
-- Add client-domain `RealtimeWatchDescriptor`, `RealtimeWatchGrant`, and
-  `RealtimeWatchGrantPort`; a data `RealtimeWatchGrantRepository` maps the
-  authenticated REST JSON. `GraphCase` coordinates graph snapshot, grant port,
-  and `RealtimeSyncCase`; UI and Cubit never see tokens or call REST directly.
+Removed from issue 73 (2026-07-14 scope change): the Graph screen gets no live
+event routing, no realtime subscription, and no watch protocol. It renders a
+fresh authoritative snapshot on route entry and manual refresh; an open Graph
+may go stale because the user is not supposed to linger there. The `GraphCase`
+boundary refactor is therefore no longer required by this plan; the existing
+multi-repository `GraphCubit` exception may be cleaned up as separate
+structural work.
 
 #### Notification center and counters
 
@@ -893,13 +830,13 @@ nudges/snackbars/navigation effects from echoed invalidations.
 - Keep mark-read optimistic by ID; remote echo/catch-up must not re-run UI effects.
 - Confirm Inbox/My Work activity reporters update global dots after silent loads.
 
-The `FriendsCase`, `ProfileViewCase`, and `GraphCase` boundary refactors are
+The `FriendsCase` and `ProfileViewCase` boundary refactors are
 independently mergeable changes. Their implementation order must not block the
-already-complete Request/Inbox/Chat phases, but Phase 4 is not accepted until the
-exceptions are removed and event routing uses the cases.
+already-complete Request/Inbox/Chat phases, but Phase 4 is not accepted until
+those exceptions are removed and event routing uses the cases.
 
 Exit gate: focused tests prove contact rename in a second session, friendship
-add/remove, profile/graph visibility change, notification arrival/read, and
+add/remove, profile visibility change, notification arrival/read, and
 catch-up with no stale overwrite.
 
 ### Phase 5: lifecycle UX, cleanup, and documentation
@@ -912,7 +849,8 @@ catch-up with no stale overwrite.
 - Remove `BeaconRoomLocalChangeBus` and specialized compatibility streams only
   after all source and consumer tests use the shared boundary.
 - Update `DEV_GUIDELINES.md` entity matrix, actor semantics, catch-up protocol,
-  and checklist for new state-bearing entities.
+  checklist for new state-bearing entities, the NOTIFY transaction discipline,
+  and the commit-serialization risk with its outbox fallback (sections 13, 16).
 - Add an architecture test/lintable manifest requiring every wire kind to have:
   server trigger mapping, client enum mapping, impact mapping, and test.
 - Document observability dashboards/log queries and local test procedure.
@@ -965,8 +903,8 @@ Critical journey:
    state equality without duplicate stable IDs/effects. The gate belongs to the
    QA transport harness, not production domain behavior. The number of idempotent
    refetches is not a user-visible exactly-once contract.
-6. Exercise a contact/friendship change with Profile or Graph already open and
-   assert visibility/control/edge convergence.
+6. Exercise a contact/friendship change with Profile already open and assert
+   visibility/control convergence.
 7. For each critical command, assert pending controls are disabled, a forced HTTP
    failure surfaces the established error UI without a false success effect, and
    successful commit converges without a duplicate effect from its echo.
@@ -1021,15 +959,6 @@ disabled.
   the subsequent query must deny/private-filter content.
 - Profile/relationship fan-out must avoid global broadcast. Notify endpoints and
   currently authorized shared-context users only; use indexed recipient queries.
-- Projection-watch registration accepts only an unexpired server-issued grant
-  bound to the authenticated account and scope. It re-runs existing visibility
-  authorization, caps count/bytes/TTL, intersects per session, and never exposes
-  unrelated IDs or batch timing.
-- Grant signing reuses the env-injected EdDSA keypair and OAuth-state
-  purpose-binding precedent. Key rotation is a manual operational rollover, and
-  grant TTL bounds the old-key acceptance/revocation window;
-  malformed, forged, expired, cross-account, and replayed-after-auth-switch grants
-  fail closed and are rate-limited.
 - QA socket suspension/closure routes are absent outside QA integration mode and
   require the existing QA token plus a bootstrap-issued user identity.
 - Logs do not include message bodies, contact names, tokens, or raw auth frames.
@@ -1049,8 +978,9 @@ Add metrics/log fields for:
 - unknown/malformed event count.
 - `pg_notification_queue_usage()` sampled/alerted server-side, with warning and
   critical thresholds well before PostgreSQL can fail a transaction at commit;
-- watch grants issued/rejected/expired, active subjects/sessions per isolate,
-  reverse-index lookup size, and per-session intersection counts.
+- sampled `pg_stat_activity` waits on the NOTIFY commit lock (heavyweight
+  `Lock: object` on database object 0, LWLock `NotifyQueue`), with an alert on
+  sustained waiter counts, plus p95 commit latency of write transactions.
 
 Initial budgets to verify under tests/profiling:
 
@@ -1066,8 +996,44 @@ Initial budgets to verify under tests/profiling:
 - notification queue usage remains below the chosen warning threshold in load
   tests; queue exhaustion at commit is a documented residual operational risk,
   not hidden by trigger exception wording;
+- NOTIFY commit-lock waits stay in the low single-digit milliseconds at p95
+  under load tests; sustained p95 waits above 50-100 ms trigger the section 16
+  outbox-fallback decision;
 - no loading skeleton replaces usable content during background sync;
 - trigger recipient lookup plans use indexes and avoid full user-table scans.
+
+### NOTIFY commit serialization: second residual risk (added 2026-07-14)
+
+`pg_notify` queues notifications in backend memory; the cost lands at commit.
+`PreCommit_Notify` takes a single cluster-global exclusive lock on the
+notification queue and holds it through the commit's WAL flush so that
+notifications enter the queue in commit order. Consequences (see the
+pgsql-hackers report referenced in the section 18 addendum):
+
+- all notifying commits serialize cluster-wide; group commit does not apply to
+  them, so the write ceiling is roughly 1 / fsync-time (thousands per second
+  on local NVMe, 200-500/s on cloud disks with 2-5 ms fsync);
+- a transaction that holds ordinary row/table locks while waiting on the
+  notify lock extends those locks, stalling transactions that never use
+  NOTIFY at all.
+
+Because issue 73 makes practically every write transaction a notifier, this is
+a ceiling on total write throughput, not on the realtime subsystem alone. It is
+invisible to `pg_notification_queue_usage()` (that catches slow listeners, a
+different failure mode) and is watched only by the commit-lock wait metrics
+above. At current single-database write volumes the risk is dormant; the
+reference report involved ~100 databases at 8000 qps on a shared cluster.
+
+Discipline required of all write paths:
+
+- a transaction that fires realtime triggers stays short and must not hold hot
+  locks while waiting to commit; bulk writes (trust recalculation, data
+  migrations, `seed_society`) rely on the statement-level coalescing triggers
+  and must never emit per-row hints;
+- synchronous replication is incompatible with this transport: the lock hold
+  time grows to the replication RTT, collapsing the write ceiling. The
+  section 16 outbox fallback must be adopted before enabling a synchronous
+  standby.
 
 ## 14. Verification matrix
 
@@ -1076,13 +1042,11 @@ Initial budgets to verify under tests/profiling:
 - server trigger/function contract for every wire kind;
 - server recipient calculation and actor inclusion;
 - PG listener recovery control broadcast;
-- watch-grant authorization, signature/expiry/account binding, reverse-index
-  replacement/cleanup, and per-session batch intersection;
 - client wire parser, unknown/malformed messages, coalescing, connection state;
 - each feature case's entity-impact filtering;
 - each Cubit's silent refresh, single-flight/sequence behavior, disposal, and
   background error behavior;
-- immutable state updates for Friends/Graph/Profile surfaces;
+- immutable state updates for Friends/Profile surfaces;
 - reconnect and resume catch-up generation.
 - `room_seen` invalidation does not write another watermark.
 
@@ -1127,7 +1091,7 @@ edited manually.
 | Forward appears in recipient Inbox | two-context test with helper Inbox already open |
 | Offer/response updates all affected users | two-context People/detail assertions on both sides |
 | Chat message appears live | two open Chat contexts, unique message ID/text count is exactly one |
-| Contact/visibility updates surfaces | two-context Profile/Graph assertion plus feature tests |
+| Contact/visibility updates surfaces | two-context Profile assertion plus feature tests |
 | Request status updates all surfaces | helper My Work/detail remains open during author closure |
 | Reconnect catches up | offline context misses mutation, reconnects, reaches final snapshot |
 | No duplicates | stable IDs/count assertions after live echo and reconnect |
@@ -1143,13 +1107,13 @@ alone or showing one screen refresh is insufficient.
 ## 16. Rollout and rollback
 
 1. Deploy additive server changes first: compatible envelope fields, byte-safe
-   chunking, catch-up control, watch-grant support, and new kinds/triggers. SQL
+   chunking, catch-up control, and new kinds/triggers. SQL
    includes actor recipients, but deploy with router flag
    `REALTIME_ACTOR_ECHO_ENABLED=false` so old-client behavior remains unchanged.
 2. Deploy the client version containing the typed boundary and the Phase 3
    `forwardCompleted` command-result/invalidation split. Prove remote forward
    invalidations cannot create `pendingMovedNudge` on that version.
-3. Run dev/staging multi-client tests and inspect fan-out, watch, queue, reconnect,
+3. Run dev/staging multi-client tests and inspect fan-out, queue, reconnect,
    and projection-fetch metrics. Canary the compatible client while actor
    suppression remains enabled.
 4. Set `REALTIME_ACTOR_ECHO_ENABLED=true` only after `MIN_CLIENT_VERSION` is at
@@ -1163,8 +1127,17 @@ alone or showing one screen refresh is insufficient.
    applied raw SQL migrations are not reversed in place. Use separate kill
    switches: disabling `REALTIME_ACTOR_ECHO_ENABLED` restores router-side actor
    filtering without changing SQL or disabling new kinds/catch-up, while per-kind
-   switches disable only a faulty new trigger. Watch registration can be disabled
-   independently while ordinary bounded recipients and catch-up remain active.
+   switches disable only a faulty new trigger.
+7. Designated transport fallback: transactional outbox. If NOTIFY commit-lock
+   waits sustainedly exceed the section 13 threshold (p95 above 50-100 ms), or
+   write load approaches the measured serialization ceiling, replace the body
+   of `emit_realtime_entity_change` — the single emission point since `m0114`
+   — with an INSERT into an outbox table via a forward migration, and add a
+   server-side dispatcher that reads the outbox (a 100-250 ms poll interval
+   fits the p95 <= 1.5 s budget; the client-polling ban does not cover a
+   server-internal outbox reader). The wire protocol, the client, and the AD-1
+   semantics (at-least-once hints plus idempotent refetch) are unchanged.
+   Enabling a synchronous Postgres standby requires this migration first.
 
 ## 17. Definition of done
 
@@ -1809,3 +1782,50 @@ Revision:
   pagination is not part of the authorization contract.
 - Added help-offer coordination to the matrix, corrected EdDSA/manual rollover
   wording, and required transport-level non-string/undecodable frame tolerance.
+
+### Scope change 2026-07-14: live Graph updates removed
+
+Product decision, applied after loop 3 with implementation already in progress:
+the Graph screen is a transient visualization and the user is not supposed to
+linger there, so an open Graph may go stale. It renders a fresh authoritative
+snapshot on route entry and manual refresh only.
+
+Removed from the plan body: the Graph scope of acceptance criterion 4, live
+Graph event routing and the `GraphCase` requirement (Phase 4), the AD-8
+server-granted watch protocol and its wire control frames (section 7.3), the
+`subject_ids` envelope field, the watch-grant REST endpoint and WebSocket
+registration (Phase 2 item 9), and all watch-related security gates, metrics,
+tests, and rollout switches. Bounded recipient fan-out for relationship and
+profile changes remains and still serves Friends, Profile, and People. Section
+and item numbering is preserved; removed sections carry inline stubs so the
+loop 1-3 references above remain resolvable. The critique text above is
+untouched and predates this decision.
+
+### Addendum 2026-07-14: NOTIFY commit-serialization risk recorded
+
+External input, a pgsql-hackers production report:
+https://www.postgresql.org/message-id/CADWG95t0j9zF0uwdcMH81KMnDsiTAVHxmBvgYqrRJcD-iLwQhw@mail.gmail.com
+(~100 databases, 8000 qps, 40-100 notifies/s; commit wait queues of hundreds of
+transactions on the NOTIFY queue lock, with cascading stalls when the blocked
+committer also held other locks).
+
+Mechanism: `PreCommit_Notify` takes one cluster-global exclusive lock on the
+notification queue and holds it through the commit's WAL flush, so all
+notifying commits serialize and a waiting committer extends every other lock
+it holds. Since `m0114` makes practically every write transaction a notifier,
+this is a total-write-throughput ceiling, invisible to
+`pg_notification_queue_usage()`.
+
+Plan changes: section 13 now records the serialization ceiling as a second
+residual risk with commit-lock wait metrics and a p95 wait budget; Phase 2 and
+Phase 5 document the short-notifying-transaction discipline next to
+`withMutatingUser` and in `DEV_GUIDELINES.md`; section 16 item 7 designates
+the transactional outbox (replacing the body of `emit_realtime_entity_change`
+via forward migration plus a server-side dispatcher) as the fallback and as a
+hard precondition for synchronous replication;
+`docs/production-deploy.md` gains the matching pitfall note. Existing `m0114`
+mitigations already in place: a single emission helper, statement-level
+coalescing triggers for `vote_user`/`user_trust_edge`, `IS DISTINCT FROM`
+guards, and Postgres's own same-payload dedup within a transaction. At current
+single-database write volumes the risk is dormant; no architecture change is
+required.

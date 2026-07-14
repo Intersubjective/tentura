@@ -329,6 +329,7 @@ curl https://dev.tentura.io/api/v2/graphql \
 - **`FB_APP_ID` must be the Firebase Web App ID** (`1:xxx:web:yyy` from Project settings → Your apps), not the API key (`AIza...`). Wrong value causes `firebaseinstallations` HTTP 400 in the browser.
 - **`S3_PATH_STYLE=false` + `S3_USE_SSL=true`** for DO Spaces — opposite of local MinIO defaults.
 - **Postgres data** lives in `./pg_data`. Back it up before any major upgrade.
+- **Do not enable synchronous replication** (`synchronous_standby_names`) without migrating realtime off LISTEN/NOTIFY first. NOTIFY holds a cluster-global lock across each notifying commit's WAL flush; with a synchronous standby that hold grows to the replication RTT and serializes practically all writes (nearly every write transaction fires realtime triggers). Adopt the transactional-outbox fallback (`docs/issue-73-full-interactivity-plan.md`, section 16 item 7) before adding a synchronous standby. Async replicas are unaffected.
 - **Caddy TLS** auto-provisions via ACME on first start. Port 80 must be open for the HTTP-01 challenge.
 - **After `.env` changes**, recreate only the affected container: `docker compose -f compose.prod.yaml up -d --force-recreate tentura`.
 - **Hasura remote schema cache**: if you redeploy the server with changed GraphQL mutations, reload the remote schema: `curl -X POST http://hasura:8080/v1/metadata -H "X-Hasura-Admin-Secret: $SECRET" -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}'`.
