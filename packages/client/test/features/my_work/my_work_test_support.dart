@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_re
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
@@ -276,6 +277,7 @@ MyWorkCase buildTestMyWorkCase({
   FakeRoomHints? roomHints,
   RoomReadWatermarkStore? watermarkStore,
   FakeBeaconRoomRepository? roomRepo,
+  BookkeepingRefreshSignal? bookkeepingRefreshSignal,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
@@ -296,6 +298,7 @@ MyWorkCase buildTestMyWorkCase({
     ),
     hints,
     prefs,
+    bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     env: const Env(),
     logger: Logger('test'),
   );

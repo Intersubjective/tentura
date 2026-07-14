@@ -1076,6 +1076,10 @@
   "settingsEmailTestRateLimited": "Please wait 10 seconds before sending another test email",
   "settingsEmailTestMock": "Server email not configured",
   "settingsEmailTestFailed": "Failed to send test email",
+  "settingsRecalculateCounters": "Recalculate counters",
+  "@settingsRecalculateCounters": {
+    "context": "DebugSettingsScreen"
+  },
   "signInMethods": "Sign-in methods",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"

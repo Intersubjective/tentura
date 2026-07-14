@@ -86,6 +86,13 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                               ? cubit.sendTestEmail
                               : null,
                         ),
+                        TenturaCommandButton(
+                          label: l10n.settingsRecalculateCounters,
+                          icon: const Icon(Icons.calculate_outlined),
+                          onPressed: state.isRecalculateCountersEnabled
+                              ? cubit.recalculateCounters
+                              : null,
+                        ),
                       ],
                     ),
                   ],

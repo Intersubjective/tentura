@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_re
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
+import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
@@ -190,10 +191,12 @@ void main() {
 
 InboxCase buildTestInboxCase(
   FakeInboxRepository repo,
-  BeaconRoomCase beaconRoom,
-) => InboxCase(
+  BeaconRoomCase beaconRoom, {
+  BookkeepingRefreshSignal? bookkeepingRefreshSignal,
+}) => InboxCase(
   repo,
   beaconRoom,
+  bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
   env: const Env(),
   logger: Logger('test'),
 );

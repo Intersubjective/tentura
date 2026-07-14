@@ -1076,6 +1076,10 @@
   "settingsEmailTestRateLimited": "Подождите 10 секунд перед повторной тестовой рассылкой",
   "settingsEmailTestMock": "Почта на сервере не настроена",
   "settingsEmailTestFailed": "Не удалось отправить тестовое письмо",
+  "settingsRecalculateCounters": "Пересчитать счётчики",
+  "@settingsRecalculateCounters": {
+    "context": "DebugSettingsScreen"
+  },
   "signInMethods": "Способы входа",
   "@signInMethods": {
     "context": "SettingsScreen, CredentialsScreen"

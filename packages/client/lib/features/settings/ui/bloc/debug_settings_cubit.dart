@@ -7,6 +7,7 @@ import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/notification/data/service/direct_notification_probe.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
@@ -28,6 +29,7 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     this._authCase,
     this._fcmCubit,
     this._emailTestRepository,
+    this._bookkeepingRefreshCase,
     this._effects,
   ) : super(const DebugSettingsState());
 
@@ -35,15 +37,18 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
   final AuthCase _authCase;
   final FcmCubit _fcmCubit;
   final EmailTestRemoteRepositoryPort _emailTestRepository;
+  final BookkeepingRefreshCase _bookkeepingRefreshCase;
   final UiEffectPort _effects;
 
   Timer? _fcmCooldownTimer;
   Timer? _emailCooldownTimer;
+  Timer? _countersCooldownTimer;
 
   @override
   Future<void> close() {
     _fcmCooldownTimer?.cancel();
     _emailCooldownTimer?.cancel();
+    _countersCooldownTimer?.cancel();
     return super.close();
   }
 
@@ -151,6 +156,31 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     }
   }
 
+  Future<void> recalculateCounters() async {
+    if (!state.isRecalculateCountersEnabled) {
+      return;
+    }
+    emit(state.copyWith(isRecalculatingCounters: true));
+    try {
+      final result = await _bookkeepingRefreshCase.recalculateForCurrentUser();
+      _startCountersCooldown();
+      _effects.emit(
+        ShowMessage(
+          DebugRecalculateCountersDoneMessage(
+            coordination: result.coordinationRepairedCount,
+            inbox: result.inboxTouchedCount,
+          ),
+        ),
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    } finally {
+      if (!isClosed) {
+        emit(state.copyWith(isRecalculatingCounters: false));
+      }
+    }
+  }
+
   Future<void> sendTestEmail() async {
     if (!state.isEmailTestEnabled) {
       return;
@@ -221,6 +251,17 @@ class DebugSettingsCubit extends Cubit<DebugSettingsState> {
     _emailCooldownTimer = Timer(kDebugSendCooldown, () {
       if (!isClosed) {
         emit(state.copyWith(emailCooldownUntil: null));
+      }
+    });
+  }
+
+  void _startCountersCooldown() {
+    _countersCooldownTimer?.cancel();
+    final until = DateTime.now().add(kDebugSendCooldown);
+    emit(state.copyWith(countersCooldownUntil: until));
+    _countersCooldownTimer = Timer(kDebugSendCooldown, () {
+      if (!isClosed) {
+        emit(state.copyWith(countersCooldownUntil: null));
       }
     });
   }

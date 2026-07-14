@@ -2364,6 +2364,7 @@ type mutation_root {
   fcmTokenDelete(appId: String!): Boolean!
   fcmSendTestNotification: FcmTestSendResult!
   emailSendTest: EmailTestSendResult!
+  userRecalculateBookkeeping: UserRecalculateBookkeepingResult!
   notificationsMarkRead(ids: [String!]!): Int!
   notificationsMarkAllRead: Int!
   notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
@@ -5599,6 +5600,13 @@ type EmailTestSendResult {
   ok: Boolean!
   mock: Boolean!
   reason: String
+}
+
+type UserRecalculateBookkeepingResult {
+  coordinationRepairedCount: Int!
+  inboxRowsRepairedCount: Int!
+  inboxRowsInsertedCount: Int!
+  affectedBeaconIds: [String!]!
 }
 
 type BeaconParticipantRow {

@@ -58,6 +58,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeNotificationItem,
   gqlTypeFcmTestSendResult,
   gqlTypeEmailTestSendResult,
+  gqlTypeUserRecalculateBookkeepingResult,
 ];
 
 /// One durable Notification Center row.
@@ -825,4 +826,17 @@ final gqlTypeEmailTestSendResult =
         field('ok', graphQLBoolean.nonNullable()),
         field('mock', graphQLBoolean.nonNullable()),
         field('reason', graphQLString),
+      ]);
+
+/// Result of repairing user-scoped counter projections and coordination rows.
+final gqlTypeUserRecalculateBookkeepingResult =
+    GraphQLObjectType('UserRecalculateBookkeepingResult', null)
+      ..fields.addAll([
+        field('coordinationRepairedCount', graphQLInt.nonNullable()),
+        field('inboxRowsRepairedCount', graphQLInt.nonNullable()),
+        field('inboxRowsInsertedCount', graphQLInt.nonNullable()),
+        field(
+          'affectedBeaconIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
       ]);

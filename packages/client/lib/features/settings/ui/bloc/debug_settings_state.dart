@@ -18,6 +18,8 @@ abstract class DebugSettingsState with _$DebugSettingsState {
     @Default(false) bool isSendingFcm,
     @Default(false) bool isSendingEmail,
     @Default(false) bool isForcingReregister,
+    @Default(false) bool isRecalculatingCounters,
+    DateTime? countersCooldownUntil,
   }) = _DebugSettingsState;
 
   const DebugSettingsState._();
@@ -32,4 +34,9 @@ abstract class DebugSettingsState with _$DebugSettingsState {
       !isSendingEmail &&
       (emailCooldownUntil == null ||
           DateTime.now().isAfter(emailCooldownUntil!));
+
+  bool get isRecalculateCountersEnabled =>
+      !isRecalculatingCounters &&
+      (countersCooldownUntil == null ||
+          DateTime.now().isAfter(countersCooldownUntil!));
 }

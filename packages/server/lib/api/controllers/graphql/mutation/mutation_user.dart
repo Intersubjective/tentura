@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/use_case/user_bookkeeping_case.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
 
 import '../custom_types.dart';
@@ -5,14 +6,24 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
 final class MutationUser extends GqlNodeBase {
-  MutationUser({UserCase? userCase})
-    : _userCase = userCase ?? GetIt.I<UserCase>();
+  MutationUser({
+    UserCase? userCase,
+    UserBookkeepingCase? userBookkeepingCase,
+  }) : _userCase = userCase ?? GetIt.I<UserCase>(),
+       _userBookkeepingCase =
+           userBookkeepingCase ?? GetIt.I<UserBookkeepingCase>();
 
   final UserCase _userCase;
 
+  final UserBookkeepingCase _userBookkeepingCase;
+
   final _handleField = InputFieldString(fieldName: 'handle');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [update, delete];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    update,
+    delete,
+    recalculateBookkeeping,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get update => GraphQLObjectField(
     'userUpdate',
@@ -43,4 +54,13 @@ final class MutationUser extends GqlNodeBase {
     graphQLBoolean.nonNullable(),
     resolve: (_, args) => _userCase.deleteById(id: getCredentials(args).sub),
   );
+
+  GraphQLObjectField<dynamic, dynamic> get recalculateBookkeeping =>
+      GraphQLObjectField(
+        'userRecalculateBookkeeping',
+        gqlTypeUserRecalculateBookkeepingResult.nonNullable(),
+        resolve: (_, args) => _userBookkeepingCase
+            .recalculateForUser(userId: getCredentials(args).sub)
+            .then((r) => r.asJson()),
+      );
 }

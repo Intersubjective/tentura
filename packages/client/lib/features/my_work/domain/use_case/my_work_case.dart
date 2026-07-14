@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -30,7 +31,8 @@ final class MyWorkCase extends UseCaseBase {
     this._coordinationItemCase,
     this._beaconRoomCase,
     this._roomHints,
-    this._deskPreferences, {
+    this._deskPreferences,
+    this._bookkeepingRefreshSignal, {
     required super.env,
     required super.logger,
   });
@@ -51,6 +53,8 @@ final class MyWorkCase extends UseCaseBase {
 
   final MyWorkDeskPreferencesPort _deskPreferences;
 
+  final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
+
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
 
@@ -63,6 +67,8 @@ final class MyWorkCase extends UseCaseBase {
       _beaconRoomCase.readWatermarkChanges;
 
   Stream<String> get deskRelevantChanges => _beaconRoomCase.deskRelevantChanges;
+
+  Stream<void> get bookkeepingRefresh => _bookkeepingRefreshSignal.stream;
 
   Future<MyWorkInitResult> fetchInit({required String userId}) =>
       _repository.fetchInit(userId: userId);

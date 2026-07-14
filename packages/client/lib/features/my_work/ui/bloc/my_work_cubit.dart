@@ -40,6 +40,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       _onDeskRelevantChanged,
       cancelOnError: false,
     );
+    _bookkeepingRefresh = _myWorkCase.bookkeepingRefresh.listen(
+      (_) => unawaited(fetch(showLoading: false)),
+      cancelOnError: false,
+    );
     unawaited(fetch());
   }
 
@@ -69,6 +73,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<String> _deskRelevantChanges;
 
+  late final StreamSubscription<void> _bookkeepingRefresh;
+
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
@@ -81,6 +87,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     await _forwardCompleted.cancel();
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
+    await _bookkeepingRefresh.cancel();
     return super.close();
   }
 

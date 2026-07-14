@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
@@ -14,7 +15,8 @@ import '../enum.dart';
 final class InboxCase extends UseCaseBase {
   InboxCase(
     this._repository,
-    this._beaconRoomCase, {
+    this._beaconRoomCase,
+    this._bookkeepingRefreshSignal, {
     required super.env,
     required super.logger,
   });
@@ -23,10 +25,13 @@ final class InboxCase extends UseCaseBase {
 
   final BeaconRoomCase _beaconRoomCase;
 
+  final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
+
   /// Inbox list refresh after local writes or session read-watermark changes.
   Stream<void> get localMutations => MergeStream<void>([
     _repository.localMutations,
     _beaconRoomCase.readWatermarkChanges.map((_) {}),
+    _bookkeepingRefreshSignal.stream,
   ]);
 
   Stream<String> get deskRelevantChanges => _beaconRoomCase.deskRelevantChanges;

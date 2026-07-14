@@ -1,0 +1,8 @@
+mutation UserRecalculateBookkeeping {
+  userRecalculateBookkeeping {
+    coordinationRepairedCount
+    inboxRowsRepairedCount
+    inboxRowsInsertedCount
+    affectedBeaconIds
+  }
+}

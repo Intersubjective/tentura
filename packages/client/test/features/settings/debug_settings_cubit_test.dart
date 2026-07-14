@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
@@ -13,6 +14,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../notification/fcm_case_test.dart';
+import 'bookkeeping_refresh_test_support.dart';
 
 void main() {
   group('DebugSettingsCubit', () {
@@ -20,19 +22,22 @@ void main() {
     late FakeEmailTestRepository emailRepo;
     late FakeUiEffectPort effects;
     late FcmCubit fcmCubit;
+    late FakeBookkeepingRefreshRepository bookkeepingRepo;
     late DebugSettingsCubit cubit;
 
     setUp(() {
       fcmCase = _FcmCaseSpy(FakeFcmLocal(), FakeFcmRemote(), FakeSettings());
       emailRepo = FakeEmailTestRepository();
+      bookkeepingRepo = FakeBookkeepingRefreshRepository();
       effects = FakeUiEffectPort();
-      final authCase = buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote());
+      final authCase = buildTestAuthCase(SignedInAuthLocal(), EmptyAuthRemote());
       fcmCubit = FcmCubit(fcmCase, authCase);
       cubit = DebugSettingsCubit(
         fcmCase,
         authCase,
         fcmCubit,
         emailRepo,
+        buildTestBookkeepingRefreshCase(repository: bookkeepingRepo),
         effects,
       );
     });
@@ -92,6 +97,23 @@ void main() {
         contains(isA<DebugEmailTestSentMessage>()),
       );
     });
+
+    test('recalculate counters starts cooldown and reports repair counts', () async {
+      await cubit.recalculateCounters();
+
+      expect(bookkeepingRepo.callCount, 1);
+      expect(cubit.state.isRecalculateCountersEnabled, isFalse);
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(
+          isA<DebugRecalculateCountersDoneMessage>().having(
+            (m) => m.coordination,
+            'coordination',
+            1,
+          ),
+        ),
+      );
+    });
   });
 
   group('DebugSettingsCubit.forceReregisterDevice', () {
@@ -118,6 +140,7 @@ void main() {
         authCase,
         FcmCubit(fcmCase, authCase),
         FakeEmailTestRepository(),
+        buildTestBookkeepingRefreshCase(),
         effects,
       );
     }
@@ -190,15 +213,7 @@ class _FcmCaseSpy extends FcmCase {
   Future<FcmTestSendResult> sendTestNotification() async => testResult;
 }
 
-class _SignedInAuthLocal extends EmptyAuthLocal {
-  static const _accountId = 'Utest0000001';
-
-  @override
-  Stream<String> currentAccountChanges() => Stream.value(_accountId);
-
-  @override
-  Future<String> getCurrentAccountId() async => _accountId;
-}
+class _SignedInAuthLocal extends SignedInAuthLocal {}
 
 class FakeEmailTestRepository implements EmailTestRemoteRepositoryPort {
   EmailTestSendResult result = const EmailTestSendResult(ok: true, mock: false);

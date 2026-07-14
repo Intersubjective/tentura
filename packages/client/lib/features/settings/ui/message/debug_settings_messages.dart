@@ -151,3 +151,21 @@ final class DebugEmailTestFailedMessage extends LocalizableMessage {
   @override
   String get toRu => 'Не удалось отправить тестовое письмо';
 }
+
+final class DebugRecalculateCountersDoneMessage extends LocalizableMessage {
+  const DebugRecalculateCountersDoneMessage({
+    required this.coordination,
+    required this.inbox,
+  });
+
+  final int coordination;
+  final int inbox;
+
+  @override
+  String get toEn =>
+      'Repaired $coordination offer response(s) and $inbox inbox row(s)';
+
+  @override
+  String get toRu =>
+      'Исправлено откликов: $coordination, строк входящих: $inbox';
+}
