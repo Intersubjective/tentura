@@ -25,6 +25,9 @@ abstract class NewStuffState extends StateBase with _$NewStuffState {
 
     /// True after Inbox cubit reports a successful fetch at least once.
     @Default(false) bool inboxLoadComplete,
+
+    /// Actionable unread items from the server notification center projection.
+    @Default(0) int notificationUnreadCount,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _NewStuffState;
 

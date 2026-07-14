@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -14,9 +16,23 @@ typedef NotificationFeedPage = ({
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class NotificationCenterRepository {
-  const NotificationCenterRepository(this._remoteApiService);
+  NotificationCenterRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
+
+  final _changesController = StreamController<void>.broadcast();
+
+  /// Emits after a locally initiated read mutation commits successfully.
+  Stream<void> get changes => _changesController.stream;
+
+  void _notifyChanged() {
+    scheduleMicrotask(() {
+      if (!_changesController.isClosed) _changesController.add(null);
+    });
+  }
+
+  @disposeMethod
+  Future<void> dispose() => _changesController.close();
 
   static const _label = 'NotificationCenter';
 
@@ -61,7 +77,9 @@ class NotificationCenterRepository {
         .request(GNotificationsMarkReadReq((r) => r..vars.ids.addAll(ids)))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
-    return data.notificationsMarkRead;
+    final changed = data.notificationsMarkRead;
+    _notifyChanged();
+    return changed;
   }
 
   Future<int> markAllRead() async {
@@ -69,6 +87,8 @@ class NotificationCenterRepository {
         .request(GNotificationsMarkAllReadReq())
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
-    return data.notificationsMarkAllRead;
+    final changed = data.notificationsMarkAllRead;
+    _notifyChanged();
+    return changed;
   }
 }

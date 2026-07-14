@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:logging/logging.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../data/repository/notification_center_repository.dart';
 import '../../domain/entity/notification_center_item.dart';
+import '../../domain/use_case/notification_center_case.dart';
 import 'notification_center_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,16 +12,51 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'notification_center_state.dart';
 
 class NotificationCenterCubit extends Cubit<NotificationCenterState> {
-  NotificationCenterCubit({NotificationCenterRepository? repository})
-      : _repository = repository ?? GetIt.I<NotificationCenterRepository>(),
-        super(const NotificationCenterState());
+  NotificationCenterCubit({
+    NotificationCenterCase? notificationCenterCase,
+    Logger? logger,
+  }) : _case = notificationCenterCase ?? GetIt.I<NotificationCenterCase>(),
+       _logger = logger ?? GetIt.I<Logger>(),
+       super(const NotificationCenterState()) {
+    _changesSub = _case.changes.listen(
+      (_) => _scheduleSilentFetch(),
+      cancelOnError: false,
+    );
+    _accountSub = _case.accountChanges.listen(
+      _onAccountChanged,
+      cancelOnError: false,
+    );
+  }
 
-  final NotificationCenterRepository _repository;
+  static const _refreshDebounce = Duration(milliseconds: 100);
 
-  Future<void> fetch() async {
-    emit(state.copyWith(status: const StateIsLoading()));
+  final NotificationCenterCase _case;
+  final Logger _logger;
+
+  late final StreamSubscription<void> _changesSub;
+  late final StreamSubscription<String> _accountSub;
+
+  Timer? _refreshTimer;
+  int _fetchSequence = 0;
+  String? _accountId;
+
+  @override
+  Future<void> close() async {
+    _refreshTimer?.cancel();
+    _fetchSequence++;
+    await _changesSub.cancel();
+    await _accountSub.cancel();
+    return super.close();
+  }
+
+  Future<void> fetch({bool showLoading = true}) async {
+    final sequence = ++_fetchSequence;
+    if (showLoading) {
+      emit(state.copyWith(status: const StateIsLoading()));
+    }
     try {
-      final page = await _repository.fetch();
+      final page = await _case.fetch();
+      if (isClosed || sequence != _fetchSequence) return;
       emit(
         state.copyWith(
           items: page.items,
@@ -28,10 +65,9 @@ class NotificationCenterCubit extends Cubit<NotificationCenterState> {
         ),
       );
     } catch (e) {
-      GetIt.I<Logger>().warning('NotificationCenter fetch failed', e);
-      if (!isClosed) {
-        emit(state.copyWith(status: const StateIsSuccess()));
-      }
+      if (isClosed || sequence != _fetchSequence) return;
+      _logger.warning('NotificationCenter fetch failed', e);
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -43,10 +79,10 @@ class NotificationCenterCubit extends Cubit<NotificationCenterState> {
     }
     _applyRead({id});
     try {
-      await _repository.markRead([id]);
+      await _case.markRead([id]);
     } catch (_) {
       // Best-effort: refetch to restore ground truth on failure.
-      await fetch();
+      await fetch(showLoading: false);
     }
   }
 
@@ -57,10 +93,28 @@ class NotificationCenterCubit extends Cubit<NotificationCenterState> {
     final ids = state.items.where((e) => !e.isRead).map((e) => e.id).toSet();
     _applyRead(ids);
     try {
-      await _repository.markAllRead();
+      await _case.markAllRead();
     } catch (_) {
-      await fetch();
+      await fetch(showLoading: false);
     }
+  }
+
+  void _scheduleSilentFetch() {
+    if (isClosed) return;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(_refreshDebounce, () {
+      _refreshTimer = null;
+      if (!isClosed) unawaited(fetch(showLoading: false));
+    });
+  }
+
+  void _onAccountChanged(String accountId) {
+    final previous = _accountId;
+    _accountId = accountId;
+    if (previous == null || previous == accountId) return;
+    _refreshTimer?.cancel();
+    _fetchSequence++;
+    emit(const NotificationCenterState(status: StateIsSuccess()));
   }
 
   void _applyRead(Set<String> ids) {
@@ -85,7 +139,9 @@ class NotificationCenterCubit extends Cubit<NotificationCenterState> {
         else
           e,
     ];
-    final unread = next.where((e) => !e.isRead && e.category.isActionable).length;
+    final unread = next
+        .where((e) => !e.isRead && e.category.isActionable)
+        .length;
     emit(state.copyWith(items: next, unreadCount: unread));
   }
 }

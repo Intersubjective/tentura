@@ -177,15 +177,7 @@ class _InboxScreenState extends State<InboxScreen> {
                     actions: useExpandedPane
                         ? null
                         : [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.notifications_none_outlined,
-                              ),
-                              tooltip: l10n.notifications,
-                              onPressed: () => context.router.push(
-                                const NotificationCenterRoute(),
-                              ),
-                            ),
+                            const _NotificationCenterButton(),
                             const _InboxOverflowMenu(),
                           ],
                     row: useExpandedPane
@@ -206,22 +198,14 @@ class _InboxScreenState extends State<InboxScreen> {
                                       ],
                                     ),
                                   ),
-                                  Expanded(
+                                  const Expanded(
                                     child: Align(
                                       alignment: Alignment.centerRight,
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.notifications_none_outlined,
-                                            ),
-                                            tooltip: l10n.notifications,
-                                            onPressed: () => context.router.push(
-                                              const NotificationCenterRoute(),
-                                            ),
-                                          ),
-                                          const _InboxOverflowMenu(),
+                                          _NotificationCenterButton(),
+                                          _InboxOverflowMenu(),
                                         ],
                                       ),
                                     ),
@@ -622,6 +606,26 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
       },
     );
   }
+}
+
+class _NotificationCenterButton extends StatelessWidget {
+  const _NotificationCenterButton();
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocSelector<NewStuffCubit, NewStuffState, int>(
+        selector: (state) => state.notificationUnreadCount,
+        builder: (context, unreadCount) => IconButton(
+          icon: Badge(
+            isLabelVisible: unreadCount > 0,
+            child: const Icon(Icons.notifications_none_outlined),
+          ),
+          tooltip: L10n.of(context)!.notifications,
+          onPressed: () => context.router.push(
+            const NotificationCenterRoute(),
+          ),
+        ),
+      );
 }
 
 class _InboxOverflowMenu extends StatelessWidget {
