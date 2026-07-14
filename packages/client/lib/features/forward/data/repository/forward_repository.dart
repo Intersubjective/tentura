@@ -6,11 +6,11 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura/data/model/user_model.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../../domain/entity/help_offer_event.dart';
@@ -53,16 +53,16 @@ class ForwardRepository {
   ForwardRepository(
     this._remoteApiService,
     this._beaconRepository,
-    InvalidationService invalidationService,
+    RealtimeSyncPort realtimeSync,
   ) {
-    _helpOfferInvalidationSub = invalidationService.entityChanges
+    _helpOfferInvalidationSub = realtimeSync.entityChanges
         .where((change) => change.kind == RealtimeEntityKind.helpOffer)
         .listen(
           (change) => _helpOfferController.add(
             HelpOfferInvalidated(change.aggregateId),
           ),
         );
-    _forwardInvalidationSub = invalidationService.entityChanges
+    _forwardInvalidationSub = realtimeSync.entityChanges
         .where((change) => change.kind == RealtimeEntityKind.forward)
         .listen((change) {
           if (!_forwardChangesController.isClosed) {

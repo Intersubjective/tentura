@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
+import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/capability_private_label_set.req.gql.dart';
 import '../gql/_g/capability_set_viewer_visible.req.gql.dart';
@@ -23,17 +24,17 @@ import '../gql/_g/person_top_capabilities_batch_fetch.req.gql.dart';
 class CapabilityRepository implements CapabilityRepositoryPort {
   CapabilityRepository(
     this._remoteApiService,
-    InvalidationService invalidationService,
+    RealtimeSyncPort realtimeSync,
   ) {
-    _capabilityInvalidationSub =
-        invalidationService.capabilityInvalidations.listen(
-      (_) => _changesController.add(null),
-    );
+    _capabilityInvalidationSub = realtimeSync.entityChanges
+        .where((change) => change.kind == RealtimeEntityKind.capability)
+        .listen((_) => _changesController.add(null));
   }
 
   final RemoteApiService _remoteApiService;
 
-  late final StreamSubscription<String> _capabilityInvalidationSub;
+  late final StreamSubscription<RealtimeEntityChange>
+  _capabilityInvalidationSub;
 
   final _changesController = StreamController<void>.broadcast();
 
@@ -57,10 +58,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .myPrivateLabelsForUser
-                .toList(),
+            (r) => r.dataOrThrow(label: _label).myPrivateLabelsForUser.toList(),
           );
 
   @override
@@ -90,7 +88,8 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       .then((p) {
         return PersonCapabilityCues(
           privateLabels: p.privateLabels?.toList() ?? [],
-          forwardReasonsByMe: p.forwardReasonsByMe
+          forwardReasonsByMe:
+              p.forwardReasonsByMe
                   ?.map(
                     (e) => TagCount(
                       slug: e.slug,
@@ -100,7 +99,8 @@ class CapabilityRepository implements CapabilityRepositoryPort {
                   )
                   .toList() ??
               [],
-          commitRoles: p.commitRoles
+          commitRoles:
+              p.commitRoles
                   ?.map(
                     (e) => TagBeaconRef(
                       slug: e.slug,
@@ -111,7 +111,8 @@ class CapabilityRepository implements CapabilityRepositoryPort {
                   )
                   .toList() ??
               [],
-          closeAckByMe: p.closeAckByMe
+          closeAckByMe:
+              p.closeAckByMe
                   ?.map(
                     (e) => TagBeaconRef(
                       slug: e.slug,
@@ -122,7 +123,8 @@ class CapabilityRepository implements CapabilityRepositoryPort {
                   )
                   .toList() ??
               [],
-          closeAckAboutMe: p.closeAckAboutMe
+          closeAckAboutMe:
+              p.closeAckAboutMe
                   ?.map(
                     (e) => TagBeaconRef(
                       slug: e.slug,
@@ -133,7 +135,8 @@ class CapabilityRepository implements CapabilityRepositoryPort {
                   )
                   .toList() ??
               [],
-          viewerVisible: p.viewerVisible
+          viewerVisible:
+              p.viewerVisible
                   ?.map(
                     (e) => CapabilityWithSource(
                       slug: e.slug,
@@ -178,12 +181,9 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final entries = r
-            .dataOrThrow(label: _label)
-            .personTopCapabilitiesBatch;
+        final entries = r.dataOrThrow(label: _label).personTopCapabilitiesBatch;
         return {
-          for (final e in entries)
-            e.subjectId: e.slugs.toList(),
+          for (final e in entries) e.subjectId: e.slugs.toList(),
         };
       });
 

@@ -72,13 +72,6 @@ final class BeaconRoomCase extends UseCaseBase {
       .where((inv) => _deskRelevantEntityTypes.contains(inv.entityType))
       .map((inv) => inv.beaconId);
 
-  void notifyLocalChange({
-    required String beaconId,
-    required BeaconRoomEntityType entityType,
-  }) {
-    _room.notifyLocalChange(beaconId: beaconId, entityType: entityType);
-  }
-
   DateTime? readThrough(String beaconId) => _watermark.readThrough(beaconId);
 
   bool observeReadThrough(String beaconId, DateTime at) =>

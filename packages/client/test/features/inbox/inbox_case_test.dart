@@ -359,16 +359,6 @@ class _FakeBeaconRoomRepository implements BeaconRoomRepository {
   }
 
   @override
-  void notifyLocalChange({
-    required String beaconId,
-    required BeaconRoomEntityType entityType,
-  }) {
-    emitRoomInvalidation(
-      BeaconRoomInvalidation(beaconId: beaconId, entityType: entityType),
-    );
-  }
-
-  @override
   Future<void> dispose() => _roomInvalidations.close();
 
   @override

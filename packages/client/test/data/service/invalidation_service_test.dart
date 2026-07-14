@@ -86,8 +86,8 @@ void main() {
           await wsMessages.close();
         });
 
-        final received = <String>[];
-        final sub = service.beaconInvalidations.listen(received.add);
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
 
         wsMessages.add({'type': 'pong'});
         wsMessages.add({
@@ -111,8 +111,8 @@ void main() {
           await wsMessages.close();
         });
 
-        final received = <String>[];
-        final sub = service.beaconInvalidations.listen(received.add);
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
 
         for (var i = 0; i < 5; i++) {
           wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-1'));
@@ -121,7 +121,7 @@ void main() {
         expect(received, isEmpty);
 
         async.elapse(const Duration(milliseconds: 500));
-        expect(received, ['beacon-1']);
+        expect(received.map((change) => change.aggregateId), ['beacon-1']);
 
         unawaited(sub.cancel());
       });
@@ -136,21 +136,24 @@ void main() {
           await wsMessages.close();
         });
 
-        final received = <String>[];
-        final sub = service.beaconInvalidations.listen(received.add);
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
 
         wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-a'));
         wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-b'));
         wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-a'));
         async.elapse(const Duration(milliseconds: 500));
 
-        expect(received.toSet(), {'beacon-a', 'beacon-b'});
+        expect(
+          received.map((change) => change.aggregateId).toSet(),
+          {'beacon-a', 'beacon-b'},
+        );
 
         unawaited(sub.cancel());
       });
     });
 
-    test('routes entity types to the matching debounced stream', () {
+    test('routes entity types through the shared typed stream', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
         final service = InvalidationService.forTesting(wsMessages.stream);
@@ -159,13 +162,8 @@ void main() {
           await wsMessages.close();
         });
 
-        final forwards = <String>[];
-        final helpOffers = <String>[];
-        final capabilities = <String>[];
-
-        final forwardSub = service.forwardInvalidations.listen(forwards.add);
-        final helpSub = service.helpOfferInvalidations.listen(helpOffers.add);
-        final capSub = service.capabilityInvalidations.listen(capabilities.add);
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
 
         wsMessages.add(_entityChange(entity: 'forward', id: 'f1'));
         wsMessages.add(_entityChange(entity: 'help_offer', id: 'h1'));
@@ -174,13 +172,16 @@ void main() {
         );
         async.elapse(const Duration(milliseconds: 500));
 
-        expect(forwards, ['f1']);
-        expect(helpOffers, ['h1']);
-        expect(capabilities, ['u1']);
+        expect(
+          received.map((change) => (change.kind, change.aggregateId)).toSet(),
+          {
+            (RealtimeEntityKind.forward, 'f1'),
+            (RealtimeEntityKind.helpOffer, 'h1'),
+            (RealtimeEntityKind.capability, 'u1'),
+          },
+        );
 
-        unawaited(forwardSub.cancel());
-        unawaited(helpSub.cancel());
-        unawaited(capSub.cancel());
+        unawaited(sub.cancel());
       });
     });
 
@@ -564,7 +565,7 @@ void main() {
       });
     });
 
-    test('beacon room invalidations dedupe by beacon id and entity type', () {
+    test('room projection adapter consumes the shared typed stream', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
         final service = InvalidationService.forTesting(wsMessages.stream);
@@ -574,7 +575,11 @@ void main() {
         });
 
         final received = <BeaconRoomInvalidation>[];
-        final sub = service.beaconRoomInvalidations.listen(received.add);
+        final sub = service.entityChanges
+            .map(BeaconRoomInvalidation.fromRealtimeChange)
+            .where((invalidation) => invalidation != null)
+            .cast<BeaconRoomInvalidation>()
+            .listen(received.add);
 
         wsMessages.add(_entityChange(entity: 'room_message', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_message', id: 'room-1'));
@@ -623,16 +628,19 @@ void main() {
           await wsMessages.close();
         });
 
-        final received = <String>[];
-        final sub = service.beaconInvalidations.listen(received.add);
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
 
         wsMessages.add(_entityChange(entity: 'beacon', id: 'first'));
         async.elapse(const Duration(milliseconds: 500));
-        expect(received, ['first']);
+        expect(received.map((change) => change.aggregateId), ['first']);
 
         wsMessages.add(_entityChange(entity: 'beacon', id: 'second'));
         async.elapse(const Duration(milliseconds: 500));
-        expect(received, ['first', 'second']);
+        expect(
+          received.map((change) => change.aggregateId),
+          ['first', 'second'],
+        );
 
         unawaited(sub.cancel());
       });

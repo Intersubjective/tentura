@@ -332,8 +332,6 @@ class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
 
-  final localChanges = <BeaconRoomInvalidation>[];
-
   @override
   Stream<String> get beaconRoomRefresh =>
       _roomInvalidations.stream.map((e) => e.beaconId);
@@ -344,19 +342,6 @@ class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
 
   void emitRoomInvalidation(BeaconRoomInvalidation invalidation) {
     _roomInvalidations.add(invalidation);
-  }
-
-  @override
-  void notifyLocalChange({
-    required String beaconId,
-    required BeaconRoomEntityType entityType,
-  }) {
-    final invalidation = BeaconRoomInvalidation(
-      beaconId: beaconId,
-      entityType: entityType,
-    );
-    localChanges.add(invalidation);
-    emitRoomInvalidation(invalidation);
   }
 
   @override

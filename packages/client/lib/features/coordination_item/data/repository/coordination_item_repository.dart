@@ -3,9 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
-import 'package:tentura/features/beacon_room/domain/beacon_room_local_change_bus.dart';
 import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import '../gql/_g/coordination_item_list.req.gql.dart';
 import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';
@@ -58,7 +56,6 @@ int? _wirePublishStaleAfterDays(int? staleAfterDays) {
 class CoordinationItemRepository {
   CoordinationItemRepository(
     this._remote,
-    this._localChangeBus,
     this._itemRoomSync,
   );
 
@@ -66,16 +63,10 @@ class CoordinationItemRepository {
 
   final RemoteApiService _remote;
 
-  final BeaconRoomLocalChangeBus _localChangeBus;
-
   final CoordinationItemRoomSync _itemRoomSync;
 
   CoordinationItem _notifyItemUpdated(CoordinationItem item) {
     _itemRoomSync.notifyItemUpdated(item);
-    _localChangeBus.notifyBeaconChanged(
-      beaconId: item.beaconId,
-      entityType: BeaconRoomEntityType.coordinationItem,
-    );
     return item;
   }
 

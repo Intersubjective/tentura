@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_watch.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
 import 'remote_api_service.dart';
 
@@ -20,7 +19,7 @@ import 'remote_api_service.dart';
 /// Entity hints identify server-owned projections. They never carry derived
 /// state, and bursts are coalesced by `(kind, aggregateId)` before consumers
 /// refetch authoritative snapshots.
-@singleton
+@Singleton(as: RealtimeSyncPort)
 class InvalidationService implements RealtimeSyncPort {
   InvalidationService(RemoteApiService remoteApiService) {
     _send = remoteApiService.webSocketSend;
@@ -83,37 +82,6 @@ class InvalidationService implements RealtimeSyncPort {
   @override
   Stream<RealtimeConnectionStatus> get connectionStatuses =>
       _connectionStatusSubject.stream;
-
-  /// Temporary compatibility stream for repositories migrating to [entityChanges].
-  late final Stream<String> beaconInvalidations = entityChanges
-      .where((change) => change.kind == RealtimeEntityKind.beacon)
-      .map((change) => change.aggregateId)
-      .asBroadcastStream();
-
-  /// Temporary compatibility stream for repositories migrating to [entityChanges].
-  late final Stream<String> helpOfferInvalidations = entityChanges
-      .where((change) => change.kind == RealtimeEntityKind.helpOffer)
-      .map((change) => change.aggregateId)
-      .asBroadcastStream();
-
-  /// Temporary compatibility stream for repositories migrating to [entityChanges].
-  late final Stream<String> forwardInvalidations = entityChanges
-      .where((change) => change.kind == RealtimeEntityKind.forward)
-      .map((change) => change.aggregateId)
-      .asBroadcastStream();
-
-  /// Temporary compatibility stream for room repositories during migration.
-  late final Stream<BeaconRoomInvalidation> beaconRoomInvalidations =
-      entityChanges
-          .map(_toBeaconRoomInvalidation)
-          .whereType<BeaconRoomInvalidation>()
-          .asBroadcastStream();
-
-  /// Temporary compatibility stream for capability repositories.
-  late final Stream<String> capabilityInvalidations = entityChanges
-      .where((change) => change.kind == RealtimeEntityKind.capability)
-      .map((change) => change.aggregateId)
-      .asBroadcastStream();
 
   StreamSubscription<Map<String, dynamic>> _subscribe(
     Stream<Map<String, dynamic>> messages,
@@ -311,30 +279,6 @@ class InvalidationService implements RealtimeSyncPort {
     'delete' => RealtimeOperation.delete,
     _ => null,
   };
-
-  static BeaconRoomInvalidation? _toBeaconRoomInvalidation(
-    RealtimeEntityChange change,
-  ) {
-    final entityType = switch (change.kind) {
-      RealtimeEntityKind.roomMessage => BeaconRoomEntityType.roomMessage,
-      RealtimeEntityKind.roomReaction => BeaconRoomEntityType.roomReaction,
-      RealtimeEntityKind.roomPoll => BeaconRoomEntityType.roomPoll,
-      RealtimeEntityKind.participant => BeaconRoomEntityType.participant,
-      RealtimeEntityKind.factCard => BeaconRoomEntityType.factCard,
-      RealtimeEntityKind.blocker => BeaconRoomEntityType.blocker,
-      RealtimeEntityKind.activityEvent => BeaconRoomEntityType.activityEvent,
-      RealtimeEntityKind.coordinationItem =>
-        BeaconRoomEntityType.coordinationItem,
-      RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
-      _ => null,
-    };
-    return entityType == null
-        ? null
-        : BeaconRoomInvalidation(
-            beaconId: change.aggregateId,
-            entityType: entityType,
-          );
-  }
 
   /// WebSocket `jsonDecode` may retain JS-backed values; round-trip so payload
   /// values are plain Dart objects before closed-enum mapping.

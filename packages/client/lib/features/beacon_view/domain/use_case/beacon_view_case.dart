@@ -244,10 +244,6 @@ final class BeaconViewCase extends UseCaseBase {
       removeFromRoom: removeFromRoom,
     );
     _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
-    _beaconRoomCase.notifyLocalChange(
-      beaconId: beaconId,
-      entityType: BeaconRoomEntityType.participant,
-    );
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }
@@ -261,10 +257,6 @@ final class BeaconViewCase extends UseCaseBase {
       offerUserId: offerUserId,
     );
     _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
-    _beaconRoomCase.notifyLocalChange(
-      beaconId: beaconId,
-      entityType: BeaconRoomEntityType.participant,
-    );
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }
@@ -280,10 +272,6 @@ final class BeaconViewCase extends UseCaseBase {
       reason: reason,
     );
     _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
-    _beaconRoomCase.notifyLocalChange(
-      beaconId: beaconId,
-      entityType: BeaconRoomEntityType.participant,
-    );
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }
@@ -299,10 +287,6 @@ final class BeaconViewCase extends UseCaseBase {
       reason: reason,
     );
     _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
-    _beaconRoomCase.notifyLocalChange(
-      beaconId: beaconId,
-      entityType: BeaconRoomEntityType.participant,
-    );
     await _beaconRepository.refreshAndNotify(beaconId);
     return result;
   }

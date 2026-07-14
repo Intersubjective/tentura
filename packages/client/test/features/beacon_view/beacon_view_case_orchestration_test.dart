@@ -239,7 +239,7 @@ void main() {
     });
 
     test(
-      'setCoordinationResponse emits help, participant, and beacon refresh',
+      'setCoordinationResponse emits command effects and refreshes beacon',
       () async {
         final beacon = TrackingBeaconRepository();
         final forward = FakeBeaconViewForwardRepository();
@@ -279,18 +279,12 @@ void main() {
             'B-response',
           ),
         );
-        expect(room.localChanges, [
-          const BeaconRoomInvalidation(
-            beaconId: 'B-response',
-            entityType: BeaconRoomEntityType.participant,
-          ),
-        ]);
         expect(beacon.refreshAndNotifyCalls, ['B-response']);
       },
     );
 
     test(
-      'acceptHelpOffer emits help, participant, and beacon refresh',
+      'acceptHelpOffer emits command effects and refreshes beacon',
       () async {
         final beacon = TrackingBeaconRepository();
         final forward = FakeBeaconViewForwardRepository();
@@ -321,18 +315,12 @@ void main() {
             'B-accept',
           ),
         );
-        expect(room.localChanges, [
-          const BeaconRoomInvalidation(
-            beaconId: 'B-accept',
-            entityType: BeaconRoomEntityType.participant,
-          ),
-        ]);
         expect(beacon.refreshAndNotifyCalls, ['B-accept']);
       },
     );
 
     test(
-      'declineHelpOffer emits help, participant, and beacon refresh',
+      'declineHelpOffer emits command effects and refreshes beacon',
       () async {
         final beacon = TrackingBeaconRepository();
         final forward = FakeBeaconViewForwardRepository();
@@ -368,18 +356,12 @@ void main() {
             'B-decline',
           ),
         );
-        expect(room.localChanges, [
-          const BeaconRoomInvalidation(
-            beaconId: 'B-decline',
-            entityType: BeaconRoomEntityType.participant,
-          ),
-        ]);
         expect(beacon.refreshAndNotifyCalls, ['B-decline']);
       },
     );
 
     test(
-      'removeFromRoom emits help, participant, and beacon refresh',
+      'removeFromRoom emits command effects and refreshes beacon',
       () async {
         final beacon = TrackingBeaconRepository();
         final forward = FakeBeaconViewForwardRepository();
@@ -415,12 +397,6 @@ void main() {
             'B-remove',
           ),
         );
-        expect(room.localChanges, [
-          const BeaconRoomInvalidation(
-            beaconId: 'B-remove',
-            entityType: BeaconRoomEntityType.participant,
-          ),
-        ]);
         expect(beacon.refreshAndNotifyCalls, ['B-remove']);
       },
     );

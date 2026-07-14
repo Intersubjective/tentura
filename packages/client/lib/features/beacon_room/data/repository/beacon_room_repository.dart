@@ -6,9 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
-import 'package:tentura/features/beacon_room/domain/beacon_room_local_change_bus.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -18,6 +16,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
@@ -39,34 +38,30 @@ import '../gql/_g/room_poll_create.req.gql.dart';
 class BeaconRoomRepository {
   BeaconRoomRepository(
     this._remoteApiService,
-    this._localChangeBus,
-    InvalidationService invalidationService,
+    RealtimeSyncPort realtimeSync,
   ) {
-    _remoteRoomInvSub = invalidationService.beaconRoomInvalidations.listen(
-      _onRoomInvalidation,
-    );
-    _localRoomInvSub = _localChangeBus.changes.listen(_onRoomInvalidation);
+    _roomInvSub = realtimeSync.entityChanges
+        .map(BeaconRoomInvalidation.fromRealtimeChange)
+        .where((invalidation) => invalidation != null)
+        .cast<BeaconRoomInvalidation>()
+        .listen(_onRoomInvalidation);
   }
 
   static const _label = 'BeaconRoom';
 
   final RemoteApiService _remoteApiService;
 
-  final BeaconRoomLocalChangeBus _localChangeBus;
-
-  late final StreamSubscription<BeaconRoomInvalidation> _remoteRoomInvSub;
-
-  late final StreamSubscription<BeaconRoomInvalidation> _localRoomInvSub;
+  late final StreamSubscription<BeaconRoomInvalidation> _roomInvSub;
 
   final _roomRefreshController = StreamController<String>.broadcast();
 
   final _roomInvalidationController =
       StreamController<BeaconRoomInvalidation>.broadcast();
 
-  /// Beacon ids where room state changed remotely or through an own write.
+  /// Beacon ids whose authoritative room state changed.
   Stream<String> get beaconRoomRefresh => _roomRefreshController.stream;
 
-  /// Room invalidations from both the WebSocket path and confirmed local writes.
+  /// Room projection invalidations adapted from the shared realtime boundary.
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _roomInvalidationController.stream;
 
@@ -85,23 +80,6 @@ class BeaconRoomRepository {
         inv.entityType == BeaconRoomEntityType.roomSeen) {
       _roomRefreshController.add(inv.beaconId);
     }
-  }
-
-  void _notifyLocalChange(
-    String beaconId,
-    BeaconRoomEntityType entityType,
-  ) {
-    _localChangeBus.notifyBeaconChanged(
-      beaconId: beaconId,
-      entityType: entityType,
-    );
-  }
-
-  void notifyLocalChange({
-    required String beaconId,
-    required BeaconRoomEntityType entityType,
-  }) {
-    _notifyLocalChange(beaconId, entityType);
   }
 
   /// Parses V2 `reactorsJson`: `{ emoji: [{ id, title, hasPicture, imageId, blurHash, picHeight, picWidth }] }`.
@@ -327,9 +305,6 @@ class BeaconRoomRepository {
         .then(
           (r) => r.dataOrThrow(label: _label).RoomMessageMarkSemanticDone,
         );
-    if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
-    }
     return ok;
   }
 
@@ -400,7 +375,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
     final id = r.dataOrThrow(label: _label).RoomMessageCreate.id;
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
     return id;
   }
 
@@ -425,7 +399,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
   }
 
   Future<void> editMessage({
@@ -444,7 +417,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageEdit);
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
   }
 
   Future<void> deleteMessage({
@@ -461,7 +433,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageDelete);
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomMessage);
   }
 
   Future<Uint8List> downloadRoomAttachmentBytes(String attachmentId) =>
@@ -483,9 +454,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconParticipantOfferHelp);
-    if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.participant);
-    }
     return ok;
   }
 
@@ -503,9 +471,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconRoomAdmit);
-    if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.participant);
-    }
     return ok;
   }
 
@@ -523,9 +488,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconStewardPromote);
-    if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.participant);
-    }
     return ok;
   }
 
@@ -545,9 +507,6 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
-    if (ok) {
-      _notifyLocalChange(beaconId, BeaconRoomEntityType.roomReaction);
-    }
     return ok;
   }
 
@@ -573,13 +532,11 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
-    _notifyLocalChange(beaconId, BeaconRoomEntityType.roomPoll);
   }
 
   @disposeMethod
   Future<void> dispose() async {
-    await _remoteRoomInvSub.cancel();
-    await _localRoomInvSub.cancel();
+    await _roomInvSub.cancel();
     await _roomInvalidationController.close();
     await _roomRefreshController.close();
   }

@@ -6,11 +6,12 @@ import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/beacon_model.dart';
-import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import 'package:tentura/domain/entity/image_entity.dart';
 
@@ -31,18 +32,22 @@ import '../gql/_g/beacons_involved_with_author.req.gql.dart';
 class BeaconRepository {
   BeaconRepository(
     this._remoteApiService,
-    InvalidationService invalidationService,
+    RealtimeSyncPort realtimeSync,
   ) {
-    _invalidationSub = invalidationService.beaconInvalidations.listen(
-      (id) => _controller.add(
-        RepositoryEventInvalidate(Beacon.empty.copyWith(id: id)),
-      ),
-    );
+    _invalidationSub = realtimeSync.entityChanges
+        .where((change) => change.kind == RealtimeEntityKind.beacon)
+        .listen(
+          (change) => _controller.add(
+            RepositoryEventInvalidate(
+              Beacon.empty.copyWith(id: change.aggregateId),
+            ),
+          ),
+        );
   }
 
   final RemoteApiService _remoteApiService;
 
-  late final StreamSubscription<String> _invalidationSub;
+  late final StreamSubscription<RealtimeEntityChange> _invalidationSub;
 
   final _controller = StreamController<RepositoryEvent<Beacon>>.broadcast();
 
