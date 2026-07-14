@@ -827,7 +827,10 @@ void main() {
   );
 
   test('generic repository fetch adapter fails loudly', () async {
-    final remote = RemoteApiService(const Env());
+    final remote = RemoteApiService(
+      const Env(),
+      const WebSocketClientRealtimeSocketFactory(),
+    );
     final repository = InviteGenealogyRepository(
       remoteApiService: remote,
       log: Logger('InviteGenealogyRepositoryTest'),

@@ -8,6 +8,7 @@ import 'remote_api_client/auth_loss_classifier.dart';
 import 'remote_api_client/exception.dart';
 import 'remote_api_client/remote_api_client_web.dart';
 import 'remote_api_client/remote_api_client_ws.dart';
+import 'remote_api_client/realtime_socket.dart';
 
 export 'package:ferry/ferry.dart'
     show DataSource, FetchPolicy, OperationRequest, OperationResponse;
@@ -16,11 +17,13 @@ export 'package:web_socket_client/src/connection_state.dart';
 
 export 'remote_api_client/auth_link.dart' show AuthHeaderMode, HttpAuthHeaders;
 export 'remote_api_client/remote_api_client_base.dart';
+export 'remote_api_client/realtime_socket.dart';
+export 'remote_api_client/realtime_transport_status.dart';
 export 'package:tentura_root/domain/enums.dart' show WebSocketState;
 
 @singleton
 final class RemoteApiService extends RemoteApiClient with RemoteApiClientWs {
-  RemoteApiService(Env env)
+  RemoteApiService(Env env, this.realtimeSocketFactory)
     : wsPingInterval = env.wsPingInterval,
       wsEndpointUrl = kWsServerName + kPathWebSocketEndpoint,
       super(
@@ -36,6 +39,9 @@ final class RemoteApiService extends RemoteApiClient with RemoteApiClientWs {
 
   @override
   final Duration wsPingInterval;
+
+  @override
+  final RealtimeSocketFactory realtimeSocketFactory;
 
   @override
   @disposeMethod

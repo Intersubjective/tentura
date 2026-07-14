@@ -54,6 +54,7 @@ class AuthRemoteRepository extends RemoteRepository
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _repositoryKey).signUp);
+    await remoteApiService.bindRealtimeAccount(response.subject);
     return response.subject;
   }
 
@@ -82,6 +83,7 @@ class AuthRemoteRepository extends RemoteRepository
       }
       rethrow;
     }
+    await remoteApiService.bindRealtimeAccount(authToken.userId);
     return authToken.userId;
   }
 
@@ -91,6 +93,7 @@ class AuthRemoteRepository extends RemoteRepository
     await remoteApiService.setSessionAuth();
     try {
       final authToken = await remoteApiService.getAuthToken();
+      await remoteApiService.bindRealtimeAccount(authToken.userId);
       return authToken.userId;
     } on SessionHttpException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
