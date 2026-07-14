@@ -1,16 +1,8 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/repository/presence_repository.dart';
-import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
-
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
-import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
-import 'package:tentura/domain/contacts/contact_name_overlay.dart';
-import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
-import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -23,40 +15,28 @@ export 'friends_state.dart';
 @singleton
 class FriendsCubit extends Cubit<FriendsState> {
   FriendsCubit(
-    this._capabilityRepository,
-    this._invitationRepository,
-    this._likeRemoteRepository,
-    this._friendsRemoteRepository,
-    this._presenceRepository,
-    this._contactsCase,
-    AuthCase _authCase,
+    this._case,
     this._effects,
   ) : super(const FriendsState(friends: {})) {
-    _authChanges = _authCase.currentAccountChanges().listen(
+    _authChanges = _case.accountChanges.listen(
       _onAuthChanged,
       cancelOnError: false,
     );
-    _friendsChanges = _likeRemoteRepository.changes
-        .where((e) => e.value is Profile)
-        .map((e) => e.value as Profile)
-        .listen(_onFriendsChanged, cancelOnError: false);
-    _contactChanges = _contactsCase.changes.listen(
+    _friendsChanges = _case.localFriendChanges.listen(
+      _onFriendsChanged,
+      cancelOnError: false,
+    );
+    _contactChanges = _case.contactChanges.listen(
       (_) => _onContactNamesChanged(),
+      cancelOnError: false,
+    );
+    _projectionChanges = _case.projectionChanges.listen(
+      (_) => _scheduleSilentFetch(),
       cancelOnError: false,
     );
   }
 
-  final FriendsRemoteRepository _friendsRemoteRepository;
-
-  final CapabilityRepositoryPort _capabilityRepository;
-
-  final InvitationRepository _invitationRepository;
-
-  final LikeRemoteRepository _likeRemoteRepository;
-
-  final PresenceRepository _presenceRepository;
-
-  final ContactsCase _contactsCase;
+  final FriendsCase _case;
 
   final UiEffectPort _effects;
 
@@ -65,68 +45,81 @@ class FriendsCubit extends Cubit<FriendsState> {
   late final StreamSubscription<Profile> _friendsChanges;
 
   late final StreamSubscription<void> _contactChanges;
+  late final StreamSubscription<void> _projectionChanges;
+
+  static const _refreshDebounce = Duration(milliseconds: 100);
+  Timer? _refreshTimer;
+  int _fetchSequence = 0;
+  bool _hasLoaded = false;
 
   @override
   @disposeMethod
   Future<void> close() async {
+    _refreshTimer?.cancel();
+    _case.unwatchPresence();
     await _authChanges.cancel();
     await _friendsChanges.cancel();
     await _contactChanges.cancel();
+    await _projectionChanges.cancel();
     return super.close();
   }
 
-  Future<void> fetch() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
+  Future<void> fetch({
+    bool showLoading = true,
+    bool showError = true,
+  }) async {
+    final sequence = ++_fetchSequence;
+    if (showLoading) {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
     try {
-      await _contactsCase.refresh();
-      final friends = await _friendsRemoteRepository.fetch();
-      final friendsById = {for (final e in friends) e.id: e};
-      final friendContexts = await _capabilityRepository.fetchFriendContextsBatch(
-        subjectIds: friendsById.keys.toList(),
-      );
+      final snapshot = await _case.load();
+      if (isClosed || sequence != _fetchSequence) return;
       emit(
         FriendsState(
-          friends: friendsById,
-          friendContexts: friendContexts,
-          loadError: null,
+          friends: snapshot.friends,
+          friendContexts: snapshot.friendContexts,
         ),
       );
-      _presenceRepository.watch('friends', friendsById.keys.toSet());
+      _hasLoaded = true;
+      _case.watchPresence(snapshot.friends.keys.toSet());
     } catch (e) {
-      if (state.friends.isEmpty) {
+      if (isClosed || sequence != _fetchSequence) return;
+      if (!_hasLoaded) {
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
-      } else {
+      } else if (showError) {
         _effects.emit(ShowError(e));
         emit(state.copyWith(loadError: null, status: const StateIsSuccess()));
       }
     }
   }
 
-  Future<void> addFriend(Profile user) =>
-      _likeRemoteRepository.setLike(user, amount: 1);
+  Future<void> addFriend(Profile user) => _case.addFriend(user);
 
-  Future<void> removeFriend(Profile user) =>
-      _likeRemoteRepository.setLike(user, amount: 0);
+  Future<void> removeFriend(Profile user) => _case.removeFriend(user);
 
-  Future<void> acceptInvitation(String id) => _invitationRepository.accept(id);
+  Future<void> acceptInvitation(String id) => _case.acceptInvitation(id);
 
   void _onAuthChanged(String userId) {
-    _presenceRepository.unwatch('friends');
-    // ignore: prefer_const_constructors //
-    emit(FriendsState(friends: {}));
+    _refreshTimer?.cancel();
+    _case.unwatchPresence();
+    _fetchSequence++;
+    _hasLoaded = false;
+    emit(const FriendsState(friends: {}));
     if (userId.isNotEmpty) {
       unawaited(fetch());
     }
   }
 
   void _onFriendsChanged(Profile profile) {
-    emit(state.copyWith(status: StateStatus.isLoading));
+    final next = {...state.friends};
     if (profile.isFriend) {
-      state.friends[profile.id] = profile;
+      next[profile.id] = _case.applyContactOverlay(profile);
     } else {
-      state.friends.remove(profile.id);
+      next.remove(profile.id);
     }
-    unawaited(fetch());
+    emit(state.copyWith(friends: next));
+    _scheduleSilentFetch();
   }
 
   void _onContactNamesChanged() {
@@ -135,8 +128,19 @@ class FriendsCubit extends Cubit<FriendsState> {
     }
     final next = {
       for (final e in state.friends.entries)
-        e.key: profileWithContactOverlay(e.value),
+        e.key: _case.applyContactOverlay(e.value),
     };
     emit(state.copyWith(friends: next));
+  }
+
+  void _scheduleSilentFetch() {
+    if (isClosed) return;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(_refreshDebounce, () {
+      _refreshTimer = null;
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false, showError: false));
+      }
+    });
   }
 }
