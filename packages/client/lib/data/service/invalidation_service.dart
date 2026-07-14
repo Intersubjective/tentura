@@ -39,7 +39,9 @@ class InvalidationService implements RealtimeSyncPort {
             .listen(_onTransportStatus);
   }
 
-  static const _debounceWindow = Duration(milliseconds: 500);
+  // Leave enough room to collapse one transaction's trigger burst while
+  // preserving the 1.5 s end-to-end connected-delivery budget.
+  static const _debounceWindow = Duration(milliseconds: 100);
 
   late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
   late final StreamSubscription<RealtimeTransportStatus> _transportSubscription;

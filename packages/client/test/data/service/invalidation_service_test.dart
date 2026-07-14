@@ -80,10 +80,10 @@ void main() {
         for (var i = 0; i < 5; i++) {
           wsMessages.add(_entityChange(entity: 'beacon', id: 'beacon-1'));
         }
-        async.elapse(const Duration(milliseconds: 100));
+        async.elapse(const Duration(milliseconds: 50));
         expect(received, isEmpty);
 
-        async.elapse(const Duration(milliseconds: 500));
+        async.elapse(const Duration(milliseconds: 50));
         expect(received.map((change) => change.aggregateId), ['beacon-1']);
 
         unawaited(sub.cancel());

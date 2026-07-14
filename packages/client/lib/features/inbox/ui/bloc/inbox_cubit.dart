@@ -50,7 +50,7 @@ class InboxCubit extends Cubit<InboxState> {
     unawaited(fetch());
   }
 
-  static const _deskRelevantDebounce = Duration(milliseconds: 100);
+  static const _deskRelevantDebounce = Duration(milliseconds: 50);
 
   final String _userId;
   final InboxCase _inboxCase;
