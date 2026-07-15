@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -66,9 +68,9 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     if (index == prev) {
       // Reselecting the already-active tab jumps straight back to its root
       // page (e.g. the My Work list) instead of requiring repeated back-taps
-      // out of a pushed detail. `popUntilRoot` pops the branch's Navigator
-      // directly, bypassing any `PopScope.canPop=false` a pushed detail sets.
-      tabsRouter.stackRouterOfIndex(index)?.popUntilRoot();
+      // out of a pushed detail. A detail can itself be the branch stack root
+      // after a cold browser deep link, so `popUntilRoot` is insufficient.
+      unawaited(resetHomeTabBranchToRoot(tabsRouter, index));
       final reselect = context.read<HomeTabReselectCubit>();
       if (index == 0) {
         reselect.bumpMyWorkReselect();
@@ -245,6 +247,25 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             ),
     );
   }
+}
+
+@visibleForTesting
+Future<void> resetHomeTabBranchToRoot(TabsRouter tabsRouter, int index) {
+  final branch = tabsRouter.stackRouterOfIndex(index);
+  if (branch == null) return Future.value();
+
+  final rootRoute = switch (index) {
+    0 => const MyWorkRoute(),
+    1 => const InboxRoute(),
+    2 => FriendsRoute(),
+    3 => const ProfileRoute(),
+    _ => null,
+  };
+  if (rootRoute == null) return Future.value();
+
+  // Replacing the stack also bypasses PopScope and normalizes a cold
+  // deep-linked branch whose first (and only) page is a detail route.
+  return branch.replaceAll([rootRoute]);
 }
 
 /// Provides the account-scoped [InboxCubit] and keeps the **last** account's

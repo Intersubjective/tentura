@@ -14,6 +14,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
+import 'package:tentura/features/home/ui/screen/home_screen.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 class _FakeAuthCubit extends Fake implements AuthCubit {
@@ -284,6 +285,87 @@ void main() {
         expect(currentUrl(), '/home/work/beacon/view/B123?entry=my_work');
       },
     );
+
+    testWidgets(
+      'reselecting My Work resets a cold deep-linked detail to the list',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: '/home/work/beacon/view/B154f2638566a',
+          viaPlatform: true,
+        );
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final workBranch = tabsRouter?.stackRouterOfIndex(0);
+        expect(tabsRouter?.activeIndex, 0);
+        expect(workBranch?.stack.length, 1);
+        expect(workBranch?.stack.first.name, BeaconViewRoute.name);
+
+        await resetHomeTabBranchToRoot(tabsRouter!, 0);
+        await tester.pumpAndSettle();
+
+        expect(find.text('my-work-root'), findsOneWidget);
+        expect(currentUrl(), '/home/work');
+        expect(workBranch?.stack.length, 1);
+        expect(workBranch?.stack.first.name, MyWorkRoute.name);
+      },
+    );
+
+    for (final testCase in [
+      (
+        tabLabel: 'Inbox',
+        initialPath: '/home/inbox/notifications',
+        tabIndex: 1,
+        detailRouteName: NotificationCenterRoute.name,
+        rootRouteName: InboxRoute.name,
+        rootLabel: 'inbox-root',
+        rootPath: '/home/inbox',
+      ),
+      (
+        tabLabel: 'Network',
+        initialPath: '/home/network/graph/U2',
+        tabIndex: 2,
+        detailRouteName: GraphRoute.name,
+        rootRouteName: FriendsRoute.name,
+        rootLabel: 'friends-root',
+        rootPath: '/home/network',
+      ),
+      (
+        tabLabel: 'Profile',
+        initialPath: '/home/profile/profile/view/U2',
+        tabIndex: 3,
+        detailRouteName: ProfileViewRoute.name,
+        rootRouteName: ProfileRoute.name,
+        rootLabel: 'profile-root',
+        rootPath: '/home/profile',
+      ),
+    ]) {
+      testWidgets(
+        'reselecting ${testCase.tabLabel} resets a cold deep-linked detail '
+        'to the tab root',
+        (tester) async {
+          await pumpRouter(
+            tester,
+            initialPath: testCase.initialPath,
+            viaPlatform: true,
+          );
+
+          final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+          final branch = tabsRouter?.stackRouterOfIndex(testCase.tabIndex);
+          expect(tabsRouter?.activeIndex, testCase.tabIndex);
+          expect(branch?.stack.length, 1);
+          expect(branch?.stack.first.name, testCase.detailRouteName);
+
+          await resetHomeTabBranchToRoot(tabsRouter!, testCase.tabIndex);
+          await tester.pumpAndSettle();
+
+          expect(find.text(testCase.rootLabel), findsOneWidget);
+          expect(currentUrl(), testCase.rootPath);
+          expect(branch?.stack.length, 1);
+          expect(branch?.stack.first.name, testCase.rootRouteName);
+        },
+      );
+    }
 
     testWidgets(
       'keeps nested beacon view when auth bootstrap completes '
