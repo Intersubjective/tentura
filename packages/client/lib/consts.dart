@@ -133,6 +133,9 @@ Uri inviteShareUri(String invitationId) {
 /// (e.g. `http://localhost:2080`) since Flutter's dev server cannot proxy WS.
 const kWsServerName = String.fromEnvironment(
   'WS_SERVER_NAME',
+  // Static analysis sees kServerName as empty; configured builds do not.
+  // ignore: avoid_redundant_argument_values
+  defaultValue: kServerName,
 );
 
 /// First part of FQDN: `https://image.server.name`
