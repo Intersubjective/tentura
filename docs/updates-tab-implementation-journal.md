@@ -563,3 +563,20 @@ states. EN/RU strings are generated from the l10n ARBs.
 **Verification:** `flutter gen-l10n`, `dart run build_runner build -d`, scoped Updates
 analysis, and focused presenter-state test pass. T-11 remains responsible for branch
 registration and exact destination navigation; T-12 adds acknowledgement UI actions.
+
+## T-14 — Full-stack release proof
+
+The local multi-client runner now starts an attested server with
+`ATTENTION_V1_NEW_PRODUCERS_ENABLED=true`,
+`ATTENTION_V1_SHADOW_ENABLED=true`, and actor echo enabled, compiles web with
+`UPDATES_TAB_ENABLED=true`, and writes those gates to `release-gates.json`.
+The browser journey settles bootstrap-only attention, verifies the author badge moves
+from 0 to 1 after a helper offer, opens the Updates card to the People target, and
+verifies both author sessions converge to badge 0. The shell badge is sourced from the
+domain-owned attention summary and has a semantic identifier for the browser proof.
+
+**Release artifact:** `reports/realtime-multiclient/updates-t14-release-20260717-005719`.
+Five consecutive passes completed with negative live-delivery and catch-up proofs.
+P95s: Updates delivery 282 ms, Updates open-ack 16 ms, connected delivery 1409 ms,
+and reconnect catch-up 1714 ms. The enabled shadow telemetry recorded no unexplained
+`attention_event=shadow_mismatch` or `attention_event=shadow_failure` markers.

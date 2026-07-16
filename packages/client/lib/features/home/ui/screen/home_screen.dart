@@ -21,6 +21,7 @@ import '../widget/inbox_navbar_item.dart';
 import '../widget/inbox_needs_me_reporter.dart';
 import '../widget/my_work_navbar_item.dart';
 import '../widget/profile_navbar_item.dart';
+import '../widget/updates_navbar_item.dart';
 
 @RoutePage()
 class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -168,8 +169,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   ),
                   if (kUpdatesTabEnabled)
                     NavigationRailDestination(
-                      icon: const Icon(Icons.notifications_outlined),
-                      selectedIcon: const Icon(Icons.notifications),
+                      icon: const UpdatesNavbarItem(),
+                      selectedIcon: const UpdatesNavbarItem(selected: true),
                       label: Text(l10n.updatesTitle),
                     ),
                   NavigationRailDestination(
@@ -231,8 +232,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                 ),
                 if (kUpdatesTabEnabled)
                   NavigationDestination(
-                    icon: const Icon(Icons.notifications_outlined),
-                    selectedIcon: const Icon(Icons.notifications),
+                    icon: const UpdatesNavbarItem(),
+                    selectedIcon: const UpdatesNavbarItem(selected: true),
                     label: l10n.updatesTitle,
                   ),
                 NavigationDestination(

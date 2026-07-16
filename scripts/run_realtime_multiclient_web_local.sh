@@ -47,6 +47,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# T-14 must prove the exact gated release configuration. A pre-existing API
+# cannot be attested because its inherited environment is not part of this run.
+if curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
+  die "port 2080 already serves an API; stop it so this run can verify its QA gates"
+fi
+
 if ! curl -sf -m 3 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
   log "starting docker compose infrastructure"
   (cd "$ROOT" && docker compose up -d)
@@ -57,17 +63,35 @@ if ! curl -sf -m 3 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
 fi
 curl -sf -m 2 http://127.0.0.1:8080/healthz >/dev/null || die "Hasura did not become healthy"
 
-if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
-  log "starting Tentura server"
-  REALTIME_ACTOR_ECHO_ENABLED=true \
-    nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
-  STARTED_SERVER=$!
-  for _ in $(seq 1 90); do
-    curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null 2>&1 && break
-    sleep 2
-  done
-fi
+log "starting Tentura server with Updates QA gates enabled"
+REALTIME_ACTOR_ECHO_ENABLED=true \
+ATTENTION_V1_NEW_PRODUCERS_ENABLED=true \
+ATTENTION_V1_SHADOW_ENABLED=true \
+  nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
+STARTED_SERVER=$!
+for _ in $(seq 1 90); do
+  curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null 2>&1 && break
+  sleep 2
+done
 curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null || die "Tentura server did not become healthy"
+
+jq -n \
+  --arg session_id "$SESSION_ID" \
+  --arg git_revision "$(git -C "$ROOT" rev-parse HEAD)" \
+  --argjson runs "$RUNS" \
+  --argjson negative_proofs "$NEGATIVE_PROOFS" \
+  '{
+    session_id: $session_id,
+    git_revision: $git_revision,
+    realtime_multiclient_runs: $runs,
+    negative_proofs: $negative_proofs,
+    client: {UPDATES_TAB_ENABLED: true},
+    server: {
+      ATTENTION_V1_NEW_PRODUCERS_ENABLED: true,
+      ATTENTION_V1_SHADOW_ENABLED: true,
+      REALTIME_ACTOR_ECHO_ENABLED: true
+    }
+  }' >"$ARTIFACT_ROOT/release-gates.json"
 
 SMOKE_JSON="$(curl -sf -m 15 http://127.0.0.1:2080/_qa/integration/bootstrap \
   -H "Authorization: Bearer $QA_AUTH_TOKEN" \
@@ -116,6 +140,7 @@ log "starting one Flutter web dev server"
     --web-hostname=localhost \
     --web-port="$WEB_PORT" \
     --dart-define-from-file=env/local-web.env \
+    --dart-define=UPDATES_TAB_ENABLED=true \
     --dart-define=WS_SERVER_NAME=https://dev.lvh.me:9443
 ) >"$WEB_LOG" 2>&1 &
 STARTED_WEB=$!

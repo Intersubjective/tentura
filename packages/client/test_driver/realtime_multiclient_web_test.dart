@@ -34,19 +34,23 @@ Future<void> main() async {
   final timings = <String, int>{};
   final fixture = await _bootstrap(qaToken, runId);
   BrowserSession? author;
+  BrowserSession? authorPeer;
   BrowserSession? helper;
   BrowserSession? helperPeer;
   Object? failure;
   StackTrace? failureStack;
   try {
     author = await BrowserSession.start('author', artifactDir);
+    authorPeer = await BrowserSession.start('author-peer', artifactDir);
     helper = await BrowserSession.start('helper', artifactDir);
     helperPeer = await BrowserSession.start('helper-peer', artifactDir);
     await Future.wait([
       author.login(fixture.authorEmail),
+      authorPeer.login(fixture.authorEmail),
       helper.login(fixture.helperEmail),
       helperPeer.login(fixture.helperEmail),
     ]);
+    await _clearAuthorAttentionBaseline(author, authorPeer);
     if (disabledPath == 'live') {
       final suspended = await _controlSocket(
         qaToken,
@@ -60,6 +64,7 @@ Future<void> main() async {
     }
     await _runJourney(
       author: author,
+      authorPeer: authorPeer,
       helper: helper,
       helperPeer: helperPeer,
       fixture: fixture,
@@ -67,12 +72,18 @@ Future<void> main() async {
       timings: timings,
       disabledPath: disabledPath,
     );
-    await _assertNoUncaughtFlutterErrors([author, helper, helperPeer]);
+    await _assertNoUncaughtFlutterErrors([
+      author,
+      authorPeer,
+      helper,
+      helperPeer,
+    ]);
   } catch (error, stackTrace) {
     failure = error;
     failureStack = stackTrace;
     await Future.wait([
       if (author != null) author.captureFailure(),
+      if (authorPeer != null) authorPeer.captureFailure(),
       if (helper != null) helper.captureFailure(),
       if (helperPeer != null) helperPeer.captureFailure(),
     ]);
@@ -84,6 +95,7 @@ Future<void> main() async {
     );
     await Future.wait([
       if (author != null) author.finish(),
+      if (authorPeer != null) authorPeer.finish(),
       if (helper != null) helper.finish(),
       if (helperPeer != null) helperPeer.finish(),
     ]);
@@ -102,6 +114,7 @@ Future<void> main() async {
 
 Future<void> _runJourney({
   required BrowserSession author,
+  required BrowserSession authorPeer,
   required BrowserSession helper,
   required BrowserSession helperPeer,
   required Fixture fixture,
@@ -147,17 +160,47 @@ Future<void> _runJourney({
   );
   final beaconId = _beaconIdFromUrl(await author.driver.currentUrl);
   await author.clickTestId('beacon.tab.people');
+  await authorPeer.open('/home/updates');
+  await authorPeer.waitForText('Updates');
 
   // 2. Helper offers help; the already-mounted People projection converges.
   await helper.clickTestId('inbox.offer_help');
   await helper.setTestId('help_offer.search', 'software');
   await helper.clickTestId('capability.software');
   await helper.clickTestId('help_offer.submit');
-  timings['people_delivery_ms'] = await _measureUntil(
-    () async =>
-        await author.hasTestId('help_offer.${fixture.helperUserId}.accept') ||
-        await author.hasTestId('help_offer.${fixture.helperUserId}.remove'),
+  timings['updates_delivery_ms'] = await _measureUntil(
+    () => authorPeer.hasTestId('updates-unread-count-1'),
     timeout: const Duration(seconds: 5),
+  );
+
+  // 2a. The enabled Updates slice receives exactly one offer receipt in both
+  // author sessions. Opening the card must mark it seen before navigating to
+  // the exact People target, then converge its unread badge to zero everywhere.
+  await author.open('/home/updates');
+  await author.waitForText('Updates');
+  await Future.wait([
+    author.waitForText('offered help'),
+    authorPeer.waitForText('offered help'),
+    author.waitForTestId('updates-unread-count-1'),
+    authorPeer.waitForTestId('updates-unread-count-1'),
+  ]);
+  _require(
+    await authorPeer.textCount('offered help') == 1,
+    'Offer produced duplicate Updates cards',
+  );
+  await author.clickText('offered help');
+  await _waitUntil(
+    () async =>
+        (await author.driver.currentUrl).contains('/beacon/view/$beaconId'),
+  );
+  await author.waitForText('People');
+  await author.open('/home/updates');
+  await author.waitForText('Updates');
+  timings['updates_open_ack_ms'] = await _measureUntil(
+    () async =>
+        await author.hasTestId('updates-unread-count-0') &&
+        await authorPeer.hasTestId('updates-unread-count-0'),
+    timeout: const Duration(seconds: 3),
   );
 
   // 3. Both Chat views stay mounted. First prove the established error UI,
@@ -292,6 +335,30 @@ Future<void> _runJourney({
       '${entry.key}=${entry.value}ms exceeded ${budgetMs}ms',
     );
   }
+}
+
+Future<void> _clearAuthorAttentionBaseline(
+  BrowserSession author,
+  BrowserSession authorPeer,
+) async {
+  // QA bootstrap establishes a reciprocal connection. With the new-producer
+  // gate enabled that setup event is a valid receipt, but not part of the
+  // offer-help release journey, so settle it through the actual Updates UI.
+  await Future.wait([
+    author.open('/home/updates'),
+    authorPeer.open('/home/updates'),
+  ]);
+  await Future.wait([
+    author.waitForText('Updates'),
+    authorPeer.waitForText('Updates'),
+  ]);
+  await author.clickText('Mark all seen');
+  await _waitUntil(
+    () async =>
+        await author.hasTestId('updates-unread-count-0') &&
+        await authorPeer.hasTestId('updates-unread-count-0'),
+    timeout: const Duration(seconds: 5),
+  );
 }
 
 String _beaconIdFromUrl(String rawUrl) {
