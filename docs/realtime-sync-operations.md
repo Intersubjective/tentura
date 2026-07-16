@@ -121,6 +121,24 @@ must fail when live delivery/catch-up is deliberately disabled. It keeps failure
 screenshots, browser console, server log, and timing artifacts; successful runs
 do not retain screenshots.
 
+## Updates T-07 Budget Evidence
+
+The server migration proof in
+`packages/server/test/data/database/realtime_notification_migration_test.dart`
+acknowledges 1, 50, and 500 `notification_outbox` rows in separate SQL statements.
+Each statement emits exactly one account-scoped `notification` envelope. This prevents
+the old row-trigger fan-out during bulk acknowledgement.
+
+`ATTENTION_V1_SHADOW_ENABLED=true` enables transition-only server telemetry for legacy
+Notification Center reads. It compares the same guarded legacy page against the
+authorized attention page, reports expected `authorization`, `new_class`, and `mute`
+deltas separately, and emits `attention_event=shadow_mismatch` only for unexplained or
+dual-read-axis divergence. Logs contain aggregate counts only.
+
+The client half of the budget, at most one in-flight attention refresh plus one queued
+rerun per open client, is implemented and measured with the `AttentionCase` in T-08.
+Do not treat the PG-only result as client convergence proof.
+
 ## Incident triage
 
 1. Confirm the HTTP mutation committed and identify its canonical wire kind in
