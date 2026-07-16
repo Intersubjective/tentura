@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "pendingProducerEventTypes": [],
+  "eventTypes": [
+    {
+      "eventType": "relayReceived",
+      "producer": "ForwardCase.forward",
+      "recipientCategory": "forward_recipients",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_case_test.dart"
+    },
+    {
+      "eventType": "helpOfferSubmitted",
+      "producer": "HelpOfferCase.offerHelp",
+      "recipientCategory": "author_and_stewards",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "mandatory_or_standard",
+      "coveringTest": "packages/server/test/domain/use_case/help_offer_case_test.dart"
+    },
+    {
+      "eventType": "offerAccepted",
+      "producer": "CoordinationCase.acceptHelpOffer",
+      "recipientCategory": "affected_helper",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+    },
+    {
+      "eventType": "offerDeclined",
+      "producer": "CoordinationCase.declineHelpOffer",
+      "recipientCategory": "affected_helper",
+      "destinationFamily": "beacon_people_or_safe_terminal",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+    },
+    {
+      "eventType": "offerRemoved",
+      "producer": "CoordinationCase.removeFromRoom",
+      "recipientCategory": "affected_helper",
+      "destinationFamily": "beacon_people_or_safe_terminal",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+    },
+    {
+      "eventType": "roomMessagePosted",
+      "producer": "BeaconRoomCase.createMessage",
+      "recipientCategory": "directed_chat_target",
+      "destinationFamily": "beacon_room_message",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_case_message_mutations_test.dart"
+    },
+    {
+      "eventType": "requestStatusChanged",
+      "producer": "BeaconCase|CoordinationCase|EvaluationCase|AttentionExpirySweepCase",
+      "recipientCategory": "active_participants_and_inbox_stance_holders",
+      "destinationFamily": "beacon",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
+    },
+    {
+      "eventType": "reviewOpened",
+      "producer": "EvaluationCase.beaconClose",
+      "recipientCategory": "admitted_participants",
+      "destinationFamily": "review",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+    },
+    {
+      "eventType": "mutualConnectionFormed",
+      "producer": "UserTrustEdgeCase.setUserVote",
+      "recipientCategory": "reciprocal_counterpart",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
+    },
+    {
+      "eventType": "inviteAccepted",
+      "producer": "AuthCase.signUp(invite)|AuthCase.signUpWithInvite|CredentialAuthCase.resolveOrCreate(invite)|InvitationCase.accept|InvitationCase.acceptAsExisting(non-Beacon relationship-forming path)",
+      "recipientCategory": "inviter",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/invitation_case_test.dart"
+    }
+  ]
+}
