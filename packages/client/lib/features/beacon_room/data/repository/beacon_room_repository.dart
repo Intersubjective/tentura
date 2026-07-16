@@ -32,6 +32,8 @@ import '../gql/_g/room_message_delete.req.gql.dart';
 import '../gql/_g/room_message_edit.req.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
+import '../gql/_g/room_message_target.req.gql.dart';
+import '../gql/_g/room_message_target.data.gql.dart';
 import '../gql/_g/room_poll_create.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -166,77 +168,215 @@ class BeaconRoomRepository {
           DateTime.parse(b.createdAt),
         ),
       );
-    return sorted.map(
-      (m) {
-        final reactionCounts = <String, int>{};
-        final rawJson = m.reactionsJson;
-        if (rawJson != null && rawJson.isNotEmpty) {
-          final decoded = jsonDecode(rawJson);
-          if (decoded is Map) {
-            for (final e in decoded.entries) {
-              final k = e.key;
-              final v = e.value;
-              if (k is String && v is num) {
-                reactionCounts[k] = v.toInt();
-              }
-            }
+    return sorted
+        .map(
+          (m) => _toRoomMessageFields(
+            id: m.id,
+            beaconId: m.beaconId,
+            authorId: m.authorId,
+            body: m.body,
+            createdAt: m.createdAt,
+            editedAt: m.editedAt,
+            authorTitle: m.authorTitle,
+            authorHasPicture: m.authorHasPicture,
+            authorImageId: m.authorImageId,
+            authorBlurHash: m.authorBlurHash,
+            authorPicHeight: m.authorPicHeight,
+            authorPicWidth: m.authorPicWidth,
+            reactionsJson: m.reactionsJson,
+            myReaction: m.myReaction,
+            reactorsJson: m.reactorsJson,
+            semanticMarker: m.semanticMarker,
+            linkedBlockerId: m.linkedBlockerId,
+            linkedFactCardId: m.linkedFactCardId,
+            linkedPollingId: m.linkedPollingId,
+            linkedItemId: m.linkedItemId,
+            linkedEventKind: m.linkedEventKind,
+            linkedItemKind: m.linkedItemKind,
+            linkedItemStatus: m.linkedItemStatus,
+            linkedItemTitle: m.linkedItemTitle,
+            linkedItemBody: m.linkedItemBody,
+            linkedItemCreatorId: m.linkedItemCreatorId,
+            linkedItemTargetPersonId: m.linkedItemTargetPersonId,
+            linkedItemCreatedAt: m.linkedItemCreatedAt,
+            linkedItemUpdatedAt: m.linkedItemUpdatedAt,
+            linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
+            linkedItemResolvedAt: m.linkedItemResolvedAt,
+            pollDataJson: m.pollDataJson,
+            systemPayloadJson: m.systemPayloadJson,
+            attachmentsJson: m.attachmentsJson,
+            mentions: m.mentions.toList(),
+            threadItemId: m.threadItemId,
+          ),
+        )
+        .toList();
+  }
+
+  /// This V2 query performs the server-side room/thread authorization check.
+  /// A null result is deliberately not substituted with an arbitrary message.
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GRoomMessageTargetReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..messageId = messageId,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final target = r.dataOrThrow(label: _label).roomMessageTarget;
+    return target == null ? null : _toRoomMessageTarget(target);
+  }
+
+  static RoomMessage _toRoomMessageTarget(
+    GRoomMessageTargetData_roomMessageTarget m,
+  ) => _toRoomMessageFields(
+    id: m.id,
+    beaconId: m.beaconId,
+    authorId: m.authorId,
+    body: m.body,
+    createdAt: m.createdAt,
+    editedAt: m.editedAt,
+    authorTitle: m.authorTitle,
+    authorHasPicture: m.authorHasPicture,
+    authorImageId: m.authorImageId,
+    authorBlurHash: m.authorBlurHash,
+    authorPicHeight: m.authorPicHeight,
+    authorPicWidth: m.authorPicWidth,
+    reactionsJson: m.reactionsJson,
+    myReaction: m.myReaction,
+    reactorsJson: m.reactorsJson,
+    semanticMarker: m.semanticMarker,
+    linkedBlockerId: m.linkedBlockerId,
+    linkedFactCardId: m.linkedFactCardId,
+    linkedPollingId: m.linkedPollingId,
+    linkedItemId: m.linkedItemId,
+    linkedEventKind: m.linkedEventKind,
+    linkedItemKind: m.linkedItemKind,
+    linkedItemStatus: m.linkedItemStatus,
+    linkedItemTitle: m.linkedItemTitle,
+    linkedItemBody: m.linkedItemBody,
+    linkedItemCreatorId: m.linkedItemCreatorId,
+    linkedItemTargetPersonId: m.linkedItemTargetPersonId,
+    linkedItemCreatedAt: m.linkedItemCreatedAt,
+    linkedItemUpdatedAt: m.linkedItemUpdatedAt,
+    linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
+    linkedItemResolvedAt: m.linkedItemResolvedAt,
+    pollDataJson: m.pollDataJson,
+    systemPayloadJson: m.systemPayloadJson,
+    attachmentsJson: m.attachmentsJson,
+    mentions: m.mentions.toList(),
+    threadItemId: m.threadItemId,
+  );
+
+  static RoomMessage _toRoomMessageFields({
+    required String id,
+    required String beaconId,
+    required String authorId,
+    required String body,
+    required String createdAt,
+    required String? editedAt,
+    required String authorTitle,
+    required bool authorHasPicture,
+    required String authorImageId,
+    required String authorBlurHash,
+    required int authorPicHeight,
+    required int authorPicWidth,
+    required String? reactionsJson,
+    required String? myReaction,
+    required String? reactorsJson,
+    required int? semanticMarker,
+    required String? linkedBlockerId,
+    required String? linkedFactCardId,
+    required String? linkedPollingId,
+    required String? linkedItemId,
+    required int? linkedEventKind,
+    required int? linkedItemKind,
+    required int? linkedItemStatus,
+    required String? linkedItemTitle,
+    required String? linkedItemBody,
+    required String? linkedItemCreatorId,
+    required String? linkedItemTargetPersonId,
+    required String? linkedItemCreatedAt,
+    required String? linkedItemUpdatedAt,
+    required String? linkedItemLinkedMessageId,
+    required String? linkedItemResolvedAt,
+    required String? pollDataJson,
+    required String? systemPayloadJson,
+    required String attachmentsJson,
+    required List<String> mentions,
+    required String? threadItemId,
+  }) {
+    final reactionCounts = <String, int>{};
+    final rawJson = reactionsJson;
+    if (rawJson != null && rawJson.isNotEmpty) {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is Map) {
+        for (final e in decoded.entries) {
+          final k = e.key;
+          final v = e.value;
+          if (k is String && v is num) {
+            reactionCounts[k] = v.toInt();
           }
         }
-        final author = Profile(
-          id: m.authorId,
-          displayName: m.authorTitle,
-          contactName: contactNameOf(m.authorId),
-          image: m.authorHasPicture && m.authorImageId.isNotEmpty
-              ? ImageEntity(
-                  id: m.authorImageId,
-                  authorId: m.authorId,
-                  blurHash: m.authorBlurHash,
-                  height: m.authorPicHeight,
-                  width: m.authorPicWidth,
-                )
-              : null,
-        );
-        return RoomMessage(
-          id: m.id,
-          beaconId: m.beaconId,
-          authorId: m.authorId,
-          body: m.body,
-          createdAt: DateTime.parse(m.createdAt),
-          editedAt: m.editedAt != null ? DateTime.parse(m.editedAt!) : null,
-          author: author,
-          reactionCounts: reactionCounts,
-          myReaction: m.myReaction,
-          reactors: BeaconRoomRepository.parseReactorsJson(m.reactorsJson),
-          semanticMarker: m.semanticMarker,
-          linkedBlockerId: m.linkedBlockerId,
-          linkedFactCardId: m.linkedFactCardId,
-          linkedPollingId: m.linkedPollingId,
-          linkedItemId: m.linkedItemId,
-          linkedEventKind: m.linkedEventKind,
-          linkedItemKind: m.linkedItemKind,
-          linkedItemStatus: m.linkedItemStatus,
-          linkedItemTitle: m.linkedItemTitle,
-          linkedItemBody: m.linkedItemBody,
-          linkedItemCreatorId: m.linkedItemCreatorId,
-          linkedItemTargetPersonId: m.linkedItemTargetPersonId,
-          linkedItemCreatedAt: m.linkedItemCreatedAt != null
-              ? DateTime.parse(m.linkedItemCreatedAt!)
-              : null,
-          linkedItemUpdatedAt: m.linkedItemUpdatedAt != null
-              ? DateTime.parse(m.linkedItemUpdatedAt!)
-              : null,
-          linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
-          linkedItemResolvedAt: m.linkedItemResolvedAt != null
-              ? DateTime.parse(m.linkedItemResolvedAt!)
-              : null,
-          pollDataJson: m.pollDataJson,
-          systemPayloadJson: m.systemPayloadJson,
-          attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
-          mentions: m.mentions.toList(),
-          threadItemId: m.threadItemId,
-        );
-      },
-    ).toList();
+      }
+    }
+    final author = Profile(
+      id: authorId,
+      displayName: authorTitle,
+      contactName: contactNameOf(authorId),
+      image: authorHasPicture && authorImageId.isNotEmpty
+          ? ImageEntity(
+              id: authorImageId,
+              authorId: authorId,
+              blurHash: authorBlurHash,
+              height: authorPicHeight,
+              width: authorPicWidth,
+            )
+          : null,
+    );
+    return RoomMessage(
+      id: id,
+      beaconId: beaconId,
+      authorId: authorId,
+      body: body,
+      createdAt: DateTime.parse(createdAt),
+      editedAt: editedAt != null ? DateTime.parse(editedAt) : null,
+      author: author,
+      reactionCounts: reactionCounts,
+      myReaction: myReaction,
+      reactors: BeaconRoomRepository.parseReactorsJson(reactorsJson),
+      semanticMarker: semanticMarker,
+      linkedBlockerId: linkedBlockerId,
+      linkedFactCardId: linkedFactCardId,
+      linkedPollingId: linkedPollingId,
+      linkedItemId: linkedItemId,
+      linkedEventKind: linkedEventKind,
+      linkedItemKind: linkedItemKind,
+      linkedItemStatus: linkedItemStatus,
+      linkedItemTitle: linkedItemTitle,
+      linkedItemBody: linkedItemBody,
+      linkedItemCreatorId: linkedItemCreatorId,
+      linkedItemTargetPersonId: linkedItemTargetPersonId,
+      linkedItemCreatedAt: linkedItemCreatedAt != null
+          ? DateTime.parse(linkedItemCreatedAt)
+          : null,
+      linkedItemUpdatedAt: linkedItemUpdatedAt != null
+          ? DateTime.parse(linkedItemUpdatedAt)
+          : null,
+      linkedItemLinkedMessageId: linkedItemLinkedMessageId,
+      linkedItemResolvedAt: linkedItemResolvedAt != null
+          ? DateTime.parse(linkedItemResolvedAt)
+          : null,
+      pollDataJson: pollDataJson,
+      systemPayloadJson: systemPayloadJson,
+      attachments: parseRoomMessageAttachmentsJson(attachmentsJson),
+      mentions: mentions,
+      threadItemId: threadItemId,
+    );
   }
 
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {

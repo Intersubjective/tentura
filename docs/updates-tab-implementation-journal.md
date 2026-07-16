@@ -5,6 +5,21 @@ It is the context-reset source used before each plan task: read the named task, 
 journal's current task entry, and the live worktree; do not rely on prior task detail
 unless this journal identifies it as a prerequisite.
 
+## Context reset — T-11
+
+**Resolution:** added the default-off fifth Home branch in the required order, with
+Updates at index 2 and Network/Profile shifting only when the compile-time flag is
+enabled. `openFromUpdate` resolves the typed attention destination table and directs
+Update-origin navigation into the mounted Updates branch without changing legacy
+notification behavior. Directed Chat uses `message` separately from coordination
+`item`; `BeaconViewScreen` passes it to `RoomCubit`, which requests the bounded,
+server-authorized `roomMessageTarget` when the target is outside the initial page and
+then uses the existing scroll path.
+
+**Verification:** `dart run build_runner build -d`; focused router, destination-map,
+Home-tab, and notification deep-link tests pass with Updates both disabled and enabled;
+scoped analyzer has no errors; formatting and `git diff --check` pass.
+
 ## Scope and task ledger
 
 | Task | Status | Evidence / blocker |
@@ -21,7 +36,8 @@ unless this journal identifies it as a prerequisite.
 | T-08 | Complete | Shared application slice, lazy default-off gate, V2 adapter, contract impacts, and focused refresh/account/ack/boundary tests pass. |
 | T-09 | Complete | `HomeTabSpec` now owns the four existing tab mappings; focused router/Home/New Stuff tests and scoped analysis pass. |
 | T-10 | Complete | Flagged, route-free Updates presenter with feed views, pagination, refresh, scroll retention, and EN/RU copy; focused verification passes. |
-| T-11–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-11 | Complete | Flagged fifth branch, typed destination map, Updates-origin branch selection, and exact directed-Chat target hydration pass focused flag-off and flag-on router tests. |
+| T-12–T-15 | Blocked on predecessor | No acceptance claim yet. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16

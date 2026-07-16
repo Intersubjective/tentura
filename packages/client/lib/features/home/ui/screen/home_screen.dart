@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -165,6 +166,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                     ),
                     label: Text(l10n.inbox),
                   ),
+                  if (kUpdatesTabEnabled)
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.notifications_outlined),
+                      selectedIcon: const Icon(Icons.notifications),
+                      label: Text(l10n.updatesTitle),
+                    ),
                   NavigationRailDestination(
                     icon: const FriendsNavbarItem(),
                     selectedIcon: const FriendsNavbarItem(
@@ -222,6 +229,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   selectedIcon: const InboxNavbarItem(selected: true),
                   label: l10n.inbox,
                 ),
+                if (kUpdatesTabEnabled)
+                  NavigationDestination(
+                    icon: const Icon(Icons.notifications_outlined),
+                    selectedIcon: const Icon(Icons.notifications),
+                    label: l10n.updatesTitle,
+                  ),
                 NavigationDestination(
                   icon: const FriendsNavbarItem(),
                   selectedIcon: const FriendsNavbarItem(

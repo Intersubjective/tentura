@@ -18,6 +18,6 @@ class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
     HomeTab.work => emit(
       state.copyWith(myWorkReselectCount: state.myWorkReselectCount + 1),
     ),
-    HomeTab.network || HomeTab.me => null,
+    HomeTab.updates || HomeTab.network || HomeTab.me => null,
   };
 }

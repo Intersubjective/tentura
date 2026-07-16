@@ -114,6 +114,12 @@ final class BeaconRoomCase extends UseCaseBase {
     threadItemId: threadItemId,
   );
 
+  /// Returns the exact target only when the server authorizes this viewer.
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) => _room.fetchMessageTarget(beaconId: beaconId, messageId: messageId);
+
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
 

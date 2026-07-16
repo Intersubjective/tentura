@@ -127,6 +127,7 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconSurface) this.surface,
     @QueryParam(kQueryBeaconEntry) this.entry,
     @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
+    @QueryParam(kQueryMessageId) this.messageId,
     super.key,
   });
 
@@ -148,6 +149,10 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Open room focused on this coordination item (notification deep link).
   final String? coordinationItemId;
+
+  /// Exact Chat message target from an Updates receipt. This is intentionally
+  /// distinct from [coordinationItemId], which identifies an item thread.
+  final String? messageId;
 
   @override
   Widget wrappedRoute(_) => localScreenCubitScope(
@@ -456,6 +461,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       );
       return;
     }
+    final messageId = widget.messageId?.trim();
+    if (messageId != null && messageId.isNotEmpty) {
+      c.prepareThreadScroll(messageId: messageId);
+      return;
+    }
     final itemId = widget.coordinationItemId?.trim();
     if (itemId != null && itemId.isNotEmpty) {
       c.prepareThreadScroll(coordinationItemId: itemId);
@@ -482,6 +492,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       widget.surface ?? '',
       widget.entry ?? '',
       widget.coordinationItemId ?? '',
+      widget.messageId ?? '',
     ].join('|');
     if (_splitRoomRouteFocusKey == focusKey) return;
     _splitRoomRouteFocusKey = focusKey;
@@ -569,10 +580,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _activateExpandedRoomSplit(fromRoute: roomRequested);
       } else if (roomRequested && s.canNavigateBeaconRoom) {
         _ensureEmbeddedRoomCubit();
-        final itemId = widget.coordinationItemId?.trim();
-        if (itemId != null && itemId.isNotEmpty) {
-          _roomCubit!.prepareThreadScroll(coordinationItemId: itemId);
-        }
+        _prepareRoomPaneScroll();
       }
     });
   }
@@ -1176,7 +1184,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   roomCubit: null,
                                   onItemsTabRefresh: _refreshItemsTab,
                                   onAuthorManageStatus: () async {
-                                    await beaconViewCubit.refreshReviewWindowInfo();
+                                    await beaconViewCubit
+                                        .refreshReviewWindowInfo();
                                     if (!context.mounted) return;
                                     await showBeaconViewUpdateStatusSheet(
                                       context,

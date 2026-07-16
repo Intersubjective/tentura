@@ -60,7 +60,7 @@ class _HomeBottomNavListenerState extends State<HomeBottomNavListener> {
         unawaited(cubit.markMyWorkTabSeen());
       case HomeTab.inbox:
         unawaited(cubit.markInboxTabSeen());
-      case HomeTab.network || HomeTab.me:
+      case HomeTab.updates || HomeTab.network || HomeTab.me:
         break;
     }
     cubit.setActiveHomeTab(newTab);

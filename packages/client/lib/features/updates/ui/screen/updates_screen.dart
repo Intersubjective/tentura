@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/env.dart';
@@ -10,7 +13,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 
-/// Flagged presenter. T-11 owns route and Home-branch registration.
+@RoutePage()
+/// Flagged presenter. T-11 owns Home-branch registration.
 class UpdatesScreen extends StatelessWidget {
   const UpdatesScreen({super.key});
 
@@ -125,6 +129,7 @@ class _UpdatesCard extends StatelessWidget {
     return Semantics(
       label: receipt.title,
       child: ListTile(
+        onTap: () => GetIt.I<RootRouter>().openFromUpdate(receipt),
         contentPadding: tt.cardPadding,
         leading: Icon(
           _iconFor(receipt.kind),

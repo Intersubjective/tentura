@@ -36,6 +36,8 @@ const kQueryCredentialLinked = 'linked';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
+const kPathUpdates = '/home/updates';
+const kUpdatesTabEnabled = bool.fromEnvironment('UPDATES_TAB_ENABLED');
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
 const kPathDebugSettings = '/settings/debug';
@@ -94,6 +96,10 @@ const kBeaconSurfaceStatusQueryValue = 'status';
 
 /// Coordination item to focus when opening room from a notification deep link.
 const kQueryCoordinationItemId = 'item';
+
+/// Exact directed Chat message to hydrate and scroll to from an Updates receipt.
+/// This must never be used as a coordination-item identifier.
+const kQueryMessageId = 'message';
 
 /// [kQueryBeaconEntry] string values (snake_case).
 const kBeaconEntryMyWork = 'my_work';

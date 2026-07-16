@@ -172,6 +172,11 @@ class RoomCubit extends Cubit<RoomState> {
     _pendingThreadItemId = _trimOrNull(coordinationItemId);
     if (state.messages.isNotEmpty &&
         (_pendingThreadMessageId != null || _pendingThreadItemId != null)) {
+      if (_pendingThreadMessageId != null &&
+          !state.messages.any((m) => m.id == _pendingThreadMessageId)) {
+        unawaited(_fetchRoomData(silent: true));
+        return;
+      }
       _applyPendingThreadScroll(state.messages);
     }
   }
@@ -281,6 +286,15 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
       );
+      final pendingMessageId = _pendingThreadMessageId;
+      final target =
+          pendingMessageId == null ||
+              rawMessages.any((message) => message.id == pendingMessageId)
+          ? null
+          : await _case.fetchMessageTarget(
+              beaconId: state.beaconId,
+              messageId: pendingMessageId,
+            );
       final participants = await _case.fetchParticipants(state.beaconId);
       final roomState = inThread
           ? null
@@ -300,7 +314,10 @@ class RoomCubit extends Cubit<RoomState> {
           ? const <CoordinationItem>[]
           : await _case.fetchCoordinationItems(state.beaconId);
       final messages = _joinCoordinationCounts(
-        _normalizeMessages(rawMessages),
+        _normalizeMessages([
+          ...rawMessages,
+          if (target != null) target,
+        ]),
         coordinationItems,
       );
 

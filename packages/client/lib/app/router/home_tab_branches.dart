@@ -12,12 +12,13 @@ import 'root_router.gr.dart';
 /// `docs/adaptive-router-refactor-plan.md` (Phase 2, Step 1).
 const workTabShell = EmptyShellRoute('WorkTabShell');
 const inboxTabShell = EmptyShellRoute('InboxTabShell');
+const updatesTabShell = EmptyShellRoute('UpdatesTabShell');
 const networkTabShell = EmptyShellRoute('NetworkTabShell');
 const meTabShell = EmptyShellRoute('MeTabShell');
 
 /// Stable identity for a Home branch. Display order is owned by [HomeTabSpec],
 /// not by enum ordinal or ad-hoc router integers.
-enum HomeTab { work, inbox, network, me }
+enum HomeTab { work, inbox, updates, network, me }
 
 /// The single mapping between a semantic Home tab and AutoRoute mechanics.
 ///
@@ -53,16 +54,24 @@ final class HomeTabSpec {
       shell: inboxTabShell,
       rootRoute: InboxRoute.new,
     ),
+    if (kUpdatesTabEnabled)
+      HomeTabSpec(
+        tab: HomeTab.updates,
+        index: 2,
+        path: kPathUpdates,
+        shell: updatesTabShell,
+        rootRoute: UpdatesRoute.new,
+      ),
     HomeTabSpec(
       tab: HomeTab.network,
-      index: 2,
+      index: kUpdatesTabEnabled ? 3 : 2,
       path: kPathNetwork,
       shell: networkTabShell,
       rootRoute: FriendsRoute.new,
     ),
     HomeTabSpec(
       tab: HomeTab.me,
-      index: 3,
+      index: kUpdatesTabEnabled ? 4 : 3,
       path: kPathProfile,
       shell: meTabShell,
       rootRoute: ProfileRoute.new,

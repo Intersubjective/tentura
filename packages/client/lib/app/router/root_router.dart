@@ -4,6 +4,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/attention/destination_map.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -149,6 +151,15 @@ class RootRouter extends RootStackRouter {
             ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
+        if (kUpdatesTabEnabled)
+          AutoRoute(
+            page: updatesTabShell.page,
+            path: kPathUpdates.split('/').last,
+            children: [
+              AutoRoute(initial: true, page: UpdatesRoute.page, path: ''),
+              ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
+            ],
+          ),
         // Network (Friends)
         AutoRoute(
           page: networkTabShell.page,
@@ -451,6 +462,7 @@ class RootRouter extends RootStackRouter {
               surface: qp.optString(kQueryBeaconSurface),
               entry: qp.optString(kQueryBeaconEntry),
               coordinationItemId: qp.optString(kQueryCoordinationItemId),
+              messageId: qp.optString(kQueryMessageId),
             ),
           );
         }),
@@ -741,9 +753,12 @@ class RootRouter extends RootStackRouter {
   /// 3. anything that still arrives bare (in-app `pushPath` from effects)
   ///    is caught by the root redirect-target guards, which forward into
   ///    the active branch ([_forwardIntoHomeBranch]).
-  Future<void> openFromNotificationLink(String rawLink) async {
+  Future<void> openFromNotificationLink(
+    String rawLink, {
+    bool preferUpdatesBranch = false,
+  }) async {
     final uri = _notificationUriFromRaw(rawLink);
-    if (uri.path.startsWith(kPathReviewContributions)) {
+    if (!preferUpdatesBranch && uri.path.startsWith(kPathReviewContributions)) {
       await pushPath(uri.path);
       return;
     }
@@ -768,8 +783,34 @@ class RootRouter extends RootStackRouter {
         path = '$path?$q';
       }
     }
+    if (preferUpdatesBranch && kUpdatesTabEnabled) {
+      final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
+      if (tabs != null) {
+        // `pushPath('/home/updates/...')` cannot switch a mounted tabs shell.
+        // Select Updates first, then let the existing root guard push the
+        // canonical detail path into that branch.
+        tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.updates).index);
+        path = transformed.path;
+        if (qp.isNotEmpty) {
+          final q = Uri(queryParameters: qp).query;
+          if (q.isNotEmpty) path = '$path?$q';
+        }
+      } else {
+        final prefix = homeBranchPathPrefixFor(
+          path: transformed.path,
+          activeIndex: HomeTabSpec.forTab(HomeTab.updates).index,
+        );
+        if (prefix != null) path = '$prefix$path';
+      }
+    }
     await pushPath(path);
   }
+
+  Future<void> openFromUpdate(AttentionReceipt receipt) =>
+      openFromNotificationLink(
+        attentionDestination(receipt).toString(),
+        preferUpdatesBranch: true,
+      );
 
   Uri _notificationUriFromRaw(String raw) {
     final idx = raw.indexOf('/#/');

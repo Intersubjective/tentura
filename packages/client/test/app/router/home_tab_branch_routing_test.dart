@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart';
@@ -105,12 +106,14 @@ void main() {
   late final PageInfo realHomePage;
   late final PageInfo realMyWorkPage;
   late final PageInfo realInboxPage;
+  late final PageInfo realUpdatesPage;
   late final PageInfo realFriendsPage;
   late final PageInfo realProfilePage;
   late final PageInfo realBeaconViewPage;
   late final PageInfo realAuthLoginPage;
   late final PageInfo realGraphPage;
   late final PageInfo realProfileViewPage;
+  late final PageInfo realReviewContributionsPage;
   late final PageInfo realItemDiscussionPage;
   late final PageInfo realInboxRejectedPage;
   late final PageInfo realNotificationCenterPage;
@@ -119,12 +122,14 @@ void main() {
     realHomePage = HomeRoute.page;
     realMyWorkPage = MyWorkRoute.page;
     realInboxPage = InboxRoute.page;
+    realUpdatesPage = UpdatesRoute.page;
     realFriendsPage = FriendsRoute.page;
     realProfilePage = ProfileRoute.page;
     realBeaconViewPage = BeaconViewRoute.page;
     realAuthLoginPage = AuthLoginRoute.page;
     realGraphPage = GraphRoute.page;
     realProfileViewPage = ProfileViewRoute.page;
+    realReviewContributionsPage = ReviewContributionsRoute.page;
     realItemDiscussionPage = ItemDiscussionRoute.page;
     realInboxRejectedPage = InboxRejectedRoute.page;
     realNotificationCenterPage = NotificationCenterRoute.page;
@@ -135,6 +140,7 @@ void main() {
     );
     MyWorkRoute.page = _labelPage(MyWorkRoute.name, 'my-work-root');
     InboxRoute.page = _labelPage(InboxRoute.name, 'inbox-root');
+    UpdatesRoute.page = _labelPage(UpdatesRoute.name, 'updates-root');
     FriendsRoute.page = _labelPage(FriendsRoute.name, 'friends-root');
     ProfileRoute.page = _labelPage(ProfileRoute.name, 'profile-root');
     AuthLoginRoute.page = _labelPage(AuthLoginRoute.name, 'auth-login');
@@ -164,6 +170,10 @@ void main() {
         return Text('profile-view:$id', textDirection: TextDirection.ltr);
       },
     );
+    ReviewContributionsRoute.page = _labelPage(
+      ReviewContributionsRoute.name,
+      'review-contributions',
+    );
     ItemDiscussionRoute.page = PageInfo(
       ItemDiscussionRoute.name,
       builder: (data) {
@@ -189,12 +199,14 @@ void main() {
     HomeRoute.page = realHomePage;
     MyWorkRoute.page = realMyWorkPage;
     InboxRoute.page = realInboxPage;
+    UpdatesRoute.page = realUpdatesPage;
     FriendsRoute.page = realFriendsPage;
     ProfileRoute.page = realProfilePage;
     BeaconViewRoute.page = realBeaconViewPage;
     AuthLoginRoute.page = realAuthLoginPage;
     GraphRoute.page = realGraphPage;
     ProfileViewRoute.page = realProfileViewPage;
+    ReviewContributionsRoute.page = realReviewContributionsPage;
     ItemDiscussionRoute.page = realItemDiscussionPage;
     InboxRejectedRoute.page = realInboxRejectedPage;
     NotificationCenterRoute.page = realNotificationCenterPage;
@@ -666,7 +678,7 @@ void main() {
         // the graph entry).
         final branch = router
             .innerRouterOf<TabsRouter>(HomeRoute.name)
-            ?.stackRouterOfIndex(3);
+            ?.stackRouterOfIndex(HomeTabSpec.forTab(HomeTab.me).index);
         expect(branch, isNotNull, reason: 'me branch router exists');
         expect(
           branch!.stack.length,
@@ -754,6 +766,27 @@ void main() {
         expect(currentUrl(), contains('entry=room_notification'));
       },
     );
+
+    if (kUpdatesTabEnabled)
+      testWidgets(
+        'Updates-origin browse destinations stay in the Updates branch',
+        (tester) async {
+          await pumpRouter(tester, initialPath: '/home');
+
+          unawaited(
+            router.openFromNotificationLink(
+              '/beacon/view/B2?tab=room&message=M1&item=I1',
+              preferUpdatesBranch: true,
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(
+            currentUrl(),
+            '/home/updates/beacon/view/B2?tab=room&item=I1&message=M1',
+          );
+        },
+      );
 
     testWidgets(
       'cold platform load of a bare browse path lands nested in its '
