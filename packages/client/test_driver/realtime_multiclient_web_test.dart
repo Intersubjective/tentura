@@ -226,6 +226,10 @@ Future<void> _runJourney({
     'Failed message was delivered',
   );
   await helper.blockGraphql(false);
+  // Error snackbars remain visible for 15 seconds and cover the composer. Close
+  // the deliberately-proven error before verifying that the next send works.
+  await helper.dismissSnackBar('No Internet connection');
+  await helper.waitForTextGone('No Internet connection');
 
   await helper.sendChatMessage(chatMessage);
   timings['chat_delivery_ms'] = await _measureUntil(
@@ -708,6 +712,28 @@ final class BrowserSession {
       true;
 
   Future<void> waitForText(String text) => _waitUntil(() => hasText(text));
+
+  Future<void> waitForTextGone(String text) =>
+      _waitUntil(() async => !await hasText(text));
+
+  Future<void> dismissSnackBar(String message) async {
+    late WebElement closeButton;
+    await _waitUntil(() async {
+      final result = await driver.execute(
+        '''
+        const snackBar = Array.from(document.querySelectorAll('[aria-label]')).find(
+          element => element.getAttribute('aria-label') === arguments[0],
+        );
+        return snackBar?.querySelector('[role="button"][aria-owns]') || null;
+        ''',
+        [message],
+      );
+      if (result is! WebElement) return false;
+      closeButton = result;
+      return true;
+    });
+    await closeButton.click();
+  }
 
   Future<int> textCount(String text) async {
     final result = await driver.execute(
