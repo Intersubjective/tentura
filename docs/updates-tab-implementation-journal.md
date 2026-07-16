@@ -72,7 +72,7 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-04 | Complete | Every existing producer is cut over to transactional receipt recording; inventory, projection, destructive-ordering, PostgreSQL, and compatibility suites pass. |
 | T-05 | Complete | Gated directed Chat, exhaustive Request-status, actor-null expiry, and reciprocal-connection producers pass unit, PostgreSQL, contract, and analyzer evidence. |
 | T-06 | Complete | V2 attention feed/ack/preference/exact-target GraphQL plus direct routing and compatibility adapters pass focused verification. |
-| T-07 | In progress | Deterministic shadow/budget proof is complete; enabled-QA soak must still show zero unexplained mismatches. |
+| T-07 | Complete | Deterministic shadow/budget proof plus the five-run enabled-QA soak show zero unexplained mismatches in `reports/realtime-multiclient/updates-t15-release-20260717`. |
 | T-08 | Complete | Shared application slice, lazy default-off gate, V2 adapter, contract impacts, and focused refresh/account/ack/boundary tests pass. |
 | T-09 | Complete | `HomeTabSpec` now owns the four existing tab mappings; focused router/Home/New Stuff tests and scoped analysis pass. |
 | T-10 | Complete | Flagged, route-free Updates presenter with feed views, pagination, refresh, scroll retention, and EN/RU copy; focused verification passes. |
@@ -502,13 +502,14 @@ for unclassified/read-axis divergence. The GraphQL response is never delayed or 
 by the telemetry. `docs/realtime-sync-operations.md` now distinguishes the proven PG
 budget from the T-08 client refresh proof.
 
-**Verification to date:** `AttentionShadowCase` classification tests and environment
-gate tests pass. The disposable PostgreSQL migration/attention suite passes all 24
-cases, including the exact 1/50/500 acknowledgement hint test; V2 controller tests
-also pass. Build runner completed with the known Drift warnings and `git diff --check`
-passes. T-07 remains in progress until QA runs with
-`ATTENTION_V1_SHADOW_ENABLED=true` show zero unexplained mismatches; client refetch
-budget proof moves with the T-08 refresh owner.
+**Verification:** `AttentionShadowCase` classification tests and environment gate tests
+pass. The disposable PostgreSQL migration/attention suite passes all 24 cases,
+including the exact 1/50/500 acknowledgement hint test; V2 controller tests also pass.
+Build runner completed with the known Drift warnings and `git diff --check` passes. The
+five-run T-15 release proof enabled `ATTENTION_V1_SHADOW_ENABLED=true` and its 121,059
+line server log contains no `attention_event=shadow_mismatch` or
+`attention_event=shadow_failure` marker. T-07 is complete; client refetch budget proof
+is owned by the completed T-08 refresh owner.
 
 ## Context reset — T-08
 
