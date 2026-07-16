@@ -12,6 +12,10 @@ Client-only “since last visit” cues for the **Inbox** and **My Work** home t
 
 There is **no** server API dedicated to this feature: cursors are **per account**, stored in `Settings` as epoch milliseconds (`valueInt`).
 
+> **Scope:** the Updates tab badge is separate, server-authoritative attention truth.
+> Inbox/My Work dots, their local Drift cursors, and `InboxRowHighlightKind` remain
+> intentionally until T-21 replaces them with a separately verified parity plan.
+
 ## Architecture
 
 ```
@@ -44,4 +48,4 @@ There is **no** server API dedicated to this feature: cursors are **per account*
 
 - **Null last-seen** — First visit (`inboxLastSeenMs == null`) still shows the Inbox tab dot once `maxInboxActivityMs > 0` (e.g. after a beacon invite forward). Row/card “new” pills still require a persisted last-seen baseline.
 - **Drift writes** — Advancing last-seen is **not** tied to every background refetch; repeated `report*Activity` updates in-memory max only. Persistence happens when the user **enters** the tab (`mark*TabSeen`) or the **pending-after-fetch** path runs on first visit when max was unknown at tap time.
-- **Home tab indices** — 0 My Work, 1 Inbox, 2 Friends, 3 Profile. `markInboxTabSeen` runs on bottom-nav **selection changes**. If the user stays on Inbox for the whole session without switching tabs, Inbox last-seen may not advance; switching away and back updates it. My Work is tab 0 (app default).
+- **Home tab indices** — 0 My Work, 1 Inbox, 2 Updates, 3 Friends, 4 Profile. `markInboxTabSeen` runs on bottom-nav **selection changes**. If the user stays on Inbox for the whole session without switching tabs, Inbox last-seen may not advance; switching away and back updates it. My Work is tab 0 (app default).

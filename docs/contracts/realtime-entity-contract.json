@@ -162,8 +162,8 @@
         "notify_notification_outbox_update",
         "notify_notification_outbox_delete"
       ],
-      "impacts": ["notification_center", "notification_count", "shell_badge", "updates_feed", "updates_badge"],
-      "tests": ["packages/client/test/features/notification_center/notification_center_cubit_test.dart"]
+      "impacts": ["updates_feed", "updates_badge"],
+      "tests": ["packages/client/test/domain/attention/attention_case_test.dart"]
     }
   ]
 }

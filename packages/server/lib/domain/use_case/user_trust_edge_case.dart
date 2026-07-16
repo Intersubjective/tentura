@@ -32,13 +32,6 @@ final class UserTrustEdgeCase extends UseCaseBase {
     required String objectUserId,
     required int amount,
   }) {
-    if (!env.attentionV1NewProducersEnabled) {
-      return _trustEdgeRepository.setVoteAmountAndApplyEvidence(
-        subjectUserId: subjectUserId,
-        objectUserId: objectUserId,
-        newAmount: amount,
-      );
-    }
     return _attention!.runAction<void>(
       actorUserId: subjectUserId,
       action: (transaction) async {

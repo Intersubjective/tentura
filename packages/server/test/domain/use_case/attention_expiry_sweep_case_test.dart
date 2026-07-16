@@ -1,4 +1,3 @@
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
@@ -8,7 +7,6 @@ import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
-import 'package:tentura_server/env.dart';
 
 import '../../support/test_attention_harness.dart';
 
@@ -58,10 +56,6 @@ void main() {
         evaluation,
         attention.intents,
         attention.transactional,
-        Env(
-          environment: Environment.test,
-          attentionV1NewProducersEnabled: true,
-        ),
       );
 
       expect(await case_.runDue(now: DateTime.utc(2026)), 1);
@@ -80,7 +74,7 @@ void main() {
     },
   );
 
-  test('disabled producer gate is a zero-side-effect no-op', () async {
+  test('records expired windows without a producer gate', () async {
     final expiry = _ExpiryRepository()..due = const [beaconId];
     final evaluation = _EvaluationRepository();
     final attention = TestAttentionHarness();
@@ -89,14 +83,10 @@ void main() {
       evaluation,
       attention.intents,
       attention.transactional,
-      Env(
-        environment: Environment.test,
-        attentionV1NewProducersEnabled: false,
-      ),
     );
 
-    expect(await case_.runDue(), 0);
-    expect(evaluation.calls, isEmpty);
-    expect(attention.recorded, isEmpty);
+    expect(await case_.runDue(), 1);
+    expect(evaluation.calls, hasLength(1));
+    expect(attention.recorded, hasLength(1));
   });
 }

@@ -85,19 +85,19 @@ void main() {
 
   const newProducerTokens = <String, List<String>>{
     'beacon_room_case.dart': [
-      'attentionV1NewProducersEnabled',
+      'runAction<',
       '.roomMessagePosted(',
     ],
     'beacon_case.dart': [
-      'attentionV1NewProducersEnabled',
+      'runAction(',
       '.requestStatusChanged(',
     ],
     'coordination_case.dart': [
-      'attentionV1NewProducersEnabled',
+      'runAction(',
       '.requestStatusChanged(',
     ],
     'evaluation_case.dart': [
-      'attentionV1NewProducersEnabled',
+      'runAction(',
       '.requestStatusChanged(',
     ],
     'attention_expiry_sweep_case.dart': [
@@ -105,7 +105,7 @@ void main() {
       '.requestStatusChanged(',
     ],
     'user_trust_edge_case.dart': [
-      'attentionV1NewProducersEnabled',
+      'runAction<',
       '.mutualConnectionFormed(',
     ],
   };
@@ -148,17 +148,24 @@ void main() {
     }
   });
 
-  test('every T-05 producer is gated and records a typed intent', () {
-    for (final entry in newProducerTokens.entries) {
-      final source = File(
-        'lib/domain/use_case/${entry.key}',
-      ).readAsStringSync();
-      for (final token in entry.value) {
-        expect(source, contains(token), reason: '${entry.key} missing $token');
+  test(
+    'every T-05 producer unconditionally records a typed intent in a transaction',
+    () {
+      for (final entry in newProducerTokens.entries) {
+        final source = File(
+          'lib/domain/use_case/${entry.key}',
+        ).readAsStringSync();
+        for (final token in entry.value) {
+          expect(
+            source,
+            contains(token),
+            reason: '${entry.key} missing $token',
+          );
+        }
+        expect(source, isNot(contains('unawaited(')));
       }
-      expect(source, isNot(contains('unawaited(')));
-    }
-  });
+    },
+  );
 
   test(
     'all interactive and time-driven status transition sites are covered',

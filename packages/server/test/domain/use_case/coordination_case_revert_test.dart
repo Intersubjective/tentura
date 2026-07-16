@@ -291,6 +291,7 @@ void main() {
     roomRepo = MockBeaconRoomRepositoryPort();
     roomPush = MockBeaconRoomNotificationPort();
     evalRepo = _TrackingEvaluationRepository();
+    final attention = TestAttentionHarness();
     case_ = CoordinationCase(
       beaconRepo,
       helpOfferRepo,
@@ -298,6 +299,8 @@ void main() {
       roomRepo,
       evalRepo,
       roomPush: roomPush,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('CoordinationCaseRevertTest'),
@@ -329,7 +332,6 @@ void main() {
         guard: FakeBeaconAccessGuard(),
         env: Env(
           environment: Environment.test,
-          attentionV1NewProducersEnabled: true,
         ),
         logger: Logger('CoordinationCaseRevertTest'),
       );

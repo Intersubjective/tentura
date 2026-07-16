@@ -148,6 +148,7 @@ void main() {
     Map<String, int> coordinationResponses = const {},
     List<HelpOfferEntity> offers = const [],
   }) {
+    final attention = TestAttentionHarness();
     return BeaconCase(
       _TransactionStubBeaconRepo(beacon),
       _FakeImageRepo(),
@@ -155,6 +156,8 @@ void main() {
       _StubCoordinationRepo(coordinationResponses),
       _StubHelpOfferRepo(offers),
       FakeBeaconAccessGuard(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseCancelTest'),
     );
@@ -164,6 +167,7 @@ void main() {
     test('author cancels open beacon with no committers', () async {
       final beacon = openBeacon();
       final beaconRepo = _TransactionStubBeaconRepo(beacon);
+      final attention = TestAttentionHarness();
       final case_ = BeaconCase(
         beaconRepo,
         _FakeImageRepo(),
@@ -171,6 +175,8 @@ void main() {
         _StubCoordinationRepo({}),
         _StubHelpOfferRepo([helpOffer()]),
         FakeBeaconAccessGuard(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('BeaconCaseCancelTest'),
       );
@@ -216,7 +222,6 @@ void main() {
           attention: attention.transactional,
           env: Env(
             environment: Environment.test,
-            attentionV1NewProducersEnabled: true,
           ),
           logger: Logger('BeaconCaseCancelTest'),
         );

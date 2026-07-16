@@ -7,7 +7,6 @@ import 'package:rxdart/rxdart.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 
 import 'attention_ack_store.dart';
 import 'entity/attention_feed.dart';
@@ -23,16 +22,14 @@ final class AttentionCase {
     this._repository,
     this._account,
     this._realtime,
-    this._env,
     this._logger,
   ) {
-    if (_env.updatesTabEnabled) _start();
+    _start();
   }
 
   final AttentionRepositoryPort _repository;
   final AttentionAccountPort _account;
   final RealtimeSyncCase _realtime;
-  final Env _env;
   final Logger _logger;
   final AttentionAckStore _acks = AttentionAckStore();
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
@@ -83,7 +80,7 @@ final class AttentionCase {
   Future<void> refresh() async => _requestHeadRefresh();
 
   Future<void> fetchNextPage() async {
-    if (!_env.updatesTabEnabled || _accountId.isEmpty) return;
+    if (_accountId.isEmpty) return;
     final current = snapshot.pages[snapshot.activeView];
     final cursor = current?.nextCursor;
     if (cursor == null || cursor.isEmpty) return;
@@ -97,7 +94,6 @@ final class AttentionCase {
   }
 
   Future<void> markSeen(Iterable<String> ids) async {
-    if (!_env.updatesTabEnabled) return;
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
@@ -117,7 +113,6 @@ final class AttentionCase {
   }
 
   Future<void> markAllSeen() async {
-    if (!_env.updatesTabEnabled) return;
     final ids = _receiptsById.values
         .where((receipt) => !receipt.isSeen)
         .map((receipt) => receipt.id)
@@ -139,7 +134,7 @@ final class AttentionCase {
   }
 
   Future<void> _requestHeadRefresh() async {
-    if (!_env.updatesTabEnabled || _accountId.isEmpty) return;
+    if (_accountId.isEmpty) return;
     if (_headRefreshInFlight) {
       _headRefreshQueued = true;
       return;

@@ -171,7 +171,6 @@ void main() {
       attention: attention.transactional,
       env: Env(
         environment: Environment.test,
-        attentionV1NewProducersEnabled: true,
       ),
       logger: Logger('BeaconRoomCaseMessageMutationsTest'),
     );
@@ -364,35 +363,6 @@ void main() {
         expect(intent.recipients.single.recipientId, _otherUserId);
       },
     );
-
-    test('disabled producer gate records no directed receipt', () async {
-      final disabled = BeaconRoomCase(
-        room,
-        items,
-        _FakeFactCards(),
-        _FakePush(),
-        _FakeImages(),
-        _FakeTasks(),
-        _FakeRemoteStorage(),
-        _FakePolling(),
-        _FakeUploadQuota(),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        env: Env(
-          environment: Environment.test,
-          attentionV1NewProducersEnabled: false,
-        ),
-        logger: Logger('BeaconRoomCaseMessageMutationsTest'),
-      );
-
-      await disabled.createMessage(
-        beaconId: _beaconId,
-        userId: _userId,
-        body: '@mention',
-      );
-
-      expect(attention.recorded, isEmpty);
-    });
   });
 
   group('editMessage', () {

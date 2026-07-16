@@ -167,12 +167,11 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                     ),
                     label: Text(l10n.inbox),
                   ),
-                  if (kUpdatesTabEnabled)
-                    NavigationRailDestination(
-                      icon: const UpdatesNavbarItem(),
-                      selectedIcon: const UpdatesNavbarItem(selected: true),
-                      label: Text(l10n.updatesTitle),
-                    ),
+                  NavigationRailDestination(
+                    icon: const UpdatesNavbarItem(),
+                    selectedIcon: const UpdatesNavbarItem(selected: true),
+                    label: Text(l10n.updatesTitle),
+                  ),
                   NavigationRailDestination(
                     icon: const FriendsNavbarItem(),
                     selectedIcon: const FriendsNavbarItem(
@@ -230,12 +229,11 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   selectedIcon: const InboxNavbarItem(selected: true),
                   label: l10n.inbox,
                 ),
-                if (kUpdatesTabEnabled)
-                  NavigationDestination(
-                    icon: const UpdatesNavbarItem(),
-                    selectedIcon: const UpdatesNavbarItem(selected: true),
-                    label: l10n.updatesTitle,
-                  ),
+                NavigationDestination(
+                  icon: const UpdatesNavbarItem(),
+                  selectedIcon: const UpdatesNavbarItem(selected: true),
+                  label: l10n.updatesTitle,
+                ),
                 NavigationDestination(
                   icon: const FriendsNavbarItem(),
                   selectedIcon: const FriendsNavbarItem(

@@ -6,7 +6,6 @@ import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/id.dart';
 
 @Singleton(order: 1)
@@ -16,17 +15,14 @@ class AttentionExpirySweepCase {
     this._evaluationRepository,
     this._intents,
     this._attention,
-    this._env,
   );
 
   final AttentionExpiryRepositoryPort _expiryRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final AttentionIntentCase _intents;
   final TransactionalAttentionCase _attention;
-  final Env _env;
 
   Future<int> runDue({DateTime? now}) async {
-    if (!_env.attentionV1NewProducersEnabled) return 0;
     return _attention.runAction<int>(
       actorUserId: null,
       action: (transaction) async {

@@ -69,7 +69,6 @@ final class TaskWorkerCase extends UseCaseBase {
   late final _tasks = <Future<void> Function()>[
     // Review expiry is a system-owned status transition with atomic receipts.
     () async {
-      if (!env.attentionV1NewProducersEnabled) return;
       final now = DateTime.timestamp();
       if (now.difference(_lastAttentionExpirySweep) <
           const Duration(minutes: 1)) {

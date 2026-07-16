@@ -29,43 +29,49 @@ void main() {
   setUp(() {
     userRepo = MockUserRepositoryPort();
     trustEdgeRepo = MockUserTrustEdgeRepositoryPort();
+    final attention = TestAttentionHarness();
     case_ = UserTrustEdgeCase(
       userRepo,
       trustEdgeRepo,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('UserTrustEdgeCaseTest'),
     );
 
     when(userRepo.getById(any)).thenAnswer((_) async => user());
     when(
-      trustEdgeRepo.setVoteAmountAndApplyEvidence(
+      trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
         subjectUserId: anyNamed('subjectUserId'),
         objectUserId: anyNamed('objectUserId'),
         newAmount: anyNamed('newAmount'),
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => false);
     when(trustEdgeRepo.forceRefreshStar(any)).thenAnswer((_) async {});
     when(trustEdgeRepo.forceRefreshAll()).thenAnswer((_) async {});
     when(trustEdgeRepo.cutoverBackfillIfNeeded()).thenAnswer((_) async {});
   });
 
   group('UserTrustEdgeCase.setUserVote', () {
-    test('delegates vote amount to trust edge repository', () async {
-      await case_.setUserVote(
-        subjectUserId: subjectUserId,
-        objectUserId: objectUserId,
-        amount: 3,
-      );
-
-      verify(
-        trustEdgeRepo.setVoteAmountAndApplyEvidence(
+    test(
+      'uses transactional vote mutation when no reciprocal connection forms',
+      () async {
+        await case_.setUserVote(
           subjectUserId: subjectUserId,
           objectUserId: objectUserId,
-          newAmount: 3,
-        ),
-      ).called(1);
-      verifyZeroInteractions(userRepo);
-    });
+          amount: 3,
+        );
+
+        verify(
+          trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
+            subjectUserId: subjectUserId,
+            objectUserId: objectUserId,
+            newAmount: 3,
+          ),
+        ).called(1);
+        verifyZeroInteractions(userRepo);
+      },
+    );
 
     test('records only when the vote forms a reciprocal connection', () async {
       final attention = TestAttentionHarness();
@@ -76,7 +82,6 @@ void main() {
         attention: attention.transactional,
         env: Env(
           environment: Environment.test,
-          attentionV1NewProducersEnabled: true,
         ),
         logger: Logger('UserTrustEdgeCaseTest'),
       );
@@ -109,7 +114,6 @@ void main() {
         attention: attention.transactional,
         env: Env(
           environment: Environment.test,
-          attentionV1NewProducersEnabled: true,
         ),
         logger: Logger('UserTrustEdgeCaseTest'),
       );
@@ -146,7 +150,6 @@ void main() {
           attention: attention.transactional,
           env: Env(
             environment: Environment.test,
-            attentionV1NewProducersEnabled: true,
           ),
           logger: Logger('UserTrustEdgeCaseTest'),
         );

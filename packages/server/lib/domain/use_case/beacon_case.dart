@@ -484,9 +484,6 @@ final class BeaconCase extends UseCaseBase {
           },
         );
 
-    if (!env.attentionV1NewProducersEnabled) {
-      return mutate(null);
-    }
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }
 
@@ -564,9 +561,6 @@ final class BeaconCase extends UseCaseBase {
       },
     );
 
-    if (!env.attentionV1NewProducersEnabled) {
-      return mutate(null);
-    }
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }
 }

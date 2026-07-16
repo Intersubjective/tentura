@@ -37,7 +37,6 @@ const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathUpdates = '/home/updates';
-const kUpdatesTabEnabled = bool.fromEnvironment('UPDATES_TAB_ENABLED');
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
 const kPathDebugSettings = '/settings/debug';

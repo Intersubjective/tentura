@@ -277,7 +277,7 @@ final class BeaconRoomCase extends UseCaseBase {
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    if (!env.attentionV1NewProducersEnabled || directedRecipientIds.isEmpty) {
+    if (directedRecipientIds.isEmpty) {
       return persist(null);
     }
     return _attention!.runAction(

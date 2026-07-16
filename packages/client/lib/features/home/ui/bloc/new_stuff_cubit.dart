@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:async' show StreamSubscription, unawaited;
 
 import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
@@ -7,7 +7,6 @@ import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart'
     show HomeScreen;
-import 'package:tentura/features/notification_center/domain/use_case/notification_center_case.dart';
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -25,27 +24,16 @@ class NewStuffCubit extends Cubit<NewStuffState> {
   NewStuffCubit(
     this._settingsRepository,
     this._authCubit,
-    this._notificationCenterCase,
   ) : super(const NewStuffState()) {
     _authSub = _authCubit.stream.listen(_onAuthState);
-    _notificationChangesSub = _notificationCenterCase.changes.listen(
-      (_) => _scheduleNotificationRefresh(),
-      cancelOnError: false,
-    );
     _loadAccount(_authCubit.state.currentAccountId);
   }
 
   final SettingsRepositoryPort _settingsRepository;
   final AuthCubit _authCubit;
-  final NotificationCenterCase _notificationCenterCase;
 
   late final StreamSubscription<AuthState> _authSub;
-  late final StreamSubscription<void> _notificationChangesSub;
-
-  static const _notificationRefreshDebounce = Duration(milliseconds: 100);
-  Timer? _notificationRefreshTimer;
   int _accountGeneration = 0;
-  int _notificationFetchSequence = 0;
   String _accountId = '';
   bool _accountInitialized = false;
 
@@ -58,12 +46,9 @@ class NewStuffCubit extends Cubit<NewStuffState> {
     _accountInitialized = true;
     _accountId = accountId;
     final generation = ++_accountGeneration;
-    _notificationFetchSequence++;
-    _notificationRefreshTimer?.cancel();
     emit(NewStuffState(activeHomeTab: state.activeHomeTab));
     if (accountId.isEmpty) return;
     unawaited(_hydrate(accountId, generation));
-    unawaited(_refreshNotificationCount(accountId, generation));
   }
 
   Future<void> _hydrate(String accountId, int generation) async {
@@ -96,42 +81,6 @@ class NewStuffCubit extends Cubit<NewStuffState> {
     } catch (e) {
       if (!isClosed) {
         GetIt.I<Logger>().warning('NewStuff hydrate failed', e);
-      }
-    }
-  }
-
-  void _scheduleNotificationRefresh() {
-    if (isClosed || _accountId.isEmpty) return;
-    _notificationRefreshTimer?.cancel();
-    _notificationRefreshTimer = Timer(_notificationRefreshDebounce, () {
-      _notificationRefreshTimer = null;
-      if (!isClosed && _accountId.isNotEmpty) {
-        unawaited(
-          _refreshNotificationCount(_accountId, _accountGeneration),
-        );
-      }
-    });
-  }
-
-  Future<void> _refreshNotificationCount(
-    String accountId,
-    int generation,
-  ) async {
-    final sequence = ++_notificationFetchSequence;
-    try {
-      final unreadCount = await _notificationCenterCase.fetchUnreadCount();
-      if (isClosed ||
-          generation != _accountGeneration ||
-          sequence != _notificationFetchSequence ||
-          accountId != _accountId) {
-        return;
-      }
-      emit(state.copyWith(notificationUnreadCount: unreadCount));
-    } catch (e) {
-      if (!isClosed &&
-          generation == _accountGeneration &&
-          accountId == _accountId) {
-        GetIt.I<Logger>().warning('Notification count refresh failed', e);
       }
     }
   }
@@ -240,9 +189,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
   @override
   @disposeMethod
   Future<void> close() async {
-    _notificationRefreshTimer?.cancel();
     await _authSub.cancel();
-    await _notificationChangesSub.cancel();
     return super.close();
   }
 }

@@ -151,15 +151,14 @@ class RootRouter extends RootStackRouter {
             ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
-        if (kUpdatesTabEnabled)
-          AutoRoute(
-            page: updatesTabShell.page,
-            path: kPathUpdates.split('/').last,
-            children: [
-              AutoRoute(initial: true, page: UpdatesRoute.page, path: ''),
-              ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
-            ],
-          ),
+        AutoRoute(
+          page: updatesTabShell.page,
+          path: kPathUpdates.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: UpdatesRoute.page, path: ''),
+            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
+          ],
+        ),
         // Network (Friends)
         AutoRoute(
           page: networkTabShell.page,
@@ -206,20 +205,7 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Notification Center — same pattern as InboxRejectedRoute above.
-    AutoRoute(
-      page: NotificationCenterRoute.page,
-      path: kPathNotifications,
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.inbox,
-            route: const NotificationCenterRoute(),
-          ),
-        ),
-      ],
-    ),
+    RedirectRoute(path: kPathNotifications, redirectTo: kPathUpdates),
 
     // Notification settings (full-screen stack route; no bottom tabs)
     AutoRoute(
@@ -783,7 +769,7 @@ class RootRouter extends RootStackRouter {
         path = '$path?$q';
       }
     }
-    if (preferUpdatesBranch && kUpdatesTabEnabled) {
+    if (preferUpdatesBranch) {
       final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
       if (tabs != null) {
         // `pushPath('/home/updates/...')` cannot switch a mounted tabs shell.

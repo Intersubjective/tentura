@@ -121,20 +121,13 @@ final class EvaluationCase extends UseCaseBase {
   static const int _maxReviewExtensions = 2;
 
   Future<void> _ensureExpiredClosed() async {
-    if (env.attentionV1NewProducersEnabled) {
-      await _attentionExpirySweep!.runDue();
-    } else {
-      await _evaluationRepository.closeExpiredWindows();
-    }
+    await _attentionExpirySweep!.runDue();
   }
 
   Future<T> _runStatusAction<T>({
     required String actorUserId,
     required Future<T> Function(AttentionTransaction? transaction) action,
   }) {
-    if (!env.attentionV1NewProducersEnabled) {
-      return action(null);
-    }
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: action,
@@ -187,15 +180,13 @@ final class EvaluationCase extends UseCaseBase {
           final targetStatus = requiresReviewWindow
               ? BeaconStatus.reviewOpen
               : BeaconStatus.closed;
-          final statusIntent = env.attentionV1NewProducersEnabled
-              ? await _attentionIntents!.requestStatusChanged(
-                  beaconId: beaconId,
-                  fromStatus: beacon.status.name,
-                  toStatus: targetStatus.name,
-                  actorUserId: userId,
-                  sourceEventKey: 'request_status:${generateId('A')}',
-                )
-              : null;
+          final statusIntent = await _attentionIntents!.requestStatusChanged(
+            beaconId: beaconId,
+            fromStatus: beacon.status.name,
+            toStatus: targetStatus.name,
+            actorUserId: userId,
+            sourceEventKey: 'request_status:${generateId('A')}',
+          );
 
           if (!requiresReviewWindow) {
             await _beaconRepository.recordBeaconStatusTransition(

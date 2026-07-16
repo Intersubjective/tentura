@@ -425,9 +425,6 @@ final class CoordinationCase extends UseCaseBase {
       },
     );
 
-    if (!env.attentionV1NewProducersEnabled) {
-      return mutate(null);
-    }
     return _attention!.runAction(
       actorUserId: authorUserId,
       action: mutate,

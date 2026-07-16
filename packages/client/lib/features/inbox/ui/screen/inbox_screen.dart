@@ -177,7 +177,6 @@ class _InboxScreenState extends State<InboxScreen> {
                     actions: useExpandedPane
                         ? null
                         : [
-                            const _NotificationCenterButton(),
                             const _InboxOverflowMenu(),
                           ],
                     row: useExpandedPane
@@ -204,7 +203,6 @@ class _InboxScreenState extends State<InboxScreen> {
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          _NotificationCenterButton(),
                                           _InboxOverflowMenu(),
                                         ],
                                       ),
@@ -607,26 +605,6 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
       },
     );
   }
-}
-
-class _NotificationCenterButton extends StatelessWidget {
-  const _NotificationCenterButton();
-
-  @override
-  Widget build(BuildContext context) =>
-      BlocSelector<NewStuffCubit, NewStuffState, int>(
-        selector: (state) => state.notificationUnreadCount,
-        builder: (context, unreadCount) => IconButton(
-          icon: Badge(
-            isLabelVisible: unreadCount > 0,
-            child: const Icon(Icons.notifications_none_outlined),
-          ),
-          tooltip: L10n.of(context)!.notifications,
-          onPressed: () => context.router.push(
-            const NotificationCenterRoute(),
-          ),
-        ),
-      );
 }
 
 class _InboxOverflowMenu extends StatelessWidget {

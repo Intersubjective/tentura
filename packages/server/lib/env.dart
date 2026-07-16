@@ -17,9 +17,6 @@ String resolveServerEnvironment(String? environment) =>
 bool resolveRealtimeActorEchoEnabled(String? value) =>
     value?.trim().toLowerCase() != 'false';
 
-bool resolveAttentionV1NewProducersEnabled(String? value) =>
-    value?.trim().toLowerCase() == 'true';
-
 bool resolveAttentionV1ShadowEnabled(String? value) =>
     value?.trim().toLowerCase() == 'true';
 
@@ -72,7 +69,6 @@ class Env {
     String? bindAddress,
     int? listenWebPort,
     bool? realtimeActorEchoEnabled,
-    bool? attentionV1NewProducersEnabled,
     bool? attentionV1ShadowEnabled,
     String? minClientVersion,
 
@@ -260,11 +256,6 @@ class Env {
            realtimeActorEchoEnabled ??
            resolveRealtimeActorEchoEnabled(
              _env['REALTIME_ACTOR_ECHO_ENABLED'],
-           ),
-       attentionV1NewProducersEnabled =
-           attentionV1NewProducersEnabled ??
-           resolveAttentionV1NewProducersEnabled(
-             _env['ATTENTION_V1_NEW_PRODUCERS_ENABLED'],
            ),
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
@@ -546,9 +537,6 @@ class Env {
 
   /// Defaults on for cross-device convergence; false is a compatibility gate.
   final bool realtimeActorEchoEnabled;
-
-  /// Dormant rollout gate for the T-05 producer classes. T-15 removes it.
-  final bool attentionV1NewProducersEnabled;
 
   /// QA-only T-07 parity telemetry. It has no product behavior effect.
   final bool attentionV1ShadowEnabled;

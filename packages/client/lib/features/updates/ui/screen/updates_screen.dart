@@ -7,19 +7,17 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 
 @RoutePage()
-/// Flagged presenter. T-11 owns Home-branch registration.
+/// Updates feed presenter.
 class UpdatesScreen extends StatelessWidget {
   const UpdatesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (!const Env().updatesTabEnabled) return const SizedBox.shrink();
     return BlocProvider(
       create: (_) => UpdatesFeedCubit(),
       child: const _UpdatesBody(),

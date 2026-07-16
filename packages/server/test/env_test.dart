@@ -32,16 +32,6 @@ void main() {
     });
   });
 
-  group('resolveAttentionV1NewProducersEnabled', () {
-    test('defaults off and accepts only explicit true', () {
-      expect(resolveAttentionV1NewProducersEnabled(null), isFalse);
-      expect(resolveAttentionV1NewProducersEnabled(''), isFalse);
-      expect(resolveAttentionV1NewProducersEnabled('false'), isFalse);
-      expect(resolveAttentionV1NewProducersEnabled('unexpected'), isFalse);
-      expect(resolveAttentionV1NewProducersEnabled(' TRUE '), isTrue);
-    });
-  });
-
   group('resolveAttentionV1ShadowEnabled', () {
     test('defaults off and accepts only explicit true', () {
       expect(resolveAttentionV1ShadowEnabled(null), isFalse);

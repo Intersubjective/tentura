@@ -54,24 +54,23 @@ final class HomeTabSpec {
       shell: inboxTabShell,
       rootRoute: InboxRoute.new,
     ),
-    if (kUpdatesTabEnabled)
-      HomeTabSpec(
-        tab: HomeTab.updates,
-        index: 2,
-        path: kPathUpdates,
-        shell: updatesTabShell,
-        rootRoute: UpdatesRoute.new,
-      ),
+    HomeTabSpec(
+      tab: HomeTab.updates,
+      index: 2,
+      path: kPathUpdates,
+      shell: updatesTabShell,
+      rootRoute: UpdatesRoute.new,
+    ),
     HomeTabSpec(
       tab: HomeTab.network,
-      index: kUpdatesTabEnabled ? 3 : 2,
+      index: 3,
       path: kPathNetwork,
       shell: networkTabShell,
       rootRoute: FriendsRoute.new,
     ),
     HomeTabSpec(
       tab: HomeTab.me,
-      index: kUpdatesTabEnabled ? 4 : 3,
+      index: 4,
       path: kPathProfile,
       shell: meTabShell,
       rootRoute: ProfileRoute.new,
@@ -197,10 +196,6 @@ List<AutoRoute> browseDetailChildren({
     page: InboxRejectedRoute.page,
     path: 'inbox-rejected',
   ),
-  AutoRoute(
-    page: NotificationCenterRoute.page,
-    path: 'notifications',
-  ),
 ];
 
 /// Semantic tab owner for a route family, used by [homeTabShellFor] as the
@@ -240,7 +235,6 @@ const _browsePathOwners = <(String, HomeTab)>[
   (kPathProfileView, HomeTab.network),
   (kPathInviteGenealogy, HomeTab.network),
   (kPathRating, HomeTab.network),
-  (kPathNotifications, HomeTab.inbox),
 ];
 
 /// Returns the `/home/<tab>` prefix a bare browse-detail [path] should be

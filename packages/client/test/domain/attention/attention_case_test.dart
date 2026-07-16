@@ -11,7 +11,6 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/env.dart';
 
 import '../../support/test_realtime_sync.dart';
 
@@ -99,7 +98,6 @@ void main() {
         repository,
         accounts,
         realtime.case_,
-        const Env(updatesTabEnabled: true),
         Logger('attention-case-test'),
       );
     });
@@ -266,7 +264,6 @@ void main() {
           secondRepository,
           secondAccounts,
           secondRealtime.case_,
-          const Env(updatesTabEnabled: true),
           Logger('attention-case-second-client-test'),
         );
         addTearDown(secondAttention.dispose);
@@ -314,23 +311,4 @@ void main() {
     );
   });
 
-  test('disabled builds do not subscribe or query attention', () async {
-    final repository = _Repository();
-    final accounts = _Accounts();
-    final realtime = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      const Env(updatesTabEnabled: false),
-      Logger('attention-case-disabled-test'),
-    );
-    accounts.emit('account-a');
-    realtime.port.emitCatchUp();
-    await _settle();
-    expect(repository.fetchCalls, 0);
-    await attention.dispose();
-    await accounts.dispose();
-    await realtime.port.dispose();
-  });
 }

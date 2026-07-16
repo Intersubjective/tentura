@@ -62,6 +62,7 @@ Deferred (not rejected in principle):
 |-----|---------|
 | **My Work** | Beacons I authored and/or offered help on |
 | **Inbox** | Forwarded to me — triage and passive follow |
+| **Updates** | Unread attention receipts and their destinations |
 | **Friends** | Network / forward targets |
 | **Profile** | Capabilities, settings, account |
 
@@ -69,7 +70,7 @@ Deferred (not rejected in principle):
 
 **Inbox tabs:** **Needs me** (triage) and **Watching** (passive follow). **Not for me** lives in an **archive**, not a third tab.
 
-**Notifications** — dedicated center (AppBar), not a substitute for inbox semantics.
+**Updates** — dedicated home tab for unread attention receipts; it is not a substitute for Inbox semantics.
 
 There is **no** ranked feed, **no** Registry/Group tab, **no** standalone chat tab.
 

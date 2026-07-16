@@ -3,26 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
-import 'package:tentura/consts.dart';
 
 void main() {
-  test('HomeTabSpec preserves the flagged branch mappings', () {
+  test('HomeTabSpec preserves the five-tab branch mappings', () {
     expect(
       [for (final spec in HomeTabSpec.all) (spec.tab, spec.index, spec.path)],
-      kUpdatesTabEnabled
-          ? const [
-              (HomeTab.work, 0, '/home/work'),
-              (HomeTab.inbox, 1, '/home/inbox'),
-              (HomeTab.updates, 2, '/home/updates'),
-              (HomeTab.network, 3, '/home/network'),
-              (HomeTab.me, 4, '/home/profile'),
-            ]
-          : const [
-              (HomeTab.work, 0, '/home/work'),
-              (HomeTab.inbox, 1, '/home/inbox'),
-              (HomeTab.network, 2, '/home/network'),
-              (HomeTab.me, 3, '/home/profile'),
-            ],
+      const [
+        (HomeTab.work, 0, '/home/work'),
+        (HomeTab.inbox, 1, '/home/inbox'),
+        (HomeTab.updates, 2, '/home/updates'),
+        (HomeTab.network, 3, '/home/network'),
+        (HomeTab.me, 4, '/home/profile'),
+      ],
     );
   });
 

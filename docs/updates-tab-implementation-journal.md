@@ -20,6 +20,19 @@ then uses the existing scroll path.
 Home-tab, and notification deep-link tests pass with Updates both disabled and enabled;
 scoped analyzer has no errors; formatting and `git diff --check` pass.
 
+## Context reset — T-15
+
+**Resolution:** Updates is now the unconditional third Home branch and fifth visible
+tab. The client flag and server new-producer gate are removed, so all T-05 producers
+record attention receipts transactionally. The legacy client bell, route, feature, and
+New Stuff notification-count plumbing are retired; `/notifications` redirects to
+Updates. The server-side legacy Notification Center API remains for old-client
+compatibility through T-19. Inbox/My Work local Drift dots and row highlights remain
+explicitly out of this migration until T-21.
+
+**Verification:** pending final focused/full analysis, tests, terminology check, and
+browser release proof after the removed defines are taken out of the runner.
+
 ## Context reset — T-12
 
 **Resolution:** Updates cards now acknowledge before opening their typed destination,
@@ -65,7 +78,8 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-11 | Complete | Flagged fifth branch, typed destination map, Updates-origin branch selection, and exact directed-Chat target hydration pass focused flag-off and flag-on router tests. |
 | T-12 | Complete | Open/per-item/mark-all acknowledgement UI, optimistic rollback, and multi-client Room-bridge hint reconciliation pass focused verification. |
 | T-13 | Complete | In-app noisy-class settings UI, V2 persistence mapping, safety copy, and focused cubit verification pass. |
-| T-14–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-14 | Complete | Five browser release-proof passes, deliberate live/catch-up negative controls, and zero unexplained shadow mismatches are recorded in `reports/realtime-multiclient/updates-t14-release-20260717-005719`. |
+| T-15 | In progress | Flip implementation complete; final verification and release proof pending. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16

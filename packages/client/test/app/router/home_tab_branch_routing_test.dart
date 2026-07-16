@@ -12,7 +12,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart';
@@ -116,7 +115,6 @@ void main() {
   late final PageInfo realReviewContributionsPage;
   late final PageInfo realItemDiscussionPage;
   late final PageInfo realInboxRejectedPage;
-  late final PageInfo realNotificationCenterPage;
 
   setUpAll(() {
     realHomePage = HomeRoute.page;
@@ -132,7 +130,6 @@ void main() {
     realReviewContributionsPage = ReviewContributionsRoute.page;
     realItemDiscussionPage = ItemDiscussionRoute.page;
     realInboxRejectedPage = InboxRejectedRoute.page;
-    realNotificationCenterPage = NotificationCenterRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -189,10 +186,6 @@ void main() {
       InboxRejectedRoute.name,
       'inbox-rejected',
     );
-    NotificationCenterRoute.page = _labelPage(
-      NotificationCenterRoute.name,
-      'notification-center',
-    );
   });
 
   tearDownAll(() {
@@ -209,7 +202,6 @@ void main() {
     ReviewContributionsRoute.page = realReviewContributionsPage;
     ItemDiscussionRoute.page = realItemDiscussionPage;
     InboxRejectedRoute.page = realInboxRejectedPage;
-    NotificationCenterRoute.page = realNotificationCenterPage;
   });
 
   late RootRouter router;
@@ -320,15 +312,6 @@ void main() {
     );
 
     for (final testCase in [
-      (
-        tabLabel: 'Inbox',
-        initialPath: '/home/inbox/notifications',
-        tab: HomeTab.inbox,
-        detailRouteName: NotificationCenterRoute.name,
-        rootRouteName: InboxRoute.name,
-        rootLabel: 'inbox-root',
-        rootPath: '/home/inbox',
-      ),
       (
         tabLabel: 'Network',
         initialPath: '/home/network/graph/U2',
@@ -628,16 +611,6 @@ void main() {
     );
 
     testWidgets(
-      'restores NotificationCenter from a full branch URL (browser refresh)',
-      (tester) async {
-        await pumpRouter(tester, initialPath: '/home/inbox/notifications');
-
-        expect(find.text('notification-center'), findsOneWidget);
-        expect(currentUrl(), '/home/inbox/notifications');
-      },
-    );
-
-    testWidgets(
       'pushPath of legacy inbox-rejected path targets the active '
       '(non-default) tab branch',
       (tester) async {
@@ -767,26 +740,25 @@ void main() {
       },
     );
 
-    if (kUpdatesTabEnabled)
-      testWidgets(
-        'Updates-origin browse destinations stay in the Updates branch',
-        (tester) async {
-          await pumpRouter(tester, initialPath: '/home');
+    testWidgets(
+      'Updates-origin browse destinations stay in the Updates branch',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home');
 
-          unawaited(
-            router.openFromNotificationLink(
-              '/beacon/view/B2?tab=room&message=M1&item=I1',
-              preferUpdatesBranch: true,
-            ),
-          );
-          await tester.pumpAndSettle();
+        unawaited(
+          router.openFromNotificationLink(
+            '/beacon/view/B2?tab=room&message=M1&item=I1',
+            preferUpdatesBranch: true,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          expect(
-            currentUrl(),
-            '/home/updates/beacon/view/B2?tab=room&item=I1&message=M1',
-          );
-        },
-      );
+        expect(
+          currentUrl(),
+          '/home/updates/beacon/view/B2?tab=room&item=I1&message=M1',
+        );
+      },
+    );
 
     testWidgets(
       'cold platform load of a bare browse path lands nested in its '
