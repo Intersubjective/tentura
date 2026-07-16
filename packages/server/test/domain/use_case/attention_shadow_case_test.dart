@@ -72,6 +72,20 @@ void main() {
     expect(result.unexplained, 1);
   });
 
+  test('detects a legacy page that changed during shadow observation', () {
+    expect(
+      AttentionShadowCase.legacyReadAxesChanged(
+        [legacy()],
+        [legacy(readAt: now)],
+      ),
+      isTrue,
+    );
+    expect(
+      AttentionShadowCase.legacyReadAxesChanged([legacy()], [legacy()]),
+      isFalse,
+    );
+  });
+
   test('separately labels known authorization, mute, and new-class deltas', () {
     final result = AttentionShadowCase.compare(
       [

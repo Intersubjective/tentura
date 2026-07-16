@@ -37,21 +37,26 @@ final class AttentionShadowCase {
     if (!_env.attentionV1ShadowEnabled) return;
     try {
       final boundedLimit = limit.clamp(1, 100);
-      final legacy = await filterBeaconNotifications(
-        guard: _guard,
-        viewerId: accountId,
-        items: await _outbox.feedForAccount(
-          accountId: accountId,
-          limit: boundedLimit,
-          before: before,
-        ),
+      final legacy = await _legacyPage(
+        accountId: accountId,
+        limit: boundedLimit,
+        before: before,
       );
       final attention = await _attention.attentionFeed(
         accountId: accountId,
         view: AttentionFeedView.all,
         limit: boundedLimit,
       );
-      final result = compare(legacy, attention.page.items);
+      final stableLegacy = await _legacyPage(
+        accountId: accountId,
+        limit: boundedLimit,
+        before: before,
+      );
+      if (legacyReadAxesChanged(legacy, stableLegacy)) {
+        _logger.info('attention_event=shadow_snapshot_race');
+        return;
+      }
+      final result = compare(stableLegacy, attention.page.items);
       if (result.expectedTotal > 0) {
         _logger.info(
           'attention_event=shadow_delta '
@@ -71,6 +76,32 @@ final class AttentionShadowCase {
     } catch (error, stackTrace) {
       _logger.warning('attention_event=shadow_failure', error, stackTrace);
     }
+  }
+
+  Future<List<NotificationOutboxItemEntity>> _legacyPage({
+    required String accountId,
+    required int limit,
+    required DateTime? before,
+  }) async => filterBeaconNotifications(
+    guard: _guard,
+    viewerId: accountId,
+    items: await _outbox.feedForAccount(
+      accountId: accountId,
+      limit: limit,
+      before: before,
+    ),
+  );
+
+  static bool legacyReadAxesChanged(
+    Iterable<NotificationOutboxItemEntity> before,
+    Iterable<NotificationOutboxItemEntity> after,
+  ) {
+    final beforeById = {
+      for (final receipt in before) receipt.id: receipt.readAt,
+    };
+    final afterById = {for (final receipt in after) receipt.id: receipt.readAt};
+    return beforeById.length != afterById.length ||
+        beforeById.entries.any((entry) => afterById[entry.key] != entry.value);
   }
 
   static AttentionShadowResult compare(
