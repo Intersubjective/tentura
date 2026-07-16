@@ -4387,6 +4387,8 @@
   "updatesTitle": "Updates",
   "updatesAll": "All",
   "updatesUnread": "Unread",
+  "updatesMarkSeen": "Mark seen",
+  "updatesMarkAllSeen": "Mark all seen",
   "updatesEmptyTitle": "Nothing new",
   "updatesEmptyAllHint": "New activity will appear here.",
   "updatesEmptyUnreadHint": "You have no unread updates."

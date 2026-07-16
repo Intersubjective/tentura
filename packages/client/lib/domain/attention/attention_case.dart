@@ -165,10 +165,10 @@ final class AttentionCase {
   void _applyPage(AttentionFeed feed, {required bool replaceHead}) {
     final view = snapshot.activeView;
     final oldPage = snapshot.pages[view];
-    final incoming = feed.page.items.map(_acks.apply).toList(growable: false);
-    for (final receipt in incoming) {
+    for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
     }
+    final incoming = feed.page.items.map(_acks.apply).toList(growable: false);
     final items = replaceHead
         ? incoming
         : <AttentionReceipt>[...?oldPage?.items, ...incoming]
@@ -190,15 +190,15 @@ final class AttentionCase {
     final pages = <AttentionView, AttentionFeedPage>{
       for (final entry in snapshot.pages.entries)
         entry.key: entry.value.copyWith(
-          items: entry.value.items.map(_acks.apply).toList(growable: false),
+          items: entry.value.items
+              .map(
+                (receipt) => _acks.apply(_receiptsById[receipt.id] ?? receipt),
+              )
+              .toList(growable: false),
         ),
     };
-    for (final page in pages.values) {
-      for (final receipt in page.items) {
-        _receiptsById[receipt.id] = receipt;
-      }
-    }
     final unread = _receiptsById.values
+        .map(_acks.apply)
         .where((receipt) => !receipt.isSeen)
         .length;
     _emit(

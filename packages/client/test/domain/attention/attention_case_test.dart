@@ -29,6 +29,7 @@ final class _Accounts implements AttentionAccountPort {
 final class _Repository implements AttentionRepositoryPort {
   final List<Completer<AttentionFeed>> pendingFetches = [];
   final List<Completer<int>> pendingMarkSeen = [];
+  final List<Completer<int>> pendingMarkAllSeen = [];
   int fetchCalls = 0;
 
   @override
@@ -42,7 +43,7 @@ final class _Repository implements AttentionRepositoryPort {
   }
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen() => pendingMarkAllSeen.removeAt(0).future;
 
   @override
   Future<int> markSeen(List<String> ids) => pendingMarkSeen.removeAt(0).future;
@@ -66,6 +67,9 @@ AttentionReceipt _receipt({String id = 'receipt-1'}) => AttentionReceipt(
   collapsedCount: 1,
   presentationPayloadJson: '{}',
 );
+
+AttentionReceipt _seenReceipt({String id = 'receipt-1'}) =>
+    _receipt(id: id).copyWith(seenAt: DateTime.utc(2026, 1, 2));
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
@@ -205,6 +209,105 @@ void main() {
         await _settle();
         expect(
           attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'mark-all is optimistic and restores unread rows after failure',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final rejected = Completer<int>();
+        repository.pendingFetches.add(initial);
+        repository.pendingMarkAllSeen.add(rejected);
+        accounts.emit('account-a');
+        await _settle();
+        initial.complete(
+          _feed(
+            unread: 2,
+            items: [
+              _receipt(id: 'one'),
+              _receipt(id: 'two'),
+            ],
+          ),
+        );
+        await _settle();
+
+        final command = attention.markAllSeen();
+        await _settle();
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.every(
+            (receipt) => receipt.isSeen,
+          ),
+          isTrue,
+        );
+        expect(attention.snapshot.summary.unreadTotal, 0);
+
+        rejected.completeError(StateError('offline'));
+        await expectLater(command, throwsStateError);
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.every(
+            (receipt) => !receipt.isSeen,
+          ),
+          isTrue,
+        );
+        expect(attention.snapshot.summary.unreadTotal, 2);
+      },
+    );
+
+    test(
+      'room-bridge notification fan-out reconciles another client after an ack',
+      () async {
+        final secondRepository = _Repository();
+        final secondAccounts = _Accounts();
+        final secondRealtime = buildTestRealtimeSync();
+        final secondAttention = AttentionCase(
+          secondRepository,
+          secondAccounts,
+          secondRealtime.case_,
+          const Env(updatesTabEnabled: true),
+          Logger('attention-case-second-client-test'),
+        );
+        addTearDown(secondAttention.dispose);
+        addTearDown(secondAccounts.dispose);
+        addTearDown(secondRealtime.port.dispose);
+
+        final first = Completer<AttentionFeed>();
+        final second = Completer<AttentionFeed>();
+        repository.pendingFetches.add(first);
+        secondRepository.pendingFetches.add(second);
+        accounts.emit('account-a');
+        secondAccounts.emit('account-a');
+        await _settle();
+        first.complete(_feed());
+        second.complete(_feed());
+        await _settle();
+
+        final remoteRefresh = Completer<AttentionFeed>();
+        secondRepository.pendingFetches.add(remoteRefresh);
+        // The server room bridge publishes the same account-scoped notification
+        // hint as explicit acknowledgement writes.
+        secondRealtime.port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.notification,
+            aggregateId: 'account-a',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await _settle();
+        remoteRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
+        await _settle();
+
+        expect(secondAttention.snapshot.summary.unreadTotal, 0);
+        expect(
+          secondAttention
+              .snapshot
+              .pages[AttentionView.all]!
+              .items
+              .single
+              .isSeen,
           isTrue,
         );
       },

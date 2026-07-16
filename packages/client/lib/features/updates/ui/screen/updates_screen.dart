@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/app/router/root_router.dart';
@@ -65,7 +64,21 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return Scaffold(
-      appBar: TenturaTopBar.of(context, title: Text(l10n.updatesTitle)),
+      appBar: TenturaTopBar.of(
+        context,
+        title: Text(l10n.updatesTitle),
+        actions: [
+          BlocSelector<UpdatesFeedCubit, UpdatesFeedState, bool>(
+            selector: (state) => state.items.any((item) => !item.isSeen),
+            builder: (context, hasUnread) => TextButton(
+              onPressed: hasUnread
+                  ? () => context.read<UpdatesFeedCubit>().markAllSeen()
+                  : null,
+              child: Text(l10n.updatesMarkAllSeen),
+            ),
+          ),
+        ],
+      ),
       body: TenturaContentColumn(
         child: Column(
           children: [
@@ -129,7 +142,7 @@ class _UpdatesCard extends StatelessWidget {
     return Semantics(
       label: receipt.title,
       child: ListTile(
-        onTap: () => GetIt.I<RootRouter>().openFromUpdate(receipt),
+        onTap: () => _open(context),
         contentPadding: tt.cardPadding,
         leading: Icon(
           _iconFor(receipt.kind),
@@ -150,12 +163,30 @@ class _UpdatesCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TenturaText.bodySmall(tt.textMuted),
         ),
-        trailing: Text(
-          _shortAge(receipt.createdAt),
-          style: TenturaText.bodySmall(tt.textFaint),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _shortAge(receipt.createdAt),
+              style: TenturaText.bodySmall(tt.textFaint),
+            ),
+            if (isUnread)
+              IconButton(
+                tooltip: L10n.of(context)!.updatesMarkSeen,
+                onPressed: () => context.read<UpdatesFeedCubit>().markSeen(
+                  receipt.id,
+                ),
+                icon: const Icon(Icons.done_outlined),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    await context.read<UpdatesFeedCubit>().markSeen(receipt.id);
+    await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
 
   static IconData _iconFor(String kind) => switch (kind) {

@@ -61,6 +61,22 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     }
   }
 
+  Future<void> markSeen(String id) async {
+    try {
+      await _attention.markSeen([id]);
+    } catch (error, stackTrace) {
+      _logger.warning('Updates mark-seen failed', error, stackTrace);
+    }
+  }
+
+  Future<void> markAllSeen() async {
+    try {
+      await _attention.markAllSeen();
+    } catch (error, stackTrace) {
+      _logger.warning('Updates mark-all-seen failed', error, stackTrace);
+    }
+  }
+
   @override
   Future<void> close() async {
     await _sub.cancel();

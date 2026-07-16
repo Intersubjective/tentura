@@ -4180,6 +4180,8 @@
   "updatesTitle": "Обновления",
   "updatesAll": "Все",
   "updatesUnread": "Непрочитанные",
+  "updatesMarkSeen": "Отметить прочитанным",
+  "updatesMarkAllSeen": "Отметить всё прочитанным",
   "updatesEmptyTitle": "Ничего нового",
   "updatesEmptyAllHint": "Здесь появится новая активность.",
   "updatesEmptyUnreadHint": "У вас нет непрочитанных обновлений."

@@ -16,11 +16,11 @@ final class AttentionAckStore {
   void markAllSeen(Iterable<String> ids) => _optimisticallySeen.addAll(ids);
 
   AttentionReceipt apply(AttentionReceipt receipt) {
+    if (!_optimisticallySeen.contains(receipt.id)) return receipt;
     if (receipt.isSeen) {
       _optimisticallySeen.remove(receipt.id);
       return receipt;
     }
-    if (!_optimisticallySeen.contains(receipt.id)) return receipt;
     return receipt.copyWith(seenAt: DateTime.now().toUtc());
   }
 

@@ -20,6 +20,20 @@ then uses the existing scroll path.
 Home-tab, and notification deep-link tests pass with Updates both disabled and enabled;
 scoped analyzer has no errors; formatting and `git diff --check` pass.
 
+## Context reset — T-12
+
+**Resolution:** Updates cards now acknowledge before opening their typed destination,
+offer an accessible per-card Mark seen action, and expose Mark all seen in the top bar.
+The presenter delegates to the shared `AttentionCase`; it owns optimistic state and
+failure reconciliation. The authoritative receipt cache is kept separate from projected
+optimistic rows, so a rejected acknowledgement restores unread state instead of being
+mistaken for server confirmation.
+
+**Verification:** generated EN/RU l10n; focused acknowledgement and Updates tests pass,
+including mark-all rollback and a simulated second client converging from the
+account-scoped notification hint used by the Room bridge; flag-on router suite and
+scoped analyzer pass; formatting and `git diff --check` pass.
+
 ## Scope and task ledger
 
 | Task | Status | Evidence / blocker |
@@ -37,7 +51,8 @@ scoped analyzer has no errors; formatting and `git diff --check` pass.
 | T-09 | Complete | `HomeTabSpec` now owns the four existing tab mappings; focused router/Home/New Stuff tests and scoped analysis pass. |
 | T-10 | Complete | Flagged, route-free Updates presenter with feed views, pagination, refresh, scroll retention, and EN/RU copy; focused verification passes. |
 | T-11 | Complete | Flagged fifth branch, typed destination map, Updates-origin branch selection, and exact directed-Chat target hydration pass focused flag-off and flag-on router tests. |
-| T-12–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-12 | Complete | Open/per-item/mark-all acknowledgement UI, optimistic rollback, and multi-client Room-bridge hint reconciliation pass focused verification. |
+| T-13–T-15 | Blocked on predecessor | No acceptance claim yet. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
