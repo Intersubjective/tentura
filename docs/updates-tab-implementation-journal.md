@@ -30,8 +30,9 @@ Updates. The server-side legacy Notification Center API remains for old-client
 compatibility through T-19. Inbox/My Work local Drift dots and row highlights remain
 explicitly out of this migration until T-21.
 
-**Verification:** pending final focused/full analysis, tests, terminology check, and
-browser release proof after the removed defines are taken out of the runner.
+**Verification:** custom-lint tests, focused server/client suites, full client
+analysis, terminology check, shell syntax, and `git diff --check` pass. The final
+unconditional release proof is recorded below.
 
 ## Context reset — T-12
 
@@ -79,7 +80,7 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-12 | Complete | Open/per-item/mark-all acknowledgement UI, optimistic rollback, and multi-client Room-bridge hint reconciliation pass focused verification. |
 | T-13 | Complete | In-app noisy-class settings UI, V2 persistence mapping, safety copy, and focused cubit verification pass. |
 | T-14 | Complete | Five browser release-proof passes, deliberate live/catch-up negative controls, and zero unexplained shadow mismatches are recorded in `reports/realtime-multiclient/updates-t14-release-20260717-005719`. |
-| T-15 | In progress | Flip implementation complete; final verification and release proof pending. |
+| T-15 | Complete | Unconditional flip, scoped retry-proof hardening, five positive browser runs, and both deliberate negative controls pass in `reports/realtime-multiclient/updates-t15-release-20260717`. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
@@ -594,3 +595,17 @@ Five consecutive passes completed with negative live-delivery and catch-up proof
 P95s: Updates delivery 282 ms, Updates open-ack 16 ms, connected delivery 1409 ms,
 and reconnect catch-up 1714 ms. The enabled shadow telemetry recorded no unexplained
 `attention_event=shadow_mismatch` or `attention_event=shadow_failure` markers.
+
+## T-15 — Unconditional flip release proof
+
+The final runner removes the retired client/server defines and attests
+`updates_tab: "unconditional"` plus `attention_v1_new_producers: "unconditional"`.
+Its expected offline Chat error is dismissed through the snackbar's semantic close
+control before retrying, so the retry proves application recovery rather than clicking
+through the 15-second error surface. Artifact paths are canonicalized before the
+runner changes into the client package.
+
+**Release artifact:** `reports/realtime-multiclient/updates-t15-release-20260717` at
+revision `0dde7ecf`. Five consecutive positive runs and both disabled live/catch-up
+negative controls passed. P95s: Updates delivery 233 ms, Updates open-ack 33 ms, Chat
+delivery 773 ms, and reconnect catch-up 1695 ms.
