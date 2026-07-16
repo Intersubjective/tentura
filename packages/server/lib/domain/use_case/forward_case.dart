@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -8,8 +6,10 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
-import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
+import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -22,18 +22,22 @@ final class ForwardCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRepository,
-    this._roomPush,
+    BeaconRoomNotificationPort legacyNotificationPort,
     this._guard, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
   final BeaconRepositoryPort _beaconRepository;
-  final BeaconRoomNotificationPort _roomPush;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
 
   /// Cancel a forward edge (soft-delete).
@@ -158,64 +162,62 @@ final class ForwardCase extends UseCaseBase {
 
     final batchId = generateId('X');
 
-    final insertedRecipientIds = await _forwardEdgeRepository.createBatch(
-      beaconId: beaconId,
-      senderId: senderId,
-      recipientIds: recipients,
-      batchId: batchId,
-      noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
-      context: context,
-      parentEdgeId: resolvedParentEdgeId,
-      onAfterEdgesInserted: () async {
-        final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
+    return _attention!.runAction(
+      actorUserId: senderId,
+      action: (transaction) async {
+        final insertedRecipientIds = await _forwardEdgeRepository.createBatch(
           beaconId: beaconId,
-          userId: senderId,
-        );
-        if (hasOffer) return;
-        await _inboxRepository.upsertWatchingForSender(
           senderId: senderId,
-          beaconId: beaconId,
+          recipientIds: recipients,
+          batchId: batchId,
+          noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
           context: context,
+          parentEdgeId: resolvedParentEdgeId,
+          onAfterEdgesInserted: () async {
+            final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
+              beaconId: beaconId,
+              userId: senderId,
+            );
+            if (hasOffer) return;
+            await _inboxRepository.upsertWatchingForSender(
+              senderId: senderId,
+              beaconId: beaconId,
+              context: context,
+            );
+          },
         );
+
+        for (final recipientId in insertedRecipientIds) {
+          final slugs =
+              perRecipientReasonSlugs?[recipientId] ?? sharedReasonSlugs ?? [];
+          if (slugs.isEmpty) continue;
+          try {
+            await _capabilityCase.recordForwardReasons(
+              observerId: senderId,
+              subjectId: recipientId,
+              beaconId: beaconId,
+              slugs: slugs,
+            );
+          } catch (e) {
+            logger.warning(
+              'ForwardCase: failed to record forward reasons for $recipientId: $e',
+            );
+          }
+        }
+
+        if (insertedRecipientIds.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.relayReceived(
+              beaconId: beaconId,
+              senderId: senderId,
+              beaconAuthorId: beacon.author.id,
+              recipientIds: insertedRecipientIds,
+              sourceEventKey: 'forward_batch:$batchId',
+            ),
+          );
+        }
+        return batchId;
       },
     );
-
-    // Record forward-reason capability events after edges are committed.
-    for (final recipientId in insertedRecipientIds) {
-      final slugs =
-          perRecipientReasonSlugs?[recipientId] ?? sharedReasonSlugs ?? [];
-      if (slugs.isEmpty) continue;
-      try {
-        await _capabilityCase.recordForwardReasons(
-          observerId: senderId,
-          subjectId: recipientId,
-          beaconId: beaconId,
-          slugs: slugs,
-        );
-      } catch (e) {
-        logger.warning(
-          'ForwardCase: failed to record forward reasons for $recipientId: $e',
-        );
-      }
-    }
-
-    if (insertedRecipientIds.isNotEmpty) {
-      try {
-        unawaited(
-          _roomPush.notifyForwardReceived(
-            beaconId: beaconId,
-            senderId: senderId,
-            beaconAuthorId: beacon.author.id,
-            recipientIds: insertedRecipientIds,
-          ),
-        );
-      } catch (e) {
-        logger.warning(
-          'ForwardCase: failed to enqueue forward notification: $e',
-        );
-      }
-    }
-
-    return batchId;
   }
 }

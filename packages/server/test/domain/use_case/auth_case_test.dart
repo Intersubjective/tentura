@@ -8,10 +8,14 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/noop_invite_accepted_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 
 // Reuse the server's default Ed25519 key pair as the test "device key": the
 // pair is self-consistent, so `_verifyAuthRequest` (which verifies the token
@@ -24,15 +28,21 @@ final _privateKey = EdDSAPrivateKey.fromPEM(
 );
 final _pkB64 = base64UrlEncode(_publicKey.bytes);
 
-String _authRequestToken() => JWT({'pk': _pkB64}).sign(
-  _privateKey,
-  algorithm: JWTAlgorithm.EdDSA,
-  expiresIn: const Duration(minutes: 5),
-);
+String _authRequestToken({String? invitationId}) =>
+    JWT({
+      'pk': _pkB64,
+      if (invitationId != null) AuthRequestIntentSignUp.keyCode: invitationId,
+    }).sign(
+      _privateKey,
+      algorithm: JWTAlgorithm.EdDSA,
+      expiresIn: const Duration(minutes: 5),
+    );
 
 void main() {
   late MockUserRepositoryPort userRepo;
   late MockInvitationRepositoryPort invitationRepo;
+  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
+  late TestAttentionHarness attention;
   late AuthCase case_;
 
   setUp(() {
@@ -41,41 +51,117 @@ void main() {
     when(
       invitationRepo.getById(invitationId: anyNamed('invitationId')),
     ).thenAnswer((_) async => null);
+    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
+    attention = TestAttentionHarness();
     case_ = AuthCase(
       userRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
-      env: Env(environment: Environment.test),
+      inviteAcceptedNotification,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
+      env: Env(environment: Environment.test, isNeedInvite: true),
       logger: Logger('AuthCaseTest'),
     );
   });
 
-  test('signIn resolves the account via the ed25519_device credential', () async {
+  test(
+    'signIn resolves the account via the ed25519_device credential',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Uacc', displayName: 'Bob'),
+      );
+      when(
+        userRepo.findCredentialId(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenAnswer((_) async => 'Cdevice');
+
+      final jwt = await case_.signIn(authRequestToken: _authRequestToken());
+
+      expect(jwt.sub, 'Uacc');
+      expect(jwt.credentialId, 'Cdevice');
+      final payload = JWT.decode(jwt.rawToken).payload as Map<String, dynamic>;
+      expect(payload['cid'], 'Cdevice');
+      verify(
+        userRepo.getByCredential(type: 'ed25519_device', identifier: _pkB64),
+      ).called(1);
+    },
+  );
+
+  test(
+    'signUpWithInvite creates the invited account and issues a session',
+    () async {
+      when(
+        invitationRepo.getById(invitationId: 'Iabc'),
+      ).thenAnswer(
+        (_) async => InvitationEntity(
+          id: 'Iabc',
+          issuer: const UserEntity(id: 'Uissuer', displayName: 'Alice'),
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ),
+      );
+      when(
+        userRepo.createInvited(
+          invitationId: anyNamed('invitationId'),
+          publicKey: anyNamed('publicKey'),
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Unew', displayName: 'Carol'),
+      );
+
+      final jwt = await case_.signUpWithInvite(
+        authRequestToken: _authRequestToken(),
+        invitationId: 'Iabc',
+        displayName: 'Carol',
+      );
+
+      expect(jwt.sub, 'Unew');
+      verify(
+        userRepo.createInvited(
+          invitationId: 'Iabc',
+          publicKey: _pkB64,
+          displayName: 'Carol',
+        ),
+      ).called(1);
+      expect(attention.recorded, hasLength(1));
+      expect(
+        attention.recorded.single,
+        isA<AttentionDispatchIntent>()
+            .having(
+              (intent) => intent.eventType,
+              'eventType',
+              AttentionEventType.inviteAccepted,
+            )
+            .having(
+              (intent) => intent.recipients.single.recipientId,
+              'recipient',
+              'Uissuer',
+            )
+            .having((intent) => intent.actorUserId, 'actor', 'Unew'),
+      );
+    },
+  );
+
+  test('signUp with an auth-request invite emits inviteAccepted', () async {
     when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
+      invitationRepo.getById(invitationId: 'IfromJwt'),
+    ).thenAnswer(
+      (_) async => InvitationEntity(
+        id: 'IfromJwt',
+        issuer: const UserEntity(id: 'Uissuer', displayName: 'Alice'),
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
       ),
-    ).thenAnswer((_) async => const UserEntity(id: 'Uacc', displayName: 'Bob'));
-    when(
-      userRepo.findCredentialId(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenAnswer((_) async => 'Cdevice');
-
-    final jwt = await case_.signIn(authRequestToken: _authRequestToken());
-
-    expect(jwt.sub, 'Uacc');
-    expect(jwt.credentialId, 'Cdevice');
-    final payload = JWT.decode(jwt.rawToken).payload as Map<String, dynamic>;
-    expect(payload['cid'], 'Cdevice');
-    verify(
-      userRepo.getByCredential(type: 'ed25519_device', identifier: _pkB64),
-    ).called(1);
-  });
-
-  test('signUpWithInvite creates the invited account and issues a session', () async {
+    );
     when(
       userRepo.createInvited(
         invitationId: anyNamed('invitationId'),
@@ -87,19 +173,16 @@ void main() {
       (_) async => const UserEntity(id: 'Unew', displayName: 'Carol'),
     );
 
-    final jwt = await case_.signUpWithInvite(
-      authRequestToken: _authRequestToken(),
-      invitationId: 'Iabc',
+    final jwt = await case_.signUp(
+      authRequestToken: _authRequestToken(invitationId: 'IfromJwt'),
       displayName: 'Carol',
     );
 
     expect(jwt.sub, 'Unew');
-    verify(
-      userRepo.createInvited(
-        invitationId: 'Iabc',
-        publicKey: _pkB64,
-        displayName: 'Carol',
-      ),
-    ).called(1);
+    expect(attention.recorded, hasLength(1));
+    expect(
+      attention.recorded.single.actorUserId,
+      'Unew',
+    );
   });
 }

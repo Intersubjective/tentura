@@ -14,6 +14,7 @@ import 'package:tentura_server/env.dart';
 
 import 'fake_beacon_access_guard.dart';
 import 'noop_invite_accepted_notification_port.dart';
+import 'test_attention_harness.dart';
 
 InvitationCase buildTestInvitationCase({
   required InvitationRepositoryPort invitationRepo,
@@ -24,21 +25,26 @@ InvitationCase buildTestInvitationCase({
   ForwardEdgeRepositoryPort? forwardEdgeRepo,
   FakeBeaconAccessGuard? guard,
   InviteAcceptedNotificationPort? inviteAcceptedNotification,
+  TestAttentionHarness? attention,
   Env? env,
   Logger? logger,
-}) =>
-    InvitationCase(
-      invitationRepo,
-      userRepo,
-      beaconRepo,
-      friendshipLookup,
-      contactRepo,
-      guard ?? FakeBeaconAccessGuard(),
-      _NoopForwardEdgeRepositoryPort(forwardEdgeRepo),
-      inviteAcceptedNotification ?? NoopInviteAcceptedNotificationPort(),
-      env: env ?? Env(environment: Environment.test),
-      logger: logger ?? Logger('InvitationCaseTest'),
-    );
+}) {
+  final attentionHarness = attention ?? TestAttentionHarness();
+  return InvitationCase(
+    invitationRepo,
+    userRepo,
+    beaconRepo,
+    friendshipLookup,
+    contactRepo,
+    guard ?? FakeBeaconAccessGuard(),
+    _NoopForwardEdgeRepositoryPort(forwardEdgeRepo),
+    inviteAcceptedNotification ?? NoopInviteAcceptedNotificationPort(),
+    attentionIntents: attentionHarness.intents,
+    attention: attentionHarness.transactional,
+    env: env ?? Env(environment: Environment.test),
+    logger: logger ?? Logger('InvitationCaseTest'),
+  );
+}
 
 class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   _NoopForwardEdgeRepositoryPort(this._delegate);
@@ -49,7 +55,8 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
       _delegate ?? _UnimplementedForwardEdgeRepositoryPort();
 
   @override
-  Future<void> cancel(String edgeId, String senderId) => _d.cancel(edgeId, senderId);
+  Future<void> cancel(String edgeId, String senderId) =>
+      _d.cancel(edgeId, senderId);
 
   @override
   Future<void> create({
@@ -60,16 +67,15 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     String? batchId,
-  }) =>
-      _d.create(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-        note: note,
-        context: context,
-        parentEdgeId: parentEdgeId,
-        batchId: batchId,
-      );
+  }) => _d.create(
+    beaconId: beaconId,
+    senderId: senderId,
+    recipientId: recipientId,
+    note: note,
+    context: context,
+    parentEdgeId: parentEdgeId,
+    batchId: batchId,
+  );
 
   @override
   Future<List<String>> createBatch({
@@ -81,17 +87,16 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
-  }) =>
-      _d.createBatch(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientIds: recipientIds,
-        batchId: batchId,
-        noteForRecipient: noteForRecipient,
-        context: context,
-        parentEdgeId: parentEdgeId,
-        onAfterEdgesInserted: onAfterEdgesInserted,
-      );
+  }) => _d.createBatch(
+    beaconId: beaconId,
+    senderId: senderId,
+    recipientIds: recipientIds,
+    batchId: batchId,
+    noteForRecipient: noteForRecipient,
+    context: context,
+    parentEdgeId: parentEdgeId,
+    onAfterEdgesInserted: onAfterEdgesInserted,
+  );
 
   @override
   Future<void> createForInviteAccept({
@@ -99,13 +104,12 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     required String senderId,
     required String recipientId,
     String? parentEdgeId,
-  }) =>
-      _d.createForInviteAccept(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-        parentEdgeId: parentEdgeId,
-      );
+  }) => _d.createForInviteAccept(
+    beaconId: beaconId,
+    senderId: senderId,
+    recipientId: recipientId,
+    parentEdgeId: parentEdgeId,
+  );
 
   @override
   Future<bool> existsWithParent(String parentEdgeId) =>
@@ -118,8 +122,7 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
     required String beaconId,
     required String recipientId,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
@@ -129,20 +132,18 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) =>
-      _d.fetchByRecipientId(recipientId, context: context);
+  }) => _d.fetchByRecipientId(recipientId, context: context);
 
   @override
   Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String beaconId,
     required String helpOffererId,
     required String viewerId,
-  }) =>
-      _d.fetchHelpOffererPathChain(
-        beaconId: beaconId,
-        helpOffererId: helpOffererId,
-        viewerId: viewerId,
-      );
+  }) => _d.fetchHelpOffererPathChain(
+    beaconId: beaconId,
+    helpOffererId: helpOffererId,
+    viewerId: viewerId,
+  );
 
   @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
@@ -153,24 +154,22 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
     required String beaconId,
     required String senderId,
     required String recipientId,
-  }) =>
-      _d.findActiveEdge(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-      );
+  }) => _d.findActiveEdge(
+    beaconId: beaconId,
+    senderId: senderId,
+    recipientId: recipientId,
+  );
 
   @override
   Future<bool> isDirectAuthorForward({
     required String beaconId,
     required String authorId,
     required String userId,
-  }) =>
-      _d.isDirectAuthorForward(
-        beaconId: beaconId,
-        authorId: authorId,
-        userId: userId,
-      );
+  }) => _d.isDirectAuthorForward(
+    beaconId: beaconId,
+    authorId: authorId,
+    userId: userId,
+  );
 
   @override
   Future<void> markAsRead(String edgeId, String recipientId) =>

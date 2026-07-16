@@ -4,7 +4,9 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -17,6 +19,7 @@ import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -312,6 +315,93 @@ void main() {
       ),
     );
   }
+
+  CoordinationCase enabledCase(TestAttentionHarness attention) =>
+      CoordinationCase(
+        beaconRepo,
+        helpOfferRepo,
+        coordinationRepo,
+        roomRepo,
+        evalRepo,
+        roomPush: roomPush,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        guard: FakeBeaconAccessGuard(),
+        env: Env(
+          environment: Environment.test,
+          attentionV1NewProducersEnabled: true,
+        ),
+        logger: Logger('CoordinationCaseRevertTest'),
+      );
+
+  group('requestStatusChanged producer', () {
+    test(
+      'snapshots active and watcher audiences with recipient policy',
+      () async {
+        final attention = TestAttentionHarness(
+          context: const BeaconNotificationContext(
+            beaconAuthorId: authorId,
+            admittedUserIds: {offerUserId},
+            inboxStanceUserIds: {'Uwatcher'},
+          ),
+        );
+        case_ = enabledCase(attention);
+        stubTransaction(beacon(status: BeaconStatus.open));
+
+        await case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.enoughHelp.smallintValue,
+        );
+
+        final intent = attention.recorded.single;
+        expect(intent.eventType, AttentionEventType.requestStatusChanged);
+        expect(intent.sourceEventKey, startsWith('request_status:A'));
+        final helper = intent.recipients.singleWhere(
+          (recipient) => recipient.recipientId == offerUserId,
+        );
+        expect(helper.channelEligible, isTrue);
+        final watcher = intent.recipients.singleWhere(
+          (recipient) => recipient.recipientId == 'Uwatcher',
+        );
+        expect(watcher.channelEligible, isFalse);
+        expect(watcher.collapseKey, startsWith('v1|request_status|'));
+      },
+    );
+
+    test(
+      'noop emits nothing and repeat after reversal has new identities',
+      () async {
+        final attention = TestAttentionHarness(
+          context: const BeaconNotificationContext(
+            beaconAuthorId: authorId,
+            admittedUserIds: {offerUserId},
+          ),
+        );
+        case_ = enabledCase(attention);
+        stubTransaction(beacon(status: BeaconStatus.open));
+
+        for (final status in [
+          BeaconStatus.enoughHelp,
+          BeaconStatus.enoughHelp,
+          BeaconStatus.open,
+          BeaconStatus.enoughHelp,
+        ]) {
+          await case_.setBeaconStatus(
+            beaconId: beaconId,
+            authorUserId: authorId,
+            status: status.smallintValue,
+          );
+        }
+
+        expect(attention.recorded, hasLength(3));
+        expect(
+          attention.recorded.map((intent) => intent.sourceEventKey).toSet(),
+          hasLength(3),
+        );
+      },
+    );
+  });
 
   group('setBeaconStatus more help', () {
     test(

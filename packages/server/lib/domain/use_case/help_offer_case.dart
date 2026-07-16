@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
@@ -19,6 +16,9 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -34,11 +34,14 @@ final class HelpOfferCase extends UseCaseBase {
     this._beaconRoomRepository,
     this._forwardEdgeRepository,
     this._admissionRepository,
-    this._roomPush,
+    BeaconRoomNotificationPort legacyNotificationPort,
     this._guard, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconRepositoryPort _beaconRepository;
@@ -48,7 +51,8 @@ final class HelpOfferCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferAdmissionRepositoryPort _admissionRepository;
-  final BeaconRoomNotificationPort _roomPush;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
 
   Future<void> offerHelp({
@@ -110,42 +114,42 @@ final class HelpOfferCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.authorCannotCommit,
       );
     }
-    await _helpOfferRepository.upsert(
-      beaconId: beaconId,
-      userId: userId,
-      message: message,
-      helpTypes: helpTypes,
-    );
-    if (helpTypes != null && helpTypes.isNotEmpty) {
-      for (final type in helpTypes) {
-        try {
-          await _capabilityCase.recordCommitRole(
-            observerId: userId,
-            subjectId: userId,
-            beaconId: beaconId,
-            slug: type,
-          );
-        } catch (e, st) {
-          logger.warning('recordCommitRole failed', e, st);
+    await _attention!.runAction<void>(
+      actorUserId: userId,
+      action: (transaction) async {
+        await _helpOfferRepository.upsert(
+          beaconId: beaconId,
+          userId: userId,
+          message: message,
+          helpTypes: helpTypes,
+        );
+        if (helpTypes != null && helpTypes.isNotEmpty) {
+          for (final type in helpTypes) {
+            try {
+              await _capabilityCase.recordCommitRole(
+                observerId: userId,
+                subjectId: userId,
+                beaconId: beaconId,
+                slug: type,
+              );
+            } catch (e, st) {
+              logger.warning('recordCommitRole failed', e, st);
+            }
+          }
         }
-      }
-    }
-    await _autoAdmitIfTrusted(
-      beacon: beacon,
-      helpOffererId: userId,
-    );
-    unawaited(
-      _roomPush
-          .notifyHelpOfferToAuthor(
+        await transaction.record(
+          await _attentionIntents!.helpOfferSubmitted(
             beaconId: beaconId,
             helpOffererId: userId,
             authorId: beacon.author.id,
-          )
-          .catchError((Object e) {
-            logger.warning(
-              'HelpOfferCase: failed to enqueue help offer notification: $e',
-            );
-          }),
+            sourceEventKey: 'help_offer:${generateId('A')}',
+          ),
+        );
+      },
+    );
+    await _autoAdmitIfTrusted(
+      beacon: beacon,
+      helpOffererId: userId,
     );
   }
 
@@ -169,29 +173,35 @@ final class HelpOfferCase extends UseCaseBase {
     );
     if (existing != null && existing.roomAccess == RoomAccessBits.none) return;
 
-    await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
-      beaconId: beacon.id,
-      offerUserId: helpOffererId,
-      authorUserId: beacon.author.id,
-    );
-    await _coordinationRepository.upsertResponse(
-      beaconId: beacon.id,
-      offerUserId: helpOffererId,
-      authorUserId: beacon.author.id,
-      responseType: CoordinationResponseType.useful.smallintValue,
-    );
-    await _admissionRepository.record(
-      beaconId: beacon.id,
-      offerUserId: helpOffererId,
+    await _attention!.runAction<void>(
       actorUserId: beacon.author.id,
-      action: HelpOfferAdmissionAction.autoAdmit,
-    );
-    unawaited(
-      _roomPush.notifyRoomAdmitted(
-        receiverId: helpOffererId,
-        beaconId: beacon.id,
-        actorUserId: beacon.author.id,
-      ),
+      action: (transaction) async {
+        await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
+          beaconId: beacon.id,
+          offerUserId: helpOffererId,
+          authorUserId: beacon.author.id,
+        );
+        await _coordinationRepository.upsertResponse(
+          beaconId: beacon.id,
+          offerUserId: helpOffererId,
+          authorUserId: beacon.author.id,
+          responseType: CoordinationResponseType.useful.smallintValue,
+        );
+        await _admissionRepository.record(
+          beaconId: beacon.id,
+          offerUserId: helpOffererId,
+          actorUserId: beacon.author.id,
+          action: HelpOfferAdmissionAction.autoAdmit,
+        );
+        await transaction.record(
+          await _attentionIntents!.offerAccepted(
+            receiverId: helpOffererId,
+            beaconId: beacon.id,
+            actorUserId: beacon.author.id,
+            sourceEventKey: 'admission:${generateId('A')}',
+          ),
+        );
+      },
     );
   }
 
@@ -219,35 +229,42 @@ final class HelpOfferCase extends UseCaseBase {
             HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
       );
     }
-    await _coordinationRepository.deleteForCommit(
-      beaconId: beaconId,
-      userId: userId,
+    await _attention!.runAction<void>(
+      actorUserId: userId,
+      action: (transaction) async {
+        await _coordinationRepository.deleteForCommit(
+          beaconId: beaconId,
+          userId: userId,
+        );
+        await _helpOfferRepository.withdraw(
+          beaconId: beaconId,
+          userId: userId,
+          message: message,
+          withdrawReason: withdrawReason,
+        );
+        final beaconAfter = await _beaconRepository.getBeaconById(
+          beaconId: beaconId,
+        );
+        if (beaconAfter.status.isOpenFamily) {
+          await _inboxRepository.upsertWatchingForSender(
+            senderId: userId,
+            beaconId: beaconId,
+            touchForwardOrdering: false,
+          );
+          await transaction.record(
+            await _attentionIntents!.helpWithdrawn(
+              beaconId: beaconId,
+              withdrawerUserId: userId,
+              sourceEventKey: 'help_withdrawn:${generateId('A')}',
+            ),
+          );
+        } else {
+          await _inboxRepository.applyTombstoneAfterWithdraw(
+            userId: userId,
+            beaconId: beaconId,
+          );
+        }
+      },
     );
-    await _helpOfferRepository.withdraw(
-      beaconId: beaconId,
-      userId: userId,
-      message: message,
-      withdrawReason: withdrawReason,
-    );
-    final beaconAfter = await _beaconRepository.getBeaconById(
-      beaconId: beaconId,
-    );
-    if (beaconAfter.status.isOpenFamily) {
-      await _inboxRepository.upsertWatchingForSender(
-        senderId: userId,
-        beaconId: beaconId,
-        touchForwardOrdering: false,
-      );
-      // Let the author / stewards know a committer pulled out (while open).
-      await _roomPush.notifyHelpWithdrawn(
-        beaconId: beaconId,
-        withdrawerUserId: userId,
-      );
-    } else {
-      await _inboxRepository.applyTombstoneAfterWithdraw(
-        userId: userId,
-        beaconId: beaconId,
-      );
-    }
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
@@ -14,9 +12,11 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '_use_case_base.dart';
 import 'contact_case.dart';
@@ -31,10 +31,13 @@ final class InvitationCase extends UseCaseBase {
     this._contactRepository,
     this._guard,
     this._forwardEdgeRepository,
-    this._inviteAcceptedNotification, {
+    InviteAcceptedNotificationPort legacyNotificationPort, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final InvitationRepositoryPort _invitationRepository;
 
@@ -50,7 +53,9 @@ final class InvitationCase extends UseCaseBase {
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
 
-  final InviteAcceptedNotificationPort _inviteAcceptedNotification;
+  final AttentionIntentCase? _attentionIntents;
+
+  final TransactionalAttentionCase? _attention;
 
   Future<InvitationEntity> create({
     required String userId,
@@ -228,30 +233,21 @@ final class InvitationCase extends UseCaseBase {
     required String invitationId,
     required String userId,
   }) async {
-    final invitation =
-        await _invitationRepository.getById(invitationId: invitationId);
+    final invitation = await _invitationRepository.getById(
+      invitationId: invitationId,
+    );
     if (invitation == null) {
       throw IdNotFoundException(id: invitationId);
     }
-    final ok = await _userRepository.bindMutual(
-      invitationId: invitationId,
+    return _acceptAndRecord(
+      invitation: invitation,
       userId: userId,
-      bindFriendship: true,
+      mutation: () => _userRepository.bindMutual(
+        invitationId: invitationId,
+        userId: userId,
+        bindFriendship: true,
+      ),
     );
-    if (ok) {
-      final accepter = await _userRepository.getById(userId);
-      unawaited(
-        _inviteAcceptedNotification.notifyInviteAccepted(
-          InviteAcceptedNotificationIntent(
-            inviterUserId: invitation.issuer.id,
-            accepterUserId: userId,
-            accepterDisplayName: accepter.displayName,
-            actionUrl: '/#/shared/view?id=$userId',
-          ),
-        ),
-      );
-    }
-    return ok;
   }
 
   Future<bool> acceptAsExisting({
@@ -274,22 +270,14 @@ final class InvitationCase extends UseCaseBase {
       if (invitation.beaconId != null &&
           !invitation.isAccepted &&
           !invitation.isExpired) {
-        final ok =
-            await _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
-        if (ok) {
-          final accepter = await _userRepository.getById(userId);
-          unawaited(
-            _inviteAcceptedNotification.notifyInviteAccepted(
-              InviteAcceptedNotificationIntent(
-                inviterUserId: invitation.issuer.id,
-                accepterUserId: userId,
-                accepterDisplayName: accepter.displayName,
-                actionUrl: '/#/shared/view?id=$userId',
-              ),
-            ),
-          );
-        }
-        return ok;
+        return _acceptAndRecord(
+          invitation: invitation,
+          userId: userId,
+          mutation: () => _acceptBeaconInviteOnly(
+            invitation: invitation,
+            userId: userId,
+          ),
+        );
       }
       return true;
     }
@@ -298,26 +286,44 @@ final class InvitationCase extends UseCaseBase {
     }
 
     if (invitation.beaconId != null) {
-      final ok =
-          await _acceptBeaconInviteOnly(invitation: invitation, userId: userId);
-      if (ok) {
+      return _acceptAndRecord(
+        invitation: invitation,
+        userId: userId,
+        mutation: () => _acceptBeaconInviteOnly(
+          invitation: invitation,
+          userId: userId,
+        ),
+      );
+    }
+
+    return accept(invitationId: code, userId: userId);
+  }
+
+  Future<bool> _acceptAndRecord({
+    required InvitationEntity invitation,
+    required String userId,
+    required Future<bool> Function() mutation,
+  }) => _attention!.runAction(
+    actorUserId: userId,
+    action: (transaction) async {
+      final accepted = await mutation();
+      if (accepted) {
         final accepter = await _userRepository.getById(userId);
-        unawaited(
-          _inviteAcceptedNotification.notifyInviteAccepted(
-            InviteAcceptedNotificationIntent(
+        await transaction.record(
+          _attentionIntents!.inviteAccepted(
+            notification: InviteAcceptedNotificationIntent(
               inviterUserId: invitation.issuer.id,
               accepterUserId: userId,
               accepterDisplayName: accepter.displayName,
               actionUrl: '/#/shared/view?id=$userId',
             ),
+            sourceEventKey: 'invitation:${invitation.id}:accepted',
           ),
         );
       }
-      return ok;
-    }
-
-    return accept(invitationId: code, userId: userId);
-  }
+      return accepted;
+    },
+  );
 
   Future<bool> _acceptBeaconInviteOnly({
     required InvitationEntity invitation,

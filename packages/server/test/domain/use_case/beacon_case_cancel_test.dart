@@ -6,7 +6,9 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -21,6 +23,7 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/test_attention_harness.dart';
 
 @immutable
 class _StatusTransitionCall {
@@ -63,8 +66,7 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      fn(lockedBeacon);
+  }) => fn(lockedBeacon);
 
   @override
   Future<void> recordBeaconStatusTransition({
@@ -97,8 +99,7 @@ class _StubCoordinationRepo implements CoordinationRepositoryPort {
   @override
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
-  ) async =>
-      _responseByUserId;
+  ) async => _responseByUserId;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -127,20 +128,20 @@ void main() {
   final now = DateTime.utc(2026, 6, 25);
 
   BeaconEntity openBeacon({String author = authorId}) => BeaconEntity(
-        id: beaconId,
-        title: 'Open beacon',
-        author: UserEntity(id: author),
-        createdAt: now,
-        updatedAt: now,
-        status: BeaconStatus.open,
-      );
+    id: beaconId,
+    title: 'Open beacon',
+    author: UserEntity(id: author),
+    createdAt: now,
+    updatedAt: now,
+    status: BeaconStatus.open,
+  );
 
   HelpOfferEntity helpOffer({String userId = 'Uhelper'}) => HelpOfferEntity(
-        beaconId: beaconId,
-        userId: userId,
-        createdAt: now,
-        updatedAt: now,
-      );
+    beaconId: beaconId,
+    userId: userId,
+    createdAt: now,
+    updatedAt: now,
+  );
 
   BeaconCase buildCase({
     required BeaconEntity beacon,
@@ -191,6 +192,42 @@ void main() {
         ),
       ]);
     });
+
+    test(
+      'snapshots cancellation audience before the destructive transition',
+      () async {
+        final beacon = openBeacon();
+        final beaconRepo = _TransactionStubBeaconRepo(beacon);
+        final attention = TestAttentionHarness(
+          context: const BeaconNotificationContext(
+            beaconAuthorId: authorId,
+            admittedUserIds: {'Uhelper'},
+          ),
+          onContextLoaded: () => expect(beaconRepo.statusTransitions, isEmpty),
+        );
+        final case_ = BeaconCase(
+          beaconRepo,
+          _FakeImageRepo(),
+          _FakeTaskRepo(),
+          _StubCoordinationRepo({}),
+          _StubHelpOfferRepo([]),
+          FakeBeaconAccessGuard(),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
+          env: Env(
+            environment: Environment.test,
+            attentionV1NewProducersEnabled: true,
+          ),
+          logger: Logger('BeaconCaseCancelTest'),
+        );
+
+        await case_.beaconCancel(beaconId: beaconId, userId: authorId);
+
+        final intent = attention.recorded.single;
+        expect(intent.eventType, AttentionEventType.requestStatusChanged);
+        expect(intent.recipients.single.recipientId, 'Uhelper');
+      },
+    );
 
     test('rejects when beacon is not in open family', () async {
       final beacon = openBeacon().copyWith(status: BeaconStatus.closed);

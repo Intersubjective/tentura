@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -21,11 +22,13 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
+import '../../support/test_attention_harness.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
 const _otherUserId = 'Ubbbbbbbbbbbb';
 const _messageId = 'Raaaaaaaaaaaa';
+const _replyMessageId = 'Rbbbbbbbbbbbb';
 const _threadItemId = 'CIaskaaaaaaaa';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
@@ -52,36 +55,31 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      isAuthor;
+  }) async => isAuthor;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      isSteward;
+  }) async => isSteward;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
-  }) async =>
-      participant;
+  }) async => participant;
 
   @override
   Future<int> countRecentMessagesByAuthor({
     required String authorId,
     required Duration window,
-  }) async =>
-      0;
+  }) async => 0;
 
   @override
   Future<List<String>> resolveMentionUserIdsForBeacon({
     required String beaconId,
     required String body,
-  }) async =>
-      body.contains('@mention') ? [_otherUserId] : const [];
+  }) async => body.contains('@mention') ? [_otherUserId] : const [];
 
   @override
   Future<BeaconRoomMessageRecord> insertRoomMessage({
@@ -141,6 +139,7 @@ void main() {
   late _StubItems items;
   late _StubRoom room;
   late BeaconRoomCase sut;
+  late TestAttentionHarness attention;
 
   setUp(() {
     items = _StubItems();
@@ -157,6 +156,7 @@ void main() {
         body: 'original',
         createdAt: DateTime.utc(2026),
       );
+    attention = TestAttentionHarness();
     sut = BeaconRoomCase(
       room,
       items,
@@ -167,66 +167,139 @@ void main() {
       _FakeRemoteStorage(),
       _FakePolling(),
       _FakeUploadQuota(),
-      env: Env(environment: Environment.test),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
+      env: Env(
+        environment: Environment.test,
+        attentionV1NewProducersEnabled: true,
+      ),
       logger: Logger('BeaconRoomCaseMessageMutationsTest'),
     );
   });
 
   group('createMessage', () {
-    test('inserts trimmed body and resolved mentions for admitted member',
-        () async {
-      final out = await sut.createMessage(
+    test(
+      'inserts trimmed body and resolved mentions for admitted member',
+      () async {
+        final out = await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: '  hello @mention  ',
+        );
+
+        expect(out['id'], _messageId);
+        expect(out['beaconId'], _beaconId);
+        expect(room.insertedBody, 'hello @mention');
+        expect(room.insertedMentions, [_otherUserId]);
+        final intent = attention.recorded.single;
+        expect(intent.eventType, AttentionEventType.roomMessagePosted);
+        expect(intent.messageId, _messageId);
+        expect(intent.coordinationItemId, isNull);
+        expect(intent.actionUrl, contains('message=$_messageId'));
+        expect(
+          intent.recipients.map((recipient) => recipient.recipientId),
+          [_otherUserId],
+        );
+      },
+    );
+
+    test('ordinary Chat message creates no Updates receipt', () async {
+      await sut.createMessage(
         beaconId: _beaconId,
         userId: _userId,
-        body: '  hello @mention  ',
+        body: 'hello room',
       );
 
-      expect(out['id'], _messageId);
-      expect(out['beaconId'], _beaconId);
-      expect(room.insertedBody, 'hello @mention');
-      expect(room.insertedMentions, [_otherUserId]);
+      expect(attention.recorded, isEmpty);
     });
 
-    test('throws UnauthorizedException when caller lacks room access', () async {
-      room.participant = testBeaconParticipant(
+    test('reply targets the original author in the same chat scope', () async {
+      room.replyMessage = BeaconRoomMessageRecord(
+        id: _replyMessageId,
+        beaconId: _beaconId,
+        authorId: _otherUserId,
+        body: 'question',
+        createdAt: DateTime.utc(2026),
+      );
+
+      await sut.createMessage(
         beaconId: _beaconId,
         userId: _userId,
-        roomAccess: RoomAccessBits.requested,
+        body: 'answer',
+        replyToMessageId: _replyMessageId,
+      );
+
+      expect(
+        attention.recorded.single.recipients.single.recipientId,
+        _otherUserId,
+      );
+    });
+
+    test('rejects a reply that crosses beacon chat scope', () async {
+      room.replyMessage = BeaconRoomMessageRecord(
+        id: _replyMessageId,
+        beaconId: 'Bother',
+        authorId: _otherUserId,
+        createdAt: DateTime.utc(2026),
       );
 
       await expectLater(
         sut.createMessage(
           beaconId: _beaconId,
           userId: _userId,
-          body: 'hello',
+          body: 'answer',
+          replyToMessageId: _replyMessageId,
         ),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            contains('Room access required'),
-          ),
-        ),
+        throwsA(isA<IdWrongException>()),
       );
+      expect(attention.recorded, isEmpty);
     });
 
-    test('throws BeaconCreateException when body and attachment are empty',
-        () async {
-      await expectLater(
-        sut.createMessage(
+    test(
+      'throws UnauthorizedException when caller lacks room access',
+      () async {
+        room.participant = testBeaconParticipant(
           beaconId: _beaconId,
           userId: _userId,
-          body: '   ',
-        ),
-        throwsA(
-          isA<BeaconCreateException>().having(
-            (e) => e.description,
-            'description',
-            contains('text or attachment required'),
+          roomAccess: RoomAccessBits.requested,
+        );
+
+        await expectLater(
+          sut.createMessage(
+            beaconId: _beaconId,
+            userId: _userId,
+            body: 'hello',
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              contains('Room access required'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'throws BeaconCreateException when body and attachment are empty',
+      () async {
+        await expectLater(
+          sut.createMessage(
+            beaconId: _beaconId,
+            userId: _userId,
+            body: '   ',
+          ),
+          throwsA(
+            isA<BeaconCreateException>().having(
+              (e) => e.description,
+              'description',
+              contains('text or attachment required'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('throws BeaconCreateException when body exceeds max length', () async {
       await expectLater(
@@ -265,6 +338,61 @@ void main() {
       expect(out['id'], _messageId);
       expect(room.insertedBody, 'thread reply');
     });
+
+    test(
+      'directed item target receives exact thread message receipt',
+      () async {
+        items.itemById = testCoordinationItem(
+          id: _threadItemId,
+          beaconId: _beaconId,
+          kind: coordinationItemKindAsk,
+          creatorId: _userId,
+          targetPersonId: _otherUserId,
+        );
+        room.participant = null;
+
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: 'directed update',
+          threadItemId: _threadItemId,
+        );
+
+        final intent = attention.recorded.single;
+        expect(intent.coordinationItemId, _threadItemId);
+        expect(intent.actionUrl, contains('item=$_threadItemId'));
+        expect(intent.recipients.single.recipientId, _otherUserId);
+      },
+    );
+
+    test('disabled producer gate records no directed receipt', () async {
+      final disabled = BeaconRoomCase(
+        room,
+        items,
+        _FakeFactCards(),
+        _FakePush(),
+        _FakeImages(),
+        _FakeTasks(),
+        _FakeRemoteStorage(),
+        _FakePolling(),
+        _FakeUploadQuota(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: Env(
+          environment: Environment.test,
+          attentionV1NewProducersEnabled: false,
+        ),
+        logger: Logger('BeaconRoomCaseMessageMutationsTest'),
+      );
+
+      await disabled.createMessage(
+        beaconId: _beaconId,
+        userId: _userId,
+        body: '@mention',
+      );
+
+      expect(attention.recorded, isEmpty);
+    });
   });
 
   group('editMessage', () {
@@ -295,29 +423,32 @@ void main() {
       );
     });
 
-    test('throws UnauthorizedException when caller is not the author', () async {
-      room.participant = testBeaconParticipant(
-        beaconId: _beaconId,
-        userId: _otherUserId,
-        roomAccess: RoomAccessBits.admitted,
-      );
-
-      await expectLater(
-        sut.editMessage(
+    test(
+      'throws UnauthorizedException when caller is not the author',
+      () async {
+        room.participant = testBeaconParticipant(
           beaconId: _beaconId,
-          messageId: _messageId,
           userId: _otherUserId,
-          newBody: 'nope',
-        ),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            contains('Only the message author can edit'),
+          roomAccess: RoomAccessBits.admitted,
+        );
+
+        await expectLater(
+          sut.editMessage(
+            beaconId: _beaconId,
+            messageId: _messageId,
+            userId: _otherUserId,
+            newBody: 'nope',
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              contains('Only the message author can edit'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('throws BeaconCreateException when new body is empty', () async {
       await expectLater(
@@ -337,24 +468,26 @@ void main() {
       );
     });
 
-    test('throws BeaconCreateException when new body exceeds max length',
-        () async {
-      await expectLater(
-        sut.editMessage(
-          beaconId: _beaconId,
-          messageId: _messageId,
-          userId: _userId,
-          newBody: 'x' * (kMaxRoomMessageBodyLength + 1),
-        ),
-        throwsA(
-          isA<BeaconCreateException>().having(
-            (e) => e.description,
-            'description',
-            contains('too long'),
+    test(
+      'throws BeaconCreateException when new body exceeds max length',
+      () async {
+        await expectLater(
+          sut.editMessage(
+            beaconId: _beaconId,
+            messageId: _messageId,
+            userId: _userId,
+            newBody: 'x' * (kMaxRoomMessageBodyLength + 1),
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<BeaconCreateException>().having(
+              (e) => e.description,
+              'description',
+              contains('too long'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('deleteMessage', () {
@@ -382,51 +515,57 @@ void main() {
       );
     });
 
-    test('throws UnauthorizedException when caller is not the author', () async {
-      room.participant = testBeaconParticipant(
-        beaconId: _beaconId,
-        userId: _otherUserId,
-        roomAccess: RoomAccessBits.admitted,
-      );
-
-      await expectLater(
-        sut.deleteMessage(
+    test(
+      'throws UnauthorizedException when caller is not the author',
+      () async {
+        room.participant = testBeaconParticipant(
           beaconId: _beaconId,
-          messageId: _messageId,
           userId: _otherUserId,
-        ),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            contains('Only the message author can delete'),
+          roomAccess: RoomAccessBits.admitted,
+        );
+
+        await expectLater(
+          sut.deleteMessage(
+            beaconId: _beaconId,
+            messageId: _messageId,
+            userId: _otherUserId,
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              contains('Only the message author can delete'),
+            ),
+          ),
+        );
+      },
+    );
 
-    test('throws UnauthorizedException when caller lacks room access', () async {
-      room.participant = testBeaconParticipant(
-        beaconId: _beaconId,
-        userId: _otherUserId,
-        roomAccess: RoomAccessBits.requested,
-      );
-
-      await expectLater(
-        sut.deleteMessage(
+    test(
+      'throws UnauthorizedException when caller lacks room access',
+      () async {
+        room.participant = testBeaconParticipant(
           beaconId: _beaconId,
-          messageId: _messageId,
           userId: _otherUserId,
-        ),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            contains('Room access required'),
+          roomAccess: RoomAccessBits.requested,
+        );
+
+        await expectLater(
+          sut.deleteMessage(
+            beaconId: _beaconId,
+            messageId: _messageId,
+            userId: _otherUserId,
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              contains('Room access required'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }
 
@@ -448,6 +587,5 @@ class _FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required String userId,
     required int bytes,
     required int dailyCapBytes,
-  }) async =>
-      true;
+  }) async => true;
 }

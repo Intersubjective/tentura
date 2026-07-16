@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -14,6 +15,8 @@ import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/noop_invite_accepted_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 
 void main() {
   late MockInvitationRepositoryPort invitationRepo;
@@ -22,6 +25,8 @@ void main() {
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late MockUserContactRepositoryPort contactRepo;
   late FakeBeaconAccessGuard guard;
+  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
+  late TestAttentionHarness attention;
   late InvitationCase case_;
 
   const issuerId = 'Uissuer';
@@ -65,6 +70,8 @@ void main() {
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
     guard = FakeBeaconAccessGuard();
+    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
+    attention = TestAttentionHarness();
     case_ = buildTestInvitationCase(
       invitationRepo: invitationRepo,
       userRepo: userRepo,
@@ -72,6 +79,8 @@ void main() {
       friendshipLookup: friendshipLookup,
       contactRepo: contactRepo,
       guard: guard,
+      inviteAcceptedNotification: inviteAcceptedNotification,
+      attention: attention,
       env: Env(environment: Environment.test),
       logger: Logger('InvitationCaseTest'),
     );
@@ -222,50 +231,99 @@ void main() {
   });
 
   group('InvitationCase.preview — subjective inviter name', () {
-    test('signed-in caller sees the inviter under their contact name',
-        () async {
+    test(
+      'signed-in caller sees the inviter under their contact name',
+      () async {
+        stubGetById(invitation());
+        stubContactName('My Alice');
+        final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
+        expect(r.inviter?.displayName, 'My Alice');
+        verify(
+          contactRepo.getName(viewerId: 'Ustranger', subjectId: issuerId),
+        ).called(1);
+      },
+    );
+
+    test(
+      'anonymous caller sees the objective name, no contact lookup',
+      () async {
+        stubGetById(invitation(addresseeName: 'Bob2000'));
+        final r = await case_.preview(code: 'Iabc');
+        expect(r.inviter?.displayName, 'Alice');
+        verifyNever(
+          contactRepo.getName(
+            viewerId: anyNamed('viewerId'),
+            subjectId: anyNamed('subjectId'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'inviter previewing their own code keeps their objective name',
+      () async {
+        stubGetById(invitation());
+        final r = await case_.preview(code: 'Iabc', callerUserId: issuerId);
+        expect(r.inviter?.displayName, 'Alice');
+        verifyNever(
+          contactRepo.getName(
+            viewerId: anyNamed('viewerId'),
+            subjectId: anyNamed('subjectId'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'preview JSON never leaks the addressee name (privacy guard)',
+      () async {
+        stubGetById(invitation(addresseeName: 'Secret Pet Name'));
+        final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
+        final flat = r.toJson().toString();
+        expect(flat, isNot(contains('Secret Pet Name')));
+        expect(flat.toLowerCase(), isNot(contains('addressee')));
+      },
+    );
+  });
+
+  group('InvitationCase.accept', () {
+    test('relationship invite acceptance emits inviteAccepted', () async {
       stubGetById(invitation());
-      stubContactName('My Alice');
-      final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
-      expect(r.inviter?.displayName, 'My Alice');
-      verify(
-        contactRepo.getName(viewerId: 'Ustranger', subjectId: issuerId),
-      ).called(1);
-    });
-
-    test('anonymous caller sees the objective name, no contact lookup',
-        () async {
-      stubGetById(invitation(addresseeName: 'Bob2000'));
-      final r = await case_.preview(code: 'Iabc');
-      expect(r.inviter?.displayName, 'Alice');
-      verifyNever(
-        contactRepo.getName(
-          viewerId: anyNamed('viewerId'),
-          subjectId: anyNamed('subjectId'),
+      when(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ustranger',
+          bindFriendship: true,
         ),
+      ).thenAnswer((_) async => true);
+      when(
+        userRepo.getById('Ustranger'),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Ustranger', displayName: 'Robin'),
       );
-    });
 
-    test('inviter previewing their own code keeps their objective name',
-        () async {
-      stubGetById(invitation());
-      final r = await case_.preview(code: 'Iabc', callerUserId: issuerId);
-      expect(r.inviter?.displayName, 'Alice');
-      verifyNever(
-        contactRepo.getName(
-          viewerId: anyNamed('viewerId'),
-          subjectId: anyNamed('subjectId'),
-        ),
+      final ok = await case_.accept(
+        invitationId: 'Iabc',
+        userId: 'Ustranger',
       );
-    });
 
-    test('preview JSON never leaks the addressee name (privacy guard)',
-        () async {
-      stubGetById(invitation(addresseeName: 'Secret Pet Name'));
-      final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
-      final flat = r.toJson().toString();
-      expect(flat, isNot(contains('Secret Pet Name')));
-      expect(flat.toLowerCase(), isNot(contains('addressee')));
+      expect(ok, isTrue);
+      expect(attention.recorded, hasLength(1));
+      expect(
+        attention.recorded.single,
+        isA<AttentionDispatchIntent>()
+            .having(
+              (intent) => intent.eventType,
+              'eventType',
+              AttentionEventType.inviteAccepted,
+            )
+            .having(
+              (intent) => intent.recipients.single.recipientId,
+              'recipient',
+              issuerId,
+            )
+            .having((intent) => intent.actorUserId, 'actor', 'Ustranger'),
+      );
     });
   });
 
@@ -351,6 +409,11 @@ void main() {
       verify(
         userRepo.bindMutual(invitationId: 'Iabc', userId: 'Ustranger'),
       ).called(1);
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.recipients.single.recipientId, issuerId);
+      expect(intent.actorUserId, 'Ustranger');
+      expect(intent.actionUrl, '/#/shared/view?id=Ustranger');
     });
   });
 }

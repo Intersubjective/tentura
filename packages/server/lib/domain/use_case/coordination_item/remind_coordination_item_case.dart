@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
@@ -8,6 +7,8 @@ import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../_use_case_base.dart';
 import 'coordination_room_access.dart';
@@ -17,14 +18,18 @@ final class RemindCoordinationItemCase extends UseCaseBase {
   RemindCoordinationItemCase(
     this._itemRepository,
     this._roomRepository,
-    this._push, {
+    BeaconRoomNotificationPort legacyNotificationPort, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final CoordinationItemRepositoryPort _itemRepository;
   final BeaconRoomRepositoryPort _roomRepository;
-  final BeaconRoomNotificationPort _push;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
 
   Future<CoordinationItemRecord> call({
     required String userId,
@@ -32,7 +37,9 @@ final class RemindCoordinationItemCase extends UseCaseBase {
   }) async {
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
-      throw const IdNotFoundException(description: 'Coordination item not found');
+      throw const IdNotFoundException(
+        description: 'Coordination item not found',
+      );
     }
     if (!isRemindableKind(existing.kind)) {
       throw const BeaconCreateException(
@@ -65,30 +72,40 @@ final class RemindCoordinationItemCase extends UseCaseBase {
       );
     }
 
-    final claimed = await _itemRepository.tryClaimRemind(
-      itemId: itemId,
-      actorId: userId,
-    );
-    if (claimed == null) {
-      throw const BeaconCreateException(
-        description: 'Reminder was sent recently — try again later',
-      );
-    }
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final claimed = await _itemRepository.tryClaimRemind(
+          itemId: itemId,
+          actorId: userId,
+        );
+        if (claimed == null) {
+          throw const BeaconCreateException(
+            description: 'Reminder was sent recently — try again later',
+          );
+        }
 
-    final excerpt = claimed.title.trim().isNotEmpty
-        ? claimed.title.trim()
-        : claimed.body.trim();
-    unawaited(
-      _push.notifyStaleRemind(
-        beaconId: claimed.beaconId,
-        actorUserId: userId,
-        targetPersonId: responsible,
-        coordinationItemId: claimed.id,
-        excerpt: excerpt,
-      ),
+        final excerpt = claimed.title.trim().isNotEmpty
+            ? claimed.title.trim()
+            : claimed.body.trim();
+        await transaction.record(
+          await _attentionIntents!.staleReminder(
+            beaconId: claimed.beaconId,
+            actorUserId: userId,
+            targetPersonId: responsible,
+            coordinationItemId: claimed.id,
+            excerpt: excerpt,
+            sourceEventKey: _sourceKey(claimed),
+          ),
+        );
+        return claimed;
+      },
     );
-    return claimed;
   }
+
+  String _sourceKey(CoordinationItemRecord item) =>
+      'coordination_item:${item.id}:reminded:'
+      '${item.lastRemindedAt?.toUtc().microsecondsSinceEpoch ?? item.updatedAt.toUtc().microsecondsSinceEpoch}';
 
   CoordinationStaleItemView _toView(CoordinationItemRecord item) =>
       CoordinationStaleItemView(

@@ -1,6 +1,5 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
@@ -21,6 +20,10 @@ import 'package:tentura_server/domain/evaluation/evaluation_reason_tags.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import 'capability_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
@@ -89,19 +92,26 @@ final class EvaluationCase extends UseCaseBase {
     this._forwardEdgeRepository,
     this._evaluationRepository,
     this._userProfileBatchLookup,
-    this._roomPush,
+    BeaconRoomNotificationPort legacyNotificationPort,
     this._participantGraphBuilder,
     this._draftPurger,
     this._capabilityCase, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
+    AttentionExpirySweepCase? attentionExpirySweep,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention,
+       _attentionExpirySweep = attentionExpirySweep;
 
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final UserProfileBatchLookup _userProfileBatchLookup;
-  final BeaconRoomNotificationPort _roomPush;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
+  final AttentionExpirySweepCase? _attentionExpirySweep;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CapabilityCase _capabilityCase;
@@ -110,7 +120,26 @@ final class EvaluationCase extends UseCaseBase {
 
   static const int _maxReviewExtensions = 2;
 
-  Future<void> _ensureExpiredClosed() => _evaluationRepository.closeExpiredWindows();
+  Future<void> _ensureExpiredClosed() async {
+    if (env.attentionV1NewProducersEnabled) {
+      await _attentionExpirySweep!.runDue();
+    } else {
+      await _evaluationRepository.closeExpiredWindows();
+    }
+  }
+
+  Future<T> _runStatusAction<T>({
+    required String actorUserId,
+    required Future<T> Function(AttentionTransaction? transaction) action,
+  }) {
+    if (!env.attentionV1NewProducersEnabled) {
+      return action(null);
+    }
+    return _attention!.runAction(
+      actorUserId: actorUserId,
+      action: action,
+    );
+  }
 
   /// Author closes beacon; 0 committers → closed (6), ≥1 → wrapping up (5) + window.
   Future<BeaconCloseReviewResult> beaconClose({
@@ -119,118 +148,147 @@ final class EvaluationCase extends UseCaseBase {
     required bool expectedRequiresReviewWindow,
   }) async {
     await _ensureExpiredClosed();
-    return _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: userId,
-      fn: (beacon) async {
-        if (!beacon.status.isOpenFamily) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Request must be open to close',
-          );
-        }
-        if (beacon.author.id != userId) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.notEligible,
-            description: 'Only the author can close',
-          );
-        }
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) => _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (!beacon.status.isOpenFamily) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Request must be open to close',
+            );
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'Only the author can close',
+            );
+          }
 
-        final graph = await _participantGraphBuilder.build(
-          beaconId: beaconId,
-          authorId: beacon.author.id,
-          preClosure: false,
-        );
-        final committerCount = graph.participants
-            .where((p) => p.role == EvaluationParticipantRole.committer)
-            .length;
-        final requiresReviewWindow = committerCount >= 1;
-
-        if (expectedRequiresReviewWindow != requiresReviewWindow) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.closeBranchConflict,
-            description: 'Committer count changed; refresh and retry',
+          final graph = await _participantGraphBuilder.build(
+            beaconId: beaconId,
+            authorId: beacon.author.id,
+            preClosure: false,
           );
-        }
+          final committerCount = graph.participants
+              .where((p) => p.role == EvaluationParticipantRole.committer)
+              .length;
+          final requiresReviewWindow = committerCount >= 1;
 
-        if (!requiresReviewWindow) {
+          if (expectedRequiresReviewWindow != requiresReviewWindow) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.closeBranchConflict,
+              description: 'Committer count changed; refresh and retry',
+            );
+          }
+
+          final targetStatus = requiresReviewWindow
+              ? BeaconStatus.reviewOpen
+              : BeaconStatus.closed;
+          final statusIntent = env.attentionV1NewProducersEnabled
+              ? await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: targetStatus.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                )
+              : null;
+
+          if (!requiresReviewWindow) {
+            await _beaconRepository.recordBeaconStatusTransition(
+              beaconId: beaconId,
+              fromStatus: beacon.status,
+              toStatus: BeaconStatus.closed,
+              reason: BeaconLifecycleChangeReason.directClose,
+              actorId: userId,
+            );
+            if (statusIntent != null) {
+              await transaction.record(statusIntent);
+            }
+            return BeaconCloseReviewResult(
+              id: beaconId,
+              status: BeaconStatus.closed.smallintValue,
+            );
+          }
+
+          final participants = graph.participants;
+          final visibility = graph.visibility;
+
+          final openedAt = DateTime.timestamp();
+          final closesAt = openedAt.add(_reviewWindowDuration);
+
+          await _evaluationRepository.downgradeSubmittedReviewsToDraft(
+            beaconId,
+          );
+          await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+            beaconId,
+          );
+
           await _beaconRepository.recordBeaconStatusTransition(
             beaconId: beaconId,
             fromStatus: beacon.status,
-            toStatus: BeaconStatus.closed,
-            reason: BeaconLifecycleChangeReason.directClose,
+            toStatus: BeaconStatus.reviewOpen,
+            reason: BeaconLifecycleChangeReason.reviewWindowOpened,
             actorId: userId,
           );
+          if (statusIntent != null) {
+            await transaction.record(statusIntent);
+          }
+
+          await _evaluationRepository.insertReviewWindow(
+            beaconId: beaconId,
+            openedAt: openedAt,
+            closesAt: closesAt,
+          );
+
+          for (final p in participants) {
+            await _evaluationRepository.insertParticipant(
+              beaconId: beaconId,
+              userId: p.userId,
+              role: p.role.dbValue,
+              contributionSummary: p.contributionSummary,
+              causalHint: p.causalHint,
+            );
+          }
+
+          final participantIds = participants.map((e) => e.userId).toSet();
+          for (final uid in participantIds) {
+            await _evaluationRepository.insertReviewStatus(
+              beaconId: beaconId,
+              userId: uid,
+            );
+          }
+
+          for (final v in visibility) {
+            await _evaluationRepository.insertVisibility(
+              beaconId: beaconId,
+              evaluatorId: v.evaluatorId,
+              participantId: v.participantId,
+            );
+          }
+
+          await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
+
+          await transaction.record(
+            await _attentionIntents!.reviewOpened(
+              beaconId: beaconId,
+              beaconTitle: beacon.title,
+              recipientUserIds: participantIds,
+              actorUserId: userId,
+              sourceEventKey: 'review_opened:${generateId('A')}',
+            ),
+          );
+
           return BeaconCloseReviewResult(
             id: beaconId,
-            status: BeaconStatus.closed.smallintValue,
+            status: BeaconStatus.reviewOpen.smallintValue,
+            closesAt: closesAt,
           );
-        }
-
-        final participants = graph.participants;
-        final visibility = graph.visibility;
-
-        final openedAt = DateTime.timestamp();
-        final closesAt = openedAt.add(_reviewWindowDuration);
-
-        await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
-        await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
-
-        await _beaconRepository.recordBeaconStatusTransition(
-          beaconId: beaconId,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.reviewOpen,
-          reason: BeaconLifecycleChangeReason.reviewWindowOpened,
-          actorId: userId,
-        );
-
-        await _evaluationRepository.insertReviewWindow(
-          beaconId: beaconId,
-          openedAt: openedAt,
-          closesAt: closesAt,
-        );
-
-        for (final p in participants) {
-          await _evaluationRepository.insertParticipant(
-            beaconId: beaconId,
-            userId: p.userId,
-            role: p.role.dbValue,
-            contributionSummary: p.contributionSummary,
-            causalHint: p.causalHint,
-          );
-        }
-
-        final participantIds = participants.map((e) => e.userId).toSet();
-        for (final uid in participantIds) {
-          await _evaluationRepository.insertReviewStatus(
-            beaconId: beaconId,
-            userId: uid,
-          );
-        }
-
-        for (final v in visibility) {
-          await _evaluationRepository.insertVisibility(
-            beaconId: beaconId,
-            evaluatorId: v.evaluatorId,
-            participantId: v.participantId,
-          );
-        }
-
-        await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
-
-        await _notifyReviewOpened(
-          beaconId: beaconId,
-          beaconTitle: beacon.title,
-          recipientUserIds: participantIds,
-          actorUserId: userId,
-        );
-
-        return BeaconCloseReviewResult(
-          id: beaconId,
-          status: BeaconStatus.reviewOpen.smallintValue,
-          closesAt: closesAt,
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -267,8 +325,9 @@ final class EvaluationCase extends UseCaseBase {
             description: 'Review extension limit reached',
           );
         }
-        final closesAt =
-            await _evaluationRepository.extendReviewWindow(beaconId);
+        final closesAt = await _evaluationRepository.extendReviewWindow(
+          beaconId,
+        );
         return BeaconCloseReviewResult(
           id: beaconId,
           status: BeaconStatus.reviewOpen.smallintValue,
@@ -284,41 +343,60 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    return _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: userId,
-      fn: (beacon) async {
-        if (beacon.status != BeaconStatus.reviewOpen) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Request must be wrapping up to reopen',
+    return _runStatusAction(
+      actorUserId: userId,
+      action: (transaction) => _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (beacon.status != BeaconStatus.reviewOpen) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Request must be wrapping up to reopen',
+            );
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+            );
+          }
+          final w = await _evaluationRepository.getReviewWindow(beaconId);
+          if (w == null || w.status != 0) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+            );
+          }
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.open.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _evaluationRepository.downgradeSubmittedReviewsToDraft(
+            beaconId,
           );
-        }
-        if (beacon.author.id != userId) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.notEligible,
+          await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+            beaconId,
           );
-        }
-        final w = await _evaluationRepository.getReviewWindow(beaconId);
-        if (w == null || w.status != 0) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.open,
+            reason: BeaconLifecycleChangeReason.reopenedFromReview,
+            actorId: userId,
           );
-        }
-        await _evaluationRepository.downgradeSubmittedReviewsToDraft(beaconId);
-        await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
-        await _beaconRepository.recordBeaconStatusTransition(
-          beaconId: beaconId,
-          fromStatus: beacon.status,
-          toStatus: BeaconStatus.open,
-          reason: BeaconLifecycleChangeReason.reopenedFromReview,
-          actorId: userId,
-        );
-        return BeaconCloseReviewResult(
-          id: beaconId,
-          status: BeaconStatus.open.smallintValue,
-        );
-      },
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return BeaconCloseReviewResult(
+            id: beaconId,
+            status: BeaconStatus.open.smallintValue,
+          );
+        },
+      ),
     );
   }
 
@@ -328,49 +406,65 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    return _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: userId,
-      fn: (beacon) async {
-        if (beacon.status != BeaconStatus.reviewOpen) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-            description: 'Request must be wrapping up to close now',
+    return _runStatusAction(
+      actorUserId: userId,
+      action: (transaction) => _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (beacon.status != BeaconStatus.reviewOpen) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Request must be wrapping up to close now',
+            );
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+            );
+          }
+          final w = await _evaluationRepository.getReviewWindow(beaconId);
+          if (w == null || w.status != 0) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+            );
+          }
+          if (!await _canCloseNow(beaconId: beaconId)) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'Required reviewers have not finished or skipped',
+            );
+          }
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: BeaconStatus.closed.name,
+                  actorUserId: userId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _evaluationRepository.closeBeaconReviewWindow(
+            beaconId,
+            reason: BeaconLifecycleChangeReason.authorCloseNow,
+            actorUserId: userId,
           );
-        }
-        if (beacon.author.id != userId) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.notEligible,
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
+          return BeaconCloseReviewResult(
+            id: beaconId,
+            status: BeaconStatus.closed.smallintValue,
           );
-        }
-        final w = await _evaluationRepository.getReviewWindow(beaconId);
-        if (w == null || w.status != 0) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-          );
-        }
-        if (!await _canCloseNow(beaconId: beaconId)) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.notEligible,
-            description: 'Required reviewers have not finished or skipped',
-          );
-        }
-        await _evaluationRepository.closeBeaconReviewWindow(
-          beaconId,
-          reason: BeaconLifecycleChangeReason.authorCloseNow,
-          actorUserId: userId,
-        );
-        return BeaconCloseReviewResult(
-          id: beaconId,
-          status: BeaconStatus.closed.smallintValue,
-        );
-      },
+        },
+      ),
     );
   }
 
   Future<bool> _canCloseNow({required String beaconId}) async {
-    final statuses =
-        await _evaluationRepository.listReviewStatusesForBeacon(beaconId);
+    final statuses = await _evaluationRepository.listReviewStatusesForBeacon(
+      beaconId,
+    );
     final parts = await _evaluationRepository.listParticipants(beaconId);
     for (final p in parts) {
       if (p.role != EvaluationParticipantRole.author.dbValue &&
@@ -383,20 +477,6 @@ final class EvaluationCase extends UseCaseBase {
       }
     }
     return true;
-  }
-
-  Future<void> _notifyReviewOpened({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required String actorUserId,
-  }) async {
-    await _roomPush.notifyReviewOpened(
-      beaconId: beaconId,
-      beaconTitle: beaconTitle,
-      recipientUserIds: recipientUserIds,
-      actorUserId: actorUserId,
-    );
   }
 
   Future<List<EvaluationParticipantResult>> evaluationParticipants({
@@ -430,8 +510,10 @@ final class EvaluationCase extends UseCaseBase {
         .where((p) => p.role == EvaluationParticipantRole.committer.dbValue)
         .map((p) => p.userId)
         .toList();
-    final latestEdgeToCommitter =
-        await _latestEdgesToCommitters(beaconId: beaconId, committerIds: committerIds);
+    final latestEdgeToCommitter = await _latestEdgesToCommitters(
+      beaconId: beaconId,
+      committerIds: committerIds,
+    );
 
     final evByTarget = await _evaluationsByTargetForEvaluator(
       beaconId: beaconId,
@@ -466,9 +548,7 @@ final class EvaluationCase extends UseCaseBase {
           role: row.role,
           contributionSummary: row.contributionSummary,
           causalHint: row.causalHint,
-          reasonTags: ev == null
-              ? const []
-              : _reasonTagsFromCsv(ev.reasonTags),
+          reasonTags: ev == null ? const [] : _reasonTagsFromCsv(ev.reasonTags),
           note: ev?.note ?? '',
           promptVariant: evaluationPromptVariantForPair(
             evaluatorId: evaluatorId,
@@ -558,8 +638,9 @@ final class EvaluationCase extends UseCaseBase {
         throw IdNotFoundException(id: pid);
       }
       final ev = evByTarget[pid];
-      final useEv =
-          ev != null && ev.status == BeaconEvaluationRowStatus.draft ? ev : null;
+      final useEv = ev != null && ev.status == BeaconEvaluationRowStatus.draft
+          ? ev
+          : null;
       out.add(
         EvaluationParticipantResult(
           userId: pid,
@@ -645,7 +726,9 @@ final class EvaluationCase extends UseCaseBase {
         description: 'Not an allowed draft target for this request',
       );
     }
-    final target = graph.participants.firstWhere((p) => p.userId == evaluatedUserId);
+    final target = graph.participants.firstWhere(
+      (p) => p.userId == evaluatedUserId,
+    );
     _validateEvaluation(
       value: value,
       reasonTags: reasonTags,
@@ -708,7 +791,10 @@ final class EvaluationCase extends UseCaseBase {
         beaconTitle: beaconTitle,
       );
     }
-    final st = await _evaluationRepository.getReviewUserStatus(beaconId, userId);
+    final st = await _evaluationRepository.getReviewUserStatus(
+      beaconId,
+      userId,
+    );
     final vis = await _evaluationRepository.listVisibilityForEvaluator(
       beaconId,
       userId,
@@ -723,7 +809,8 @@ final class EvaluationCase extends UseCaseBase {
         reviewed++;
       }
     }
-    final canCloseNow = w.status == 0 &&
+    final canCloseNow =
+        w.status == 0 &&
         beacon.status == BeaconStatus.reviewOpen &&
         await _canCloseNow(beaconId: beaconId);
     return ReviewWindowStatusResult(
@@ -771,8 +858,9 @@ final class EvaluationCase extends UseCaseBase {
           ),
         )
         .toList();
-    final viewerRole =
-        me == null ? null : EvaluationParticipantRole.fromDb(me.role);
+    final viewerRole = me == null
+        ? null
+        : EvaluationParticipantRole.fromDb(me.role);
     return _buildEvaluationSummary(
       beaconStatus: beacon.status,
       distinctEvaluatorCount: n,
@@ -879,13 +967,13 @@ final class EvaluationCase extends UseCaseBase {
         evaluationCode: EvaluationExceptionCode.invalidEvaluationValue,
       );
     }
-    if (BeaconEvaluationValue.requiresReasonTag(value) &&
-        reasonTags.isEmpty) {
+    if (BeaconEvaluationValue.requiresReasonTag(value) && reasonTags.isEmpty) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reasonTagRequired,
       );
     }
-    if (!BeaconEvaluationValue.allowsReasonTag(value) && reasonTags.isNotEmpty) {
+    if (!BeaconEvaluationValue.allowsReasonTag(value) &&
+        reasonTags.isNotEmpty) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.invalidReasonTags,
       );
@@ -908,11 +996,16 @@ final class EvaluationCase extends UseCaseBase {
     if (value == BeaconEvaluationValue.noBasis) {
       return {};
     }
-    if (value == BeaconEvaluationValue.neg2 || value == BeaconEvaluationValue.neg1) {
+    if (value == BeaconEvaluationValue.neg2 ||
+        value == BeaconEvaluationValue.neg1) {
       return EvaluationReasonTags.allowedForRoleAndSign(role, isNegative: true);
     }
-    if (value == BeaconEvaluationValue.pos2 || value == BeaconEvaluationValue.pos1) {
-      return EvaluationReasonTags.allowedForRoleAndSign(role, isNegative: false);
+    if (value == BeaconEvaluationValue.pos2 ||
+        value == BeaconEvaluationValue.pos1) {
+      return EvaluationReasonTags.allowedForRoleAndSign(
+        role,
+        isNegative: false,
+      );
     }
     return EvaluationReasonTags.allowedUnionForRole(role);
   }
@@ -928,7 +1021,10 @@ final class EvaluationCase extends UseCaseBase {
         evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
       );
     }
-    final st = await _evaluationRepository.getReviewUserStatus(beaconId, userId);
+    final st = await _evaluationRepository.getReviewUserStatus(
+      beaconId,
+      userId,
+    );
     if (st == null) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.notEligible,
@@ -957,7 +1053,10 @@ final class EvaluationCase extends UseCaseBase {
         evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
       );
     }
-    final st = await _evaluationRepository.getReviewUserStatus(beaconId, userId);
+    final st = await _evaluationRepository.getReviewUserStatus(
+      beaconId,
+      userId,
+    );
     if (st == null) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.notEligible,

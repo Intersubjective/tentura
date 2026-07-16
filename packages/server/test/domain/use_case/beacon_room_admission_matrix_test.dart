@@ -16,7 +16,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -34,6 +33,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/noop_beacon_room_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 const _beaconId = 'Bbbbbbbbbbbbb';
@@ -132,11 +132,13 @@ void main() {
     group('BeaconRoomCase.admit — actor matrix', () {
       late _AdmitStubRoom room;
       late _TrackingRoomAdmittedPush push;
+      late TestAttentionHarness attention;
       late BeaconRoomCase sut;
 
       setUp(() {
         room = _AdmitStubRoom(authorIds: {_authorId});
         push = _TrackingRoomAdmittedPush();
+        attention = TestAttentionHarness();
         sut = BeaconRoomCase(
           room,
           _MinimalCoordinationItems(),
@@ -147,6 +149,8 @@ void main() {
           _MinimalRemoteStorage(),
           _MinimalPolling(),
           _MinimalUploadQuota(),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
         );
@@ -160,6 +164,7 @@ void main() {
           if (row.isSteward) {
             room = _AdmitStubRoom(stewardIds: {row.actorId});
             push = _TrackingRoomAdmittedPush();
+            attention = TestAttentionHarness();
             sut = BeaconRoomCase(
               room,
               _MinimalCoordinationItems(),
@@ -170,6 +175,8 @@ void main() {
               _MinimalRemoteStorage(),
               _MinimalPolling(),
               _MinimalUploadQuota(),
+              attentionIntents: attention.intents,
+              attention: attention.transactional,
               env: Env(environment: Environment.test),
               logger: Logger('BeaconRoomAdmissionMatrixTest'),
             );
@@ -183,8 +190,11 @@ void main() {
 
           expect(room.admittedParticipantId, _helperId);
           expect(room.admitActorId, row.actorId);
-          expect(push.receiverId, _helperId);
-          expect(push.actorUserId, row.actorId);
+          expect(
+            attention.recorded.single.recipients.single.recipientId,
+            _helperId,
+          );
+          expect(attention.recorded.single.actorUserId, row.actorId);
         });
       }
 
@@ -200,6 +210,8 @@ void main() {
           _MinimalRemoteStorage(),
           _MinimalPolling(),
           _MinimalUploadQuota(),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
         );
@@ -386,6 +398,7 @@ void main() {
       late MockCoordinationRepositoryPort coordinationRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
       late MockBeaconRoomNotificationPort roomPush;
+      late TestAttentionHarness attention;
       late CoordinationCase sut;
 
       BeaconParticipantRecord participant({required int roomAccess}) =>
@@ -404,7 +417,13 @@ void main() {
             ),
           );
 
-      void buildSut({FakeBeaconAccessGuard? guard}) {
+      void buildSut({
+        FakeBeaconAccessGuard? guard,
+        void Function()? onAttentionContextLoaded,
+      }) {
+        attention = TestAttentionHarness(
+          onContextLoaded: onAttentionContextLoaded,
+        );
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
@@ -412,6 +431,8 @@ void main() {
           roomRepo,
           _MinimalEvaluationRepo(),
           roomPush: roomPush,
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
           guard: guard ?? FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
@@ -489,17 +510,15 @@ void main() {
               actorUserId: _authorId,
             ),
           ).called(1);
-          verify(
-            roomPush.notifyRoomAdmitted(
-              receiverId: _helperId,
-              beaconId: _beaconId,
-              actorUserId: _authorId,
-            ),
-          ).called(1);
+          expect(attention.recorded.single.eventType.name, 'offerAccepted');
         },
       );
 
       test('steward can decline with a trimmed mandatory reason', () async {
+        final ordering = <String>[];
+        buildSut(
+          onAttentionContextLoaded: () => ordering.add('audience_resolved'),
+        );
         stubOpenActiveOffer();
         when(
           roomRepo.isBeaconSteward(beaconId: _beaconId, userId: _stewardId),
@@ -516,9 +535,10 @@ void main() {
             actorUserId: _stewardId,
             reason: 'not a fit',
           ),
-        ).thenAnswer(
-          (_) async => (status: BeaconStatus.open, statusChangedAt: null),
-        );
+        ).thenAnswer((_) async {
+          ordering.add('destructive_mutation');
+          return (status: BeaconStatus.open, statusChangedAt: null);
+        });
 
         await sut.declineHelpOffer(
           beaconId: _beaconId,
@@ -535,14 +555,8 @@ void main() {
             reason: 'not a fit',
           ),
         ).called(1);
-        verify(
-          roomPush.notifyCommitmentDeclined(
-            receiverId: _helperId,
-            beaconId: _beaconId,
-            actorUserId: _stewardId,
-            reason: 'not a fit',
-          ),
-        ).called(1);
+        expect(attention.recorded.single.eventType.name, 'offerDeclined');
+        expect(ordering, ['audience_resolved', 'destructive_mutation']);
       });
 
       test('outsider cannot accept', () async {
@@ -628,6 +642,10 @@ void main() {
       test(
         'remove requires admitted committer and notifies with reason',
         () async {
+          final ordering = <String>[];
+          buildSut(
+            onAttentionContextLoaded: () => ordering.add('audience_resolved'),
+          );
           stubOpenActiveOffer();
           when(
             roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
@@ -641,9 +659,10 @@ void main() {
               actorUserId: _authorId,
               reason: 'capacity changed',
             ),
-          ).thenAnswer(
-            (_) async => (status: BeaconStatus.open, statusChangedAt: null),
-          );
+          ).thenAnswer((_) async {
+            ordering.add('destructive_mutation');
+            return (status: BeaconStatus.open, statusChangedAt: null);
+          });
 
           await sut.removeFromRoom(
             beaconId: _beaconId,
@@ -660,14 +679,8 @@ void main() {
               reason: 'capacity changed',
             ),
           ).called(1);
-          verify(
-            roomPush.notifyCommitmentRemoved(
-              receiverId: _helperId,
-              beaconId: _beaconId,
-              actorUserId: _authorId,
-              reason: 'capacity changed',
-            ),
-          ).called(1);
+          expect(attention.recorded.single.eventType.name, 'offerRemoved');
+          expect(ordering, ['audience_resolved', 'destructive_mutation']);
 
           when(
             roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
@@ -761,6 +774,7 @@ void main() {
       late MockForwardEdgeRepositoryPort forwardEdgeRepo;
       late MockHelpOfferAdmissionRepositoryPort admissionRepo;
       late MockBeaconRoomNotificationPort roomPush;
+      late TestAttentionHarness attention;
       late HelpOfferCase sut;
 
       BeaconParticipantRecord participant({required int roomAccess}) =>
@@ -780,6 +794,7 @@ void main() {
         forwardEdgeRepo = MockForwardEdgeRepositoryPort();
         admissionRepo = MockHelpOfferAdmissionRepositoryPort();
         roomPush = MockBeaconRoomNotificationPort();
+        attention = TestAttentionHarness();
         final capabilityCase = CapabilityCase(
           capabilityRepo,
           env: Env(environment: Environment.test),
@@ -796,6 +811,8 @@ void main() {
           admissionRepo,
           roomPush,
           FakeBeaconAccessGuard(),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
         );
@@ -914,13 +931,10 @@ void main() {
                 authorUserId: _authorId,
               ),
             ).called(1);
-            verify(
-              roomPush.notifyRoomAdmitted(
-                receiverId: _helperId,
-                beaconId: _beaconId,
-                actorUserId: _authorId,
-              ),
-            ).called(1);
+            expect(
+              attention.recorded.map((intent) => intent.eventType.name),
+              ['helpOfferSubmitted', 'offerAccepted'],
+            );
             verify(
               admissionRepo.record(
                 beaconId: _beaconId,
@@ -937,12 +951,9 @@ void main() {
                 authorUserId: anyNamed('authorUserId'),
               ),
             );
-            verifyNever(
-              roomPush.notifyRoomAdmitted(
-                receiverId: anyNamed('receiverId'),
-                beaconId: anyNamed('beaconId'),
-                actorUserId: anyNamed('actorUserId'),
-              ),
+            expect(
+              attention.recorded.map((intent) => intent.eventType.name),
+              ['helpOfferSubmitted'],
             );
             verifyNever(
               admissionRepo.record(

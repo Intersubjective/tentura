@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
@@ -28,6 +27,8 @@ import 'package:tentura_server/domain/util/attachment_filename.dart';
 import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '_use_case_base.dart';
 
@@ -40,15 +41,18 @@ final class BeaconRoomCase extends UseCaseBase {
     this._room,
     this._items,
     this._factCards,
-    this._push,
+    BeaconRoomNotificationPort legacyNotificationPort,
     this._imageRepository,
     this._tasksRepository,
     this._remoteStorage,
     this._pollingRepository,
     this._uploadQuota, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final BeaconRoomRepositoryPort _room;
 
@@ -56,7 +60,9 @@ final class BeaconRoomCase extends UseCaseBase {
 
   final BeaconFactCardRepositoryPort _factCards;
 
-  final BeaconRoomNotificationPort _push;
+  final AttentionIntentCase? _attentionIntents;
+
+  final TransactionalAttentionCase? _attention;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -78,8 +84,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
       return true;
     }
-    final p =
-        await _room.findParticipant(beaconId: beaconId, userId: userId);
+    final p = await _room.findParticipant(beaconId: beaconId, userId: userId);
     return p?.roomAccess == RoomAccessBits.admitted;
   }
 
@@ -164,6 +169,7 @@ final class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
+    CoordinationItemRecord? threadItem;
     if (inThread) {
       await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
@@ -183,19 +189,23 @@ final class BeaconRoomCase extends UseCaseBase {
           description: 'Coordination item not found',
         );
       }
-      if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
-        final reply = await _room.getRoomMessageById(replyToMessageId);
-        if (reply == null || reply.threadItemId != tid) {
-          throw const IdWrongException(
-            description: 'Reply must reference a message in the same thread',
-          );
-        }
-      }
+      threadItem = item;
     } else {
       final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
       if (!allowed) {
         throw const UnauthorizedException(
           description: 'Room access required',
+        );
+      }
+    }
+    BeaconRoomMessageRecord? repliedMessage;
+    if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
+      repliedMessage = await _room.getRoomMessageById(replyToMessageId);
+      if (repliedMessage == null ||
+          repliedMessage.beaconId != beaconId ||
+          repliedMessage.threadItemId != (inThread ? tid : null)) {
+        throw const IdWrongException(
+          description: 'Reply must reference a message in the same chat scope',
         );
       }
     }
@@ -223,26 +233,57 @@ final class BeaconRoomCase extends UseCaseBase {
             beaconId: beaconId,
             body: trimmed,
           );
-    final row = await _room.insertRoomMessage(
-      beaconId: beaconId,
-      authorId: userId,
-      body: trimmed,
-      replyToMessageId: replyToMessageId,
-      threadItemId: inThread ? tid : null,
-      mentions: mentionIds,
-    );
-    if (payload != null) {
-      await _addAttachmentBytesToMessage(
+    final directedRecipientIds = <String>{
+      ...mentionIds,
+      if (repliedMessage != null) repliedMessage.authorId,
+      if (threadItem?.targetPersonId case final target?) target,
+    }..removeWhere((id) => id.isEmpty || id == userId);
+
+    Future<Map<String, Object?>> persist(
+      AttentionTransaction? transaction,
+    ) async {
+      final row = await _room.insertRoomMessage(
         beaconId: beaconId,
-        userId: userId,
-        messageId: row.id,
-        mutatingUserId: userId,
-        bytes: payload,
-        uploadFilename: attachmentFilename,
-        uploadMimeType: attachmentMimeType,
+        authorId: userId,
+        body: trimmed,
+        replyToMessageId: replyToMessageId,
+        threadItemId: inThread ? tid : null,
+        mentions: mentionIds,
       );
+      if (payload != null) {
+        await _addAttachmentBytesToMessage(
+          beaconId: beaconId,
+          userId: userId,
+          messageId: row.id,
+          mutatingUserId: userId,
+          bytes: payload,
+          uploadFilename: attachmentFilename,
+          uploadMimeType: attachmentMimeType,
+        );
+      }
+      if (transaction != null) {
+        await transaction.record(
+          await _attentionIntents!.roomMessagePosted(
+            beaconId: beaconId,
+            messageId: row.id,
+            actorUserId: userId,
+            recipientUserIds: directedRecipientIds,
+            excerpt: trimmed.isEmpty ? 'Shared an attachment' : trimmed,
+            threadItemId: inThread ? tid : null,
+            sourceEventKey: 'room_message:${row.id}',
+          ),
+        );
+      }
+      return {'id': row.id, 'beaconId': row.beaconId};
     }
-    return {'id': row.id, 'beaconId': row.beaconId};
+
+    if (!env.attentionV1NewProducersEnabled || directedRecipientIds.isEmpty) {
+      return persist(null);
+    }
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: persist,
+    );
   }
 
   Future<List<Map<String, Object?>>> listMessages({
@@ -273,14 +314,50 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
     }
-    final before =
-        beforeIso != null ? DateTime.tryParse(beforeIso) : null;
+    final before = beforeIso != null ? DateTime.tryParse(beforeIso) : null;
     return _room.listMessagesEnriched(
       beaconId: beaconId,
       viewerUserId: userId,
       threadItemId: inThread ? tid : null,
       before: before,
     );
+  }
+
+  /// Resolves one exact Chat target after checking the target's actual scope.
+  Future<Map<String, Object?>> roomMessageTarget({
+    required String beaconId,
+    required String messageId,
+    required String userId,
+  }) async {
+    final message = await _room.getRoomMessageById(messageId);
+    if (message == null || message.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Chat message not on this request',
+      );
+    }
+    final threadItemId = message.threadItemId?.trim();
+    final allowed = threadItemId == null || threadItemId.isEmpty
+        ? await _canUseRoom(beaconId: beaconId, userId: userId)
+        : await _canAccessThread(
+            beaconId: beaconId,
+            userId: userId,
+            threadItemId: threadItemId,
+          );
+    if (!allowed) {
+      throw const UnauthorizedException(
+        description: 'Room or item thread access required',
+      );
+    }
+    final target = await _room.roomMessageTarget(
+      beaconId: beaconId,
+      messageId: messageId,
+      viewerUserId: userId,
+    );
+    if (target == null) {
+      throw IdNotFoundException(id: messageId);
+    }
+    return target;
   }
 
   Future<Map<String, Object?>> beaconRoomStateGet({
@@ -472,8 +549,8 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
     }
-    final parsedReadThrough = readThroughAtIso != null &&
-            readThroughAtIso.trim().isNotEmpty
+    final parsedReadThrough =
+        readThroughAtIso != null && readThroughAtIso.trim().isNotEmpty
         ? DateTime.tryParse(readThroughAtIso.trim())
         : null;
     var at = parsedReadThrough ?? DateTime.timestamp();
@@ -511,12 +588,11 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String userId,
     String? readThroughAtIso,
-  }) =>
-      markBeaconRoomSeen(
-        beaconId: beaconId,
-        userId: userId,
-        readThroughAtIso: readThroughAtIso,
-      );
+  }) => markBeaconRoomSeen(
+    beaconId: beaconId,
+    userId: userId,
+    readThroughAtIso: readThroughAtIso,
+  );
 
   /// Room members (same visibility envelope as chat): author, steward, or
   /// admitted participants.
@@ -536,14 +612,26 @@ final class BeaconRoomCase extends UseCaseBase {
       beaconId: beaconId,
       userIds: userIds,
     );
-    final titlesByUserId =
-        userIds.isEmpty ? <String, String>{} : await _room.userTitlesByIds(userIds);
+    final titlesByUserId = userIds.isEmpty
+        ? <String, String>{}
+        : await _room.userTitlesByIds(userIds);
 
-    final handlesByUserId =
-        userIds.isEmpty ? <String, String>{} : await _room.userHandlesByIds(userIds);
+    final handlesByUserId = userIds.isEmpty
+        ? <String, String>{}
+        : await _room.userHandlesByIds(userIds);
 
-    final picMetaByUserId =
-        userIds.isEmpty ? const <String, ({bool hasPicture, int picHeight, int picWidth, String blurHash, String imageId})>{} : await _room.userPicMetaByIds(userIds);
+    final picMetaByUserId = userIds.isEmpty
+        ? const <
+            String,
+            ({
+              bool hasPicture,
+              int picHeight,
+              int picWidth,
+              String blurHash,
+              String imageId,
+            })
+          >{}
+        : await _room.userPicMetaByIds(userIds);
     final helpTypesByUserId = await _room.helpTypesByUserId(beaconId);
     return rows
         .map(
@@ -582,23 +670,30 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String note,
   }) async {
-    await _room.participantOfferHelp(
-      beaconId: beaconId,
-      userId: userId,
-      note: note.trim(),
-    );
-    final author = await _room.beaconAuthorUserId(beaconId);
-    final stewards = await _room.listStewardUserIds(beaconId);
-    final moderators = <String>{
-      if (author != null && author.isNotEmpty) author,
-      ...stewards,
-    }.toList();
-    unawaited(
-      _push.notifyHelpOfferedToModerators(
-        beaconId: beaconId,
-        offererUserId: userId,
-        moderatorUserIds: moderators,
-      ),
+    await _attention!.runAction<void>(
+      actorUserId: userId,
+      action: (transaction) async {
+        await _room.participantOfferHelp(
+          beaconId: beaconId,
+          userId: userId,
+          note: note.trim(),
+        );
+        final author = await _room.beaconAuthorUserId(beaconId);
+        final stewards = await _room.listStewardUserIds(beaconId);
+        final moderators = <String>{
+          if (author != null && author.isNotEmpty) author,
+          ...stewards,
+        }.toList();
+        await transaction.record(
+          await _attentionIntents!.helpOfferSubmitted(
+            beaconId: beaconId,
+            helpOffererId: userId,
+            authorId: author ?? '',
+            moderatorUserIds: moderators,
+            sourceEventKey: 'room_help_offer:${generateId('A')}',
+          ),
+        );
+      },
     );
   }
 
@@ -607,8 +702,10 @@ final class BeaconRoomCase extends UseCaseBase {
     required String participantUserId,
     required String actorUserId,
   }) async {
-    final author =
-        await _room.isBeaconAuthor(beaconId: beaconId, userId: actorUserId);
+    final author = await _room.isBeaconAuthor(
+      beaconId: beaconId,
+      userId: actorUserId,
+    );
     final steward = await _room.isBeaconSteward(
       beaconId: beaconId,
       userId: actorUserId,
@@ -616,17 +713,23 @@ final class BeaconRoomCase extends UseCaseBase {
     if (!author && !steward) {
       throw const UnauthorizedException(description: 'Author or steward only');
     }
-    await _room.admitParticipant(
-      beaconId: beaconId,
-      participantUserId: participantUserId,
+    await _attention!.runAction<void>(
       actorUserId: actorUserId,
-    );
-    unawaited(
-      _push.notifyRoomAdmitted(
-        receiverId: participantUserId,
-        beaconId: beaconId,
-        actorUserId: actorUserId,
-      ),
+      action: (transaction) async {
+        await _room.admitParticipant(
+          beaconId: beaconId,
+          participantUserId: participantUserId,
+          actorUserId: actorUserId,
+        );
+        await transaction.record(
+          await _attentionIntents!.offerAccepted(
+            receiverId: participantUserId,
+            beaconId: beaconId,
+            actorUserId: actorUserId,
+            sourceEventKey: 'room_admission:${generateId('A')}',
+          ),
+        );
+      },
     );
   }
 
@@ -635,8 +738,10 @@ final class BeaconRoomCase extends UseCaseBase {
     required String stewardUserId,
     required String authorUserId,
   }) async {
-    final author =
-        await _room.isBeaconAuthor(beaconId: beaconId, userId: authorUserId);
+    final author = await _room.isBeaconAuthor(
+      beaconId: beaconId,
+      userId: authorUserId,
+    );
     if (!author) {
       throw const UnauthorizedException(description: 'Author only');
     }
@@ -832,8 +937,7 @@ final class BeaconRoomCase extends UseCaseBase {
       throw const UnauthorizedException(description: 'Room access required');
     }
     final bytes = await _remoteStorage.getObject(row.fileUrl!);
-    final name =
-        row.fileName.trim().isEmpty ? 'download' : row.fileName.trim();
+    final name = row.fileName.trim().isEmpty ? 'download' : row.fileName.trim();
     return (bytes: bytes, mime: row.mime, fileName: name);
   }
 
@@ -970,12 +1074,18 @@ final class BeaconRoomCase extends UseCaseBase {
     await _enforceMessageRateLimit(userId);
     final trimmedQuestion = question.trim();
     if (trimmedQuestion.isEmpty) {
-      throw const BeaconCreateException(description: 'Poll question is required');
+      throw const BeaconCreateException(
+        description: 'Poll question is required',
+      );
     }
-    final validVariants =
-        variants.map((v) => v.trim()).where((v) => v.isNotEmpty).toList();
+    final validVariants = variants
+        .map((v) => v.trim())
+        .where((v) => v.isNotEmpty)
+        .toList();
     if (validVariants.length < 2) {
-      throw const BeaconCreateException(description: 'At least 2 poll variants required');
+      throw const BeaconCreateException(
+        description: 'At least 2 poll variants required',
+      );
     }
     final resolvedPollType = pollType ?? 'single';
     if (!const {'single', 'multiple', 'range'}.contains(resolvedPollType)) {
@@ -1011,14 +1121,14 @@ final class BeaconRoomCase extends UseCaseBase {
   }
 
   Map<String, Object?> _emptyOpenBlockerBatchFields() => {
-        'openBlockerCreatorId': null,
-        'openBlockerTargetPersonId': null,
-        'openBlockerResponsibleUserId': null,
-        'openBlockerCreatedAt': null,
-        'openBlockerCreatorDisplayName': null,
-        'openBlockerCreatorImageId': null,
-        'openBlockerCreatorHasPicture': false,
-      };
+    'openBlockerCreatorId': null,
+    'openBlockerTargetPersonId': null,
+    'openBlockerResponsibleUserId': null,
+    'openBlockerCreatedAt': null,
+    'openBlockerCreatorDisplayName': null,
+    'openBlockerCreatorImageId': null,
+    'openBlockerCreatorHasPicture': false,
+  };
 
   Future<Map<String, Object?>> _openBlockerBatchFields(
     CoordinationItemRecord? openBlocker,
@@ -1038,8 +1148,7 @@ final class BeaconRoomCase extends UseCaseBase {
       'openBlockerCreatorId': creatorId,
       'openBlockerTargetPersonId': target,
       'openBlockerResponsibleUserId': responsible,
-      'openBlockerCreatedAt':
-          openBlocker.createdAt.toUtc().toIso8601String(),
+      'openBlockerCreatedAt': openBlocker.createdAt.toUtc().toIso8601String(),
       'openBlockerCreatorDisplayName': titles[creatorId] ?? '',
       'openBlockerCreatorImageId': pic?.imageId,
       'openBlockerCreatorHasPicture': pic?.hasPicture ?? false,

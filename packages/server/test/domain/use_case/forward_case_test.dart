@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import 'forward_case_mocks.mocks.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/test_attention_harness.dart';
 
 ForwardEdgeEntity _forwardEdge({
   required String id,
@@ -55,6 +56,7 @@ void main() {
   late MockBeaconRoomNotificationPort roomPush;
   late FakeBeaconAccessGuard guard;
   late CapabilityCase capabilityCase;
+  late TestAttentionHarness attention;
   late ForwardCase case_;
 
   final now = DateTime.utc(2025);
@@ -67,6 +69,7 @@ void main() {
     beaconRepo = MockBeaconRepositoryPort();
     roomPush = MockBeaconRoomNotificationPort();
     guard = FakeBeaconAccessGuard();
+    attention = TestAttentionHarness();
 
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -81,6 +84,8 @@ void main() {
       beaconRepo,
       roomPush,
       guard,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCaseTest'),
     );
@@ -257,14 +262,12 @@ void main() {
         recipientIds: ['R1', 'R2'],
       );
 
-      verify(
-        roomPush.notifyForwardReceived(
-          beaconId: 'B1',
-          senderId: 'U1',
-          beaconAuthorId: 'Uauthor',
-          recipientIds: ['R1', 'R2'],
-        ),
-      ).called(1);
+      final intent = attention.recorded.single;
+      expect(intent.eventType.name, 'relayReceived');
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        ['R1', 'R2'],
+      );
     });
 
     test('beacon fetch failure during validation propagates', () async {
@@ -276,14 +279,7 @@ void main() {
         case_.forward(senderId: 'U1', beaconId: 'B1', recipientIds: ['R1']),
         throwsA(isA<Exception>()),
       );
-      verifyNever(
-        roomPush.notifyForwardReceived(
-          beaconId: anyNamed('beaconId'),
-          senderId: anyNamed('senderId'),
-          beaconAuthorId: anyNamed('beaconAuthorId'),
-          recipientIds: anyNamed('recipientIds'),
-        ),
-      );
+      expect(attention.recorded, isEmpty);
     });
 
     test('notifyForwardReceived skipped when all recipients are dupes', () async {
@@ -307,14 +303,7 @@ void main() {
         sharedReasonSlugs: ['transport'],
       );
 
-      verifyNever(
-        roomPush.notifyForwardReceived(
-          beaconId: anyNamed('beaconId'),
-          senderId: anyNamed('senderId'),
-          beaconAuthorId: anyNamed('beaconAuthorId'),
-          recipientIds: anyNamed('recipientIds'),
-        ),
-      );
+      expect(attention.recorded, isEmpty);
       verifyZeroInteractions(capabilityRepo);
     });
   });

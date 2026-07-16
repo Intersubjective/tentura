@@ -1515,6 +1515,22 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, Object?>>);
 
   @override
+  _i3.Future<Map<String, Object?>?> roomMessageTarget({
+    required String? beaconId,
+    required String? messageId,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#roomMessageTarget, [], {
+              #beaconId: beaconId,
+              #messageId: messageId,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue: _i3.Future<Map<String, Object?>?>.value(),
+          )
+          as _i3.Future<Map<String, Object?>?>);
+
+  @override
   _i3.Future<_i19.BeaconRoomMessageRecord> insertRoomMessage({
     required String? beaconId,
     required String? authorId,

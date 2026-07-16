@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
@@ -8,6 +7,8 @@ import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../_use_case_base.dart';
 
@@ -16,14 +17,18 @@ final class MarkAskCase extends UseCaseBase {
   MarkAskCase(
     this._beaconRepository,
     this._itemRepository,
-    this._push, {
+    BeaconRoomNotificationPort legacyNotificationPort, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
-  final BeaconRoomNotificationPort _push;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
 
   Future<CoordinationItemRecord> call({
     required String userId,
@@ -53,28 +58,38 @@ final class MarkAskCase extends UseCaseBase {
     if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Request is not open');
     }
-    final item = await _itemRepository.create(
-      beaconId: beaconId,
-      kind: coordinationItemKindAsk,
-      creatorId: userId,
-      title: trimmed,
-      body: body.trim(),
-      targetPersonId: target,
-      linkedMessageId: linkedMessageId,
-      staleAfterDays: staleAfterDays,
-    );
-    final notifyTarget = item.targetPersonId;
-    if (notifyTarget != null && notifyTarget.isNotEmpty) {
-      unawaited(
-        _push.notifyNeedsMe(
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final item = await _itemRepository.create(
           beaconId: beaconId,
-          actorUserId: userId,
-          targetUserId: notifyTarget,
-          excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
-          coordinationItemId: item.id,
-        ),
-      );
-    }
-    return item;
+          kind: coordinationItemKindAsk,
+          creatorId: userId,
+          title: trimmed,
+          body: body.trim(),
+          targetPersonId: target,
+          linkedMessageId: linkedMessageId,
+          staleAfterDays: staleAfterDays,
+        );
+        final notifyTarget = item.targetPersonId;
+        if (notifyTarget != null && notifyTarget.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.needsMe(
+              beaconId: beaconId,
+              actorUserId: userId,
+              targetUserId: notifyTarget,
+              excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
+              coordinationItemId: item.id,
+              sourceEventKey: _sourceKey(item, 'created'),
+            ),
+          );
+        }
+        return item;
+      },
+    );
   }
+
+  String _sourceKey(CoordinationItemRecord item, String transition) =>
+      'coordination_item:${item.id}:$transition:'
+      '${item.updatedAt.toUtc().microsecondsSinceEpoch}';
 }

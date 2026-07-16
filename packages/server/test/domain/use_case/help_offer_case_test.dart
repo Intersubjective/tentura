@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
+import '../../support/test_attention_harness.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -35,6 +36,7 @@ void main() {
   late MockHelpOfferAdmissionRepositoryPort admissionRepo;
   late MockBeaconRoomNotificationPort roomPush;
   late CapabilityCase capabilityCase;
+  late TestAttentionHarness attention;
   late HelpOfferCase case_;
 
   final now = DateTime.utc(2025);
@@ -67,6 +69,7 @@ void main() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     admissionRepo = MockHelpOfferAdmissionRepositoryPort();
     roomPush = MockBeaconRoomNotificationPort();
+    attention = TestAttentionHarness();
     capabilityCase = CapabilityCase(
       capabilityRepo,
       env: Env(environment: Environment.test),
@@ -83,6 +86,8 @@ void main() {
       admissionRepo,
       roomPush,
       FakeBeaconAccessGuard(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('HelpOfferCaseTest'),
     );
@@ -220,12 +225,7 @@ void main() {
         ),
       ).called(1);
       // Open-beacon withdrawal notifies the author/stewards.
-      verify(
-        roomPush.notifyHelpWithdrawn(
-          beaconId: 'B1',
-          withdrawerUserId: 'U1',
-        ),
-      ).called(1);
+      expect(attention.recorded.single.eventType.name, 'promiseWithdrawn');
     });
 
     test('allows WRAPPING UP (5)', () async {
@@ -418,13 +418,10 @@ void main() {
             authorUserId: 'Uauth',
           ),
         ).called(1);
-        verify(
-          roomPush.notifyRoomAdmitted(
-            receiverId: 'U1',
-            beaconId: 'B1',
-            actorUserId: 'Uauth',
-          ),
-        ).called(1);
+        expect(
+          attention.recorded.map((intent) => intent.eventType.name),
+          ['helpOfferSubmitted', 'offerAccepted'],
+        );
       },
     );
 
@@ -576,13 +573,7 @@ void main() {
 
       await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-      verify(
-        roomPush.notifyHelpOfferToAuthor(
-          beaconId: 'B1',
-          helpOffererId: 'U1',
-          authorId: 'Uauth',
-        ),
-      ).called(1);
+      expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
     });
 
     test(
@@ -598,13 +589,7 @@ void main() {
 
         await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-        verifyNever(
-          roomPush.notifyHelpOfferToAuthor(
-            beaconId: anyNamed('beaconId'),
-            helpOffererId: anyNamed('helpOffererId'),
-            authorId: anyNamed('authorId'),
-          ),
-        );
+        expect(attention.recorded, isEmpty);
       },
     );
   });

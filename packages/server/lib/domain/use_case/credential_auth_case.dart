@@ -10,7 +10,9 @@ import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '_use_case_base.dart';
 
@@ -21,16 +23,20 @@ final class CredentialAuthCase extends UseCaseBase {
     this._userRepository,
     this._verifiedContactRepository,
     this._invitationRepository,
-    this._inviteAcceptedNotification,
+    InviteAcceptedNotificationPort legacyNotificationPort,
     this._invitationCase, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final UserRepositoryPort _userRepository;
   final VerifiedContactRepositoryPort _verifiedContactRepository;
   final InvitationRepositoryPort _invitationRepository;
-  final InviteAcceptedNotificationPort _inviteAcceptedNotification;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
   final InvitationCase _invitationCase;
 
   /// Returns the account id after login or signup. `isNewAccount` is true only
@@ -145,27 +151,37 @@ final class CredentialAuthCase extends UseCaseBase {
       }
     }
 
-    final invitation = await _invitationRepository.getById(invitationId: inviteId);
+    final invitation = await _invitationRepository.getById(
+      invitationId: inviteId,
+    );
     try {
-      final user = await _userRepository.createInvitedWithCredential(
-        invitationId: inviteId,
-        type: type,
-        identifier: identifier,
-        displayName: displayName,
-        publicData: publicData,
-        contacts: contacts,
+      return await _attention!.runAction(
+        actorUserId: null,
+        action: (transaction) async {
+          final user = await _userRepository.createInvitedWithCredential(
+            invitationId: inviteId,
+            type: type,
+            identifier: identifier,
+            displayName: displayName,
+            publicData: publicData,
+            contacts: contacts,
+          );
+          if (invitation != null) {
+            await transaction.record(
+              _attentionIntents!.inviteAccepted(
+                notification: InviteAcceptedNotificationIntent(
+                  inviterUserId: invitation.issuer.id,
+                  accepterUserId: user.id,
+                  accepterDisplayName: user.displayName,
+                  actionUrl: '/#/shared/view?id=${user.id}',
+                ),
+                sourceEventKey: 'invitation:$inviteId:accepted',
+              ),
+            );
+          }
+          return (accountId: user.id, isNewAccount: true);
+        },
       );
-      if (invitation != null) {
-        await _inviteAcceptedNotification.notifyInviteAccepted(
-          InviteAcceptedNotificationIntent(
-            inviterUserId: invitation.issuer.id,
-            accepterUserId: user.id,
-            accepterDisplayName: user.displayName,
-            actionUrl: '/#/shared/view?id=${user.id}',
-          ),
-        );
-      }
-      return (accountId: user.id, isNewAccount: true);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(
         type: type,

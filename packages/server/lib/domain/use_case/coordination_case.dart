@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
-import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
@@ -18,6 +15,9 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '_use_case_base.dart';
 
@@ -30,10 +30,13 @@ final class CoordinationCase extends UseCaseBase {
     this._beaconRoomRepository,
     this._evaluationRepository, {
     required BeaconRoomNotificationPort roomPush,
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required BeaconAccessGuard guard,
     required super.env,
     required super.logger,
-  }) : _roomPush = roomPush,
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention,
        _guard = guard;
 
   final BeaconRepositoryPort _beaconRepository;
@@ -41,7 +44,8 @@ final class CoordinationCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final EvaluationRepositoryPort _evaluationRepository;
-  final BeaconRoomNotificationPort _roomPush;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
@@ -162,27 +166,25 @@ final class CoordinationCase extends UseCaseBase {
       offerUserId: offerUserId,
       actorUserId: actorUserId,
     );
-    final snap = await _coordinationRepository.acceptHelpOffer(
-      beaconId: beaconId,
-      offerUserId: offerUserId,
+    return _attention!.runAction(
       actorUserId: actorUserId,
-    );
-    unawaited(
-      _roomPush
-          .notifyRoomAdmitted(
+      action: (transaction) async {
+        final snap = await _coordinationRepository.acceptHelpOffer(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+        );
+        await transaction.record(
+          await _attentionIntents!.offerAccepted(
             receiverId: offerUserId,
             beaconId: beaconId,
             actorUserId: actorUserId,
-          )
-          .catchError((Object e, StackTrace st) {
-            logger.warning(
-              'CoordinationCase: room-admitted push failed',
-              e,
-              st,
-            );
-          }),
+            sourceEventKey: 'admission:${generateId('A')}',
+          ),
+        );
+        return _statusResult(beaconId, snap);
+      },
     );
-    return _statusResult(beaconId, snap);
   }
 
   Future<BeaconStatusResult> declineHelpOffer({
@@ -206,29 +208,27 @@ final class CoordinationCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.alreadyAdmitted,
       );
     }
-    final snap = await _coordinationRepository.declineHelpOffer(
-      beaconId: beaconId,
-      offerUserId: offerUserId,
+    return _attention!.runAction(
       actorUserId: actorUserId,
-      reason: trimmedReason,
+      action: (transaction) async {
+        // Snapshot the affected helper while the pre-decline audience is intact.
+        final intent = await _attentionIntents!.offerDeclined(
+          receiverId: offerUserId,
+          beaconId: beaconId,
+          actorUserId: actorUserId,
+          reason: trimmedReason,
+          sourceEventKey: 'admission:${generateId('A')}',
+        );
+        final snap = await _coordinationRepository.declineHelpOffer(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+          reason: trimmedReason,
+        );
+        await transaction.record(intent);
+        return _statusResult(beaconId, snap);
+      },
     );
-    unawaited(
-      _roomPush
-          .notifyCommitmentDeclined(
-            receiverId: offerUserId,
-            beaconId: beaconId,
-            actorUserId: actorUserId,
-            reason: trimmedReason,
-          )
-          .catchError((Object e, StackTrace st) {
-            logger.warning(
-              'CoordinationCase: commitment-declined push failed',
-              e,
-              st,
-            );
-          }),
-    );
-    return _statusResult(beaconId, snap);
   }
 
   Future<BeaconStatusResult> removeFromRoom({
@@ -252,29 +252,27 @@ final class CoordinationCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.notAdmitted,
       );
     }
-    final snap = await _coordinationRepository.removeFromRoom(
-      beaconId: beaconId,
-      offerUserId: offerUserId,
+    return _attention!.runAction(
       actorUserId: actorUserId,
-      reason: trimmedReason,
+      action: (transaction) async {
+        // Snapshot before access revocation so the terminal receipt survives.
+        final intent = await _attentionIntents!.offerRemoved(
+          receiverId: offerUserId,
+          beaconId: beaconId,
+          actorUserId: actorUserId,
+          reason: trimmedReason,
+          sourceEventKey: 'admission:${generateId('A')}',
+        );
+        final snap = await _coordinationRepository.removeFromRoom(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+          reason: trimmedReason,
+        );
+        await transaction.record(intent);
+        return _statusResult(beaconId, snap);
+      },
     );
-    unawaited(
-      _roomPush
-          .notifyCommitmentRemoved(
-            receiverId: offerUserId,
-            beaconId: beaconId,
-            actorUserId: actorUserId,
-            reason: trimmedReason,
-          )
-          .catchError((Object e, StackTrace st) {
-            logger.warning(
-              'CoordinationCase: commitment-removed push failed',
-              e,
-              st,
-            );
-          }),
-    );
-    return _statusResult(beaconId, snap);
   }
 
   Future<BeaconStatusResult> setCoordinationResponse({
@@ -341,7 +339,9 @@ final class CoordinationCase extends UseCaseBase {
     await _ensureAuthorOrSteward(beaconId: beaconId, userId: authorUserId);
     final target = coordinationTargetStatus(status);
 
-    return _beaconRepository.runInBeaconStateTransaction(
+    Future<BeaconStatusResult> mutate(
+      AttentionTransaction? transaction,
+    ) => _beaconRepository.runInBeaconStateTransaction(
       beaconId: beaconId,
       userId: authorUserId,
       fn: (beacon) async {
@@ -394,6 +394,15 @@ final class CoordinationCase extends UseCaseBase {
           );
         }
 
+        final intent = transaction == null
+            ? null
+            : await _attentionIntents!.requestStatusChanged(
+                beaconId: beaconId,
+                fromStatus: beacon.status.name,
+                toStatus: target.name,
+                actorUserId: authorUserId,
+                sourceEventKey: 'request_status:${generateId('A')}',
+              );
         await _beaconRepository.recordBeaconStatusTransition(
           beaconId: beaconId,
           fromStatus: beacon.status,
@@ -401,6 +410,9 @@ final class CoordinationCase extends UseCaseBase {
           reason: reasonStringForTransition(reason),
           actorId: authorUserId,
         );
+        if (intent != null) {
+          await transaction!.record(intent);
+        }
 
         final snap = await _coordinationRepository.beaconStatusSnapshot(
           beaconId,
@@ -411,6 +423,14 @@ final class CoordinationCase extends UseCaseBase {
           statusChangedAt: snap.statusChangedAt,
         );
       },
+    );
+
+    if (!env.attentionV1NewProducersEnabled) {
+      return mutate(null);
+    }
+    return _attention!.runAction(
+      actorUserId: authorUserId,
+      action: mutate,
     );
   }
 }

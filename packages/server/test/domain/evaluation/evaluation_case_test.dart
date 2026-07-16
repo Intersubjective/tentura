@@ -5,6 +5,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -28,6 +29,7 @@ import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
 import 'evaluation_graph_test_repos.dart';
+import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 /// No-op stub for [PersonCapabilityEventRepositoryPort] used only to construct
@@ -390,6 +392,7 @@ void main() {
 
   late _FakeEvaluationRepository evalRepo;
   late EvaluationCase evaluationCase;
+  late TestAttentionHarness attention;
 
   BeaconReviewWindowRecord openWindow({
     String id = beaconId,
@@ -411,6 +414,7 @@ void main() {
 
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
+    attention = TestAttentionHarness();
     final helpOfferRepo = EmptyGraphHelpOfferRepository();
     final forwardRepo = EmptyGraphForwardEdgeRepository();
     final userRepo = StubUserRepository('User');
@@ -439,6 +443,8 @@ void main() {
       graphBuilder,
       draftPurger,
       noopCapabilityCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('EvaluationCaseTest'),
     );
@@ -792,6 +798,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -869,6 +877,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -927,6 +937,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -958,6 +970,7 @@ void main() {
 
   group('beaconClose review-open path', () {
     late _TransactionStubBeaconRepo beaconRepo;
+    late _RecordingReviewOpenedNotificationPort roomPush;
 
     setUp(() {
       evalRepo = _FakeEvaluationRepository();
@@ -988,12 +1001,13 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
+      roomPush = _RecordingReviewOpenedNotificationPort();
       evaluationCase = EvaluationCase(
         beaconRepo,
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
+        roomPush,
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1001,6 +1015,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1027,6 +1043,17 @@ void main() {
           actorId: userId,
         ),
       ]);
+      expect(attention.recorded, hasLength(1));
+      final notification = attention.recorded.single;
+      expect(notification.eventType, AttentionEventType.reviewOpened);
+      expect(notification.beaconId, beaconId);
+      expect(notification.kind.name, 'reviewReady');
+      expect(notification.actionUrl, '/#/beacon/review/$beaconId');
+      expect(
+        notification.recipients.map((recipient) => recipient.recipientId),
+        ['helper1'],
+      );
+      expect(notification.actorUserId, userId);
     });
   });
 
@@ -1075,6 +1102,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1153,6 +1182,8 @@ void main() {
             env: Env(environment: Environment.test),
             logger: Logger('EvaluationCaseTest'),
           ),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         );
@@ -1201,6 +1232,8 @@ void main() {
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1323,6 +1356,34 @@ class _NoopBeaconRoomNotificationPort extends Fake
     required Set<String> recipientUserIds,
     required String actorUserId,
   }) async {}
+}
+
+class _RecordingReviewOpenedNotificationPort extends Fake
+    implements BeaconRoomNotificationPort {
+  final calls =
+      <
+        ({
+          String beaconId,
+          String beaconTitle,
+          Set<String> recipientUserIds,
+          String actorUserId,
+        })
+      >[];
+
+  @override
+  Future<void> notifyReviewOpened({
+    required String beaconId,
+    required String beaconTitle,
+    required Set<String> recipientUserIds,
+    required String actorUserId,
+  }) async {
+    calls.add((
+      beaconId: beaconId,
+      beaconTitle: beaconTitle,
+      recipientUserIds: recipientUserIds,
+      actorUserId: actorUserId,
+    ));
+  }
 }
 
 final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {

@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -16,6 +17,7 @@ import 'package:tentura_server/env.dart';
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/noop_invite_accepted_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -24,6 +26,8 @@ void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late InvitationCase invitationCase;
+  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
+  late TestAttentionHarness attention;
   late CredentialAuthCase case_;
   late Env env;
 
@@ -41,66 +45,84 @@ void main() {
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     env = Env(environment: Environment.test, isNeedInvite: true);
+    attention = TestAttentionHarness();
     invitationCase = buildTestInvitationCase(
       invitationRepo: invitationRepo,
       userRepo: userRepo,
       beaconRepo: beaconRepo,
       friendshipLookup: friendshipLookup,
       contactRepo: MockUserContactRepositoryPort(),
+      attention: attention,
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
+    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
     case_ = CredentialAuthCase(
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
+      inviteAcceptedNotification,
       invitationCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
     );
   });
 
-  test('existing email credential logs in and soft-attaches contacts', () async {
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenAnswer(
-      (_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'),
-    );
+  test(
+    'existing email credential logs in and soft-attaches contacts',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'),
+      );
 
-    final resolved = await case_.resolveOrCreate(
-      type: CredentialType.emailOtp,
-      identifier: 'ada@example.com',
-      displayName: 'ada',
-      assertedContacts: emailContact,
-    );
+      final resolved = await case_.resolveOrCreate(
+        type: CredentialType.emailOtp,
+        identifier: 'ada@example.com',
+        displayName: 'ada',
+        assertedContacts: emailContact,
+      );
 
-    expect(resolved.accountId, 'Uabc');
-    expect(resolved.isNewAccount, isFalse);
-    verify(
-      userRepo.addVerifiedContacts(
-        accountId: 'Uabc',
-        source: CredentialType.emailOtp,
-        contacts: emailContact,
-      ),
-    ).called(1);
-    verifyNever(
-      userRepo.createInvitedWithCredential(
-        invitationId: anyNamed('invitationId'),
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-        displayName: anyNamed('displayName'),
-        handle: anyNamed('handle'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    );
-  });
+      expect(resolved.accountId, 'Uabc');
+      expect(resolved.isNewAccount, isFalse);
+      verify(
+        userRepo.addVerifiedContacts(
+          accountId: 'Uabc',
+          source: CredentialType.emailOtp,
+          contacts: emailContact,
+        ),
+      ).called(1);
+      verifyNever(
+        userRepo.createInvitedWithCredential(
+          invitationId: anyNamed('invitationId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      );
+    },
+  );
 
   test('new email credential with invite creates invited account', () async {
+    when(
+      invitationRepo.getById(invitationId: 'Iabc'),
+    ).thenAnswer(
+      (_) async => InvitationEntity(
+        id: 'Iabc',
+        issuer: const UserEntity(id: 'Uissuer', displayName: 'Alice'),
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      ),
+    );
     when(
       userRepo.getByCredential(
         type: anyNamed('type'),
@@ -143,76 +165,100 @@ void main() {
         contacts: emailContact,
       ),
     ).called(1);
-  });
-
-  test('new credential without invite on invite-only server is rejected', () async {
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {});
-
+    expect(attention.recorded, hasLength(1));
     expect(
-      () => case_.resolveOrCreate(
+      attention.recorded.single,
+      isA<AttentionDispatchIntent>()
+          .having(
+            (intent) => intent.eventType,
+            'eventType',
+            AttentionEventType.inviteAccepted,
+          )
+          .having(
+            (intent) => intent.recipients.single.recipientId,
+            'recipient',
+            'Uissuer',
+          )
+          .having((intent) => intent.actorUserId, 'actor', 'Unew'),
+    );
+  });
+
+  test(
+    'new credential without invite on invite-only server is rejected',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {});
+
+      expect(
+        () => case_.resolveOrCreate(
+          type: CredentialType.emailOtp,
+          identifier: 'new@example.com',
+          displayName: 'new',
+        ),
+        throwsA(isA<OidcInviteRequiredException>()),
+      );
+    },
+  );
+
+  test(
+    'bypassInviteForNewAccount creates account when QA simple login enabled',
+    () async {
+      final qaEnv = Env(
+        environment: Environment.test,
+        isNeedInvite: true,
+        qaSimpleLoginMode: true,
+      );
+      final qaCase = CredentialAuthCase(
+        userRepo,
+        contactRepo,
+        invitationRepo,
+        NoopInviteAcceptedNotificationPort(),
+        invitationCase,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: qaEnv,
+        logger: Logger('CredentialAuthCaseTest'),
+      );
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {});
+      when(
+        userRepo.createWithCredential(
+          type: anyNamed('type'),
+          identifier: 'new@test.tentura.local',
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Unew', displayName: 'new'),
+      );
+
+      final resolved = await qaCase.resolveOrCreate(
         type: CredentialType.emailOtp,
-        identifier: 'new@example.com',
-        displayName: 'new',
-      ),
-      throwsA(isA<OidcInviteRequiredException>()),
-    );
-  });
-
-  test('bypassInviteForNewAccount creates account when QA simple login enabled', () async {
-    final qaEnv = Env(
-      environment: Environment.test,
-      isNeedInvite: true,
-      qaSimpleLoginMode: true,
-    );
-    final qaCase = CredentialAuthCase(
-      userRepo,
-      contactRepo,
-      invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
-      invitationCase,
-      env: qaEnv,
-      logger: Logger('CredentialAuthCaseTest'),
-    );
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {});
-    when(
-      userRepo.createWithCredential(
-        type: anyNamed('type'),
         identifier: 'new@test.tentura.local',
-        displayName: anyNamed('displayName'),
-        handle: anyNamed('handle'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    ).thenAnswer(
-      (_) async => const UserEntity(id: 'Unew', displayName: 'new'),
-    );
+        displayName: 'new',
+        bypassInviteForNewAccount: true,
+      );
 
-    final resolved = await qaCase.resolveOrCreate(
-      type: CredentialType.emailOtp,
-      identifier: 'new@test.tentura.local',
-      displayName: 'new',
-      bypassInviteForNewAccount: true,
-    );
-
-    expect(resolved.accountId, 'Unew');
-    expect(resolved.isNewAccount, isTrue);
-  });
+      expect(resolved.accountId, 'Unew');
+      expect(resolved.isNewAccount, isTrue);
+    },
+  );
 
   test('bypassInviteForNewAccount is ignored in prod', () async {
     final prodEnv = Env(
@@ -228,6 +274,8 @@ void main() {
       invitationRepo,
       NoopInviteAcceptedNotificationPort(),
       invitationCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: prodEnv,
       logger: Logger('CredentialAuthCaseTest'),
     );
@@ -252,93 +300,99 @@ void main() {
     );
   });
 
-  test('email verify links into existing google account by verified contact', () async {
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {'Ugoogle'});
-    when(
-      userRepo.linkCredentialWithContacts(
-        accountId: anyNamed('accountId'),
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    ).thenAnswer((_) async => 'Ugoogle');
+  test(
+    'email verify links into existing google account by verified contact',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {'Ugoogle'});
+      when(
+        userRepo.linkCredentialWithContacts(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer((_) async => 'Ugoogle');
 
-    final resolved = await case_.resolveOrCreate(
-      type: CredentialType.emailOtp,
-      identifier: 'ada@example.com',
-      displayName: 'ada',
-      assertedContacts: emailContact,
-    );
-
-    expect(resolved.accountId, 'Ugoogle');
-    expect(resolved.isNewAccount, isFalse);
-    verify(
-      userRepo.linkCredentialWithContacts(
-        accountId: 'Ugoogle',
+      final resolved = await case_.resolveOrCreate(
         type: CredentialType.emailOtp,
         identifier: 'ada@example.com',
-        contacts: emailContact,
-      ),
-    ).called(1);
-    verifyNever(
-      userRepo.createWithCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-        displayName: anyNamed('displayName'),
-        handle: anyNamed('handle'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    );
-  });
+        displayName: 'ada',
+        assertedContacts: emailContact,
+      );
 
-  test('google login links into existing email account by verified contact', () async {
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {'Uemail'});
-    when(
-      userRepo.linkCredentialWithContacts(
-        accountId: anyNamed('accountId'),
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    ).thenAnswer((_) async => 'Uemail');
+      expect(resolved.accountId, 'Ugoogle');
+      expect(resolved.isNewAccount, isFalse);
+      verify(
+        userRepo.linkCredentialWithContacts(
+          accountId: 'Ugoogle',
+          type: CredentialType.emailOtp,
+          identifier: 'ada@example.com',
+          contacts: emailContact,
+        ),
+      ).called(1);
+      verifyNever(
+        userRepo.createWithCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          displayName: anyNamed('displayName'),
+          handle: anyNamed('handle'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      );
+    },
+  );
 
-    final resolved = await case_.resolveOrCreate(
-      type: CredentialType.oidcGoogle,
-      identifier: 'google-sub',
-      displayName: 'Ada',
-      assertedContacts: emailContact,
-    );
+  test(
+    'google login links into existing email account by verified contact',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {'Uemail'});
+      when(
+        userRepo.linkCredentialWithContacts(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer((_) async => 'Uemail');
 
-    expect(resolved.accountId, 'Uemail');
-    expect(resolved.isNewAccount, isFalse);
-    verify(
-      userRepo.linkCredentialWithContacts(
-        accountId: 'Uemail',
+      final resolved = await case_.resolveOrCreate(
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
-        contacts: emailContact,
-      ),
-    ).called(1);
-  });
+        displayName: 'Ada',
+        assertedContacts: emailContact,
+      );
+
+      expect(resolved.accountId, 'Uemail');
+      expect(resolved.isNewAccount, isFalse);
+      verify(
+        userRepo.linkCredentialWithContacts(
+          accountId: 'Uemail',
+          type: CredentialType.oidcGoogle,
+          identifier: 'google-sub',
+          contacts: emailContact,
+        ),
+      ).called(1);
+    },
+  );
 
   test('ambiguous contact match throws', () async {
     when(
@@ -369,7 +423,9 @@ void main() {
         identifier: anyNamed('identifier'),
       ),
     ).thenThrow(const IdNotFoundException());
-    when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((invocation) async {
+    when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((
+      invocation,
+    ) async {
       final contacts = invocation.positionalArguments.first as Iterable;
       if (contacts.isEmpty) return {};
       return {'Uwinner'};
@@ -401,6 +457,8 @@ void main() {
       invitationRepo,
       NoopInviteAcceptedNotificationPort(),
       invitationCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
     );

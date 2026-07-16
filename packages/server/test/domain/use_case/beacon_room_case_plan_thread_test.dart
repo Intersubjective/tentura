@@ -30,26 +30,26 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 }
 
 class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
+  bool isAuthor = true;
+  BeaconRoomMessageRecord? message;
+
   @override
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      true;
+  }) async => isAuthor;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<List<Map<String, Object?>>> listMessagesEnriched({
@@ -58,8 +58,7 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     String? threadItemId,
     DateTime? before,
     int limit = 50,
-  }) async =>
-      const [];
+  }) async => const [];
 
   int recentMessageCount = 0;
 
@@ -67,8 +66,18 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<int> countRecentMessagesByAuthor({
     required String authorId,
     required Duration window,
-  }) async =>
-      recentMessageCount;
+  }) async => recentMessageCount;
+
+  @override
+  Future<BeaconRoomMessageRecord?> getRoomMessageById(String messageId) async =>
+      message;
+
+  @override
+  Future<Map<String, Object?>?> roomMessageTarget({
+    required String beaconId,
+    required String messageId,
+    required String viewerUserId,
+  }) async => {'id': messageId, 'beaconId': beaconId};
 }
 
 void main() {
@@ -166,32 +175,34 @@ void main() {
     );
   });
 
-  test('createMessage throws RateLimitedException at the per-user cap',
-      () async {
-    room.recentMessageCount = 5;
-    final limited = BeaconRoomCase(
-      room,
-      items,
-      FakeBeaconFactCardRepository(),
-      FakeBeaconRoomNotificationPort(),
-      FakeImageRepositoryPort(),
-      FakeTaskRepositoryPort(),
-      FakeRemoteStorage(),
-      FakePollingRepository(),
-      FakeUploadQuota(),
-      env: Env(environment: Environment.test, roomMessageMaxPerUser: 5),
-      logger: Logger('BeaconRoomCaseRateLimitTest'),
-    );
+  test(
+    'createMessage throws RateLimitedException at the per-user cap',
+    () async {
+      room.recentMessageCount = 5;
+      final limited = BeaconRoomCase(
+        room,
+        items,
+        FakeBeaconFactCardRepository(),
+        FakeBeaconRoomNotificationPort(),
+        FakeImageRepositoryPort(),
+        FakeTaskRepositoryPort(),
+        FakeRemoteStorage(),
+        FakePollingRepository(),
+        FakeUploadQuota(),
+        env: Env(environment: Environment.test, roomMessageMaxPerUser: 5),
+        logger: Logger('BeaconRoomCaseRateLimitTest'),
+      );
 
-    await expectLater(
-      limited.createMessage(
-        beaconId: beaconId,
-        userId: userId,
-        body: 'spam spam spam',
-      ),
-      throwsA(isA<RateLimitedException>()),
-    );
-  });
+      await expectLater(
+        limited.createMessage(
+          beaconId: beaconId,
+          userId: userId,
+          body: 'spam spam spam',
+        ),
+        throwsA(isA<RateLimitedException>()),
+      );
+    },
+  );
 
   test('listMessages allows ask item thread', () async {
     items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
@@ -204,12 +215,51 @@ void main() {
 
     expect(out, isEmpty);
   });
+
+  test('roomMessageTarget returns only the exact authorized message', () async {
+    room.message = BeaconRoomMessageRecord(
+      id: 'Rtarget',
+      beaconId: beaconId,
+      authorId: 'Uauthor',
+      createdAt: DateTime.utc(2026, 7, 16),
+    );
+
+    expect(
+      await sut.roomMessageTarget(
+        beaconId: beaconId,
+        messageId: 'Rtarget',
+        userId: userId,
+      ),
+      {'id': 'Rtarget', 'beaconId': beaconId},
+    );
+  });
+
+  test('roomMessageTarget rejects a non-member', () async {
+    room
+      ..isAuthor = false
+      ..message = BeaconRoomMessageRecord(
+        id: 'Rtarget',
+        beaconId: beaconId,
+        authorId: 'Uauthor',
+        createdAt: DateTime.utc(2026, 7, 16),
+      );
+
+    await expectLater(
+      sut.roomMessageTarget(
+        beaconId: beaconId,
+        messageId: 'Rtarget',
+        userId: userId,
+      ),
+      throwsA(isA<UnauthorizedException>()),
+    );
+  });
 }
 
 class FakeBeaconFactCardRepository extends Fake
     implements BeaconFactCardRepositoryPort {}
 
-class FakeBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {}
+class FakeBeaconRoomNotificationPort extends Fake
+    implements BeaconRoomNotificationPort {}
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
 
@@ -225,6 +275,5 @@ class FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required String userId,
     required int bytes,
     required int dailyCapBytes,
-  }) async =>
-      true;
+  }) async => true;
 }
