@@ -26,10 +26,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
   static final _homeTabRoutes = [
-    workTabShell(),
-    inboxTabShell(),
-    networkTabShell(),
-    meTabShell(),
+    for (final spec in HomeTabSpec.all) spec.shell(),
   ];
 
   /// Keeps the home shell subtree (and its [AutoTabsRouter] state) alive when
@@ -70,13 +67,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       // page (e.g. the My Work list) instead of requiring repeated back-taps
       // out of a pushed detail. A detail can itself be the branch stack root
       // after a cold browser deep link, so `popUntilRoot` is insufficient.
-      unawaited(resetHomeTabBranchToRoot(tabsRouter, index));
-      final reselect = context.read<HomeTabReselectCubit>();
-      if (index == 0) {
-        reselect.bumpMyWorkReselect();
-      } else if (index == 1) {
-        reselect.bumpInboxReselect();
-      }
+      final tab = HomeTabSpec.fromIndex(index);
+      if (tab == null) return;
+      unawaited(resetHomeTabBranchToRoot(tabsRouter, tab.tab));
+      context.read<HomeTabReselectCubit>().bump(tab.tab);
     }
   }
 
@@ -250,22 +244,14 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
 }
 
 @visibleForTesting
-Future<void> resetHomeTabBranchToRoot(TabsRouter tabsRouter, int index) {
-  final branch = tabsRouter.stackRouterOfIndex(index);
+Future<void> resetHomeTabBranchToRoot(TabsRouter tabsRouter, HomeTab tab) {
+  final spec = HomeTabSpec.forTab(tab);
+  final branch = tabsRouter.stackRouterOfIndex(spec.index);
   if (branch == null) return Future.value();
-
-  final rootRoute = switch (index) {
-    0 => const MyWorkRoute(),
-    1 => const InboxRoute(),
-    2 => FriendsRoute(),
-    3 => const ProfileRoute(),
-    _ => null,
-  };
-  if (rootRoute == null) return Future.value();
 
   // Replacing the stack also bypasses PopScope and normalizes a cold
   // deep-linked branch whose first (and only) page is a detail route.
-  return branch.replaceAll([rootRoute]);
+  return branch.replaceAll([spec.rootRoute()]);
 }
 
 /// Provides the account-scoped [InboxCubit] and keeps the **last** account's

@@ -79,12 +79,7 @@ class _TestHomeShell extends StatelessWidget {
       final tabs = KeyedSubtree(
         key: _shellSubtreeKey,
         child: AutoTabsRouter(
-          routes: [
-            workTabShell(),
-            inboxTabShell(),
-            networkTabShell(),
-            meTabShell(),
-          ],
+          routes: [for (final spec in HomeTabSpec.all) spec.shell()],
           duration: Duration.zero,
           transitionBuilder: (_, child, _) => child,
           builder: (_, child) => child,
@@ -296,12 +291,13 @@ void main() {
         );
 
         final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
-        final workBranch = tabsRouter?.stackRouterOfIndex(0);
-        expect(tabsRouter?.activeIndex, 0);
+        final workSpec = HomeTabSpec.forTab(HomeTab.work);
+        final workBranch = tabsRouter?.stackRouterOfIndex(workSpec.index);
+        expect(tabsRouter?.activeIndex, workSpec.index);
         expect(workBranch?.stack.length, 1);
         expect(workBranch?.stack.first.name, BeaconViewRoute.name);
 
-        await resetHomeTabBranchToRoot(tabsRouter!, 0);
+        await resetHomeTabBranchToRoot(tabsRouter!, HomeTab.work);
         await tester.pumpAndSettle();
 
         expect(find.text('my-work-root'), findsOneWidget);
@@ -315,7 +311,7 @@ void main() {
       (
         tabLabel: 'Inbox',
         initialPath: '/home/inbox/notifications',
-        tabIndex: 1,
+        tab: HomeTab.inbox,
         detailRouteName: NotificationCenterRoute.name,
         rootRouteName: InboxRoute.name,
         rootLabel: 'inbox-root',
@@ -324,7 +320,7 @@ void main() {
       (
         tabLabel: 'Network',
         initialPath: '/home/network/graph/U2',
-        tabIndex: 2,
+        tab: HomeTab.network,
         detailRouteName: GraphRoute.name,
         rootRouteName: FriendsRoute.name,
         rootLabel: 'friends-root',
@@ -333,7 +329,7 @@ void main() {
       (
         tabLabel: 'Profile',
         initialPath: '/home/profile/profile/view/U2',
-        tabIndex: 3,
+        tab: HomeTab.me,
         detailRouteName: ProfileViewRoute.name,
         rootRouteName: ProfileRoute.name,
         rootLabel: 'profile-root',
@@ -351,12 +347,13 @@ void main() {
           );
 
           final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
-          final branch = tabsRouter?.stackRouterOfIndex(testCase.tabIndex);
-          expect(tabsRouter?.activeIndex, testCase.tabIndex);
+          final spec = HomeTabSpec.forTab(testCase.tab);
+          final branch = tabsRouter?.stackRouterOfIndex(spec.index);
+          expect(tabsRouter?.activeIndex, spec.index);
           expect(branch?.stack.length, 1);
           expect(branch?.stack.first.name, testCase.detailRouteName);
 
-          await resetHomeTabBranchToRoot(tabsRouter!, testCase.tabIndex);
+          await resetHomeTabBranchToRoot(tabsRouter!, testCase.tab);
           await tester.pumpAndSettle();
 
           expect(find.text(testCase.rootLabel), findsOneWidget);

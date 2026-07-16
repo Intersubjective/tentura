@@ -468,7 +468,8 @@ class _InboxMovedSnackBarDismisserState
   Widget build(BuildContext context) =>
       BlocListener<NewStuffCubit, NewStuffState>(
         listenWhen: (prev, curr) =>
-            prev.activeHomeTabIndex == 1 && curr.activeHomeTabIndex != 1,
+            prev.activeHomeTab == HomeTab.inbox &&
+            curr.activeHomeTab != HomeTab.inbox,
         listener: (_, _) => _clearSnackBars(),
         child: widget.child,
       );

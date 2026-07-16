@@ -15,6 +15,71 @@ const inboxTabShell = EmptyShellRoute('InboxTabShell');
 const networkTabShell = EmptyShellRoute('NetworkTabShell');
 const meTabShell = EmptyShellRoute('MeTabShell');
 
+/// Stable identity for a Home branch. Display order is owned by [HomeTabSpec],
+/// not by enum ordinal or ad-hoc router integers.
+enum HomeTab { work, inbox, network, me }
+
+/// The single mapping between a semantic Home tab and AutoRoute mechanics.
+///
+/// Keep tab index, branch path, shell, and root together so adding Updates
+/// cannot silently shift Network/Profile behavior.
+final class HomeTabSpec {
+  const HomeTabSpec({
+    required this.tab,
+    required this.index,
+    required this.path,
+    required this.shell,
+    required this.rootRoute,
+  });
+
+  final HomeTab tab;
+  final int index;
+  final String path;
+  final EmptyShellRoute shell;
+  final PageRouteInfo Function() rootRoute;
+
+  static final all = <HomeTabSpec>[
+    HomeTabSpec(
+      tab: HomeTab.work,
+      index: 0,
+      path: kPathMyWork,
+      shell: workTabShell,
+      rootRoute: MyWorkRoute.new,
+    ),
+    HomeTabSpec(
+      tab: HomeTab.inbox,
+      index: 1,
+      path: kPathInbox,
+      shell: inboxTabShell,
+      rootRoute: InboxRoute.new,
+    ),
+    HomeTabSpec(
+      tab: HomeTab.network,
+      index: 2,
+      path: kPathNetwork,
+      shell: networkTabShell,
+      rootRoute: FriendsRoute.new,
+    ),
+    HomeTabSpec(
+      tab: HomeTab.me,
+      index: 3,
+      path: kPathProfile,
+      shell: meTabShell,
+      rootRoute: ProfileRoute.new,
+    ),
+  ];
+
+  static HomeTabSpec forTab(HomeTab tab) =>
+      all.singleWhere((spec) => spec.tab == tab);
+
+  static HomeTabSpec? fromIndex(int index) {
+    for (final spec in all) {
+      if (spec.index == index) return spec;
+    }
+    return null;
+  }
+}
+
 /// Detail routes reachable from *any* browse tab while looking at content.
 /// Shared across all four branches via one helper so the child list can't
 /// drift between tabs — add new "browse cluster" routes here rather than
@@ -132,8 +197,6 @@ List<AutoRoute> browseDetailChildren({
 /// Semantic tab owner for a route family, used by [homeTabShellFor] as the
 /// cold-start (no active tab yet) fallback — see call sites in
 /// `root_router.dart` for the beacon/profile/inbox/notifications mapping.
-enum HomeTabOwner { work, inbox, network, me }
-
 /// Maps [TabsRouter.activeIndex] on [HomeRoute] to its shell branch. Used by
 /// root-level redirect guards to forward a bare path (e.g. `/beacon/view/:id`)
 /// into whichever tab branch is currently active.
@@ -145,22 +208,12 @@ enum HomeTabOwner { work, inbox, network, me }
 /// link): falls back to [owner].
 EmptyShellRoute homeTabShellFor({
   required int? activeIndex,
-  required HomeTabOwner owner,
+  required HomeTab owner,
 }) {
-  if (activeIndex == null) {
-    return switch (owner) {
-      HomeTabOwner.work => workTabShell,
-      HomeTabOwner.inbox => inboxTabShell,
-      HomeTabOwner.network => networkTabShell,
-      HomeTabOwner.me => meTabShell,
-    };
-  }
-  return switch (activeIndex) {
-    1 => inboxTabShell,
-    2 => networkTabShell,
-    3 => meTabShell,
-    _ => workTabShell,
-  };
+  final tab = activeIndex == null
+      ? owner
+      : HomeTabSpec.fromIndex(activeIndex)?.tab ?? HomeTab.work;
+  return HomeTabSpec.forTab(tab).shell;
 }
 
 /// Browse-detail path families and their semantic tab owners — one source for
@@ -168,23 +221,23 @@ EmptyShellRoute homeTabShellFor({
 /// matters: more specific prefixes first (`/graph/forwards` before `/graph`).
 /// `/beacon/room/:id` and legacy `/beacon/:id` are deliberately absent: their
 /// root redirect guards normalize them to `/beacon/view` first.
-const _browsePathOwners = <(String, HomeTabOwner)>[
-  (kPathBeaconView, HomeTabOwner.work),
-  (kPathBeaconViewAll, HomeTabOwner.work),
-  (kPathBeaconInvolvedAll, HomeTabOwner.work),
-  (kPathReviewContributions, HomeTabOwner.work),
-  (kPathForwardsGraph, HomeTabOwner.network),
-  (kPathGraph, HomeTabOwner.network),
-  (kPathProfileView, HomeTabOwner.network),
-  (kPathInviteGenealogy, HomeTabOwner.network),
-  (kPathRating, HomeTabOwner.network),
-  (kPathNotifications, HomeTabOwner.inbox),
+const _browsePathOwners = <(String, HomeTab)>[
+  (kPathBeaconView, HomeTab.work),
+  (kPathBeaconViewAll, HomeTab.work),
+  (kPathBeaconInvolvedAll, HomeTab.work),
+  (kPathReviewContributions, HomeTab.work),
+  (kPathForwardsGraph, HomeTab.network),
+  (kPathGraph, HomeTab.network),
+  (kPathProfileView, HomeTab.network),
+  (kPathInviteGenealogy, HomeTab.network),
+  (kPathRating, HomeTab.network),
+  (kPathNotifications, HomeTab.inbox),
 ];
 
 /// Returns the `/home/<tab>` prefix a bare browse-detail [path] should be
 /// nested under, or null when [path] is not a browse detail (leave it alone).
 ///
-/// Used by [RootRouter.deepLinkTransformer] so platform-originated
+/// Used by the root router's deep-link transformer so platform-originated
 /// navigations (URL bar edits, hash changes, notification links) resolve
 /// directly to the nested branch route with a **single** browser history
 /// entry. Without this the raw path matches the root-level redirect guard,
@@ -197,7 +250,7 @@ String? homeBranchPathPrefixFor({
   required String path,
   required int? activeIndex,
 }) {
-  HomeTabOwner? owner;
+  HomeTab? owner;
   for (final (prefix, o) in _browsePathOwners) {
     if (path == prefix || path.startsWith('$prefix/')) {
       owner = o;
@@ -209,16 +262,6 @@ String? homeBranchPathPrefixFor({
   }
   final effective = activeIndex == null
       ? owner
-      : switch (activeIndex) {
-          1 => HomeTabOwner.inbox,
-          2 => HomeTabOwner.network,
-          3 => HomeTabOwner.me,
-          _ => HomeTabOwner.work,
-        };
-  return switch (effective) {
-    HomeTabOwner.work => kPathMyWork,
-    HomeTabOwner.inbox => kPathInbox,
-    HomeTabOwner.network => kPathNetwork,
-    HomeTabOwner.me => kPathProfile,
-  };
+      : HomeTabSpec.fromIndex(activeIndex)?.tab ?? HomeTab.work;
+  return HomeTabSpec.forTab(effective).path;
 }

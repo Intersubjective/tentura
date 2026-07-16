@@ -14,7 +14,7 @@ class MyWorkNavbarItem extends StatelessWidget {
         buildWhen: (p, c) =>
             p.myWorkLastSeenMs != c.myWorkLastSeenMs ||
             p.maxMyWorkActivityMs != c.maxMyWorkActivityMs ||
-            p.activeHomeTabIndex != c.activeHomeTabIndex,
+            p.activeHomeTab != c.activeHomeTab,
         builder: (context, _) {
           final show = context.read<NewStuffCubit>().hasNewMyWorkDot;
           final scheme = Theme.of(context).colorScheme;

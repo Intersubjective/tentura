@@ -1,4 +1,5 @@
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/app/router/home_tab_branches.dart';
 
 part 'new_stuff_state.freezed.dart';
 
@@ -18,7 +19,7 @@ abstract class NewStuffState extends StateBase with _$NewStuffState {
     int? maxMyWorkActivityMs,
 
     /// Home bottom nav index: 0 My Work, 1 Inbox, 2 Friends, 3 Profile.
-    @Default(0) int activeHomeTabIndex,
+    @Default(HomeTab.work) HomeTab activeHomeTab,
 
     /// Needs me count from last successful Inbox fetch (shell read model).
     @Default(0) int inboxNeedsMeCount,

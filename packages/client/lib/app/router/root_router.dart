@@ -75,7 +75,7 @@ class RootRouter extends RootStackRouter {
   /// the route's semantic [owner] — see [homeTabShellFor].
   void _forwardIntoHomeBranch(
     NavigationResolver resolver, {
-    required HomeTabOwner owner,
+    required HomeTab owner,
     required PageRouteInfo route,
   }) {
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
@@ -188,7 +188,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.inbox,
+            owner: HomeTab.inbox,
             route: const InboxRejectedRoute(),
           ),
         ),
@@ -203,7 +203,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.inbox,
+            owner: HomeTab.inbox,
             route: const NotificationCenterRoute(),
           ),
         ),
@@ -352,7 +352,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.network,
+            owner: HomeTab.network,
             route: ProfileViewRoute(
               id: resolver.route.params.getString('id'),
             ),
@@ -414,7 +414,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.work,
+            owner: HomeTab.work,
             route: ItemDiscussionRoute(
               beaconId: resolver.route.params.getString('beaconId'),
               itemId: resolver.route.params.getString('itemId'),
@@ -440,7 +440,7 @@ class RootRouter extends RootStackRouter {
           final qp = resolver.route.queryParams;
           _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.work,
+            owner: HomeTab.work,
             route: BeaconViewRoute(
               id: resolver.route.params.getString('id'),
               isDeepLink: qp.optString(kQueryIsDeepLink),
@@ -485,7 +485,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.work,
+            owner: HomeTab.work,
             route: ReviewContributionsRoute(
               id: resolver.route.params.getString('id'),
               draft: resolver.route.queryParams.getBool('draft', false),
@@ -522,7 +522,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.work,
+            owner: HomeTab.work,
             route: BeaconRoute(id: resolver.route.params.getString('id')),
           ),
         ),
@@ -540,7 +540,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.work,
+            owner: HomeTab.work,
             route: InvolvedBeaconRoute(
               id: resolver.route.params.getString('id'),
             ),
@@ -576,7 +576,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.network,
+            owner: HomeTab.network,
             route: const RatingRoute(),
           ),
         ),
@@ -593,7 +593,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.network,
+            owner: HomeTab.network,
             route: InviteGenealogyRoute(
               targetId: resolver.route.queryParams.optString(
                 kQueryGenealogyWith,
@@ -618,7 +618,7 @@ class RootRouter extends RootStackRouter {
           final qp = resolver.route.queryParams;
           _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.network,
+            owner: HomeTab.network,
             route: ForwardsGraphRoute(
               focus: resolver.route.params.getString('id'),
               helpOffererId: qp.optString('committer'),
@@ -637,7 +637,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.simple(
           (resolver, _) => _forwardIntoHomeBranch(
             resolver,
-            owner: HomeTabOwner.network,
+            owner: HomeTab.network,
             route: GraphRoute(focus: resolver.route.params.getString('id')),
           ),
         ),

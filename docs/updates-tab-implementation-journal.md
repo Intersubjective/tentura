@@ -19,7 +19,8 @@ unless this journal identifies it as a prerequisite.
 | T-06 | Complete | V2 attention feed/ack/preference/exact-target GraphQL plus direct routing and compatibility adapters pass focused verification. |
 | T-07 | In progress | Deterministic shadow/budget proof is complete; enabled-QA soak must still show zero unexplained mismatches. |
 | T-08 | Complete | Shared application slice, lazy default-off gate, V2 adapter, contract impacts, and focused refresh/account/ack/boundary tests pass. |
-| T-09–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-09 | Complete | `HomeTabSpec` now owns the four existing tab mappings; focused router/Home/New Stuff tests and scoped analysis pass. |
+| T-10–T-15 | Blocked on predecessor | No acceptance claim yet. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
@@ -481,3 +482,25 @@ default-off build neither constructs the attention slice nor creates its subscri
 Focused client tests and scoped client analysis pass; server and client contract tests
 pass, and `git diff --check` passes. T-08 is complete. T-07 still requires its enabled
 QA shadow soak before its separate acceptance claim.
+
+## Context reset — T-09
+
+**Task packet:** eliminate Home-shell positional-index ownership without changing the
+visible four-tab application. A stable spec must own each tab's index, branch path,
+shell, root-route reset, deep-link owner, and active-tab comparisons so the later
+Updates insertion cannot shift Network or Profile behavior.
+
+**Resolution:** added `HomeTab` and `HomeTabSpec` in the router boundary. The spec
+owns the existing Work/Inbox/Network/Profile index, path, shell, and root route. Home
+shell routes, root redirect/cold-owner resolution, deep-link branch prefixes, reselect
+resets, post-join index assertions, and Home test-shell routes now derive from it.
+`NewStuffState` stores semantic `HomeTab`, and its dot checks, shell listener, Inbox
+snackbar dismissal, and navbar selectors no longer compare active indices to literals.
+The fourth/fifth route ordering has not changed; T-10/T-11 remain responsible for the
+flagged Updates presenter and visible fifth branch.
+
+**Verification:** `dart run build_runner build -d` completed. The focused 35-test
+router/Home/New Stuff suite passes, including branch restore, cold/warm redirects,
+deep-link prefixing, and reselect-to-root behavior. A new architecture test asserts
+the four current mappings and rejects positional active-index comparisons in Home tab
+consumers. Scoped client analysis and `git diff --check` pass.

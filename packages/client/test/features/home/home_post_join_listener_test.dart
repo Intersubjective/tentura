@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
+
 import 'package:tentura/features/home/domain/entity/post_join_destination.dart';
 import 'package:tentura/features/home/domain/port/post_join_beacon_handoff_port.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
@@ -79,7 +81,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(tabsRouter.activeIndex, 1);
+    expect(
+      tabsRouter.activeIndex,
+      HomeTabSpec.forTab(HomeTab.inbox).index,
+    );
     expect(
       effects.emitted.whereType<ShowMessage>().length,
       1,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart'
     show HomeScreen;
@@ -59,7 +60,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
     final generation = ++_accountGeneration;
     _notificationFetchSequence++;
     _notificationRefreshTimer?.cancel();
-    emit(NewStuffState(activeHomeTabIndex: state.activeHomeTabIndex));
+    emit(NewStuffState(activeHomeTab: state.activeHomeTab));
     if (accountId.isEmpty) return;
     unawaited(_hydrate(accountId, generation));
     unawaited(_refreshNotificationCount(accountId, generation));
@@ -136,9 +137,9 @@ class NewStuffCubit extends Cubit<NewStuffState> {
   }
 
   /// Called from [HomeScreen] when `NavigationBar` selection changes.
-  void setActiveHomeTabIndex(int index) {
-    if (state.activeHomeTabIndex == index) return;
-    emit(state.copyWith(activeHomeTabIndex: index));
+  void setActiveHomeTab(HomeTab tab) {
+    if (state.activeHomeTab == tab) return;
+    emit(state.copyWith(activeHomeTab: tab));
   }
 
   /// After a successful Inbox fetch: updates max activity snapshot.
@@ -223,7 +224,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
 
   bool get hasNewInboxDot =>
       _authCubit.state.currentAccountId.isNotEmpty &&
-      state.activeHomeTabIndex != 1 &&
+      state.activeHomeTab != HomeTab.inbox &&
       state.maxInboxActivityMs != null &&
       state.maxInboxActivityMs! > 0 &&
       (state.inboxLastSeenMs == null ||
@@ -234,7 +235,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
       state.myWorkLastSeenMs != null &&
       state.maxMyWorkActivityMs != null &&
       state.maxMyWorkActivityMs! > state.myWorkLastSeenMs! &&
-      state.activeHomeTabIndex != 0;
+      state.activeHomeTab != HomeTab.work;
 
   @override
   @disposeMethod

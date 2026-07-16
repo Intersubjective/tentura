@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -98,12 +99,12 @@ void main() {
   test('null last-seen with positive Inbox activity qualifies', () {
     const maxInboxActivityMs = 100;
     const inboxLastSeenMs = null as int?;
-    const activeHomeTabIndex = 0;
+    const activeHomeTab = HomeTab.work;
     const accountId = 'U1';
 
     final qualifies =
         accountId.isNotEmpty &&
-        activeHomeTabIndex != 1 &&
+        activeHomeTab != HomeTab.inbox &&
         maxInboxActivityMs > 0 &&
         (inboxLastSeenMs == null || maxInboxActivityMs > inboxLastSeenMs);
 

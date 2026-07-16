@@ -14,7 +14,7 @@ class InboxNavbarItem extends StatelessWidget {
         buildWhen: (p, c) =>
             p.inboxLastSeenMs != c.inboxLastSeenMs ||
             p.maxInboxActivityMs != c.maxInboxActivityMs ||
-            p.activeHomeTabIndex != c.activeHomeTabIndex,
+            p.activeHomeTab != c.activeHomeTab,
         builder: (context, _) {
           final show = context.read<NewStuffCubit>().hasNewInboxDot;
           final scheme = Theme.of(context).colorScheme;
