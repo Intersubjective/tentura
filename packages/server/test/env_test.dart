@@ -32,6 +32,25 @@ void main() {
     });
   });
 
+  group('resolveAttentionV1NewProducersEnabled', () {
+    test('defaults off and accepts only explicit true', () {
+      expect(resolveAttentionV1NewProducersEnabled(null), isFalse);
+      expect(resolveAttentionV1NewProducersEnabled(''), isFalse);
+      expect(resolveAttentionV1NewProducersEnabled('false'), isFalse);
+      expect(resolveAttentionV1NewProducersEnabled('unexpected'), isFalse);
+      expect(resolveAttentionV1NewProducersEnabled(' TRUE '), isTrue);
+    });
+  });
+
+  group('resolveAttentionV1ShadowEnabled', () {
+    test('defaults off and accepts only explicit true', () {
+      expect(resolveAttentionV1ShadowEnabled(null), isFalse);
+      expect(resolveAttentionV1ShadowEnabled('false'), isFalse);
+      expect(resolveAttentionV1ShadowEnabled('unexpected'), isFalse);
+      expect(resolveAttentionV1ShadowEnabled(' TRUE '), isTrue);
+    });
+  });
+
   group('isFcmConfigured', () {
     test('false when all three server creds are empty', () {
       final env = Env(
@@ -50,7 +69,8 @@ void main() {
       final env = Env(
         fbProjectId: 'tentura-dev',
         fbClientEmail: 'firebase@tentura-dev.iam.gserviceaccount.com',
-        fbPrivateKey: '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
+        fbPrivateKey:
+            '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
       );
       expect(env.isFcmConfigured, isTrue);
       expect(env.missingFcmServerCreds, isEmpty);

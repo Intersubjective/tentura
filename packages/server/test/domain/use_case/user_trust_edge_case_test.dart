@@ -4,12 +4,14 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/enum.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 
 import 'user_trust_edge_case_mocks.mocks.dart';
+import '../../support/test_attention_harness.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -64,6 +66,114 @@ void main() {
       ).called(1);
       verifyZeroInteractions(userRepo);
     });
+
+    test('records only when the vote forms a reciprocal connection', () async {
+      final attention = TestAttentionHarness();
+      final enabled = UserTrustEdgeCase(
+        userRepo,
+        trustEdgeRepo,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: Env(
+          environment: Environment.test,
+          attentionV1NewProducersEnabled: true,
+        ),
+        logger: Logger('UserTrustEdgeCaseTest'),
+      );
+      when(
+        trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
+          subjectUserId: anyNamed('subjectUserId'),
+          objectUserId: anyNamed('objectUserId'),
+          newAmount: anyNamed('newAmount'),
+        ),
+      ).thenAnswer((_) async => true);
+
+      await enabled.setUserVote(
+        subjectUserId: subjectUserId,
+        objectUserId: objectUserId,
+        amount: 3,
+      );
+
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.mutualConnectionFormed);
+      expect(intent.recipients.single.recipientId, objectUserId);
+      expect(intent.targetEntityId, subjectUserId);
+    });
+
+    test('unilateral and negative vote changes are non-producing', () async {
+      final attention = TestAttentionHarness();
+      final enabled = UserTrustEdgeCase(
+        userRepo,
+        trustEdgeRepo,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: Env(
+          environment: Environment.test,
+          attentionV1NewProducersEnabled: true,
+        ),
+        logger: Logger('UserTrustEdgeCaseTest'),
+      );
+      when(
+        trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
+          subjectUserId: anyNamed('subjectUserId'),
+          objectUserId: anyNamed('objectUserId'),
+          newAmount: anyNamed('newAmount'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      await enabled.setUserVote(
+        subjectUserId: subjectUserId,
+        objectUserId: objectUserId,
+        amount: 3,
+      );
+      await enabled.setUserVote(
+        subjectUserId: subjectUserId,
+        objectUserId: objectUserId,
+        amount: -1,
+      );
+
+      expect(attention.recorded, isEmpty);
+    });
+
+    test(
+      'repeat after reversal receives a distinct occurrence identity',
+      () async {
+        final attention = TestAttentionHarness();
+        final enabled = UserTrustEdgeCase(
+          userRepo,
+          trustEdgeRepo,
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
+          env: Env(
+            environment: Environment.test,
+            attentionV1NewProducersEnabled: true,
+          ),
+          logger: Logger('UserTrustEdgeCaseTest'),
+        );
+        var call = 0;
+        when(
+          trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
+            subjectUserId: anyNamed('subjectUserId'),
+            objectUserId: anyNamed('objectUserId'),
+            newAmount: anyNamed('newAmount'),
+          ),
+        ).thenAnswer((_) async => [true, false, true][call++]);
+
+        for (final amount in const [3, -1, 3]) {
+          await enabled.setUserVote(
+            subjectUserId: subjectUserId,
+            objectUserId: objectUserId,
+            amount: amount,
+          );
+        }
+
+        expect(attention.recorded, hasLength(2));
+        expect(
+          attention.recorded.map((intent) => intent.sourceEventKey).toSet(),
+          hasLength(2),
+        );
+      },
+    );
   });
 
   group('UserTrustEdgeCase.forceRefreshStar', () {

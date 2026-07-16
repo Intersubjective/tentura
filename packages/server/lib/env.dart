@@ -17,6 +17,12 @@ String resolveServerEnvironment(String? environment) =>
 bool resolveRealtimeActorEchoEnabled(String? value) =>
     value?.trim().toLowerCase() != 'false';
 
+bool resolveAttentionV1NewProducersEnabled(String? value) =>
+    value?.trim().toLowerCase() == 'true';
+
+bool resolveAttentionV1ShadowEnabled(String? value) =>
+    value?.trim().toLowerCase() == 'true';
+
 class Env {
   Env({
     // Common
@@ -66,6 +72,8 @@ class Env {
     String? bindAddress,
     int? listenWebPort,
     bool? realtimeActorEchoEnabled,
+    bool? attentionV1NewProducersEnabled,
+    bool? attentionV1ShadowEnabled,
     String? minClientVersion,
 
     // Postgres
@@ -126,7 +134,8 @@ class Env {
        // Auth
        invitationTTL = invitationTTL ?? kInvitationTTL,
        jwtExpiresIn = jwtExpiresIn ?? const Duration(seconds: kJwtExpiresIn),
-       sessionExpiresIn = sessionExpiresIn ??
+       sessionExpiresIn =
+           sessionExpiresIn ??
            Duration(
              seconds:
                  int.tryParse(_env['SESSION_EXPIRES_IN'] ?? '') ??
@@ -146,8 +155,7 @@ class Env {
        complaintEmail = complaintEmail ?? _env['COMPLAINT_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
-       qaAuthEnabled =
-           qaAuthEnabled ?? _env['QA_AUTH_ENABLED'] == 'true',
+       qaAuthEnabled = qaAuthEnabled ?? _env['QA_AUTH_ENABLED'] == 'true',
        qaAuthToken = qaAuthToken ?? _env['QA_AUTH_TOKEN'] ?? '',
        qaSimpleLoginMode =
            qaSimpleLoginMode ?? _env['QA_SIMPLE_LOGIN_MODE'] == 'true',
@@ -159,62 +167,75 @@ class Env {
                .map((domain) => domain.trim().toLowerCase())
                .where((domain) => domain.isNotEmpty)
                .toList(),
-       unsubscribeSigningSecret = unsubscribeSigningSecret ??
-           _env['UNSUBSCRIBE_SIGNING_SECRET'] ??
-           '',
-       genealogyNodeKeySecret = genealogyNodeKeySecret ??
-           _env['GENEALOGY_NODE_KEY_SECRET'] ??
-           '',
-       emailNotifCooldown = emailNotifCooldown ??
+       unsubscribeSigningSecret =
+           unsubscribeSigningSecret ?? _env['UNSUBSCRIBE_SIGNING_SECRET'] ?? '',
+       genealogyNodeKeySecret =
+           genealogyNodeKeySecret ?? _env['GENEALOGY_NODE_KEY_SECRET'] ?? '',
+       emailNotifCooldown =
+           emailNotifCooldown ??
            Duration(
              seconds:
                  int.tryParse(_env['EMAIL_NOTIF_COOLDOWN_SECONDS'] ?? '') ??
-                     1800,
+                 1800,
            ),
        emailDigestHour =
-           emailDigestHour ?? int.tryParse(_env['EMAIL_DIGEST_HOUR'] ?? '') ?? 8,
-       emailAuthTtl = emailAuthTtl ??
+           emailDigestHour ??
+           int.tryParse(_env['EMAIL_DIGEST_HOUR'] ?? '') ??
+           8,
+       emailAuthTtl =
+           emailAuthTtl ??
            Duration(
-             seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ??
-                 900,
+             seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ?? 900,
            ),
-       emailAuthRateLimitWindow = emailAuthRateLimitWindow ??
+       emailAuthRateLimitWindow =
+           emailAuthRateLimitWindow ??
            Duration(
-             seconds: int.tryParse(
+             seconds:
+                 int.tryParse(
                    _env['EMAIL_AUTH_RATE_WINDOW_SECONDS'] ?? '',
                  ) ??
                  3600,
            ),
-       emailAuthMaxPerEmail = emailAuthMaxPerEmail ??
+       emailAuthMaxPerEmail =
+           emailAuthMaxPerEmail ??
            int.tryParse(_env['EMAIL_AUTH_MAX_PER_EMAIL'] ?? '') ??
            5,
-       emailAuthMaxPerIp = emailAuthMaxPerIp ??
+       emailAuthMaxPerIp =
+           emailAuthMaxPerIp ??
            int.tryParse(_env['EMAIL_AUTH_MAX_PER_IP'] ?? '') ??
            20,
-       emailAuthMaxPerInvite = emailAuthMaxPerInvite ??
+       emailAuthMaxPerInvite =
+           emailAuthMaxPerInvite ??
            int.tryParse(_env['EMAIL_AUTH_MAX_PER_INVITE'] ?? '') ??
            10,
-       beaconCreateRateWindow = beaconCreateRateWindow ??
+       beaconCreateRateWindow =
+           beaconCreateRateWindow ??
            Duration(
-             seconds: int.tryParse(
+             seconds:
+                 int.tryParse(
                    _env['BEACON_CREATE_RATE_WINDOW_SECONDS'] ?? '',
                  ) ??
                  3600,
            ),
-       beaconCreateMaxPerUser = beaconCreateMaxPerUser ??
+       beaconCreateMaxPerUser =
+           beaconCreateMaxPerUser ??
            int.tryParse(_env['BEACON_CREATE_MAX_PER_USER'] ?? '') ??
            30,
-       roomMessageRateWindow = roomMessageRateWindow ??
+       roomMessageRateWindow =
+           roomMessageRateWindow ??
            Duration(
-             seconds: int.tryParse(
+             seconds:
+                 int.tryParse(
                    _env['ROOM_MESSAGE_RATE_WINDOW_SECONDS'] ?? '',
                  ) ??
                  60,
            ),
-       roomMessageMaxPerUser = roomMessageMaxPerUser ??
+       roomMessageMaxPerUser =
+           roomMessageMaxPerUser ??
            int.tryParse(_env['ROOM_MESSAGE_MAX_PER_USER'] ?? '') ??
            30,
-       uploadDailyCapBytes = uploadDailyCapBytes ??
+       uploadDailyCapBytes =
+           uploadDailyCapBytes ??
            (int.tryParse(_env['UPLOAD_DAILY_CAP_MB'] ?? '') ?? 200) *
                1024 *
                1024,
@@ -240,6 +261,14 @@ class Env {
            resolveRealtimeActorEchoEnabled(
              _env['REALTIME_ACTOR_ECHO_ENABLED'],
            ),
+       attentionV1NewProducersEnabled =
+           attentionV1NewProducersEnabled ??
+           resolveAttentionV1NewProducersEnabled(
+             _env['ATTENTION_V1_NEW_PRODUCERS_ENABLED'],
+           ),
+       attentionV1ShadowEnabled =
+           attentionV1ShadowEnabled ??
+           resolveAttentionV1ShadowEnabled(_env['ATTENTION_V1_SHADOW_ENABLED']),
        minClientVersion =
            minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
 
@@ -269,8 +298,12 @@ class Env {
        kS3Endpoint = kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
        kS3Bucket = kS3Bucket ?? _env['S3_BUCKET'] ?? '',
        kS3PathStyle = kS3PathStyle ?? _env['S3_PATH_STYLE'] == 'true',
-       kS3UseSSL = kS3UseSSL ??
-           _inferS3UseSsl(_env['S3_USE_SSL'], kS3Endpoint ?? _env['S3_ENDPOINT'] ?? ''),
+       kS3UseSSL =
+           kS3UseSSL ??
+           _inferS3UseSsl(
+             _env['S3_USE_SSL'],
+             kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
+           ),
 
        // Meritrank service
        meritrankCalculateTimeout =
@@ -278,7 +311,8 @@ class Env {
            Duration(
              minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
            ),
-       trustEdgeHalfLife = trustEdgeHalfLife ??
+       trustEdgeHalfLife =
+           trustEdgeHalfLife ??
            Duration(
              days: int.tryParse(_env['TRUST_EDGE_HALF_LIFE_DAYS'] ?? '') ?? 182,
            ),
@@ -312,7 +346,8 @@ class Env {
        sentryDsn = sentryDsn ?? _env['SERVER_SENTRY_DSN'] ?? '',
        sentryRelease = sentryRelease ?? _env['SENTRY_RELEASE'] ?? '',
        sentryDist = sentryDist ?? _env['SENTRY_DIST'] ?? '',
-       sentryTracesSampleRate = sentryTracesSampleRate ??
+       sentryTracesSampleRate =
+           sentryTracesSampleRate ??
            double.tryParse(_env['SENTRY_TRACES_SAMPLE_RATE'] ?? '') ??
            1.0
   //
@@ -492,9 +527,8 @@ class Env {
       environment != Environment.prod && qaSimpleLoginMode;
 
   /// Directory used by `/_qa/latest-email` and QA-domain magic-link capture.
-  String get qaEmailCaptureDir => emailDebugSinkDir.isNotEmpty
-      ? emailDebugSinkDir
-      : kDefaultQaCaptureDir;
+  String get qaEmailCaptureDir =>
+      emailDebugSinkDir.isNotEmpty ? emailDebugSinkDir : kDefaultQaCaptureDir;
 
   bool isQaEmailDomain(String normalizedEmail) {
     final parts = normalizedEmail.split('@');
@@ -512,6 +546,12 @@ class Env {
 
   /// Defaults on for cross-device convergence; false is a compatibility gate.
   final bool realtimeActorEchoEnabled;
+
+  /// Dormant rollout gate for the T-05 producer classes. T-15 removes it.
+  final bool attentionV1NewProducersEnabled;
+
+  /// QA-only T-07 parity telemetry. It has no product behavior effect.
+  final bool attentionV1ShadowEnabled;
 
   /// Minimum Tentura client semver required; `0.0.0` disables the check.
   final String minClientVersion;

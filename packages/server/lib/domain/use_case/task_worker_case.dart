@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
+import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -24,12 +25,14 @@ final class TaskWorkerCase extends UseCaseBase {
     TaskRepositoryPort tasksRepository,
     EmailDigestCase emailDigestCase,
     NotificationOutboxRepositoryPort notificationOutbox,
+    AttentionExpirySweepCase attentionExpirySweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
       tasksRepository,
       emailDigestCase,
       notificationOutbox,
+      attentionExpirySweep: attentionExpirySweep,
       env: env,
       logger: logger,
     ),
@@ -40,9 +43,10 @@ final class TaskWorkerCase extends UseCaseBase {
     this._tasksRepository,
     this._emailDigestCase,
     this._notificationOutbox, {
+    AttentionExpirySweepCase? attentionExpirySweep,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionExpirySweep = attentionExpirySweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -52,13 +56,28 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final NotificationOutboxRepositoryPort _notificationOutbox;
 
+  final AttentionExpirySweepCase? _attentionExpirySweep;
+
   final _runnerCompleter = Completer<void>();
 
   var _lastDigestSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
+  var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
+
   late final _tasks = <Future<void> Function()>[
+    // Review expiry is a system-owned status transition with atomic receipts.
+    () async {
+      if (!env.attentionV1NewProducersEnabled) return;
+      final now = DateTime.timestamp();
+      if (now.difference(_lastAttentionExpirySweep) <
+          const Duration(minutes: 1)) {
+        return;
+      }
+      _lastAttentionExpirySweep = now;
+      await _attentionExpirySweep!.runDue(now: now);
+    },
     // Calculate Image Hash
     () async {
       final task = await _tasksRepository
@@ -98,7 +117,9 @@ final class TaskWorkerCase extends UseCaseBase {
         return;
       }
       _lastRetentionSweep = now;
-      await _notificationOutbox.deleteSettledOlderThan(const Duration(days: 30));
+      await _notificationOutbox.deleteSettledOlderThan(
+        const Duration(days: 30),
+      );
     },
   ];
 

@@ -481,6 +481,26 @@ class MockUserTrustEdgeRepositoryPort extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<bool> setVoteAmountAndDetectMutualFormationInTransaction({
+    required String? subjectUserId,
+    required String? objectUserId,
+    required int? newAmount,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #setVoteAmountAndDetectMutualFormationInTransaction,
+              [],
+              {
+                #subjectUserId: subjectUserId,
+                #objectUserId: objectUserId,
+                #newAmount: newAmount,
+              },
+            ),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
   _i5.Future<void> forceRefreshStar(String? sourceUserId) =>
       (super.noSuchMethod(
             Invocation.method(#forceRefreshStar, [sourceUserId]),
