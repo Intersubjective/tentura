@@ -72,6 +72,14 @@ void main() {
     );
     expect(RealtimeEntityKind.fromWire('unknown_kind'), isNull);
 
+    final notification = entries.singleWhere(
+      (entry) => entry['wireKind'] == 'notification',
+    );
+    expect(
+      (notification['impacts']! as List).cast<String>(),
+      containsAll(const ['updates_feed', 'updates_badge']),
+    );
+
     final contractTests = (contract['contractTests']! as List).cast<String>();
     expect(
       contractTests.any((path) => path.startsWith('packages/client/test/')),

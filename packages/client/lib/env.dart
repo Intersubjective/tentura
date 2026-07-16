@@ -28,6 +28,7 @@ class Env {
 
     // Feature flags
     bool? needInviteCode,
+    bool? updatesTabEnabled,
 
     // Google OAuth (native linking)
     String? googleServerClientId,
@@ -74,6 +75,9 @@ class Env {
        clearDatabase = const bool.fromEnvironment('CLEAR_DATABASE'),
        needInviteCode =
            needInviteCode ?? const bool.fromEnvironment('NEED_INVITE_CODE'),
+       updatesTabEnabled =
+           updatesTabEnabled ??
+           const bool.fromEnvironment('UPDATES_TAB_ENABLED'),
 
        // Google OAuth (native linking; web uses server redirect)
        googleServerClientId =
@@ -112,6 +116,7 @@ class Env {
   // Feature flags
   final bool clearDatabase;
   final bool needInviteCode;
+  final bool updatesTabEnabled;
 
   /// Web/server OAuth client id (= Android `serverClientId` for idToken `aud`).
   final String googleServerClientId;
