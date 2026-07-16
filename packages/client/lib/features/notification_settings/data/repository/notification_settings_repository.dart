@@ -28,6 +28,8 @@ class NotificationSettingsRepository {
       emailDigest: data.notificationPreferences.emailDigest,
       snoozeUntil: data.notificationPreferences.snoozeUntil,
       lockScreenSafe: data.notificationPreferences.lockScreenSafe,
+      mutedInAppEventClasses:
+          data.notificationPreferences.mutedInAppEventClasses,
     );
   }
 
@@ -40,19 +42,25 @@ class NotificationSettingsRepository {
         .request(
           GNotificationPreferencesUpdateReq(
             (r) => r
-              ..vars.pushCategories
-                  .replace(settings.pushCategories.map((e) => e.name))
-              ..vars.emailCategories
-                  .replace(settings.emailCategories.map((e) => e.name))
+              ..vars.pushCategories.replace(
+                settings.pushCategories.map((e) => e.name),
+              )
+              ..vars.emailCategories.replace(
+                settings.emailCategories.map((e) => e.name),
+              )
               ..vars.quietHoursStart = settings.quietHoursStart
               ..vars.quietHoursEnd = settings.quietHoursEnd
               ..vars.clearQuietHours = clearQuietHours
               ..vars.tzOffsetMinutes = settings.tzOffsetMinutes
               ..vars.emailDigest = settings.emailDigest.name
-              ..vars.snoozeUntil =
-                  settings.snoozeUntil?.toUtc().toIso8601String()
+              ..vars.snoozeUntil = settings.snoozeUntil
+                  ?.toUtc()
+                  .toIso8601String()
               ..vars.clearSnooze = clearSnooze
-              ..vars.lockScreenSafe = settings.lockScreenSafe,
+              ..vars.lockScreenSafe = settings.lockScreenSafe
+              ..vars.mutedInAppEventClasses.replace(
+                settings.mutedInAppEventClasses.map((e) => e.name),
+              ),
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -67,6 +75,7 @@ class NotificationSettingsRepository {
       emailDigest: p.emailDigest,
       snoozeUntil: p.snoozeUntil,
       lockScreenSafe: p.lockScreenSafe,
+      mutedInAppEventClasses: p.mutedInAppEventClasses,
     );
   }
 
@@ -79,19 +88,23 @@ class NotificationSettingsRepository {
     required String emailDigest,
     required String? snoozeUntil,
     required bool lockScreenSafe,
-  }) =>
-      NotificationSettings(
-        pushCategories: _parse(pushCategories),
-        emailCategories: _parse(emailCategories),
-        quietHoursStart: quietHoursStart,
-        quietHoursEnd: quietHoursEnd,
-        tzOffsetMinutes: tzOffsetMinutes,
-        emailDigest: digestFromName(emailDigest),
-        lockScreenSafe: lockScreenSafe,
-        snoozeUntil: snoozeUntil == null ? null : DateTime.tryParse(snoozeUntil),
-      );
+    required Iterable<String> mutedInAppEventClasses,
+  }) => NotificationSettings(
+    pushCategories: _parse(pushCategories),
+    emailCategories: _parse(emailCategories),
+    quietHoursStart: quietHoursStart,
+    quietHoursEnd: quietHoursEnd,
+    tzOffsetMinutes: tzOffsetMinutes,
+    emailDigest: digestFromName(emailDigest),
+    lockScreenSafe: lockScreenSafe,
+    mutedInAppEventClasses: {
+      for (final value in mutedInAppEventClasses)
+        ?NotificationSettings.inAppClassFromName(value),
+    },
+    snoozeUntil: snoozeUntil == null ? null : DateTime.tryParse(snoozeUntil),
+  );
 
   Set<NotificationSettingsCategory> _parse(Iterable<String> names) => {
-        for (final n in names) ?NotificationSettings.categoryFromName(n),
-      };
+    for (final n in names) ?NotificationSettings.categoryFromName(n),
+  };
 }

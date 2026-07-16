@@ -4,11 +4,15 @@ enum NotificationSettingsCategory {
   unblocksMe,
   coordination,
   connections,
-  ambient;
+  ambient,
 }
 
 /// Email digest cadence (mirrors the server `DigestCadence`).
 enum NotificationDigestCadence { off, daily, weekly }
+
+/// The only noisy Updates classes users may mute in-app. Mandatory and
+/// standard receipts intentionally have no value in this enum.
+enum InAppNotificationClass { coordinationChurn, requestProgress }
 
 NotificationDigestCadence digestFromName(String? name) {
   for (final c in NotificationDigestCadence.values) {
@@ -27,18 +31,19 @@ class NotificationSettings {
     required this.tzOffsetMinutes,
     required this.emailDigest,
     required this.lockScreenSafe,
+    this.mutedInAppEventClasses = const {},
     this.quietHoursStart,
     this.quietHoursEnd,
     this.snoozeUntil,
   });
 
   factory NotificationSettings.empty() => const NotificationSettings(
-        pushCategories: {},
-        emailCategories: {},
-        tzOffsetMinutes: 0,
-        emailDigest: NotificationDigestCadence.off,
-        lockScreenSafe: false,
-      );
+    pushCategories: {},
+    emailCategories: {},
+    tzOffsetMinutes: 0,
+    emailDigest: NotificationDigestCadence.off,
+    lockScreenSafe: false,
+  );
 
   final Set<NotificationSettingsCategory> pushCategories;
   final Set<NotificationSettingsCategory> emailCategories;
@@ -47,6 +52,7 @@ class NotificationSettings {
   final int tzOffsetMinutes;
   final NotificationDigestCadence emailDigest;
   final bool lockScreenSafe;
+  final Set<InAppNotificationClass> mutedInAppEventClasses;
   final DateTime? snoozeUntil;
 
   bool get hasQuietHours => quietHoursStart != null && quietHoursEnd != null;
@@ -63,27 +69,38 @@ class NotificationSettings {
     int? tzOffsetMinutes,
     NotificationDigestCadence? emailDigest,
     bool? lockScreenSafe,
+    Set<InAppNotificationClass>? mutedInAppEventClasses,
     DateTime? snoozeUntil,
     bool clearSnooze = false,
-  }) =>
-      NotificationSettings(
-        pushCategories: pushCategories ?? this.pushCategories,
-        emailCategories: emailCategories ?? this.emailCategories,
-        quietHoursStart:
-            clearQuietHours ? null : (quietHoursStart ?? this.quietHoursStart),
-        quietHoursEnd:
-            clearQuietHours ? null : (quietHoursEnd ?? this.quietHoursEnd),
-        tzOffsetMinutes: tzOffsetMinutes ?? this.tzOffsetMinutes,
-        emailDigest: emailDigest ?? this.emailDigest,
-        lockScreenSafe: lockScreenSafe ?? this.lockScreenSafe,
-        snoozeUntil: clearSnooze ? null : (snoozeUntil ?? this.snoozeUntil),
-      );
+  }) => NotificationSettings(
+    pushCategories: pushCategories ?? this.pushCategories,
+    emailCategories: emailCategories ?? this.emailCategories,
+    quietHoursStart: clearQuietHours
+        ? null
+        : (quietHoursStart ?? this.quietHoursStart),
+    quietHoursEnd: clearQuietHours
+        ? null
+        : (quietHoursEnd ?? this.quietHoursEnd),
+    tzOffsetMinutes: tzOffsetMinutes ?? this.tzOffsetMinutes,
+    emailDigest: emailDigest ?? this.emailDigest,
+    lockScreenSafe: lockScreenSafe ?? this.lockScreenSafe,
+    mutedInAppEventClasses:
+        mutedInAppEventClasses ?? this.mutedInAppEventClasses,
+    snoozeUntil: clearSnooze ? null : (snoozeUntil ?? this.snoozeUntil),
+  );
 
   static NotificationSettingsCategory? categoryFromName(String name) {
     for (final c in NotificationSettingsCategory.values) {
       if (c.name == name) {
         return c;
       }
+    }
+    return null;
+  }
+
+  static InAppNotificationClass? inAppClassFromName(String name) {
+    for (final value in InAppNotificationClass.values) {
+      if (value.name == name) return value;
     }
     return null;
   }

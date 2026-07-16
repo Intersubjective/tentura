@@ -31,12 +31,12 @@ class _FakeRepo implements NotificationSettingsRepository {
 }
 
 NotificationSettings base() => const NotificationSettings(
-      pushCategories: {NotificationSettingsCategory.asksOfMe},
-      emailCategories: {NotificationSettingsCategory.asksOfMe},
-      tzOffsetMinutes: 0,
-      emailDigest: NotificationDigestCadence.off,
-      lockScreenSafe: false,
-    );
+  pushCategories: {NotificationSettingsCategory.asksOfMe},
+  emailCategories: {NotificationSettingsCategory.asksOfMe},
+  tzOffsetMinutes: 0,
+  emailDigest: NotificationDigestCadence.off,
+  lockScreenSafe: false,
+);
 
 void main() {
   NotificationSettingsCubit testCubit(NotificationSettingsRepository repo) =>
@@ -81,6 +81,27 @@ void main() {
     expect(cubit.state.settings.emailDigest, NotificationDigestCadence.daily);
     await cubit.close();
   });
+
+  test(
+    'muting an in-app class persists only the contract-owned class',
+    () async {
+      final repo = _FakeRepo(base());
+      final cubit = testCubit(repo);
+      await cubit.fetch();
+
+      await cubit.setInAppClass(
+        value: InAppNotificationClass.coordinationChurn,
+        muted: true,
+      );
+
+      expect(
+        cubit.state.settings.mutedInAppEventClasses,
+        {InAppNotificationClass.coordinationChurn},
+      );
+      expect(repo.updateCalls, 1);
+      await cubit.close();
+    },
+  );
 
   test('reverts to previous settings when the update fails', () async {
     final repo = _FakeRepo(base())..failUpdate = true;

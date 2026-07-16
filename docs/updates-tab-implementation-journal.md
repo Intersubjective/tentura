@@ -34,6 +34,18 @@ including mark-all rollback and a simulated second client converging from the
 account-scoped notification hint used by the Room bridge; flag-on router suite and
 scoped analyzer pass; formatting and `git diff --check` pass.
 
+## Context reset — T-13
+
+**Resolution:** projected `mutedInAppEventClasses` through the existing notification
+settings entity, V2 GraphQL repository, and cubit. Notification Settings now has an
+In-app section for the two contract-owned noisy classes only: coordination churn and
+Request progress. Mandatory/safety and obligation receipts are explained as always
+visible rather than represented by misleading disabled toggles.
+
+**Verification:** generated EN/RU l10n; settings cubit tests cover optimistic
+persistence, rollback, and the constrained in-app registry; scoped analyzer and
+`git diff --check` pass.
+
 ## Scope and task ledger
 
 | Task | Status | Evidence / blocker |
@@ -52,7 +64,8 @@ scoped analyzer pass; formatting and `git diff --check` pass.
 | T-10 | Complete | Flagged, route-free Updates presenter with feed views, pagination, refresh, scroll retention, and EN/RU copy; focused verification passes. |
 | T-11 | Complete | Flagged fifth branch, typed destination map, Updates-origin branch selection, and exact directed-Chat target hydration pass focused flag-off and flag-on router tests. |
 | T-12 | Complete | Open/per-item/mark-all acknowledgement UI, optimistic rollback, and multi-client Room-bridge hint reconciliation pass focused verification. |
-| T-13–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-13 | Complete | In-app noisy-class settings UI, V2 persistence mapping, safety copy, and focused cubit verification pass. |
+| T-14–T-15 | Blocked on predecessor | No acceptance claim yet. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16

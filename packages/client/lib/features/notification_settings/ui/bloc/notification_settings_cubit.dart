@@ -1,6 +1,5 @@
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -16,9 +15,9 @@ class NotificationSettingsCubit extends Cubit<NotificationSettingsState> {
   NotificationSettingsCubit({
     NotificationSettingsRepository? repository,
     UiEffectPort? effects,
-  })  : _repository = repository ?? GetIt.I<NotificationSettingsRepository>(),
-        _effects = effects ?? GetIt.I<UiEffectPort>(),
-        super(NotificationSettingsState());
+  }) : _repository = repository ?? GetIt.I<NotificationSettingsRepository>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
+       super(NotificationSettingsState());
 
   final NotificationSettingsRepository _repository;
   final UiEffectPort _effects;
@@ -67,26 +66,40 @@ class NotificationSettingsCubit extends Cubit<NotificationSettingsState> {
   Future<void> setLockScreenSafe(bool value) =>
       _persist(state.settings.copyWith(lockScreenSafe: value));
 
+  Future<void> setInAppClass({
+    required InAppNotificationClass value,
+    required bool muted,
+  }) {
+    final next = {...state.settings.mutedInAppEventClasses};
+    if (muted) {
+      next.add(value);
+    } else {
+      next.remove(value);
+    }
+    return _persist(state.settings.copyWith(mutedInAppEventClasses: next));
+  }
+
   Future<void> setQuietHours({
     required int startMinute,
     required int endMinute,
-  }) =>
-      _persist(
-        state.settings.copyWith(
-          quietHoursStart: startMinute,
-          quietHoursEnd: endMinute,
-          // UTC offset (minutes) the server adds to derive the account's local
-          // time for quiet-hours / digest scheduling.
-          tzOffsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-        ),
-      );
+  }) => _persist(
+    state.settings.copyWith(
+      quietHoursStart: startMinute,
+      quietHoursEnd: endMinute,
+      // UTC offset (minutes) the server adds to derive the account's local
+      // time for quiet-hours / digest scheduling.
+      tzOffsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+    ),
+  );
 
-  Future<void> clearQuietHours() =>
-      _persist(state.settings.copyWith(clearQuietHours: true), clearQuietHours: true);
+  Future<void> clearQuietHours() => _persist(
+    state.settings.copyWith(clearQuietHours: true),
+    clearQuietHours: true,
+  );
 
   Future<void> snoozeFor(Duration duration) => _persist(
-        state.settings.copyWith(snoozeUntil: DateTime.now().add(duration)),
-      );
+    state.settings.copyWith(snoozeUntil: DateTime.now().add(duration)),
+  );
 
   Future<void> clearSnooze() =>
       _persist(state.settings.copyWith(clearSnooze: true), clearSnooze: true);

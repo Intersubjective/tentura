@@ -4185,4 +4185,10 @@
   "updatesEmptyTitle": "Ничего нового",
   "updatesEmptyAllHint": "Здесь появится новая активность.",
   "updatesEmptyUnreadHint": "У вас нет непрочитанных обновлений."
+  ,"notificationSettingsInApp": "В приложении"
+  ,"notificationSettingsInAppMandatory": "Обновления о безопасности и обязательствах всегда остаются видимыми."
+  ,"notificationSettingsInAppCoordination": "Активность координации"
+  ,"notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления Чата и координации."
+  ,"notificationSettingsInAppRequestProgress": "Ход запроса"
+  ,"notificationSettingsInAppRequestProgressDesc": "Показывать обычные обновления статуса запроса."
 }

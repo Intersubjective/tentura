@@ -68,6 +68,27 @@ class NotificationSettingsScreen extends StatelessWidget
                     ),
                   ),
                 const TenturaHairlineDivider(),
+                _SectionHeader(label: l10n.notificationSettingsInApp),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.tt.screenHPadding,
+                  ),
+                  child: Text(
+                    l10n.notificationSettingsInAppMandatory,
+                    style: TenturaText.bodySmall(context.tt.textMuted),
+                  ),
+                ),
+                for (final value in InAppNotificationClass.values)
+                  SwitchListTile(
+                    title: Text(_inAppLabel(l10n, value)),
+                    subtitle: Text(_inAppDescription(l10n, value)),
+                    value: !s.mutedInAppEventClasses.contains(value),
+                    onChanged: (enabled) => cubit.setInAppClass(
+                      value: value,
+                      muted: !enabled,
+                    ),
+                  ),
+                const TenturaHairlineDivider(),
                 _SectionHeader(label: l10n.notificationDigest),
                 RadioGroup<NotificationDigestCadence>(
                   groupValue: s.emailDigest,
@@ -100,16 +121,17 @@ class NotificationSettingsScreen extends StatelessWidget
     );
   }
 
-  static String _categoryLabel(L10n l10n, NotificationSettingsCategory c) =>
-      switch (c) {
-        NotificationSettingsCategory.asksOfMe => l10n.notificationCatAsksOfMe,
-        NotificationSettingsCategory.unblocksMe =>
-          l10n.notificationCatUnblocksMe,
-        NotificationSettingsCategory.coordination =>
-          l10n.notificationCatCoordination,
-        NotificationSettingsCategory.connections => l10n.notificationCatConnections,
-        NotificationSettingsCategory.ambient => l10n.notificationCatAmbient,
-      };
+  static String _categoryLabel(
+    L10n l10n,
+    NotificationSettingsCategory c,
+  ) => switch (c) {
+    NotificationSettingsCategory.asksOfMe => l10n.notificationCatAsksOfMe,
+    NotificationSettingsCategory.unblocksMe => l10n.notificationCatUnblocksMe,
+    NotificationSettingsCategory.coordination =>
+      l10n.notificationCatCoordination,
+    NotificationSettingsCategory.connections => l10n.notificationCatConnections,
+    NotificationSettingsCategory.ambient => l10n.notificationCatAmbient,
+  };
 
   static String _categoryDesc(L10n l10n, NotificationSettingsCategory c) =>
       switch (c) {
@@ -119,7 +141,8 @@ class NotificationSettingsScreen extends StatelessWidget
           l10n.notificationCatUnblocksMeDesc,
         NotificationSettingsCategory.coordination =>
           l10n.notificationCatCoordinationDesc,
-        NotificationSettingsCategory.connections => l10n.notificationCatConnectionsDesc,
+        NotificationSettingsCategory.connections =>
+          l10n.notificationCatConnectionsDesc,
         NotificationSettingsCategory.ambient => l10n.notificationCatAmbientDesc,
       };
 
@@ -128,6 +151,22 @@ class NotificationSettingsScreen extends StatelessWidget
         NotificationDigestCadence.off => l10n.notificationDigestOff,
         NotificationDigestCadence.daily => l10n.notificationDigestDaily,
         NotificationDigestCadence.weekly => l10n.notificationDigestWeekly,
+      };
+
+  static String _inAppLabel(L10n l10n, InAppNotificationClass value) =>
+      switch (value) {
+        InAppNotificationClass.coordinationChurn =>
+          l10n.notificationSettingsInAppCoordination,
+        InAppNotificationClass.requestProgress =>
+          l10n.notificationSettingsInAppRequestProgress,
+      };
+
+  static String _inAppDescription(L10n l10n, InAppNotificationClass value) =>
+      switch (value) {
+        InAppNotificationClass.coordinationChurn =>
+          l10n.notificationSettingsInAppCoordinationDesc,
+        InAppNotificationClass.requestProgress =>
+          l10n.notificationSettingsInAppRequestProgressDesc,
       };
 }
 
