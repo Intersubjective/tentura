@@ -2367,7 +2367,9 @@ type mutation_root {
   userRecalculateBookkeeping: UserRecalculateBookkeepingResult!
   notificationsMarkRead(ids: [String!]!): Int!
   notificationsMarkAllRead: Int!
-  notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
+  attentionMarkSeen(ids: [String!]!): Int!
+  attentionMarkAllSeen: Int!
+  notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], mutedInAppEventClasses: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
 
@@ -3443,6 +3445,43 @@ type NotificationPreferences {
   snoozeUntil: String
   lockScreenSafe: Boolean!
   locale: String!
+  mutedInAppEventClasses: [String!]!
+}
+
+type AttentionReceipt {
+  id: String!
+  category: String!
+  kind: String!
+  priority: String!
+  title: String!
+  body: String!
+  actionUrl: String!
+  createdAt: String!
+  seenAt: String
+  collapsedCount: Int!
+  beaconId: String
+  coordinationItemId: String
+  actorUserId: String
+  sourceEventKey: String
+  destinationKind: String
+  targetEntityId: String
+  presentationKey: String
+  presentationPayloadJson: String!
+  inAppPreferenceClass: String
+}
+
+type AttentionSummary {
+  unreadTotal: Int!
+}
+
+type AttentionPage {
+  items: [AttentionReceipt!]!
+  nextCursor: String
+}
+
+type AttentionFeed {
+  summary: AttentionSummary!
+  page: AttentionPage!
 }
 
 type InviteGenealogyNode {
@@ -3480,6 +3519,9 @@ type InviteGenealogyChildCount {
 
 type query_root {
   notificationsFeed(limit: Int, before: String): [NotificationItem!]!
+
+  attentionFeed(view: String!, cursor: String, limit: Int): AttentionFeed!
+  roomMessageTarget(beaconId: String!, messageId: String!): RoomMessageRow
   notificationsUnreadCount: Int!
   notificationPreferences: NotificationPreferences!
   """

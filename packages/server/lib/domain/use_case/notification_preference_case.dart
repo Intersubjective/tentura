@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 
 /// Read/update account notification preferences with validation.
@@ -30,6 +31,7 @@ class NotificationPreferenceCase {
     bool clearSnooze = false,
     bool? lockScreenSafe,
     String? locale,
+    List<String>? mutedInAppEventClasses,
   }) async {
     final current = await _repository.getForAccount(accountId);
 
@@ -43,21 +45,23 @@ class NotificationPreferenceCase {
       quietHoursStartMinute: clearQuietHours
           ? null
           : (quietHoursStartMinute == null
-              ? current.quietHoursStartMinute
-              : _validateMinute(quietHoursStartMinute)),
+                ? current.quietHoursStartMinute
+                : _validateMinute(quietHoursStartMinute)),
       quietHoursEndMinute: clearQuietHours
           ? null
           : (quietHoursEndMinute == null
-              ? current.quietHoursEndMinute
-              : _validateMinute(quietHoursEndMinute)),
+                ? current.quietHoursEndMinute
+                : _validateMinute(quietHoursEndMinute)),
       tzOffsetMinutes: tzOffsetMinutes ?? current.tzOffsetMinutes,
       emailDigest: emailDigest == null
           ? current.emailDigest
           : digestCadenceFromName(emailDigest),
-      snoozeUntil:
-          clearSnooze ? null : (snoozeUntil ?? current.snoozeUntil),
+      snoozeUntil: clearSnooze ? null : (snoozeUntil ?? current.snoozeUntil),
       lockScreenSafe: lockScreenSafe ?? current.lockScreenSafe,
       locale: locale ?? current.locale,
+      mutedInAppEventClasses: mutedInAppEventClasses == null
+          ? current.mutedInAppEventClasses
+          : _parseMutedInAppEventClasses(mutedInAppEventClasses),
     );
 
     await _repository.upsert(next);
@@ -68,22 +72,35 @@ class NotificationPreferenceCase {
     required String accountId,
     required String beaconId,
     DateTime? mutedUntil,
-  }) =>
-      _repository.setBeaconMute(
-        accountId: accountId,
-        beaconId: beaconId,
-        mutedUntil: mutedUntil,
-      );
+  }) => _repository.setBeaconMute(
+    accountId: accountId,
+    beaconId: beaconId,
+    mutedUntil: mutedUntil,
+  );
 
   Future<void> clearBeaconMute({
     required String accountId,
     required String beaconId,
-  }) =>
-      _repository.clearBeaconMute(accountId: accountId, beaconId: beaconId);
+  }) => _repository.clearBeaconMute(accountId: accountId, beaconId: beaconId);
 
   Set<NotificationCategory> _parseCategories(List<String> names) => {
-        for (final name in names) ?notificationCategoryFromName(name),
-      };
+    for (final name in names) ?notificationCategoryFromName(name),
+  };
+
+  Set<String> _parseMutedInAppEventClasses(List<String> names) => {
+    for (final name in names) _parseMuteableClass(name),
+  };
+
+  String _parseMuteableClass(String name) {
+    for (final value in AttentionPreferenceClass.values) {
+      if (value.wireName == name) return value.wireName;
+    }
+    throw ArgumentError.value(
+      name,
+      'mutedInAppEventClasses',
+      'unknown or non-muteable attention preference class',
+    );
+  }
 
   int _validateMinute(int minute) {
     if (minute < 0 || minute >= 1440) {

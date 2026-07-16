@@ -8,15 +8,15 @@ import '../query/query_notification_preferences.dart'
 
 final class MutationNotificationPreferences extends GqlNodeBase {
   MutationNotificationPreferences({NotificationPreferenceCase? useCase})
-      : _case = useCase ?? GetIt.I<NotificationPreferenceCase>();
+    : _case = useCase ?? GetIt.I<NotificationPreferenceCase>();
 
   final NotificationPreferenceCase _case;
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-        notificationPreferencesUpdate,
-        beaconMuteSet,
-        beaconMuteClear,
-      ];
+    notificationPreferencesUpdate,
+    beaconMuteSet,
+    beaconMuteClear,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get notificationPreferencesUpdate =>
       GraphQLObjectField(
@@ -25,6 +25,7 @@ final class MutationNotificationPreferences extends GqlNodeBase {
         arguments: [
           _pushCategories.fieldNullable,
           _emailCategories.fieldNullable,
+          _mutedInAppEventClasses.fieldNullable,
           _quietHoursStart.fieldNullable,
           _quietHoursEnd.fieldNullable,
           _clearQuietHours.fieldNullable,
@@ -41,6 +42,7 @@ final class MutationNotificationPreferences extends GqlNodeBase {
             accountId: jwt.sub,
             pushCategories: _pushCategories.fromArgs(args),
             emailCategories: _emailCategories.fromArgs(args),
+            mutedInAppEventClasses: _mutedInAppEventClasses.fromArgs(args),
             quietHoursStartMinute: _quietHoursStart.fromArgs(args),
             quietHoursEndMinute: _quietHoursEnd.fromArgs(args),
             clearQuietHours: _clearQuietHours.fromArgs(args) ?? false,
@@ -56,22 +58,22 @@ final class MutationNotificationPreferences extends GqlNodeBase {
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconMuteSet => GraphQLObjectField(
-        'beaconMuteSet',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconId.field,
-          _mutedUntil.fieldNullable,
-        ],
-        resolve: (_, args) async {
-          final jwt = getCredentials(args);
-          await _case.setBeaconMute(
-            accountId: jwt.sub,
-            beaconId: _beaconId.fromArgsNonNullable(args),
-            mutedUntil: _mutedUntil.fromArgs(args),
-          );
-          return true;
-        },
+    'beaconMuteSet',
+    graphQLBoolean.nonNullable(),
+    arguments: [
+      _beaconId.field,
+      _mutedUntil.fieldNullable,
+    ],
+    resolve: (_, args) async {
+      final jwt = getCredentials(args);
+      await _case.setBeaconMute(
+        accountId: jwt.sub,
+        beaconId: _beaconId.fromArgsNonNullable(args),
+        mutedUntil: _mutedUntil.fromArgs(args),
       );
+      return true;
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get beaconMuteClear =>
       GraphQLObjectField(
@@ -90,10 +92,15 @@ final class MutationNotificationPreferences extends GqlNodeBase {
         },
       );
 
-  static final _pushCategories =
-      InputFieldStringList(fieldName: 'pushCategories');
-  static final _emailCategories =
-      InputFieldStringList(fieldName: 'emailCategories');
+  static final _pushCategories = InputFieldStringList(
+    fieldName: 'pushCategories',
+  );
+  static final _emailCategories = InputFieldStringList(
+    fieldName: 'emailCategories',
+  );
+  static final _mutedInAppEventClasses = InputFieldStringList(
+    fieldName: 'mutedInAppEventClasses',
+  );
   static final _quietHoursStart = InputFieldInt(fieldName: 'quietHoursStart');
   static final _quietHoursEnd = InputFieldInt(fieldName: 'quietHoursEnd');
   static final _clearQuietHours = InputFieldBool(fieldName: 'clearQuietHours');

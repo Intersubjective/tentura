@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
+import 'package:tentura_server/domain/use_case/attention_shadow_case.dart';
 import 'package:tentura_server/domain/use_case/notification_center_case.dart';
 
 import '../custom_types.dart';
@@ -7,31 +10,35 @@ import '../input/_input_types.dart';
 
 /// Shared projection for [NotificationOutboxItemEntity] → `NotificationItem`.
 Map<String, dynamic> mapNotificationItem(NotificationOutboxItemEntity i) => {
-      'id': i.id,
-      'category': i.category.name,
-      'kind': i.kind.name,
-      'priority': i.priority.name,
-      'title': i.title,
-      'body': i.body,
-      'actionUrl': i.actionUrl,
-      'createdAt': i.createdAt.toUtc().toIso8601String(),
-      'readAt': i.readAt?.toUtc().toIso8601String(),
-      'collapsedCount': i.collapsedCount,
-      'beaconId': i.beaconId,
-      'coordinationItemId': i.coordinationItemId,
-      'actorUserId': i.actorUserId,
-    };
+  'id': i.id,
+  'category': i.category.name,
+  'kind': i.kind.name,
+  'priority': i.priority.name,
+  'title': i.title,
+  'body': i.body,
+  'actionUrl': i.actionUrl,
+  'createdAt': i.createdAt.toUtc().toIso8601String(),
+  'readAt': i.readAt?.toUtc().toIso8601String(),
+  'collapsedCount': i.collapsedCount,
+  'beaconId': i.beaconId,
+  'coordinationItemId': i.coordinationItemId,
+  'actorUserId': i.actorUserId,
+};
 
 final class QueryNotificationCenter extends GqlNodeBase {
-  QueryNotificationCenter({NotificationCenterCase? useCase})
-      : _case = useCase ?? GetIt.I<NotificationCenterCase>();
+  QueryNotificationCenter({
+    NotificationCenterCase? useCase,
+    AttentionShadowCase? shadowCase,
+  }) : _case = useCase ?? GetIt.I<NotificationCenterCase>(),
+       _shadow = shadowCase ?? GetIt.I<AttentionShadowCase>();
 
   final NotificationCenterCase _case;
+  final AttentionShadowCase _shadow;
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-        notificationsFeed,
-        notificationsUnreadCount,
-      ];
+    notificationsFeed,
+    notificationsUnreadCount,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get notificationsFeed =>
       GraphQLObjectField(
@@ -47,6 +54,13 @@ final class QueryNotificationCenter extends GqlNodeBase {
             accountId: jwt.sub,
             limit: _limit.fromArgs(args) ?? 50,
             before: _before.fromArgs(args),
+          );
+          unawaited(
+            _shadow.observeLegacyPage(
+              accountId: jwt.sub,
+              limit: _limit.fromArgs(args) ?? 50,
+              before: _before.fromArgs(args),
+            ),
           );
           return [for (final i in items) mapNotificationItem(i)];
         },

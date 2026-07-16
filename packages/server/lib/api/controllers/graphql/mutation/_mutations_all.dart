@@ -1,6 +1,7 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'mutation_auth.dart';
+import 'mutation_attention.dart';
 import 'mutation_beacon_room.dart';
 import 'mutation_beacon.dart';
 import 'mutation_capability.dart';
@@ -23,6 +24,7 @@ import 'mutation_user.dart';
 import 'mutation_user_vote.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
+  ...MutationAttention().all,
   ...MutationAuth().all,
   ...MutationBeacon().all,
   ...MutationBeaconRoom().all,

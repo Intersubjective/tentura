@@ -7,7 +7,7 @@ import '../input/_input_types.dart';
 
 final class QueryBeaconRoom extends GqlNodeBase {
   QueryBeaconRoom({BeaconRoomCase? beaconRoomCase})
-      : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>();
+    : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>();
 
   final BeaconRoomCase _case;
 
@@ -17,15 +17,15 @@ final class QueryBeaconRoom extends GqlNodeBase {
 
   final _threadItemId = InputFieldString(fieldName: 'threadItemId');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all =>
-      [
-        roomMessageList,
-        beaconParticipantList,
-        beaconRoomStateGet,
-        beaconActivityEventList,
-        inboxRoomContextBatch,
-        myWorkLastActivityEvent,
-      ];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    roomMessageList,
+    roomMessageTarget,
+    beaconParticipantList,
+    beaconRoomStateGet,
+    beaconActivityEventList,
+    inboxRoomContextBatch,
+    myWorkLastActivityEvent,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
       GraphQLObjectField(
@@ -43,6 +43,20 @@ final class QueryBeaconRoom extends GqlNodeBase {
           threadItemId: _threadItemId.fromArgs(args),
         ),
       );
+
+  GraphQLObjectField<dynamic, dynamic> get roomMessageTarget =>
+      GraphQLObjectField(
+        'roomMessageTarget',
+        gqlTypeRoomMessageRow,
+        arguments: [_beaconIdStr.field, _messageId.field],
+        resolve: (_, args) => _case.roomMessageTarget(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          messageId: _messageId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
+      );
+
+  final _messageId = InputFieldString(fieldName: 'messageId');
 
   GraphQLObjectField<dynamic, dynamic> get beaconParticipantList =>
       GraphQLObjectField(
@@ -65,9 +79,9 @@ final class QueryBeaconRoom extends GqlNodeBase {
           _beaconIdStr.field,
         ],
         resolve: (_, args) => _case.beaconRoomStateGet(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-            ),
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconActivityEventList =>
@@ -89,9 +103,9 @@ final class QueryBeaconRoom extends GqlNodeBase {
         GraphQLListType(gqlTypeInboxRoomContextRow.nonNullable()),
         arguments: [InputFieldBeaconIds.field],
         resolve: (_, args) => _case.inboxRoomContextBatch(
-              userId: getCredentials(args).sub,
-              beaconIds: InputFieldBeaconIds.fromArgs(args),
-            ),
+          userId: getCredentials(args).sub,
+          beaconIds: InputFieldBeaconIds.fromArgs(args),
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get myWorkLastActivityEvent =>

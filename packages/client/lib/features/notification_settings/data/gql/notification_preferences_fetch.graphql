@@ -3,6 +3,7 @@ query NotificationPreferencesFetch {
     accountId
     pushCategories
     emailCategories
+    mutedInAppEventClasses
     quietHoursStart
     quietHoursEnd
     tzOffsetMinutes

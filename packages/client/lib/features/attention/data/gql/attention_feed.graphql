@@ -1,0 +1,14 @@
+query AttentionFeed($view: String!, $cursor: String, $limit: Int) {
+  attentionFeed(view: $view, cursor: $cursor, limit: $limit) {
+    summary { unreadTotal }
+    page {
+      nextCursor
+      items {
+        id category kind priority title body actionUrl createdAt seenAt
+        collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
+        destinationKind targetEntityId presentationKey presentationPayloadJson
+        inAppPreferenceClass
+      }
+    }
+  }
+}

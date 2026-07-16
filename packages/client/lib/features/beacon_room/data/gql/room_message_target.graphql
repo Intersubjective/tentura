@@ -1,0 +1,11 @@
+query RoomMessageTarget($beaconId: String!, $messageId: String!) {
+  roomMessageTarget(beaconId: $beaconId, messageId: $messageId) {
+    id beaconId authorId body createdAt editedAt semanticMarker linkedBlockerId
+    linkedFactCardId linkedPollingId linkedItemId linkedEventKind linkedItemKind
+    linkedItemStatus linkedItemTitle linkedItemBody linkedItemCreatorId
+    linkedItemTargetPersonId linkedItemCreatedAt linkedItemUpdatedAt
+    linkedItemLinkedMessageId linkedItemResolvedAt pollDataJson systemPayloadJson
+    authorTitle authorHasPicture authorPicHeight authorPicWidth authorBlurHash
+    authorImageId reactionsJson myReaction reactorsJson attachmentsJson mentions threadItemId
+  }
+}

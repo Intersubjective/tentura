@@ -92,6 +92,10 @@ final gqlTypeNotificationPreferences =
           'emailCategories',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
+        field(
+          'mutedInAppEventClasses',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
         field('quietHoursStart', graphQLInt),
         field('quietHoursEnd', graphQLInt),
         field('tzOffsetMinutes', graphQLInt.nonNullable()),
@@ -100,6 +104,47 @@ final gqlTypeNotificationPreferences =
         field('lockScreenSafe', graphQLBoolean.nonNullable()),
         field('locale', graphQLString.nonNullable()),
       ]);
+
+final gqlTypeAttentionReceipt = GraphQLObjectType('AttentionReceipt', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('category', graphQLString.nonNullable()),
+    field('kind', graphQLString.nonNullable()),
+    field('priority', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('body', graphQLString.nonNullable()),
+    field('actionUrl', graphQLString.nonNullable()),
+    field('createdAt', graphQLString.nonNullable()),
+    field('seenAt', graphQLString),
+    field('collapsedCount', graphQLInt.nonNullable()),
+    field('beaconId', graphQLString),
+    field('coordinationItemId', graphQLString),
+    field('actorUserId', graphQLString),
+    field('sourceEventKey', graphQLString),
+    field('destinationKind', graphQLString),
+    field('targetEntityId', graphQLString),
+    field('presentationKey', graphQLString),
+    field('presentationPayloadJson', graphQLString.nonNullable()),
+    field('inAppPreferenceClass', graphQLString),
+  ]);
+
+final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)
+  ..fields.addAll([field('unreadTotal', graphQLInt.nonNullable())]);
+
+final gqlTypeAttentionPage = GraphQLObjectType('AttentionPage', null)
+  ..fields.addAll([
+    field(
+      'items',
+      GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
+    ),
+    field('nextCursor', graphQLString),
+  ]);
+
+final gqlTypeAttentionFeed = GraphQLObjectType('AttentionFeed', null)
+  ..fields.addAll([
+    field('summary', gqlTypeAttentionSummary.nonNullable()),
+    field('page', gqlTypeAttentionPage.nonNullable()),
+  ]);
 
 /// Payload returned by `RoomMessageCreate`.
 final gqlTypeRoomMessageCreatePayload =

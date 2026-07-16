@@ -1,6 +1,7 @@
 mutation NotificationPreferencesUpdate(
   $pushCategories: [String!]
   $emailCategories: [String!]
+  $mutedInAppEventClasses: [String!]
   $quietHoursStart: Int
   $quietHoursEnd: Int
   $clearQuietHours: Boolean
@@ -14,6 +15,7 @@ mutation NotificationPreferencesUpdate(
   notificationPreferencesUpdate(
     pushCategories: $pushCategories
     emailCategories: $emailCategories
+    mutedInAppEventClasses: $mutedInAppEventClasses
     quietHoursStart: $quietHoursStart
     quietHoursEnd: $quietHoursEnd
     clearQuietHours: $clearQuietHours
@@ -27,6 +29,7 @@ mutation NotificationPreferencesUpdate(
     accountId
     pushCategories
     emailCategories
+    mutedInAppEventClasses
     quietHoursStart
     quietHoursEnd
     tzOffsetMinutes
