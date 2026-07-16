@@ -20,7 +20,8 @@ unless this journal identifies it as a prerequisite.
 | T-07 | In progress | Deterministic shadow/budget proof is complete; enabled-QA soak must still show zero unexplained mismatches. |
 | T-08 | Complete | Shared application slice, lazy default-off gate, V2 adapter, contract impacts, and focused refresh/account/ack/boundary tests pass. |
 | T-09 | Complete | `HomeTabSpec` now owns the four existing tab mappings; focused router/Home/New Stuff tests and scoped analysis pass. |
-| T-10–T-15 | Blocked on predecessor | No acceptance claim yet. |
+| T-10 | Complete | Flagged, route-free Updates presenter with feed views, pagination, refresh, scroll retention, and EN/RU copy; focused verification passes. |
+| T-11–T-15 | Blocked on predecessor | No acceptance claim yet. |
 | T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
@@ -504,3 +505,17 @@ router/Home/New Stuff suite passes, including branch restore, cold/warm redirect
 deep-link prefixing, and reselect-to-root behavior. A new architecture test asserts
 the four current mappings and rejects positional active-index comparisons in Home tab
 consumers. Scoped client analysis and `git diff --check` pass.
+
+## Context reset — T-10
+
+**Resolution:** added the default-off `features/updates/` presenter. `UpdatesFeedCubit`
+only projects `AttentionCase.feedPages`, owns view selection and pagination commands,
+and never queries a repository directly. `UpdatesScreen` is route-free until T-11 and
+returns no UI when `UPDATES_TAB_ENABLED` is false. The presenter supplies All/Unread
+underline views, stale-content-preserving pull-to-refresh, page-storage scroll keys,
+near-end pagination, flat receipt rows, initial loading, and neutral All/Unread empty
+states. EN/RU strings are generated from the l10n ARBs.
+
+**Verification:** `flutter gen-l10n`, `dart run build_runner build -d`, scoped Updates
+analysis, and focused presenter-state test pass. T-11 remains responsible for branch
+registration and exact destination navigation; T-12 adds acknowledgement UI actions.

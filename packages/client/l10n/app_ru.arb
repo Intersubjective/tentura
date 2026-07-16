@@ -4176,5 +4176,11 @@
   "profileDisplayNameNudgeAction": "Указать имя",
   "@profileDisplayNameNudgeAction": {
     "description": "Primary action on the display-name nudge card."
-  }
+  },
+  "updatesTitle": "Обновления",
+  "updatesAll": "Все",
+  "updatesUnread": "Непрочитанные",
+  "updatesEmptyTitle": "Ничего нового",
+  "updatesEmptyAllHint": "Здесь появится новая активность.",
+  "updatesEmptyUnreadHint": "У вас нет непрочитанных обновлений."
 }

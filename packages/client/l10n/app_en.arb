@@ -4383,5 +4383,11 @@
   "profileDisplayNameNudgeAction": "Set display name",
   "@profileDisplayNameNudgeAction": {
     "description": "Primary action on the display-name nudge card."
-  }
+  },
+  "updatesTitle": "Updates",
+  "updatesAll": "All",
+  "updatesUnread": "Unread",
+  "updatesEmptyTitle": "Nothing new",
+  "updatesEmptyAllHint": "New activity will appear here.",
+  "updatesEmptyUnreadHint": "You have no unread updates."
 }
