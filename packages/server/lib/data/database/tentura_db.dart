@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:postgres/postgres.dart';
 import 'package:injectable/injectable.dart';
@@ -114,6 +116,8 @@ part 'tentura_db.g.dart';
   ],
 )
 class TenturaDb extends _$TenturaDb {
+  static final Object _mutatingTransactionZoneKey = Object();
+
   @factoryMethod
   TenturaDb(Env env)
     : super(
@@ -139,16 +143,59 @@ class TenturaDb extends _$TenturaDb {
   Future<T> withMutatingUser<T>(
     String userId,
     Future<T> Function() action,
-  ) => transaction(() async {
-    // `customStatement` binds raw Dart values; do not pass drift `Variable`
-    // here (unlike `customSelect`).
-    await customStatement(
-      r"SELECT set_config('tentura.mutating_user_id', $1, true)",
-      [userId],
+  ) {
+    final current = Zone.current[_mutatingTransactionZoneKey];
+    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+      if (current.actorUserId != userId) {
+        throw StateError(
+          'Nested mutating actor mismatch: '
+          '${current.actorUserId ?? '<system>'} != $userId',
+        );
+      }
+      return action();
+    }
+    return transaction(() async {
+      // `customStatement` binds raw Dart values; do not pass drift `Variable`
+      // here (unlike `customSelect`).
+      await customStatement(
+        r"SELECT set_config('tentura.mutating_user_id', $1, true)",
+        [userId],
+      );
+      return runZoned(
+        action,
+        zoneValues: {
+          _mutatingTransactionZoneKey: _MutatingTransactionContext(this, userId),
+        },
+      );
+    });
+  }
+
+  /// System-owned mutation transaction with an explicitly empty actor scope.
+  Future<T> withMutatingSystem<T>(Future<T> Function() action) {
+    final current = Zone.current[_mutatingTransactionZoneKey];
+    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+      if (current.actorUserId != null) {
+        throw StateError('Cannot enter a system mutation inside an actor mutation');
+      }
+      return action();
+    }
+    return transaction(
+      () => runZoned(
+        action,
+        zoneValues: {
+          _mutatingTransactionZoneKey: _MutatingTransactionContext(this, null),
+        },
+      ),
     );
-    return action();
-  });
+  }
 
   @disposeMethod
   Future<void> dispose() => super.close();
+}
+
+final class _MutatingTransactionContext {
+  const _MutatingTransactionContext(this.db, this.actorUserId);
+
+  final TenturaDb db;
+  final String? actorUserId;
 }
