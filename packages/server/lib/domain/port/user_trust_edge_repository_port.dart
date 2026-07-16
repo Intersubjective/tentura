@@ -18,6 +18,14 @@ abstract class UserTrustEdgeRepositoryPort {
     required int newAmount,
   });
 
+  /// Applies the vote while serializing the unordered user pair and returns
+  /// whether this exact transition changed the relationship to reciprocal.
+  Future<bool> setVoteAmountAndDetectMutualFormationInTransaction({
+    required String subjectUserId,
+    required String objectUserId,
+    required int newAmount,
+  });
+
   Future<void> forceRefreshStar(String sourceUserId);
 
   Future<void> forceRefreshAll();

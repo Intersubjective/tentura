@@ -29,6 +29,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     String? threadItemId,
     DateTime? before,
+    String? messageId,
     int limit = 50,
   }) async {
     Expression<bool> threadFilter($BeaconRoomMessagesTable m) {
@@ -39,23 +40,34 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return m.threadItemId.equals(tid);
     }
 
+    Expression<bool> messageFilter($BeaconRoomMessagesTable m) =>
+        messageId == null ? const Constant(true) : m.id.equals(messageId);
+
     if (before == null) {
       return (_db.select(_db.beaconRoomMessages)
-            ..where((m) => m.beaconId.equals(beaconId) & threadFilter(m))
+            ..where(
+              (m) =>
+                  m.beaconId.equals(beaconId) &
+                  threadFilter(m) &
+                  messageFilter(m),
+            )
             ..orderBy([
               (m) => OrderingTerm(
-                    expression: m.createdAt,
-                    mode: OrderingMode.desc,
-                  ),
+                expression: m.createdAt,
+                mode: OrderingMode.desc,
+              ),
             ])
             ..limit(limit))
           .get();
     }
     return (_db.select(_db.beaconRoomMessages)
-          ..where((m) =>
-              m.beaconId.equals(beaconId) &
-              threadFilter(m) &
-              m.createdAt.isSmallerThanValue(PgDateTime(before)))
+          ..where(
+            (m) =>
+                m.beaconId.equals(beaconId) &
+                threadFilter(m) &
+                messageFilter(m) &
+                m.createdAt.isSmallerThanValue(PgDateTime(before)),
+          )
           ..orderBy([
             (m) =>
                 OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
@@ -75,12 +87,13 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return {};
     }
 
-    final attachmentRows = await (_db.select(_db.beaconRoomMessageAttachments)
-          ..where((a) => a.messageId.isIn(ids))
-          ..orderBy([
-            (a) => OrderingTerm(expression: a.position),
-          ]))
-        .get();
+    final attachmentRows =
+        await (_db.select(_db.beaconRoomMessageAttachments)
+              ..where((a) => a.messageId.isIn(ids))
+              ..orderBy([
+                (a) => OrderingTerm(expression: a.position),
+              ]))
+            .get();
 
     final attachmentsByMessageId =
         <String, List<BeaconRoomMessageAttachment>>{};
@@ -97,10 +110,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final attachmentImageByUuid = <UuidValue, Image>{};
     if (attachmentImageUuidList.isNotEmpty) {
-      final aimgs =
-          await _db.managers.images
-              .filter((i) => i.id.isIn(attachmentImageUuidList))
-              .get();
+      final aimgs = await _db.managers.images
+          .filter((i) => i.id.isIn(attachmentImageUuidList))
+          .get();
       for (final img in aimgs) {
         attachmentImageByUuid[img.id] = img;
       }
@@ -158,12 +170,14 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String viewerUserId,
     String? threadItemId,
     DateTime? before,
+    String? messageId,
     int limit = 50,
   }) async {
     final msgs = await listMessages(
       beaconId: beaconId,
       threadItemId: threadItemId,
       before: before,
+      messageId: messageId,
       limit: limit,
     );
     if (msgs.isEmpty) {
@@ -171,18 +185,20 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     }
 
     final authorIds = msgs.map((m) => m.authorId).toSet().toList();
-    final users =
-        await _db.managers.users.filter((u) => u.id.isIn(authorIds)).get();
+    final users = await _db.managers.users
+        .filter((u) => u.id.isIn(authorIds))
+        .get();
     final userById = {for (final u in users) u.id: u};
 
     final ids = msgs.map((m) => m.id).toList();
-    final reactionRows = await (_db.select(_db.beaconRoomMessageReactions)
-          ..where((r) => r.messageId.isIn(ids)))
-        .get();
+    final reactionRows = await (_db.select(
+      _db.beaconRoomMessageReactions,
+    )..where((r) => r.messageId.isIn(ids))).get();
 
     final reactorIds = reactionRows.map((r) => r.userId).toSet();
-    final missingReactorUserIds =
-        reactorIds.difference(userById.keys.toSet()).toList();
+    final missingReactorUserIds = reactorIds
+        .difference(userById.keys.toSet())
+        .toList();
     if (missingReactorUserIds.isNotEmpty) {
       final moreUsers = await _db.managers.users
           .filter((u) => u.id.isIn(missingReactorUserIds))
@@ -199,8 +215,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final imageByUuid = <UuidValue, Image>{};
     if (imageUuidIds.isNotEmpty) {
-      final imgs =
-          await _db.managers.images.filter((i) => i.id.isIn(imageUuidIds)).get();
+      final imgs = await _db.managers.images
+          .filter((i) => i.id.isIn(imageUuidIds))
+          .get();
       for (final img in imgs) {
         imageByUuid[img.id] = img;
       }
@@ -208,6 +225,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final countsByMessage = <String, Map<String, int>>{};
     final viewerEmojisByMessage = <String, List<String>>{};
+
     /// Per message, per emoji, ordered reactor profile rows (newest first).
     final reactorsByMessage =
         <String, Map<String, List<Map<String, Object?>>>>{};
@@ -249,8 +267,10 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         viewerEmojisByMessage.putIfAbsent(mid, () => <String>[]).add(emoji);
       }
 
-      final byEmoji =
-          reactorsByMessage.putIfAbsent(mid, () => <String, List<Map<String, Object?>>>{});
+      final byEmoji = reactorsByMessage.putIfAbsent(
+        mid,
+        () => <String, List<Map<String, Object?>>>{},
+      );
       final list = byEmoji.putIfAbsent(emoji, () => <Map<String, Object?>>[]);
       if (!list.any((m) => m['id'] == uid)) {
         list.add(reactorProfileJson(uid));
@@ -301,8 +321,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return jsonEncode(raw);
     }
 
-    final attachmentsJsonByMid =
-        await attachmentsJsonByMessageIds(ids);
+    final attachmentsJsonByMid = await attachmentsJsonByMessageIds(ids);
 
     final pollDataJsonByMid = await _pollDataJsonByMessageIds(
       msgs: msgs,
@@ -316,9 +335,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final linkedCoordinationItemById = <String, CoordinationItem>{};
     if (linkedItemIds.isNotEmpty) {
-      final itemRows = await (_db.select(_db.coordinationItems)
-            ..where((t) => t.id.isIn(linkedItemIds)))
-          .get();
+      final itemRows = await (_db.select(
+        _db.coordinationItems,
+      )..where((t) => t.id.isIn(linkedItemIds))).get();
       for (final row in itemRows) {
         linkedCoordinationItemById[row.id] = row;
       }
@@ -337,8 +356,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       final authorImageId = image != null ? image.id.toString() : '';
 
       final linkedId = m.linkedItemId;
-      final linkedRow =
-          linkedId != null ? linkedCoordinationItemById[linkedId] : null;
+      final linkedRow = linkedId != null
+          ? linkedCoordinationItemById[linkedId]
+          : null;
 
       return <String, Object?>{
         'id': id,
@@ -348,8 +368,8 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'createdAt': m.createdAt.dateTime.toUtc().toIso8601String(),
         'editedAt': m.editedAt?.dateTime.toUtc().toIso8601String(),
         'semanticMarker': m.semanticMarker,
-        'linkedBlockerId': linkedRow != null &&
-                linkedRow.kind == coordinationItemKindBlocker
+        'linkedBlockerId':
+            linkedRow != null && linkedRow.kind == coordinationItemKindBlocker
             ? linkedId
             : null,
         'linkedFactCardId': m.linkedFactCardId,
@@ -363,10 +383,12 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
           'linkedItemBody': linkedRow.body,
           'linkedItemCreatorId': linkedRow.creatorId,
           'linkedItemTargetPersonId': linkedRow.targetPersonId,
-          'linkedItemCreatedAt':
-              linkedRow.createdAt.dateTime.toUtc().toIso8601String(),
-          'linkedItemUpdatedAt':
-              linkedRow.updatedAt.dateTime.toUtc().toIso8601String(),
+          'linkedItemCreatedAt': linkedRow.createdAt.dateTime
+              .toUtc()
+              .toIso8601String(),
+          'linkedItemUpdatedAt': linkedRow.updatedAt.dateTime
+              .toUtc()
+              .toIso8601String(),
           'linkedItemLinkedMessageId': linkedRow.linkedMessageId,
           'linkedItemResolvedAt': linkedRow.resolvedAt?.dateTime
               .toUtc()
@@ -383,13 +405,32 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'reactionsJson': reactionsJsonFor(id),
         'myReaction': myReactionFor(id),
         'reactorsJson': reactorsJsonFor(id),
-        'attachmentsJson':
-            attachmentsJsonByMid[id] ?? '[]',
+        'attachmentsJson': attachmentsJsonByMid[id] ?? '[]',
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
         'threadItemId': m.threadItemId,
       };
     }).toList();
+  }
+
+  @override
+  Future<Map<String, Object?>?> roomMessageTarget({
+    required String beaconId,
+    required String messageId,
+    required String viewerUserId,
+  }) async {
+    final message = await getRoomMessageById(messageId);
+    if (message == null || message.beaconId != beaconId) {
+      return null;
+    }
+    final rows = await listMessagesEnriched(
+      beaconId: beaconId,
+      viewerUserId: viewerUserId,
+      threadItemId: message.threadItemId,
+      messageId: messageId,
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
   }
 
   Future<Map<String, String?>> _pollDataJsonByMessageIds({
@@ -413,15 +454,17 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         .filter((v) => v.pollingId.id.isIn(pollingIds))
         .get();
 
-    final acts = await (_db.select(_db.pollingActs)
-          ..where((a) => a.pollingId.isIn(pollingIds)))
-        .get();
+    final acts = await (_db.select(
+      _db.pollingActs,
+    )..where((a) => a.pollingId.isIn(pollingIds))).get();
 
     // Viewer's voted variant IDs per poll (supports multiple/range)
     final myVariantIdsByPollingId = <String, List<String>>{};
     for (final a in acts) {
       if (a.authorId == viewerUserId) {
-        myVariantIdsByPollingId.putIfAbsent(a.pollingId, () => []).add(a.pollingVariantId);
+        myVariantIdsByPollingId
+            .putIfAbsent(a.pollingId, () => [])
+            .add(a.pollingVariantId);
       }
     }
 
@@ -441,7 +484,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     // Voter IDs per variant (for open polls)
     final voterIdsByVariantId = <String, List<String>>{};
     for (final a in acts) {
-      voterIdsByVariantId.putIfAbsent(a.pollingVariantId, () => []).add(a.authorId);
+      voterIdsByVariantId
+          .putIfAbsent(a.pollingVariantId, () => [])
+          .add(a.authorId);
     }
 
     // Sum and count of scores per variant (for range polls)
@@ -522,25 +567,26 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
-  }) =>
-      _db.withMutatingUser(authorId, () async {
-        final id = generateId('R');
-        return (await _db.managers.beaconRoomMessages.createReturning((o) => o(
-              id: id,
-              beaconId: beaconId,
-              authorId: authorId,
-              body: Value(body),
-              replyToMessageId: Value(replyToMessageId),
-              threadItemId: Value(threadItemId),
-              linkedNextMoveId: Value(linkedParticipantId),
-              linkedFactCardId: const Value.absent(),
-              linkedPollingId: Value(linkedPollingId),
-              semanticMarker: Value(semanticMarker),
-              systemPayload: Value(systemPayload),
-              mentions: Value(mentions),
-              createdAt: const Value.absent(),
-            ))).toRecord();
-      });
+  }) => _db.withMutatingUser(authorId, () async {
+    final id = generateId('R');
+    return (await _db.managers.beaconRoomMessages.createReturning(
+      (o) => o(
+        id: id,
+        beaconId: beaconId,
+        authorId: authorId,
+        body: Value(body),
+        replyToMessageId: Value(replyToMessageId),
+        threadItemId: Value(threadItemId),
+        linkedNextMoveId: Value(linkedParticipantId),
+        linkedFactCardId: const Value.absent(),
+        linkedPollingId: Value(linkedPollingId),
+        semanticMarker: Value(semanticMarker),
+        systemPayload: Value(systemPayload),
+        mentions: Value(mentions),
+        createdAt: const Value.absent(),
+      ),
+    )).toRecord();
+  });
 
   /// Creates a poll room message and returns the enriched row map for the GraphQL response.
   Future<Map<String, Object?>> insertAndEnrichPollMessage({
@@ -569,19 +615,18 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String nextMoveText,
     required int nextMoveSource,
     int? nextMoveStatus,
-  }) =>
-      _db.withMutatingUser(actorUserId, () async {
-        await _db.managers.beaconParticipants
-            .filter((r) => r.id.equals(participantRowId))
-            .update(
-              (o) => o(
-                nextMoveText: Value(nextMoveText),
-                nextMoveSource: Value(nextMoveSource),
-                nextMoveStatus: Value(nextMoveStatus),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(actorUserId, () async {
+    await _db.managers.beaconParticipants
+        .filter((r) => r.id.equals(participantRowId))
+        .update(
+          (o) => o(
+            nextMoveText: Value(nextMoveText),
+            nextMoveSource: Value(nextMoveSource),
+            nextMoveStatus: Value(nextMoveStatus),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  });
 
   Future<void> updateMessage({
     required String messageId,
@@ -599,21 +644,24 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         );
   }
 
-  Future<void> deleteRoomMessage({required String messageId}) =>
-      _db.managers.beaconRoomMessages
-          .filter((m) => m.id.equals(messageId))
-          .delete();
+  Future<void> deleteRoomMessage({required String messageId}) => _db
+      .managers
+      .beaconRoomMessages
+      .filter((m) => m.id.equals(messageId))
+      .delete();
 
   Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
   }) async =>
       (await _db.managers.beaconParticipants
-          .filter((r) => r.beaconId.id(beaconId) & r.userId.id(userId))
-          .getSingleOrNull())
+              .filter((r) => r.beaconId.id(beaconId) & r.userId.id(userId))
+              .getSingleOrNull())
           ?.toRecord();
 
-  Future<List<BeaconParticipantRecord>> listParticipants(String beaconId) async {
+  Future<List<BeaconParticipantRecord>> listParticipants(
+    String beaconId,
+  ) async {
     final rows = await _db.managers.beaconParticipants
         .filter((r) => r.beaconId.id(beaconId))
         .get();
@@ -635,8 +683,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (ids.isEmpty) {
       return {};
     }
-    final users =
-        await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
+    final users = await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
     return {for (final u in users) u.id: (u.handle ?? '').trim()};
   }
 
@@ -657,8 +704,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (admitted.isEmpty) {
       return const [];
     }
-    final handlesByUserId =
-        await userHandlesByIds(admitted.map((p) => p.userId));
+    final handlesByUserId = await userHandlesByIds(
+      admitted.map((p) => p.userId),
+    );
     final out = <String>[];
     for (final t in tokens) {
       for (final p in admitted) {
@@ -683,13 +731,19 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     return {for (final u in users) u.id: u.displayName};
   }
 
-  Future<Map<String, ({
-    bool hasPicture,
-    int picHeight,
-    int picWidth,
-    String blurHash,
-    String imageId,
-  })>> userPicMetaByIds(Iterable<String> userIds) async {
+  Future<
+    Map<
+      String,
+      ({
+        bool hasPicture,
+        int picHeight,
+        int picWidth,
+        String blurHash,
+        String imageId,
+      })
+    >
+  >
+  userPicMetaByIds(Iterable<String> userIds) async {
     final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) {
       return {};
@@ -707,20 +761,25 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final imageByUuid = <UuidValue, Image>{};
     if (imageUuidIds.isNotEmpty) {
-      final imgs =
-          await _db.managers.images.filter((i) => i.id.isIn(imageUuidIds)).get();
+      final imgs = await _db.managers.images
+          .filter((i) => i.id.isIn(imageUuidIds))
+          .get();
       for (final img in imgs) {
         imageByUuid[img.id] = img;
       }
     }
 
-    final out = <String, ({
-      bool hasPicture,
-      int picHeight,
-      int picWidth,
-      String blurHash,
-      String imageId,
-    })>{};
+    final out =
+        <
+          String,
+          ({
+            bool hasPicture,
+            int picHeight,
+            int picWidth,
+            String blurHash,
+            String imageId,
+          })
+        >{};
 
     for (final u in users) {
       final imgUuid = u.imageId;
@@ -740,61 +799,58 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String userId,
     required String note,
-  }) =>
-      _db.withMutatingUser(userId, () async {
-        final existing = await findParticipant(
+  }) => _db.withMutatingUser(userId, () async {
+    final existing = await findParticipant(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    if (existing == null) {
+      await _db.managers.beaconParticipants.create(
+        (o) => o(
+          createdAt: const Value.absent(),
+          updatedAt: const Value.absent(),
+          id: generateId('P'),
           beaconId: beaconId,
           userId: userId,
-        );
-        if (existing == null) {
-          await _db.managers.beaconParticipants.create(
+          role: BeaconParticipantRoleBits.helper,
+          status: const Value(BeaconParticipantStatusBits.offeredHelp),
+          roomAccess: const Value(RoomAccessBits.requested),
+          offerNote: Value(note),
+        ),
+      );
+    } else {
+      await _db.managers.beaconParticipants
+          .filter(
+            (r) => r.beaconId.id(beaconId) & r.userId.id(userId),
+          )
+          .update(
             (o) => o(
-              createdAt: const Value.absent(),
-              updatedAt: const Value.absent(),
-              id: generateId('P'),
-              beaconId: beaconId,
-              userId: userId,
-              role: BeaconParticipantRoleBits.helper,
               status: const Value(BeaconParticipantStatusBits.offeredHelp),
               roomAccess: const Value(RoomAccessBits.requested),
               offerNote: Value(note),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
             ),
           );
-        } else {
-          await _db.managers.beaconParticipants
-              .filter(
-                (r) => r.beaconId.id(beaconId) & r.userId.id(userId),
-              )
-              .update(
-                (o) => o(
-                  status: const Value(BeaconParticipantStatusBits.offeredHelp),
-                  roomAccess: const Value(RoomAccessBits.requested),
-                  offerNote: Value(note),
-                  updatedAt: Value(PgDateTime(DateTime.timestamp())),
-                ),
-              );
-        }
-      });
+    }
+  });
 
   Future<void> admitParticipant({
     required String beaconId,
     required String participantUserId,
     required String actorUserId,
-  }) =>
-      _db.withMutatingUser(actorUserId, () async {
-        await _db.managers.beaconParticipants
-            .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(participantUserId),
-            )
-            .update(
-              (o) => o(
-                roomAccess:
-                    const Value(RoomAccessBits.admitted),
-                status: const Value(BeaconParticipantStatusBits.committed),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(actorUserId, () async {
+    await _db.managers.beaconParticipants
+        .filter(
+          (r) => r.beaconId.id(beaconId) & r.userId.id(participantUserId),
+        )
+        .update(
+          (o) => o(
+            roomAccess: const Value(RoomAccessBits.admitted),
+            status: const Value(BeaconParticipantStatusBits.committed),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  });
 
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
   @override
@@ -869,56 +925,56 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String stewardUserId,
     required String authorUserId,
-  }) =>
-      _db.withMutatingUser(authorUserId, () async {
-        await _db.into(_db.beaconStewards).insertOnConflictUpdate(
-              BeaconStewardsCompanion.insert(
-                beaconId: beaconId,
-                userId: stewardUserId,
-              ),
-            );
-        await _db.managers.beaconParticipants
-            .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(stewardUserId),
-            )
-            .update(
-              (o) => o(
-                role: const Value(BeaconParticipantRoleBits.steward),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(authorUserId, () async {
+    await _db
+        .into(_db.beaconStewards)
+        .insertOnConflictUpdate(
+          BeaconStewardsCompanion.insert(
+            beaconId: beaconId,
+            userId: stewardUserId,
+          ),
+        );
+    await _db.managers.beaconParticipants
+        .filter(
+          (r) => r.beaconId.id(beaconId) & r.userId.id(stewardUserId),
+        )
+        .update(
+          (o) => o(
+            role: const Value(BeaconParticipantRoleBits.steward),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  });
 
   Future<void> toggleReaction({
     required String messageId,
     required String userId,
     required String emoji,
-  }) =>
-      _db.withMutatingUser(userId, () async {
-        final existing = await _db.managers.beaconRoomMessageReactions
-            .filter(
-              (r) =>
-                  r.messageId.id(messageId) &
-                  r.userId.id(userId) &
-                  r.emoji.equals(emoji),
-            )
-            .getSingleOrNull();
-        if (existing != null) {
-          await _db.managers.beaconRoomMessageReactions
-              .filter((r) => r.id.equals(existing.id))
-              .delete();
-        } else {
-          await _db.managers.beaconRoomMessageReactions.create(
-            (o) => o(
-              id: generateId('E'),
-              messageId: messageId,
-              userId: userId,
-              emoji: emoji,
-              createdAt: const Value.absent(),
-            ),
-          );
-        }
-      });
+  }) => _db.withMutatingUser(userId, () async {
+    final existing = await _db.managers.beaconRoomMessageReactions
+        .filter(
+          (r) =>
+              r.messageId.id(messageId) &
+              r.userId.id(userId) &
+              r.emoji.equals(emoji),
+        )
+        .getSingleOrNull();
+    if (existing != null) {
+      await _db.managers.beaconRoomMessageReactions
+          .filter((r) => r.id.equals(existing.id))
+          .delete();
+    } else {
+      await _db.managers.beaconRoomMessageReactions.create(
+        (o) => o(
+          id: generateId('E'),
+          messageId: messageId,
+          userId: userId,
+          emoji: emoji,
+          createdAt: const Value.absent(),
+        ),
+      );
+    }
+  });
 
   Future<bool> isBeaconAuthor({
     required String beaconId,
@@ -934,18 +990,17 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) =>
-      _db.managers.beaconStewards
-          .filter(
-            (s) => s.beaconId.id(beaconId) & s.userId.id(userId),
-          )
-          .getSingleOrNull()
-          .then((r) => r != null);
+  }) => _db.managers.beaconStewards
+      .filter(
+        (s) => s.beaconId.id(beaconId) & s.userId.id(userId),
+      )
+      .getSingleOrNull()
+      .then((r) => r != null);
 
   Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async =>
       (await _db.managers.beaconRoomStates
-          .filter((e) => e.beaconId.id(beaconId))
-          .getSingleOrNull())
+              .filter((e) => e.beaconId.id(beaconId))
+              .getSingleOrNull())
           ?.toRecord();
 
   Future<void> markBeaconRoomSeen({
@@ -953,43 +1008,47 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String? threadItemId,
     required DateTime at,
-  }) =>
-      _db.withMutatingUser(userId, () async {
-        // customStatement accepts strings/nums only — bind timestamptz as ISO text.
-        final seenAtIso = at.toUtc().toIso8601String();
-        if (threadItemId == null) {
-          await _db.customStatement(
-            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-            r'VALUES ($1, $2, NULL, $3::timestamptz) '
-            'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
-            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
-            [userId, beaconId, seenAtIso],
-          );
-        } else {
-          await _db.customStatement(
-            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-            r'VALUES ($1, $2, $3, $4::timestamptz) '
-            'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
-            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
-            [userId, beaconId, threadItemId, seenAtIso],
-          );
-        }
-      });
+  }) => _db.withMutatingUser(userId, () async {
+    // customStatement accepts strings/nums only — bind timestamptz as ISO text.
+    final seenAtIso = at.toUtc().toIso8601String();
+    if (threadItemId == null) {
+      await _db.customStatement(
+        'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+        r'VALUES ($1, $2, NULL, $3::timestamptz) '
+        'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
+        '''DO UPDATE SET last_seen_at = GREATEST(
+              beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
+            )''',
+        [userId, beaconId, seenAtIso],
+      );
+    } else {
+      await _db.customStatement(
+        'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+        r'VALUES ($1, $2, $3, $4::timestamptz) '
+        'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
+        '''DO UPDATE SET last_seen_at = GREATEST(
+              beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
+            )''',
+        [userId, beaconId, threadItemId, seenAtIso],
+      );
+    }
+  });
 
   /// Newest main-room message timestamp, or null when the room has no messages.
   Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId) async {
-    final row = await (_db.select(_db.beaconRoomMessages)
-          ..where(
-            (m) => m.beaconId.equals(beaconId) & m.threadItemId.isNull(),
-          )
-          ..orderBy([
-            (t) => OrderingTerm(
-              expression: t.createdAt,
-              mode: OrderingMode.desc,
-            ),
-          ])
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.beaconRoomMessages)
+              ..where(
+                (m) => m.beaconId.equals(beaconId) & m.threadItemId.isNull(),
+              )
+              ..orderBy([
+                (t) => OrderingTerm(
+                  expression: t.createdAt,
+                  mode: OrderingMode.desc,
+                ),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
     return row?.createdAt.dateTime;
   }
 
@@ -1011,14 +1070,14 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (userIds.isEmpty) {
       return const {};
     }
-    final rows = await (_db.select(_db.beaconRoomSeen)
-          ..where(
-            (s) =>
-                s.beaconId.equals(beaconId) &
-                s.userId.isIn(userIds) &
-                s.threadItemId.isNull(),
-          ))
-        .get();
+    final rows =
+        await (_db.select(_db.beaconRoomSeen)..where(
+              (s) =>
+                  s.beaconId.equals(beaconId) &
+                  s.userId.isIn(userIds) &
+                  s.threadItemId.isNull(),
+            ))
+            .get();
     return {
       for (final row in rows) row.userId: row.lastSeenAt.dateTime,
     };
@@ -1027,36 +1086,34 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
   Future<void> markParticipantRoomSeen({
     required String beaconId,
     required String userId,
-  }) =>
-      markBeaconRoomSeen(
-        userId: userId,
-        beaconId: beaconId,
-        threadItemId: null,
-        at: DateTime.timestamp(),
-      );
+  }) => markBeaconRoomSeen(
+    userId: userId,
+    beaconId: beaconId,
+    threadItemId: null,
+    at: DateTime.timestamp(),
+  );
 
   Future<BeaconRoomMessageRecord?> getRoomMessageById(String messageId) async =>
       (await _db.managers.beaconRoomMessages
-          .filter((m) => m.id.equals(messageId))
-          .getSingleOrNull())
+              .filter((m) => m.id.equals(messageId))
+              .getSingleOrNull())
           ?.toRecord();
 
   Future<void> markRoomMessageSemanticDone({
     required String messageId,
     required String actingUserId,
-  }) =>
-      _db.withMutatingUser(actingUserId, () async {
-        await _db.managers.beaconRoomMessages
-            .filter((m) => m.id.equals(messageId))
-            .update(
-              (u) => u(
-                semanticMarker: const Value(BeaconRoomSemanticMarker.done),
-                systemPayload: Value(<String, Object?>{
-                  'semanticActorId': actingUserId,
-                }),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(actingUserId, () async {
+    await _db.managers.beaconRoomMessages
+        .filter((m) => m.id.equals(messageId))
+        .update(
+          (u) => u(
+            semanticMarker: const Value(BeaconRoomSemanticMarker.done),
+            systemPayload: Value(<String, Object?>{
+              'semanticActorId': actingUserId,
+            }),
+          ),
+        );
+  });
 
   /// Audit row for the Activity tab / timeline (Phase 5).
   Future<void> insertActivityEvent({
@@ -1067,35 +1124,37 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     String? targetUserId,
     String? sourceMessageId,
     Map<String, Object?>? diff,
-  }) =>
-      _db.withMutatingUser(actorId, () async {
-        await _db.managers.beaconActivityEvents.create(
-          (o) => o(
-            id: Value(BeaconActivityEventEntity.newId),
-            beaconId: beaconId,
-            visibility: visibility,
-            type: type,
-            actorId: Value(actorId),
-            targetUserId: Value(targetUserId),
-            sourceMessageId: Value(sourceMessageId),
-            diff: Value(diff),
-            createdAt: const Value.absent(),
-          ),
-        );
-      });
+  }) => _db.withMutatingUser(actorId, () async {
+    await _db.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: visibility,
+        type: type,
+        actorId: Value(actorId),
+        targetUserId: Value(targetUserId),
+        sourceMessageId: Value(sourceMessageId),
+        diff: Value(diff),
+        createdAt: const Value.absent(),
+      ),
+    );
+  });
 
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     int limit = 200,
   }) async {
-    final rows = await (_db.select(_db.beaconActivityEvents)
-          ..where((e) => e.beaconId.equals(beaconId))
-          ..orderBy([
-            (e) =>
-                OrderingTerm(expression: e.createdAt, mode: OrderingMode.desc),
-          ])
-          ..limit(limit))
-        .get();
+    final rows =
+        await (_db.select(_db.beaconActivityEvents)
+              ..where((e) => e.beaconId.equals(beaconId))
+              ..orderBy([
+                (e) => OrderingTerm(
+                  expression: e.createdAt,
+                  mode: OrderingMode.desc,
+                ),
+              ])
+              ..limit(limit))
+            .get();
 
     if (rows.isEmpty) return const [];
 
@@ -1107,9 +1166,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final messageToItemId = <String, String>{};
     if (sourceMessageIds.isNotEmpty) {
-      final messages = await (_db.select(_db.beaconRoomMessages)
-            ..where((m) => m.id.isIn(sourceMessageIds.toList())))
-          .get();
+      final messages = await (_db.select(
+        _db.beaconRoomMessages,
+      )..where((m) => m.id.isIn(sourceMessageIds.toList()))).get();
       for (final message in messages) {
         final linkedItemId = message.linkedItemId?.trim();
         if (linkedItemId != null && linkedItemId.isNotEmpty) {
@@ -1133,9 +1192,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
     final itemsById = <String, CoordinationItem>{};
     if (itemIds.isNotEmpty) {
-      final items = await (_db.select(_db.coordinationItems)
-            ..where((t) => t.id.isIn(itemIds.toList())))
-          .get();
+      final items = await (_db.select(
+        _db.coordinationItems,
+      )..where((t) => t.id.isIn(itemIds.toList()))).get();
       for (final item in items) {
         itemsById[item.id] = item;
       }
@@ -1160,8 +1219,8 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     final itemId = storedItemId != null && storedItemId.isNotEmpty
         ? storedItemId
         : (row.sourceMessageId != null
-            ? messageToItemId[row.sourceMessageId!]
-            : null);
+              ? messageToItemId[row.sourceMessageId!]
+              : null);
 
     var diff = row.diff;
     if (diff == null && itemId != null) {
@@ -1208,10 +1267,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
   }
 
   Future<String?> beaconAuthorUserId(String beaconId) async {
-    final b =
-        await _db.managers.beacons
-            .filter((e) => e.id.equals(beaconId))
-            .getSingleOrNull();
+    final b = await _db.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .getSingleOrNull();
     return b?.userId;
   }
 
@@ -1267,29 +1325,33 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         BeaconActivityEventTypeBits.beaconLifecycleChanged,
       ];
 
-      final row = await (_db.select(_db.beaconActivityEvents)
-            ..where(
-              (e) {
-                final meaningful = (e.type.isBiggerOrEqualValue(100) &
-                        e.type.isSmallerThanValue(500)) |
-                    e.type.isIn(meaningfulTypes);
-                final visible = canUseRoom
-                    ? e.visibility.isIn([
-                        BeaconActivityEventVisibilityBits.public,
-                        BeaconActivityEventVisibilityBits.room,
-                      ])
-                    : e.visibility.equals(
-                        BeaconActivityEventVisibilityBits.public,
-                      );
-                return e.beaconId.equals(beaconId) & meaningful & visible;
-              },
-            )
-            ..orderBy([
-              (e) =>
-                  OrderingTerm(expression: e.createdAt, mode: OrderingMode.desc),
-            ])
-            ..limit(1))
-          .getSingleOrNull();
+      final row =
+          await (_db.select(_db.beaconActivityEvents)
+                ..where(
+                  (e) {
+                    final meaningful =
+                        (e.type.isBiggerOrEqualValue(100) &
+                            e.type.isSmallerThanValue(500)) |
+                        e.type.isIn(meaningfulTypes);
+                    final visible = canUseRoom
+                        ? e.visibility.isIn([
+                            BeaconActivityEventVisibilityBits.public,
+                            BeaconActivityEventVisibilityBits.room,
+                          ])
+                        : e.visibility.equals(
+                            BeaconActivityEventVisibilityBits.public,
+                          );
+                    return e.beaconId.equals(beaconId) & meaningful & visible;
+                  },
+                )
+                ..orderBy([
+                  (e) => OrderingTerm(
+                    expression: e.createdAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
 
       if (row == null) {
         eventsByBeacon[beaconId] = null;
@@ -1323,8 +1385,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
           return MyWorkLastActivityEventRow(
             beaconId: beaconId,
             event: event,
-            actorTitle:
-                actorId == null ? null : titles[actorId],
+            actorTitle: actorId == null ? null : titles[actorId],
             actorImageId: actorId == null ? null : pics[actorId]?.imageId,
           );
         }(),
@@ -1368,31 +1429,32 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     final excludeSelf = exclude != null && exclude.isNotEmpty;
 
     if (after == null) {
-      final rows = await (_db.select(_db.beaconRoomMessages)
-            ..where((m) {
+      final rows =
+          await (_db.select(_db.beaconRoomMessages)..where((m) {
+                var cond =
+                    m.beaconId.equals(beaconId) & m.threadItemId.isNull();
+                if (excludeSelf) {
+                  // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
+                  cond = cond & m.authorId.equals(exclude).not();
+                }
+                return cond;
+              }))
+              .get();
+      return rows.length;
+    }
+    final rows =
+        await (_db.select(_db.beaconRoomMessages)..where((m) {
               var cond =
-                  m.beaconId.equals(beaconId) & m.threadItemId.isNull();
+                  m.beaconId.equals(beaconId) &
+                  m.threadItemId.isNull() &
+                  m.createdAt.isBiggerThanValue(PgDateTime(after));
               if (excludeSelf) {
                 // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
                 cond = cond & m.authorId.equals(exclude).not();
               }
               return cond;
             }))
-          .get();
-      return rows.length;
-    }
-    final rows = await (_db.select(_db.beaconRoomMessages)
-          ..where((m) {
-            var cond = m.beaconId.equals(beaconId) &
-                m.threadItemId.isNull() &
-                m.createdAt.isBiggerThanValue(PgDateTime(after));
-            if (excludeSelf) {
-              // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
-              cond = cond & m.authorId.equals(exclude).not();
-            }
-            return cond;
-          }))
-        .get();
+            .get();
     return rows.length;
   }
 
@@ -1402,34 +1464,34 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required Duration window,
   }) async {
     final since = DateTime.timestamp().subtract(window);
-    final rows = await _db.customSelect(
-      '''
+    final rows = await _db
+        .customSelect(
+          '''
 SELECT COUNT(*)::int AS c
 FROM public.beacon_room_message
 WHERE author_id = \$1 AND created_at >= \$2
 ''',
-      variables: [
-        Variable<String>(authorId),
-        Variable(TypedValue(Type.timestampTz, since)),
-      ],
-    ).getSingle();
+          variables: [
+            Variable<String>(authorId),
+            Variable(TypedValue(Type.timestampTz, since)),
+          ],
+        )
+        .getSingle();
     return rows.read<int>('c');
   }
 
   Future<int> countAttachmentsForMessage(String messageId) async {
-    final rows = await (_db.select(_db.beaconRoomMessageAttachments)
-          ..where((a) => a.messageId.equals(messageId)))
-        .get();
+    final rows = await (_db.select(
+      _db.beaconRoomMessageAttachments,
+    )..where((a) => a.messageId.equals(messageId))).get();
     return rows.length;
   }
 
   Future<BeaconRoomMessageAttachmentRecord?> getRoomMessageAttachmentById(
     String attachmentId,
-  ) async =>
-      (await (_db.select(_db.beaconRoomMessageAttachments)
-            ..where((a) => a.id.equals(attachmentId)))
-          .getSingleOrNull())
-          ?.toRecord();
+  ) async => (await (_db.select(
+    _db.beaconRoomMessageAttachments,
+  )..where((a) => a.id.equals(attachmentId))).getSingleOrNull())?.toRecord();
 
   Future<void> insertRoomMessageAttachmentImage({
     required String attachmentId,
@@ -1440,21 +1502,22 @@ WHERE author_id = \$1 AND created_at >= \$2
     required int sizeBytes,
     required String displayName,
     required String mutatingUserId,
-  }) =>
-      _db.withMutatingUser(mutatingUserId, () async {
-        await _db.into(_db.beaconRoomMessageAttachments).insert(
-              BeaconRoomMessageAttachmentsCompanion.insert(
-                id: attachmentId,
-                messageId: messageId,
-                kind: BeaconRoomMessageAttachmentKind.image,
-                imageId: Value(UuidValue.fromString(imageId)),
-                fileName: Value(displayName),
-                mime: Value(mime),
-                sizeBytes: Value(sizeBytes),
-                position: Value(position),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(mutatingUserId, () async {
+    await _db
+        .into(_db.beaconRoomMessageAttachments)
+        .insert(
+          BeaconRoomMessageAttachmentsCompanion.insert(
+            id: attachmentId,
+            messageId: messageId,
+            kind: BeaconRoomMessageAttachmentKind.image,
+            imageId: Value(UuidValue.fromString(imageId)),
+            fileName: Value(displayName),
+            mime: Value(mime),
+            sizeBytes: Value(sizeBytes),
+            position: Value(position),
+          ),
+        );
+  });
 
   Future<void> insertRoomMessageAttachmentFile({
     required String attachmentId,
@@ -1465,19 +1528,20 @@ WHERE author_id = \$1 AND created_at >= \$2
     required int sizeBytes,
     required String displayName,
     required String mutatingUserId,
-  }) =>
-      _db.withMutatingUser(mutatingUserId, () async {
-        await _db.into(_db.beaconRoomMessageAttachments).insert(
-              BeaconRoomMessageAttachmentsCompanion.insert(
-                id: attachmentId,
-                messageId: messageId,
-                kind: BeaconRoomMessageAttachmentKind.file,
-                fileUrl: Value(storagePath),
-                fileName: Value(displayName),
-                mime: Value(mime),
-                sizeBytes: Value(sizeBytes),
-                position: Value(position),
-              ),
-            );
-      });
+  }) => _db.withMutatingUser(mutatingUserId, () async {
+    await _db
+        .into(_db.beaconRoomMessageAttachments)
+        .insert(
+          BeaconRoomMessageAttachmentsCompanion.insert(
+            id: attachmentId,
+            messageId: messageId,
+            kind: BeaconRoomMessageAttachmentKind.file,
+            fileUrl: Value(storagePath),
+            fileName: Value(displayName),
+            mime: Value(mime),
+            sizeBytes: Value(sizeBytes),
+            position: Value(position),
+          ),
+        );
+  });
 }

@@ -25,13 +25,13 @@ class BeaconNotificationRecipientResolver {
         return;
       }
       final existing = out[userId];
-      if (existing == null || priority.index < existing.priority.index) {
-        out[userId] = BeaconNotificationRecipient(
-          userId: userId,
-          reason: reason,
-          priority: priority,
-        );
-      }
+      out[userId] = BeaconNotificationRecipient(
+        userId: userId,
+        reasons: {...?existing?.reasons, reason},
+        priority: existing == null || priority.index < existing.priority.index
+            ? priority
+            : existing.priority,
+      );
     }
 
     switch (intent.kind) {

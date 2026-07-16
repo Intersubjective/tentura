@@ -9,7 +9,7 @@ part 'beacon_notification_recipient.freezed.dart';
 abstract class BeaconNotificationRecipient with _$BeaconNotificationRecipient {
   const factory BeaconNotificationRecipient({
     required String userId,
-    required NotificationRecipientReason reason,
+    required Set<NotificationRecipientReason> reasons,
     required NotificationPriority priority,
   }) = _BeaconNotificationRecipient;
 }

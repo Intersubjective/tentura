@@ -69,6 +69,12 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
+  Future<Map<String, Object?>?> roomMessageTarget({
+    required String beaconId,
+    required String messageId,
+    required String viewerUserId,
+  });
+
   Future<BeaconRoomMessageRecord> insertRoomMessage({
     required String beaconId,
     required String authorId,
@@ -200,13 +206,19 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<Map<String, String>> userHandlesByIds(Iterable<String> userIds);
 
-  Future<Map<String, ({
-    bool hasPicture,
-    int picHeight,
-    int picWidth,
-    String blurHash,
-    String imageId,
-  })>> userPicMetaByIds(Iterable<String> userIds);
+  Future<
+    Map<
+      String,
+      ({
+        bool hasPicture,
+        int picHeight,
+        int picWidth,
+        String blurHash,
+        String imageId,
+      })
+    >
+  >
+  userPicMetaByIds(Iterable<String> userIds);
 
   Future<Map<String, String>> userTitlesByIds(Iterable<String> userIds);
 }

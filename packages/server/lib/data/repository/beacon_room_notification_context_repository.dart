@@ -26,25 +26,37 @@ class BeaconRoomNotificationContextRepository
     final stewards = await _room.listStewardUserIds(beaconId);
     final admitted = await _room.listAdmittedUserIds(beaconId);
     final activeCoordination = await _usersWithActiveCoordination(beaconId);
+    final inboxStances = await _inboxStanceUserIds(beaconId);
 
     return BeaconNotificationContext(
       beaconAuthorId: author ?? '',
       admittedUserIds: admitted.toSet(),
       stewardUserIds: stewards.toSet(),
       usersWithActiveCoordination: activeCoordination,
+      inboxStanceUserIds: inboxStances,
     );
   }
 
+  Future<Set<String>> _inboxStanceUserIds(String beaconId) async {
+    final rows =
+        await (_db.select(_db.inboxItems)
+              ..where((item) => item.beaconId.equals(beaconId))
+              ..where((item) => item.status.isIn(const [0, 1])))
+            .get();
+    return rows.map((row) => row.userId).toSet();
+  }
+
   Future<Set<String>> _usersWithActiveCoordination(String beaconId) async {
-    final rows = await (_db.select(_db.coordinationItems)
-          ..where((t) => t.beaconId.equals(beaconId))
-          ..where((t) => t.published.equals(true))
-          ..where(
-            (t) =>
-                t.status.equals(coordinationItemStatusOpen) |
-                t.status.equals(coordinationItemStatusAccepted),
-          ))
-        .get();
+    final rows =
+        await (_db.select(_db.coordinationItems)
+              ..where((t) => t.beaconId.equals(beaconId))
+              ..where((t) => t.published.equals(true))
+              ..where(
+                (t) =>
+                    t.status.equals(coordinationItemStatusOpen) |
+                    t.status.equals(coordinationItemStatusAccepted),
+              ))
+            .get();
     final out = <String>{};
     for (final row in rows) {
       if (row.creatorId.isNotEmpty) {

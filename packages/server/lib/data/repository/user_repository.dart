@@ -125,20 +125,18 @@ class UserRepository implements UserRepositoryPort {
         .getSingleOrNull();
     if (existing != null) return;
 
-    await _database.withMutatingUser(recipientId, () async {
-      await _database
-          .into(_database.beaconForwardEdges)
-          .insert(
-            BeaconForwardEdgesCompanion.insert(
-              beaconId: beaconId,
-              senderId: senderId,
-              recipientId: recipientId,
-              note: const Value(''),
-              parentEdgeId: Value(parentForwardEdgeId),
-            ),
-            onConflict: DoNothing(),
-          );
-    });
+    await _database
+        .into(_database.beaconForwardEdges)
+        .insert(
+          BeaconForwardEdgesCompanion.insert(
+            beaconId: beaconId,
+            senderId: senderId,
+            recipientId: recipientId,
+            note: const Value(''),
+            parentEdgeId: Value(parentForwardEdgeId),
+          ),
+          onConflict: DoNothing(),
+        );
   }
 
   // TBD: move to SQL

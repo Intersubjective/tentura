@@ -39,4 +39,11 @@ class UserTrustEdgeRepositoryMock implements UserTrustEdgeRepositoryPort {
     required String objectUserId,
     required int newAmount,
   }) async {}
+
+  @override
+  Future<bool> setVoteAmountAndDetectMutualFormationInTransaction({
+    required String subjectUserId,
+    required String objectUserId,
+    required int newAmount,
+  }) async => false;
 }

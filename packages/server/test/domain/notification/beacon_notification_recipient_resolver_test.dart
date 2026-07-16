@@ -55,7 +55,9 @@ void main() {
 
     expect(recipients, hasLength(1));
     expect(recipients.single.userId, 'target');
-    expect(recipients.single.reason, NotificationRecipientReason.targetOfAsk);
+    expect(recipients.single.reasons, {
+      NotificationRecipientReason.targetOfAsk,
+    });
   });
 
   test('promiseMade notifies author, stewards, and affected participant', () {
@@ -69,8 +71,8 @@ void main() {
 
     expect(recipients.map((r) => r.userId).toSet(), {'author', 'steward', 'affected'});
     expect(
-      recipients.singleWhere((r) => r.userId == 'author').reason,
-      NotificationRecipientReason.authorOfBeacon,
+      recipients.singleWhere((r) => r.userId == 'author').reasons,
+      {NotificationRecipientReason.authorOfBeacon},
     );
   });
 
@@ -101,7 +103,9 @@ void main() {
     expect(recipients.map((r) => r.userId).toSet(), {'r1', 'r2'});
     expect(
       recipients.every(
-        (r) => r.reason == NotificationRecipientReason.forwardRecipient,
+        (r) =>
+            r.reasons.length == 1 &&
+            r.reasons.contains(NotificationRecipientReason.forwardRecipient),
       ),
       isTrue,
     );
@@ -119,13 +123,15 @@ void main() {
     expect(recipients.map((r) => r.userId).toSet(), {'p1', 'p2'});
     expect(
       recipients.every(
-        (r) => r.reason == NotificationRecipientReason.reviewParticipant,
+        (r) =>
+            r.reasons.length == 1 &&
+            r.reasons.contains(NotificationRecipientReason.reviewParticipant),
       ),
       isTrue,
     );
   });
 
-  test('keeps higher priority when duplicate user appears with lower priority', () {
+  test('retains all reasons when duplicate recipients are resolved', () {
     final recipients = resolver.resolveRecipients(
       intent: intent(
         kind: NotificationKind.commitmentEvent,
@@ -137,6 +143,26 @@ void main() {
 
     final steward = recipients.singleWhere((r) => r.userId == 'steward');
     expect(steward.priority, NotificationPriority.urgent);
-    expect(steward.reason, NotificationRecipientReason.roomModeratorOrSteward);
+    expect(steward.reasons, {
+      NotificationRecipientReason.roomModeratorOrSteward,
+    });
+  });
+
+  test('retains distinct reasons for one recipient', () {
+    final recipients = resolver.resolveRecipients(
+      intent: intent(kind: NotificationKind.coordinationChanged),
+      ctx: ctx(
+        beaconAuthorId: 'same-user',
+        admittedUserIds: {'same-user'},
+        usersWithActiveCoordination: {'same-user'},
+      ),
+    );
+
+    expect(recipients, hasLength(1));
+    expect(recipients.single.reasons, {
+      NotificationRecipientReason.authorOfBeacon,
+      NotificationRecipientReason.admittedRoomMember,
+      NotificationRecipientReason.activeParticipant,
+    });
   });
 }

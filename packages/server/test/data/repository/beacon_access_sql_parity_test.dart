@@ -20,6 +20,7 @@ import '../../support/pg_test_public_keys.dart';
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  var attentionSkipReason = skipReason;
 
   if (postgresReachable) {
     final env = _testEnv();
@@ -27,6 +28,10 @@ Future<void> main() async {
     try {
       if (!await _hasVisibilityFunctions(probe)) {
         skipReason = 'm0098 schema (beacon_can_read_content) missing';
+        attentionSkipReason = skipReason;
+      } else if (!await _hasAttentionRelation(probe)) {
+        attentionSkipReason =
+            'm0117 schema (visible_attention_receipts) missing';
       }
     } finally {
       await probe.close();
@@ -47,6 +52,9 @@ Future<void> main() async {
     });
 
     tearDown(() async {
+      await db.customStatement(
+        "DELETE FROM public.notification_outbox WHERE account_id LIKE 'Uvisparity%'",
+      );
       await db.customStatement(
         "DELETE FROM public.inbox_item WHERE beacon_id = 'Bvisparity01'",
       );
@@ -608,6 +616,57 @@ ON CONFLICT (id) DO NOTHING
     },
     skip: skipReason,
   );
+
+  test(
+    'attention relation stays in parity with canonical content/tombstone SQL',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+      await db.customStatement(
+        '''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, beacon_id,
+  source_event_key, destination_kind, presentation_key, access_policy
+) VALUES (
+  'Nvisparity01', 'Uvisparityview', 'coordination',
+  'coordinationChanged', 'normal', 'Parity', 'Parity', '/parity',
+  'visparity-dedup', 'Bvisparity01', 'visparity-source',
+  'beacon', 'request_status_changed', 'beacon_content'
+)
+''',
+      );
+
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await _attentionRelationContains(db, 'Nvisparity01'), isFalse);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at
+) VALUES (
+  'Fvisparity01', 'Bvisparity01',
+  'Uvisparityauth', 'Uvisparityview', now()
+)
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(await _attentionRelationContains(db, 'Nvisparity01'), isTrue);
+
+      await insertBeacon(status: BeaconStatus.deleted.smallintValue);
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlTombstone('Uvisparityview'), isTrue);
+      expect(await _attentionRelationContains(db, 'Nvisparity01'), isFalse);
+
+      await db.customStatement('''
+UPDATE public.notification_outbox
+SET access_policy = 'beacon_tombstone'
+WHERE id = 'Nvisparity01'
+''');
+      expect(await _attentionRelationContains(db, 'Nvisparity01'), isTrue);
+    },
+    skip: attentionSkipReason,
+  );
 }
 
 BeaconInvolvementVisibilityFacts _involvementFacts({
@@ -644,6 +703,32 @@ LIMIT 1
 ''',
   ).get();
   return rows.isNotEmpty;
+}
+
+Future<bool> _hasAttentionRelation(TenturaDb db) async {
+  final rows = await db.customSelect(
+    '''
+SELECT 1 FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = 'visible_attention_receipts'
+LIMIT 1
+''',
+  ).get();
+  return rows.isNotEmpty;
+}
+
+Future<bool> _attentionRelationContains(TenturaDb db, String receiptId) async {
+  final row = await db.customSelect(
+    r'''
+SELECT EXISTS (
+  SELECT 1
+  FROM public.visible_attention_receipts('Uvisparityview')
+  WHERE receipt_id = $1
+) AS visible
+''',
+    variables: [Variable<String>(receiptId)],
+  ).getSingle();
+  return row.read<bool>('visible');
 }
 
 Future<bool> _canConnectPostgres() async {
