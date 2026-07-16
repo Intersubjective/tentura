@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -20,7 +23,10 @@ class NotificationOutboxRepository implements NotificationOutboxRepositoryPort {
   static const _columns = '''
 id, account_id, category, kind, priority,
 title, body, action_url, created_at, read_at, collapsed_count,
-beacon_id, coordination_item_id, actor_user_id
+beacon_id, coordination_item_id, actor_user_id,
+seen_at, source_event_key, destination_kind, target_entity_id,
+presentation_key, presentation_payload::text AS presentation_payload,
+in_app_preference_class, suppression_class, access_policy
 ''';
 
   @override
@@ -90,22 +96,24 @@ DO UPDATE SET
     variables.add(Variable<int>(limit));
     sql.write('ORDER BY created_at DESC LIMIT \$${variables.length}');
 
-    final rows =
-        await _database.customSelect(sql.toString(), variables: variables)
-            .get();
+    final rows = await _database
+        .customSelect(sql.toString(), variables: variables)
+        .get();
     return [for (final row in rows) _mapRow(row)];
   }
 
   @override
   Future<int> unreadActionableCount(String accountId) async {
-    final row = await _database.customSelect(
-      'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
-      r'WHERE account_id = $1 AND read_at IS NULL AND category = $2',
-      variables: [
-        Variable<String>(accountId),
-        Variable<String>(NotificationCategory.asksOfMe.name),
-      ],
-    ).getSingle();
+    final row = await _database
+        .customSelect(
+          'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
+          r'WHERE account_id = $1 AND read_at IS NULL AND category = $2',
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(NotificationCategory.asksOfMe.name),
+          ],
+        )
+        .getSingle();
     return row.read<int>('c');
   }
 
@@ -117,8 +125,10 @@ DO UPDATE SET
     if (ids.isEmpty) {
       return 0;
     }
-    final placeholders =
-        List.generate(ids.length, (i) => '\$${i + 2}').join(',');
+    final placeholders = List.generate(
+      ids.length,
+      (i) => '\$${i + 2}',
+    ).join(',');
     return _database.customUpdate(
       'UPDATE public.notification_outbox SET read_at = now() '
       r'WHERE account_id = $1 AND read_at IS NULL '
@@ -133,27 +143,29 @@ DO UPDATE SET
 
   @override
   Future<int> markAllRead(String accountId) => _database.customUpdate(
-        'UPDATE public.notification_outbox SET read_at = now() '
-        r'WHERE account_id = $1 AND read_at IS NULL',
-        variables: [Variable<String>(accountId)],
-        updateKind: UpdateKind.update,
-      );
+    'UPDATE public.notification_outbox SET read_at = now() '
+    r'WHERE account_id = $1 AND read_at IS NULL',
+    variables: [Variable<String>(accountId)],
+    updateKind: UpdateKind.update,
+  );
 
   @override
   Future<int> markEmailedByDedupKey(String dedupKey) => _database.customUpdate(
-        'UPDATE public.notification_outbox SET emailed_at = now() '
-        r'WHERE dedup_key = $1 AND emailed_at IS NULL',
-        variables: [Variable<String>(dedupKey)],
-        updateKind: UpdateKind.update,
-      );
+    'UPDATE public.notification_outbox SET emailed_at = now() '
+    r'WHERE dedup_key = $1 AND emailed_at IS NULL',
+    variables: [Variable<String>(dedupKey)],
+    updateKind: UpdateKind.update,
+  );
 
   @override
   Future<int> markEmailed(List<String> ids) async {
     if (ids.isEmpty) {
       return 0;
     }
-    final placeholders =
-        List.generate(ids.length, (i) => '\$${i + 1}').join(',');
+    final placeholders = List.generate(
+      ids.length,
+      (i) => '\$${i + 1}',
+    ).join(',');
     return _database.customUpdate(
       'UPDATE public.notification_outbox SET emailed_at = now() '
       'WHERE emailed_at IS NULL AND id IN ($placeholders)',
@@ -164,33 +176,39 @@ DO UPDATE SET
 
   @override
   Future<List<String>> accountsWithPendingEmail() async {
-    final rows = await _database.customSelect(
-      'SELECT DISTINCT account_id FROM public.notification_outbox '
-      'WHERE emailed_at IS NULL',
-    ).get();
+    final rows = await _database
+        .customSelect(
+          'SELECT DISTINCT account_id FROM public.notification_outbox '
+          'WHERE emailed_at IS NULL',
+        )
+        .get();
     return [for (final row in rows) row.read<String>('account_id')];
   }
 
   @override
   Future<DateTime?> lastEmailedAt(String accountId) async {
-    final rows = await _database.customSelect(
-      'SELECT MAX(emailed_at) AS m FROM public.notification_outbox '
-      r'WHERE account_id = $1',
-      variables: [Variable<String>(accountId)],
-    ).get();
-    return rows.isEmpty ? null : rows.first.readNullable<DateTime>('m');
+    final rows = await _database
+        .customSelect(
+          'SELECT MAX(emailed_at) AS m FROM public.notification_outbox '
+          r'WHERE account_id = $1',
+          variables: [Variable<String>(accountId)],
+        )
+        .get();
+    return rows.isEmpty ? null : _readTimestamp(rows.first, 'm');
   }
 
   @override
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,
   ) async {
-    final rows = await _database.customSelect(
-      'SELECT $_columns FROM public.notification_outbox '
-      r'WHERE account_id = $1 AND emailed_at IS NULL '
-      'ORDER BY created_at DESC',
-      variables: [Variable<String>(accountId)],
-    ).get();
+    final rows = await _database
+        .customSelect(
+          'SELECT $_columns FROM public.notification_outbox '
+          r'WHERE account_id = $1 AND emailed_at IS NULL '
+          'ORDER BY created_at DESC',
+          variables: [Variable<String>(accountId)],
+        )
+        .get();
     return [for (final row in rows) _mapRow(row)];
   }
 
@@ -201,16 +219,18 @@ DO UPDATE SET
     required Duration window,
   }) async {
     final since = DateTime.timestamp().subtract(window);
-    final row = await _database.customSelect(
-      'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
-      r'WHERE account_id = $1 AND category = $2 '
-      r'AND emailed_at IS NOT NULL AND emailed_at >= $3::timestamptz',
-      variables: [
-        Variable<String>(accountId),
-        Variable<String>(category.name),
-        Variable<String>(since.toUtc().toIso8601String()),
-      ],
-    ).getSingle();
+    final row = await _database
+        .customSelect(
+          'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
+          r'WHERE account_id = $1 AND category = $2 '
+          r'AND emailed_at IS NOT NULL AND emailed_at >= $3::timestamptz',
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(category.name),
+            Variable<String>(since.toUtc().toIso8601String()),
+          ],
+        )
+        .getSingle();
     return row.read<int>('c');
   }
 
@@ -229,20 +249,48 @@ DO UPDATE SET
       NotificationOutboxItemEntity(
         id: row.read<String>('id'),
         accountId: row.read<String>('account_id'),
-        category: notificationCategoryFromName(row.read<String>('category')) ??
+        category:
+            notificationCategoryFromName(row.read<String>('category')) ??
             NotificationCategory.coordination,
         kind: _kindFromName(row.read<String>('kind')),
         priority: _priorityFromName(row.read<String>('priority')),
         title: row.read<String>('title'),
         body: row.read<String>('body'),
         actionUrl: row.read<String>('action_url'),
-        createdAt: row.read<DateTime>('created_at'),
-        readAt: row.readNullable<DateTime>('read_at'),
+        createdAt: _readTimestamp(row, 'created_at')!,
+        readAt: _readTimestamp(row, 'read_at'),
         collapsedCount: row.read<int>('collapsed_count'),
         beaconId: row.readNullable<String>('beacon_id'),
         coordinationItemId: row.readNullable<String>('coordination_item_id'),
         actorUserId: row.readNullable<String>('actor_user_id'),
+        seenAt: _readTimestamp(row, 'seen_at'),
+        sourceEventKey: row.readNullable<String>('source_event_key'),
+        destinationKind: row.readNullable<String>('destination_kind'),
+        targetEntityId: row.readNullable<String>('target_entity_id'),
+        presentationKey: row.readNullable<String>('presentation_key'),
+        presentationPayload: Map<String, Object?>.from(
+          jsonDecode(row.read<String>('presentation_payload')) as Map,
+        ),
+        inAppPreferenceClass: row.readNullable<String>(
+          'in_app_preference_class',
+        ),
+        suppressionClass: row.read<String>('suppression_class'),
+        accessPolicy: row.read<String>('access_policy'),
       );
+
+  static DateTime? _readTimestamp(QueryRow row, String column) {
+    final value = row.data[column];
+    if (value == null) {
+      return null;
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is PgDateTime) {
+      return value.dateTime;
+    }
+    return DateTime.parse(value.toString());
+  }
 
   static NotificationKind _kindFromName(String name) =>
       NotificationKind.values.firstWhere(

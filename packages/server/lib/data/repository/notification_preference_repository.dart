@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/beacon_mute_entity.dart';
@@ -18,23 +19,27 @@ class NotificationPreferenceRepository
 
   final TenturaDb _database;
 
-  // Categories are stored as text[]; read/write them as a comma-joined string
-  // to avoid array type-mapping in customSelect/customStatement.
+  // Categories/classes are stored as text[]; read/write them as comma-joined
+  // strings to avoid array type-mapping in customSelect/customStatement.
   static const _selectColumns = '''
 account_id,
 array_to_string(push_categories, ',')  AS push_categories,
 array_to_string(email_categories, ',') AS email_categories,
+array_to_string(muted_in_app_event_classes, ',')
+  AS muted_in_app_event_classes,
 quiet_hours_start, quiet_hours_end, tz_offset_minutes,
 email_digest, snooze_until, lock_screen_safe, locale
 ''';
 
   @override
   Future<NotificationPreferencesEntity> getForAccount(String accountId) async {
-    final rows = await _database.customSelect(
-      'SELECT $_selectColumns FROM public.notification_preference '
-      r'WHERE account_id = $1 LIMIT 1',
-      variables: [Variable<String>(accountId)],
-    ).get();
+    final rows = await _database
+        .customSelect(
+          'SELECT $_selectColumns FROM public.notification_preference '
+          r'WHERE account_id = $1 LIMIT 1',
+          variables: [Variable<String>(accountId)],
+        )
+        .get();
     if (rows.isEmpty) {
       return NotificationPreferencesEntity.defaults(accountId);
     }
@@ -49,13 +54,17 @@ email_digest, snooze_until, lock_screen_safe, locale
       return const {};
     }
     final ids = accountIds.toList();
-    final placeholders =
-        List.generate(ids.length, (i) => '\$${i + 1}').join(',');
-    final rows = await _database.customSelect(
-      'SELECT $_selectColumns FROM public.notification_preference '
-      'WHERE account_id IN ($placeholders)',
-      variables: [for (final id in ids) Variable<String>(id)],
-    ).get();
+    final placeholders = List.generate(
+      ids.length,
+      (i) => '\$${i + 1}',
+    ).join(',');
+    final rows = await _database
+        .customSelect(
+          'SELECT $_selectColumns FROM public.notification_preference '
+          'WHERE account_id IN ($placeholders)',
+          variables: [for (final id in ids) Variable<String>(id)],
+        )
+        .get();
     final out = <String, NotificationPreferencesEntity>{
       for (final id in ids) id: NotificationPreferencesEntity.defaults(id),
     };
@@ -71,21 +80,23 @@ email_digest, snooze_until, lock_screen_safe, locale
     await _database.customStatement(
       r'''
 INSERT INTO public.notification_preference (
-  account_id, push_categories, email_categories,
+  account_id, push_categories, email_categories, muted_in_app_event_classes,
   quiet_hours_start, quiet_hours_end, tz_offset_minutes,
   email_digest, snooze_until, lock_screen_safe, locale, updated_at
 ) VALUES (
   $1,
   string_to_array($2, ','),
   string_to_array($3, ','),
-  $4, $5, $6,
-  $7,
-  CASE WHEN $8 = '' THEN NULL ELSE $8::timestamptz END,
-  $9, $10, now()
+  string_to_array($4, ','),
+  $5, $6, $7,
+  $8,
+  CASE WHEN $9 = '' THEN NULL ELSE $9::timestamptz END,
+  $10, $11, now()
 )
 ON CONFLICT (account_id) DO UPDATE SET
   push_categories   = EXCLUDED.push_categories,
   email_categories  = EXCLUDED.email_categories,
+  muted_in_app_event_classes = EXCLUDED.muted_in_app_event_classes,
   quiet_hours_start = EXCLUDED.quiet_hours_start,
   quiet_hours_end   = EXCLUDED.quiet_hours_end,
   tz_offset_minutes = EXCLUDED.tz_offset_minutes,
@@ -99,6 +110,7 @@ ON CONFLICT (account_id) DO UPDATE SET
         prefs.accountId,
         prefs.pushCategories.map((c) => c.name).join(','),
         prefs.emailCategories.map((c) => c.name).join(','),
+        prefs.mutedInAppEventClasses.join(','),
         prefs.quietHoursStartMinute,
         prefs.quietHoursEndMinute,
         prefs.tzOffsetMinutes,
@@ -112,32 +124,36 @@ ON CONFLICT (account_id) DO UPDATE SET
 
   @override
   Future<List<BeaconMuteEntity>> getBeaconMutes(String accountId) async {
-    final rows = await _database.customSelect(
-      'SELECT account_id, beacon_id, muted_until '
-      'FROM public.notification_beacon_mute '
-      r'WHERE account_id = $1',
-      variables: [Variable<String>(accountId)],
-    ).get();
+    final rows = await _database
+        .customSelect(
+          'SELECT account_id, beacon_id, muted_until '
+          'FROM public.notification_beacon_mute '
+          r'WHERE account_id = $1',
+          variables: [Variable<String>(accountId)],
+        )
+        .get();
     return [
       for (final row in rows)
         BeaconMuteEntity(
           accountId: row.read<String>('account_id'),
           beaconId: row.read<String>('beacon_id'),
-          mutedUntil: row.readNullable<DateTime>('muted_until'),
+          mutedUntil: _readTimestamp(row, 'muted_until'),
         ),
     ];
   }
 
   @override
   Future<Set<String>> getMutedBeaconIds(String accountId, DateTime now) async {
-    final rows = await _database.customSelect(
-      'SELECT beacon_id FROM public.notification_beacon_mute '
-      r'WHERE account_id = $1 AND (muted_until IS NULL OR muted_until > $2::timestamptz)',
-      variables: [
-        Variable<String>(accountId),
-        Variable<String>(now.toUtc().toIso8601String()),
-      ],
-    ).get();
+    final rows = await _database
+        .customSelect(
+          'SELECT beacon_id FROM public.notification_beacon_mute '
+          r'WHERE account_id = $1 AND (muted_until IS NULL OR muted_until > $2::timestamptz)',
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(now.toUtc().toIso8601String()),
+          ],
+        )
+        .get();
     return {for (final row in rows) row.read<String>('beacon_id')};
   }
 
@@ -187,16 +203,39 @@ DO UPDATE SET muted_until = EXCLUDED.muted_until
 
     return NotificationPreferencesEntity(
       accountId: row.read<String>('account_id'),
-      pushCategories: parseCategories(row.readNullable<String>('push_categories')),
-      emailCategories:
-          parseCategories(row.readNullable<String>('email_categories')),
+      pushCategories: parseCategories(
+        row.readNullable<String>('push_categories'),
+      ),
+      emailCategories: parseCategories(
+        row.readNullable<String>('email_categories'),
+      ),
+      mutedInAppEventClasses: _parseStrings(
+        row.readNullable<String>('muted_in_app_event_classes'),
+      ),
       quietHoursStartMinute: row.readNullable<int>('quiet_hours_start'),
       quietHoursEndMinute: row.readNullable<int>('quiet_hours_end'),
       tzOffsetMinutes: row.read<int>('tz_offset_minutes'),
       emailDigest: digestCadenceFromName(row.read<String>('email_digest')),
-      snoozeUntil: row.readNullable<DateTime>('snooze_until'),
+      snoozeUntil: _readTimestamp(row, 'snooze_until'),
       lockScreenSafe: row.read<bool>('lock_screen_safe'),
       locale: row.read<String>('locale'),
     );
+  }
+
+  static Set<String> _parseStrings(String? joined) =>
+      joined == null || joined.isEmpty ? const {} : joined.split(',').toSet();
+
+  static DateTime? _readTimestamp(QueryRow row, String column) {
+    final value = row.data[column];
+    if (value == null) {
+      return null;
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is PgDateTime) {
+      return value.dateTime;
+    }
+    return DateTime.parse(value.toString());
   }
 }

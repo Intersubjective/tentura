@@ -10,42 +10,114 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/migration/_migrations.dart';
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/repository/notification_preference_repository.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/env.dart';
 
 Future<void> main() async {
-  final env = _testEnv();
-  final reachable = await _canConnect(env);
-  final skipReason = reachable ? false : 'local Postgres not reachable';
+  final target = _DisposablePgTarget.fromEnvironment();
+  final reachable = await _canConnect(target.adminEnv);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
+  final env = target.databaseEnv;
 
-  group('m0114 realtime notification contract', () {
+  group('m0114-m0117 realtime notification contract', () {
     late Connection writer;
     late Connection listener;
+    late TenturaDb database;
+    late NotificationOutboxRepository outboxRepository;
+    late NotificationPreferenceRepository preferenceRepository;
     late StreamSubscription<String> notificationSubscription;
+    var writerOpened = false;
+    var listenerOpened = false;
+    var databaseCreated = false;
+    var notificationSubscriptionCreated = false;
     final notifications = <Map<String, dynamic>>[];
+    final migrationNotifications = <Map<String, dynamic>>[];
 
     setUpAll(() async {
+      await target.recreate();
       writer = await Connection.open(
         env.pgEndpoint,
         settings: env.pgEndpointSettings,
       );
+      writerOpened = true;
+      // MeritRank functions are provisioned outside Dart migrations. This
+      // disposable database does not execute them, so defer SQL-body checks
+      // while reconstructing the legacy schema from the checked-in history.
+      await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
-      // The developer database may already record version 0114 while this
-      // unpushed migration is still being refined. Reapply its idempotent
-      // statements so this contract test always exercises the checked-out
-      // source, not a stale function body from an earlier local run.
+      await _rollBackM0117ForTest(writer);
+      await _rollBackM0116ForTest(writer);
+      // Restore the disposable database to its exact pre-m0115 shape so the
+      // checked-in migration is exercised over a real legacy row below.
+      await _rollBackM0115ForTest(writer);
+
+      // Reapply m0114's idempotent statements before observing the expansion,
+      // ensuring the trigger contract comes from this checkout.
       for (final statement in m0114.statements) {
         await writer.execute(statement);
       }
+      await writer.execute(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES ('Ut01migration', 'T-01 migration', 't01-migration-public-key')
+''');
+      await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority,
+  read_at, dedup_key
+) VALUES (
+  'Nt01legacy', 'Ut01migration', 'asksOfMe', 'needsMe',
+  'Legacy', 'Legacy body', '/legacy', 'normal',
+  '2026-07-16T10:00:00Z', 't01-legacy'
+)
+''');
+      await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority,
+  read_at, dedup_key
+)
+SELECT
+  'Nt01backfill' || lpad(i::text, 4, '0'),
+  'Ut01migration', 'coordination', 'coordinationChanged',
+  'Backfill', 'Backfill body', '/backfill', 'normal',
+  '2026-07-16T10:00:00Z', 't01-backfill-' || i::text
+FROM generate_series(1, 500) AS i
+''');
+
       listener = await Connection.open(
         env.pgEndpoint,
         settings: env.pgEndpointSettings,
       );
+      listenerOpened = true;
       await listener.execute('LISTEN entity_changes');
       notificationSubscription = listener.channels['entity_changes'].listen(
         (payload) => notifications.add(
           jsonDecode(payload) as Map<String, dynamic>,
         ),
       );
+      notificationSubscriptionCreated = true;
+
+      await migrateDbSchema(writer);
+      await _settle();
+      migrationNotifications.addAll(notifications);
+      notifications.clear();
+
+      // The runner must be safe to invoke again without reapplying either
+      // checked-in Updates migration.
+      await migrateDbSchema(writer);
+
+      database = TenturaDb(env);
+      databaseCreated = true;
+      outboxRepository = NotificationOutboxRepository(database);
+      preferenceRepository = NotificationPreferenceRepository(database);
     });
 
     setUp(() async {
@@ -54,9 +126,586 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      await notificationSubscription.cancel();
-      await listener.close();
-      await writer.close();
+      if (databaseCreated) {
+        await database.close();
+      }
+      if (notificationSubscriptionCreated) {
+        await notificationSubscription.cancel();
+      }
+      if (listenerOpened) {
+        await listener.close();
+      }
+      if (writerOpened) {
+        await writer.close();
+      }
+      await target.drop();
+    });
+
+    test(
+      'm0115 expands and m0116 backfills under the statement publisher',
+      () async {
+        expect(migrationNotifications, [
+          {
+            'event': 'update',
+            'entity': 'notification',
+            'id': 'Ut01migration',
+            'user_ids': ['Ut01migration'],
+          },
+        ]);
+
+        final legacy = await writer.execute(r'''
+SELECT read_at, seen_at
+FROM public.notification_outbox
+WHERE id = 'Nt01legacy'
+''');
+        expect(legacy.single[0], isNotNull);
+        expect(legacy.single[1], legacy.single[0]);
+
+        final backfill = await writer.execute(r'''
+SELECT count(*)::int
+FROM public.notification_outbox
+WHERE id LIKE 'Nt01backfill%' AND seen_at = read_at
+''');
+        expect(backfill.single.single, 500);
+
+        final versions = await writer.execute(r'''
+SELECT version
+FROM public.schema_version
+WHERE version IN ('0115', '0116')
+ORDER BY version
+''');
+        expect(versions.map((row) => row.single), ['0115', '0116']);
+
+        final triggers = await writer.execute(r'''
+SELECT t.tgname, p.proname, (t.tgtype & 1) = 0,
+       pg_get_triggerdef(t.oid)
+FROM pg_trigger t
+JOIN pg_proc p ON p.oid = t.tgfoid
+WHERE t.tgrelid = 'public.notification_outbox'::regclass
+  AND NOT t.tgisinternal
+ORDER BY t.tgname
+''');
+        expect(
+          triggers.map((row) => (row[0], row[1], row[2])),
+          [
+            (
+              'notification_outbox_delete_notify',
+              'notify_notification_outbox_delete',
+              true,
+            ),
+            (
+              'notification_outbox_insert_notify',
+              'notify_notification_outbox_insert',
+              true,
+            ),
+            (
+              'notification_outbox_update_notify',
+              'notify_notification_outbox_update',
+              true,
+            ),
+          ],
+        );
+        expect(triggers[0][3], contains('REFERENCING OLD TABLE AS old_rows'));
+        expect(triggers[1][3], contains('REFERENCING NEW TABLE AS new_rows'));
+        expect(
+          triggers[2][3],
+          allOf(
+            contains('REFERENCING OLD TABLE AS old_rows'),
+            contains('NEW TABLE AS new_rows'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'm0115 columns, defaults, checks, and index predicates match C1',
+      () async {
+        final columnRows = await writer.execute(r'''
+SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+    (table_name = 'notification_outbox' AND column_name IN (
+      'seen_at', 'source_event_key', 'destination_kind', 'target_entity_id',
+      'presentation_key', 'presentation_payload', 'in_app_preference_class',
+      'suppression_class', 'access_policy'
+    ))
+    OR (table_name = 'notification_preference'
+        AND column_name = 'muted_in_app_event_classes')
+  )
+ORDER BY table_name, column_name
+''');
+        final columns = {
+          for (final row in columnRows)
+            '${row[0]}.${row[1]}': (
+              dataType: row[2],
+              udtName: row[3],
+              nullable: row[4],
+              defaultValue: row[5],
+            ),
+        };
+        expect(columns, hasLength(10));
+        expect(
+          columns['notification_outbox.seen_at']?.dataType,
+          'timestamp with time zone',
+        );
+        expect(columns['notification_outbox.seen_at']?.nullable, 'YES');
+        expect(columns['notification_outbox.seen_at']?.defaultValue, isNull);
+        for (final name in const [
+          'source_event_key',
+          'destination_kind',
+          'target_entity_id',
+          'presentation_key',
+          'in_app_preference_class',
+        ]) {
+          expect(columns['notification_outbox.$name']?.dataType, 'text');
+          expect(columns['notification_outbox.$name']?.nullable, 'YES');
+        }
+        expect(
+          columns['notification_outbox.presentation_payload']?.dataType,
+          'jsonb',
+        );
+        expect(
+          columns['notification_outbox.presentation_payload']?.nullable,
+          'NO',
+        );
+        expect(
+          columns['notification_outbox.presentation_payload']?.defaultValue,
+          "'{}'::jsonb",
+        );
+        expect(
+          columns['notification_outbox.suppression_class']?.defaultValue,
+          "'standard'::text",
+        );
+        expect(
+          columns['notification_outbox.access_policy']?.defaultValue,
+          "'legacy'::text",
+        );
+        expect(
+          columns['notification_preference.muted_in_app_event_classes']
+              ?.udtName,
+          '_text',
+        );
+        expect(
+          columns['notification_preference.muted_in_app_event_classes']
+              ?.nullable,
+          'NO',
+        );
+        expect(
+          columns['notification_preference.muted_in_app_event_classes']
+              ?.defaultValue,
+          "'{}'::text[]",
+        );
+
+        final checkRows = await writer.execute(r'''
+SELECT conname, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid = 'public.notification_outbox'::regclass
+  AND conname LIKE 'notification_outbox__%_chk'
+ORDER BY conname
+''');
+        final checks = {
+          for (final row in checkRows) row[0]! as String: row[1]! as String,
+        };
+        expect(checks.keys, {
+          'notification_outbox__access_policy_chk',
+          'notification_outbox__beacon_policy_chk',
+          'notification_outbox__new_shape_chk',
+          'notification_outbox__preference_class_chk',
+          'notification_outbox__recipient_safe_chk',
+          'notification_outbox__suppression_chk',
+        });
+        expect(
+          checks['notification_outbox__suppression_chk'],
+          allOf(contains('mandatory'), contains('standard'), contains('noisy')),
+        );
+        expect(
+          checks['notification_outbox__access_policy_chk'],
+          allOf(
+            contains('legacy'),
+            contains('beacon_content'),
+            contains('beacon_tombstone'),
+            contains('recipient_safe'),
+            contains('profile'),
+          ),
+        );
+        expect(
+          checks['notification_outbox__preference_class_chk'],
+          allOf(contains('in_app_preference_class'), contains('noisy')),
+        );
+        expect(
+          checks['notification_outbox__beacon_policy_chk'],
+          allOf(
+            contains('beacon_content'),
+            contains('beacon_tombstone'),
+            contains('beacon_id'),
+          ),
+        );
+        expect(
+          checks['notification_outbox__recipient_safe_chk'],
+          allOf(
+            contains('recipient_safe'),
+            contains('room_member_removed'),
+            contains('offer_declined'),
+            contains('offer_removed'),
+          ),
+        );
+        expect(
+          checks['notification_outbox__new_shape_chk'],
+          allOf(
+            contains('source_event_key'),
+            contains('destination_kind'),
+            contains('presentation_key'),
+          ),
+        );
+
+        final indexRows = await writer.execute(r'''
+SELECT c.relname, pg_get_indexdef(i.indexrelid),
+       pg_get_expr(i.indpred, i.indrelid)
+FROM pg_index i
+JOIN pg_class c ON c.oid = i.indexrelid
+WHERE i.indrelid = 'public.notification_outbox'::regclass
+  AND c.relname IN (
+    'notification_outbox__dedup',
+    'notification_outbox__unread',
+    'notification_outbox__feed_v2'
+  )
+ORDER BY c.relname
+''');
+        final indexes = {
+          for (final row in indexRows)
+            row[0]! as String: (
+              definition: row[1]! as String,
+              predicate: row[2] as String?,
+            ),
+        };
+        expect(indexes, hasLength(3));
+        expect(
+          indexes['notification_outbox__dedup']?.definition,
+          startsWith('CREATE UNIQUE INDEX'),
+        );
+        expect(
+          indexes['notification_outbox__dedup']?.predicate,
+          '(read_at IS NULL)',
+        );
+        expect(
+          indexes['notification_outbox__unread']?.definition,
+          contains('(account_id, created_at DESC, id DESC)'),
+        );
+        expect(
+          indexes['notification_outbox__unread']?.predicate,
+          '(COALESCE(seen_at, read_at) IS NULL)',
+        );
+        expect(
+          indexes['notification_outbox__feed_v2']?.definition,
+          contains('(account_id, created_at DESC, id DESC)'),
+        );
+        expect(indexes['notification_outbox__feed_v2']?.predicate, isNull);
+      },
+    );
+
+    test(
+      'statement publishers emit once per affected account and operation',
+      () async {
+        const otherAccountId = 'Ut01publisherother';
+        await writer.execute(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (
+  'Ut01publisherother',
+  'T-01 publisher other',
+  't01-publisher-other-public-key'
+)
+''');
+        addTearDown(() async {
+          await writer.execute(r'''
+DELETE FROM public."user" WHERE id = 'Ut01publisherother'
+''');
+        });
+        await _settle();
+        notifications.clear();
+
+        List<Map<String, dynamic>> changes() =>
+            _ofKind(notifications, 'notification');
+
+        Future<void> expectAccountChanges(String event) async {
+          await _waitUntil(() => changes().length >= 2);
+          await _settle();
+          expect(
+            changes().map(
+              (message) => (
+                message['event'],
+                message['id'],
+                (message['user_ids']! as List).join(','),
+              ),
+            ),
+            unorderedEquals([
+              (event, 'Ut01migration', 'Ut01migration'),
+              (event, otherAccountId, otherAccountId),
+            ]),
+          );
+          notifications.clear();
+        }
+
+        await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key
+) VALUES
+  (
+    'Nt01publisher1', 'Ut01migration', 'asksOfMe', 'needsMe',
+    'Publisher 1', 'Body', '/publisher/1', 'normal', 't01-publisher-1'
+  ),
+  (
+    'Nt01publisher2', 'Ut01migration', 'asksOfMe', 'needsMe',
+    'Publisher 2', 'Body', '/publisher/2', 'normal', 't01-publisher-2'
+  ),
+  (
+    'Nt01publisher3', 'Ut01publisherother', 'asksOfMe', 'needsMe',
+    'Publisher 3', 'Body', '/publisher/3', 'normal', 't01-publisher-3'
+  )
+''');
+        await expectAccountChanges('insert');
+
+        await writer.execute(r'''
+UPDATE public.notification_outbox
+SET title = title || ' updated'
+WHERE id LIKE 'Nt01publisher%'
+''');
+        await expectAccountChanges('update');
+
+        await writer.execute(r'''
+UPDATE public.notification_outbox
+SET emailed_at = now(), digested_at = now()
+WHERE id LIKE 'Nt01publisher%'
+''');
+        await _settle();
+        expect(changes(), isEmpty);
+
+        await writer.execute(r'''
+DELETE FROM public.notification_outbox
+WHERE id LIKE 'Nt01publisher%'
+''');
+        await expectAccountChanges('delete');
+      },
+    );
+
+    test('1/50/500-row acknowledgement updates each emit one hint', () async {
+      await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority,
+  dedup_key, target_entity_id
+)
+SELECT
+  'Nt01budget' || lpad(i::text, 4, '0'),
+  'Ut01migration', 'asksOfMe', 'needsMe',
+  'Budget', 'Budget body', '/budget', 'normal',
+  't01-budget-' || i::text, i::text
+FROM generate_series(1, 551) AS i
+''');
+      addTearDown(() async {
+        await writer.execute(r'''
+DELETE FROM public.notification_outbox WHERE id LIKE 'Nt01budget%'
+''');
+      });
+      await _waitUntil(
+        () => _ofKind(notifications, 'notification').isNotEmpty,
+      );
+      await _settle();
+      expect(_ofKind(notifications, 'notification'), hasLength(1));
+      notifications.clear();
+
+      Future<void> acknowledgeRange(
+        int start,
+        int end,
+        int expectedRows,
+      ) async {
+        await writer.execute(
+          Sql.named(r'''
+UPDATE public.notification_outbox
+SET seen_at = now()
+WHERE id LIKE 'Nt01budget%'
+  AND target_entity_id::int BETWEEN @start AND @end
+'''),
+          parameters: {'start': start, 'end': end},
+        );
+        await _waitUntil(
+          () => _ofKind(notifications, 'notification').isNotEmpty,
+        );
+        await _settle();
+        expect(_ofKind(notifications, 'notification'), [
+          {
+            'event': 'update',
+            'entity': 'notification',
+            'id': 'Ut01migration',
+            'user_ids': ['Ut01migration'],
+          },
+        ]);
+        final seenRows = await writer.execute(
+          Sql.named(r'''
+SELECT count(*)::int
+FROM public.notification_outbox
+WHERE id LIKE 'Nt01budget%'
+  AND seen_at IS NOT NULL
+  AND target_entity_id::int BETWEEN @start AND @end
+'''),
+          parameters: {'start': start, 'end': end},
+        );
+        expect(seenRows.single.single, expectedRows);
+        notifications.clear();
+      }
+
+      await acknowledgeRange(1, 1, 1);
+      await acknowledgeRange(2, 51, 50);
+      await acknowledgeRange(52, 551, 500);
+    });
+
+    test('m0115 checks reject every invalid receipt shape', () async {
+      var sequence = 0;
+      Future<void> expectRejected(String columns, String values) async {
+        sequence += 1;
+        await expectLater(
+          writer.execute('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  $columns
+) VALUES (
+  'Nt01invalid$sequence', 'Ut01migration', 'asksOfMe', 'needsMe',
+  'Invalid', 'Invalid', '/invalid', 'normal', 't01-invalid-$sequence',
+  $values
+)
+'''),
+          throwsA(isA<ServerException>()),
+        );
+      }
+
+      await expectRejected('suppression_class', "'other'");
+      await expectRejected('access_policy', "'other'");
+      await expectRejected(
+        'in_app_preference_class, suppression_class',
+        "'room_activity', 'standard'",
+      );
+      await expectRejected('access_policy', "'beacon_content'");
+      await expectRejected('access_policy', "'beacon_tombstone'");
+      await expectRejected('access_policy', "'recipient_safe'");
+      await expectRejected(
+        'access_policy, presentation_key',
+        "'recipient_safe', 'not_allowlisted'",
+      );
+      await expectRejected('source_event_key', "'event:1'");
+      await expectRejected(
+        'source_event_key, destination_kind',
+        "'event:2', 'profile'",
+      );
+    });
+
+    test('legacy collapse SQL and partial unique index remain exact', () async {
+      const dedupKey = 't01-collapse';
+      for (var i = 0; i < 2; i++) {
+        await outboxRepository.enqueue(
+          accountId: 'Ut01migration',
+          category: NotificationCategory.asksOfMe,
+          kind: NotificationKind.needsMe,
+          priority: NotificationPriority.normal,
+          title: 'Collapse $i',
+          body: 'Body $i',
+          actionUrl: '/collapse',
+          dedupKey: dedupKey,
+        );
+      }
+      final collapsed = await writer.execute(r'''
+SELECT count(*)::int, max(collapsed_count)::int,
+       min(suppression_class), min(access_policy)
+FROM public.notification_outbox
+WHERE dedup_key = 't01-collapse'
+''');
+      expect(collapsed.single, [1, 2, 'standard', 'legacy']);
+
+      await writer.execute(r'''
+UPDATE public.notification_outbox
+SET read_at = now()
+WHERE dedup_key = 't01-collapse'
+''');
+      await outboxRepository.enqueue(
+        accountId: 'Ut01migration',
+        category: NotificationCategory.asksOfMe,
+        kind: NotificationKind.needsMe,
+        priority: NotificationPriority.normal,
+        title: 'New unread receipt',
+        body: 'New body',
+        actionUrl: '/collapse/new',
+        dedupKey: dedupKey,
+      );
+      final rows = await writer.execute(r'''
+SELECT count(*)::int
+FROM public.notification_outbox
+WHERE dedup_key = 't01-collapse'
+''');
+      expect(rows.single.single, 2);
+    });
+
+    test('repositories round-trip new receipt and preference fields', () async {
+      await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  seen_at, source_event_key, destination_kind, target_entity_id,
+  presentation_key, presentation_payload, in_app_preference_class,
+  suppression_class, access_policy
+) VALUES (
+  'Nt01roundtrip', 'Ut01migration', 'coordination', 'coordinationChanged',
+  'Round trip', 'Round trip body', '/round-trip', 'high', 't01-round-trip',
+  '2026-07-16T12:00:00Z', 'activity:42', 'profile', 'Utarget',
+  'relationship_formed', '{"count":2,"label":"safe"}'::jsonb,
+  'relationship_activity', 'noisy', 'profile'
+)
+''');
+      final receipt = (await outboxRepository.feedForAccount(
+        accountId: 'Ut01migration',
+        limit: 100,
+      )).singleWhere((item) => item.id == 'Nt01roundtrip');
+      expect(receipt.seenAt, DateTime.parse('2026-07-16T12:00:00Z'));
+      expect(receipt.sourceEventKey, 'activity:42');
+      expect(receipt.destinationKind, 'profile');
+      expect(receipt.targetEntityId, 'Utarget');
+      expect(receipt.presentationKey, 'relationship_formed');
+      expect(receipt.presentationPayload, {'count': 2, 'label': 'safe'});
+      expect(receipt.inAppPreferenceClass, 'relationship_activity');
+      expect(receipt.suppressionClass, 'noisy');
+      expect(receipt.accessPolicy, 'profile');
+      expect(receipt.readAt, isNull);
+      expect(receipt.isRead, isFalse);
+
+      await writer.execute(r'''
+INSERT INTO public.notification_preference (account_id)
+VALUES ('Ut01migration')
+''');
+      final preferenceDefault = await writer.execute(r'''
+SELECT muted_in_app_event_classes, cardinality(muted_in_app_event_classes)
+FROM public.notification_preference
+WHERE account_id = 'Ut01migration'
+''');
+      expect(preferenceDefault.single[0], isEmpty);
+      expect(preferenceDefault.single[1], 0);
+
+      await preferenceRepository.upsert(
+        NotificationPreferencesEntity(
+          accountId: 'Ut01migration',
+          mutedInAppEventClasses: const {
+            'room_activity',
+            'status_activity',
+          },
+          snoozeUntil: DateTime.parse('2026-07-17T12:00:00Z'),
+        ),
+      );
+      final preferences = await preferenceRepository.getForAccount(
+        'Ut01migration',
+      );
+      expect(
+        preferences.mutedInAppEventClasses,
+        {'room_activity', 'status_activity'},
+      );
+      expect(
+        preferences.snoozeUntil,
+        DateTime.parse('2026-07-17T12:00:00Z'),
+      );
     });
 
     test(
@@ -728,14 +1377,160 @@ Future<bool> _canConnect(Env env) async {
   }
 }
 
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: '127.0.0.1',
-  pgPort: 5432,
-  pgPassword: 'password',
-  printEnv: false,
-  isDebugModeOn: false,
-);
+Future<void> _rollBackM0117ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+DROP TRIGGER beacon_room_seen_attention_bridge
+  ON public.beacon_room_seen
+''',
+    'DROP FUNCTION public.bridge_attention_room_seen_trigger()',
+    'DROP FUNCTION public.bridge_attention_room_seen(text, text, text, timestamptz)',
+    'DROP FUNCTION public.visible_attention_receipts(text)',
+    "DELETE FROM public.schema_version WHERE version = '0117'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0116ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+DROP TRIGGER notification_outbox_insert_notify
+  ON public.notification_outbox
+''',
+    '''
+DROP TRIGGER notification_outbox_update_notify
+  ON public.notification_outbox
+''',
+    '''
+DROP TRIGGER notification_outbox_delete_notify
+  ON public.notification_outbox
+''',
+    'DROP FUNCTION public.notify_notification_outbox_insert()',
+    'DROP FUNCTION public.notify_notification_outbox_update()',
+    'DROP FUNCTION public.notify_notification_outbox_delete()',
+    '''
+CREATE TRIGGER notification_outbox_entity_notify
+  AFTER INSERT OR UPDATE OR DELETE ON public.notification_outbox
+  FOR EACH ROW EXECUTE FUNCTION public.notify_entity_change('notification')
+''',
+    "DELETE FROM public.schema_version WHERE version = '0116'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0115ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP INDEX public.notification_outbox__unread',
+    'DROP INDEX public.notification_outbox__feed_v2',
+    r'''
+ALTER TABLE public.notification_outbox
+  DROP COLUMN seen_at,
+  DROP COLUMN source_event_key,
+  DROP COLUMN destination_kind,
+  DROP COLUMN target_entity_id,
+  DROP COLUMN presentation_key,
+  DROP COLUMN presentation_payload,
+  DROP COLUMN in_app_preference_class,
+  DROP COLUMN suppression_class,
+  DROP COLUMN access_policy
+''',
+    r'''
+ALTER TABLE public.notification_preference
+  DROP COLUMN muted_in_app_event_classes
+''',
+    "DELETE FROM public.schema_version WHERE version = '0115'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+class _DisposablePgTarget {
+  const _DisposablePgTarget({
+    required this.adminEnv,
+    required this.databaseEnv,
+    required this.databaseName,
+  });
+
+  factory _DisposablePgTarget.fromEnvironment() {
+    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
+    final port =
+        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
+    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
+    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
+    final adminDatabase =
+        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
+    final databaseName =
+        Platform.environment['TENTURA_REALTIME_NOTIFICATION_TEST_DB'] ??
+        'tentura_test_rt_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
+    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
+        databaseName.length > 63) {
+      throw ArgumentError.value(
+        databaseName,
+        'TENTURA_REALTIME_NOTIFICATION_TEST_DB',
+        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
+      );
+    }
+
+    Env envFor(String database) => Env(
+      environment: Environment.test,
+      pgHost: host,
+      pgPort: port,
+      pgDatabase: database,
+      pgUsername: username,
+      pgPassword: password,
+      printEnv: false,
+      isDebugModeOn: false,
+    );
+
+    return _DisposablePgTarget(
+      adminEnv: envFor(adminDatabase),
+      databaseEnv: envFor(databaseName),
+      databaseName: databaseName,
+    );
+  }
+
+  final Env adminEnv;
+  final Env databaseEnv;
+  final String databaseName;
+
+  Future<void> recreate() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+      await connection.execute('CREATE DATABASE "$databaseName"');
+    } finally {
+      await connection.close();
+    }
+  }
+
+  Future<void> drop() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+      final remaining = await connection.execute(
+        r'SELECT count(*)::int FROM pg_database WHERE datname = $1',
+        parameters: [databaseName],
+      );
+      if (remaining.single.single != 0) {
+        throw StateError('Disposable database was not dropped: $databaseName');
+      }
+    } finally {
+      await connection.close();
+    }
+  }
+}
 
 List<Map<String, dynamic>> _contractEntries() {
   final contract = jsonDecode(_contractFile().readAsStringSync()) as Map;

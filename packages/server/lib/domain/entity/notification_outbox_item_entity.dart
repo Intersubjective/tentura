@@ -6,10 +6,11 @@ import 'notification_priority.dart';
 
 part 'notification_outbox_item_entity.freezed.dart';
 
-/// One durable notification record for a single recipient — the row behind the
-/// Notification Center feed and the email digest.
+/// One durable, per-recipient attention receipt — the row behind the in-app
+/// activity feed, legacy Notification Center, and email digest.
 @freezed
-abstract class NotificationOutboxItemEntity with _$NotificationOutboxItemEntity {
+abstract class NotificationOutboxItemEntity
+    with _$NotificationOutboxItemEntity {
   const factory NotificationOutboxItemEntity({
     required String id,
     required String accountId,
@@ -25,6 +26,15 @@ abstract class NotificationOutboxItemEntity with _$NotificationOutboxItemEntity 
     String? coordinationItemId,
     String? actorUserId,
     DateTime? readAt,
+    DateTime? seenAt,
+    String? sourceEventKey,
+    String? destinationKind,
+    String? targetEntityId,
+    String? presentationKey,
+    String? inAppPreferenceClass,
+    @Default(<String, Object?>{}) Map<String, Object?> presentationPayload,
+    @Default('standard') String suppressionClass,
+    @Default('legacy') String accessPolicy,
   }) = _NotificationOutboxItemEntity;
 
   const NotificationOutboxItemEntity._();

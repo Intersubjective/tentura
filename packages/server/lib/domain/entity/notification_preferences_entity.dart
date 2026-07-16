@@ -17,6 +17,7 @@ abstract class NotificationPreferencesEntity
     required String accountId,
     @Default({}) Set<NotificationCategory> pushCategories,
     @Default({}) Set<NotificationCategory> emailCategories,
+    @Default(<String>{}) Set<String> mutedInAppEventClasses,
 
     /// Minutes-of-day [0, 1440) for the start/end of quiet hours, in local
     /// time. Both null means quiet hours are disabled.
