@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
@@ -21,7 +22,9 @@ WHERE status = 0 AND closes_at < $1
 ORDER BY beacon_id
 FOR UPDATE
 ''',
-            variables: [Variable<DateTime>(now)],
+            variables: [
+              Variable(PgDateTime(now), PgTypes.timestampWithTimezone),
+            ],
           )
           .map((row) => row.read<String>('beacon_id'))
           .get();
