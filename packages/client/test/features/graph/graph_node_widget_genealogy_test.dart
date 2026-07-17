@@ -124,4 +124,55 @@ void main() {
 
     expect(find.byType(TenturaCountBadge), findsNothing);
   });
+
+  testWidgets(
+    'count-only GraphState updates rebuild badge without avatar chrome',
+    (tester) async {
+      final cubit = await _pumpGraphNode(
+        tester,
+        const GraphNodeWidget(
+          nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
+        ),
+      );
+
+      final avatarElement = tester.element(find.byType(TenturaAvatar));
+
+      final badgeShown = expectLater(
+        cubit.stream,
+        emits(
+          predicate<GraphState>(
+            (state) => state.hiddenNeighborCounts['Gviewer'] == 4,
+          ),
+        ),
+      );
+      cubit.setHiddenNeighborCounts({'Gviewer': 4});
+      await badgeShown;
+      await tester.pump();
+
+      expect(tester.element(find.byType(TenturaAvatar)), same(avatarElement));
+      expect(find.byType(TenturaCountBadge), findsOneWidget);
+      expect(
+        tester.widget<TenturaCountBadge>(find.byType(TenturaCountBadge)).count,
+        4,
+      );
+
+      final badgeUpdated = expectLater(
+        cubit.stream,
+        emits(
+          predicate<GraphState>(
+            (state) => state.hiddenNeighborCounts['Gviewer'] == 7,
+          ),
+        ),
+      );
+      cubit.setHiddenNeighborCounts({'Gviewer': 7});
+      await badgeUpdated;
+      await tester.pump();
+
+      expect(tester.element(find.byType(TenturaAvatar)), same(avatarElement));
+      expect(
+        tester.widget<TenturaCountBadge>(find.byType(TenturaCountBadge)).count,
+        7,
+      );
+    },
+  );
 }

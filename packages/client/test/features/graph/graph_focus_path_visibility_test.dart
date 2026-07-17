@@ -437,4 +437,43 @@ void main() {
 
     await cubit.close();
   });
+
+  test(
+    'relationships hidden-neighbor count drops to 0 across paginated merges',
+    () async {
+      var ubFetches = 0;
+      final source = _FakeGraphSource()
+        ..onFetch = (focus, _) {
+          if (focus == null) {
+            return {_e('Ume', 'Ub', srcTotal: 1, dstTotal: 3)};
+          }
+          if (focus == 'Ub') {
+            ubFetches += 1;
+            if (ubFetches == 1) {
+              // First page reveals only E; F still hidden (total=3 includes me).
+              return {_e('Ub', 'Ue', srcTotal: 3, dstTotal: 1)};
+            }
+            return {
+              _e('Ub', 'Ue', srcTotal: 3, dstTotal: 1),
+              _e('Ub', 'Uf', srcTotal: 3, dstTotal: 1),
+            };
+          }
+          return const {};
+        };
+      final cubit = _cubit(source);
+      await _settle();
+
+      expect(cubit.state.hiddenNeighborCounts, {'Ub': 2});
+
+      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      await _settle();
+      expect(cubit.state.hiddenNeighborCounts['Ub'], 1);
+
+      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      await _settle();
+      expect(cubit.state.hiddenNeighborCounts, isEmpty);
+
+      await cubit.close();
+    },
+  );
 }
