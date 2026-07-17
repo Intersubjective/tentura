@@ -25,7 +25,7 @@ import 'forward_input_decoration.dart';
 import 'forward_recipient_row.dart';
 import 'forward_scope_links.dart';
 import 'forward_search_overlay.dart';
-import 'forward_top_bar.dart';
+import 'forward_beacon_subtitle.dart';
 import 'lineage_forward_section.dart';
 import 'per_recipient_note_input.dart';
 
