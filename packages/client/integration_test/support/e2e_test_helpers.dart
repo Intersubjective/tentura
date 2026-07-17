@@ -123,13 +123,12 @@ Future<void> pumpUntil(
       return;
     }
   }
-  _dumpScreenTexts();
-  throw TimeoutException('Timed out waiting for condition');
+  final dump = _screenDump();
+  throw TimeoutException('Timed out waiting for condition. $dump');
 }
 
-/// Prints the current route and on-screen texts so a timed-out wait explains
-/// what the app was actually showing.
-void _dumpScreenTexts() {
+/// Current route, HUD author actions, and on-screen texts for timeout reports.
+String _screenDump() {
   final texts = find
       .byType(Text)
       .evaluate()
@@ -137,9 +136,24 @@ void _dumpScreenTexts() {
       .where((t) => t.trim().isNotEmpty)
       .take(40)
       .join(' | ');
-  debugPrint(
-    '[e2e] TIMEOUT url=${GetIt.I<RootRouter>().currentUrl} texts: $texts',
-  );
+  final hudKeys = <String>[];
+  for (final action in [
+    'resolveBlocker',
+    'reviewOffers',
+    'markEnoughHelp',
+    'wrapUpForReview',
+    'reviewContributions',
+    'closeNow',
+    'forward',
+  ]) {
+    final f = find.byKey(TestIds.key(TestIds.beaconHudAuthorAction(action)));
+    if (finderHasMatch(f)) hudKeys.add(action);
+  }
+  String url = '?';
+  try {
+    url = GetIt.I<RootRouter>().currentUrl;
+  } catch (_) {}
+  return 'url=$url hud=[${hudKeys.join(',')}] texts: $texts';
 }
 
 /// `.first`-style finders throw StateError instead of returning an empty set.
