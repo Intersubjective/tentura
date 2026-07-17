@@ -3526,7 +3526,7 @@ type InviteGenealogyChildCount {
 type query_root {
   notificationsFeed(limit: Int, before: String): [NotificationItem!]!
 
-  attentionFeed(view: String!, cursor: String, limit: Int): AttentionFeed!
+  attentionFeed(view: String!, cursor: String, search: String, limit: Int): AttentionFeed!
   roomMessageTarget(beaconId: String!, messageId: String!): RoomMessageRow
   notificationsUnreadCount: Int!
   notificationPreferences: NotificationPreferences!

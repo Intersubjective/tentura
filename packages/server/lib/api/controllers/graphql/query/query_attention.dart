@@ -18,12 +18,18 @@ final class QueryAttention extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get attentionFeed => GraphQLObjectField(
     'attentionFeed',
     gqlTypeAttentionFeed.nonNullable(),
-    arguments: [_view.field, _cursor.fieldNullable, _limit.fieldNullable],
+    arguments: [
+      _view.field,
+      _cursor.fieldNullable,
+      _search.fieldNullable,
+      _limit.fieldNullable,
+    ],
     resolve: (_, args) async {
       final feed = await _query.attentionFeed(
         accountId: getCredentials(args).sub,
         view: _parseView(_view.fromArgsNonNullable(args)),
         cursor: _decodeCursor(_cursor.fromArgs(args)),
+        search: _parseSearch(_search.fromArgs(args)),
         limit: _limit.fromArgs(args) ?? 50,
       );
       return {
@@ -45,6 +51,7 @@ final class QueryAttention extends GqlNodeBase {
 
   static final _view = InputFieldString(fieldName: 'view');
   static final _cursor = InputFieldString(fieldName: 'cursor');
+  static final _search = InputFieldString(fieldName: 'search');
   static final _limit = InputFieldInt(fieldName: 'limit');
 
   static AttentionFeedView _parseView(String value) => switch (value) {
@@ -53,6 +60,19 @@ final class QueryAttention extends GqlNodeBase {
     'needsYou' => AttentionFeedView.needsYou,
     _ => throw ArgumentError.value(value, 'view', 'must be all or unread'),
   };
+
+  static String? _parseSearch(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (trimmed.length > 120) {
+      throw ArgumentError.value(
+        value,
+        'search',
+        'must contain at most 120 characters',
+      );
+    }
+    return trimmed;
+  }
 
   static String _encodeCursor(AttentionCursor cursor) => base64Url
       .encode(

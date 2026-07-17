@@ -44,6 +44,8 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     _attention.setActiveView(view);
   }
 
+  void setSearch(String value) => _attention.setSearch(value);
+
   Future<void> refresh() async {
     try {
       await _attention.refresh();

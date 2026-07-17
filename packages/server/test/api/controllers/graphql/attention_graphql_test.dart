@@ -20,6 +20,7 @@ class _FakeQuery implements AttentionQueryPort {
   String? accountId;
   AttentionFeedView? view;
   AttentionCursor? cursor;
+  String? search;
 
   AttentionReceipt receipt = AttentionReceipt(
     id: 'N1',
@@ -42,11 +43,13 @@ class _FakeQuery implements AttentionQueryPort {
     required String accountId,
     required AttentionFeedView view,
     AttentionCursor? cursor,
+    String? search,
     int limit = 50,
   }) async {
     this.accountId = accountId;
     this.view = view;
     this.cursor = cursor;
+    this.search = search;
     return AttentionFeed(
       summary: const AttentionSummary(unreadTotal: 1),
       page: AttentionPage(
@@ -129,6 +132,21 @@ void main() {
       'needsYouTotal': 0,
     });
     expect(((result['page'] as Map)['nextCursor'] as String), isNotEmpty);
+  });
+
+  test('attentionFeed trims bounded structured-payload search input', () async {
+    final query = _FakeQuery();
+    final field = QueryAttention(query: query).all.single;
+    await field.resolve!(null, {...auth, 'view': 'all', 'search': '  B1  '});
+    expect(query.search, 'B1');
+    await expectLater(
+      field.resolve!(null, {
+        ...auth,
+        'view': 'all',
+        'search': 'x' * 121,
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 
   test('attentionFeed rejects malformed cursors and unknown views', () async {

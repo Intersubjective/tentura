@@ -35,6 +35,8 @@ class _UpdatesBody extends StatefulWidget {
 
 class _UpdatesBodyState extends State<_UpdatesBody> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -53,6 +55,8 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _scrollController
       ..removeListener(_loadMoreWhenNeeded)
       ..dispose();
@@ -81,6 +85,32 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
       body: TenturaContentColumn(
         child: Column(
           children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.tt.screenHPadding,
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: l10n.updatesSearchHint,
+                  prefixIcon: const Icon(Icons.search_outlined),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).deleteButtonTooltip,
+                          icon: const Icon(Icons.clear_outlined),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        ),
+                ),
+              ),
+            ),
             BlocSelector<UpdatesFeedCubit, UpdatesFeedState, AttentionView>(
               selector: (state) => state.view,
               builder: (context, view) => TenturaUnderlineTabs(
@@ -129,6 +159,14 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
         ),
       ),
     );
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) context.read<UpdatesFeedCubit>().setSearch(value);
+    });
+    setState(() {});
   }
 }
 

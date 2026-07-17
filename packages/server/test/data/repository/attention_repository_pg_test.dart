@@ -318,6 +318,80 @@ SELECT pg_get_functiondef(
     });
 
     test(
+      'search is authorized, payload-only, cursor-stable, and uses its index',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nsearch03',
+          presentationPayload: '{"beaconId":"needle-request"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nsearch02',
+          presentationPayload: '{"messageId":"needle-message"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nsearch01',
+          presentationPayload: '{"targetEntityId":"needle-person"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nsearchhidden',
+          beaconId: _hiddenBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
+          presentationPayload: '{"beaconId":"needle-hidden"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nsearchcopyonly',
+          presentationPayload: '{"eventType":"ordinary"}',
+          title: 'Needle must not be searchable from channel copy',
+          body: 'Needle must not be searchable from channel copy',
+        );
+
+        final first = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          search: 'needle',
+          limit: 2,
+        );
+        final second = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          search: 'needle',
+          cursor: first.page.nextCursor,
+          limit: 2,
+        );
+
+        expect(
+          [...first.page.items, ...second.page.items].map((item) => item.id),
+          ['Nsearch03', 'Nsearch02', 'Nsearch01'],
+        );
+        expect(second.page.nextCursor, isNull);
+
+        await writer.execute('SET enable_seqscan = off');
+        final plan = await writer.execute('''
+EXPLAIN (COSTS OFF)
+SELECT id
+FROM public.notification_outbox
+WHERE to_tsvector(
+  'simple',
+  coalesce(presentation_payload ->> 'eventType', '') || ' ' ||
+  coalesce(presentation_payload ->> 'beaconId', '') || ' ' ||
+  coalesce(presentation_payload ->> 'coordinationItemId', '') || ' ' ||
+  coalesce(presentation_payload ->> 'targetEntityId', '') || ' ' ||
+  coalesce(presentation_payload ->> 'messageId', '')
+) @@ websearch_to_tsquery('simple', 'needle')
+''');
+        final planText = plan.map((row) => row.single).join('\n');
+        expect(planText, contains('notification_outbox__payload_search'));
+      },
+    );
+
+    test(
       'markSeen and markAllSeen are authorized, monotonic, and dual-write',
       () async {
         await writer.execute(
@@ -781,6 +855,9 @@ Future<void> _insertReceipt(
   String? preferenceClass,
   String? targetEntityId,
   String createdAt = '2026-07-16T12:00:00Z',
+  String presentationPayload = '{"eventType":"fixture"}',
+  String title = 'Secret title',
+  String body = 'Secret body',
 }) => writer.execute(
   Sql.named('''
 INSERT INTO public.notification_outbox (
@@ -792,11 +869,11 @@ INSERT INTO public.notification_outbox (
   suppression_class, in_app_preference_class, access_policy
 ) VALUES (
   @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
-  'Secret title', 'Secret body', '/attention', @dedupKey,
+  @title, @body, '/attention', @dedupKey,
   CAST(@createdAt AS timestamptz),
   @beaconId, @coordinationItemId, @sourceEventKey,
   @destinationKind, @targetEntityId,
-  @presentationKey, '{"eventType":"fixture"}'::jsonb,
+  @presentationKey, CAST(@presentationPayload AS jsonb),
   @suppressionClass, @preferenceClass, @accessPolicy
 )
 '''),
@@ -811,6 +888,9 @@ INSERT INTO public.notification_outbox (
     'destinationKind': destinationKind,
     'targetEntityId': targetEntityId,
     'presentationKey': presentationKey,
+    'presentationPayload': presentationPayload,
+    'title': title,
+    'body': body,
     'suppressionClass': suppressionClass,
     'preferenceClass': preferenceClass,
     'accessPolicy': accessPolicy,

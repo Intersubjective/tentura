@@ -124,7 +124,8 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-15 | Complete | Unconditional flip, scoped retry-proof hardening, five positive browser runs, and both deliberate negative controls pass in `reports/realtime-multiclient/updates-t15-release-20260717`. |
 | T-16 | Complete | `m0118` settlement axis, distinct Needs you projection, Mark done flow, GraphQL/authorization boundary, and PostgreSQL migration/settlement proof pass without changing unread semantics. |
 | T-17 | Complete | Tokenized changed-field highlight plus pure dwell policy and `visibility_detector` Updates-card adapter pass focused analysis/tests. |
-| T-18–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
+| T-18 | Complete | Authorized payload-only indexed search with bounded GraphQL input, stable cursor paging, debounced Updates UI, and PostgreSQL EXPLAIN proof. |
+| T-19–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
 
@@ -653,3 +654,21 @@ runner changes into the client package.
 revision `0dde7ecf`. Five consecutive positive runs and both disabled live/catch-up
 negative controls passed. P95s: Updates delivery 233 ms, Updates open-ack 33 ms, Chat
 delivery 773 ms, and reconnect catch-up 1695 ms.
+
+## T-18 — Search & filters
+
+Added a bounded `attentionFeed(search:)` argument, normalized to a trimmed nullable
+value with a 120-character cap. The feed searches only the authorized receipt relation
+and only its locale-neutral allowlisted structured payload fields: event type, Request,
+coordination item, target entity, and message identifiers. It does not search channel
+title/body copy. The client debounces the Updates search field, and its domain case
+retains the normalized query across cursor pagination.
+
+Migration `m0119` adds the matching GIN expression index. PostgreSQL rejected the
+initial `concat_ws` expression because it is not immutable, so the final index and
+query use immutable `coalesce(...) || ' ' || ...` concatenation instead.
+
+**Verification:** PostgreSQL repository coverage proves authorization before search,
+payload-only matching, stable opaque cursor paging, and index use under an EXPLAIN
+plan. Migration and GraphQL controller suites pass, as do the focused client domain
+case and scoped server/client analysis. T-18 is complete.

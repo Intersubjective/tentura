@@ -25,6 +25,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<AttentionFeed> fetch({
     required AttentionView view,
     String? cursor,
+    String? search,
     int limit = 50,
   }) async {
     final data = await _remoteApiService
@@ -33,6 +34,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
             (request) => request.vars
               ..view = view.name
               ..cursor = cursor
+              ..search = search
               ..limit = limit,
           ),
         )

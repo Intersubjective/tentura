@@ -31,15 +31,19 @@ final class _Repository implements AttentionRepositoryPort {
   final List<Completer<int>> pendingMarkAllSeen = [];
   final List<Completer<int>> pendingSettles = [];
   final List<({String receiptId, String kind})> settles = [];
+  final List<({AttentionView view, String? cursor, String? search})> fetches =
+      [];
   int fetchCalls = 0;
 
   @override
   Future<AttentionFeed> fetch({
     required AttentionView view,
     String? cursor,
+    String? search,
     int limit = 50,
   }) {
     fetchCalls++;
+    fetches.add((view: view, cursor: cursor, search: search));
     return pendingFetches.removeAt(0).future;
   }
 
@@ -294,6 +298,48 @@ void main() {
         expect(attention.snapshot.summary.unreadTotal, 1);
       },
     );
+
+    test('search normalizes and survives pagination', () async {
+      final initial = Completer<AttentionFeed>();
+      final searched = Completer<AttentionFeed>();
+      final next = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, searched, next]);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(
+        AttentionFeed(
+          summary: const AttentionSummary(unreadTotal: 2),
+          page: AttentionFeedPage(
+            items: [_receipt(id: 'one')],
+            nextCursor: 'page-two',
+          ),
+        ),
+      );
+      await _settle();
+
+      attention.setSearch('  needle  ');
+      await _settle();
+      searched.complete(
+        AttentionFeed(
+          summary: const AttentionSummary(unreadTotal: 2),
+          page: AttentionFeedPage(
+            items: [_receipt(id: 'one')],
+            nextCursor: 'page-two',
+          ),
+        ),
+      );
+      await _settle();
+      final loadNext = attention.fetchNextPage();
+      await _settle();
+      next.complete(_feed(items: [_receipt(id: 'two')]));
+      await loadNext;
+
+      expect(repository.fetches, [
+        (view: AttentionView.all, cursor: null, search: null),
+        (view: AttentionView.all, cursor: null, search: 'needle'),
+        (view: AttentionView.all, cursor: 'page-two', search: 'needle'),
+      ]);
+    });
 
     test(
       'room-bridge notification fan-out reconciles another client after an ack',

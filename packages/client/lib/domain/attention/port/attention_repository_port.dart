@@ -4,6 +4,7 @@ abstract interface class AttentionRepositoryPort {
   Future<AttentionFeed> fetch({
     required AttentionView view,
     String? cursor,
+    String? search,
     int limit = 50,
   });
 

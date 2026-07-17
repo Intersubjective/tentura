@@ -25,12 +25,14 @@ class AttentionRepository implements AttentionQueryPort {
     required String accountId,
     required AttentionFeedView view,
     AttentionCursor? cursor,
+    String? search,
     int limit = 50,
   }) async {
     final boundedLimit = limit.clamp(1, 100);
     final variables = <Variable>[
       Variable<String>(accountId),
       Variable<String>(view.name),
+      Variable<String>(search),
     ];
     final cursorClause = StringBuffer();
     if (cursor != null) {
@@ -40,8 +42,8 @@ class AttentionRepository implements AttentionQueryPort {
       cursorClause.write(
         r'''
 AND (
-  visible.created_at < $3::timestamptz
-  OR (visible.created_at = $3::timestamptz AND visible.id < $4)
+  visible.created_at < $4::timestamptz
+  OR (visible.created_at = $4::timestamptz AND visible.id < $5)
 )''',
       );
     }
@@ -50,7 +52,7 @@ AND (
 
     final rows = await _database.customSelect(
       '''
-WITH visible AS MATERIALIZED (
+WITH visible AS (
   SELECT outbox.*, authorized.tombstone_copy
   FROM public.visible_attention_receipts(\$1) authorized
   JOIN public.notification_outbox outbox
@@ -73,6 +75,17 @@ page AS (
     OR (\$2 = 'unread' AND COALESCE(visible.seen_at, visible.read_at) IS NULL)
     OR (\$2 = 'needsYou' AND visible.requires_action
         AND visible.settlement_kind IS NULL)
+  )
+  AND (
+    \$3::text IS NULL
+    OR to_tsvector(
+      'simple',
+      coalesce(visible.presentation_payload ->> 'eventType', '') || ' ' ||
+      coalesce(visible.presentation_payload ->> 'beaconId', '') || ' ' ||
+      coalesce(visible.presentation_payload ->> 'coordinationItemId', '') || ' ' ||
+      coalesce(visible.presentation_payload ->> 'targetEntityId', '') || ' ' ||
+      coalesce(visible.presentation_payload ->> 'messageId', '')
+    ) @@ websearch_to_tsquery('simple', \$3)
   )
     $cursorClause
   ORDER BY visible.created_at DESC, visible.id DESC

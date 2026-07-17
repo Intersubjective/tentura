@@ -44,6 +44,7 @@ final class AttentionCase {
   int _accountGeneration = 0;
   bool _headRefreshInFlight = false;
   bool _headRefreshQueued = false;
+  String? _search;
 
   Stream<AttentionSummary> get unreadSummary =>
       _snapshot.stream.map((snapshot) => snapshot.summary).distinct();
@@ -77,6 +78,14 @@ final class AttentionCase {
     unawaited(_requestHeadRefresh());
   }
 
+  void setSearch(String? value) {
+    final normalized = value?.trim();
+    final next = normalized == null || normalized.isEmpty ? null : normalized;
+    if (_search == next) return;
+    _search = next;
+    unawaited(_requestHeadRefresh());
+  }
+
   Future<void> refresh() async => _requestHeadRefresh();
 
   Future<void> fetchNextPage() async {
@@ -88,6 +97,7 @@ final class AttentionCase {
     final feed = await _repository.fetch(
       view: snapshot.activeView,
       cursor: cursor,
+      search: _search,
     );
     if (generation != _accountGeneration) return;
     _applyPage(feed, replaceHead: false);
@@ -149,7 +159,10 @@ final class AttentionCase {
     _headRefreshInFlight = true;
     final generation = _accountGeneration;
     try {
-      final feed = await _repository.fetch(view: snapshot.activeView);
+      final feed = await _repository.fetch(
+        view: snapshot.activeView,
+        search: _search,
+      );
       if (generation == _accountGeneration) _applyPage(feed, replaceHead: true);
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {

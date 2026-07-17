@@ -8,6 +8,7 @@ abstract interface class AttentionQueryPort {
     required String accountId,
     required AttentionFeedView view,
     AttentionCursor? cursor,
+    String? search,
     int limit = 50,
   });
 }

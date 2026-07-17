@@ -1,5 +1,5 @@
-query AttentionFeed($view: String!, $cursor: String, $limit: Int) {
-  attentionFeed(view: $view, cursor: $cursor, limit: $limit) {
+query AttentionFeed($view: String!, $cursor: String, $search: String, $limit: Int) {
+  attentionFeed(view: $view, cursor: $cursor, search: $search, limit: $limit) {
     summary { unreadTotal needsYouTotal }
     page {
       nextCursor

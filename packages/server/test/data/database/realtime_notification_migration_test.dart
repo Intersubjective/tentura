@@ -58,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0119ForTest(writer);
       await _rollBackM0118ForTest(writer);
       await _rollBackM0117ForTest(writer);
       await _rollBackM0116ForTest(writer);
@@ -1593,6 +1594,15 @@ ALTER TABLE public.notification_outbox
   DROP COLUMN requires_action
 ''',
     "DELETE FROM public.schema_version WHERE version = '0118'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0119ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP INDEX public.notification_outbox__payload_search',
+    "DELETE FROM public.schema_version WHERE version = '0119'",
   ]) {
     await connection.execute(statement);
   }
