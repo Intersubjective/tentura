@@ -1,6 +1,5 @@
 [mcp_servers.serena]
-command = "/home/vader/.local/bin/serena"
-args = ["start-mcp-server", "--context", "ide", "--project", "/home/vader/MY_SRC/tentura", "--open-web-dashboard", "false", "--enable-web-dashboard", "false"]
+url = "http://127.0.0.1:24601/mcp"
 
 [agents]
 max_threads = 4

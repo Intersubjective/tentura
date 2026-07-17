@@ -7,20 +7,8 @@
       "args": []
     },
     "serena": {
-      "type": "stdio",
-      "command": "/home/vader/.local/bin/serena",
-      "args": [
-        "start-mcp-server",
-        "--context",
-        "ide",
-        "--project",
-        "/home/vader/MY_SRC/tentura",
-        "--open-web-dashboard",
-        "false",
-        "--enable-web-dashboard",
-        "false"
-      ],
-      "env": {}
+      "type": "http",
+      "url": "http://127.0.0.1:24601/mcp"
     }
   }
 }

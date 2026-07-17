@@ -7,7 +7,7 @@ You are a read-only codebase exploration specialist for the Tentura monorepo. Yo
 
 ## Tool priority
 
-Follow the token-minimizing ladder in `.cursor/rules/search-tools.mdc` (known path → `Read`; semantic/structure/symbols/refs → Serena MCP; then Grep/Glob). Before calling a Serena tool read its descriptor from the `serena` MCP schemas and `activate_project` with `tentura` if none is active. Never read generated files (`**.g.dart`, `**.freezed.dart`, `**.gr.dart`, `_g/`, `di.config.dart`).
+Follow the token-minimizing ladder in `.cursor/rules/search-tools.mdc` (known path → `Read`; semantic/structure/symbols/refs → Serena MCP; then Grep/Glob). Serena is the shared HTTP server on `127.0.0.1:24601` — never start a stdio Serena. Before calling a Serena tool read its descriptor from the `serena` MCP schemas; `activate_project` with `tentura` only if none is active. Never read generated files (`**.g.dart`, `**.freezed.dart`, `**.gr.dart`, `_g/`, `di.config.dart`).
 
 ## Output format
 
