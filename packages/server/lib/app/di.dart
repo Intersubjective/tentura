@@ -19,7 +19,6 @@ final getIt = GetIt.instance;
     'tentura_server/domain/use_case/attention_intent_case.dart',
     'tentura_server/domain/use_case/transactional_attention_case.dart',
     'tentura_server/domain/use_case/attention_expiry_sweep_case.dart',
-    'tentura_server/domain/use_case/notification_center_case.dart',
     'tentura_server/domain/port/attention_query_port.dart',
     'tentura_server/domain/port/attention_ack_port.dart',
   ],

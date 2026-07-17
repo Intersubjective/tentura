@@ -60,7 +60,7 @@ WITH visible AS (
 ),
 summary AS (
   SELECT COUNT(*) FILTER (
-    WHERE COALESCE(seen_at, read_at) IS NULL
+    WHERE seen_at IS NULL
   )::int AS unread_total,
   COUNT(*) FILTER (
     WHERE requires_action AND settlement_kind IS NULL
@@ -72,7 +72,7 @@ page AS (
   FROM visible
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND COALESCE(visible.seen_at, visible.read_at) IS NULL)
+    OR (\$2 = 'unread' AND visible.seen_at IS NULL)
     OR (\$2 = 'needsYou' AND visible.requires_action
         AND visible.settlement_kind IS NULL)
   )
@@ -153,7 +153,7 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       beaconId: row.readNullable<String>('beacon_id'),
       coordinationItemId: row.readNullable<String>('coordination_item_id'),
       actorUserId: row.readNullable<String>('actor_user_id'),
-      seenAt: _readTimestamp(row, 'seen_at') ?? _readTimestamp(row, 'read_at'),
+      seenAt: _readTimestamp(row, 'seen_at'),
       sourceEventKey: row.readNullable<String>('source_event_key'),
       destinationKind: destinationName == null
           ? null
@@ -261,10 +261,9 @@ class AttentionAckRepository implements AttentionAckPort {
       '''
 UPDATE public.notification_outbox outbox
 SET
-  seen_at = COALESCE(outbox.seen_at, outbox.read_at, now()),
-  read_at = COALESCE(outbox.read_at, outbox.seen_at, now())
+  seen_at = COALESCE(outbox.seen_at, now())
 WHERE outbox.account_id = \$1
-  AND (outbox.seen_at IS NULL OR outbox.read_at IS NULL)
+  AND outbox.seen_at IS NULL
   AND outbox.id IN ($placeholders)
   AND outbox.id IN (
     SELECT receipt_id
@@ -284,10 +283,9 @@ WHERE outbox.account_id = \$1
     r'''
 UPDATE public.notification_outbox outbox
 SET
-  seen_at = COALESCE(outbox.seen_at, outbox.read_at, now()),
-  read_at = COALESCE(outbox.read_at, outbox.seen_at, now())
+  seen_at = COALESCE(outbox.seen_at, now())
 WHERE outbox.account_id = $1
-  AND (outbox.seen_at IS NULL OR outbox.read_at IS NULL)
+  AND outbox.seen_at IS NULL
   AND outbox.id IN (
     SELECT receipt_id
     FROM public.visible_attention_receipts($1)

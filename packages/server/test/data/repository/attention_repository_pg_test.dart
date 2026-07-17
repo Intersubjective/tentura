@@ -436,11 +436,11 @@ INSERT INTO public.notification_preference (
           ),
           0,
         );
-        await _assertDualWrite(writer, 'Nvisible');
+        await _assertSeenOnly(writer, 'Nvisible');
 
         await _insertReceipt(writer, id: 'Nvisible2');
         expect(await ack.markAllSeen(_viewerId), 1);
-        await _assertDualWrite(writer, 'Nvisible2');
+        await _assertSeenOnly(writer, 'Nvisible2');
 
         final hidden = await writer.execute('''
 SELECT id, seen_at, read_at
@@ -524,7 +524,7 @@ INSERT INTO public.beacon_room_message (
           threadItemId: null,
           at: DateTime.parse('2026-07-16T11:00:00Z'),
         );
-        await _assertDualWrite(writer, 'Ndirectedold');
+        await _assertSeenOnly(writer, 'Ndirectedold');
         await _assertUnread(writer, 'Ndirectednew');
         await _assertUnread(writer, 'Ndirectedthread');
 
@@ -534,7 +534,7 @@ INSERT INTO public.beacon_room_message (
           threadItemId: 'Iattentionthread',
           at: DateTime.parse('2026-07-16T11:00:00Z'),
         );
-        await _assertDualWrite(writer, 'Ndirectedthread');
+        await _assertSeenOnly(writer, 'Ndirectedthread');
 
         await room.markBeaconRoomSeen(
           userId: _viewerId,
@@ -569,7 +569,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId
           ),
           1,
         );
-        await _assertDualWrite(writer, 'Ndirectednew');
+        await _assertSeenOnly(writer, 'Ndirectednew');
       },
     );
 
@@ -897,18 +897,17 @@ INSERT INTO public.notification_outbox (
   },
 );
 
-Future<void> _assertDualWrite(Connection writer, String id) async {
+Future<void> _assertSeenOnly(Connection writer, String id) async {
   final row = await writer.execute(
     Sql.named('''
-SELECT seen_at, read_at, seen_at = read_at
+SELECT seen_at, read_at
 FROM public.notification_outbox
 WHERE id = @id
 '''),
     parameters: {'id': id},
   );
   expect(row.single[0], isNotNull);
-  expect(row.single[1], isNotNull);
-  expect(row.single[2], isTrue);
+  expect(row.single[1], isNull);
 }
 
 Future<void> _assertUnread(Connection writer, String id) async {

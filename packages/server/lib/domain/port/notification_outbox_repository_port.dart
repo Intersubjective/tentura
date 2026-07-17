@@ -22,25 +22,6 @@ abstract interface class NotificationOutboxRepositoryPort {
     String? actorUserId,
   });
 
-  /// Newest-first feed for the Notification Center, paginated by [before].
-  Future<List<NotificationOutboxItemEntity>> feedForAccount({
-    required String accountId,
-    int limit,
-    DateTime? before,
-  });
-
-  /// Count of unread actionable items (drives the badge).
-  Future<int> unreadActionableCount(String accountId);
-
-  /// Marks the given ids read for the account; returns the number updated.
-  Future<int> markRead({
-    required String accountId,
-    required List<String> ids,
-  });
-
-  /// Marks every unread item for the account as read.
-  Future<int> markAllRead(String accountId);
-
   /// Marks the matching unread row emailed (so the digest skips it).
   Future<int> markEmailedByDedupKey(String dedupKey);
 
@@ -67,6 +48,6 @@ abstract interface class NotificationOutboxRepositoryPort {
     required Duration window,
   });
 
-  /// Retention: deletes read+emailed rows older than [age]. Returns the count.
+  /// Retention: deletes seen+emailed rows older than [age]. Returns the count.
   Future<int> deleteSettledOlderThan(Duration age);
 }

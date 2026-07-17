@@ -58,7 +58,7 @@ INSERT INTO public.notification_outbox (
   $17, $18, $19,
   $20, $21
 )
-ON CONFLICT (dedup_key) WHERE read_at IS NULL
+ON CONFLICT (dedup_key) WHERE seen_at IS NULL
 DO UPDATE SET
   category                = EXCLUDED.category,
   kind                    = EXCLUDED.kind,

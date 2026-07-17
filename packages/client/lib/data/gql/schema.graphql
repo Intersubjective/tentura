@@ -2365,8 +2365,6 @@ type mutation_root {
   fcmSendTestNotification: FcmTestSendResult!
   emailSendTest: EmailTestSendResult!
   userRecalculateBookkeeping: UserRecalculateBookkeepingResult!
-  notificationsMarkRead(ids: [String!]!): Int!
-  notificationsMarkAllRead: Int!
   attentionMarkSeen(ids: [String!]!): Int!
   attentionMarkAllSeen: Int!
   attentionSettle(receiptId: String!, kind: String!): Int!
@@ -3419,22 +3417,6 @@ input polling_variant_stream_cursor_value_input {
   polling_id: String
 }
 
-type NotificationItem {
-  id: String!
-  category: String!
-  kind: String!
-  priority: String!
-  title: String!
-  body: String!
-  actionUrl: String!
-  createdAt: String!
-  readAt: String
-  collapsedCount: Int!
-  beaconId: String
-  coordinationItemId: String
-  actorUserId: String
-}
-
 type NotificationPreferences {
   accountId: String!
   pushCategories: [String!]!
@@ -3524,11 +3506,8 @@ type InviteGenealogyChildCount {
 }
 
 type query_root {
-  notificationsFeed(limit: Int, before: String): [NotificationItem!]!
-
   attentionFeed(view: String!, cursor: String, search: String, limit: Int): AttentionFeed!
   roomMessageTarget(beaconId: String!, messageId: String!): RoomMessageRow
-  notificationsUnreadCount: Int!
   notificationPreferences: NotificationPreferences!
   """
   fetch data from the table: "beacon"

@@ -30,7 +30,7 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
   final env = target.databaseEnv;
 
-  group('m0114-m0118 realtime notification contract', () {
+  group('m0114-m0120 realtime notification contract', () {
     late Connection writer;
     late Connection listener;
     late TenturaDb database;
@@ -58,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0120ForTest(writer);
       await _rollBackM0119ForTest(writer);
       await _rollBackM0118ForTest(writer);
       await _rollBackM0117ForTest(writer);
@@ -226,7 +227,7 @@ ORDER BY t.tgname
     );
 
     test(
-      'm0115 and m0118 columns, defaults, checks, and index predicates match C1',
+      'm0115 through m0120 columns, defaults, checks, and index predicates match C1',
       () async {
         final columnRows = await writer.execute(r'''
 SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
@@ -445,7 +446,7 @@ ORDER BY c.relname
         );
         expect(
           indexes['notification_outbox__dedup']?.predicate,
-          '(read_at IS NULL)',
+          '(seen_at IS NULL)',
         );
         expect(
           indexes['notification_outbox__unread']?.definition,
@@ -453,7 +454,7 @@ ORDER BY c.relname
         );
         expect(
           indexes['notification_outbox__unread']?.predicate,
-          '(COALESCE(seen_at, read_at) IS NULL)',
+          '(seen_at IS NULL)',
         );
         expect(
           indexes['notification_outbox__feed_v2']?.definition,
@@ -781,50 +782,75 @@ WHERE id = 'Nt01legacy'
       },
     );
 
-    test('legacy collapse SQL and partial unique index remain exact', () async {
-      const dedupKey = 't01-collapse';
-      for (var i = 0; i < 2; i++) {
+    test(
+      'seen-only collapse SQL and partial unique index remain exact',
+      () async {
+        const dedupKey = 't01-collapse';
+        for (var i = 0; i < 2; i++) {
+          await outboxRepository.enqueue(
+            accountId: 'Ut01migration',
+            category: NotificationCategory.asksOfMe,
+            kind: NotificationKind.needsMe,
+            priority: NotificationPriority.normal,
+            title: 'Collapse $i',
+            body: 'Body $i',
+            actionUrl: '/collapse',
+            dedupKey: dedupKey,
+          );
+        }
+        final collapsed = await writer.execute(r'''
+SELECT count(*)::int, max(collapsed_count)::int,
+       min(suppression_class), min(access_policy), min(seen_at)
+FROM public.notification_outbox
+WHERE dedup_key = 't01-collapse'
+''');
+        expect(collapsed.single, [1, 2, 'standard', 'legacy', null]);
+
+        await writer.execute(r'''
+UPDATE public.notification_outbox
+SET read_at = now()
+WHERE dedup_key = 't01-collapse'
+''');
         await outboxRepository.enqueue(
           accountId: 'Ut01migration',
           category: NotificationCategory.asksOfMe,
           kind: NotificationKind.needsMe,
           priority: NotificationPriority.normal,
-          title: 'Collapse $i',
-          body: 'Body $i',
-          actionUrl: '/collapse',
+          title: 'Read-at-only stays collapsed',
+          body: 'New body',
+          actionUrl: '/collapse/read-at-only',
           dedupKey: dedupKey,
         );
-      }
-      final collapsed = await writer.execute(r'''
-SELECT count(*)::int, max(collapsed_count)::int,
-       min(suppression_class), min(access_policy)
+        final rows = await writer.execute(r'''
+SELECT count(*)::int, max(collapsed_count)::int
 FROM public.notification_outbox
 WHERE dedup_key = 't01-collapse'
 ''');
-      expect(collapsed.single, [1, 2, 'standard', 'legacy']);
+        expect(rows.single, [1, 3]);
 
-      await writer.execute(r'''
+        await writer.execute(r'''
 UPDATE public.notification_outbox
-SET read_at = now()
+SET seen_at = now()
 WHERE dedup_key = 't01-collapse'
 ''');
-      await outboxRepository.enqueue(
-        accountId: 'Ut01migration',
-        category: NotificationCategory.asksOfMe,
-        kind: NotificationKind.needsMe,
-        priority: NotificationPriority.normal,
-        title: 'New unread receipt',
-        body: 'New body',
-        actionUrl: '/collapse/new',
-        dedupKey: dedupKey,
-      );
-      final rows = await writer.execute(r'''
-SELECT count(*)::int
+        await outboxRepository.enqueue(
+          accountId: 'Ut01migration',
+          category: NotificationCategory.asksOfMe,
+          kind: NotificationKind.needsMe,
+          priority: NotificationPriority.normal,
+          title: 'Seen receipt opens a new collapse window',
+          body: 'New body',
+          actionUrl: '/collapse/seen',
+          dedupKey: dedupKey,
+        );
+        final reopened = await writer.execute(r'''
+SELECT count(*)::int, max(collapsed_count)::int
 FROM public.notification_outbox
 WHERE dedup_key = 't01-collapse'
 ''');
-      expect(rows.single.single, 2);
-    });
+        expect(reopened.single, [2, 3]);
+      },
+    );
 
     test('repositories round-trip new receipt and preference fields', () async {
       await writer.execute(r'''
@@ -841,9 +867,8 @@ INSERT INTO public.notification_outbox (
   'relationship_activity', 'noisy', 'profile'
 )
 ''');
-      final receipt = (await outboxRepository.feedForAccount(
-        accountId: 'Ut01migration',
-        limit: 100,
+      final receipt = (await outboxRepository.pendingForAccount(
+        'Ut01migration',
       )).singleWhere((item) => item.id == 'Nt01roundtrip');
       expect(receipt.seenAt, DateTime.parse('2026-07-16T12:00:00Z'));
       expect(receipt.sourceEventKey, 'activity:42');
@@ -1603,6 +1628,20 @@ Future<void> _rollBackM0119ForTest(Connection connection) async {
   for (final statement in const [
     'DROP INDEX public.notification_outbox__payload_search',
     "DELETE FROM public.schema_version WHERE version = '0119'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0120ForTest(Connection connection) async {
+  for (final statement in const [
+    'ALTER INDEX public.notification_outbox__dedup RENAME TO notification_outbox__dedup_seen',
+    'ALTER INDEX public.notification_outbox__unread RENAME TO notification_outbox__unread_seen',
+    'CREATE UNIQUE INDEX notification_outbox__dedup ON public.notification_outbox (dedup_key) WHERE read_at IS NULL',
+    'CREATE INDEX notification_outbox__unread ON public.notification_outbox (account_id, created_at DESC, id DESC) WHERE COALESCE(seen_at, read_at) IS NULL',
+    'DROP INDEX public.notification_outbox__dedup_seen',
+    'DROP INDEX public.notification_outbox__unread_seen',
+    "DELETE FROM public.schema_version WHERE version = '0120'",
   ]) {
     await connection.execute(statement);
   }

@@ -55,29 +55,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconLineageSuggestion,
   gqlTypeBeaconLineageForwardSuggestions,
   gqlTypeNotificationPreferences,
-  gqlTypeNotificationItem,
   gqlTypeFcmTestSendResult,
   gqlTypeEmailTestSendResult,
   gqlTypeUserRecalculateBookkeepingResult,
 ];
-
-/// One durable Notification Center row.
-final gqlTypeNotificationItem = GraphQLObjectType('NotificationItem', null)
-  ..fields.addAll([
-    field('id', graphQLString.nonNullable()),
-    field('category', graphQLString.nonNullable()),
-    field('kind', graphQLString.nonNullable()),
-    field('priority', graphQLString.nonNullable()),
-    field('title', graphQLString.nonNullable()),
-    field('body', graphQLString.nonNullable()),
-    field('actionUrl', graphQLString.nonNullable()),
-    field('createdAt', graphQLString.nonNullable()),
-    field('readAt', graphQLString),
-    field('collapsedCount', graphQLInt.nonNullable()),
-    field('beaconId', graphQLString),
-    field('coordinationItemId', graphQLString),
-    field('actorUserId', graphQLString),
-  ]);
 
 /// Account notification preferences (channel × category matrix + controls).
 final gqlTypeNotificationPreferences =

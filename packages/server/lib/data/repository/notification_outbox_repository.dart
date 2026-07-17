@@ -54,7 +54,7 @@ INSERT INTO public.notification_outbox (
   $5, $6, $7, $8,
   $9, $10, $11
 )
-ON CONFLICT (dedup_key) WHERE read_at IS NULL
+ON CONFLICT (dedup_key) WHERE seen_at IS NULL
 DO UPDATE SET
   created_at      = now(),
   collapsed_count = notification_outbox.collapsed_count + 1,
@@ -78,76 +78,6 @@ DO UPDATE SET
       ],
     );
   }
-
-  @override
-  Future<List<NotificationOutboxItemEntity>> feedForAccount({
-    required String accountId,
-    int limit = 50,
-    DateTime? before,
-  }) async {
-    final variables = <Variable>[Variable<String>(accountId)];
-    final sql = StringBuffer(
-      'SELECT $_columns FROM public.notification_outbox WHERE account_id = ',
-    )..write(r'$1 ');
-    if (before != null) {
-      variables.add(Variable<String>(before.toUtc().toIso8601String()));
-      sql.write(r'AND created_at < $2::timestamptz ');
-    }
-    variables.add(Variable<int>(limit));
-    sql.write('ORDER BY created_at DESC LIMIT \$${variables.length}');
-
-    final rows = await _database
-        .customSelect(sql.toString(), variables: variables)
-        .get();
-    return [for (final row in rows) _mapRow(row)];
-  }
-
-  @override
-  Future<int> unreadActionableCount(String accountId) async {
-    final row = await _database
-        .customSelect(
-          'SELECT COUNT(*)::int AS c FROM public.notification_outbox '
-          r'WHERE account_id = $1 AND read_at IS NULL AND category = $2',
-          variables: [
-            Variable<String>(accountId),
-            Variable<String>(NotificationCategory.asksOfMe.name),
-          ],
-        )
-        .getSingle();
-    return row.read<int>('c');
-  }
-
-  @override
-  Future<int> markRead({
-    required String accountId,
-    required List<String> ids,
-  }) async {
-    if (ids.isEmpty) {
-      return 0;
-    }
-    final placeholders = List.generate(
-      ids.length,
-      (i) => '\$${i + 2}',
-    ).join(',');
-    return _database.customUpdate(
-      'UPDATE public.notification_outbox SET read_at = now() '
-      r'WHERE account_id = $1 AND read_at IS NULL '
-      'AND id IN ($placeholders)',
-      variables: [
-        Variable<String>(accountId),
-        for (final id in ids) Variable<String>(id),
-      ],
-      updateKind: UpdateKind.update,
-    );
-  }
-
-  @override
-  Future<int> markAllRead(String accountId) => _database.customUpdate(
-    'UPDATE public.notification_outbox SET read_at = now() '
-    r'WHERE account_id = $1 AND read_at IS NULL',
-    variables: [Variable<String>(accountId)],
-    updateKind: UpdateKind.update,
-  );
 
   @override
   Future<int> markEmailedByDedupKey(String dedupKey) => _database.customUpdate(
@@ -239,7 +169,7 @@ DO UPDATE SET
     final before = DateTime.timestamp().subtract(age);
     return _database.customUpdate(
       'DELETE FROM public.notification_outbox '
-      r'WHERE read_at IS NOT NULL AND created_at < $1::timestamptz',
+      r'WHERE seen_at IS NOT NULL AND created_at < $1::timestamptz',
       variables: [Variable<String>(before.toUtc().toIso8601String())],
       updateKind: UpdateKind.delete,
     );

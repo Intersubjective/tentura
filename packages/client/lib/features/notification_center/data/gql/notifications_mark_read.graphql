@@ -1,3 +1,0 @@
-mutation NotificationsMarkRead($ids: [String!]!) {
-  notificationsMarkRead(ids: $ids)
-}

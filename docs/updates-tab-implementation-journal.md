@@ -125,7 +125,8 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-16 | Complete | `m0118` settlement axis, distinct Needs you projection, Mark done flow, GraphQL/authorization boundary, and PostgreSQL migration/settlement proof pass without changing unread semantics. |
 | T-17 | Complete | Tokenized changed-field highlight plus pure dwell policy and `visibility_detector` Updates-card adapter pass focused analysis/tests. |
 | T-18 | Complete | Authorized payload-only indexed search with bounded GraphQL input, stable cursor paging, debounced Updates UI, and PostgreSQL EXPLAIN proof. |
-| T-19–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
+| T-19 | Complete | Version-gated contract migration removes legacy Notification Center fields and active `read_at` writes; seen-only index and acknowledgement proof pass. |
+| T-20–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
 
@@ -672,3 +673,28 @@ query use immutable `coalesce(...) || ' ' || ...` concatenation instead.
 payload-only matching, stable opaque cursor paging, and index use under an EXPLAIN
 plan. Migration and GraphQL controller suites pass, as do the focused client domain
 case and scoped server/client analysis. T-18 is complete.
+
+## T-19 — Legacy contract phase
+
+Raised the client and server major versions to `5.0.0` and `2.0.0` respectively, and
+the deployable `MIN_CLIENT_VERSION` example to `5.0.0`. Production deployment must set
+the same environment variable before shipping this contract-breaking server release.
+
+Migration `m0120` creates the seen-only dedup and unread indexes before dropping their
+transition predecessors, then restores the established index names. Active feed,
+acknowledgement, directed-Chat watermark, and collapse paths now use `seen_at` only;
+`read_at` remains retained historical data and is no longer written. The legacy
+`notifications*` GraphQL fields, Notification Center use case, shadow comparator, and
+stale client GraphQL inputs are removed. Room push dispatch remains the post-commit
+channel boundary, not a legacy read-model API.
+
+**Unexpected finding:** T-15 had removed visible Notification Center chrome but the
+server GraphQL registrations and client query inputs were still present. T-19 removes
+that dormant compatibility surface. The initial collapse regression test mistakenly
+set `seen_at`, which correctly opened a new receipt; it now separately proves that a
+`read_at`-only change does not reopen a collapse window, while `seen_at` does.
+
+**Verification:** PostgreSQL migration/index/collapse/acknowledgement and authorized
+attention repository suites pass alongside attention GraphQL tests. Server analysis,
+client code generation, and client analysis complete with the repository's existing
+informational warning baseline. T-19 is complete.
