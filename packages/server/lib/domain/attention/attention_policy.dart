@@ -15,6 +15,17 @@ class AttentionPolicy {
     if (recipientId.isEmpty || recipientReasons.isEmpty) {
       throw ArgumentError('recipientId and recipientReasons must be non-empty');
     }
+    if (eventType.isBeaconScoped) {
+      final beaconId = role.beaconId?.trim();
+      if (beaconId == null || beaconId.isEmpty) {
+        throw ArgumentError('Beacon-scoped attention requires a beacon id');
+      }
+      if (!recipientReasons.any((reason) => reason.isBeaconRelationship)) {
+        throw ArgumentError(
+          'Beacon-scoped attention requires an event-time Beacon relationship',
+        );
+      }
+    }
 
     final suppression = _suppression(eventType, recipientReasons);
     final accessPolicy = _accessPolicy(eventType, role);

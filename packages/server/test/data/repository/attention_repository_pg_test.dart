@@ -281,6 +281,43 @@ SELECT pg_get_functiondef(
       },
     );
 
+    test(
+      'unreadForBeacons returns only authorized candidate Beacon ids',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nmarker-visible',
+          beaconId: _contentBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nmarker-hidden',
+          beaconId: _hiddenBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
+        );
+
+        expect(
+          await query.unreadForBeacons(
+            accountId: _viewerId,
+            beaconIds: {_contentBeaconId, _hiddenBeaconId},
+          ),
+          {_contentBeaconId},
+        );
+        expect(
+          await query.unreadForBeacons(
+            accountId: _viewerId,
+            beaconIds: const {},
+          ),
+          isEmpty,
+        );
+      },
+    );
+
     test('composite cursor is stable for equal timestamps', () async {
       for (final id in const [
         'Nsame05',

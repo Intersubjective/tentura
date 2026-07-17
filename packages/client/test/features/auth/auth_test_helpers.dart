@@ -53,8 +53,7 @@ class TestAuthPlatformCleanup implements AuthPlatformCleanupPort {
     AuthRemoteRepositoryPort remote,
     AuthLocalRepositoryPort local,
     String userId,
-  ) async =>
-      false;
+  ) async => false;
 
   @override
   void applyRecoveryNavigation(AuthRecoveryOutcome outcome) {}
@@ -117,18 +116,6 @@ class TestSettingsRepository implements SettingsRepositoryPort {
 
   @override
   Future<void> setLocalePreference(String value) async {}
-
-  @override
-  Future<int?> getNewStuffInboxLastSeenMs(String accountId) async => null;
-
-  @override
-  Future<void> setNewStuffInboxLastSeenMs(String accountId, int epochMs) async {}
-
-  @override
-  Future<int?> getNewStuffMyWorkLastSeenMs(String accountId) async => null;
-
-  @override
-  Future<void> setNewStuffMyWorkLastSeenMs(String accountId, int epochMs) async {}
 }
 
 AuthCase buildTestAuthCase(
@@ -136,16 +123,15 @@ AuthCase buildTestAuthCase(
   AuthRemoteRepositoryPort remote, {
   List<String>? order,
   Logger? logger,
-}) =>
-    AuthCase(
-      local,
-      remote,
-      TestDevicePush(order),
-      TestAuthPlatformCleanup(order),
-      TestSettingsRepository(order),
-      env: const Env(),
-      logger: logger ?? Logger('test'),
-    );
+}) => AuthCase(
+  local,
+  remote,
+  TestDevicePush(order),
+  TestAuthPlatformCleanup(order),
+  TestSettingsRepository(order),
+  env: const Env(),
+  logger: logger ?? Logger('test'),
+);
 
 class EmptyAuthLocal implements AuthLocalRepositoryPort {
   @override
@@ -179,7 +165,11 @@ class EmptyAuthLocal implements AuthLocalRepositoryPort {
   Future<void> setCurrentAccountId(String? id) async {}
 
   @override
-  Future<void> addAccount(String id, String seed, [String? displayName]) async {}
+  Future<void> addAccount(
+    String id,
+    String seed, [
+    String? displayName,
+  ]) async {}
 
   @override
   Future<void> upsertAccountWithSeed(
@@ -240,6 +230,5 @@ class EmptyAuthRemote implements AuthRemoteRepositoryPort {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async =>
-      '';
+  }) async => '';
 }

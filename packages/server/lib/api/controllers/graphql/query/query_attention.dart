@@ -13,7 +13,34 @@ final class QueryAttention extends GqlNodeBase {
 
   final AttentionQueryPort _query;
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [attentionFeed];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    attentionFeed,
+    attentionMarkers,
+  ];
+
+  GraphQLObjectField<dynamic, dynamic> get attentionMarkers =>
+      GraphQLObjectField(
+        'attentionMarkers',
+        gqlTypeAttentionMarkers.nonNullable(),
+        arguments: [_beaconIds.field],
+        resolve: (_, args) async {
+          final beaconIds = _beaconIds.fromArgsNonNullable(args).toSet();
+          if (beaconIds.length > 500) {
+            throw ArgumentError.value(
+              beaconIds.length,
+              'beaconIds',
+              'must contain at most 500 unique ids',
+            );
+          }
+          final unreadBeaconIds = await _query.unreadForBeacons(
+            accountId: getCredentials(args).sub,
+            beaconIds: beaconIds,
+          );
+          return {
+            'unreadBeaconIds': unreadBeaconIds.toList()..sort(),
+          };
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get attentionFeed => GraphQLObjectField(
     'attentionFeed',
@@ -53,6 +80,7 @@ final class QueryAttention extends GqlNodeBase {
   static final _cursor = InputFieldString(fieldName: 'cursor');
   static final _search = InputFieldString(fieldName: 'search');
   static final _limit = InputFieldInt(fieldName: 'limit');
+  static final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
 
   static AttentionFeedView _parseView(String value) => switch (value) {
     'all' => AttentionFeedView.all,

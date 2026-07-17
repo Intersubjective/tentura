@@ -1,5 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
-import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -8,7 +6,6 @@ import 'package:test/test.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -22,6 +19,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/update_draft_bl
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -188,6 +186,7 @@ void main() {
     late _StubBeacons beacons;
     late _StubItems items;
     late _RecordingPush push;
+    late TestAttentionHarness attention;
     late MarkBlockerCase sut;
 
     setUp(() {
@@ -199,10 +198,13 @@ void main() {
         creatorId: ownerId,
       );
       push = _RecordingPush();
+      attention = TestAttentionHarness();
       sut = MarkBlockerCase(
         beacons,
         items,
         push,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -217,7 +219,7 @@ void main() {
       expect(out.id, itemId);
       expect(items.lastCreateKind, coordinationItemKindBlocker);
       expect(items.lastCreateTitle, 'Need parts');
-      expect(push.blockerOpenedCalls, 1);
+      expect(attention.recorded.single.eventType.name, 'blockerOpened');
     });
 
     test('empty title rejected', () async {
@@ -233,8 +235,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity =
-          _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       await expectLater(
         () => sut.call(
           userId: ownerId,
@@ -250,6 +253,7 @@ void main() {
   group('ResolveBlockerCase', () {
     late _StubItems items;
     late _RecordingPush push;
+    late TestAttentionHarness attention;
     late ResolveBlockerCase sut;
 
     setUp(() {
@@ -263,9 +267,12 @@ void main() {
         status: coordinationItemStatusResolved,
       );
       push = _RecordingPush();
+      attention = TestAttentionHarness();
       sut = ResolveBlockerCase(
         items,
         push,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -275,7 +282,7 @@ void main() {
       final out = await sut.call(userId: ownerId, itemId: itemId);
       expect(out.status, coordinationItemStatusResolved);
       expect(items.lastUpdateStatus, coordinationItemStatusResolved);
-      expect(push.blockerResolvedCalls, 1);
+      expect(attention.recorded.single.eventType.name, 'blockerResolved');
     });
 
     test('not found rejected', () async {
@@ -449,8 +456,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity =
-          _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       await expectLater(
         () => sut.call(
           userId: ownerId,

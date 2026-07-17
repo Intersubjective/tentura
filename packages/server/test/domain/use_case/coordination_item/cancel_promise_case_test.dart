@@ -12,6 +12,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
 import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? item;
@@ -40,6 +41,7 @@ void main() {
   const targetId = 'Utarget000001';
 
   setUp(() {
+    final attention = TestAttentionHarness();
     items = _StubItems();
     items.item = _samplePromise(
       id: itemId,
@@ -49,6 +51,8 @@ void main() {
     sut = CancelPromiseCase(
       items,
       _NoopRoomPush(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );

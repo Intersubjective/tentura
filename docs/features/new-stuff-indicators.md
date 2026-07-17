@@ -1,51 +1,86 @@
-# New Stuff Indicators (Inbox & My Work)
+# Attention Indicators (Inbox & My Work)
 
-**User-facing:** bottom-nav dots and inbox row pills show activity since your last visit to Inbox or My Work (local cursors only; no server API).
+**User-facing:** bottom-navigation dots and per-Request card markers indicate unread
+attention only when the Request belongs to a successfully loaded Inbox or My Work
+projection.
 
-Client-only “since last visit” cues for the **Inbox** and **My Work** home tabs: bottom-nav dots and per-row/per-card markers, driven by local Drift cursors and max activity timestamps from successful fetches.
+## Product contract
 
-## What it does
+- A Request belongs to **Inbox XOR My Work XOR neither** for these indicators.
+- Becoming genuinely involved—for example, authoring or offering help—moves the Request
+  to My Work; My Work wins if stale client snapshots temporarily contain it in both.
+- If neither loaded projection contains the Request, the client shows no Inbox/My Work
+  dot or card marker.
+- The active tab hides its navigation dot. Its per-card markers remain visible; entering
+  a tab does not mark attention receipts seen.
+- The Updates tab remains the place that owns receipt acknowledgement and unread totals.
 
-- **Bottom navigation** — A small dot on the Inbox or My Work destination when there is activity **newer** than the stored last-seen cursor **and** the user is **not** currently on that tab.
-- **Inbox rows** — Pills distinguish **New** (forward / inbox activity after last visit) vs **Updated** (beacon content changed after last visit without newer forward activity than the cursor). The tab dot’s max-activity snapshot uses `max(latest_forward_at, beacon.updated_at)` per row so beacon-only edits still count.
-- **My Work (My Desk)** — Bottom-nav dot only when any card has activity newer than the last-seen cursor. No per-card markers.
+## Architecture boundary
 
-There is **no** server API dedicated to this feature: cursors are **per account**, stored in `Settings` as epoch milliseconds (`valueInt`).
+Server/domain authority is semantic involvement plus receipt state, not UI surface
+membership. Beacon-scoped producers record event-time recipient reasons such as author,
+forward recipient, admitted or active participant, affected participant, review
+participant, Inbox stance holder, or directed Chat target. The attention policy rejects
+a Beacon-scoped receipt that lacks a semantic Beacon relationship.
 
-> **Scope:** the Updates tab badge is separate, server-authoritative attention truth.
-> Inbox/My Work dots, their local Drift cursors, and `InboxRowHighlightKind` remain
-> intentionally until T-21 replaces them with a separately verified parity plan.
+The server exposes:
 
-## Architecture
-
-```
-[HomeScreen]
-  ├─ HomeBottomNavListener → NewStuffCubit.setActiveHomeTabIndex (sync with TabsRouter)
-  └─ onDestinationSelected → NewStuffCubit.markInboxTabSeen / markMyWorkTabSeen
-
-[NewStuffCubit] (@singleton)
-  ├─ Hydrates last-seen from SettingsRepository on auth / account change
-  ├─ In-memory max activity: maxInboxActivityMs / maxMyWorkActivityMs (from cubits)
-  └─ Persists last-seen only when the user marks the tab seen (or pending-after-first-fetch path)
-
-[InboxCubit] ──reportInboxActivity(max latestForwardAt)──▶ NewStuffCubit
-[MyWorkCubit] ──reportMyWorkActivity(max beacon.updatedAt)──▶ NewStuffCubit
+```graphql
+attentionMarkers(beaconIds: [String!]!): AttentionMarkerProjection!
 ```
 
-### Key files
+It accepts at most 500 unique candidate ids and returns authorized, unseen
+`unreadBeaconIds`. It does not accept or return Inbox/My Work labels.
 
-| Layer | File |
+The presentation adapter owns surface selection:
+
+```text
+successful Inbox snapshot ─┐
+                            ├─ candidate union ─▶ authorized unread ids
+successful My Work snapshot ┘                         │
+                                                      ▼
+Inbox markers   = unread ids ∩ (Inbox ids - My Work ids)
+My Work markers = unread ids ∩ My Work ids
+```
+
+This distinction matters during eventual consistency. A stale or failed client
+projection does not revoke a valid domain receipt, but it also cannot manufacture a dot.
+The client suppresses indicators until it can map semantic unread ids onto current cards.
+
+## Candidate projections
+
+- **Inbox:** ids in the successfully loaded Needs me and Watching collections.
+- **My Work:** ids in the successfully loaded non-archived card collection.
+- Rejected Inbox rows and archived My Work cards do not contribute to their primary-tab
+  indicators.
+
+`HomeAttentionCubit` queries the candidate union in chunks of 500. A changed surface
+snapshot, account change, attention-feed refresh, query failure, or unknown initial load
+clears existing markers immediately. Both surface snapshots and the marker query must
+complete successfully before any marker can appear. Account and projection generations
+discard stale asynchronous responses.
+
+Inbox and My Work projections are loaded eagerly at the home shell (alongside their
+snapshot reporters), so markers can appear on the first visited tab without requiring
+the user to open the other surface first.
+
+## Key files
+
+| Responsibility | File |
 |---|---|
-| State & cubit | `packages/client/lib/features/home/ui/bloc/new_stuff_cubit.dart`, `new_stuff_state.dart` |
-| Settings keys | `packages/client/lib/features/settings/data/repository/settings_repository.dart` (`newStuff:inbox:<accountId>`, `newStuff:myWork:<accountId>`) |
-| Tab sync | `packages/client/lib/features/home/ui/widget/home_bottom_nav_listener.dart` |
-| Mark on tab entry | `packages/client/lib/features/home/ui/screen/home_screen.dart` |
-| Nav dots | `packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart`, `my_work_navbar_item.dart` |
-| Activity reporting | `packages/client/lib/features/inbox/ui/bloc/inbox_cubit.dart`, `packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart` |
-| Row/card UI | `packages/client/lib/features/inbox/ui/widget/inbox_item_tile.dart` |
+| Server GraphQL projection | `packages/server/lib/api/controllers/graphql/query/query_attention.dart` |
+| Authorized unread lookup | `packages/server/lib/domain/port/attention_query_port.dart`, `packages/server/lib/data/repository/attention_repository.dart` |
+| Domain recipient invariant | `packages/server/lib/domain/attention/attention_models.dart`, `attention_policy.dart` |
+| Client GraphQL request | `packages/client/lib/features/attention/data/gql/attention_markers.graphql` |
+| Client attention boundary | `packages/client/lib/domain/attention/attention_case.dart`, `attention_repository_port.dart` |
+| Surface presenter | `packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart`, `home_attention_state.dart` |
+| Snapshot reporters | `inbox_needs_me_reporter.dart`, `my_work_attention_reporter.dart` |
+| Navigation dots | `inbox_navbar_item.dart`, `my_work_navbar_item.dart` |
+| Card marker | `packages/client/lib/features/home/ui/widget/attention_marker.dart` |
 
-## Design notes
+## Retired behavior
 
-- **Null last-seen** — First visit (`inboxLastSeenMs == null`) still shows the Inbox tab dot once `maxInboxActivityMs > 0` (e.g. after a beacon invite forward). Row/card “new” pills still require a persisted last-seen baseline.
-- **Drift writes** — Advancing last-seen is **not** tied to every background refetch; repeated `report*Activity` updates in-memory max only. Persistence happens when the user **enters** the tab (`mark*TabSeen`) or the **pending-after-fetch** path runs on first visit when max was unknown at tap time.
-- **Home tab indices** — 0 My Work, 1 Inbox, 2 Updates, 3 Friends, 4 Profile. `markInboxTabSeen` runs on bottom-nav **selection changes**. If the user stays on Inbox for the whole session without switching tabs, Inbox last-seen may not advance; switching away and back updates it. My Work is tab 0 (app default).
+T-21 removed the local “since last visit” cursor system: `NewStuffCubit`, per-account
+Drift timestamp keys, max-activity comparisons, `InboxRowHighlightKind`, and New/Updated
+timestamp reasons. Indicator truth now comes from unread attention receipts, while
+surface placement remains a client presentation decision.

@@ -23,7 +23,7 @@ void main() {
       'lib/app/router/home_tab_branches.dart',
       'lib/features/home/ui/screen/home_screen.dart',
       'lib/features/home/ui/widget/home_bottom_nav_listener.dart',
-      'lib/features/home/ui/bloc/new_stuff_cubit.dart',
+      'lib/features/home/ui/bloc/home_attention_cubit.dart',
       'lib/features/inbox/ui/screen/inbox_screen.dart',
     ];
     final positionalComparison = RegExp(

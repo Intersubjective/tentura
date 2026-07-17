@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -11,6 +10,7 @@ import '../../domain/use_case/inbox_case.dart';
 import '../../domain/enum.dart';
 import '../message/inbox_messages.dart';
 import 'inbox_state.dart';
+import 'inbox_operational_cubit.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -20,11 +20,15 @@ class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
     required String userId,
     InboxCase? inboxCase,
-    NewStuffCubit? newStuffCubit,
+    InboxOperationalCubit? operationalCubit,
     UiEffectPort? effects,
   }) : _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
-       _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
+       _operationalCubit =
+           operationalCubit ??
+           (GetIt.I.isRegistered<InboxOperationalCubit>()
+               ? GetIt.I<InboxOperationalCubit>()
+               : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(InboxState(currentUserId: userId)) {
     _helpOfferChanges = _inboxCase.helpOfferChanges.listen(
@@ -54,7 +58,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   final String _userId;
   final InboxCase _inboxCase;
-  final NewStuffCubit _newStuffCubit;
+  final InboxOperationalCubit? _operationalCubit;
 
   final UiEffectPort _effects;
 
@@ -94,13 +98,10 @@ class InboxCubit extends Cubit<InboxState> {
   }
 
   void _reportInboxActivity() {
-    if (!state.isSuccess) return;
-    int? maxMs;
-    for (final e in state.items) {
-      final m = e.newStuffActivityEpochMs;
-      if (maxMs == null || m > maxMs) maxMs = m;
-    }
-    _newStuffCubit.reportInboxActivity(maxMs);
+    _operationalCubit?.report(
+      needsMeCount: state.needsMe.length,
+      loadComplete: state.isSuccess && state.projectionLoaded,
+    );
   }
 
   void _onDeskRelevantChanged(String beaconId) {
@@ -190,7 +191,12 @@ class InboxCubit extends Cubit<InboxState> {
   }) async {
     final sequence = ++_fetchSequence;
     if (showLoading) {
-      emit(state.copyWith(status: StateStatus.isLoading));
+      emit(
+        state.copyWith(
+          status: StateStatus.isLoading,
+          projectionLoaded: false,
+        ),
+      );
     }
     try {
       final raw = await _inboxCase.fetch(userId: _userId);
@@ -202,6 +208,7 @@ class InboxCubit extends Cubit<InboxState> {
         state.copyWith(
           items: items,
           status: const StateIsSuccess(),
+          projectionLoaded: true,
         ),
       );
       _reportInboxActivity();

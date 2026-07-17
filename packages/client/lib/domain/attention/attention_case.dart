@@ -88,6 +88,14 @@ final class AttentionCase {
 
   Future<void> refresh() async => _requestHeadRefresh();
 
+  /// Returns unread attention for candidate Beacons without assigning them to
+  /// any presentation surface. Surface projection belongs to the client
+  /// presenter that owns the current Inbox and My Work snapshots.
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) {
+    if (beaconIds.isEmpty) return Future.value(const {});
+    return _repository.unreadForBeacons(beaconIds);
+  }
+
   Future<void> fetchNextPage() async {
     if (_accountId.isEmpty) return;
     final current = snapshot.pages[snapshot.activeView];

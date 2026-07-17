@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
 import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -72,10 +73,11 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     int? staleAfterDays,
   }) async {
     lastPublishId = id;
-    return nextReturn ?? item!.copyWith(
-      published: true,
-      targetPersonId: targetPersonId,
-    );
+    return nextReturn ??
+        item!.copyWith(
+          published: true,
+          targetPersonId: targetPersonId,
+        );
   }
 
   @override
@@ -94,8 +96,12 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
         item!.copyWith(
           title: title,
           body: body,
-          targetPersonId: updateTargetPersonId ? targetPersonId : item!.targetPersonId,
-          staleAfterDays: updateStaleAfterDays ? staleAfterDays : item!.staleAfterDays,
+          targetPersonId: updateTargetPersonId
+              ? targetPersonId
+              : item!.targetPersonId,
+          staleAfterDays: updateStaleAfterDays
+              ? staleAfterDays
+              : item!.staleAfterDays,
         );
   }
 
@@ -118,15 +124,13 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      userId == authorId;
+  }) async => userId == authorId;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
@@ -295,10 +299,13 @@ void main() {
         published: true,
         targetPersonId: targetId,
       );
+      final attention = TestAttentionHarness();
       sut = PublishDraftPromiseCase(
         beacons,
         items,
         _NoopRoomPush(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );

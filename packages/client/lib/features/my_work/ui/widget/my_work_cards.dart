@@ -26,11 +26,17 @@ import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 
 class MyWorkCardRouter extends StatelessWidget {
-  const MyWorkCardRouter({required this.vm, super.key});
+  const MyWorkCardRouter({
+    required this.vm,
+    this.attentionMarked = false,
+    super.key,
+  });
 
   final MyWorkCardViewModel vm;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -39,30 +45,37 @@ class MyWorkCardRouter extends StatelessWidget {
       MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.authoredActive => _AuthoredActiveCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.authoredFinished => _FinishedAuthoredCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.helpOfferedFinished => _FinishedHelpOfferedCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.authoredArchived => _FinishedAuthoredCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
       MyWorkCardKind.helpOfferedArchived => _FinishedHelpOfferedCard(
         vm: vm,
         currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
       ),
     };
   }
@@ -148,10 +161,12 @@ class _AuthoredActiveCard extends StatelessWidget {
   const _AuthoredActiveCard({
     required this.vm,
     required this.currentUserId,
+    required this.attentionMarked,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -163,8 +178,7 @@ class _AuthoredActiveCard extends StatelessWidget {
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
-      roomSubtitle:
-          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+      roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
     final hasReviewCta = vm.showReviewHelpOffersCta;
@@ -189,10 +203,12 @@ class _AuthoredActiveCard extends StatelessWidget {
             BeaconPhasePrimaryAction.reviewOffers =>
               _openBeaconReviewHelpOffers(context, b.id),
             BeaconPhasePrimaryAction.forward => unawaited(
-                context.router.push(ForwardBeaconRoute(beaconId: b.id)),
-              ),
-            BeaconPhasePrimaryAction.resolveBlocker =>
-              _openBeacon(context, b.id),
+              context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+            ),
+            BeaconPhasePrimaryAction.resolveBlocker => _openBeacon(
+              context,
+              b.id,
+            ),
             _ => _openBeacon(context, b.id),
           },
         ),
@@ -207,8 +223,7 @@ class _AuthoredActiveCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TenturaCommandButton(
                 label: l10n.myWorkReviewHelpOffersCta,
-                onPressed: () =>
-                    _openBeaconReviewHelpOffers(context, b.id),
+                onPressed: () => _openBeaconReviewHelpOffers(context, b.id),
               ),
             ),
           if (hasReviewCta && needsForwardCta)
@@ -232,6 +247,7 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: footerActions,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +267,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
-                      if (await BeaconCloseConfirmDialog.show(context) != true) {
+                      if (await BeaconCloseConfirmDialog.show(context) !=
+                          true) {
                         return;
                       }
                       if (!context.mounted) return;
@@ -262,7 +279,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                         );
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString(), error: e);
+                          showSnackBar(
+                            context,
+                            isError: true,
+                            text: e.toString(),
+                            error: e,
+                          );
                         }
                       }
                     }
@@ -275,7 +297,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                         await evaluationRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString(), error: e);
+                          showSnackBar(
+                            context,
+                            isError: true,
+                            text: e.toString(),
+                            error: e,
+                          );
                         }
                       }
                     }
@@ -313,7 +340,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString(), error: e);
+                      showSnackBar(
+                        context,
+                        isError: true,
+                        text: e.toString(),
+                        error: e,
+                      );
                     }
                   }
                 }
@@ -336,10 +368,12 @@ class _HelpOfferedActiveCard extends StatelessWidget {
   const _HelpOfferedActiveCard({
     required this.vm,
     required this.currentUserId,
+    required this.attentionMarked,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -348,12 +382,12 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
-      roomSubtitle:
-          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+      roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: vm.showReviewCta
           ? Align(
               alignment: Alignment.centerRight,
@@ -409,10 +443,12 @@ class _DraftAuthoredCard extends StatelessWidget {
   const _DraftAuthoredCard({
     required this.vm,
     required this.currentUserId,
+    required this.attentionMarked,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -422,13 +458,13 @@ class _DraftAuthoredCard extends StatelessWidget {
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
-      roomSubtitle:
-          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+      roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
     return BeaconCardShell(
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -471,7 +507,12 @@ class _DraftAuthoredCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString(), error: e);
+                      showSnackBar(
+                        context,
+                        isError: true,
+                        text: e.toString(),
+                        error: e,
+                      );
                     }
                   }
                 }
@@ -501,10 +542,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
   const _FinishedAuthoredCard({
     required this.vm,
     required this.currentUserId,
+    required this.attentionMarked,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -515,12 +558,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
-      roomSubtitle:
-          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+      roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: _myWorkArchiveFooter(context, vm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +583,8 @@ class _FinishedAuthoredCard extends StatelessWidget {
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
-                      if (await BeaconCloseConfirmDialog.show(context) != true) {
+                      if (await BeaconCloseConfirmDialog.show(context) !=
+                          true) {
                         return;
                       }
                       if (!context.mounted) return;
@@ -551,7 +595,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
                         );
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString(), error: e);
+                          showSnackBar(
+                            context,
+                            isError: true,
+                            text: e.toString(),
+                            error: e,
+                          );
                         }
                       }
                     }
@@ -564,7 +613,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
                         await evaluationRepo.beaconCancel(b.id);
                       } catch (e) {
                         if (context.mounted) {
-                          showSnackBar(context, isError: true, text: e.toString(), error: e);
+                          showSnackBar(
+                            context,
+                            isError: true,
+                            text: e.toString(),
+                            error: e,
+                          );
                         }
                       }
                     }
@@ -602,7 +656,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
                     await repo.delete(b.id);
                   } catch (e) {
                     if (context.mounted) {
-                      showSnackBar(context, isError: true, text: e.toString(), error: e);
+                      showSnackBar(
+                        context,
+                        isError: true,
+                        text: e.toString(),
+                        error: e,
+                      );
                     }
                   }
                 }
@@ -625,10 +684,12 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
   const _FinishedHelpOfferedCard({
     required this.vm,
     required this.currentUserId,
+    required this.attentionMarked,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
+  final bool attentionMarked;
 
   @override
   Widget build(BuildContext context) {
@@ -637,12 +698,12 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     final headerStatus = _myWorkCardHeaderStatus(
       statusLine,
-      roomSubtitle:
-          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+      roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: _myWorkArchiveFooter(context, vm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

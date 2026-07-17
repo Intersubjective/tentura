@@ -6,6 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/data/repository/app_update_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
@@ -62,7 +63,8 @@ class InvitationRepositoryMock extends Mock implements InvitationRepository {}
 class EvaluationRepositoryMock extends Mock implements EvaluationRepository {}
 
 @Injectable(as: CoordinationRepository, env: [Environment.test], order: 1)
-class CoordinationRepositoryMock extends Mock implements CoordinationRepository {}
+class CoordinationRepositoryMock extends Mock
+    implements CoordinationRepository {}
 
 @Injectable(as: AuthLocalRepositoryPort, env: [Environment.test], order: 1)
 class AuthLocalRepositoryMock extends Mock implements AuthLocalRepositoryPort {}
@@ -75,10 +77,12 @@ class FavoritesRemoteRepositoryMock extends Mock
 class ForwardRepositoryMock extends Mock implements ForwardRepository {}
 
 @Injectable(as: AuthRemoteRepositoryPort, env: [Environment.test], order: 1)
-class AuthRemoteRepositoryMock extends Mock implements AuthRemoteRepositoryPort {}
+class AuthRemoteRepositoryMock extends Mock
+    implements AuthRemoteRepositoryPort {}
 
 @Injectable(as: FriendsRemoteRepository, env: [Environment.test], order: 1)
-class FriendsRemoteRepositoryMock extends Mock implements FriendsRemoteRepository {}
+class FriendsRemoteRepositoryMock extends Mock
+    implements FriendsRemoteRepository {}
 
 @Injectable(as: RatingRepository, env: [Environment.test], order: 1)
 class RatingRepositoryMock extends Mock implements RatingRepository {}
@@ -119,15 +123,24 @@ class PlatformRepositoryMock extends Mock implements PlatformRepositoryPort {}
 @Injectable(as: SettingsRepositoryPort, env: [Environment.test], order: 1)
 class SettingsRepositoryMock extends Mock implements SettingsRepositoryPort {}
 
+@Injectable(as: AttentionRepositoryPort, env: [Environment.test], order: 1)
+class AttentionRepositoryMock extends Mock implements AttentionRepositoryPort {}
+
 @Injectable(as: MutualFriendsRepository, env: [Environment.test], order: 1)
-class MutualFriendsRepositoryMock extends Mock implements MutualFriendsRepository {}
+class MutualFriendsRepositoryMock extends Mock
+    implements MutualFriendsRepository {}
 
 @Injectable(as: FcmRemoteRepositoryPort, env: [Environment.test], order: 1)
 class FcmRemoteRepositoryMock extends Mock implements FcmRemoteRepositoryPort {}
 
-@Injectable(as: EmailTestRemoteRepositoryPort, env: [Environment.test], order: 1)
+@Injectable(
+  as: EmailTestRemoteRepositoryPort,
+  env: [Environment.test],
+  order: 1,
+)
 class EmailTestRemoteRepositoryMock extends Mock
     implements EmailTestRemoteRepositoryPort {}
 
 @Injectable(as: CoordinationItemRepository, env: [Environment.test], order: 1)
-class CoordinationItemRepositoryMock extends Mock implements CoordinationItemRepository {}
+class CoordinationItemRepositoryMock extends Mock
+    implements CoordinationItemRepository {}

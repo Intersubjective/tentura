@@ -26,6 +26,14 @@ enum AttentionEventType {
   staleReminder,
 }
 
+extension AttentionEventTypeScope on AttentionEventType {
+  bool get isBeaconScoped => switch (this) {
+    AttentionEventType.mutualConnectionFormed ||
+    AttentionEventType.inviteAccepted => false,
+    _ => true,
+  };
+}
+
 AttentionEventType attentionEventTypeFromWireName(String value) =>
     AttentionEventType.values.firstWhere((event) => event.name == value);
 
@@ -42,6 +50,18 @@ enum AttentionRecipientReason {
   directedChatTarget,
   reciprocalCounterpart,
   inviter,
+}
+
+extension AttentionRecipientReasonScope on AttentionRecipientReason {
+  /// Whether this event-time reason proves a relationship to the Beacon.
+  ///
+  /// Presentation projections may use that relationship to show the Beacon on
+  /// a surface, but surface membership itself is never a domain input here.
+  bool get isBeaconRelationship => switch (this) {
+    AttentionRecipientReason.reciprocalCounterpart ||
+    AttentionRecipientReason.inviter => false,
+    _ => true,
+  };
 }
 
 enum AttentionSuppressionClass { mandatory, standard, noisy }

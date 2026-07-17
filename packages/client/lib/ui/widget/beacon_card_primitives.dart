@@ -86,6 +86,7 @@ class BeaconCardShell extends StatelessWidget {
   const BeaconCardShell({
     required this.child,
     this.onTap,
+    this.marker,
     this.footer,
     this.muted = false,
     this.color,
@@ -101,6 +102,9 @@ class BeaconCardShell extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
 
+  /// Optional non-interactive status line between the card body and footer.
+  final Widget? marker;
+
   /// Placed below [child], outside the card [InkWell] when [onTap] is set.
   final Widget? footer;
   final bool muted;
@@ -113,9 +117,10 @@ class BeaconCardShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final hasFooter = footer != null;
+    final hasSupportingContent = marker != null || hasFooter;
     final mainPadding =
         padding ??
-        (hasFooter
+        (hasSupportingContent
             ? const EdgeInsets.fromLTRB(
                 kSpacingSmall,
                 kSpacingSmall,
@@ -138,7 +143,7 @@ class BeaconCardShell extends StatelessWidget {
             : tt.surface);
 
     final r = tt.cardRadius;
-    final inkRadius = hasFooter
+    final inkRadius = hasSupportingContent
         ? BorderRadius.only(
             topLeft: Radius.circular(r),
             topRight: Radius.circular(r),
@@ -167,6 +172,16 @@ class BeaconCardShell extends StatelessWidget {
           )
         else
           paddedMain,
+        if (marker != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kSpacingSmall,
+              kSpacingSmall,
+              kSpacingSmall,
+              0,
+            ),
+            child: marker,
+          ),
         if (footer != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(

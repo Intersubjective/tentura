@@ -1,0 +1,5 @@
+query AttentionMarkers($beaconIds: [String!]!) {
+  attentionMarkers(beaconIds: $beaconIds) {
+    unreadBeaconIds
+  }
+}

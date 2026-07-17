@@ -1,0 +1,52 @@
+{
+  "runId": "t21marker-mrp0xr0o",
+  "beaconId": "B65e1fe6ea52b",
+  "title": "T21 marker t21marker-mrp0xr0o",
+  "reportDir": "/tmp/tentura_t21_proof_1784297962248",
+  "api": {
+    "unreadBeforeOffer": [
+      "B65e1fe6ea52b"
+    ],
+    "unreadAfterOffer": [
+      "B65e1fe6ea52b"
+    ],
+    "markerIncludesBeaconBefore": true,
+    "markerIncludesBeaconAfter": true
+  },
+  "before": {
+    "inboxContainsRequest": true,
+    "inboxContainsMarker": true
+  },
+  "after": {
+    "myWorkContainsRequest": false,
+    "myWorkContainsMarker": true,
+    "inboxContainsRequest": false,
+    "inboxContainsMarker": false,
+    "myWorkUiPresent": true,
+    "myWorkMarkerUi": true
+  },
+  "markerResponses": [
+    [
+      "B65e1fe6ea52b"
+    ],
+    [
+      "B65e1fe6ea52b"
+    ],
+    [
+      "B65e1fe6ea52b"
+    ]
+  ],
+  "browserErrors": [
+    "The script has an unsupported MIME type ('text/html').",
+    "The script has an unsupported MIME type ('text/html').",
+    "The script has an unsupported MIME type ('text/html').",
+    "The script has an unsupported MIME type ('text/html')."
+  ],
+  "screenshots": [
+    "/tmp/tentura_t21_proof_1784297962248/before_inbox.png",
+    "/tmp/tentura_t21_proof_1784297962248/after_my_work.png",
+    "/tmp/tentura_t21_proof_1784297962248/after_inbox.png"
+  ],
+  "fatalBrowserErrors": [],
+  "ok": true
+}

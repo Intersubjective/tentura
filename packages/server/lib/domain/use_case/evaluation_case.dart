@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
@@ -284,7 +285,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   /// Author adds 7 days during wrapping up (max 2 extensions).
-  Future<BeaconCloseReviewResult> extendReviewWindow({
+  Future<BeaconExtendReviewResult> extendReviewWindow({
     required String beaconId,
     required String userId,
   }) async {
@@ -319,10 +320,10 @@ final class EvaluationCase extends UseCaseBase {
         final closesAt = await _evaluationRepository.extendReviewWindow(
           beaconId,
         );
-        return BeaconCloseReviewResult(
+        return BeaconExtendReviewResult(
           id: beaconId,
-          status: BeaconStatus.reviewOpen.smallintValue,
           closesAt: closesAt,
+          extensionsRemaining: _maxReviewExtensions - (w.extensionsUsed + 1),
         );
       },
     );

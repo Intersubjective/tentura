@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
-/// Inbox tab icon with optional new-activity dot (see [NewStuffCubit]).
+/// Inbox tab icon with an attention-derived activity dot.
 class InboxNavbarItem extends StatelessWidget {
   const InboxNavbarItem({super.key, this.selected = false});
 
@@ -10,13 +11,9 @@ class InboxNavbarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      BlocBuilder<NewStuffCubit, NewStuffState>(
-        buildWhen: (p, c) =>
-            p.inboxLastSeenMs != c.inboxLastSeenMs ||
-            p.maxInboxActivityMs != c.maxInboxActivityMs ||
-            p.activeHomeTab != c.activeHomeTab,
-        builder: (context, _) {
-          final show = context.read<NewStuffCubit>().hasNewInboxDot;
+      BlocSelector<HomeAttentionCubit, HomeAttentionState, bool>(
+        selector: (state) => state.hasInboxDot,
+        builder: (context, show) {
           final scheme = Theme.of(context).colorScheme;
           return Badge(
             isLabelVisible: show,

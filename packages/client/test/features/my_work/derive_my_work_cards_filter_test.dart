@@ -192,34 +192,4 @@ void main() {
       expect(merged.map((c) => c.beaconId), containsAll(['b1', 'b-new']));
     });
   });
-
-  test('maxMyWorkDeskActivityEpochMs picks max across lists', () {
-    final a = _vm(
-      id: 'a',
-      role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredActive,
-    ).copyWith(
-      beacon: Beacon.empty.copyWith(
-        id: 'a',
-        createdAt: DateTime.fromMillisecondsSinceEpoch(100),
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(500),
-      ),
-    );
-    final b = _vm(
-      id: 'b',
-      role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredFinished,
-      status: BeaconStatus.closed,
-    ).copyWith(
-      beacon: Beacon.empty.copyWith(
-        id: 'b',
-        createdAt: DateTime.fromMillisecondsSinceEpoch(100),
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(900),
-      ),
-    );
-    expect(
-      maxMyWorkDeskActivityEpochMs(nonArchivedCards: [a], archivedCards: [b]),
-      900,
-    );
-  });
 }

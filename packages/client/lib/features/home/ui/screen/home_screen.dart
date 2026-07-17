@@ -10,10 +10,13 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
+import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
+import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_attention_reporter.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/home_tab_reselect_cubit.dart';
-import '../bloc/new_stuff_cubit.dart';
+import '../bloc/home_attention_cubit.dart';
 import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
 import '../widget/home_post_join_listener.dart';
@@ -45,7 +48,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     providers: [
       BlocProvider.value(value: GetIt.I<ScreenCubit>()),
       BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
-      BlocProvider.value(value: GetIt.I<NewStuffCubit>()),
+      BlocProvider.value(value: GetIt.I<HomeAttentionCubit>()),
+      BlocProvider.value(value: GetIt.I<InboxOperationalCubit>()),
     ],
     child: BlocSelector<AuthCubit, AuthState, String>(
       bloc: GetIt.I<AuthCubit>(),
@@ -266,12 +270,15 @@ Future<void> resetHomeTabBranchToRoot(TabsRouter tabsRouter, HomeTab tab) {
   return branch.replaceAll([spec.rootRoute()]);
 }
 
-/// Provides the account-scoped [InboxCubit] and keeps the **last** account's
-/// cubit alive while [accountId] is transiently empty (sign-out / account
-/// switch). The kept-alive tab shell above still holds account-scoped screens
-/// (Inbox); rebuilding them without `Provider<InboxCubit>` throws before the
-/// router replaces the Home route. Prod web never sees that window — sign-out
-/// unloads the page — but in-place sign-out (native, integration tests) does.
+/// Provides account-scoped [InboxCubit] / [MyWorkCubit] and keeps the **last**
+/// account's cubits alive while [accountId] is transiently empty (sign-out /
+/// account switch). The kept-alive tab shell above still holds account-scoped
+/// screens; rebuilding them without those providers throws before the router
+/// replaces the Home route. Prod web never sees that window — sign-out unloads
+/// the page — but in-place sign-out (native, integration tests) does.
+///
+/// Both projections load eagerly at the home shell so attention markers can
+/// resolve without requiring the user to visit every tab first.
 class _InboxScope extends StatefulWidget {
   const _InboxScope({
     required this.accountId,
@@ -295,10 +302,18 @@ class _InboxScopeState extends State<_InboxScope> {
     }
     final id = _lastAccountId;
     if (id.isEmpty) return widget.child;
-    return BlocProvider(
+    return MultiBlocProvider(
       key: ValueKey(id),
-      create: (_) => InboxCubit(userId: id),
-      child: InboxNeedsMeReporter(child: widget.child),
+      providers: [
+        BlocProvider(create: (_) => InboxCubit(userId: id)),
+        BlocProvider(create: (_) => MyWorkCubit(userId: id)),
+      ],
+      child: InboxNeedsMeReporter(
+        child: MyWorkAttentionReporter(
+          accountId: id,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

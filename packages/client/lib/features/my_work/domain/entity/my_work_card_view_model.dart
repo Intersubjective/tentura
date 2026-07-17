@@ -44,6 +44,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default(false) bool showReviewCta,
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
+
     /// Author has forwarded this beacon at least once (authored active cards).
     @Default(false) bool authorHasForwardedOnce,
 
@@ -84,32 +85,4 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   bool get isFinishedCard =>
       kind == MyWorkCardKind.authoredFinished ||
       kind == MyWorkCardKind.helpOfferedFinished;
-
-  /// Max relevant backend activity for NewStuff (tab dot), in epoch ms.
-  int get newStuffActivityEpochMs {
-    final b = beacon;
-    var max = b.createdAt.millisecondsSinceEpoch;
-    if (b.updatedAt.millisecondsSinceEpoch > max) {
-      max = b.updatedAt.millisecondsSinceEpoch;
-    }
-    final cs = b.statusChangedAt?.millisecondsSinceEpoch;
-    if (cs != null && cs > max) {
-      max = cs;
-    }
-    if (role == MyWorkCardRole.helpOffered) {
-      final cr = helpOfferRowUpdatedAt?.millisecondsSinceEpoch;
-      if (cr != null && cr > max) {
-        max = cr;
-      }
-      final ar = authorCoordinationUpdatedAt?.millisecondsSinceEpoch;
-      if (ar != null && ar > max) {
-        max = ar;
-      }
-    }
-    final itemMsg = lastCoordinationItemMessageAt?.millisecondsSinceEpoch;
-    if (itemMsg != null && itemMsg > max) {
-      max = itemMsg;
-    }
-    return max;
-  }
 }

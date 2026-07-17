@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_all_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_markers.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_settle.req.gql.dart';
 
 @LazySingleton(
@@ -82,6 +83,20 @@ final class AttentionRepository implements AttentionRepositoryPort {
         ],
       ),
     );
+  }
+
+  @override
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async {
+    if (beaconIds.isEmpty) return const {};
+    final data = await _remoteApiService
+        .request(
+          GAttentionMarkersReq(
+            (request) => request.vars.beaconIds.addAll(beaconIds),
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    return data.attentionMarkers.unreadBeaconIds.toSet();
   }
 
   @override

@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
@@ -24,6 +25,7 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
+import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
@@ -126,6 +128,13 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
   }) async => [];
 }
 
+class _NoopAttentionExpiryRepository extends Fake
+    implements AttentionExpiryRepositoryPort {
+  @override
+  Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
+      const [];
+}
+
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
 class _StatusTransitionCall {
@@ -226,6 +235,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   int deleteScaffoldingCalls = 0;
   int insertReviewWindowCalls = 0;
   Map<String, int> reviewStatusesResult = {};
+  DateTime extendReviewResult = DateTime.utc(2025, 1, 8);
   final closeBeaconReviewWindowCalls =
       <({String beaconId, String reason, String? actorUserId})>[];
 
@@ -352,7 +362,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   @override
   Future<DateTime> extendReviewWindow(String beaconId) async =>
-      DateTime.timestamp().add(const Duration(days: 7));
+      extendReviewResult;
 
   @override
   Future<void> closeBeaconReviewWindow(
@@ -1206,6 +1216,100 @@ void main() {
         );
       },
     );
+  });
+
+  group('extendReviewWindow', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      final now = DateTime.utc(2025);
+      evalRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = BeaconReviewWindowRecord(
+          beaconId: beaconId,
+          openedAt: now.subtract(const Duration(days: 1)),
+          closesAt: now.add(const Duration(days: 6)),
+          status: 0,
+          extensionsUsed: 0,
+          createdAt: now.subtract(const Duration(days: 1)),
+          updatedAt: now,
+        )
+        ..extendReviewResult = now.add(const Duration(days: 13));
+      final expirySweep = AttentionExpirySweepCase(
+        _NoopAttentionExpiryRepository(),
+        evalRepo,
+        attention.intents,
+        attention.transactional,
+      );
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: const UserEntity(id: userId),
+          createdAt: now,
+          updatedAt: now,
+          status: BeaconStatus.reviewOpen,
+        ),
+      );
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        EmptyGraphHelpOfferRepository(),
+        EmptyGraphCoordinationRepository(),
+        EmptyGraphForwardEdgeRepository(),
+        StubUserRepository('User'),
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        EmptyGraphForwardEdgeRepository(),
+        evalRepo,
+        StubUserProfileBatchLookup('User'),
+        _NoopBeaconRoomNotificationPort(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test(
+      'returns the dedicated extension result and remaining count',
+      () async {
+        final result = await evaluationCase.extendReviewWindow(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(result.id, beaconId);
+        expect(result.closesAt, evalRepo.extendReviewResult);
+        expect(result.extensionsRemaining, 1);
+      },
+    );
+
+    test('decrements remaining count after the first extension', () async {
+      final window = evalRepo.reviewWindowResult!;
+      evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
+        beaconId: window.beaconId,
+        openedAt: window.openedAt,
+        closesAt: window.closesAt,
+        status: window.status,
+        extensionsUsed: 1,
+        createdAt: window.createdAt,
+        updatedAt: window.updatedAt,
+      );
+
+      final result = await evaluationCase.extendReviewWindow(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(result.extensionsRemaining, 0);
+    });
   });
 
   group('closeNow', () {

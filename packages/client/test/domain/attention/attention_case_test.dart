@@ -33,6 +33,8 @@ final class _Repository implements AttentionRepositoryPort {
   final List<({String receiptId, String kind})> settles = [];
   final List<({AttentionView view, String? cursor, String? search})> fetches =
       [];
+  final List<Set<String>> markerQueries = [];
+  Set<String> unreadBeaconIds = const {};
   int fetchCalls = 0;
 
   @override
@@ -45,6 +47,12 @@ final class _Repository implements AttentionRepositoryPort {
     fetchCalls++;
     fetches.add((view: view, cursor: cursor, search: search));
     return pendingFetches.removeAt(0).future;
+  }
+
+  @override
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async {
+    markerQueries.add(Set<String>.from(beaconIds));
+    return unreadBeaconIds.intersection(beaconIds);
   }
 
   @override
@@ -119,6 +127,18 @@ void main() {
       await accounts.dispose();
       await realtimePort.dispose();
     });
+
+    test(
+      'forwards semantic unread Beacon queries without surface labels',
+      () async {
+        repository.unreadBeaconIds = {'B1', 'B3'};
+
+        expect(await attention.unreadForBeacons({'B1', 'B2'}), {'B1'});
+        expect(repository.markerQueries, [
+          {'B1', 'B2'},
+        ]);
+      },
+    );
 
     test(
       'coalesces notification hints to one in-flight refresh and one rerun',

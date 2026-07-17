@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
@@ -9,7 +8,6 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -29,6 +27,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
 import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -86,7 +85,8 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }) async {
     lastPublishId = id;
     lastPublishTarget = targetPersonId;
-    return nextReturn ?? item!.copyWith(published: true, targetPersonId: targetPersonId);
+    return nextReturn ??
+        item!.copyWith(published: true, targetPersonId: targetPersonId);
   }
 
   @override
@@ -191,15 +191,13 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      userId == authorId;
+  }) async => userId == authorId;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
@@ -363,7 +361,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       expect(
         () => sut.call(
           userId: ownerId,
@@ -418,10 +418,13 @@ void main() {
         published: true,
         targetPersonId: targetId,
       );
+      final attention = TestAttentionHarness();
       sut = PublishDraftAskCase(
         beacons,
         items,
         _NoopRoomPush(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -485,7 +488,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       expect(
         () => sut.call(
           userId: ownerId,
@@ -523,10 +528,13 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final attention = TestAttentionHarness();
       sut = MarkAskCase(
         beacons,
         items,
         _NoopRoomPush(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -569,7 +577,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       expect(
         () => sut.call(
           userId: ownerId,
@@ -607,7 +617,9 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
-      items.nextReturn = items.item!.copyWith(status: coordinationItemStatusResolved);
+      items.nextReturn = items.item!.copyWith(
+        status: coordinationItemStatusResolved,
+      );
       sut = ResolveAskCase(
         items,
         env: Env(environment: Environment.test),
@@ -643,7 +655,9 @@ void main() {
     });
 
     test('already cancelled rejected', () async {
-      items.item = items.item!.copyWith(status: coordinationItemStatusCancelled);
+      items.item = items.item!.copyWith(
+        status: coordinationItemStatusCancelled,
+      );
       expect(
         () => sut.call(userId: ownerId, itemId: itemId),
         throwsA(isA<BeaconCreateException>()),
@@ -671,7 +685,9 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
-      items.nextReturn = items.item!.copyWith(status: coordinationItemStatusCancelled);
+      items.nextReturn = items.item!.copyWith(
+        status: coordinationItemStatusCancelled,
+      );
       sut = CancelAskCase(
         items,
         env: Env(environment: Environment.test),
@@ -715,7 +731,9 @@ void main() {
     });
 
     test('already cancelled rejected', () async {
-      items.item = items.item!.copyWith(status: coordinationItemStatusCancelled);
+      items.item = items.item!.copyWith(
+        status: coordinationItemStatusCancelled,
+      );
       expect(
         () => sut.call(userId: ownerId, itemId: itemId),
         throwsA(isA<BeaconCreateException>()),
@@ -811,7 +829,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       await expectLater(
         () => sut.call(
           userId: ownerId,
@@ -885,7 +905,9 @@ void main() {
     });
 
     test('inactive beacon rejected', () async {
-      beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+      beacons.entity = _openBeacon(
+        beaconId,
+      ).copyWith(status: BeaconStatus.cancelled);
       await expectLater(
         () => sut.call(userId: ownerId, itemId: itemId),
         throwsA(isA<BeaconCreateException>()),
@@ -906,7 +928,9 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
-      items.nextReturn = items.item!.copyWith(status: coordinationItemStatusAccepted);
+      items.nextReturn = items.item!.copyWith(
+        status: coordinationItemStatusAccepted,
+      );
       sut = AcceptAskCase(
         items,
         env: Env(environment: Environment.test),

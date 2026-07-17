@@ -69,8 +69,7 @@ void main() {
       expect(remote.registerCalls, 1);
     });
 
-    test(
-        'registers when matching record predates the registeredAt field '
+    test('registers when matching record predates the registeredAt field '
         '(null is treated as maximally stale)', () async {
       await settings.setLastFcmRegistration(
         const LastFcmRegistration(
@@ -109,27 +108,29 @@ void main() {
       expect(remote.lastRegister?.appId, appId);
     });
 
-    test('registers when token changes but accountId and appId are the same',
-        () async {
-      await settings.setLastFcmRegistration(
-        const LastFcmRegistration(
+    test(
+      'registers when token changes but accountId and appId are the same',
+      () async {
+        await settings.setLastFcmRegistration(
+          const LastFcmRegistration(
+            accountId: accountA,
+            appId: appId,
+            token: tokenT,
+          ),
+        );
+        local.token = tokenNew;
+
+        await case_.syncTokenForAccount(
           accountId: accountA,
-          appId: appId,
-          token: tokenT,
-        ),
-      );
-      local.token = tokenNew;
+          platform: 'web',
+        );
 
-      await case_.syncTokenForAccount(
-        accountId: accountA,
-        platform: 'web',
-      );
-
-      expect(remote.registerCalls, 1);
-      expect(remote.lastRegister?.token, tokenNew);
-      final last = await settings.getLastFcmRegistration();
-      expect(last?.token, tokenNew);
-    });
+        expect(remote.registerCalls, 1);
+        expect(remote.lastRegister?.token, tokenNew);
+        final last = await settings.getLastFcmRegistration();
+        expect(last?.token, tokenNew);
+      },
+    );
 
     test('forceRegister always calls server', () async {
       await settings.setLastFcmRegistration(
@@ -205,28 +206,30 @@ void main() {
       expect(remote.lastRegister?.token, tokenT);
     });
 
-    test('persists triple-key registration after successful register', () async {
-      local.token = tokenT;
-      final before = DateTime.now();
-
-      await case_.syncTokenForAccount(
-        accountId: accountA,
-        platform: 'ios',
-      );
-
-      final last = await settings.getLastFcmRegistration();
-      expect(last?.accountId, accountA);
-      expect(last?.appId, appId);
-      expect(last?.token, tokenT);
-      expect(
-        last?.registeredAt?.isBefore(before),
-        isNot(isTrue),
-        reason: 'registeredAt should be stamped at registration time',
-      );
-    });
-
     test(
-        'does not persist last registration when server rejects, '
+      'persists triple-key registration after successful register',
+      () async {
+        local.token = tokenT;
+        final before = DateTime.now();
+
+        await case_.syncTokenForAccount(
+          accountId: accountA,
+          platform: 'ios',
+        );
+
+        final last = await settings.getLastFcmRegistration();
+        expect(last?.accountId, accountA);
+        expect(last?.appId, appId);
+        expect(last?.token, tokenT);
+        expect(
+          last?.registeredAt?.isBefore(before),
+          isNot(isTrue),
+          reason: 'registeredAt should be stamped at registration time',
+        );
+      },
+    );
+
+    test('does not persist last registration when server rejects, '
         'so a later sync retries instead of sticking as "synced"', () async {
       remote.registerThrows = const FcmRegistrationRejectedException();
       local.token = tokenT;
@@ -379,8 +382,9 @@ class FakeFcmLocal implements FcmLocalRepositoryPort {
   String? token;
   int getTokenCalls = 0;
   int requestPermissionCalls = 0;
-  NotificationPermissions permissionResult =
-      const NotificationPermissions(authorized: true);
+  NotificationPermissions permissionResult = const NotificationPermissions(
+    authorized: true,
+  );
   Stream<String>? onTokenRefreshOverride;
 
   @override
@@ -482,16 +486,4 @@ class FakeSettings implements SettingsRepositoryPort {
 
   @override
   Future<void> setLocalePreference(String value) async {}
-
-  @override
-  Future<int?> getNewStuffInboxLastSeenMs(String accountId) async => null;
-
-  @override
-  Future<void> setNewStuffInboxLastSeenMs(String accountId, int epochMs) async {}
-
-  @override
-  Future<int?> getNewStuffMyWorkLastSeenMs(String accountId) async => null;
-
-  @override
-  Future<void> setNewStuffMyWorkLastSeenMs(String accountId, int epochMs) async {}
 }

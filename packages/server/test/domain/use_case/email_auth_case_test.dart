@@ -26,6 +26,7 @@ import 'package:tentura_server/env.dart';
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/noop_invite_accepted_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 
 final class _FakeEmailSender implements EmailSenderPort {
   String? lastVerifyUrl;
@@ -170,18 +171,23 @@ final class _FakeSessionRepo implements SessionRepositoryPort {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
-SessionCase _fakeSessionCase(Env env, UserRepositoryPort userRepo) => SessionCase(
-  _FakeSessionRepo(),
-  AuthCase(
-    userRepo,
-    MockInvitationRepositoryPort(),
-    NoopInviteAcceptedNotificationPort(),
+SessionCase _fakeSessionCase(Env env, UserRepositoryPort userRepo) {
+  final attention = TestAttentionHarness();
+  return SessionCase(
+    _FakeSessionRepo(),
+    AuthCase(
+      userRepo,
+      MockInvitationRepositoryPort(),
+      NoopInviteAcceptedNotificationPort(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
+      env: env,
+      logger: Logger('EmailAuthCaseTest'),
+    ),
     env: env,
     logger: Logger('EmailAuthCaseTest'),
-  ),
-  env: env,
-  logger: Logger('EmailAuthCaseTest'),
-);
+  );
+}
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -191,6 +197,7 @@ void main() {
   late _FakeTxRepo txRepo;
   late _FakeEmailSender sender;
   late EmailAuthCase case_;
+  late TestAttentionHarness attention;
   late Env env;
 
   setUp(() {
@@ -202,6 +209,7 @@ void main() {
     ).thenAnswer((_) async => null);
     final beaconRepo = MockBeaconRepositoryPort();
     final friendshipLookup = MockVoteUserFriendshipLookupPort();
+    attention = TestAttentionHarness();
     env = Env(
       environment: Environment.test,
       isNeedInvite: true,
@@ -215,6 +223,7 @@ void main() {
       beaconRepo: beaconRepo,
       friendshipLookup: friendshipLookup,
       contactRepo: MockUserContactRepositoryPort(),
+      attention: attention,
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
@@ -224,6 +233,8 @@ void main() {
       invitationRepo,
       NoopInviteAcceptedNotificationPort(),
       invitationCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
     );
@@ -247,20 +258,23 @@ void main() {
     ).thenAnswer((_) async => 'Ccred');
   });
 
-  test('start persists attemptId as transaction id when tx is created', () async {
-    const attemptId = 'Eabc1234567890';
-    final result = await case_.start(
-      email: 'Ada@Example.COM',
-      inviteCode: 'Iabc',
-      ipFingerprint: '1.2.3.4',
-      userAgentFingerprint: 'Mozilla',
-      attemptId: attemptId,
-    );
-    expect(result.correlationId, attemptId);
-    expect(result.outcome, EmailAuthStartOutcome.sent);
-    expect(txRepo.lastTransactionId, attemptId);
-    expect(sender.lastTo, 'ada@example.com');
-  });
+  test(
+    'start persists attemptId as transaction id when tx is created',
+    () async {
+      const attemptId = 'Eabc1234567890';
+      final result = await case_.start(
+        email: 'Ada@Example.COM',
+        inviteCode: 'Iabc',
+        ipFingerprint: '1.2.3.4',
+        userAgentFingerprint: 'Mozilla',
+        attemptId: attemptId,
+      );
+      expect(result.correlationId, attemptId);
+      expect(result.outcome, EmailAuthStartOutcome.sent);
+      expect(txRepo.lastTransactionId, attemptId);
+      expect(sender.lastTo, 'ada@example.com');
+    },
+  );
 
   test('start sends magic link when configured', () async {
     final result = await case_.start(
@@ -274,30 +288,33 @@ void main() {
     expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
   });
 
-  test('start skips unregistered email on invite-only without invite', () async {
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.getAccountIdByContact(
-        kind: ContactKind.email,
-        value: 'new@example.com',
-      ),
-    ).thenAnswer((_) async => null);
+  test(
+    'start skips unregistered email on invite-only without invite',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.getAccountIdByContact(
+          kind: ContactKind.email,
+          value: 'new@example.com',
+        ),
+      ).thenAnswer((_) async => null);
 
-    final result = await case_.start(
-      email: 'new@example.com',
-      ipFingerprint: '1.2.3.4',
-      userAgentFingerprint: 'Mozilla',
-    );
+      final result = await case_.start(
+        email: 'new@example.com',
+        ipFingerprint: '1.2.3.4',
+        userAgentFingerprint: 'Mozilla',
+      );
 
-    expect(result.outcome, EmailAuthStartOutcome.inviteRequiredSkip);
-    expect(sender.lastTo, isNull);
-    expect(sender.lastVerifyUrl, isNull);
-  });
+      expect(result.outcome, EmailAuthStartOutcome.inviteRequiredSkip);
+      expect(sender.lastTo, isNull);
+      expect(sender.lastVerifyUrl, isNull);
+    },
+  );
 
   test('start returns invalidFormat for bad email', () async {
     final result = await case_.start(
@@ -512,6 +529,8 @@ void main() {
       MockInvitationRepositoryPort(),
       NoopInviteAcceptedNotificationPort(),
       invitationCase,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: openEnv,
       logger: Logger('CredentialAuthCaseTest'),
     );
@@ -559,59 +578,62 @@ void main() {
     expect(openLogin.isNewAccount, isTrue);
   });
 
-  test('confirm links email_otp into existing google account by verified contact', () async {
-    const email = 'ada@example.com';
-    const googleAccountId = 'Ugoogle123456789012345678901234567';
-    when(
-      contactRepo.getAccountIdByContact(
-        kind: ContactKind.email,
-        value: email,
-      ),
-    ).thenAnswer((_) async => googleAccountId);
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {googleAccountId});
-    when(
-      userRepo.linkCredentialWithContacts(
-        accountId: anyNamed('accountId'),
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-        publicData: anyNamed('publicData'),
-        contacts: anyNamed('contacts'),
-      ),
-    ).thenAnswer((_) async => googleAccountId);
+  test(
+    'confirm links email_otp into existing google account by verified contact',
+    () async {
+      const email = 'ada@example.com';
+      const googleAccountId = 'Ugoogle123456789012345678901234567';
+      when(
+        contactRepo.getAccountIdByContact(
+          kind: ContactKind.email,
+          value: email,
+        ),
+      ).thenAnswer((_) async => googleAccountId);
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {googleAccountId});
+      when(
+        userRepo.linkCredentialWithContacts(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+          contacts: anyNamed('contacts'),
+        ),
+      ).thenAnswer((_) async => googleAccountId);
 
-    await case_.start(
-      email: email,
-      ipFingerprint: 'ip',
-      userAgentFingerprint: 'ua',
-    );
+      await case_.start(
+        email: email,
+        ipFingerprint: 'ip',
+        userAgentFingerprint: 'ua',
+      );
 
-    final outcome = await case_.confirm('opaque-token');
+      final outcome = await case_.confirm('opaque-token');
 
-    expect(outcome, isA<EmailAuthLoginConfirmed>());
-    final login = outcome as EmailAuthLoginConfirmed;
-    expect(login.sessionToken, 'session-cookie-value');
-    expect(login.inviteCode, isNull);
-    verify(
-      userRepo.linkCredentialWithContacts(
-        accountId: googleAccountId,
-        type: CredentialType.emailOtp,
-        identifier: email,
-        contacts: anyNamed('contacts'),
-      ),
-    ).called(1);
-    expect(
-      () => case_.confirm('opaque-token'),
-      throwsA(isA<EmailAuthTokenAlreadyUsedException>()),
-    );
-  });
+      expect(outcome, isA<EmailAuthLoginConfirmed>());
+      final login = outcome as EmailAuthLoginConfirmed;
+      expect(login.sessionToken, 'session-cookie-value');
+      expect(login.inviteCode, isNull);
+      verify(
+        userRepo.linkCredentialWithContacts(
+          accountId: googleAccountId,
+          type: CredentialType.emailOtp,
+          identifier: email,
+          contacts: anyNamed('contacts'),
+        ),
+      ).called(1);
+      expect(
+        () => case_.confirm('opaque-token'),
+        throwsA(isA<EmailAuthTokenAlreadyUsedException>()),
+      );
+    },
+  );
 
   group('qaTestLogin', () {
     late Env qaEnv;
@@ -630,6 +652,8 @@ void main() {
         MockInvitationRepositoryPort(),
         NoopInviteAcceptedNotificationPort(),
         invitationCase,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: qaEnv,
         logger: Logger('CredentialAuthCaseTest'),
       );
@@ -681,7 +705,9 @@ void main() {
           identifier: anyNamed('identifier'),
         ),
       ).thenThrow(const IdNotFoundException());
-      when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((_) async => {});
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {});
       when(
         userRepo.createWithCredential(
           type: anyNamed('type'),

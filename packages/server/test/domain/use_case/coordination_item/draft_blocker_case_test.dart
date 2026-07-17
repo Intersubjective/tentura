@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
@@ -7,7 +6,6 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -16,13 +14,11 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_draft_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_blocker_case.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
-import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_blocker_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/test_attention_harness.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import '../../../support/coordination_item_record_fixtures.dart';
@@ -93,15 +89,13 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      userId == authorId;
+  }) async => userId == authorId;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
@@ -247,10 +241,13 @@ void main() {
         creatorId: ownerId,
       );
       items.nextReturn = items.item!.copyWith(published: true);
+      final attention = TestAttentionHarness();
       sut = PublishDraftBlockerCase(
         beacons,
         items,
         _NoopRoomPush(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );

@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
@@ -13,6 +14,14 @@ Map<String, dynamic> beaconCloseReviewResultToGqlMap(
   'id': dto.id,
   'status': dto.status,
   'closesAt': dto.closesAt?.toUtc().toIso8601String(),
+};
+
+Map<String, dynamic> beaconExtendReviewResultToGqlMap(
+  BeaconExtendReviewResult dto,
+) => {
+  'id': dto.id,
+  'closesAt': dto.closesAt.toUtc().toIso8601String(),
+  'extensionsRemaining': dto.extensionsRemaining,
 };
 
 Map<String, dynamic> beaconStatusResultToGqlMap(
@@ -57,8 +66,9 @@ Map<String, dynamic> beaconInvolvementResultToGqlMap(
   'rejectedIds': dto.rejectedIds,
   'watchingIds': dto.watchingIds,
   'onwardForwarderIds': dto.onwardForwarderIds,
-  'myForwardedRecipients':
-      dto.myForwardedRecipients.map(myForwardRecipientToGqlMap).toList(),
+  'myForwardedRecipients': dto.myForwardedRecipients
+      .map(myForwardRecipientToGqlMap)
+      .toList(),
 };
 
 Map<String, dynamic> evaluationParticipantToGqlMap(
@@ -99,16 +109,15 @@ Map<String, dynamic> reviewWindowStatusToGqlMap(ReviewWindowStatusResult dto) =>
       'canCloseNow': dto.canCloseNow,
     };
 
-Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) =>
-    {
-      'suppressed': dto.suppressed,
-      'tone': dto.tone,
-      'message': dto.message,
-      'topReasonTags': dto.topReasonTags,
-      'neg2': dto.neg2,
-      'neg1': dto.neg1,
-      'zero': dto.zero,
-      'pos1': dto.pos1,
-      'pos2': dto.pos2,
-      'roleSummaryLine': dto.roleSummaryLine,
-    };
+Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) => {
+  'suppressed': dto.suppressed,
+  'tone': dto.tone,
+  'message': dto.message,
+  'topReasonTags': dto.topReasonTags,
+  'neg2': dto.neg2,
+  'neg1': dto.neg1,
+  'zero': dto.zero,
+  'pos1': dto.pos1,
+  'pos2': dto.pos2,
+  'roleSummaryLine': dto.roleSummaryLine,
+};

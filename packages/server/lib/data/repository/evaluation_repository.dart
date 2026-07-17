@@ -34,7 +34,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required DateTime openedAt,
     required DateTime closesAt,
-  }) => _db.into(_db.beaconReviewWindows).insert(
+  }) => _db
+      .into(_db.beaconReviewWindows)
+      .insert(
         BeaconReviewWindowsCompanion.insert(
           beaconId: beaconId,
           openedAt: PgDateTime(openedAt),
@@ -58,7 +60,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
-  }) => _db.into(_db.beaconEvaluationParticipants).insert(
+  }) => _db
+      .into(_db.beaconEvaluationParticipants)
+      .insert(
         BeaconEvaluationParticipantsCompanion.insert(
           beaconId: beaconId,
           userId: userId,
@@ -73,7 +77,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String evaluatorId,
     required String participantId,
-  }) => _db.into(_db.beaconEvaluationVisibility).insert(
+  }) => _db
+      .into(_db.beaconEvaluationVisibility)
+      .insert(
         BeaconEvaluationVisibilityCompanion.insert(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
@@ -86,7 +92,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     int status = 0,
-  }) => _db.into(_db.beaconReviewStatuses).insert(
+  }) => _db
+      .into(_db.beaconReviewStatuses)
+      .insert(
         BeaconReviewStatusesCompanion.insert(
           beaconId: beaconId,
           userId: userId,
@@ -178,8 +186,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }) async {
     final rows = await _db.managers.beaconEvaluations
         .filter(
-          (e) =>
-              e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
+          (e) => e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
         )
         .get();
     return rows.map(beaconEvaluationToRecord).toList();
@@ -194,7 +201,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
-  }) => _db.into(_db.beaconEvaluations).insert(
+  }) => _db
+      .into(_db.beaconEvaluations)
+      .insert(
         BeaconEvaluationsCompanion.insert(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
@@ -279,29 +288,31 @@ class EvaluationRepository implements EvaluationRepositoryPort {
       .delete();
 
   @override
-  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) =>
-      _db.managers.beaconEvaluations
-          .filter(
-            (e) =>
-                e.beaconId.id(beaconId) &
-                e.status.equals(BeaconEvaluationRowStatus.submitted),
-          )
-          .update(
-            (o) => o(
-              status: const Value(BeaconEvaluationRowStatus.final_),
-              updatedAt: Value(PgDateTime(DateTime.timestamp())),
-            ),
-          );
+  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) => _db
+      .managers
+      .beaconEvaluations
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.status.equals(BeaconEvaluationRowStatus.submitted),
+      )
+      .update(
+        (o) => o(
+          status: const Value(BeaconEvaluationRowStatus.final_),
+          updatedAt: Value(PgDateTime(DateTime.timestamp())),
+        ),
+      );
 
   @override
-  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) =>
-      _db.managers.beaconEvaluations
-          .filter(
-            (e) =>
-                e.beaconId.id(beaconId) &
-                e.status.equals(BeaconEvaluationRowStatus.draft),
-          )
-          .delete();
+  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) => _db
+      .managers
+      .beaconEvaluations
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.status.equals(BeaconEvaluationRowStatus.draft),
+      )
+      .delete();
 
   @override
   Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async {
@@ -432,19 +443,21 @@ class EvaluationRepository implements EvaluationRepositoryPort {
 
       final batchesBySource = <String, List<TrustEvidence>>{};
 
-      final transitioned = await _db.customSelect(
-        r'''
+      final transitioned = await _db
+          .customSelect(
+            r'''
 UPDATE beacon_evaluation
 SET status = $1, updated_at = now()
 WHERE beacon_id = $2 AND status = $3
 RETURNING evaluator_id, evaluated_user_id, value
 ''',
-        variables: [
-          const Variable<int>(BeaconEvaluationRowStatus.final_),
-          Variable<String>(beaconId),
-          const Variable<int>(BeaconEvaluationRowStatus.submitted),
-        ],
-      ).get();
+            variables: [
+              const Variable<int>(BeaconEvaluationRowStatus.final_),
+              Variable<String>(beaconId),
+              const Variable<int>(BeaconEvaluationRowStatus.submitted),
+            ],
+          )
+          .get();
 
       for (final row in transitioned) {
         final evaluatorId = row.read<String>('evaluator_id');
@@ -452,13 +465,15 @@ RETURNING evaluator_id, evaluated_user_id, value
         final value = row.read<int>('value');
         final bin = reviewValueToBin(value);
         if (bin == null) continue;
-        batchesBySource.putIfAbsent(evaluatorId, () => []).add(
-          TrustEvidence(
-            targetUserId: evaluatedUserId,
-            bin: bin,
-            count: kTrustReviewEvidenceCount,
-          ),
-        );
+        batchesBySource
+            .putIfAbsent(evaluatorId, () => [])
+            .add(
+              TrustEvidence(
+                targetUserId: evaluatedUserId,
+                bin: bin,
+                count: kTrustReviewEvidenceCount,
+              ),
+            );
       }
 
       await deleteDraftEvaluationsForBeacon(beaconId);
@@ -478,22 +493,25 @@ RETURNING evaluator_id, evaluated_user_id, value
 
   @override
   Future<void> closeExpiredWindows() => _db.transaction(() async {
-        final expiredBeaconIds = await _db.customSelect(
+    final expiredBeaconIds = await _db
+        .customSelect(
           '''
 SELECT beacon_id
 FROM beacon_review_window
 WHERE status = 0 AND closes_at < now()
 FOR UPDATE
 ''',
-        ).map((r) => r.read<String>('beacon_id')).get();
+        )
+        .map((r) => r.read<String>('beacon_id'))
+        .get();
 
-        for (final beaconId in expiredBeaconIds) {
-          await closeBeaconReviewWindow(
-            beaconId,
-            reason: BeaconLifecycleChangeReason.reviewExpired,
-          );
-        }
-      });
+    for (final beaconId in expiredBeaconIds) {
+      await closeBeaconReviewWindow(
+        beaconId,
+        reason: BeaconLifecycleChangeReason.reviewExpired,
+      );
+    }
+  });
 }
 
 Future<void> _insertBeaconLifecycleEvent({
@@ -504,21 +522,28 @@ Future<void> _insertBeaconLifecycleEvent({
   required String reason,
   required String? actorId,
   required String mutatingUserId,
-}) =>
-    db.withMutatingUser(mutatingUserId, () async {
-      await db.managers.beaconActivityEvents.create(
-        (o) => o(
-          id: Value(BeaconActivityEventEntity.newId),
-          beaconId: beaconId,
-          visibility: BeaconActivityEventVisibilityBits.public,
-          type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
-          actorId: actorId == null ? const Value(null) : Value(actorId),
-          diff: Value(<String, Object?>{
-            'fromState': fromState,
-            'toState': toState,
-            'reason': reason,
-          }),
-          createdAt: const Value.absent(),
-        ),
-      );
-    });
+}) {
+  Future<void> insert() async {
+    await db.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.public,
+        type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+        actorId: actorId == null ? const Value(null) : Value(actorId),
+        diff: Value(<String, Object?>{
+          'fromState': fromState,
+          'toState': toState,
+          'reason': reason,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+  }
+
+  // Expiry runs in an actor-null UoW; preserve that system actor instead of
+  // attempting to enter an author-scoped nested mutation.
+  return actorId == null
+      ? insert()
+      : db.withMutatingUser(mutatingUserId, insert);
+}

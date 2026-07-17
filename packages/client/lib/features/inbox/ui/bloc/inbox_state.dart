@@ -15,6 +15,9 @@ abstract class InboxState extends StateBase with _$InboxState {
     @Default(InboxSort.recent) InboxSort sort,
     @Default(StateIsSuccess()) StateStatus status,
 
+    /// True only after a successful Inbox projection fetch.
+    @Default(false) bool projectionLoaded,
+
     /// Used to hide the current user’s own beacons from the Watching tab.
     @Default('') String currentUserId,
 
@@ -28,38 +31,41 @@ abstract class InboxState extends StateBase with _$InboxState {
   /// Passive tombstones to show under "Resolved beacons" (non-dismissed, last 24h).
   List<InboxItem> get tombstonesLast24h {
     final now = DateTime.now();
-    final list = items.where((e) {
-      if (!e.isTombstoneVisible) return false;
-      final t = e.beforeResponseTerminalAt;
-      if (t == null) return false;
-      return now.difference(t) <= _tombstoneWindow;
-    }).toList()
-      ..sort(
-        (a, b) =>
-            (b.beforeResponseTerminalAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
-              a.beforeResponseTerminalAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-            ),
-      );
+    final list =
+        items.where((e) {
+          if (!e.isTombstoneVisible) return false;
+          final t = e.beforeResponseTerminalAt;
+          if (t == null) return false;
+          return now.difference(t) <= _tombstoneWindow;
+        }).toList()..sort(
+          (a, b) =>
+              (b.beforeResponseTerminalAt ??
+                      DateTime.fromMillisecondsSinceEpoch(0))
+                  .compareTo(
+                    a.beforeResponseTerminalAt ??
+                        DateTime.fromMillisecondsSinceEpoch(0),
+                  ),
+        );
     return list;
   }
 
   List<InboxItem> get needsMe => _sorted(
-        items.where((e) => e.status == InboxItemStatus.needsMe).toList(),
-      );
+    items.where((e) => e.status == InboxItemStatus.needsMe).toList(),
+  );
 
   List<InboxItem> get watching => _sorted(
-        items.where((e) {
-          if (e.status != InboxItemStatus.watching) return false;
-          final authorId = e.beacon?.author.id;
-          if (authorId == null || authorId.isEmpty) return true;
-          if (currentUserId.isEmpty) return true;
-          return authorId != currentUserId;
-        }).toList(),
-      );
+    items.where((e) {
+      if (e.status != InboxItemStatus.watching) return false;
+      final authorId = e.beacon?.author.id;
+      if (authorId == null || authorId.isEmpty) return true;
+      if (currentUserId.isEmpty) return true;
+      return authorId != currentUserId;
+    }).toList(),
+  );
 
   List<InboxItem> get rejected => _sorted(
-        items.where((e) => e.status == InboxItemStatus.rejected).toList(),
-      );
+    items.where((e) => e.status == InboxItemStatus.rejected).toList(),
+  );
 
   List<InboxItem> _sorted(List<InboxItem> list) {
     switch (sort) {

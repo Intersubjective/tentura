@@ -16,7 +16,7 @@ import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
@@ -116,12 +116,12 @@ class _InboxScreenState extends State<InboxScreen> {
                     ],
                   );
                 } else {
-                  body = BlocBuilder<NewStuffCubit, NewStuffState>(
-                    buildWhen: (p, c) =>
-                        p.inboxLastSeenMs != c.inboxLastSeenMs ||
-                        p.maxInboxActivityMs != c.maxInboxActivityMs,
+                  body = BlocBuilder<HomeAttentionCubit, HomeAttentionState>(
                     builder: (context, _) {
-                      final newStuff = context.read<NewStuffCubit>();
+                      final attentionMarkerIds = context
+                          .read<HomeAttentionCubit>()
+                          .state
+                          .inboxMarkerIds;
                       return TabBarView(
                         children: [
                           _InboxTabKeepAlive(
@@ -131,7 +131,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               inboxCubit,
                               state,
                               l10n,
-                              newStuff,
+                              attentionMarkerIds,
                               onSelectItem: useExpandedPane
                                   ? _selectNeedsItem
                                   : null,
@@ -144,7 +144,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               inboxCubit,
                               state.watching,
                               l10n,
-                              newStuff,
+                              attentionMarkerIds,
                               onSelectItem: useExpandedPane
                                   ? _selectWatchingItem
                                   : null,
@@ -338,7 +338,9 @@ class _InboxExpandedPreview extends StatelessWidget {
         }
 
         final inboxCubit = context.read<InboxCubit>();
-        final newStuff = context.read<NewStuffCubit>();
+        final attentionMarked = context.select<HomeAttentionCubit, bool>(
+          (cubit) => cubit.state.isInboxBeaconMarked(selected.beaconId),
+        );
         return Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
@@ -348,12 +350,7 @@ class _InboxExpandedPreview extends StatelessWidget {
               child: InboxItemTile(
                 key: ValueKey('preview-${selected.beaconId}'),
                 item: selected,
-                inboxHighlight: newStuff.inboxRowHighlight(
-                  latestForwardAt: selected.latestForwardAt,
-                  forwardCount: selected.forwardCount,
-                  beaconActivityEpochMs:
-                      selected.newStuffBeaconOnlyActivityEpochMs,
-                ),
+                attentionMarked: attentionMarked,
                 onOpenBeacon: () => context.router.push(
                   BeaconViewRoute(
                     id: selected.beaconId,
@@ -464,7 +461,7 @@ class _InboxMovedSnackBarDismisserState
 
   @override
   Widget build(BuildContext context) =>
-      BlocListener<NewStuffCubit, NewStuffState>(
+      BlocListener<HomeAttentionCubit, HomeAttentionState>(
         listenWhen: (prev, curr) =>
             prev.activeHomeTab == HomeTab.inbox &&
             curr.activeHomeTab != HomeTab.inbox,
@@ -706,7 +703,7 @@ Widget _needsMeTabBody(
   InboxCubit inboxCubit,
   InboxState state,
   L10n l10n,
-  NewStuffCubit newStuff, {
+  Set<String> attentionMarkerIds, {
   ValueChanged<InboxItem>? onSelectItem,
 }) {
   final theme = Theme.of(context);
@@ -817,11 +814,7 @@ Widget _needsMeTabBody(
               return InboxItemTile(
                 key: ValueKey(item.beaconId),
                 item: item,
-                inboxHighlight: newStuff.inboxRowHighlight(
-                  latestForwardAt: item.latestForwardAt,
-                  forwardCount: item.forwardCount,
-                  beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
-                ),
+                attentionMarked: attentionMarkerIds.contains(item.beaconId),
                 onOpenBeacon: onSelectItem == null
                     ? () => context.router.push(
                         BeaconViewRoute(
@@ -880,7 +873,7 @@ Widget _watchingTabBody(
   InboxCubit inboxCubit,
   List<InboxItem> items,
   L10n l10n,
-  NewStuffCubit newStuff, {
+  Set<String> attentionMarkerIds, {
   ValueChanged<InboxItem>? onSelectItem,
 }) {
   final theme = Theme.of(context);
@@ -914,11 +907,7 @@ Widget _watchingTabBody(
         return InboxItemTile(
           key: ValueKey(item.beaconId),
           item: item,
-          inboxHighlight: newStuff.inboxRowHighlight(
-            latestForwardAt: item.latestForwardAt,
-            forwardCount: item.forwardCount,
-            beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
-          ),
+          attentionMarked: attentionMarkerIds.contains(item.beaconId),
           onOpenBeacon: onSelectItem == null
               ? () => context.router.push(
                   BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),

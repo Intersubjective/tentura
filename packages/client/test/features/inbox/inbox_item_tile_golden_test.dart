@@ -60,6 +60,7 @@ void main() {
                       width: logicalSize.width,
                       child: InboxItemTile(
                         item: item,
+                        attentionMarked: true,
                         onOpenBeacon: () {},
                         onTap: () {},
                       ),

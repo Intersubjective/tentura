@@ -137,6 +137,43 @@ void main() {
       expect(projection.presentationKey, 'offer_removed');
     },
   );
+
+  test('beacon-scoped attention requires a semantic relationship', () {
+    expect(
+      () => policy.project(
+        eventType: AttentionEventType.roomMessagePosted,
+        recipientId: 'recipient',
+        recipientReasons: const {AttentionRecipientReason.inviter},
+        role: _baseRole,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('beacon-scoped attention requires a beacon id', () {
+    expect(
+      () => policy.project(
+        eventType: AttentionEventType.roomMessagePosted,
+        recipientId: 'recipient',
+        recipientReasons: const {
+          AttentionRecipientReason.directedChatTarget,
+        },
+        role: _baseRole.copyWith(beaconId: null),
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('social attention remains independent of Beacon involvement', () {
+    final projection = policy.project(
+      eventType: AttentionEventType.inviteAccepted,
+      recipientId: 'recipient',
+      recipientReasons: const {AttentionRecipientReason.inviter},
+      role: _baseRole.copyWith(beaconId: null),
+    );
+
+    expect(projection.destination.kind, AttentionDestinationKind.profile);
+  });
 }
 
 const _baseRole = AttentionRecipientRoleFacts(

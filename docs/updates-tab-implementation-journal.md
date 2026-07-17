@@ -126,7 +126,9 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-17 | Complete | Tokenized changed-field highlight plus pure dwell policy and `visibility_detector` Updates-card adapter pass focused analysis/tests. |
 | T-18 | Complete | Authorized payload-only indexed search with bounded GraphQL input, stable cursor paging, debounced Updates UI, and PostgreSQL EXPLAIN proof. |
 | T-19 | Complete | Version-gated contract migration removes legacy Notification Center fields and active `read_at` writes; seen-only index and acknowledgement proof pass. |
-| T-20–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
+| T-20 | Complete | Occurrence store + durable channel delivery; see T-20 section. |
+| T-21 | Complete | Attention-derived tab dots + card markers; provider/eager-projection wiring fixes; focused suites + browser proof in `updates-t21-markers-20260717`. |
+| T-22 | Deferred | Retention & account-erasure policy; requires separate approval. |
 
 ## Worktree baseline — 2026-07-16
 
@@ -726,3 +728,56 @@ or send concurrently for one account. PostgreSQL coverage proves throttle exclus
 retry backoff, bounded dead-lettering, immutable source-key mismatch failure, and the
 atomic occurrence/receipt/job boundary. The worker is the sole channel hand-off path;
 there is no dual-send compatibility path.
+
+## T-21 — Attention-derived tab dots + Request card markers (complete)
+
+T-21 uses a Clean Architecture split instead of assigning attention receipts to UI
+surfaces on the server. Event producers snapshot semantic recipient facts (author,
+forward recipient, admitted/active participant, directed Chat target, and so on), and
+`AttentionPolicy` rejects a Beacon-scoped receipt without both a Beacon id and an
+event-time Beacon relationship. Inbox/My Work membership is not a server/domain input.
+
+The bounded `attentionMarkers(beaconIds: [String!]!)` query accepts at most 500 unique
+candidate ids and returns only ids with an authorized, unseen receipt. It deliberately
+returns `unreadBeaconIds`, with no surface enum or Inbox/My Work booleans. This avoids the
+first-page limitation of `attentionFeed` without making presentation state authoritative.
+
+`HomeAttentionCubit` owns the client selector. It waits for successful Inbox and My Work
+snapshots, queries the union in 500-id chunks, and derives:
+
+```text
+Inbox markers   = unread ids ∩ (Inbox ids - My Work ids)
+My Work markers = unread ids ∩ My Work ids
+```
+
+My Work therefore wins a temporary stale overlap. An unknown, initially failed, changed,
+or refreshing projection clears markers immediately and remains marker-free until both
+surface snapshots and the marker query succeed. The active tab hides only its navigation
+dot; attention-derived per-card markers remain visible. Account/projection generations
+discard stale asynchronous responses.
+
+Inbox reports successfully loaded Needs me + Watching ids; My Work reports successfully
+loaded non-archived card ids. `NewStuffCubit`, local Drift cursors, timestamp comparisons,
+`InboxRowHighlightKind`, and the old row-reason copy have been removed. The operational
+Inbox count/load signal now belongs to `InboxOperationalCubit` and remains independent of
+attention presentation.
+
+The Ferry blocker was repaired by preserving the direct-V2 schema overlays for public
+user display names, native coordinates, coordinate mutation arguments, and the dedicated
+review-extension result. A schema regression test now protects those overlays, and all
+client GraphQL inputs—including `AttentionMarkers`—generate successfully.
+
+**Runtime wiring fixes during verification:** `HomeScreen` now provides
+`InboxOperationalCubit` (the Needs-me reporter was reading it via `context` without a
+provider). `MyWorkCubit` and `MyWorkAttentionReporter` were hoisted to the same account
+scope as `InboxCubit`, so both surface snapshots load eagerly; otherwise markers stayed
+suppressed until the user visited My Work once.
+
+**Verification:** focused client suites
+(`home_attention_cubit_test`, `attention_case_test`, attention domain boundary,
+direct-V2 schema overlay, `home_tab_spec_test`) and server suites
+(`attention_graphql_test`, PostgreSQL `unreadForBeacons`) pass. Local browser proof
+`packages/client/reports/realtime-multiclient/updates-t21-markers-20260717` (run-2
+`ok: true`): forward → Inbox title + **New**; offer → My Work still marked; Inbox no
+longer shows the Request; GraphQL `attentionMarkers` includes the Beacon before and
+after offer. T-21 is complete.

@@ -1,5 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
-import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -7,19 +5,16 @@ import 'package:test/test.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
-import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_promise_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/noop_beacon_room_notification_port.dart';
+import '../../../support/test_attention_harness.dart';
 import '../../../support/coordination_item_record_fixtures.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -92,12 +87,15 @@ void main() {
   const beaconId = 'Bbbbbbbbbbbbb';
 
   setUp(() {
+    final attention = TestAttentionHarness();
     beacons = _StubBeacons(_openBeacon(beaconId));
     items = _StubItems();
     sut = CreatePromiseCase(
       beacons,
       items,
       _NoopRoomPush(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -156,7 +154,9 @@ void main() {
   });
 
   test('rejects inactive beacon', () async {
-    beacons.entity = _openBeacon(beaconId).copyWith(status: BeaconStatus.cancelled);
+    beacons.entity = _openBeacon(
+      beaconId,
+    ).copyWith(status: BeaconStatus.cancelled);
     await expectLater(
       () => sut.call(
         userId: creatorId,
@@ -172,11 +172,11 @@ void main() {
 }
 
 BeaconEntity _openBeacon(String id) => BeaconEntity(
-      id: id,
-      title: 'Beacon',
-      author: const UserEntity(id: 'Uauthor000001'),
-      createdAt: DateTime.utc(2024),
-      updatedAt: DateTime.utc(2024),
-    );
+  id: id,
+  title: 'Beacon',
+  author: const UserEntity(id: 'Uauthor000001'),
+  createdAt: DateTime.utc(2024),
+  updatedAt: DateTime.utc(2024),
+);
 
 class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

@@ -12,38 +12,20 @@ import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
 import '../widget/my_work_finished_status_row.dart';
-import '../widget/my_work_new_stuff_reporter.dart';
 
 @RoutePage()
 class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   const MyWorkScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) =>
-      BlocSelector<AuthCubit, AuthState, String>(
-        bloc: GetIt.I<AuthCubit>(),
-        selector: (state) => state.currentAccountId,
-        builder: (_, accountId) {
-          if (accountId.isEmpty) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator.adaptive(),
-              ),
-            );
-          }
-          return BlocProvider(
-            key: ValueKey(accountId),
-            create: (_) => MyWorkCubit(userId: accountId),
-            child: MyWorkNewStuffReporter(child: this),
-          );
-        },
-      );
+  Widget wrappedRoute(BuildContext context) => this;
 
   @override
   Widget build(BuildContext context) {
@@ -355,8 +337,12 @@ class _MyWorkBody extends StatelessWidget {
                   state.filter == MyWorkFilter.all) &&
               cards.any((c) => c.isFinishedCard);
           if (cards.isEmpty) {
-            return BlocSelector<NewStuffCubit, NewStuffState, (int, bool)>(
-              selector: (s) => (s.inboxNeedsMeCount, s.inboxLoadComplete),
+            return BlocSelector<
+              InboxOperationalCubit,
+              InboxOperationalState,
+              (int, bool)
+            >(
+              selector: (s) => (s.needsMeCount, s.loadComplete),
               builder: (context, inboxMeta) {
                 final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
                 return RefreshIndicator.adaptive(
@@ -403,9 +389,17 @@ class _MyWorkBody extends StatelessWidget {
                 }
                 final cardIndex = showFinishedHint ? i - 1 : i;
                 final vm = cards[cardIndex];
-                return MyWorkCardRouter(
-                  key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
-                  vm: vm,
+                return BlocSelector<
+                  HomeAttentionCubit,
+                  HomeAttentionState,
+                  bool
+                >(
+                  selector: (state) => state.isMyWorkBeaconMarked(vm.beaconId),
+                  builder: (_, attentionMarked) => MyWorkCardRouter(
+                    key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
+                    vm: vm,
+                    attentionMarked: attentionMarked,
+                  ),
                 );
               },
             ),

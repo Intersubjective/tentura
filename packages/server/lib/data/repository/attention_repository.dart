@@ -21,6 +21,33 @@ class AttentionRepository implements AttentionQueryPort {
   final TenturaDb _database;
 
   @override
+  Future<Set<String>> unreadForBeacons({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async {
+    if (beaconIds.isEmpty) return const {};
+    final ids = beaconIds.toList(growable: false);
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(',');
+    final rows = await _database
+        .customSelect(
+          '''SELECT DISTINCT receipt.beacon_id
+FROM public.visible_attention_receipts(\$1) visible
+JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id
+WHERE receipt.seen_at IS NULL
+  AND receipt.beacon_id IN ($placeholders)''',
+          variables: [
+            Variable<String>(accountId),
+            ...ids.map(Variable<String>.new),
+          ],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('beacon_id')};
+  }
+
+  @override
   Future<AttentionFeed> attentionFeed({
     required String accountId,
     required AttentionFeedView view,

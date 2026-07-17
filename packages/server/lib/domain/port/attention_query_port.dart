@@ -11,4 +11,13 @@ abstract interface class AttentionQueryPort {
     String? search,
     int limit = 50,
   });
+
+  /// Authorized unread attention for a bounded set of Beacon ids.
+  ///
+  /// This deliberately exposes no Inbox/My Work presentation concepts. The
+  /// client presenter intersects the result with its current surface models.
+  Future<Set<String>> unreadForBeacons({
+    required String accountId,
+    required Set<String> beaconIds,
+  });
 }

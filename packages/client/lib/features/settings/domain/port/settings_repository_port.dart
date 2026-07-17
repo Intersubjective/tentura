@@ -1,5 +1,6 @@
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
-import 'package:tentura/features/settings/data/repository/settings_repository.dart' show SettingsRepository;
+import 'package:tentura/features/settings/data/repository/settings_repository.dart'
+    show SettingsRepository;
 
 /// Drift-backed settings (implemented by [SettingsRepository]).
 abstract class SettingsRepositoryPort {
@@ -22,12 +23,4 @@ abstract class SettingsRepositoryPort {
   Future<String?> getLocalePreference();
 
   Future<void> setLocalePreference(String value);
-
-  Future<int?> getNewStuffInboxLastSeenMs(String accountId);
-
-  Future<void> setNewStuffInboxLastSeenMs(String accountId, int epochMs);
-
-  Future<int?> getNewStuffMyWorkLastSeenMs(String accountId);
-
-  Future<void> setNewStuffMyWorkLastSeenMs(String accountId, int epochMs);
 }

@@ -3472,6 +3472,10 @@ type AttentionFeed {
   page: AttentionPage!
 }
 
+type AttentionMarkers {
+  unreadBeaconIds: [String!]!
+}
+
 type InviteGenealogyNode {
   node_key: String!
   user: user
@@ -3507,6 +3511,7 @@ type InviteGenealogyChildCount {
 
 type query_root {
   attentionFeed(view: String!, cursor: String, search: String, limit: Int): AttentionFeed!
+  attentionMarkers(beaconIds: [String!]): AttentionMarkers!
   roomMessageTarget(beaconId: String!, messageId: String!): RoomMessageRow
   notificationPreferences: NotificationPreferences!
   """

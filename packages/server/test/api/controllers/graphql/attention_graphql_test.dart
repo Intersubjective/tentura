@@ -21,6 +21,7 @@ class _FakeQuery implements AttentionQueryPort {
   AttentionFeedView? view;
   AttentionCursor? cursor;
   String? search;
+  Set<String>? beaconIds;
 
   AttentionReceipt receipt = AttentionReceipt(
     id: 'N1',
@@ -60,6 +61,16 @@ class _FakeQuery implements AttentionQueryPort {
         ),
       ),
     );
+  }
+
+  @override
+  Future<Set<String>> unreadForBeacons({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async {
+    this.accountId = accountId;
+    this.beaconIds = beaconIds;
+    return beaconIds.where((id) => id == 'B1').toSet();
   }
 }
 
@@ -122,7 +133,9 @@ void main() {
 
   test('attentionFeed scopes the query and returns an opaque cursor', () async {
     final query = _FakeQuery();
-    final field = QueryAttention(query: query).all.single;
+    final field = QueryAttention(
+      query: query,
+    ).all.singleWhere((field) => field.name == 'attentionFeed');
     final result = await field.resolve!(null, {...auth, 'view': 'unread'});
 
     expect(query.accountId, 'U1');
@@ -136,7 +149,9 @@ void main() {
 
   test('attentionFeed trims bounded structured-payload search input', () async {
     final query = _FakeQuery();
-    final field = QueryAttention(query: query).all.single;
+    final field = QueryAttention(
+      query: query,
+    ).all.singleWhere((field) => field.name == 'attentionFeed');
     await field.resolve!(null, {...auth, 'view': 'all', 'search': '  B1  '});
     expect(query.search, 'B1');
     await expectLater(
@@ -150,7 +165,9 @@ void main() {
   });
 
   test('attentionFeed rejects malformed cursors and unknown views', () async {
-    final field = QueryAttention(query: _FakeQuery()).all.single;
+    final field = QueryAttention(
+      query: _FakeQuery(),
+    ).all.singleWhere((field) => field.name == 'attentionFeed');
     await expectLater(
       field.resolve!(null, {...auth, 'view': 'unread', 'cursor': 'bad'}),
       throwsA(isA<ArgumentError>()),
@@ -168,13 +185,41 @@ void main() {
         ..receipt = _FakeQuery().receipt.copyWith(
           presentationPayload: const {'freeFormBody': 'must not leak'},
         );
-      final field = QueryAttention(query: query).all.single;
+      final field = QueryAttention(
+        query: query,
+      ).all.singleWhere((field) => field.name == 'attentionFeed');
       await expectLater(
         field.resolve!(null, {...auth, 'view': 'all'}),
         throwsA(isA<StateError>()),
       );
     },
   );
+
+  test('attentionMarkers scopes and bounds candidate Beacon ids', () async {
+    final query = _FakeQuery();
+    final field = QueryAttention(
+      query: query,
+    ).all.singleWhere((field) => field.name == 'attentionMarkers');
+
+    expect(
+      await field.resolve!(null, {
+        ...auth,
+        'beaconIds': ['B2', 'B1', 'B1'],
+      }),
+      {
+        'unreadBeaconIds': ['B1'],
+      },
+    );
+    expect(query.accountId, 'U1');
+    expect(query.beaconIds, {'B1', 'B2'});
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'beaconIds': List.generate(501, (index) => 'B$index'),
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
 
   test('attentionMarkSeen scopes ids and caps the request at 200', () async {
     final ack = _FakeAck();

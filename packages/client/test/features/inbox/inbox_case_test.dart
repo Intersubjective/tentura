@@ -20,7 +20,6 @@ import 'package:tentura/features/coordination_item/data/repository/coordination_
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
@@ -175,7 +174,6 @@ void main() {
       final cubit = InboxCubit(
         userId: 'u1',
         inboxCase: case_,
-        newStuffCubit: _FakeNewStuffCubit(),
         effects: FakeUiEffectPort(),
       );
       await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -210,7 +208,6 @@ void main() {
       final cubit = InboxCubit(
         userId: 'u1',
         inboxCase: case_,
-        newStuffCubit: _FakeNewStuffCubit(),
         effects: effects,
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
@@ -240,7 +237,6 @@ void main() {
         final cubit = InboxCubit(
           userId: 'u1',
           inboxCase: case_,
-          newStuffCubit: _FakeNewStuffCubit(),
           effects: effects,
         );
         await cubit.stream.firstWhere((state) => state.isSuccess);
@@ -261,7 +257,6 @@ void main() {
       final cubit = InboxCubit(
         userId: 'u1',
         inboxCase: case_,
-        newStuffCubit: _FakeNewStuffCubit(),
         effects: FakeUiEffectPort(),
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
@@ -283,7 +278,6 @@ void main() {
       final cubit = InboxCubit(
         userId: 'u1',
         inboxCase: case_,
-        newStuffCubit: _FakeNewStuffCubit(),
         effects: FakeUiEffectPort(),
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
@@ -302,7 +296,6 @@ void main() {
       final cubit = InboxCubit(
         userId: 'u1',
         inboxCase: case_,
-        newStuffCubit: _FakeNewStuffCubit(),
         effects: FakeUiEffectPort(),
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
@@ -559,9 +552,4 @@ final class _TestRealtimeSyncPort implements RealtimeSyncPort {
 
   @override
   Future<void> dispose() => _catchUps.close();
-}
-
-class _FakeNewStuffCubit extends Fake implements NewStuffCubit {
-  @override
-  void reportInboxActivity(int? maxLatestForwardMs) {}
 }

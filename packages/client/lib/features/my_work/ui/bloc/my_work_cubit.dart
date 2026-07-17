@@ -130,6 +130,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: StateStatus.isLoading,
           archivedFetchInProgress: false,
+          nonArchivedProjectionLoaded: false,
         ),
       );
     }
@@ -150,6 +151,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: const StateIsSuccess(),
           loadError: null,
+          nonArchivedProjectionLoaded: true,
           nonArchivedCards: merged,
           archivedCountHint: init.archivedCountHint,
           finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,

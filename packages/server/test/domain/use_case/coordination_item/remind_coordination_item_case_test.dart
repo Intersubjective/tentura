@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
@@ -8,16 +7,14 @@ import 'package:test/test.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/remind_coordination_item_case.dart';
 import 'package:tentura_server/env.dart';
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? item;
@@ -47,15 +44,13 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
@@ -93,6 +88,7 @@ void main() {
   late _StubItems items;
   late _StubRoom room;
   late _RecordingPush push;
+  late TestAttentionHarness attention;
   late RemindCoordinationItemCase sut;
 
   const beaconId = 'Bbbbbbbbbbbbb';
@@ -127,6 +123,7 @@ void main() {
   }
 
   setUp(() {
+    attention = TestAttentionHarness();
     items = _StubItems();
     room = _StubRoom(admittedUserIds: {observerId, targetId, creatorId});
     push = _RecordingPush();
@@ -136,6 +133,8 @@ void main() {
       items,
       room,
       push,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -144,8 +143,8 @@ void main() {
   test('sends push when claim succeeds', () async {
     await sut.call(userId: observerId, itemId: itemId);
     expect(items.claimAttempts, 1);
-    expect(push.staleRemindCalls, 1);
-    expect(push.lastTarget, targetId);
+    expect(attention.recorded.single.eventType.name, 'staleReminder');
+    expect(attention.recorded.single.recipients.single.recipientId, targetId);
   });
 
   test('rejects responsible person reminding themselves', () async {
@@ -208,6 +207,6 @@ void main() {
       ),
     );
     expect(results.where((ok) => ok).length, 1);
-    expect(push.staleRemindCalls, 1);
+    expect(attention.recorded, hasLength(1));
   });
 }

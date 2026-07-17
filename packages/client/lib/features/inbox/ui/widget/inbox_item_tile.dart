@@ -9,10 +9,7 @@ import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
-import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
-import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
-    show l10nInboxNewStuffReasons;
+import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -35,7 +32,7 @@ class InboxItemTile extends StatelessWidget {
     this.onOfferHelp,
     this.showCtaRow = true,
     this.showProvenance = true,
-    this.inboxHighlight = InboxRowHighlightKind.none,
+    this.attentionMarked = false,
     super.key,
   });
 
@@ -61,8 +58,8 @@ class InboxItemTile extends StatelessWidget {
   /// (avatars, expand, quotes).
   final bool showProvenance;
 
-  /// New vs updated since last Inbox visit (see [NewStuffCubit.inboxRowHighlight]).
-  final InboxRowHighlightKind inboxHighlight;
+  /// Whether unread semantic attention currently maps to this Inbox card.
+  final bool attentionMarked;
 
   String? _secondaryLabel(L10n l10n) {
     // Icon-only tertiary button for dismiss (see _secondaryIcon()).
@@ -110,25 +107,13 @@ class InboxItemTile extends StatelessWidget {
     final secondaryLabel = _secondaryLabel(l10n);
     final secondaryIcon = _secondaryIcon();
 
-    final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
     final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
-    final updatedLine = switch (inboxHighlight) {
-      InboxRowHighlightKind.updatedBeaconOnly => () {
-        final at = DateTime.fromMillisecondsSinceEpoch(
-          item.newStuffActivityEpochMs,
-        );
-        return l10n.myWorkUpdatedLine(
-          '${dateFormatYMD(at)} ${timeFormatHm(at)}',
-        );
-      }(),
-      _ =>
-        beaconHasRealUpdate(beacon)
-            ? l10n.myWorkUpdatedLine(
-                '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
-              )
-            : null,
-    };
+    final updatedLine = beaconHasRealUpdate(beacon)
+        ? l10n.myWorkUpdatedLine(
+            '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+          )
+        : null;
 
     final phaseInput = beaconPhaseInputFromInbox(
       beacon: beacon,
@@ -144,6 +129,7 @@ class InboxItemTile extends StatelessWidget {
     return BeaconCardShell(
       onTap: onOpenBeacon,
       tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
+      marker: attentionMarked ? const AttentionMarker() : null,
       footer: showCtaRow
           ? InboxCardActionRow(
               onOfferHelp: onOfferHelp,
@@ -217,53 +203,6 @@ class InboxItemTile extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            ),
-          if (showNewStuffDot)
-            BlocBuilder<NewStuffCubit, NewStuffState>(
-              buildWhen: (p, c) => p.inboxLastSeenMs != c.inboxLastSeenMs,
-              builder: (context, _) {
-                final seen = context
-                    .read<NewStuffCubit>()
-                    .state
-                    .inboxLastSeenMs;
-                final labels = l10nInboxNewStuffReasons(
-                  L10n.of(context)!,
-                  item.newStuffReasons(seen),
-                );
-                final at = DateTime.fromMillisecondsSinceEpoch(
-                  item.newStuffActivityEpochMs,
-                );
-                final whenLine = l10n.myWorkUpdatedLine(
-                  '${dateFormatYMD(at)} ${timeFormatHm(at)}',
-                );
-                final summary = labels.isEmpty
-                    ? whenLine
-                    : '$whenLine · ${labels.join(' · ')}';
-                final style = theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.outline,
-                );
-                return Padding(
-                  padding: EdgeInsets.only(top: tt.rowGap),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      NewStuffDot(
-                        padding: EdgeInsets.only(
-                          right: tt.rowGap,
-                          top: tt.tightGap,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          summary,
-                          style: style,
-                          softWrap: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
             ),
         ],
       ),

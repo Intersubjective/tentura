@@ -88,8 +88,7 @@ MyWorkCardViewModel _deriveAuthored({
   MyWorkAttentionChip? attention;
   if (lc == BeaconStatus.reviewOpen) {
     attention = MyWorkAttentionChip.reviewWindowOpen;
-  } else if (beacon.status ==
-      BeaconStatus.needsMoreHelp) {
+  } else if (beacon.status == BeaconStatus.needsMoreHelp) {
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
 
@@ -218,28 +217,32 @@ List<MyWorkCardViewModel> filterMyWorkCardsForDesk({
   return switch (filter) {
     MyWorkFilter.archived => archivedCards,
     MyWorkFilter.all => nonArchivedCards,
-    MyWorkFilter.active => nonArchivedCards
-        .where(
-          (c) =>
-              c.kind == MyWorkCardKind.authoredActive ||
-              c.kind == MyWorkCardKind.helpOfferedActive ||
-              c.kind == MyWorkCardKind.authoredFinished ||
-              c.kind == MyWorkCardKind.helpOfferedFinished,
-        )
-        .toList(),
-    MyWorkFilter.drafts => nonArchivedCards
-        .where((c) => c.kind == MyWorkCardKind.authoredDraft)
-        .toList(),
-    MyWorkFilter.authored => nonArchivedCards
-        .where(
-          (c) =>
-              c.role == MyWorkCardRole.authored &&
-              c.kind != MyWorkCardKind.authoredDraft,
-        )
-        .toList(),
-    MyWorkFilter.helpOffered => nonArchivedCards
-        .where((c) => c.role == MyWorkCardRole.helpOffered)
-        .toList(),
+    MyWorkFilter.active =>
+      nonArchivedCards
+          .where(
+            (c) =>
+                c.kind == MyWorkCardKind.authoredActive ||
+                c.kind == MyWorkCardKind.helpOfferedActive ||
+                c.kind == MyWorkCardKind.authoredFinished ||
+                c.kind == MyWorkCardKind.helpOfferedFinished,
+          )
+          .toList(),
+    MyWorkFilter.drafts =>
+      nonArchivedCards
+          .where((c) => c.kind == MyWorkCardKind.authoredDraft)
+          .toList(),
+    MyWorkFilter.authored =>
+      nonArchivedCards
+          .where(
+            (c) =>
+                c.role == MyWorkCardRole.authored &&
+                c.kind != MyWorkCardKind.authoredDraft,
+          )
+          .toList(),
+    MyWorkFilter.helpOffered =>
+      nonArchivedCards
+          .where((c) => c.role == MyWorkCardRole.helpOffered)
+          .toList(),
   };
 }
 
@@ -265,22 +268,6 @@ int countDraftMyWorkCards(List<MyWorkCardViewModel> nonArchivedCards) =>
         .length;
 
 int archivedCountHintFromInit(int archivedCountHint) => archivedCountHint;
-
-int? maxMyWorkDeskActivityEpochMs({
-  required List<MyWorkCardViewModel> nonArchivedCards,
-  required List<MyWorkCardViewModel> archivedCards,
-}) {
-  int? maxMs;
-  for (final c in nonArchivedCards) {
-    final m = c.newStuffActivityEpochMs;
-    if (maxMs == null || m > maxMs) maxMs = m;
-  }
-  for (final c in archivedCards) {
-    final m = c.newStuffActivityEpochMs;
-    if (maxMs == null || m > maxMs) maxMs = m;
-  }
-  return maxMs;
-}
 
 /// Archived cards from lazy archived fetch.
 List<MyWorkCardViewModel> buildArchivedViewModels({

@@ -25,6 +25,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeUserPublic,
   gqlTypeUserContact,
   gqlTypeBeaconCloseReviewResult,
+  gqlTypeBeaconExtendReviewResult,
   gqlTypeEvaluationParticipant,
   gqlTypeEvaluationDraftRow,
   gqlTypeReviewWindowStatus,
@@ -132,6 +133,14 @@ final gqlTypeAttentionFeed = GraphQLObjectType('AttentionFeed', null)
   ..fields.addAll([
     field('summary', gqlTypeAttentionSummary.nonNullable()),
     field('page', gqlTypeAttentionPage.nonNullable()),
+  ]);
+
+final gqlTypeAttentionMarkers = GraphQLObjectType('AttentionMarkers', null)
+  ..fields.addAll([
+    field(
+      'unreadBeaconIds',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
   ]);
 
 /// Payload returned by `RoomMessageCreate`.
@@ -519,6 +528,17 @@ final gqlTypeBeaconCloseReviewResult =
         field('id', graphQLString.nonNullable()),
         field('status', graphQLInt.nonNullable()),
         field('closesAt', graphQLString),
+      ]);
+
+final gqlTypeBeaconExtendReviewResult =
+    GraphQLObjectType(
+        'BeaconExtendReviewResult',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('closesAt', graphQLString.nonNullable()),
+        field('extensionsRemaining', graphQLInt.nonNullable()),
       ]);
 
 final gqlTypeEvaluationParticipant =
