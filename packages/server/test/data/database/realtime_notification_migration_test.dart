@@ -58,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0121ForTest(writer);
       await _rollBackM0120ForTest(writer);
       await _rollBackM0119ForTest(writer);
       await _rollBackM0118ForTest(writer);
@@ -1642,6 +1643,20 @@ Future<void> _rollBackM0120ForTest(Connection connection) async {
     'DROP INDEX public.notification_outbox__dedup_seen',
     'DROP INDEX public.notification_outbox__unread_seen',
     "DELETE FROM public.schema_version WHERE version = '0120'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0121ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE public.attention_channel_throttle',
+    'DROP TABLE public.attention_channel_delivery',
+    'DROP INDEX public.notification_outbox__occurrence',
+    'ALTER TABLE public.notification_outbox DROP COLUMN occurrence_id',
+    'DROP TABLE public.attention_occurrence_recipient',
+    'DROP TABLE public.attention_occurrence',
+    "DELETE FROM public.schema_version WHERE version = '0121'",
   ]) {
     await connection.execute(statement);
   }

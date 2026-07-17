@@ -698,3 +698,14 @@ set `seen_at`, which correctly opened a new receipt; it now separately proves th
 attention repository suites pass alongside attention GraphQL tests. Server analysis,
 client code generation, and client analysis complete with the repository's existing
 informational warning baseline. T-19 is complete.
+
+## T-20 — Occurrence store + durable channel delivery (in progress)
+
+The existing post-commit channel hand-off is an in-memory attempt, not a delivery
+record. T-20 separates immutable occurrence identity (`source_event_key`), event-time
+recipient snapshots, mutable collapsed receipts, and durable delivery jobs. Jobs will
+freeze send context, use leases and bounded retries/dead letters, and reserve
+per-account channel throttles.
+
+`m0121` is the additive storage foundation. Producer and worker wiring is deliberately
+pending its PostgreSQL failure/recovery proof so no half-migrated dual-send path ships.
