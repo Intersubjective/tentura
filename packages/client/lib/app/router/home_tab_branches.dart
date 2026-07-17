@@ -9,7 +9,7 @@ import 'root_router.gr.dart';
 /// Per-tab shell branches for [HomeRoute]'s [AutoTabsRouter]. Each shell hosts
 /// its own nested `StackRouter` so browse details (beacon view, …) push onto
 /// the active tab's own back stack instead of the shared root stack — see
-/// `docs/adaptive-router-refactor-plan.md` (Phase 2, Step 1).
+/// `docs/archive/plans/adaptive-router-refactor-plan.md` (Phase 2, Step 1).
 const workTabShell = EmptyShellRoute('WorkTabShell');
 const inboxTabShell = EmptyShellRoute('InboxTabShell');
 const updatesTabShell = EmptyShellRoute('UpdatesTabShell');
