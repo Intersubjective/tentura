@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/notification_outbox_repository_port.d
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -26,6 +27,7 @@ final class TaskWorkerCase extends UseCaseBase {
     EmailDigestCase emailDigestCase,
     NotificationOutboxRepositoryPort notificationOutbox,
     AttentionExpirySweepCase attentionExpirySweep,
+    AttentionChannelDeliveryCase attentionChannelDelivery,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -33,6 +35,7 @@ final class TaskWorkerCase extends UseCaseBase {
       emailDigestCase,
       notificationOutbox,
       attentionExpirySweep: attentionExpirySweep,
+      attentionChannelDelivery: attentionChannelDelivery,
       env: env,
       logger: logger,
     ),
@@ -44,9 +47,11 @@ final class TaskWorkerCase extends UseCaseBase {
     this._emailDigestCase,
     this._notificationOutbox, {
     AttentionExpirySweepCase? attentionExpirySweep,
+    AttentionChannelDeliveryCase? attentionChannelDelivery,
     required super.env,
     required super.logger,
-  }) : _attentionExpirySweep = attentionExpirySweep;
+  }) : _attentionExpirySweep = attentionExpirySweep,
+       _attentionChannelDelivery = attentionChannelDelivery;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -57,6 +62,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final NotificationOutboxRepositoryPort _notificationOutbox;
 
   final AttentionExpirySweepCase? _attentionExpirySweep;
+  final AttentionChannelDeliveryCase? _attentionChannelDelivery;
 
   final _runnerCompleter = Completer<void>();
 
@@ -65,8 +71,20 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastAttentionDeliverySweep) <
+          const Duration(seconds: 10))
+        return;
+      _lastAttentionDeliverySweep = now;
+      await _attentionChannelDelivery?.runDue(
+        workerId: 'task-worker',
+        now: now,
+      );
+    },
     // Review expiry is a system-owned status transition with atomic receipts.
     () async {
       final now = DateTime.timestamp();

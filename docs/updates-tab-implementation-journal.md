@@ -699,7 +699,7 @@ attention repository suites pass alongside attention GraphQL tests. Server analy
 client code generation, and client analysis complete with the repository's existing
 informational warning baseline. T-19 is complete.
 
-## T-20 — Occurrence store + durable channel delivery (in progress)
+## T-20 — Occurrence store + durable channel delivery (complete)
 
 The existing post-commit channel hand-off is an in-memory attempt, not a delivery
 record. T-20 separates immutable occurrence identity (`source_event_key`), event-time
@@ -709,3 +709,20 @@ per-account channel throttles.
 
 `m0121` is the additive storage foundation. Producer and worker wiring is deliberately
 pending its PostgreSQL failure/recovery proof so no half-migrated dual-send path ships.
+
+**Progress:** `TransactionalAttentionCase` now records the source-keyed occurrence,
+event-time recipient snapshots, collapsed receipt reference, and frozen per-recipient
+delivery job in its existing mutation transaction. A duplicate `source_event_key` is a
+no-op before any receipt/job rewrite. The post-commit best-effort hand-off was removed;
+`TaskWorkerCase` instead claims due or expired-lease jobs with `FOR UPDATE SKIP LOCKED`,
+hands each frozen decision to the existing channel adapter, then marks it delivered or
+retries with bounded backoff/dead-lettering. The focused PostgreSQL suite proves atomic
+rollback, occurrence idempotency, collapsed receipt/job separation, and watcher-only
+no-channel projection.
+
+**Completion:** claim SQL now reserves the `immediate` account-channel throttle in the
+same statement as `SKIP LOCKED` leasing, so competing workers cannot claim the same job
+or send concurrently for one account. PostgreSQL coverage proves throttle exclusion,
+retry backoff, bounded dead-lettering, immutable source-key mismatch failure, and the
+atomic occurrence/receipt/job boundary. The worker is the sole channel hand-off path;
+there is no dual-send compatibility path.

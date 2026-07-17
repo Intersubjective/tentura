@@ -13,6 +13,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
     late AttentionRepository query;
     late AttentionAckRepository ack;
     late AttentionDispatchRepository dispatch;
+    late AttentionChannelDeliveryRepository delivery;
     late MutatingUnitOfWork unitOfWork;
     late BeaconRoomRepository room;
 
@@ -83,6 +85,7 @@ FOR EACH ROW EXECUTE FUNCTION public.capture_attention_uow_receipt()
       query = AttentionRepository(database);
       ack = AttentionAckRepository(database);
       dispatch = AttentionDispatchRepository(database);
+      delivery = AttentionChannelDeliveryRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
       room = BeaconRoomRepository(database);
     });
@@ -90,6 +93,9 @@ FOR EACH ROW EXECUTE FUNCTION public.capture_attention_uow_receipt()
     setUp(() async {
       await writer.execute('''
 TRUNCATE TABLE
+  public.attention_channel_delivery,
+  public.attention_occurrence_recipient,
+  public.attention_occurrence,
   public.notification_outbox,
   public.notification_preference,
   public.beacon_room_seen,
@@ -574,23 +580,9 @@ WHERE user_id = @userId AND beacon_id = @beaconId
     );
 
     test(
-      'unit of work shares txid and actor, then hands off after commit',
+      'unit of work shares txid and actor, then persists a delivery job',
       () async {
-        var committedRowsVisibleAtHandOff = false;
-        final channels = _TestChannels(
-          onHandOff: (_) async {
-            final rows = await writer.execute('''
-SELECT phase FROM public.attention_uow_probe ORDER BY phase
-''');
-            committedRowsVisibleAtHandOff = rows.length == 2;
-          },
-        );
-        final useCase = TransactionalAttentionCase(
-          unitOfWork,
-          dispatch,
-          channels,
-          Logger('TransactionalAttentionPgTest'),
-        );
+        final useCase = TransactionalAttentionCase(unitOfWork, dispatch);
 
         final result = await useCase.run(
           actorUserId: _viewerId,
@@ -602,8 +594,7 @@ SELECT phase FROM public.attention_uow_probe ORDER BY phase
         );
 
         expect(result, 'committed');
-        expect(channels.handOffCalls, 1);
-        expect(committedRowsVisibleAtHandOff, isTrue);
+        expect(await _deliveryCount(writer), 1);
         final probes = await writer.execute('''
 SELECT phase, transaction_id, actor_user_id
 FROM public.attention_uow_probe
@@ -616,12 +607,9 @@ ORDER BY phase
     );
 
     test('domain and receipt failures roll back symmetrically', () async {
-      final domainFailureChannels = _TestChannels();
       final domainFailureCase = TransactionalAttentionCase(
         unitOfWork,
         dispatch,
-        domainFailureChannels,
-        Logger('TransactionalAttentionDomainFailureTest'),
       );
       await expectLater(
         domainFailureCase.run<void>(
@@ -636,14 +624,10 @@ ORDER BY phase
       );
       expect(await _probeCount(writer), 0);
       expect(await _outboxCount(writer), 0);
-      expect(domainFailureChannels.handOffCalls, 0);
 
-      final receiptFailureChannels = _TestChannels();
       final receiptFailureCase = TransactionalAttentionCase(
         unitOfWork,
         dispatch,
-        receiptFailureChannels,
-        Logger('TransactionalAttentionReceiptFailureTest'),
       );
       await expectLater(
         receiptFailureCase.run<void>(
@@ -655,19 +639,12 @@ ORDER BY phase
       );
       expect(await _probeCount(writer), 0);
       expect(await _outboxCount(writer), 0);
-      expect(receiptFailureChannels.handOffCalls, 0);
     });
 
     test(
-      'channel failure is post-commit and duplicate recording collapses',
+      'delivery jobs are durable and duplicate recording collapses',
       () async {
-        final failingChannels = _TestChannels(throwOnHandOff: true);
-        final useCase = TransactionalAttentionCase(
-          unitOfWork,
-          dispatch,
-          failingChannels,
-          Logger('TransactionalAttentionChannelFailureTest'),
-        );
+        final useCase = TransactionalAttentionCase(unitOfWork, dispatch);
         expect(
           await useCase.run(
             actorUserId: _viewerId,
@@ -679,12 +656,23 @@ ORDER BY phase
           ),
           42,
         );
-        expect(failingChannels.handOffCalls, 1);
         expect(await _outboxCount(writer), 1);
+        expect(await _deliveryCount(writer), 1);
         expect(await _probeCount(writer), 2);
+        await expectLater(
+          unitOfWork.run(
+            actorUserId: _viewerId,
+            action: () => dispatch.record(
+              _dispatchIntent().copyWith(body: 'different source facts'),
+            ),
+          ),
+          throwsStateError,
+        );
 
         await writer.execute('TRUNCATE public.attention_uow_probe');
-        await writer.execute('TRUNCATE public.notification_outbox');
+        await writer.execute(
+          'TRUNCATE public.attention_channel_delivery, public.notification_outbox, public.attention_occurrence_recipient, public.attention_occurrence',
+        );
         await unitOfWork.run(
           actorUserId: _viewerId,
           action: () async {
@@ -705,7 +693,7 @@ FROM public.notification_outbox
     test(
       'watcher-only status receipt is durable but has no channel decision',
       () async {
-        final decisions = await unitOfWork.run(
+        await unitOfWork.run(
           actorUserId: _viewerId,
           action: () => dispatch.record(
             const AttentionDispatchIntent(
@@ -743,7 +731,7 @@ FROM public.notification_outbox
           ),
         );
 
-        expect(decisions.map((decision) => decision.recipientId), [_otherId]);
+        expect(await _deliveryCount(writer), 1);
         final rows = await writer.execute('''
 SELECT account_id, suppression_class
 FROM public.notification_outbox
@@ -754,6 +742,84 @@ ORDER BY account_id
           rows.map((row) => (row[0], row[1])).toSet(),
           {(_otherId, 'standard'), (_viewerId, 'noisy')},
         );
+      },
+    );
+
+    test(
+      'delivery claims lease, throttle, retry, and dead-letter atomically',
+      () async {
+        final now = DateTime.parse('2026-07-17T12:00:00Z');
+        await unitOfWork.run(
+          actorUserId: _viewerId,
+          action: () => dispatch.record(_dispatchIntent()),
+        );
+        final first = await delivery.claimDue(
+          workerId: 'worker-a',
+          now: now,
+          limit: 10,
+        );
+        expect(first, hasLength(1));
+        final competing = await delivery.claimDue(
+          workerId: 'worker-b',
+          now: now,
+          limit: 10,
+        );
+        expect(competing, isEmpty);
+
+        await writer.execute('''
+UPDATE public.attention_channel_delivery
+SET lease_until = '2026-07-17T11:59:59Z'
+WHERE id = '${first.single.id}'
+''');
+        await writer.execute('''
+UPDATE public.attention_channel_throttle
+SET lease_until = '2026-07-17T11:59:59Z'
+WHERE account_id = '$_otherId' AND channel = 'immediate'
+''');
+        final reclaimed = await delivery.claimDue(
+          workerId: 'worker-c',
+          now: now,
+          limit: 10,
+        );
+        expect(reclaimed, hasLength(1));
+
+        await delivery.retryOrDeadLetter(
+          id: reclaimed.single.id,
+          workerId: 'worker-c',
+          now: now,
+          error: StateError('fcm down'),
+        );
+        final retrySoon = await delivery.claimDue(
+          workerId: 'worker-b',
+          now: now.add(const Duration(seconds: 29)),
+          limit: 10,
+        );
+        expect(retrySoon, isEmpty);
+        final retry = await delivery.claimDue(
+          workerId: 'worker-b',
+          now: now.add(const Duration(minutes: 1)),
+          limit: 10,
+        );
+        expect(retry, hasLength(1));
+
+        await writer.execute('''
+UPDATE public.attention_channel_delivery
+SET attempts = 5, status = 'leased', lease_owner = 'worker-b',
+    lease_until = '2026-07-17T12:03:00Z'
+WHERE id = '${retry.single.id}'
+''');
+        await delivery.retryOrDeadLetter(
+          id: retry.single.id,
+          workerId: 'worker-b',
+          now: now.add(const Duration(minutes: 2)),
+          error: StateError('still down'),
+        );
+        final terminal = await writer.execute('''
+SELECT status, dead_lettered_at IS NOT NULL
+FROM public.attention_channel_delivery
+WHERE id = '${retry.single.id}'
+''');
+        expect(terminal.single, ['dead', true]);
       },
     );
   }, skip: skipReason);
@@ -817,6 +883,13 @@ Future<int> _probeCount(Connection writer) async {
 Future<int> _outboxCount(Connection writer) async {
   final rows = await writer.execute(
     'SELECT count(*)::int FROM public.notification_outbox',
+  );
+  return rows.single.single! as int;
+}
+
+Future<int> _deliveryCount(Connection writer) async {
+  final rows = await writer.execute(
+    'SELECT count(*)::int FROM public.attention_channel_delivery',
   );
   return rows.single.single! as int;
 }

@@ -221,6 +221,13 @@ abstract class AttentionChannelDecision with _$AttentionChannelDecision {
   }) = _AttentionChannelDecision;
 }
 
+final class AttentionChannelDelivery {
+  const AttentionChannelDelivery({required this.id, required this.decision});
+
+  final String id;
+  final AttentionChannelDecision decision;
+}
+
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {
   const factory AttentionReceipt({

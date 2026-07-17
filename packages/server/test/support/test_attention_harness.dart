@@ -1,4 +1,3 @@
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -7,7 +6,6 @@ import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
-import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -28,8 +26,6 @@ final class TestAttentionHarness {
     transactional = TransactionalAttentionCase(
       _UnitOfWork(),
       _dispatch,
-      _Channels(),
-      Logger('TestAttentionHarness'),
     );
   }
 
@@ -52,22 +48,9 @@ final class _RecordingDispatch extends Fake implements AttentionDispatchPort {
   final List<AttentionDispatchIntent> recorded = [];
 
   @override
-  Future<List<AttentionChannelDecision>> record(
-    AttentionDispatchIntent intent,
-  ) async {
+  Future<void> record(AttentionDispatchIntent intent) async {
     recorded.add(intent);
-    return const [];
   }
-}
-
-final class _Channels extends Fake implements BeaconNotificationPort {
-  @override
-  Future<void> dispatch(BeaconNotificationIntent intent) async {}
-
-  @override
-  Future<void> handOffChannels(
-    List<AttentionChannelDecision> decisions,
-  ) async {}
 }
 
 final class _Context extends Fake implements BeaconRoomNotificationContextPort {
