@@ -27,6 +27,8 @@ migrate_working_dir/
 # .vscode/
 .gradle/
 
+.playwright-mcp
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
