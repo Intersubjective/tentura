@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Updates Tab — Technical Implementation Plan
 
 Status: **plan — revision 4** (v1 scope reduced; no product code changed). Audience:
@@ -49,7 +53,7 @@ domain mutation (server use case, TenturaDb.withMutatingUser sets actor GUC)
   consumers refetch. Server can also demand catch-up (`pg_listener_recovered`).
 - Actor echo (`REALTIME_ACTOR_ECHO_ENABLED=true`) delivers invalidations to *all* of the
   actor's own sessions → cross-tab/device convergence already works.
-- Ops/runbook: [`docs/realtime-sync-operations.md`](realtime-sync-operations.md)
+- Ops/runbook: [`docs/realtime-sync-operations.md`](../../realtime-sync-operations.md)
   (log markers `realtime_event=…`, dashboards, 1.5 s / 3 s convergence budgets).
 
 Key files:
@@ -124,7 +128,7 @@ semantic occurrence itself (see C1):
 ## A3. Push pipeline
 
 - **Data-only FCM** (no `notification` field, deliberately —
-  [`docs/qa-push-testing.md`](qa-push-testing.md) §"Data-only push payloads");
+  [`docs/qa-push-testing.md`](../../qa-push-testing.md) §"Data-only push payloads");
   the server-generated service worker
   (`packages/server/lib/api/controllers/firebase_sw_controller.dart`) calls
   `showNotification()` in `onBackgroundMessage` and owns `notificationclick` → focuses or
@@ -144,7 +148,7 @@ semantic occurrence itself (see C1):
 
 ## A4. Existing attention indicators ("new stuff")
 
-Documented in [`docs/features/new-stuff-indicators.md`](features/new-stuff-indicators.md):
+Documented in [`docs/features/new-stuff-indicators.md`](../../features/new-stuff-indicators.md):
 
 - `NewStuffCubit` (`features/home/ui/bloc/new_stuff_cubit.dart`, @singleton): **local
   Drift cursors** per account (`newStuff:inbox:<id>`, `newStuff:myWork:<id>` in
@@ -278,7 +282,7 @@ comments only. Do not resurrect the GraphQL `updates` action.
 - Docs: `realtime-sync-operations.md`, `features/new-stuff-indicators.md`,
   `qa-push-testing.md`, `Tentura_current_status_quo.md` (§5 surface model),
   `watching-mechanism.md`, `beacon-evaluation-principles.md`,
-  `adaptive-router-refactor-plan.md`, `room-coordination-audit.md`.
+  `docs/archive/plans/adaptive-router-refactor-plan.md`, `docs/audits/room-coordination-audit.md`.
 
 ## A11. Sources of truth and divergence points (summary)
 

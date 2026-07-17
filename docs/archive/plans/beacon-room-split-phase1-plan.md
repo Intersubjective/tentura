@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Phase 1 — Beacon | Room Split (expanded only)
 
 Plan date: 2026-06-30. Scope: `beacon_view_screen.dart` only. Goal: at
@@ -5,9 +9,9 @@ Plan date: 2026-06-30. Scope: `beacon_view_screen.dart` only. Goal: at
 in one `Row` instead of swapping full screens. Compact and regular behavior is
 **frozen** — no router changes, no shell changes.
 
-**Related:** [`desktop-adaptive-readiness-report.md`](desktop-adaptive-readiness-report.md),
-[`room-coordination-audit.md`](room-coordination-audit.md),
-[`telegram-adaptive-layout-port-plan.md`](telegram-adaptive-layout-port-plan.md).
+**Related:** [`docs/audits/desktop-adaptive-readiness-report.md`](../../audits/desktop-adaptive-readiness-report.md),
+[`docs/audits/room-coordination-audit.md`](../../audits/room-coordination-audit.md),
+[`docs/archive/plans/telegram-adaptive-layout-port-plan.md`](telegram-adaptive-layout-port-plan.md).
 Precedent pattern: inbox in-screen master–detail (`inbox_screen.dart`
 `_InboxExpandedBody`).
 

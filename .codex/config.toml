@@ -1,0 +1,14 @@
+[mcp_servers.serena]
+command = "/home/vader/.local/bin/serena"
+args = ["start-mcp-server", "--context", "ide", "--project", "/home/vader/MY_SRC/tentura", "--open-web-dashboard", "false", "--enable-web-dashboard", "false"]
+
+[agents]
+max_threads = 4
+max_depth = 1
+interrupt_message = true
+
+[mcp_servers.headroom]
+command = "/home/vader/.local/bin/headroom"
+args = ["mcp", "serve", "--proxy-url", "http://127.0.0.1:8787"]
+startup_timeout_sec = 60
+default_tools_approval_mode = "approve"

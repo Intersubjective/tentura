@@ -28,7 +28,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 - **Repositories return domain entities**, never Ferry/Drift types. Cubits coordinating ≥2 repos inject a `*Case`. (lint: `cubit_requires_use_case_for_multi_repos`)
 - **Client UI uses the design system:** no raw `Color`/`Colors.*`, `TextStyle(…)`, inline `fontSize:`, or `EdgeInsets`/`BorderRadius` from raw numbers in `features/**` / `ui/**`; use `context.tt` tokens and `TenturaText.*`. (lints: `no_inline_font_size`, `no_operational_raw_color`, `no_raw_edge_insets`, `no_raw_border_radius`)
 - **Never edit generated files** (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`, `*.schema.dart`); run codegen instead.
-- **Search ladder:** known path → Read; semantic → `ollama_explore.py`; symbols/refs → Serena MCP; then Grep/Glob.
+- **Search ladder:** known path → Read; semantic → Serena MCP; then Grep/Glob.
 - **Terminology alias:** user-facing **Request** / **Chat**; internal **Beacon** (`Request (internally: Beacon)` in docs). Never introduce a `Request` domain entity. See `.cursor/rules/terminology.mdc` and `bash scripts/check-user-facing-terminology.sh`.
 
 ## Product docs

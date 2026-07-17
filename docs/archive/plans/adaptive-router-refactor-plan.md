@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Adaptive Router Refactor — Persistent Shell & Per-Tab Stacks (Phase 2)
 
 Plan date: 2026-07-04. Scope: `packages/client` routing layer
@@ -50,9 +54,9 @@ Steps 0–5 landed. Key artifacts and deviations:
   host (`libgtk-3-dev` missing) — install and re-run before treating the
   native gate as green.
 
-**Related:** [`beacon-room-split-phase1-plan.md`](beacon-room-split-phase1-plan.md)
-(Phase 1, shipped), [`desktop-adaptive-readiness-report.md`](desktop-adaptive-readiness-report.md),
-[`telegram-adaptive-layout-port-plan.md`](telegram-adaptive-layout-port-plan.md).
+**Related:** [`docs/archive/plans/beacon-room-split-phase1-plan.md`](beacon-room-split-phase1-plan.md)
+(Phase 1, shipped), [`docs/audits/desktop-adaptive-readiness-report.md`](../../audits/desktop-adaptive-readiness-report.md),
+[`docs/archive/plans/telegram-adaptive-layout-port-plan.md`](telegram-adaptive-layout-port-plan.md).
 
 This is **Phase 2 of the adaptive-layout brief**: persist the `NavigationRail`
 over detail routes (beacon view, graphs, profiles) instead of pushing them over
@@ -145,7 +149,7 @@ phase extends it to the shell and eventually retires the legacy flags.
   browser back fixes for beacon and room photo viewers"). Every step below
   must re-run the back-navigation matrix.
 - The room message-action sheet's `useRootNavigator: true` workaround
-  (documented in [`responsive-design-audit.md`](responsive-design-audit.md)
+  (documented in [`docs/audits/responsive-design-audit.md`](../../audits/responsive-design-audit.md)
   Task R1) interacts with root-vs-nested navigators — re-verify once beacon
   view lives in a nested branch.
 
@@ -354,5 +358,5 @@ other branch" discipline.
   them.
 - URL beautification — explicitly a non-goal (closed app).
 - The room message-action sheet width cap (Task R1 in
-  [`responsive-design-audit.md`](responsive-design-audit.md)) — independent,
+  [`docs/audits/responsive-design-audit.md`](../../audits/responsive-design-audit.md)) — independent,
   can land any time.

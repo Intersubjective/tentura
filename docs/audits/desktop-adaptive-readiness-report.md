@@ -1,8 +1,12 @@
+---
+status: done
+kind: report
+---
 # Desktop & Adaptive Readiness Report
 
 Audit date: 2026-06-30. Scope: full `packages/client` — all `@RoutePage` screens, `lib/ui/**` shared widgets, beacon/room chat, design-system responsive primitives.
 
-**Related:** prior fix log in [`responsive-design-audit.md`](responsive-design-audit.md) (2026-06-27).
+**Related:** prior fix log in [`docs/audits/responsive-design-audit.md`](responsive-design-audit.md) (2026-06-27).
 
 **Overall verdict:** **Partial** — desktop-usable, not desktop-polished. Solid responsive infrastructure with inconsistent application. Primary failure mode: intentional full-bleed surfaces (room chat, graph canvas) plus inconsistent dialog width caps and no wide-screen multi-column lists.
 
@@ -36,7 +40,7 @@ The app uses **opt-in width caps**, not a root-level constraint.
 
 5. **Component-level reflow** — shared widgets use `LayoutBuilder` / `windowClass` for internal reflow without global caps.
 
-**Product decision:** `responsive-design-audit.md` defers room chat as intentional full-bleed (like graph canvas). This report evaluates against desktop-web best practices regardless.
+**Product decision:** `docs/audits/responsive-design-audit.md` defers room chat as intentional full-bleed (like graph canvas). This report evaluates against desktop-web best practices regardless.
 
 ---
 
@@ -295,5 +299,5 @@ Consolidated from four parallel codebase audits (2026-06-30):
 
 - Feature screens (`features/**`, excluding beacon room deep-dive)
 - Beacon / room chat (`beacon_room`, `basic_chat_body`, item discussion)
-- Pattern inventory (grep + `responsive-design-audit.md`)
+- Pattern inventory (grep + `docs/audits/responsive-design-audit.md`)
 - UI shell (`lib/ui/**`, design system, navigation context)

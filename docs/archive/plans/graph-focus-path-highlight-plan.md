@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Focus-path highlighting for the relationships graph
 
 ## Context

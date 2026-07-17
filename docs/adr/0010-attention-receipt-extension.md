@@ -3,7 +3,7 @@
 ## Status
 
 Accepted for Updates v1 (2026-07-16). The normative source is revision 4 of
-`docs/updates-tab-implementation-plan.md`.
+`docs/archive/plans/updates-tab-implementation-plan.md`.
 
 This ADR records the target contract. T-00 does not implement the schema or the
 transactional durability boundary described below. In the current implementation,

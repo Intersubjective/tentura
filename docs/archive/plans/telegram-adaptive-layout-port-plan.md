@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Telegram-Style Adaptive Layout — Port Plan for Tentura
 
 > **Status: implemented in client chat layout.** This document reworks the
@@ -5,9 +9,9 @@
 > vocabulary (`WindowClass`, `TenturaTokens`, `TenturaContentColumn`,
 > `room_message_tile`) and lays out a concrete, ordered implementation plan.
 >
-> **Read first:** [`responsive-design-audit.md`](responsive-design-audit.md)
+> **Read first:** [`docs/audits/responsive-design-audit.md`](../../audits/responsive-design-audit.md)
 > (verified baseline) and
-> [`desktop-adaptive-readiness-report.md`](desktop-adaptive-readiness-report.md)
+> [`docs/audits/desktop-adaptive-readiness-report.md`](../../audits/desktop-adaptive-readiness-report.md)
 > (gap list + priority order). This plan is the chat-layout half of that
 > report's priority list, made precise against the Telegram reference.
 
@@ -33,7 +37,7 @@ its content-fit bubble math**, not rebuilding our primitives.
 
 **Key insight:** Tentura's biggest divergence from Telegram is that the **chat
 surface itself never enters a "wide" mode**. On desktop the message list +
-composer span the entire viewport (the `responsive-design-audit.md` called this
+composer span the entire viewport (the `docs/audits/responsive-design-audit.md` called this
 intentional full-bleed; the readiness report flags it as the #1 desktop gap).
 Telegram's `adaptiveChatWideWidth` behavior is exactly the fix: above a
 threshold, stop widening the chat and instead **center a fixed-width column**.

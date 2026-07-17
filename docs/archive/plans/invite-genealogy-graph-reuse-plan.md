@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Invite genealogy: bound descendant growth + reuse the trust-graph widget
 
 **Revision 4** — incorporates three rounds of code review. Rev 2 fixed

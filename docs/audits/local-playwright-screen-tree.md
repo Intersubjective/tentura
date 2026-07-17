@@ -1,0 +1,236 @@
+---
+status: historical
+kind: audit
+---
+# Local Playwright screen tree
+
+Started: 2026-06-29 01:28 CEST  
+Environment: local stack at `https://dev.lvh.me:9443` via Caddy, API `:2080`, Flutter web `:8888`  
+QA user: `agent-1782689243-19095@test.tentura.local`
+
+Legend:
+
+- `[x]` visited with Playwright
+- `[~]` partially visited / needs deeper branches
+- `[!]` defect reproduced or suspected
+- `[ ]` not yet visited
+
+## Tree
+
+- `[x]` Signed-in root `/`
+- `[x]` Home shell `#/home/work`
+- `[x]` My Work tab
+- `[x]` Empty state
+- `[x]` Create beacon CTA
+- `[x]` Create beacon screen `#/beacon/new`
+- `[x]` Fill title / description / need / done-when fields
+- `[x]` Requirements sheet
+- `[x]` Expand `Technical`
+- `[x]` Select `Tech help`
+- `[x]` Save requirements back to parent form
+- `[x]` Publish
+- `[x]` Publish confirmation
+- `[!]` Direct `#/beacon/new` publish originally navigated to `about:blank`
+- `[x]` Fixed direct publish fallback: final route `#/home/work`
+- `[x]` My Work card list after publish
+- `[x]` Open first My Work card to beacon detail
+- `[x]` Beacon detail `Items` tab
+- `[x]` Beacon detail `People` tab
+- `[x]` Beacon detail `Log` tab
+- `[x]` Beacon detail Room toggle
+- `[x]` Beacon detail More actions
+- `[x]` More actions Share Link / invite prompt
+- `[x]` More actions Close Beacon status sheet
+- `[x]` More actions Cancel beacon status sheet
+- `[x]` More actions Edit Beacon
+- `[x]` More actions Create from this beacon
+- `[x]` More actions Track of forwards
+- `[x]` More actions Delete Beacon confirmation
+- `[x]` Beacon detail Forward
+- `[x]` Beacon detail Update status
+- `[x]` Beacon detail Ask
+- `[x]` Beacon detail Promise
+- `[x]` Beacon detail For me
+- `[x]` Forward screen opened from detail
+- `[x]` Forward no-reachable-contacts state
+- `[x]` Forward invite new person
+- `[x]` Forward invitation-code dialog
+- `[x]` Forward add shared note
+- `[x]` Forward search recipients
+- `[x]` Forward Close
+- `[x]` Filter: Active menu
+- `[x]` Sort: Recent / Oldest toggle
+- `[x]` New Beacon button
+- `[x]` New Beacon close back to My Work
+- `[x]` Inbox tab
+- `[x]` Inbox empty/recent state
+- `[x]` Inbox View My Work
+- `[x]` Inbox menu / Rejected archive entry visible
+- `[x]` Inbox notifications
+- `[x]` My people tab
+- `[x]` My people empty state
+- `[x]` My people Create invitation
+- `[x]` My people invitation-code dialog
+- `[x]` My people Scan invite code
+- `[x]` Profile tab
+- `[x]` Profile Edit profile
+- `[x]` Profile Set display name
+- `[x]` Profile Show Connections
+- `[x]` Profile Show Beacons
+- `[x]` Profile Settings
+- `[x]` Profile menu
+- `[x]` Graph / Trust graph from Profile
+- `[x]` Profile beacons list
+- `[x]` Settings Sign-in methods
+- `[x]` Settings Notification settings
+- `[x]` Settings Reset local app state confirmation
+- `[x]` Settings Request profile deletion confirmation
+- `[x]` Second QA user accepted forwarded beacon invite
+- `[x]` Invite post-signup landing form
+- `[x]` Second-user My Work empty state with Inbox CTA
+- `[x]` Second-user Inbox received forwarded beacon
+- `[x]` Second-user Inbox split-pane master/preview card
+- `[!]` Second-user Inbox/My Work transition originally showed Flutter RenderFlex error overlay
+- `[x]` Fixed narrow split-pane card rows; rerun shows no Flutter error overlay
+- `[x]` Second-user Inbox More actions
+- `[x]` Second-user Inbox Remove from inbox dialog / cancel
+- `[!]` Remove-from-inbox cancel originally threw disposed `TextEditingController`
+- `[x]` Fixed inbox note-dialog controller lifecycle
+- `[x]` Second-user Inbox Forward screen
+- `[x]` Second-user received-beacon detail
+- `[x]` Second-user detail Items / People / Log tabs
+- `[!]` Received-beacon detail originally surfaced page-level `RemoteApiException`
+- `[x]` Fixed optional room/fact/responsibility enrichment denials
+- `[x]` Second-user Inbox Offer Help dialog
+- `[x]` Second-user Offer Help expand `Technical` category
+- `[x]` Second-user Offer Help select `Tech help`
+- `[x]` Second-user Offer Help submit
+- `[x]` Second-user post-offer Inbox state (`View My Work`, `Forward`, `Close`)
+- `[x]` Second-user My Work after offered help
+- `[x]` Second-user offered-help beacon detail from My Work
+- `[x]` Second-user offered-help detail Items / People / Log tabs
+- `[x]` Second-user offered-help People `edit` dialog / cancel
+- `[x]` Second-user offered-help People `withdraw` dialog / cancel
+- `[x]` Second-user offered-help `Show forward path` graph
+- `[x]` Second-user offered-help `Show forwards` inline forwards list
+- `[x]` Author pending-offer detail
+- `[x]` Author pending-offer People tab
+- `[x]` Author `Set coordination signal` sheet / cancel
+- `[x]` Author saved default `Useful` + `Admit to room`
+- `[!]` Admitted helper direct `?tab=room` initially showed room unavailable
+- `[x]` Fixed beacon room route to wait for full context enrichment before denial
+- `[x]` Admitted helper room surface opened
+- `[x]` Admitted helper room overflow menu
+- `[x]` Admitted helper room message send
+- `[x]` Admitted helper room `Create poll` composer / dismiss
+- `[x]` Admitted helper room single-choice poll create and vote
+- `[x]` Admitted helper room multiple-choice poll create and vote
+- `[x]` Admitted helper room range poll create and vote
+- `[!]` Room overflow `Draft review` originally logged Flutter AppBar RenderFlex overflow
+- `[x]` Fixed draft-review loading bar placement; direct route rerun has no RenderFlex error
+- `[x]` Admitted helper room `Complaint` route
+- `[x]` Complaint type dropdown
+- `[!]` Complaint optional email originally validated as required on empty submit
+- `[x]` Fixed complaint optional-email validation
+- `[!]` Complaint successful submit originally triggered snackbar clear during build
+- `[x]` Fixed route-push snackbar clearing; complaint submit returns to My Work cleanly
+- `[x]` Room Attach menu (`Photos`, `Files`) / dismiss
+- `[x]` Room file attachment upload and send
+- `[x]` Room file attachment open/download
+- `[x]` Room message quick reaction
+- `[x]` Room message actions sheet / dismiss
+- `[x]` Room message `Promise from message` sheet / dismiss
+- `[x]` Room message `Create ask...` sheet / dismiss
+- `[x]` Room message `Mark blocker...` sheet / dismiss
+- `[x]` Room message `Update plan from message...` sheet / dismiss
+- `[x]` Room reaction senders sheet
+- `[x]` Room message `Pin as fact` choice sheet / dismiss
+- `[x]` Room message `Edit message` sheet / dismiss
+- `[x]` Room message `Delete message` confirmation / cancel
+- `[x]` Room message `Copy text`
+- `[x]` Room message `Pin as fact` -> `Room only`
+- `[x]` Room message edit save on disposable QA message
+- `[x]` Room message delete confirmation on disposable QA message
+- `[x]` Room message `Promise from message` save draft
+- `[x]` Room message `Create ask...` publish from message
+- `[x]` Items tab after room coordination actions
+- `[x]` Items Drafts section expansion
+- `[x]` Items Pinned facts expansion
+- `[x]` Active ask item overflow menu
+- `[x]` Active ask item discussion route
+- `[x]` Active ask discussion card expansion
+- `[x]` Active ask discussion overflow menu
+- `[x]` Active ask discussion `Propose resolution...` sheet / dismiss
+- `[x]` Active ask discussion reply send
+- `[x]` Author-side active ask discussion route
+- `[x]` Author-side active ask discussion overflow menu
+- `[x]` Author-side active ask discussion reply send
+- `[x]` Author-side active ask `I'll do this` acceptance
+- `[x]` Author-side active ask cancellation
+- `[x]` Items top `Ask` composer / dismiss
+- `[x]` Items top `Promise` composer / dismiss
+- `[x]` Items top blocker composer / dismiss
+- `[x]` People tab after coordination actions
+- `[x]` Log tab after coordination actions
+- `[!]` Direct profile-edit save with invalid empty display name originally submitted to GraphQL instead of stopping on form validation
+- `[x]` Fixed profile-edit save action to validate the form before saving
+- `[!]` Room mention suggestions originally failed to rebuild or accept reliably after participant handle/access refreshes
+- `[x]` Fixed room mention participant signature, overlay anchoring/selection, stale mention recompute, and Flutter web Enter handling
+
+## Observations
+
+- Local stack boots and signs in through real QA magic-link cookie flow.
+- Playwright can read Flutter semantics text in Chromium headless, so screen-tree traversal can use visible text plus screenshots.
+- 2026-06-29: Requirements sheet local result differs from staging audit. After selecting `Technical > Tech help` and saving, the parent form visually preserved title, description, need summary, success criteria, and showed `Requirements 1 selected`; no local user-facing data loss reproduced on this path.
+- 2026-06-29: Reproduced direct-route publish failure from `#/beacon/new`: after confirmation the browser navigated to `about:blank`. Fixed by making `NavigateBack` fall back to Home when the router cannot pop. Re-run of the same Playwright script ended at `https://dev.lvh.me:9443/#/home/work`.
+- 2026-06-29: My Work card opened detail successfully at `#/beacon/view/B2332d32c0366?entry=my_work`; local detail did not reproduce the staging `Beacon unavailable` failure. Items, People, and Log tabs rendered.
+- 2026-06-29: Detail affordances opened: More actions menu, Update status sheet, Ask sheet, Promise sheet, Room surface, and Forward screen. No API errors observed. More-actions menu is visually rendered, but its menu item text was not present in Playwright `body.innerText`.
+- 2026-06-29: Detail overflow sub-actions opened expected non-destructive destinations/confirmations: share/invite prompt, lifecycle status sheets, edit screen, create-from-this draft, forwards graph, and delete confirmation. No API errors observed.
+- 2026-06-29: Forward no-contact flow rendered search empty state, shared-note field, invite-new-person dialog, invitation-code QR/link dialog, and Close back to detail. Staging dialog-stacking issue did not reproduce locally.
+- 2026-06-29: Home shell traversal loaded My Work filters/sort, New Beacon open/close, Inbox empty/recent state, My people empty state, and Profile summary without API errors.
+- 2026-06-29: Profile affordances opened edit profile, graph connections, profile beacons list, settings, and overflow menu. No API errors observed.
+- 2026-06-29: Settings opened sign-in methods, notification settings, reset-local-state confirmation, and profile-deletion confirmation without API errors.
+- 2026-06-29: My people empty-state actions opened create-invitation, generated an invitation-code QR/link dialog, and opened scan/paste invite-code dialog without API errors.
+- 2026-06-29: Inbox empty-state controls opened notification center, overflow menu with Rejected archive, and View My Work navigation without API errors. Watching tab was visually present on the tab bar in screenshots, but empty-account content did not expose distinct semantics.
+- 2026-06-29: Created second QA user `agent-b-1782691864-29289@test.tentura.local` through the real invite magic-link flow for invite `I7d6ee816c680`. Post-verify route rendered the account-created display-name landing form.
+- 2026-06-29: Second user root loaded `#/home/work` with empty My Work and `View Inbox (1)`. Inbox rendered the forwarded `QA publish 526219` card in both master and preview panes with `Offer Help`, `Forward`, and `Remove from inbox`.
+- 2026-06-29: Reproduced a Flutter `RenderFlex overflowed` error overlay when navigating second user from Inbox back to My Work. Console traces pointed at `BeaconCardHeaderRow`, `BeaconCardMetadataBlock`, `InboxCardForwardsFold`, and `CardTriageActionRow` under a 31 px split-pane constraint.
+- 2026-06-29: Fixed the overflow by making those card rows respond to actual `LayoutBuilder` constraints, including icon-only CTA fallback below 96 px. Rebuilt Flutter web and reran the second-user Playwright script; Inbox -> My Work no longer logs RenderFlex errors and no Flutter error overlay appears.
+- 2026-06-29: Second-user Inbox More actions opened (menu text was not exposed in `body.innerText`, matching earlier menu semantics behavior). `Remove from inbox` opened the expected optional-note dialog and `Forward` opened the recipient-forward screen listing the author contact.
+- 2026-06-29: Cancelling `Remove from inbox?` originally threw `A TextEditingController was used after being disposed` during the dialog route exit. Fixed by moving the controller into the dialog widget lifecycle; rerun cancels without Flutter errors.
+- 2026-06-29: Opening received-beacon detail as a non-admitted recipient showed the beacon detail and tabs, but originally emitted a page-level `RemoteApiException` from optional room/coordination enrichment. Fixed fact/open-blocker fallbacks and guarded `markItemsSeen`; rerun still logs handled GraphQL denials as debug output but no page error or visible overlay.
+- 2026-06-29: Second-user received-beacon detail rendered Items (`No coordination items yet`), People (author listed, Show forwards), Log (creation entry), and Inbox `Offer Help` dialog with capability chips.
+- 2026-06-29: Submitted second-user help offer by expanding `Technical`, selecting visible `Tech help`, and pressing `Offer help (1/4)`. No page errors or backend errors were logged. After submit, Inbox changed to `View My Work` / `Forward` / `Close`, and My Work showed the offered beacon card with `2 people shown`.
+- 2026-06-29: Playwright `body.innerText` exposes capability group rows but not the expanded chip labels; screenshots show the chips and coordinate selection works. Treat this as a QA automation locator limitation unless a separate assistive-tech/a11y pass confirms missing chip semantics.
+- 2026-06-29: Second-user My Work offered card opened `#/beacon/view/B2332d32c0366?entry=my_work`. Detail showed `Offers awaiting author`, `YOU Waiting for author to review your offer`, Items content, People tab with AB as `Helper · Help Offered`, and Log creation entry. No page errors or backend errors were logged.
+- 2026-06-29: Pending-offer People actions opened: `edit` reopened the help-type dialog with `Technical` count `1`; `withdraw` opened a required-reason dialog (`Why are you stepping back?`) and was cancelled; `Show forward path` navigated to `#/graph/forwards/B2332d32c0366?...` with `Your forward path`, `Go to Ego`, and `Show negative`. No page errors or backend errors were logged.
+- 2026-06-29: `Show forwards` on the pending-offer People tab expanded an inline `Forwards (1)` list showing the author forward. No page errors or backend errors were logged.
+- 2026-06-29: Author detail for the pending offer showed `YOU Review 1 commitment(s)` and People badge `1`; People tab listed AB as `Helper · Help Offered` with `Set coordination signal`. Signal sheet rendered `Useful`, `Overlapping`, `Need different skill`, `Need coordination`, `Not suitable`, and checked `Admit to room`. Saving the default changed the beacon to `Coordinating the plan`, cleared the author YOU line to `No open items`, and marked AB `useful`. No page errors or backend errors were logged.
+- 2026-06-29: After author admitted AB to the room, direct helper route `#/beacon/view/B2332d32c0366?tab=room&entry=my_work` originally rendered `Room isn’t available for this beacon` even though V2 returned `roomAccess: 3`. Root cause: BeaconView emitted a fast content-loaded success before help-offer/room context enrichment completed, and the screen consumed that provisional state as final room denial. Fixed with `beaconContextLoaded`; rerun direct-room Playwright check rendered the room surface (`Attach`) with no denial, page errors, or backend errors.
+- 2026-06-29: Admitted helper room rendered `Back`, `More actions`, composer placeholder, attach icon, and send icon. Overflow menu rendered `Create poll`, `Draft review`, and `Complaint`. Sending a room message created a visible outgoing bubble (`QA`) with no page errors or backend errors. Playwright only entered the first token of a longer message in this Flutter web text field; screenshots showed the visible typed value, so treat long-text entry as an automation limitation unless reproduced manually.
+- 2026-06-29: Room overflow `Create poll` opened a poll composer with question character counter, two options, `Add Option`, single/multiple/range mode choices, and `Send Poll`; Escape dismissed back to the room. No page errors or backend errors were logged.
+- 2026-06-29: Created a disposable single-choice room poll (`QA poll 004300`) through the `Create poll` sheet and voted for `QA option alpha 004300`. The poll card rendered the question, options, `No votes` before voting, then `100% (1)`, `1 vote`, and `Change answer` after voting. No Flutter, page, or backend errors were logged. Playwright `body.innerText` exposed options before voting and `Change answer` after voting, but omitted the poll question pre-assertion and option labels post-vote; screenshots confirmed the visible state. Screenshots: `/tmp/tentura-room-poll-create-sheet-filled.png`, `/tmp/tentura-room-poll-run-failure.png`, `/tmp/tentura-room-poll-existing-before-vote.png`, `/tmp/tentura-room-poll-voted.png`.
+- 2026-06-29: Created and voted a disposable multiple-choice room poll (`QA multi 400472`) by selecting both variants and pressing `Submit`. The voted card showed both rows checked, each at `100% (1)`, `1 vote`, and `Change answer`. No Flutter, page, or backend errors were logged. Screenshots: `/tmp/tentura-room-poll-multiple-sheet-filled.png`, `/tmp/tentura-room-poll-multiple-created.png`, `/tmp/tentura-room-poll-multiple-voted.png`.
+- 2026-06-29: Created and voted disposable range polls. `RoomPollCreate` succeeded for `pollType: "range"` with no 4xx/5xx or GraphQL errors; the range card rendered score chips `1`-`5` per variant and a disabled `Submit ratings` until a score was selected. Selecting score `5` for `QA range alpha 400472` submitted successfully and rendered `5.0/5 (1)`, `1 vote`, and `Change answer`. Flutter web semantics exposed `Submit ratings` but omitted range variant/chip text in `body.innerText`, so screenshots were used for visual verification. Screenshots: `/tmp/tentura-room-poll-range-sheet-filled.png`, `/tmp/tentura-room-poll-range-diag-after-send.png`, `/tmp/tentura-room-poll-range-corrected-before-vote.png`, `/tmp/tentura-room-poll-range-corrected-score-selected.png`, `/tmp/tentura-room-poll-range-corrected-voted.png`.
+- 2026-06-29: Room overflow `Draft review` navigated to `#/beacon/review/B2332d32c0366?draft=true`, but the screen originally logged `A RenderFlex overflowed by 3.0 pixels on the bottom` from `ReviewContributionsScreen`'s AppBar loading indicator. Fixed by moving the 4 px `LinearPiActive` bar out of `AppBar.bottom` and into the body top edge. Direct-route verification rendered `Draft review notes`, `QA publish 526219`, `0 of 1 reviewed`, and `Done` with no Flutter rendering console error, page error, or backend error. Screenshot: `/tmp/tentura-draft-review-fix-direct-open-v2.png`.
+- 2026-06-29: Room overflow `Complaint` navigated to `#/complaint/B2332d32c0366` and rendered `Submit Complaint`, `Complaint Type`, required details, optional feedback email, and submit controls. Opening the type dropdown and selecting `Violates Platform Rules` worked. Empty submit originally showed both `Please provide details` and `Please enter a valid email` despite the email field being labeled optional. Fixed `_validateEmail` to allow blank/whitespace-only values and still validate non-empty values. Rerun empty submit showed only `Please provide details` with no page, backend, or Flutter rendering errors. Screenshot: `/tmp/tentura-complaint-empty-submit-validation-fixed.png`.
+- 2026-06-29: Submitting a complaint with `QA complaint submission` and blank optional email created the local complaint and navigated back to `#/home/work`, but originally surfaced a Flutter error overlay from `ClearSnackBarsOnPushObserver.didPush`: `setState() or markNeedsBuild() called during build` while clearing `ScaffoldMessenger`. Fixed by scheduling the snackbar clear in a microtask rather than mutating `ScaffoldMessenger` synchronously in the navigator observer. Rerun submission returned to My Work with no Flutter console exception, page error, or backend error. Screenshot: `/tmp/tentura-complaint-submit-success-fixed.png`.
+- 2026-06-29: Room `Attach` opened a popup menu with `Photos` and `Files`; Escape dismissed it. Selecting `Files` through Playwright's virtual file chooser accepted `qa-attachment.txt`, rendered a pending chip, and sending created an attachment-only room bubble `qa-attachment.txt · 35 B` with no Flutter, page, or backend errors. The file name was visible in screenshots but not consistently present in `body.innerText`, so this is another Flutter web semantics limitation. Screenshots: `/tmp/tentura-room-attachment-pending-v2.png`, `/tmp/tentura-room-attachment-after-send-v2.png`.
+- 2026-06-29: Clicking the sent `qa-attachment.txt` file attachment triggered a browser download with suggested filename `qa-attachment.txt`. No visible `Could not open attachment` snackbar, Flutter exception, page error, or backend error was logged. Screenshot: `/tmp/tentura-room-attachment-open-after.png`.
+- 2026-06-29: Hovering the sent attachment message exposed `Add reaction` and `Message actions`. Quick reaction added the heart reaction chip with helper initials (`AB`). The message actions sheet rendered quick reactions plus `Turn into...`, `Promise from message`, `Create ask...`, `Mark blocker...`, `Update plan from message...`, `Pin as fact`, `Edit message`, and `Delete message`; Escape dismissed. No Flutter, page, or backend errors were logged. Screenshots: `/tmp/tentura-room-message-reaction-added.png`, `/tmp/tentura-room-message-actions-sheet.png`.
+- 2026-06-29: Message actions `Promise from message`, `Create ask...`, `Mark blocker...`, and `Update plan from message...` each opened their respective non-destructive composer/update surfaces and dismissed with Escape. The promise sheet showed `Make a promise...` and `Save draft`; ask and blocker sheets showed target-picking copy plus publish actions; update-plan showed `Update plan...`, `You`, and `Cancel`/`OK`. No Flutter, page, or backend errors were logged. Screenshots: `/tmp/tentura-room-turn-into-promise.png`, `/tmp/tentura-room-turn-into-ask.png`, `/tmp/tentura-room-turn-into-blocker.png`, `/tmp/tentura-room-turn-into-update-plan.png`.
+- 2026-06-29: Long-pressing the room reaction chip opened the `Reactions` sheet, visually listing the heart reaction and `agent b 1782691864 29289`. The sheet title was not exposed in `body.innerText`, but the screenshot confirmed the surface. No Flutter, page, or backend errors were logged. Screenshot: `/tmp/tentura-room-reaction-longpress-after-v2.png`.
+- 2026-06-29: Message actions `Pin as fact` opened a visibility choice sheet with `Public — visible beyond the room` and `Room only`; Escape dismissed without creating a fact. `body.innerText` exposed the choices but not the sheet title, while the screenshot confirmed the full surface. No Flutter, page, or backend errors were logged. Screenshot: `/tmp/tentura-room-pin-fact-choice-sheet.png`.
+- 2026-06-29: Message actions `Edit message` opened an edit sheet (`Edit message`, `Save`) and dismissed with Escape. Message actions `Delete message` opened the confirmation (`Delete message?`, irreversible copy, `Cancel`, `Delete`) and cancelling returned to the room. No Flutter, page, or backend errors were logged. Screenshots: `/tmp/tentura-room-edit-message-sheet.png`, `/tmp/tentura-room-delete-message-confirm.png`.
+- 2026-06-29: Direct profile edit at `#/profile/edit` with an empty display name originally allowed Save to reach GraphQL and throw a backend validation/runtime error. Fixed the screen to validate the `Form` before calling `ProfileEditCubit.save`; rerun showed inline `Display name is too short` and no GraphQL/runtime error. Filling display name and handle then saved successfully. Screenshots: `/tmp/tentura-profile-edit-validation-inline.png`, `/tmp/tentura-profile-edit-handle-save-after-validation.png`.
+- 2026-06-29: Room mention suggestions for admitted participant `@agentbqa` originally did not reliably rebuild after participant enrichment and Enter acceptance interacted badly with Flutter web text-field submission/focus. Fixed the room participant rebuild signature, mention controller recompute fallback, overlay hit testing/positioning, and web Enter acceptance. Rerun opened `@agentbqa`, accepted it, typed marker `mention final clean 609288`, sent successfully, and logged no runtime, network, or GraphQL errors. Screenshots: `/tmp/tentura-room-mention-final-clean-suggestions.png`, `/tmp/tentura-room-mention-final-clean-accepted.png`, `/tmp/tentura-room-mention-final-clean-composer-marker.png`, `/tmp/tentura-room-mention-final-clean-sent.png`.
+- 2026-06-29: Room message actions actual branches: `Copy text` copied and showed `Copied`; `Pin as fact` -> `Room only` created a room fact and showed `Fact pinned`; edit-save changed a disposable QA message and rendered the `Edited` marker; delete-confirm removed the edited QA message. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-room-copy-after.png`, `/tmp/tentura-room-pin-fact-room-only-after.png`, `/tmp/tentura-room-edit-delete-after-edit.png`, `/tmp/tentura-room-edit-delete-after-delete.png`.
+- 2026-06-29: `Promise from message` opened a prefilled promise composer and `Save draft` dismissed cleanly with no Flutter, page, network, or GraphQL errors. `Create ask...` opened a prefilled ask composer, defaulted the target to the author, and `Publish ask` completed with no errors. Screenshots: `/tmp/tentura-room-promise-sheet-before-save.png`, `/tmp/tentura-room-promise-after-save-draft.png`, `/tmp/tentura-room-ask-publish-sheet-before-publish.png`, `/tmp/tentura-room-ask-publish-after-publish.png`.
+- 2026-06-29: Items tab after message-derived coordination actions showed Active ask, Drafts, and Pinned facts. Drafts expanded to the saved promise draft and exposed `Delete`; Pinned facts expanded to the room fact and exposed `Manage this fact`. The active ask overflow menu showed `edit`, `I'll do this`, `Resolve`, and `Cancel`; tapping the ask opened `#/beacon/view/B2332d32c0366/discussion/If585170bf265`. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-items-after-room-actions.png`, `/tmp/tentura-items-drafts-expanded.png`, `/tmp/tentura-items-pinned-facts-targeted2.png`, `/tmp/tentura-items-active-final-overflow.png`, `/tmp/tentura-items-active-final-tap.png`.
+- 2026-06-29: Active ask discussion route rendered the item thread, expanded the item card, opened top overflow (`I'll do this`, `Resolve`, `Cancel`, `Propose resolution...`), and sent reply `qa thread reply 569181`. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-thread-initial.png`, `/tmp/tentura-thread-card-expanded.png`, `/tmp/tentura-thread-overflow-menu.png`, `/tmp/tentura-thread-reply-sent.png`.
+- 2026-06-29: Active ask discussion `Propose resolution...` opened the resolution proposal sheet (`Propose resolution…`, `Cancel`, `OK`) and dismissed without mutating state. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-thread-resolution-menu-coordinate.png`, `/tmp/tentura-thread-resolution-sheet-coordinate.png`, `/tmp/tentura-thread-resolution-dismissed-coordinate.png`.
+- 2026-06-29: Items top composer buttons opened their expected sheets without source-message context: `Ask` showed target picker/default author and `Publish ask`; `Promise` showed no target and `Save draft`; blocker icon showed `Mark Blocker`, target `Me`, and `Publish blocker`. Each dismissed without Flutter, page, network, or GraphQL errors. Screenshots: `/tmp/tentura-items-top-ask-sheet.png`, `/tmp/tentura-items-top-promise-sheet.png`, `/tmp/tentura-items-top-blocker-sheet.png`.
+- 2026-06-29: People tab after coordination actions rendered active helpers and the helper row (`Helper · Help Offered · marked useful`) with `edit`, `withdraw`, and `Show forwards`. Log tab, reached by clicking the visible tab, listed the message-derived ask and pinned-fact events. Direct `tab=log` URL retained People content, so use visible tab switching for this route in local Playwright. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-people-after-items-actions.png`, `/tmp/tentura-log-click-after.png`.
+- 2026-06-29: Author-side active ask discussion route (cookie `/tmp/tentura-agent-1782689243-19095.cookies`) showed the helper's thread reply, opened the same ask overflow actions (`I'll do this`, `Resolve`, `Cancel`, `Propose resolution...`), and sent `qa author thread reply 389467`. No Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-thread-author-initial.png`, `/tmp/tentura-thread-author-overflow.png`, `/tmp/tentura-thread-author-reply-sent.png`.
+- 2026-06-29: Author-side `I'll do this` on the ask discussion updated the item header from `Ask Open` to `Ask Accepted` without Flutter, page, network, or GraphQL errors. Screenshots: `/tmp/tentura-thread-author-accept-menu.png`, `/tmp/tentura-thread-author-after-accept.png`.
+- 2026-06-29: Author-side ask overflow after acceptance showed `Resolve`, `Cancel`, and `Propose resolution...`. A coordinate click selected `Cancel` and updated the item header to `Ask Cancelled`; no Flutter, page, network, or GraphQL errors were logged. Screenshots: `/tmp/tentura-thread-author-resolve-menu.png`, `/tmp/tentura-thread-author-after-resolve.png`.

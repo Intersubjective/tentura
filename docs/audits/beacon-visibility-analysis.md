@@ -1,8 +1,12 @@
+---
+status: active
+kind: analysis
+---
 # Beacon visibility — root-cause analysis and alignment plan
 
 ## 1. Purpose & relationship to existing docs
 
-This document explains why Tentura's beacon visibility QA traps occur, how they map to fixes, and how client and server surfaces should align to the canonical read predicate. It is a companion to [`beacon-visibility-matrix.md`](beacon-visibility-matrix.md) (per-relationship reference tables) and does not replace it. Policy authority lives in [ADR 0008](adr/0008-beacon-visibility-and-invite-sharing.md) and [`CONTEXT.md`](../CONTEXT.md) § Beacon visibility & sharing.
+This document explains why Tentura's beacon visibility QA traps occur, how they map to fixes, and how client and server surfaces should align to the canonical read predicate. It is a companion to [`beacon-visibility-matrix.md`](../beacon-visibility-matrix.md) (per-relationship reference tables) and does not replace it. Policy authority lives in [ADR 0008](../adr/0008-beacon-visibility-and-invite-sharing.md) and [`CONTEXT.md`](../../CONTEXT.md) § Beacon visibility & sharing.
 
 ## 2. Root-cause statement
 

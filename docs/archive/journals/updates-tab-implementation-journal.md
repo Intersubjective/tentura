@@ -1,6 +1,10 @@
+---
+status: done
+kind: journal
+---
 # Updates Tab — Implementation Journal
 
-This is the execution ledger for `docs/updates-tab-implementation-plan.md` (revision 4).
+This is the execution ledger for `docs/archive/plans/updates-tab-implementation-plan.md` (revision 4).
 It is the context-reset source used before each plan task: read the named task, this
 journal's current task entry, and the live worktree; do not rely on prior task detail
 unless this journal identifies it as a prerequisite.

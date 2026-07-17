@@ -1,8 +1,13 @@
+---
+status: superseded
+kind: plan
+superseded_by: docs/plans/beacon-location-google-maps-plan.md
+---
 # Plan: server-side reverse geocoding (replace client-only `geocoding` package)
 
-**Superseded by `beacon-location-google-maps-plan.md`.** After further review the decision moved to a Google Maps picker (rendered only during authoring, not on every view) + external Maps hand-off for viewing/routing, dropping the Nominatim proxy. Kept below for history/context only — do not implement this version.
+**Superseded by `docs/plans/beacon-location-google-maps-plan.md`.** After further review the decision moved to a Google Maps picker (rendered only during authoring, not on every view) + external Maps hand-off for viewing/routing, dropping the Nominatim proxy. Kept below for history/context only — do not implement this version.
 
-Status: **plan only, not implemented.** Decision: proxy through Nominatim server-side (see comparison in the appendix for why this beats "Google Maps on web + native geocoder on mobile"). See also `beacon-location-ux-review.md` — this proxy fixes web/desktop address *resolution*, but the picker (no address search), the read-only map dialog (reuses the editable picker, bug), and "copy/open in Maps" need their own follow-ups.
+Status: **plan only, not implemented.** Decision: proxy through Nominatim server-side (see comparison in the appendix for why this beats "Google Maps on web + native geocoder on mobile"). See also `docs/audits/beacon-location-ux-review.md` — this proxy fixes web/desktop address *resolution*, but the picker (no address search), the read-only map dialog (reuses the editable picker, bug), and "copy/open in Maps" need their own follow-ups.
 
 ## Problem
 

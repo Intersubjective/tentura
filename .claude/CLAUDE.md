@@ -4,7 +4,11 @@ Follow [`AGENTS.md`](../AGENTS.md) (always-on index + invariants) and the scoped
 
 ## Search & exploration
 
-Use the token-minimizing ladder in [`.cursor/rules/search-tools.mdc`](../.cursor/rules/search-tools.mdc): known path → `Read`; semantic → `ollama_explore.py`; symbols/refs → Serena MCP; then Grep/Glob.
+Use the token-minimizing ladder in [`.cursor/rules/search-tools.mdc`](../.cursor/rules/search-tools.mdc): known path → `Read`; semantic/structure/symbols/refs → Serena MCP; then Grep/Glob.
+
+## Architecture work
+
+Layer/DI work (domain, data, ui layers, use cases, repositories, cubits, ports, Injectable) goes through the `clean-architecture` skill (`.claude/skills/clean-architecture/SKILL.md`) — a condensed contract over [`.cursor/rules/architecture.mdc`](../.cursor/rules/architecture.mdc).
 
 ## UI work
 
@@ -14,8 +18,4 @@ Client UI must go through the Material 3 design system — invoke the `material-
 
 ## Claude-specific tooling
 
-- **RAG index debugging only** (normal flow runs via `ollama_explore.py`):
-  ```bash
-  source $CLAUDE_PROJECT_DIR/rag_env/bin/activate && python3 rag_query.py "your question"
-  ```
 - **Serena MCP:** call `activate_project` with `tentura` if no project is active; use `list_memories` / `read_memory` / `write_memory` for durable cross-session notes.

@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Beacon Definition HUD + Items Tab Reorganization
 
 **Status:** Implemented in the working tree (uncommitted). Consolidated reference recovered from the full conversation (Jun 2026).
@@ -80,7 +84,7 @@ final showDrafts = inRoom && myDraftCount > 0;
 - `isRoomAdmissionBlocked` — non-author, help offered, no admission yet
 - `canCoordinateInBeaconRoom` — may create/edit coordination items (mirrors server `_canUseRoom` + coordination rules)
 
-Server reference: `BeaconRoomCase._canUseRoom` (author | steward | `room_access == admitted`). See `docs/room-coordination-audit.md` criterion 3.
+Server reference: `BeaconRoomCase._canUseRoom` (author | steward | `room_access == admitted`). See `docs/audits/room-coordination-audit.md` criterion 3.
 
 ---
 

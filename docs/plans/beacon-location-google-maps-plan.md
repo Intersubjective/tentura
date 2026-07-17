@@ -1,6 +1,10 @@
+---
+status: active
+kind: plan
+---
 # Plan: Google Maps picker + external Maps hand-off for beacon location
 
-Status: **plan only, not implemented.** Supersedes `reverse-geocoding-server-proxy-plan.md`. Builds on findings in `beacon-location-ux-review.md`.
+Status: **plan only, not implemented.** Supersedes `docs/archive/plans/reverse-geocoding-server-proxy-plan.md`. Builds on findings in `docs/audits/beacon-location-ux-review.md`.
 
 ## Decision recap
 
@@ -27,7 +31,7 @@ Replace the current tap-only, instant-commit flow (`packages/client/lib/features
 4. **Fallback**: user can still tap directly on the map, or drag the marker, bypassing search entirely. On tap/drag-**end** only (not per drag frame — throttle to one call after the gesture settles), call the classic Geocoding API (`reverse`) to resolve `address_label`. This has no session-token concept (that's Places-specific); volume is inherently low since it only fires on deliberate author gestures.
 5. **Confirm step** (fixes the "instant commit" issue from the UX review): show the resolved address text + an explicit "Use this location" button. No more accidental commits from a single mis-tap.
 6. Raise `maxZoom` from 12 to ~18-19 (building-level), matching what `GoogleMap` supports natively.
-7. **Attribution**: none of this needs manual handling — the Google logo/attribution renders inside the `GoogleMap` widget itself automatically, unlike the current unattributed OSM tiles (see `beacon-location-ux-review.md`, the missing `RichAttributionWidget` finding — that finding is moot once OSM tiles are gone).
+7. **Attribution**: none of this needs manual handling — the Google logo/attribution renders inside the `GoogleMap` widget itself automatically, unlike the current unattributed OSM tiles (see `docs/audits/beacon-location-ux-review.md`, the missing `RichAttributionWidget` finding — that finding is moot once OSM tiles are gone).
 
 ## Card / detail view — persist, don't re-resolve
 

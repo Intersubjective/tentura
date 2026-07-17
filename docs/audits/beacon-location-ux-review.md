@@ -1,10 +1,14 @@
+---
+status: done
+kind: review
+---
 # UI/UX review: beacon location feature vs. the stated goal
 
 Status: **review only, nothing implemented.**
 
 Goal restated: (A) authors can easily select a concrete address/point on a map; (B) other users see a short human-readable address on the beacon card; (C) tapping it shows the map; (D) users can easily copy the address to route in e.g. Google Maps.
 
-This reviews the current implementation against each of the four, and how much of the gap the Nominatim proxy plan (`reverse-geocoding-server-proxy-plan.md`) actually closes.
+This reviews the current implementation against each of the four, and how much of the gap the Nominatim proxy plan (`docs/archive/plans/reverse-geocoding-server-proxy-plan.md`) actually closes.
 
 ## A. Author picking a concrete address — partial, imprecise
 

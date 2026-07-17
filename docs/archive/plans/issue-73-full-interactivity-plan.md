@@ -1,3 +1,7 @@
+---
+status: done
+kind: plan
+---
 # Issue 73: Full Interactivity and Deterministic Convergence Plan
 
 Status: Implemented and verified 2026-07-14 after critique loop 3. Live Graph

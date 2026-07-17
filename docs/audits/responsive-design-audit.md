@@ -1,3 +1,7 @@
+---
+status: active
+kind: audit
+---
 # Responsive Design Audit
 
 > **Status (verified 2026-06-30): essentially complete.** Every screen/dialog fix
