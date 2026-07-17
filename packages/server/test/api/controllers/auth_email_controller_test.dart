@@ -26,6 +26,7 @@ import 'package:tentura_server/env.dart';
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/noop_invite_accepted_notification_port.dart';
+import '../../support/test_attention_harness.dart';
 
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   EmailAuthTransactionEntity? _tx;
@@ -163,12 +164,14 @@ EmailAuthCase _buildEmailAuthCase({
   when(
     invitationRepo.getById(invitationId: anyNamed('invitationId')),
   ).thenAnswer((_) async => null);
+  final attention = TestAttentionHarness();
   final invitationCase = buildTestInvitationCase(
     invitationRepo: invitationRepo,
     userRepo: userRepo,
     beaconRepo: MockBeaconRepositoryPort(),
     friendshipLookup: MockVoteUserFriendshipLookupPort(),
     contactRepo: MockUserContactRepositoryPort(),
+    attention: attention,
     env: env,
     logger: Logger('AuthEmailControllerTest'),
   );
@@ -178,6 +181,8 @@ EmailAuthCase _buildEmailAuthCase({
     invitationRepo,
     NoopInviteAcceptedNotificationPort(),
     invitationCase,
+    attentionIntents: attention.intents,
+    attention: attention.transactional,
     env: env,
     logger: Logger('AuthEmailControllerTest'),
   );
