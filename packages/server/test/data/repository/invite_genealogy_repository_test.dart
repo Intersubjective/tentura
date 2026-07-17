@@ -154,6 +154,73 @@ INSERT INTO public.invite_genealogy (
       throwsA(isA<Object>()),
     );
   }, skip: skipReason);
+
+  test(
+    'fetchLineage returns ancestors only (no descendants)',
+    () async {
+      if (skipReason != false) {
+        return;
+      }
+      final ancestorKey = '${'c' * 43}1';
+      final descendantKey = '${'d' * 43}2';
+      await db.customStatement(
+        '''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES
+  ('$ancestorId', 'Ancestor', \$1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('$descendantId', 'Descendant', \$2, '2026-02-01T00:00:00Z', '2026-02-01T00:00:00Z')
+ON CONFLICT (id) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  public_key = EXCLUDED.public_key,
+  created_at = EXCLUDED.created_at,
+  updated_at = EXCLUDED.updated_at
+''',
+        [ancestorKey, descendantKey],
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.invitation (id, user_id, created_at, updated_at)
+VALUES ('$invitationId', '$ancestorId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await repo.recordSignupEdge(
+        ancestorUserId: ancestorId,
+        ancestorUserCreatedAt: DateTime.utc(2026),
+        descendantUserId: descendantId,
+        descendantUserCreatedAt: DateTime.utc(2026, 2),
+        invitationId: invitationId,
+      );
+
+      final ancestorNodeKey = InviteGenealogyNodeKey.derive(
+        userId: ancestorId,
+        env: env,
+      );
+      final descendantNodeKey = InviteGenealogyNodeKey.derive(
+        userId: descendantId,
+        env: env,
+      );
+
+      final lineage = await repo.fetchLineage(userId: ancestorId);
+      final userIds = lineage.nodes.map((n) => n.user?.id).toSet();
+      expect(userIds, contains(ancestorId));
+      expect(userIds, isNot(contains(descendantId)));
+      expect(
+        lineage.edges.map((e) => e.descendantNodeKey),
+        isNot(contains(descendantNodeKey)),
+      );
+
+      final children = await repo.fetchChildren(
+        nodeKey: ancestorNodeKey,
+        limit: 10,
+      );
+      expect(
+        children.edges.map((e) => e.descendantNodeKey),
+        contains(descendantNodeKey),
+      );
+    },
+    skip: skipReason,
+  );
 }
 
 Env _testEnv() => Env(

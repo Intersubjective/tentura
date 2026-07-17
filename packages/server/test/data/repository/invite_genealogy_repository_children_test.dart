@@ -224,6 +224,32 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
     },
     skip: skipReason,
   );
+
+  test(
+    'fetchChildCounts for a parent is stable across children pages',
+    () async {
+      if (skipReason != false) return;
+
+      final parentKey = keyOf(parentId);
+      final before = await repo.fetchChildCounts(nodeKeys: [parentKey]);
+
+      final first = await repo.fetchChildren(nodeKey: parentKey, limit: 2);
+      final afterPage1 = await repo.fetchChildCounts(nodeKeys: [parentKey]);
+
+      await repo.fetchChildren(
+        nodeKey: parentKey,
+        afterCreatedAt: first.edges.last.descendantUserCreatedAt,
+        afterNodeKey: first.edges.last.descendantNodeKey,
+        limit: 2,
+      );
+      final afterPage2 = await repo.fetchChildCounts(nodeKeys: [parentKey]);
+
+      expect(before[parentKey], childIds.length);
+      expect(afterPage1, before);
+      expect(afterPage2, before);
+    },
+    skip: skipReason,
+  );
 }
 
 Env _testEnv() => Env(
