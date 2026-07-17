@@ -1,6 +1,6 @@
 query AttentionFeed($view: String!, $cursor: String, $limit: Int) {
   attentionFeed(view: $view, cursor: $cursor, limit: $limit) {
-    summary { unreadTotal }
+    summary { unreadTotal needsYouTotal }
     page {
       nextCursor
       items {
@@ -8,6 +8,7 @@ query AttentionFeed($view: String!, $cursor: String, $limit: Int) {
         collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
         destinationKind targetEntityId presentationKey presentationPayloadJson
         inAppPreferenceClass
+        requiresAction attentionThreadKey settlementKind settledAt
       }
     }
   }

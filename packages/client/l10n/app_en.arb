@@ -4387,11 +4387,14 @@
   "updatesTitle": "Updates",
   "updatesAll": "All",
   "updatesUnread": "Unread",
+  "updatesNeedsYou": "Needs you",
   "updatesMarkSeen": "Mark seen",
+  "updatesMarkDone": "Mark done",
   "updatesMarkAllSeen": "Mark all seen",
   "updatesEmptyTitle": "Nothing new",
   "updatesEmptyAllHint": "New activity will appear here.",
-  "updatesEmptyUnreadHint": "You have no unread updates."
+  "updatesEmptyUnreadHint": "You have no unread updates.",
+  "updatesEmptyNeedsYouHint": "You have no open items that need you."
   ,"notificationSettingsInApp": "In app"
   ,"notificationSettingsInAppMandatory": "Safety and obligation updates always remain visible."
   ,"notificationSettingsInAppCoordination": "Coordination activity"

@@ -22,6 +22,7 @@ class AttentionPolicy {
     final preference = suppression == AttentionSuppressionClass.noisy
         ? _preferenceClass(eventType)
         : null;
+    final requiresAction = _requiresAction(eventType, recipientReasons);
 
     return AttentionReceiptProjection(
       category: _category(eventType, suppression),
@@ -31,6 +32,10 @@ class AttentionPolicy {
       destination: destination,
       presentationKey: _presentationKey(eventType),
       presentationPayload: _presentationPayload(eventType, role),
+      requiresAction: requiresAction,
+      attentionThreadKey: requiresAction
+          ? _threadKey(eventType, recipientId, role)
+          : null,
     );
   }
 
@@ -180,6 +185,40 @@ class AttentionPolicy {
           AttentionPreferenceClass.requestProgress,
         _ => null,
       };
+
+  bool _requiresAction(
+    AttentionEventType eventType,
+    Set<AttentionRecipientReason> reasons,
+  ) => switch (eventType) {
+    AttentionEventType.helpOfferSubmitted => reasons.contains(
+      AttentionRecipientReason.authorOfBeacon,
+    ),
+    AttentionEventType.needsMe ||
+    AttentionEventType.staleReminder ||
+    AttentionEventType.reviewOpened => true,
+    AttentionEventType.blockerOpened =>
+      reasons.contains(AttentionRecipientReason.affectedParticipant) ||
+          reasons.contains(AttentionRecipientReason.targetOfAsk),
+    _ => false,
+  };
+
+  String _threadKey(
+    AttentionEventType eventType,
+    String recipientId,
+    AttentionRecipientRoleFacts role,
+  ) {
+    final subject =
+        role.coordinationItemId ?? role.targetEntityId ?? role.beaconId;
+    if (subject == null || subject.isEmpty) {
+      throw ArgumentError('Live obligation requires a stable subject');
+    }
+    return [
+      'v1',
+      eventType.name,
+      Uri.encodeComponent(subject),
+      Uri.encodeComponent(recipientId),
+    ].join('|');
+  }
 
   String _presentationKey(AttentionEventType eventType) => switch (eventType) {
     AttentionEventType.relayReceived => 'relay_received',

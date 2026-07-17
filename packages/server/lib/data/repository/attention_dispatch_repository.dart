@@ -47,14 +47,16 @@ INSERT INTO public.notification_outbox (
   beacon_id, coordination_item_id, actor_user_id,
   source_event_key, destination_kind, target_entity_id,
   presentation_key, presentation_payload,
-  in_app_preference_class, suppression_class, access_policy
+  in_app_preference_class, suppression_class, access_policy,
+  requires_action, attention_thread_key
 ) VALUES (
   gen_random_uuid()::text, $1, $2, $3, $4,
   $5, $6, $7, $8,
   $9, $10, $11,
   $12, $13, $14,
   $15, $16::jsonb,
-  $17, $18, $19
+  $17, $18, $19,
+  $20, $21
 )
 ON CONFLICT (dedup_key) WHERE read_at IS NULL
 DO UPDATE SET
@@ -75,6 +77,8 @@ DO UPDATE SET
   in_app_preference_class = EXCLUDED.in_app_preference_class,
   suppression_class       = EXCLUDED.suppression_class,
   access_policy           = EXCLUDED.access_policy,
+  requires_action         = EXCLUDED.requires_action,
+  attention_thread_key    = EXCLUDED.attention_thread_key,
   created_at              = now(),
   collapsed_count         = notification_outbox.collapsed_count + 1
 RETURNING id
@@ -99,6 +103,8 @@ RETURNING id
               Variable<String>(projection.inAppPreferenceClass?.wireName),
               Variable<String>(projection.suppressionClass.name),
               Variable<String>(projection.accessPolicy.wireName),
+              Variable<bool>(projection.requiresAction),
+              Variable<String>(projection.attentionThreadKey),
             ],
           )
           .getSingle();

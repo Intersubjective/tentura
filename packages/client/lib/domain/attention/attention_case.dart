@@ -133,6 +133,13 @@ final class AttentionCase {
     if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
   }
 
+  Future<void> settle(String receiptId) async {
+    final receipt = _receiptsById[receiptId];
+    if (receipt == null || !receipt.isLiveObligation) return;
+    await _repository.settle(receiptId: receiptId, kind: 'resolved');
+    await _requestHeadRefresh();
+  }
+
   Future<void> _requestHeadRefresh() async {
     if (_accountId.isEmpty) return;
     if (_headRefreshInFlight) {

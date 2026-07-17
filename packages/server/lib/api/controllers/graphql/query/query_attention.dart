@@ -27,7 +27,10 @@ final class QueryAttention extends GqlNodeBase {
         limit: _limit.fromArgs(args) ?? 50,
       );
       return {
-        'summary': {'unreadTotal': feed.summary.unreadTotal},
+        'summary': {
+          'unreadTotal': feed.summary.unreadTotal,
+          'needsYouTotal': feed.summary.needsYouTotal,
+        },
         'page': {
           'items': [
             for (final receipt in feed.page.items) _mapReceipt(receipt),
@@ -47,6 +50,7 @@ final class QueryAttention extends GqlNodeBase {
   static AttentionFeedView _parseView(String value) => switch (value) {
     'all' => AttentionFeedView.all,
     'unread' => AttentionFeedView.unread,
+    'needsYou' => AttentionFeedView.needsYou,
     _ => throw ArgumentError.value(value, 'view', 'must be all or unread'),
   };
 
@@ -116,6 +120,10 @@ final class QueryAttention extends GqlNodeBase {
       'presentationKey': receipt.presentationKey,
       'presentationPayloadJson': jsonEncode(payload),
       'inAppPreferenceClass': receipt.inAppPreferenceClass?.wireName,
+      'requiresAction': receipt.requiresAction,
+      'attentionThreadKey': receipt.attentionThreadKey,
+      'settlementKind': receipt.settlementKind?.wireName,
+      'settledAt': receipt.settledAt?.toUtc().toIso8601String(),
     };
   }
 }

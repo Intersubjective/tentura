@@ -34,6 +34,32 @@ explicitly out of this migration until T-21.
 analysis, terminology check, shell syntax, and `git diff --check` pass. The final
 unconditional release proof is recorded below.
 
+## Context reset — T-16
+
+**Task packet:** add the separately named Needs you projection without changing the
+Updates navigation badge, which remains the unread receipt count. Settlement and read
+acknowledgement are independent facts: only newly materialized, recipient-specific
+obligations participate; legacy rows stay non-obligations rather than being fabricated
+as resolved.
+
+**Resolution:** `m0118` adds `requires_action`, a typed/versioned
+`attention_thread_key`, and independent settlement facts with database checks and
+live-obligation indexes. The attention policy computes the recipient-specific
+obligation projection at write time; the server feed has a third `needsYou` view/count
+alongside the unchanged unread summary. The client exposes the distinct Needs you tab
+and only offers Mark done for a live obligation.
+
+**Unexpected findings:** server build generation repeats the repository's known
+`drift_dev` circular-deserialization warning for the users/images tables. It still exits
+zero and regenerated the required Freezed output.
+
+**Verification:** the disposable PostgreSQL migration suite proves the typed-thread
+constraint, legacy non-obligations, authorized/idempotent settlement, mandatory
+non-dismissal, independent `seen_at`, and the Needs you projection/count. Focused
+server GraphQL/policy tests and client attention/Updates tests pass; full server
+analysis, scoped client analysis, terminology check, formatting, and `git diff --check`
+pass. T-16 is complete.
+
 ## Context reset — T-12
 
 **Resolution:** Updates cards now acknowledge before opening their typed destination,
@@ -81,7 +107,8 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-13 | Complete | In-app noisy-class settings UI, V2 persistence mapping, safety copy, and focused cubit verification pass. |
 | T-14 | Complete | Five browser release-proof passes, deliberate live/catch-up negative controls, and zero unexplained shadow mismatches are recorded in `reports/realtime-multiclient/updates-t14-release-20260717-005719`. |
 | T-15 | Complete | Unconditional flip, scoped retry-proof hardening, five positive browser runs, and both deliberate negative controls pass in `reports/realtime-multiclient/updates-t15-release-20260717`. |
-| T-16–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
+| T-16 | Complete | `m0118` settlement axis, distinct Needs you projection, Mark done flow, GraphQL/authorization boundary, and PostgreSQL migration/settlement proof pass without changing unread semantics. |
+| T-17–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
 

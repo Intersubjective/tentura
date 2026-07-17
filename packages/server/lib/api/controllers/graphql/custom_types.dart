@@ -126,10 +126,17 @@ final gqlTypeAttentionReceipt = GraphQLObjectType('AttentionReceipt', null)
     field('presentationKey', graphQLString),
     field('presentationPayloadJson', graphQLString.nonNullable()),
     field('inAppPreferenceClass', graphQLString),
+    field('requiresAction', graphQLBoolean.nonNullable()),
+    field('attentionThreadKey', graphQLString),
+    field('settlementKind', graphQLString),
+    field('settledAt', graphQLString),
   ]);
 
 final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)
-  ..fields.addAll([field('unreadTotal', graphQLInt.nonNullable())]);
+  ..fields.addAll([
+    field('unreadTotal', graphQLInt.nonNullable()),
+    field('needsYouTotal', graphQLInt.nonNullable()),
+  ]);
 
 final gqlTypeAttentionPage = GraphQLObjectType('AttentionPage', null)
   ..fields.addAll([

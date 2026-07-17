@@ -1,6 +1,6 @@
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/api/controllers/graphql/gql_nodel_base.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_attention.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_attention.dart';
@@ -11,7 +11,10 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
+import 'package:tentura_server/domain/port/attention_settlement_port.dart';
+import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/env.dart';
 
 class _FakeQuery implements AttentionQueryPort {
   String? accountId;
@@ -86,6 +89,31 @@ class _FakeAck implements AttentionAckPort {
   }) async => 0;
 }
 
+class _FakeSettlement implements AttentionSettlementPort {
+  String? accountId;
+  String? receiptId;
+  AttentionSettlementKind? kind;
+
+  @override
+  Future<int> settle({
+    required String accountId,
+    required String receiptId,
+    required AttentionSettlementKind kind,
+  }) async {
+    this.accountId = accountId;
+    this.receiptId = receiptId;
+    this.kind = kind;
+    return 1;
+  }
+}
+
+AttentionSettlementCase _settlementCase(AttentionSettlementPort port) =>
+    AttentionSettlementCase(
+      port,
+      env: Env.test(),
+      logger: Logger('attention-graphql-test'),
+    );
+
 void main() {
   const auth = {kGlobalInputQueryJwt: JwtEntity(sub: 'U1')};
 
@@ -96,7 +124,10 @@ void main() {
 
     expect(query.accountId, 'U1');
     expect(query.view, AttentionFeedView.unread);
-    expect((result as Map)['summary'], {'unreadTotal': 1});
+    expect((result as Map)['summary'], {
+      'unreadTotal': 1,
+      'needsYouTotal': 0,
+    });
     expect(((result['page'] as Map)['nextCursor'] as String), isNotEmpty);
   });
 
@@ -142,6 +173,50 @@ void main() {
     expect(
       () => field.resolve!(null, {...auth, 'ids': List.filled(201, 'N')}),
       throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('attentionSettle scopes a user-resolvable live obligation', () async {
+    final settlement = _FakeSettlement();
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      settlement: _settlementCase(settlement),
+    ).all.last;
+
+    expect(
+      await field.resolve!(null, {
+        ...auth,
+        'receiptId': 'N1',
+        'kind': 'resolved',
+      }),
+      1,
+    );
+    expect(settlement.accountId, 'U1');
+    expect(settlement.receiptId, 'N1');
+    expect(settlement.kind, AttentionSettlementKind.resolved);
+  });
+
+  test('attentionSettle rejects non-user settlement kinds', () async {
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      settlement: _settlementCase(_FakeSettlement()),
+    ).all.last;
+
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'receiptId': 'N1',
+        'kind': 'legacy_archived',
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'receiptId': 'N1',
+        'kind': 'unknown',
+      }),
+      throwsA(isA<StateError>()),
     );
   });
 

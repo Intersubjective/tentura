@@ -83,7 +83,11 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
             BlocSelector<UpdatesFeedCubit, UpdatesFeedState, AttentionView>(
               selector: (state) => state.view,
               builder: (context, view) => TenturaUnderlineTabs(
-                tabs: [l10n.updatesAll, l10n.updatesUnread],
+                tabs: [
+                  l10n.updatesAll,
+                  l10n.updatesUnread,
+                  l10n.updatesNeedsYou,
+                ],
                 selectedIndex: view.index,
                 onChanged: (index) => context.read<UpdatesFeedCubit>().setView(
                   AttentionView.values[index],
@@ -176,6 +180,14 @@ class _UpdatesCard extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.done_outlined),
               ),
+            if (receipt.isLiveObligation)
+              IconButton(
+                tooltip: L10n.of(context)!.updatesMarkDone,
+                onPressed: () => context.read<UpdatesFeedCubit>().settle(
+                  receipt.id,
+                ),
+                icon: const Icon(Icons.task_alt_outlined),
+              ),
           ],
         ),
       ),
@@ -229,7 +241,9 @@ class _EmptyUpdates extends StatelessWidget {
             Text(
               view == AttentionView.all
                   ? l10n.updatesEmptyAllHint
-                  : l10n.updatesEmptyUnreadHint,
+                  : view == AttentionView.unread
+                  ? l10n.updatesEmptyUnreadHint
+                  : l10n.updatesEmptyNeedsYouHint,
               textAlign: TextAlign.center,
               style: TenturaText.bodySmall(tt.textMuted),
             ),

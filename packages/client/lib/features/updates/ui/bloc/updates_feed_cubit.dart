@@ -77,6 +77,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     }
   }
 
+  Future<void> settle(String id) async {
+    try {
+      await _attention.settle(id);
+    } catch (error, stackTrace) {
+      _logger.warning('Updates settle failed', error, stackTrace);
+    }
+  }
+
   @override
   Future<void> close() async {
     await _sub.cancel();

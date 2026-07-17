@@ -1,0 +1,3 @@
+mutation AttentionSettle($receiptId: String!, $kind: String!) {
+  attentionSettle(receiptId: $receiptId, kind: $kind)
+}

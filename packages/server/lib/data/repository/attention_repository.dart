@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
+import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 
 import '../database/tentura_db.dart';
 
@@ -58,18 +59,26 @@ WITH visible AS MATERIALIZED (
 summary AS (
   SELECT COUNT(*) FILTER (
     WHERE COALESCE(seen_at, read_at) IS NULL
-  )::int AS unread_total
+  )::int AS unread_total,
+  COUNT(*) FILTER (
+    WHERE requires_action AND settlement_kind IS NULL
+  )::int AS needs_you_total
   FROM visible
 ),
 page AS (
   SELECT visible.*
   FROM visible
-  WHERE (\$2 = 'all' OR COALESCE(visible.seen_at, visible.read_at) IS NULL)
+  WHERE (
+    \$2 = 'all'
+    OR (\$2 = 'unread' AND COALESCE(visible.seen_at, visible.read_at) IS NULL)
+    OR (\$2 = 'needsYou' AND visible.requires_action
+        AND visible.settlement_kind IS NULL)
+  )
     $cursorClause
   ORDER BY visible.created_at DESC, visible.id DESC
   LIMIT $limitParameter
 )
-SELECT summary.unread_total, page.*
+SELECT summary.unread_total, summary.needs_you_total, page.*
 FROM summary
 LEFT JOIN LATERAL (SELECT * FROM page) page ON true
 ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
@@ -78,6 +87,9 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
     ).get();
 
     final unreadTotal = rows.isEmpty ? 0 : rows.first.read<int>('unread_total');
+    final needsYouTotal = rows.isEmpty
+        ? 0
+        : rows.first.read<int>('needs_you_total');
     final items = <AttentionReceipt>[
       for (final row in rows)
         if (row.data['id'] != null) _mapRow(row),
@@ -94,7 +106,10 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
         : null;
 
     return AttentionFeed(
-      summary: AttentionSummary(unreadTotal: unreadTotal),
+      summary: AttentionSummary(
+        unreadTotal: unreadTotal,
+        needsYouTotal: needsYouTotal,
+      ),
       page: AttentionPage(items: items, nextCursor: nextCursor),
     );
   }
@@ -142,6 +157,18 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       ),
       accessPolicy: attentionAccessPolicyFromWireName(
         row.read<String>('access_policy'),
+      ),
+      requiresAction: row.read<bool>('requires_action'),
+      attentionThreadKey: row.readNullable<String>('attention_thread_key'),
+      settlementKind: row.readNullable<String>('settlement_kind') == null
+          ? null
+          : attentionSettlementKindFromWireName(
+              row.read<String>('settlement_kind'),
+            ),
+      settledAt: _readTimestamp(row, 'settled_at'),
+      settledByUserId: row.readNullable<String>('settled_by_user_id'),
+      settledByOccurrenceId: row.readNullable<String>(
+        'settled_by_occurrence_id',
       ),
     );
   }
@@ -284,4 +311,42 @@ SELECT public.bridge_attention_room_seen(
         .getSingle();
     return row.read<int>('updated_count');
   }
+}
+
+@Singleton(as: AttentionSettlementPort)
+class AttentionSettlementRepository implements AttentionSettlementPort {
+  const AttentionSettlementRepository(this._database);
+
+  final TenturaDb _database;
+
+  @override
+  Future<int> settle({
+    required String accountId,
+    required String receiptId,
+    required AttentionSettlementKind kind,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.notification_outbox outbox
+SET
+  settlement_kind = $3,
+  settled_at = now(),
+  settled_by_user_id = $1,
+  settled_by_occurrence_id = NULL
+WHERE outbox.id = $2
+  AND outbox.account_id = $1
+  AND outbox.requires_action
+  AND outbox.settlement_kind IS NULL
+  AND outbox.id IN (
+    SELECT receipt_id
+    FROM public.visible_attention_receipts($1)
+  )
+  AND ($3 <> 'dismissed' OR outbox.suppression_class <> 'mandatory')
+''',
+    variables: [
+      Variable<String>(accountId),
+      Variable<String>(receiptId),
+      Variable<String>(kind.wireName),
+    ],
+    updateKind: UpdateKind.update,
+  );
 }

@@ -201,6 +201,7 @@ class _V2RoutingLink extends Link {
     'AttentionFeed',
     'AttentionMarkSeen',
     'AttentionMarkAllSeen',
+    'AttentionSettle',
     'NotificationPreferencesFetch',
     'NotificationPreferencesUpdate',
     'RoomMessageTarget',

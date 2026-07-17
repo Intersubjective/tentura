@@ -2369,6 +2369,7 @@ type mutation_root {
   notificationsMarkAllRead: Int!
   attentionMarkSeen(ids: [String!]!): Int!
   attentionMarkAllSeen: Int!
+  attentionSettle(receiptId: String!, kind: String!): Int!
   notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], mutedInAppEventClasses: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
@@ -3468,10 +3469,15 @@ type AttentionReceipt {
   presentationKey: String
   presentationPayloadJson: String!
   inAppPreferenceClass: String
+  requiresAction: Boolean!
+  attentionThreadKey: String
+  settlementKind: String
+  settledAt: String
 }
 
 type AttentionSummary {
   unreadTotal: Int!
+  needsYouTotal: Int!
 }
 
 type AttentionPage {

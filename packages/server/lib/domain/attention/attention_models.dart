@@ -110,7 +110,23 @@ AttentionDestinationKind attentionDestinationKindFromWireName(String value) =>
       (destination) => destination.wireName == value,
     );
 
-enum AttentionFeedView { all, unread }
+enum AttentionFeedView { all, unread, needsYou }
+
+enum AttentionSettlementKind { resolved, dismissed, superseded, legacyArchived }
+
+extension AttentionSettlementKindWireName on AttentionSettlementKind {
+  String get wireName => switch (this) {
+    AttentionSettlementKind.resolved => 'resolved',
+    AttentionSettlementKind.dismissed => 'dismissed',
+    AttentionSettlementKind.superseded => 'superseded',
+    AttentionSettlementKind.legacyArchived => 'legacy_archived',
+  };
+}
+
+AttentionSettlementKind attentionSettlementKindFromWireName(String value) =>
+    AttentionSettlementKind.values.firstWhere(
+      (kind) => kind.wireName == value,
+    );
 
 abstract final class AttentionCollapseKey {
   static String none(String sourceEventKey) =>
@@ -150,6 +166,8 @@ abstract class AttentionReceiptProjection with _$AttentionReceiptProjection {
     required AttentionDestination destination,
     required String presentationKey,
     required Map<String, Object?> presentationPayload,
+    @Default(false) bool requiresAction,
+    String? attentionThreadKey,
     AttentionPreferenceClass? inAppPreferenceClass,
   }) = _AttentionReceiptProjection;
 }
@@ -228,11 +246,18 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? targetEntityId,
     String? presentationKey,
     AttentionPreferenceClass? inAppPreferenceClass,
+    @Default(false) bool requiresAction,
+    String? attentionThreadKey,
+    AttentionSettlementKind? settlementKind,
+    DateTime? settledAt,
+    String? settledByUserId,
+    String? settledByOccurrenceId,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();
 
   bool get isUnread => seenAt == null;
+  bool get isLiveObligation => requiresAction && settlementKind == null;
 }
 
 @freezed
@@ -245,8 +270,10 @@ abstract class AttentionCursor with _$AttentionCursor {
 
 @freezed
 abstract class AttentionSummary with _$AttentionSummary {
-  const factory AttentionSummary({required int unreadTotal}) =
-      _AttentionSummary;
+  const factory AttentionSummary({
+    required int unreadTotal,
+    @Default(0) int needsYouTotal,
+  }) = _AttentionSummary;
 }
 
 @freezed

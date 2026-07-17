@@ -5,7 +5,7 @@ import 'attention_summary.dart';
 
 part 'attention_feed.freezed.dart';
 
-enum AttentionView { all, unread }
+enum AttentionView { all, unread, needsYou }
 
 @freezed
 abstract class AttentionFeedPage with _$AttentionFeedPage {

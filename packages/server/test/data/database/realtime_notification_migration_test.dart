@@ -14,6 +14,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
+import 'package:tentura_server/data/repository/attention_repository.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
@@ -28,12 +30,14 @@ Future<void> main() async {
       : 'Postgres admin database not reachable for disposable test target';
   final env = target.databaseEnv;
 
-  group('m0114-m0117 realtime notification contract', () {
+  group('m0114-m0118 realtime notification contract', () {
     late Connection writer;
     late Connection listener;
     late TenturaDb database;
     late NotificationOutboxRepository outboxRepository;
     late NotificationPreferenceRepository preferenceRepository;
+    late AttentionRepository attentionRepository;
+    late AttentionSettlementRepository settlementRepository;
     late StreamSubscription<String> notificationSubscription;
     var writerOpened = false;
     var listenerOpened = false;
@@ -54,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0118ForTest(writer);
       await _rollBackM0117ForTest(writer);
       await _rollBackM0116ForTest(writer);
       // Restore the disposable database to its exact pre-m0115 shape so the
@@ -118,6 +123,8 @@ FROM generate_series(1, 500) AS i
       databaseCreated = true;
       outboxRepository = NotificationOutboxRepository(database);
       preferenceRepository = NotificationPreferenceRepository(database);
+      attentionRepository = AttentionRepository(database);
+      settlementRepository = AttentionSettlementRepository(database);
     });
 
     setUp(() async {
@@ -218,7 +225,7 @@ ORDER BY t.tgname
     );
 
     test(
-      'm0115 columns, defaults, checks, and index predicates match C1',
+      'm0115 and m0118 columns, defaults, checks, and index predicates match C1',
       () async {
         final columnRows = await writer.execute(r'''
 SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
@@ -228,7 +235,9 @@ WHERE table_schema = 'public'
     (table_name = 'notification_outbox' AND column_name IN (
       'seen_at', 'source_event_key', 'destination_kind', 'target_entity_id',
       'presentation_key', 'presentation_payload', 'in_app_preference_class',
-      'suppression_class', 'access_policy'
+      'suppression_class', 'access_policy', 'requires_action',
+      'attention_thread_key', 'settlement_kind', 'settled_at',
+      'settled_by_user_id', 'settled_by_occurrence_id'
     ))
     OR (table_name = 'notification_preference'
         AND column_name = 'muted_in_app_event_classes')
@@ -244,7 +253,7 @@ ORDER BY table_name, column_name
               defaultValue: row[5],
             ),
         };
-        expect(columns, hasLength(10));
+        expect(columns, hasLength(16));
         expect(
           columns['notification_outbox.seen_at']?.dataType,
           'timestamp with time zone',
@@ -282,6 +291,32 @@ ORDER BY table_name, column_name
           "'legacy'::text",
         );
         expect(
+          columns['notification_outbox.requires_action']?.dataType,
+          'boolean',
+        );
+        expect(
+          columns['notification_outbox.requires_action']?.nullable,
+          'NO',
+        );
+        expect(
+          columns['notification_outbox.requires_action']?.defaultValue,
+          'false',
+        );
+        for (final name in const [
+          'attention_thread_key',
+          'settlement_kind',
+          'settled_by_user_id',
+          'settled_by_occurrence_id',
+        ]) {
+          expect(columns['notification_outbox.$name']?.dataType, 'text');
+          expect(columns['notification_outbox.$name']?.nullable, 'YES');
+        }
+        expect(
+          columns['notification_outbox.settled_at']?.dataType,
+          'timestamp with time zone',
+        );
+        expect(columns['notification_outbox.settled_at']?.nullable, 'YES');
+        expect(
           columns['notification_preference.muted_in_app_event_classes']
               ?.udtName,
           '_text',
@@ -313,7 +348,11 @@ ORDER BY conname
           'notification_outbox__new_shape_chk',
           'notification_outbox__preference_class_chk',
           'notification_outbox__recipient_safe_chk',
+          'notification_outbox__settlement_facts_chk',
+          'notification_outbox__settlement_kind_chk',
+          'notification_outbox__settlement_obligation_chk',
           'notification_outbox__suppression_chk',
+          'notification_outbox__thread_key_chk',
         });
         expect(
           checks['notification_outbox__suppression_chk'],
@@ -358,6 +397,23 @@ ORDER BY conname
             contains('presentation_key'),
           ),
         );
+        expect(
+          checks['notification_outbox__settlement_kind_chk'],
+          allOf(
+            contains('resolved'),
+            contains('dismissed'),
+            contains('superseded'),
+            contains('legacy_archived'),
+          ),
+        );
+        expect(
+          checks['notification_outbox__settlement_facts_chk'],
+          allOf(contains('settlement_kind'), contains('settled_at')),
+        );
+        expect(
+          checks['notification_outbox__thread_key_chk'],
+          allOf(contains('requires_action'), contains('v1')),
+        );
 
         final indexRows = await writer.execute(r'''
 SELECT c.relname, pg_get_indexdef(i.indexrelid),
@@ -368,7 +424,9 @@ WHERE i.indrelid = 'public.notification_outbox'::regclass
   AND c.relname IN (
     'notification_outbox__dedup',
     'notification_outbox__unread',
-    'notification_outbox__feed_v2'
+    'notification_outbox__feed_v2',
+    'notification_outbox__live_obligation',
+    'notification_outbox__live_obligation_thread'
   )
 ORDER BY c.relname
 ''');
@@ -379,7 +437,7 @@ ORDER BY c.relname
               predicate: row[2] as String?,
             ),
         };
-        expect(indexes, hasLength(3));
+        expect(indexes, hasLength(5));
         expect(
           indexes['notification_outbox__dedup']?.definition,
           startsWith('CREATE UNIQUE INDEX'),
@@ -401,6 +459,18 @@ ORDER BY c.relname
           contains('(account_id, created_at DESC, id DESC)'),
         );
         expect(indexes['notification_outbox__feed_v2']?.predicate, isNull);
+        expect(
+          indexes['notification_outbox__live_obligation']?.predicate,
+          '(requires_action AND (settlement_kind IS NULL))',
+        );
+        expect(
+          indexes['notification_outbox__live_obligation_thread']?.predicate,
+          allOf(
+            contains('requires_action'),
+            contains('(settlement_kind IS NULL)'),
+            contains('(attention_thread_key IS NOT NULL)'),
+          ),
+        );
       },
     );
 
@@ -595,7 +665,120 @@ INSERT INTO public.notification_outbox (
         'source_event_key, destination_kind',
         "'event:2', 'profile'",
       );
+      await expectRejected('requires_action', 'true');
+      await expectRejected('attention_thread_key', "'v1|needsMe|item|user'");
+      await expectRejected(
+        'requires_action, attention_thread_key',
+        "true, 'not-versioned'",
+      );
+      await expectRejected('settlement_kind', "'unknown'");
+      await expectRejected(
+        'requires_action, attention_thread_key, settlement_kind',
+        "true, 'v1|needsMe|item|user', 'resolved'",
+      );
+      await expectRejected(
+        'settled_at',
+        "'2026-07-17T00:00:00Z'",
+      );
     });
+
+    test(
+      'settlement is authorized, idempotent, and independent from seen state',
+      () async {
+        const receiptId = 'Nt01settlement';
+        const mandatoryReceiptId = 'Nt01mandatorysettlement';
+        await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  requires_action, attention_thread_key, seen_at
+) VALUES (
+  'Nt01settlement', 'Ut01migration', 'asksOfMe', 'needsMe',
+  'Settle', 'Settle body', '/settle', 'normal', 't01-settlement',
+  true, 'v1|needsMe|item-1|Ut01migration', '2026-07-17T00:00:00Z'
+)
+''');
+        await writer.execute(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  suppression_class, requires_action, attention_thread_key
+) VALUES (
+  'Nt01mandatorysettlement', 'Ut01migration', 'asksOfMe', 'needsMe',
+  'Mandatory', 'Mandatory body', '/mandatory', 'normal', 't01-mandatory-settlement',
+  'mandatory', true, 'v1|needsMe|item-2|Ut01migration'
+)
+''');
+
+        final beforeSettlement = await attentionRepository.attentionFeed(
+          accountId: 'Ut01migration',
+          view: AttentionFeedView.needsYou,
+        );
+        expect(beforeSettlement.summary.needsYouTotal, 2);
+        expect(
+          beforeSettlement.page.items.map((item) => item.id),
+          containsAll([receiptId, mandatoryReceiptId]),
+        );
+
+        expect(
+          await settlementRepository.settle(
+            accountId: 'Ut01other',
+            receiptId: receiptId,
+            kind: AttentionSettlementKind.resolved,
+          ),
+          0,
+        );
+        expect(
+          await settlementRepository.settle(
+            accountId: 'Ut01migration',
+            receiptId: mandatoryReceiptId,
+            kind: AttentionSettlementKind.dismissed,
+          ),
+          0,
+        );
+        expect(
+          await settlementRepository.settle(
+            accountId: 'Ut01migration',
+            receiptId: receiptId,
+            kind: AttentionSettlementKind.dismissed,
+          ),
+          1,
+        );
+        expect(
+          await settlementRepository.settle(
+            accountId: 'Ut01migration',
+            receiptId: receiptId,
+            kind: AttentionSettlementKind.resolved,
+          ),
+          0,
+        );
+
+        final settled = await writer.execute(r'''
+SELECT seen_at, settlement_kind, settled_at, settled_by_user_id
+FROM public.notification_outbox
+WHERE id = 'Nt01settlement'
+''');
+        expect(settled.single[0], DateTime.parse('2026-07-17T00:00:00Z'));
+        expect(settled.single[1], 'dismissed');
+        expect(settled.single[2], isNotNull);
+        expect(settled.single[3], 'Ut01migration');
+
+        final afterDismissal = await attentionRepository.attentionFeed(
+          accountId: 'Ut01migration',
+          view: AttentionFeedView.needsYou,
+        );
+        expect(afterDismissal.summary.needsYouTotal, 1);
+        expect(
+          afterDismissal.page.items.map((item) => item.id),
+          [mandatoryReceiptId],
+        );
+
+        final legacy = await writer.execute(r'''
+SELECT requires_action, settlement_kind
+FROM public.notification_outbox
+WHERE id = 'Nt01legacy'
+''');
+        expect(legacy.single, [false, null]);
+      },
+    );
 
     test('legacy collapse SQL and partial unique index remain exact', () async {
       const dedupKey = 't01-collapse';
@@ -1387,6 +1570,29 @@ DROP TRIGGER beacon_room_seen_attention_bridge
     'DROP FUNCTION public.bridge_attention_room_seen(text, text, text, timestamptz)',
     'DROP FUNCTION public.visible_attention_receipts(text)',
     "DELETE FROM public.schema_version WHERE version = '0117'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0118ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP INDEX public.notification_outbox__live_obligation_thread',
+    'DROP INDEX public.notification_outbox__live_obligation',
+    '''
+ALTER TABLE public.notification_outbox
+  DROP CONSTRAINT notification_outbox__thread_key_chk,
+  DROP CONSTRAINT notification_outbox__settlement_obligation_chk,
+  DROP CONSTRAINT notification_outbox__settlement_facts_chk,
+  DROP CONSTRAINT notification_outbox__settlement_kind_chk,
+  DROP COLUMN settled_by_occurrence_id,
+  DROP COLUMN settled_by_user_id,
+  DROP COLUMN settled_at,
+  DROP COLUMN settlement_kind,
+  DROP COLUMN attention_thread_key,
+  DROP COLUMN requires_action
+''',
+    "DELETE FROM public.schema_version WHERE version = '0118'",
   ]) {
     await connection.execute(statement);
   }

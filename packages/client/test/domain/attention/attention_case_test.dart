@@ -29,6 +29,8 @@ final class _Repository implements AttentionRepositoryPort {
   final List<Completer<AttentionFeed>> pendingFetches = [];
   final List<Completer<int>> pendingMarkSeen = [];
   final List<Completer<int>> pendingMarkAllSeen = [];
+  final List<Completer<int>> pendingSettles = [];
+  final List<({String receiptId, String kind})> settles = [];
   int fetchCalls = 0;
 
   @override
@@ -46,6 +48,12 @@ final class _Repository implements AttentionRepositoryPort {
 
   @override
   Future<int> markSeen(List<String> ids) => pendingMarkSeen.removeAt(0).future;
+
+  @override
+  Future<int> settle({required String receiptId, required String kind}) {
+    settles.add((receiptId: receiptId, kind: kind));
+    return pendingSettles.removeAt(0).future;
+  }
 }
 
 AttentionFeed _feed({int unread = 1, List<AttentionReceipt>? items}) =>
@@ -255,6 +263,39 @@ void main() {
     );
 
     test(
+      'settling a live obligation refreshes without changing unread state',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final refresh = Completer<AttentionFeed>();
+        final settle = Completer<int>();
+        repository.pendingFetches.addAll([initial, refresh]);
+        repository.pendingSettles.add(settle);
+        accounts.emit('account-a');
+        await _settle();
+        initial.complete(
+          _feed(
+            items: [_receipt().copyWith(requiresAction: true)],
+          ),
+        );
+        await _settle();
+
+        final command = attention.settle('receipt-1');
+        await _settle();
+        expect(repository.settles, [
+          (receiptId: 'receipt-1', kind: 'resolved'),
+        ]);
+        expect(attention.snapshot.summary.unreadTotal, 1);
+
+        settle.complete(1);
+        await _settle();
+        expect(repository.fetchCalls, 2);
+        refresh.complete(_feed(items: const []));
+        await command;
+        expect(attention.snapshot.summary.unreadTotal, 1);
+      },
+    );
+
+    test(
       'room-bridge notification fan-out reconciles another client after an ack',
       () async {
         final secondRepository = _Repository();
@@ -310,5 +351,4 @@ void main() {
       },
     );
   });
-
 }

@@ -24,9 +24,14 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? targetEntityId,
     String? presentationKey,
     String? inAppPreferenceClass,
+    @Default(false) bool requiresAction,
+    String? attentionThreadKey,
+    String? settlementKind,
+    DateTime? settledAt,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();
 
   bool get isSeen => seenAt != null;
+  bool get isLiveObligation => requiresAction && settlementKind == null;
 }
