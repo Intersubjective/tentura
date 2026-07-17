@@ -60,6 +60,21 @@ server GraphQL/policy tests and client attention/Updates tests pass; full server
 analysis, scoped client analysis, terminology check, formatting, and `git diff --check`
 pass. T-16 is complete.
 
+## Context reset — T-17
+
+**Resolution:** `TenturaChangeHighlight` centralizes the reduced-motion-aware,
+accessible field emphasis used by the existing Beacon People/Items focus path. The new
+`SeenAckCase` is pure: it accepts only viewport fraction, dwell duration, app focus, and
+route-current evidence. `AttentionVisibilityAck` is the Flutter adapter around Updates
+cards, using the existing `visibility_detector` dependency to acknowledge a receipt only
+after 60% visibility for 800 ms on the focused current route.
+
+**Unexpected finding:** `visibility_detector` was already declared by the client, so no
+new rendering dependency or browser-specific domain API was needed.
+
+**Verification:** focused domain attention/Updates tests and scoped Flutter analysis
+pass, including the dwell boundary, unfocused app, and non-current route negatives.
+
 ## Context reset — T-12
 
 **Resolution:** Updates cards now acknowledge before opening their typed destination,
@@ -108,7 +123,8 @@ persistence, rollback, and the constrained in-app registry; scoped analyzer and
 | T-14 | Complete | Five browser release-proof passes, deliberate live/catch-up negative controls, and zero unexplained shadow mismatches are recorded in `reports/realtime-multiclient/updates-t14-release-20260717-005719`. |
 | T-15 | Complete | Unconditional flip, scoped retry-proof hardening, five positive browser runs, and both deliberate negative controls pass in `reports/realtime-multiclient/updates-t15-release-20260717`. |
 | T-16 | Complete | `m0118` settlement axis, distinct Needs you projection, Mark done flow, GraphQL/authorization boundary, and PostgreSQL migration/settlement proof pass without changing unread semantics. |
-| T-17–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
+| T-17 | Complete | Tokenized changed-field highlight plus pure dwell policy and `visibility_detector` Updates-card adapter pass focused analysis/tests. |
+| T-18–T-22 | Deferred | Explicitly out of v1 scope; require separate approval. |
 
 ## Worktree baseline — 2026-07-16
 

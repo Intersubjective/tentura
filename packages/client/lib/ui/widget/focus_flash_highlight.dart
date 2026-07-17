@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 /// Wraps [child] and, while [active], scrolls it into view (within the nearest
 /// [Scrollable]) and plays a brief one-shot highlight flash.
@@ -47,8 +48,8 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
   // deactivated widget's ancestor is unsafe").
   AnimationController? _controllerOrNull;
 
-  AnimationController get _controller => _controllerOrNull ??=
-      AnimationController(
+  AnimationController get _controller =>
+      _controllerOrNull ??= AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 1600),
       );
@@ -90,7 +91,6 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
     unawaited(
       Scrollable.ensureVisible(
         ctx,
-        duration: Duration.zero,
         alignment: widget.scrollAlignment,
       ),
     );
@@ -118,12 +118,8 @@ class _FocusFlashHighlightState extends State<FocusFlashHighlight>
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     if (widget.staticHighlight && widget.active) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: widget.borderRadius,
-          border: Border.all(color: primary, width: 2),
-          color: primary.withValues(alpha: 0.08),
-        ),
+      return TenturaChangeHighlight(
+        active: true,
         child: widget.child,
       );
     }

@@ -23,6 +23,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.warn,
     required this.danger,
     required this.skyBorder,
+    required this.attentionHighlight,
     required this.cardRadius,
     required this.buttonRadius,
     required this.avatarSize,
@@ -67,6 +68,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
 
   /// Bordered command button outline (sky-tinted).
   final Color skyBorder;
+
+  /// Border tone for transient attention and changed-field emphasis.
+  final Color attentionHighlight;
 
   final double cardRadius;
   final double buttonRadius;
@@ -126,6 +130,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     warn: TenturaPalette.amber,
     danger: TenturaPalette.rose,
     skyBorder: TenturaPalette.skyBorder,
+    attentionHighlight: TenturaPalette.sky,
     cardRadius: TenturaRadii.card,
     buttonRadius: TenturaRadii.button,
     avatarSize: 36,
@@ -166,6 +171,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     warn: TenturaPalette.amberDark,
     danger: TenturaPalette.roseDark,
     skyBorder: TenturaPalette.skyBorderDark,
+    attentionHighlight: TenturaPalette.skyDark,
     cardRadius: TenturaRadii.card,
     buttonRadius: TenturaRadii.button,
     avatarSize: 36,
@@ -300,6 +306,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     Color? warn,
     Color? danger,
     Color? skyBorder,
+    Color? attentionHighlight,
     double? cardRadius,
     double? buttonRadius,
     double? avatarSize,
@@ -340,6 +347,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       warn: warn ?? this.warn,
       danger: danger ?? this.danger,
       skyBorder: skyBorder ?? this.skyBorder,
+      attentionHighlight: attentionHighlight ?? this.attentionHighlight,
       cardRadius: cardRadius ?? this.cardRadius,
       buttonRadius: buttonRadius ?? this.buttonRadius,
       avatarSize: avatarSize ?? this.avatarSize,
@@ -393,6 +401,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       warn: Color.lerp(warn, other.warn, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
       skyBorder: Color.lerp(skyBorder, other.skyBorder, t)!,
+      attentionHighlight: Color.lerp(
+        attentionHighlight,
+        other.attentionHighlight,
+        t,
+      )!,
       cardRadius: lerpDouble(cardRadius, other.cardRadius, t)!,
       buttonRadius: lerpDouble(buttonRadius, other.buttonRadius, t)!,
       avatarSize: lerpDouble(avatarSize, other.avatarSize, t)!,
