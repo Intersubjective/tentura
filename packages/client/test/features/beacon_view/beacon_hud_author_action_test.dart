@@ -42,6 +42,7 @@ BeaconViewState _authorState({
 TimelineHelpOffer _offer({
   String id = 'h1',
   CoordinationResponseType? response,
+  int roomAccess = 0,
 }) =>
     TimelineHelpOffer(
       user: Profile(id: id, displayName: 'Helper $id'),
@@ -49,6 +50,7 @@ TimelineHelpOffer _offer({
       createdAt: DateTime.utc(2026, 6, 20),
       updatedAt: DateTime.utc(2026, 6, 20),
       coordinationResponse: response,
+      roomAccess: roomAccess,
     );
 
 void main() {
@@ -94,6 +96,86 @@ void main() {
         helpOffers: [
           _offer(),
           _offer(id: 'h2', response: CoordinationResponseType.useful),
+        ],
+      );
+      expect(
+        deriveBeaconHudAuthorAction(state),
+        BeaconHudAuthorAction.reviewOffers,
+      );
+    });
+
+    test(
+      'auto-admitted offer without coordination is not unanswered',
+      () {
+        final state = _authorState(
+          helpOffers: [
+            _offer(
+              id: 'auto',
+              roomAccess: RoomAccessBits.admitted,
+            ),
+            _offer(id: 'ok', response: CoordinationResponseType.useful),
+          ],
+        );
+        expect(
+          deriveBeaconHudAuthorAction(state),
+          BeaconHudAuthorAction.markEnoughHelp,
+        );
+      },
+    );
+
+    test(
+      'auto-admitted with enoughHelp offers wrap up not reviewOffers',
+      () {
+        final state = _authorState(
+          status: BeaconStatus.enoughHelp,
+          helpOffers: [
+            _offer(
+              id: 'auto',
+              roomAccess: RoomAccessBits.admitted,
+            ),
+            _offer(id: 'ok', response: CoordinationResponseType.useful),
+          ],
+        );
+        expect(
+          deriveBeaconHudAuthorAction(state),
+          BeaconHudAuthorAction.wrapUpForReview,
+        );
+      },
+    );
+
+    test(
+      'admitted participant without offer roomAccess is not unanswered',
+      () {
+        final state = _authorState(
+          helpOffers: [
+            _offer(id: 'auto'),
+            _offer(id: 'ok', response: CoordinationResponseType.useful),
+          ],
+          roomParticipants: [
+            BeaconParticipant(
+              id: 'p-auto',
+              beaconId: 'b1',
+              userId: 'auto',
+              role: BeaconParticipantRoleBits.helper,
+              status: BeaconParticipantStatusBits.committed,
+              roomAccess: RoomAccessBits.admitted,
+              createdAt: DateTime.utc(2026, 6, 20),
+              updatedAt: DateTime.utc(2026, 6, 20),
+            ),
+          ],
+        );
+        expect(
+          deriveBeaconHudAuthorAction(state),
+          BeaconHudAuthorAction.markEnoughHelp,
+        );
+      },
+    );
+
+    test('truly pending offer still yields reviewOffers', () {
+      final state = _authorState(
+        helpOffers: [
+          _offer(id: 'pending'),
+          _offer(id: 'ok', response: CoordinationResponseType.useful),
         ],
       );
       expect(

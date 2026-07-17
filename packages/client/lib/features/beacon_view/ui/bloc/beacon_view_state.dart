@@ -333,9 +333,24 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get showsRoomAccessUnavailableBanner =>
       !isRoomAdmissionBlocked || coordinationDeniesRoomAdmission;
 
-  int get unansweredHelpOffersCount => helpOffers
-      .where((c) => !c.isWithdrawn && c.coordinationResponse == null)
-      .length;
+  /// Pending author triage only — excludes withdrawn offers, helpers already
+  /// coordinated, and helpers already in the room (`roomAccess == admitted`
+  /// on the offer row or matching participant; auto-admit / direct forward).
+  int get unansweredHelpOffersCount {
+    final admittedUserIds = {
+      for (final p in roomParticipants)
+        if (p.roomAccess == RoomAccessBits.admitted) p.userId,
+    };
+    return helpOffers
+        .where(
+          (c) =>
+              !c.isWithdrawn &&
+              c.coordinationResponse == null &&
+              c.roomAccess != RoomAccessBits.admitted &&
+              !admittedUserIds.contains(c.user.id),
+        )
+        .length;
+  }
 
   int get needCoordinationHelpOffersCount => helpOffers
       .where(
