@@ -20,6 +20,7 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/test_attention_harness.dart';
 
 class _TransactionBeaconRepo implements BeaconRepositoryPort {
   _TransactionBeaconRepo(this.locked);
@@ -147,6 +148,7 @@ void main() {
     coordinationRepo = _StubCoordinationRepo();
     imageRepo = _TrackingImageRepo();
     coordinationRepo.onCoordinationResponseTypeByOfferUserId = () async => {};
+    final attention = TestAttentionHarness();
     case_ = BeaconCase(
       beaconRepo,
       imageRepo,
@@ -154,6 +156,8 @@ void main() {
       coordinationRepo,
       _FakeHelpOfferRepo(),
       FakeBeaconAccessGuard(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseDeleteTest'),
     );

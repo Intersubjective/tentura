@@ -403,6 +403,7 @@ void main() {
   late _FakeEvaluationRepository evalRepo;
   late EvaluationCase evaluationCase;
   late TestAttentionHarness attention;
+  late AttentionExpirySweepCase expirySweep;
 
   BeaconReviewWindowRecord openWindow({
     String id = beaconId,
@@ -425,6 +426,12 @@ void main() {
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
     attention = TestAttentionHarness();
+    expirySweep = AttentionExpirySweepCase(
+      _NoopAttentionExpiryRepository(),
+      evalRepo,
+      attention.intents,
+      attention.transactional,
+    );
     final helpOfferRepo = EmptyGraphHelpOfferRepository();
     final forwardRepo = EmptyGraphForwardEdgeRepository();
     final userRepo = StubUserRepository('User');
@@ -455,6 +462,7 @@ void main() {
       noopCapabilityCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,
+      attentionExpirySweep: expirySweep,
       env: Env(environment: Environment.test),
       logger: Logger('EvaluationCaseTest'),
     );
@@ -810,6 +818,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -889,6 +898,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -949,6 +959,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1027,6 +1038,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1053,9 +1065,17 @@ void main() {
           actorId: userId,
         ),
       ]);
-      expect(attention.recorded, hasLength(1));
-      final notification = attention.recorded.single;
-      expect(notification.eventType, AttentionEventType.reviewOpened);
+      expect(attention.recorded, hasLength(2));
+      expect(
+        attention.recorded.map((n) => n.eventType),
+        containsAll([
+          AttentionEventType.requestStatusChanged,
+          AttentionEventType.reviewOpened,
+        ]),
+      );
+      final notification = attention.recorded.singleWhere(
+        (n) => n.eventType == AttentionEventType.reviewOpened,
+      );
       expect(notification.beaconId, beaconId);
       expect(notification.kind.name, 'reviewReady');
       expect(notification.actionUrl, '/#/beacon/review/$beaconId');
@@ -1114,6 +1134,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1194,6 +1215,7 @@ void main() {
           ),
           attentionIntents: attention.intents,
           attention: attention.transactional,
+          attentionExpirySweep: expirySweep,
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         );
@@ -1338,6 +1360,7 @@ void main() {
         ),
         attentionIntents: attention.intents,
         attention: attention.transactional,
+        attentionExpirySweep: expirySweep,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
