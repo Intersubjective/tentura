@@ -19,6 +19,7 @@ import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/home_attention_cubit.dart';
 import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
+import '../widget/home_bottom_navigation_bar.dart';
 import '../widget/home_post_join_listener.dart';
 import '../widget/inbox_navbar_item.dart';
 import '../widget/inbox_needs_me_reporter.dart';
@@ -218,34 +219,34 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
       bottomNavigationBar: branchShowsDetail
           ? null
-          : NavigationBar(
+          : HomeBottomNavigationBar(
               onDestinationSelected: (index) =>
                   _onDestinationSelected(context, tabsRouter, index),
               selectedIndex: tabsRouter.activeIndex,
               destinations: [
-                NavigationDestination(
+                HomeNavDestination(
                   icon: const MyWorkNavbarItem(),
                   selectedIcon: const MyWorkNavbarItem(selected: true),
                   label: l10n.myWork,
                 ),
-                NavigationDestination(
+                HomeNavDestination(
                   icon: const InboxNavbarItem(),
                   selectedIcon: const InboxNavbarItem(selected: true),
                   label: l10n.inbox,
                 ),
-                NavigationDestination(
+                HomeNavDestination(
                   icon: const UpdatesNavbarItem(),
                   selectedIcon: const UpdatesNavbarItem(selected: true),
                   label: l10n.updatesTitle,
                 ),
-                NavigationDestination(
+                HomeNavDestination(
                   icon: const FriendsNavbarItem(),
                   selectedIcon: const FriendsNavbarItem(
                     selected: true,
                   ),
                   label: l10n.network,
                 ),
-                NavigationDestination(
+                HomeNavDestination(
                   icon: const ProfileNavBarItem(),
                   selectedIcon: const ProfileNavBarItem(
                     selected: true,

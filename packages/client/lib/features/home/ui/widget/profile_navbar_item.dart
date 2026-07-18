@@ -55,8 +55,11 @@ class ProfileNavBarItem extends StatelessWidget {
                       p.profile.image?.blurHash != c.profile.image?.blurHash ||
                       p.profile.displayName != c.profile.displayName,
                   builder: (context, state) {
+                    // Match Material nav icon metrics (24) so the tab aligns
+                    // with glyph destinations; medium list avatars are 36+.
                     final avatar = SelfAwareAvatar.medium(
                       profile: state.profile,
+                      size: IconTheme.of(context).size ?? 24,
                     );
                     if (!selected) {
                       return avatar;

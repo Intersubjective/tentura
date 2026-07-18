@@ -818,7 +818,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "Моя работа",
+  "myWork": "Мои дела",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -4177,7 +4177,7 @@
   "@profileDisplayNameNudgeAction": {
     "description": "Primary action on the display-name nudge card."
   },
-  "updatesTitle": "Обновления",
+  "updatesTitle": "Новое",
   "updatesAll": "Все",
   "updatesUnread": "Непрочитанные",
   "updatesNeedsYou": "Требуют вас",
