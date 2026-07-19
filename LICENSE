@@ -1,22 +1,82 @@
-Tentura
-Copyright (C) 2025 Alexander Postnikov
+Tentura — licensing notice
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+Effective date: 19 July 2026
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+Tentura contains material under more than one compatible GNU copyleft
+license. This notice records the applicable licensing boundary; it does not
+transfer anybody's copyright or authorship.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+If a file or component carries its own license notice, SPDX identifier, or
+third-party license, that specific notice controls. Otherwise, the following
+rules apply.
 
+1. Legacy GPL material
 
-Additional Permissions For Submission to Apple App Store: Provided that
-you are otherwise in compliance with the GPLv3 for each covered work you
-convey (including without limitation making the Corresponding Source
-available in compliance with Section 6 of the GPLv3), Copyright Holders also grant you the additional permission to convey through the Apple App Store non-source executable versions of the Program as incorporated into each applicable covered work as Executable Versions only under the Mozilla Public License version 2.0 (https://www.mozilla.org/en-US/MPL/2.0/).
+Copyrightable material owned by Alexander Postnikov, Dmitrii Sosnin, Angelina
+Ermakova, or another contributor other than Vadim Bulavintsev remains licensed
+under the GNU General Public License, version 3 or (at the recipient's option)
+any later version (GPL-3.0-or-later), to the extent that material was governed
+by the repository's previous GPL notice. Nothing in this transition purports
+to relicense that material.
 
+2. Vadim Bulavintsev's historical contributions
+
+All copyrightable contributions owned by Vadim Bulavintsev that were already
+publicly released in the original history through commit
+1c9a87bb61593494024810a450571f791374b05f are additionally offered under the
+GNU Affero General Public License, version 3 (AGPL-3.0-only).
+
+Those historical contributions remain available under GPL-3.0-or-later to
+recipients of the earlier releases. No earlier license is revoked. A recipient
+of historical material may therefore have rights under either license,
+depending on the copy and licensing offer on which that recipient relies.
+
+3. New maintainer contributions
+
+Copyrightable contributions owned by Vadim Bulavintsev and first published
+after this transition—not present in the original history through the commit
+identified above—are licensed under AGPL-3.0-only unless a specific file notice
+expressly says otherwise. They are not offered under GPL-3.0-or-later merely
+because legacy GPL material remains in the repository.
+
+This grant covers protectable human-authored expression and any copyrights or
+related rights Vadim Bulavintsev owns in AI-assisted material. It does not
+assert copyright over material that applicable law does not protect, and it
+does not claim an AI system as an author or copyright holder.
+
+4. New third-party contributions
+
+Contributions accepted after this transition are licensed under
+AGPL-3.0-only and are subject to CONTRIBUTING.md and CLA.md. Their actual
+authors retain authorship and, unless separately assigned in writing,
+copyright ownership.
+
+5. Combined GPLv3/AGPLv3 work
+
+Section 13 of GPLv3 permits GPLv3-covered work to be linked or combined with
+AGPLv3-covered work. GPLv3 continues to govern the GPL-covered part, while the
+special source-offer requirement in section 13 of AGPLv3 applies to the
+combination as such when users interact with a modified version remotely over
+a computer network.
+
+The complete license texts are in:
+
+  LICENSES/GPL-3.0-or-later.txt
+  LICENSES/AGPL-3.0-only.txt
+
+6. Additional terms and permissions
+
+The reasonable project-provenance notice specified under section 7(b) of
+GPLv3 and AGPLv3 is recorded in NOTICE.
+
+The historical Apple App Store additional permission is preserved verbatim in
+LICENSES/LicenseRef-Apple-App-Store-Exception.txt. It applies only to material
+and copyright holders that validly granted it. This licensing transition does
+not enlarge that permission or grant it for new AGPL-covered material.
+
+7. Third-party material
+
+Vendored packages, fonts, images, generated notices, and dependencies may be
+under different licenses. Their own notices control. In particular, nothing
+in this file relicenses material in a directory that contains a more specific
+LICENSE file.

@@ -1,0 +1,13 @@
+Additional Permission for Submission to the Apple App Store
+
+Provided that you are otherwise in compliance with the GPLv3 for each covered
+work you convey (including without limitation making the Corresponding Source
+available in compliance with Section 6 of the GPLv3), Copyright Holders also
+grant you the additional permission to convey through the Apple App Store
+non-source executable versions of the Program as incorporated into each
+applicable covered work as Executable Versions only under the Mozilla Public
+License version 2.0 (https://www.mozilla.org/en-US/MPL/2.0/).
+
+Scope note added 19 July 2026: this historical additional permission applies
+only to material and copyright holders that validly granted it. It is not
+extended by the GPLv3/AGPLv3 transition to new AGPL-covered material.
