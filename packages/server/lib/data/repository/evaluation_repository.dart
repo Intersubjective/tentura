@@ -6,11 +6,8 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.da
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
-import 'package:tentura_server/domain/trust/trust_bin.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
-import 'package:tentura_server/domain/trust/trust_math.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/evaluation_mapper.dart';
@@ -21,13 +18,9 @@ import '../mapper/evaluation_mapper.dart';
   order: 1,
 )
 class EvaluationRepository implements EvaluationRepositoryPort {
-  EvaluationRepository(
-    this._db,
-    this._trustEdgeRepository,
-  );
+  EvaluationRepository(this._db);
 
   final TenturaDb _db;
-  final UserTrustEdgeRepositoryPort _trustEdgeRepository;
 
   @override
   Future<void> insertReviewWindow({
@@ -340,6 +333,12 @@ class EvaluationRepository implements EvaluationRepositoryPort {
 
   @override
   Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
+    final window = await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .getSingleOrNull();
+    if (window != null && window.status == 1) {
+      throw StateError('Review window already closed for $beaconId');
+    }
     await _db.managers.beaconEvaluationVisibility
         .filter((e) => e.beaconId.id(beaconId))
         .delete();
@@ -384,25 +383,25 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   @override
-  Future<void> closeBeaconReviewWindow(
+  Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
   }) async {
     final now = DateTime.timestamp();
-    await _db.transaction(() async {
+    return _db.transaction(() async {
       final window = await _db.managers.beaconReviewWindows
           .filter((e) => e.beaconId.id(beaconId))
           .getSingleOrNull();
       if (window == null || window.status != 0) {
-        return;
+        return null;
       }
 
       final beaconRow = await _db.managers.beacons
           .filter((b) => b.id.equals(beaconId))
           .getSingleOrNull();
       if (beaconRow == null) {
-        return;
+        return null;
       }
 
       await _db.managers.beaconReviewWindows
@@ -441,8 +440,6 @@ class EvaluationRepository implements EvaluationRepositoryPort {
             ),
           );
 
-      final batchesBySource = <String, List<TrustEvidence>>{};
-
       final transitioned = await _db
           .customSelect(
             r'''
@@ -459,59 +456,25 @@ RETURNING evaluator_id, evaluated_user_id, value
           )
           .get();
 
-      for (final row in transitioned) {
-        final evaluatorId = row.read<String>('evaluator_id');
-        final evaluatedUserId = row.read<String>('evaluated_user_id');
-        final value = row.read<int>('value');
-        final bin = reviewValueToBin(value);
-        if (bin == null) continue;
-        batchesBySource
-            .putIfAbsent(evaluatorId, () => [])
-            .add(
-              TrustEvidence(
-                targetUserId: evaluatedUserId,
-                bin: bin,
-                count: kTrustReviewEvidenceCount,
-              ),
-            );
-      }
+      final finalized = [
+        for (final row in transitioned)
+          FinalizedEvaluation(
+            evaluatorId: row.read<String>('evaluator_id'),
+            evaluatedUserId: row.read<String>('evaluated_user_id'),
+            value: row.read<int>('value'),
+          ),
+      ];
 
       await deleteDraftEvaluationsForBeacon(beaconId);
 
-      final sortedSources = batchesBySource.keys.toList()..sort();
-      for (final source in sortedSources) {
-        await _trustEdgeRepository.applyEvidenceInTransaction(
-          TrustEvidenceBatch(
-            sourceUserId: source,
-            at: now,
-            items: batchesBySource[source]!,
-          ),
-        );
-      }
+      return ReviewCloseSnapshot(
+        beaconId: beaconId,
+        beaconAuthorId: beaconRow.userId,
+        windowOpenedAt: window.openedAt.dateTime,
+        finalizedEvaluations: finalized,
+      );
     });
   }
-
-  @override
-  Future<void> closeExpiredWindows() => _db.transaction(() async {
-    final expiredBeaconIds = await _db
-        .customSelect(
-          '''
-SELECT beacon_id
-FROM beacon_review_window
-WHERE status = 0 AND closes_at < now()
-FOR UPDATE
-''',
-        )
-        .map((r) => r.read<String>('beacon_id'))
-        .get();
-
-    for (final beaconId in expiredBeaconIds) {
-      await closeBeaconReviewWindow(
-        beaconId,
-        reason: BeaconLifecycleChangeReason.reviewExpired,
-      );
-    }
-  });
 }
 
 Future<void> _insertBeaconLifecycleEvent({

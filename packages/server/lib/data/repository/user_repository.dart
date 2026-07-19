@@ -9,10 +9,12 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
-import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/trust/trust_context.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
+import 'package:tentura_server/domain/trust/trust_source_type.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -32,14 +34,14 @@ class UserRepository implements UserRepositoryPort {
   UserRepository(
     this._env,
     this._database,
-    this._trustEdgeRepository,
+    this._trustEvidenceRepository,
     this._inviteGenealogyRepository,
   );
 
   final Env _env;
 
   final TenturaDb _database;
-  final UserTrustEdgeRepositoryPort _trustEdgeRepository;
+  final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final InviteGenealogyRepositoryPort _inviteGenealogyRepository;
 
   //
@@ -867,7 +869,7 @@ class UserRepository implements UserRepositoryPort {
     required String userB,
   }) async {
     final at = DateTime.timestamp();
-    await _trustEdgeRepository.applyEvidenceInTransaction(
+    await _trustEvidenceRepository.record(
       TrustEvidenceBatch(
         sourceUserId: userA,
         at: at,
@@ -876,11 +878,13 @@ class UserRepository implements UserRepositoryPort {
             targetUserId: userB,
             bin: TrustBin.good,
             count: kTrustVoteEvidenceCount,
+            context: TrustContext.personal,
+            sourceType: TrustSourceType.userVote,
           ),
         ],
       ),
     );
-    await _trustEdgeRepository.applyEvidenceInTransaction(
+    await _trustEvidenceRepository.record(
       TrustEvidenceBatch(
         sourceUserId: userB,
         at: at,
@@ -889,6 +893,8 @@ class UserRepository implements UserRepositoryPort {
             targetUserId: userA,
             bin: TrustBin.good,
             count: kTrustVoteEvidenceCount,
+            context: TrustContext.personal,
+            sourceType: TrustSourceType.userVote,
           ),
         ],
       ),

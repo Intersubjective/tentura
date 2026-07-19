@@ -911,6 +911,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               },
               child: BeaconRoomSurface(
                 beaconAuthorId: state.beacon.author.id,
+                beacon: state.beacon,
                 onCoordinationSaved: _refreshItemsTab,
               ),
             ),

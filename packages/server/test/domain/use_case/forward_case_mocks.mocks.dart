@@ -9,17 +9,23 @@ import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;
 import 'package:tentura_root/domain/entity/beacon_status.dart' as _i6;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i9;
-import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i11;
-import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i13;
+import 'package:tentura_server/domain/entity/forward_attribution_entity.dart'
+    as _i10;
+import 'package:tentura_server/domain/entity/forward_attribution_method.dart'
+    as _i9;
+import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i12;
+import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i14;
+import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i16;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i5;
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart'
-    as _i14;
-import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
+    as _i17;
+import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart'
     as _i8;
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
+    as _i11;
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart'
-    as _i10;
-import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i12;
+    as _i13;
+import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i15;
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
     as _i4;
 
@@ -425,22 +431,61 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<_i2.BeaconEntity>);
 }
 
+/// A class which mocks [ForwardAttributionRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockForwardAttributionRepositoryPort extends _i1.Mock
+    implements _i8.ForwardAttributionRepositoryPort {
+  MockForwardAttributionRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<void> record({
+    required String? batchId,
+    required Map<String, double>? weightByParentEdgeId,
+    required _i9.ForwardAttributionMethod? method,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#record, [], {
+              #batchId: batchId,
+              #weightByParentEdgeId: weightByParentEdgeId,
+              #method: method,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i10.ForwardAttributionEntity>> fetchByBatchIds(
+    List<String>? batchIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchByBatchIds, [batchIds]),
+            returnValue: _i3.Future<List<_i10.ForwardAttributionEntity>>.value(
+              <_i10.ForwardAttributionEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i10.ForwardAttributionEntity>>);
+}
+
 /// A class which mocks [ForwardEdgeRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockForwardEdgeRepositoryPort extends _i1.Mock
-    implements _i8.ForwardEdgeRepositoryPort {
+    implements _i11.ForwardEdgeRepositoryPort {
   MockForwardEdgeRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<_i9.ForwardEdgeEntity?> fetchById(String? edgeId) =>
+  _i3.Future<_i12.ForwardEdgeEntity?> fetchById(String? edgeId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchById, [edgeId]),
-            returnValue: _i3.Future<_i9.ForwardEdgeEntity?>.value(),
+            returnValue: _i3.Future<_i12.ForwardEdgeEntity?>.value(),
           )
-          as _i3.Future<_i9.ForwardEdgeEntity?>);
+          as _i3.Future<_i12.ForwardEdgeEntity?>);
 
   @override
   _i3.Future<bool> existsWithParent(String? parentEdgeId) =>
@@ -529,17 +574,17 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i3.Future<List<String>>);
 
   @override
-  _i3.Future<List<_i9.ForwardEdgeEntity>> fetchByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i12.ForwardEdgeEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
-            returnValue: _i3.Future<List<_i9.ForwardEdgeEntity>>.value(
-              <_i9.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
             ),
           )
-          as _i3.Future<List<_i9.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
 
   @override
-  _i3.Future<List<_i9.ForwardEdgeEntity>> fetchHelpOffererPathChain({
+  _i3.Future<List<_i12.ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String? beaconId,
     required String? helpOffererId,
     required String? viewerId,
@@ -550,14 +595,14 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #helpOffererId: helpOffererId,
               #viewerId: viewerId,
             }),
-            returnValue: _i3.Future<List<_i9.ForwardEdgeEntity>>.value(
-              <_i9.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
             ),
           )
-          as _i3.Future<List<_i9.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
 
   @override
-  _i3.Future<List<_i9.ForwardEdgeEntity>> fetchByRecipientId(
+  _i3.Future<List<_i12.ForwardEdgeEntity>> fetchByRecipientId(
     String? recipientId, {
     String? context,
   }) =>
@@ -567,11 +612,11 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               [recipientId],
               {#context: context},
             ),
-            returnValue: _i3.Future<List<_i9.ForwardEdgeEntity>>.value(
-              <_i9.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
             ),
           )
-          as _i3.Future<List<_i9.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
 
   @override
   _i3.Future<List<String>> fetchDistinctSenderIdsByBeaconId(String? beaconId) =>
@@ -598,7 +643,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i3.Future<bool>);
 
   @override
-  _i3.Future<List<_i9.ForwardEdgeEntity>> fetchActiveInboundEdges({
+  _i3.Future<List<_i12.ForwardEdgeEntity>> fetchActiveInboundEdges({
     required String? beaconId,
     required String? recipientId,
   }) =>
@@ -607,14 +652,58 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #recipientId: recipientId,
             }),
-            returnValue: _i3.Future<List<_i9.ForwardEdgeEntity>>.value(
-              <_i9.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
             ),
           )
-          as _i3.Future<List<_i9.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
 
   @override
-  _i3.Future<_i9.ForwardEdgeEntity?> findActiveEdge({
+  _i3.Future<List<_i12.ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String? beaconId,
+    required String? recipientId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockActiveInboundEdges, [], {
+              #beaconId: beaconId,
+              #recipientId: recipientId,
+            }),
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
+
+  @override
+  _i3.Future<List<_i12.ForwardEdgeEntity>> fetchAllByBeaconId(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchAllByBeaconId, [beaconId]),
+            returnValue: _i3.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i12.ForwardEdgeEntity>>);
+
+  @override
+  _i3.Future<int> countPriorOutgoingBatches({
+    required String? beaconId,
+    required String? senderId,
+    required String? batchId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countPriorOutgoingBatches, [], {
+              #beaconId: beaconId,
+              #senderId: senderId,
+              #batchId: batchId,
+            }),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
+  _i3.Future<_i12.ForwardEdgeEntity?> findActiveEdge({
     required String? beaconId,
     required String? senderId,
     required String? recipientId,
@@ -625,9 +714,9 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #senderId: senderId,
               #recipientId: recipientId,
             }),
-            returnValue: _i3.Future<_i9.ForwardEdgeEntity?>.value(),
+            returnValue: _i3.Future<_i12.ForwardEdgeEntity?>.value(),
           )
-          as _i3.Future<_i9.ForwardEdgeEntity?>);
+          as _i3.Future<_i12.ForwardEdgeEntity?>);
 
   @override
   _i3.Future<void> createForInviteAccept({
@@ -653,7 +742,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockHelpOfferRepositoryPort extends _i1.Mock
-    implements _i10.HelpOfferRepositoryPort {
+    implements _i13.HelpOfferRepositoryPort {
   MockHelpOfferRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -699,34 +788,34 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<List<_i11.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i14.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
-            returnValue: _i3.Future<List<_i11.HelpOfferEntity>>.value(
-              <_i11.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i14.HelpOfferEntity>>.value(
+              <_i14.HelpOfferEntity>[],
             ),
           )
-          as _i3.Future<List<_i11.HelpOfferEntity>>);
+          as _i3.Future<List<_i14.HelpOfferEntity>>);
 
   @override
-  _i3.Future<List<_i11.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i14.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchAllByBeaconId, [beaconId]),
-            returnValue: _i3.Future<List<_i11.HelpOfferEntity>>.value(
-              <_i11.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i14.HelpOfferEntity>>.value(
+              <_i14.HelpOfferEntity>[],
             ),
           )
-          as _i3.Future<List<_i11.HelpOfferEntity>>);
+          as _i3.Future<List<_i14.HelpOfferEntity>>);
 
   @override
-  _i3.Future<List<_i11.HelpOfferEntity>> fetchByUserId(String? userId) =>
+  _i3.Future<List<_i14.HelpOfferEntity>> fetchByUserId(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByUserId, [userId]),
-            returnValue: _i3.Future<List<_i11.HelpOfferEntity>>.value(
-              <_i11.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i14.HelpOfferEntity>>.value(
+              <_i14.HelpOfferEntity>[],
             ),
           )
-          as _i3.Future<List<_i11.HelpOfferEntity>>);
+          as _i3.Future<List<_i14.HelpOfferEntity>>);
 
   @override
   _i3.Future<bool> hasActiveHelpOffer({
@@ -747,13 +836,13 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockInboxRepositoryPort extends _i1.Mock
-    implements _i12.InboxRepositoryPort {
+    implements _i15.InboxRepositoryPort {
   MockInboxRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<List<_i13.InboxItemEntity>> fetchByUserId(
+  _i3.Future<List<_i16.InboxItemEntity>> fetchByUserId(
     String? userId, {
     String? context,
     int? limit = 50,
@@ -765,11 +854,11 @@ class MockInboxRepositoryPort extends _i1.Mock
               [userId],
               {#context: context, #limit: limit, #offset: offset},
             ),
-            returnValue: _i3.Future<List<_i13.InboxItemEntity>>.value(
-              <_i13.InboxItemEntity>[],
+            returnValue: _i3.Future<List<_i16.InboxItemEntity>>.value(
+              <_i16.InboxItemEntity>[],
             ),
           )
-          as _i3.Future<List<_i13.InboxItemEntity>>);
+          as _i3.Future<List<_i16.InboxItemEntity>>);
 
   @override
   _i3.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>
@@ -1085,7 +1174,7 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomNotificationPort extends _i1.Mock
-    implements _i14.BeaconRoomNotificationPort {
+    implements _i17.BeaconRoomNotificationPort {
   MockBeaconRoomNotificationPort() {
     _i1.throwOnMissingStub(this);
   }

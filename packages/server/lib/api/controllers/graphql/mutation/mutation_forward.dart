@@ -71,6 +71,7 @@ final class MutationForward extends GqlNodeBase {
       _perRecipientNotes.fieldNullable,
       _context.fieldNullable,
       _parentEdgeId.fieldNullable,
+      InputFieldAttributionParentEdgeIds.field,
       _reasons,
       InputFieldForwardRecipientReasons.field,
     ],
@@ -91,6 +92,8 @@ final class MutationForward extends GqlNodeBase {
         sharedNote: _note.fromArgs(args) ?? '',
         context: _context.fromArgs(args),
         parentEdgeId: _parentEdgeId.fromArgs(args),
+        attributionParentEdgeIds:
+            InputFieldAttributionParentEdgeIds.fromArgs(args),
         sharedReasonSlugs: _reasonsFromArgs(args),
         perRecipientReasonSlugs: perRecipientReasonSlugs,
         perRecipientNotes: switch (_perRecipientNotes.fromArgs(args)) {

@@ -13,6 +13,8 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
+import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
+
 import 'forward_case_mocks.mocks.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/test_attention_harness.dart';
@@ -49,6 +51,7 @@ Matcher _unauthorizedWithDescription(String description) => throwsA(
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
+  late MockForwardAttributionRepositoryPort forwardAttributionRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
@@ -63,6 +66,7 @@ void main() {
 
   setUp(() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
+    forwardAttributionRepo = MockForwardAttributionRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
@@ -78,6 +82,7 @@ void main() {
     );
     case_ = ForwardCase(
       forwardEdgeRepo,
+      forwardAttributionRepo,
       helpOfferRepo,
       inboxRepo,
       capabilityCase,
@@ -116,6 +121,21 @@ void main() {
         recipientId: anyNamed('recipientId'),
       ),
     ).thenAnswer((_) async => []);
+
+    when(
+      forwardEdgeRepo.lockActiveInboundEdges(
+        beaconId: anyNamed('beaconId'),
+        recipientId: anyNamed('recipientId'),
+      ),
+    ).thenAnswer((_) async => []);
+
+    when(
+      forwardEdgeRepo.countPriorOutgoingBatches(
+        beaconId: anyNamed('beaconId'),
+        senderId: anyNamed('senderId'),
+        batchId: anyNamed('batchId'),
+      ),
+    ).thenAnswer((_) async => 0);
 
     when(
       helpOfferRepo.hasActiveHelpOffer(

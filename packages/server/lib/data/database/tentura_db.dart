@@ -61,6 +61,10 @@ import 'table/person_capability_events.dart';
 import 'table/user_contacts.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
+import 'table/forward_decision_attributions.dart';
+import 'table/meritrank_edge_tombstones.dart';
+import 'table/trust_evidence_events.dart';
+import 'table/user_trust_source_edges.dart';
 import 'table/user_trust_edges.dart';
 import 'table/vote_users.dart';
 
@@ -88,6 +92,7 @@ part 'tentura_db.g.dart';
     BeaconImages,
     BeaconReviewStatuses,
     BeaconReviewWindows,
+    ForwardDecisionAttributions,
     BeaconParticipants,
     BeaconRoomMessageAttachments,
     BeaconRoomMessageReactions,
@@ -104,14 +109,17 @@ part 'tentura_db.g.dart';
     InboxItems,
     InviteGenealogy,
     Invitations,
+    MeritrankEdgeTombstones,
     PersonCapabilityEvents,
     Pollings,
     PollingActs,
     PollingVariants,
+    TrustEvidenceEvents,
     Users,
     UserContacts,
     UserPresence,
     UserTrustEdges,
+    UserTrustSourceEdges,
     VoteUsers,
   ],
 )

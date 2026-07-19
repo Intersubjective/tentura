@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
@@ -148,11 +149,12 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
       DateTime.timestamp().add(const Duration(days: 7));
 
   @override
-  Future<void> closeBeaconReviewWindow(
+  Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
-  }) async {}
+  }) async =>
+      null;
 
   @override
   Future<void> setReviewUserStatus({

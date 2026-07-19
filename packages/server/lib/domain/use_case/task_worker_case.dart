@@ -12,6 +12,8 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
+import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
+import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -28,6 +30,7 @@ final class TaskWorkerCase extends UseCaseBase {
     NotificationOutboxRepositoryPort notificationOutbox,
     AttentionExpirySweepCase attentionExpirySweep,
     AttentionChannelDeliveryCase attentionChannelDelivery,
+    TrustMaintenancePort trustMaintenance,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -36,6 +39,7 @@ final class TaskWorkerCase extends UseCaseBase {
       notificationOutbox,
       attentionExpirySweep: attentionExpirySweep,
       attentionChannelDelivery: attentionChannelDelivery,
+      trustMaintenance: trustMaintenance,
       env: env,
       logger: logger,
     ),
@@ -48,10 +52,12 @@ final class TaskWorkerCase extends UseCaseBase {
     this._notificationOutbox, {
     AttentionExpirySweepCase? attentionExpirySweep,
     AttentionChannelDeliveryCase? attentionChannelDelivery,
+    TrustMaintenancePort? trustMaintenance,
     required super.env,
     required super.logger,
   }) : _attentionExpirySweep = attentionExpirySweep,
-       _attentionChannelDelivery = attentionChannelDelivery;
+       _attentionChannelDelivery = attentionChannelDelivery,
+       _trustMaintenance = trustMaintenance;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -63,6 +69,7 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final AttentionExpirySweepCase? _attentionExpirySweep;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
+  final TrustMaintenancePort? _trustMaintenance;
 
   final _runnerCompleter = Completer<void>();
 
@@ -72,6 +79,7 @@ final class TaskWorkerCase extends UseCaseBase {
 
   var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     () async {
@@ -94,6 +102,15 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastAttentionExpirySweep = now;
       await _attentionExpirySweep!.runDue(now: now);
+    },
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastTrustMaintenanceSweep) <
+          const Duration(minutes: 1)) {
+        return;
+      }
+      _lastTrustMaintenanceSweep = now;
+      await _trustMaintenance?.runDue(now: now);
     },
     // Calculate Image Hash
     () async {

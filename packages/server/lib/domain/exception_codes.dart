@@ -99,6 +99,7 @@ enum EvaluationExceptionCode {
   reasonTagRequired,
   reviewWindowExpired,
   beaconNotClosable,
+  reviewAlreadyClosed,
   invalidEvaluationValue,
   invalidReasonTags,
   closeBranchConflict,

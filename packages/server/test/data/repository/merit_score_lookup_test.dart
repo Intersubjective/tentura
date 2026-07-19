@@ -10,11 +10,8 @@ import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/data/repository/merit_score_lookup.dart';
 import 'package:tentura_server/env.dart';
 
-/// Exercises the real `trust_apply_evidence` → `mr_put_edge` → `mr_mutual_scores`
-/// path (migration m0088; see `docs/features/trust_edges.md`), since nothing
-/// else in the suite ever seeds a live MeritRank score end-to-end. The older
-/// `vote_user` trigger this used to run through was dropped by m0088 — evidence
-/// now flows through `user_trust_edge` instead.
+/// Exercises the real source-evidence → effective rebuild → `mr_put_edge` →
+/// `mr_mutual_scores` path (m0122 typed trust).
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
@@ -23,7 +20,7 @@ Future<void> main() async {
     final probe = TenturaDb(_testEnv());
     try {
       if (!await _hasMeritRank(probe)) {
-        skipReason = 'mr_mutual_scores / trust_apply_evidence function missing';
+        skipReason = 'mr_mutual_scores / trust source functions missing';
       }
     } finally {
       await probe.close();
@@ -39,16 +36,19 @@ Future<void> main() async {
   const strangerId = 'Umsstranger01';
   const allIds = [aliceId, bobId, loneId, strangerId];
 
-  // Matches TRUST_EDGE_HALF_LIFE_DAYS / TRUST_EDGE_EPSILON server defaults.
-  const halfLifeSeconds = 15724800.0;
-  const epsilon = 0.1;
-
-  Future<void> applyEvidence(String subject, String object, String bin) =>
-      db.customStatement(
-        '''
-SELECT trust_apply_evidence('$subject', '$object', '$bin', 1, $halfLifeSeconds, $epsilon)
+  // Policy defaults from m0122 (182 days, epsilon 0.1).
+  Future<void> applyEvidence(String subject, String object, String bin) async {
+    await db.customStatement(
+      '''
+SELECT trust_apply_source_evidence('personal', '$subject', '$object', '$bin', 1)
 ''',
-      );
+    );
+    await db.customStatement(
+      '''
+SELECT trust_rebuild_effective_edge('$subject', '$object')
+''',
+    );
+  }
 
   if (skipReason == false) {
     setUpAll(() async {
@@ -75,6 +75,8 @@ ON CONFLICT (id) DO NOTHING
     tearDownAll(() async {
       final idList = allIds.map((id) => "'$id'").join(', ');
       await db.customStatement('''
+DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList)
+  OR object IN ($idList);
 DELETE FROM public.user_trust_edge WHERE subject IN ($idList)
   OR object IN ($idList)
 ''');
@@ -147,7 +149,8 @@ Future<bool> _hasMeritRank(TenturaDb db) async {
     '''
 SELECT
   (SELECT count(*) FROM pg_proc WHERE proname = 'mr_mutual_scores') > 0
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'trust_apply_evidence') > 0
+  AND (SELECT count(*) FROM pg_proc WHERE proname = 'trust_apply_source_evidence') > 0
+  AND (SELECT count(*) FROM pg_proc WHERE proname = 'trust_rebuild_effective_edge') > 0
   AS ok
 ''',
   ).getSingle();

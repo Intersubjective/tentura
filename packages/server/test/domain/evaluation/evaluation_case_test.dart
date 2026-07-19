@@ -15,8 +15,10 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
+import 'package:tentura_server/domain/port/review_finalization_port.dart';
+import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
@@ -236,11 +238,8 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   int insertReviewWindowCalls = 0;
   Map<String, int> reviewStatusesResult = {};
   DateTime extendReviewResult = DateTime.utc(2025, 1, 8);
-  final closeBeaconReviewWindowCalls =
+  final closeReviewWindowCalls =
       <({String beaconId, String reason, String? actorUserId})>[];
-
-  @override
-  Future<void> closeExpiredWindows() async {}
 
   @override
   Future<int> countDistinctEvaluatorsForEvaluated({
@@ -365,13 +364,19 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
       extendReviewResult;
 
   @override
-  Future<void> closeBeaconReviewWindow(
+  Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
   }) async {
-    closeBeaconReviewWindowCalls.add(
+    closeReviewWindowCalls.add(
       (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+    );
+    return ReviewCloseSnapshot(
+      beaconId: beaconId,
+      beaconAuthorId: actorUserId ?? 'author',
+      windowOpenedAt: DateTime.utc(2026, 1, 1),
+      finalizedEvaluations: const [],
     );
   }
 
@@ -396,11 +401,29 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   }) async {}
 }
 
+class _FakeReviewFinalization implements ReviewFinalizationPort {
+  final closeAndFinalizeCalls =
+      <({String beaconId, String reason, String? actorUserId})>[];
+
+  @override
+  Future<bool> closeAndFinalize(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  }) async {
+    closeAndFinalizeCalls.add(
+      (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+    );
+    return true;
+  }
+}
+
 void main() {
   const beaconId = 'beacon1';
   const userId = 'user1';
 
   late _FakeEvaluationRepository evalRepo;
+  late _FakeReviewFinalization reviewFinalization;
   late EvaluationCase evaluationCase;
   late TestAttentionHarness attention;
   late AttentionExpirySweepCase expirySweep;
@@ -425,10 +448,11 @@ void main() {
 
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
+    reviewFinalization = _FakeReviewFinalization();
     attention = TestAttentionHarness();
     expirySweep = AttentionExpirySweepCase(
       _NoopAttentionExpiryRepository(),
-      evalRepo,
+      reviewFinalization,
       attention.intents,
       attention.transactional,
     );
@@ -463,6 +487,7 @@ void main() {
       attentionIntents: attention.intents,
       attention: attention.transactional,
       attentionExpirySweep: expirySweep,
+      reviewFinalization: reviewFinalization,
       env: Env(environment: Environment.test),
       logger: Logger('EvaluationCaseTest'),
     );
@@ -1258,7 +1283,7 @@ void main() {
         ..extendReviewResult = now.add(const Duration(days: 13));
       final expirySweep = AttentionExpirySweepCase(
         _NoopAttentionExpiryRepository(),
-        evalRepo,
+        reviewFinalization,
         attention.intents,
         attention.transactional,
       );
@@ -1294,6 +1319,7 @@ void main() {
         attentionIntents: attention.intents,
         attention: attention.transactional,
         attentionExpirySweep: expirySweep,
+        reviewFinalization: reviewFinalization,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1361,6 +1387,7 @@ void main() {
         attentionIntents: attention.intents,
         attention: attention.transactional,
         attentionExpirySweep: expirySweep,
+        reviewFinalization: reviewFinalization,
         env: Env(environment: Environment.test),
         logger: Logger('EvaluationCaseTest'),
       );
@@ -1410,7 +1437,7 @@ void main() {
       );
 
       expect(result.status, BeaconStatus.closed.smallintValue);
-      expect(evalRepo.closeBeaconReviewWindowCalls, [
+      expect(reviewFinalization.closeAndFinalizeCalls, [
         (
           beaconId: beaconId,
           reason: BeaconLifecycleChangeReason.authorCloseNow,
@@ -1437,7 +1464,7 @@ void main() {
           ),
         ),
       );
-      expect(evalRepo.closeBeaconReviewWindowCalls, isEmpty);
+      expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
     });
 
     test(

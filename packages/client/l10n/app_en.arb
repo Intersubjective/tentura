@@ -1668,6 +1668,22 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardAttributionTitle": "Which forward prompted you to pass this request on?",
+  "@forwardAttributionTitle": {
+    "context": "First-forward attribution dialog title"
+  },
+  "forwardAttributionMultiple": "Several of them",
+  "@forwardAttributionMultiple": {
+    "context": "Switch attribution dialog to multi-select"
+  },
+  "forwardAttributionNotSure": "Not sure",
+  "@forwardAttributionNotSure": {
+    "context": "Skip attribution dialog without selecting a source"
+  },
+  "requestClosedBannerMessage": "This request is closed. It no longer produces responses, notifications, or trust evidence.",
+  "@requestClosedBannerMessage": {
+    "context": "Non-dismissible banner on closed requests (status 6)"
+  },
   "beaconForwardToPersonTitle": "Forward to {name}",
   "@beaconForwardToPersonTitle": {
     "context": "PersonForwardScreen app bar title",

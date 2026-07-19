@@ -16,11 +16,13 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
+import '../../domain/entity/forward_inbound_source.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
+import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show GForwardRecipientReasonInput;
 import '../gql/_g/forward_cancel.req.gql.dart';
@@ -114,6 +116,7 @@ class ForwardRepository {
     Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
+    List<String>? attributionParentEdgeIds,
   }) => _remoteApiService
       .request(
         GForwardBeaconReq(
@@ -123,8 +126,13 @@ class ForwardRepository {
               ..vars.recipientIds.addAll(recipientIds)
               ..vars.note = note
               ..vars.context = context
-              ..vars.parentEdgeId = parentEdgeId
-              ..vars.perRecipientNotes =
+              ..vars.parentEdgeId = parentEdgeId;
+            if (attributionParentEdgeIds != null &&
+                attributionParentEdgeIds.isNotEmpty) {
+              r.vars.attributionParentEdgeIds
+                  .addAll(attributionParentEdgeIds);
+            }
+            r.vars.perRecipientNotes =
                   perRecipientNotes == null || perRecipientNotes.isEmpty
                   ? null
                   : jsonEncode(perRecipientNotes);
@@ -154,6 +162,28 @@ class ForwardRepository {
         }
         return id;
       });
+
+  Future<List<ForwardInboundSource>> fetchInboundForwardSources({
+    required String beaconId,
+  }) => _remoteApiService
+      .request(
+        GForwardInboundSourcesReq((r) => r..vars.beaconId = beaconId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconEligibleInboundForwards)
+      .then(
+        (rows) => rows
+            .map(
+              (row) => ForwardInboundSource(
+                edgeId: row.edgeId,
+                senderId: row.senderId,
+                senderName: row.senderName,
+                createdAt: DateTime.parse(row.createdAt),
+                isSuggestedSource: row.isSuggestedSource,
+              ),
+            )
+            .toList(),
+      );
 
   /// Users with two-way positive MeritRank scores (Hasura `rating` + filter).
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>

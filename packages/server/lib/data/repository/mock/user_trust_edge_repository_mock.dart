@@ -1,7 +1,6 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
-import 'package:tentura_server/domain/trust/trust_evidence.dart';
 
 @Injectable(
   as: UserTrustEdgeRepositoryPort,
@@ -12,16 +11,7 @@ class UserTrustEdgeRepositoryMock implements UserTrustEdgeRepositoryPort {
   const UserTrustEdgeRepositoryMock();
 
   @override
-  Future<void> applyEvidence(TrustEvidenceBatch batch) async {}
-
-  @override
-  Future<void> applyEvidenceInTransaction(TrustEvidenceBatch batch) async {}
-
-  @override
   Future<void> cutoverBackfillIfNeeded() async {}
-
-  @override
-  Future<void> forceRefreshAll() async {}
 
   @override
   Future<void> forceRefreshStar(String sourceUserId) async {}

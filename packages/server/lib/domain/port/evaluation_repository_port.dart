@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 
 abstract class EvaluationRepositoryPort {
   Future<void> insertReviewWindow({
@@ -107,12 +108,11 @@ abstract class EvaluationRepositoryPort {
   /// Adds 7 days to [closesAt] and increments [extensionsUsed]. Returns new close time.
   Future<DateTime> extendReviewWindow(String beaconId);
 
-  /// Finalize one beacon review window (state 6, trust evidence, purge drafts).
-  Future<void> closeBeaconReviewWindow(
+  /// Storage-only close: window guard, status transitions, submitted→final.
+  /// Returns null when the window is absent or already closed.
+  Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
   });
-
-  Future<void> closeExpiredWindows();
 }

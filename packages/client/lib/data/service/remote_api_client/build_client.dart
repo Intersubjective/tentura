@@ -180,6 +180,7 @@ class _V2RoutingLink extends Link {
     'EmailSendTest',
     'UserRecalculateBookkeeping',
     'ForwardBeacon',
+    'ForwardInboundSources',
     'InvitationCreate',
     'InvitationUpdate',
     'InvitationAccept',

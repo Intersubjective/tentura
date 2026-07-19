@@ -15,6 +15,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import '../../data/repository/forward_repository.dart';
 import '../entity/candidate_involvement.dart';
 import '../entity/forward_candidate.dart';
+import '../entity/forward_inbound_source.dart';
 import '../entity/forward_load.dart';
 import '../entity/lineage_suggestion_group.dart';
 
@@ -183,6 +184,7 @@ final class ForwardCase extends UseCaseBase {
       suggestedNote: lineage.suggestedNote,
       autoSelectIds: autoSelectIds,
       beacon: involvement.beacon,
+      hasMyOutgoingForward: involvement.myForwardedRecipientEdgeIds.isNotEmpty,
     );
   }
 
@@ -269,6 +271,7 @@ final class ForwardCase extends UseCaseBase {
     Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
+    List<String>? attributionParentEdgeIds,
   }) => _forwardRepository.forwardBeacon(
     beaconId: beaconId,
     recipientIds: recipientIds,
@@ -277,7 +280,12 @@ final class ForwardCase extends UseCaseBase {
     recipientReasons: recipientReasons,
     context: context,
     parentEdgeId: parentEdgeId,
+    attributionParentEdgeIds: attributionParentEdgeIds,
   );
+
+  Future<List<ForwardInboundSource>> fetchInboundForwardSources({
+    required String beaconId,
+  }) => _forwardRepository.fetchInboundForwardSources(beaconId: beaconId);
 
   Future<bool> cancelForward(String edgeId) =>
       _forwardRepository.cancelForward(edgeId);

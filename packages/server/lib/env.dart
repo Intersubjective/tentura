@@ -94,8 +94,12 @@ class Env {
 
     // Meritrank service
     Duration? meritrankCalculateTimeout,
-    Duration? trustEdgeHalfLife,
-    double? trustEdgeEpsilon,
+    double? forwardNoEffectCount,
+    Duration? forwardMinOpportunity,
+    Duration? trustSweepInterval,
+    Duration? trustSweepRetry,
+    int? trustSweepBatchSize,
+    Duration? trustSweepTimeBudget,
 
     // User presence (WS offline delay; env CHAT_OFFLINE_DELAY)
     Duration? chatStatusOfflineAfterDelay,
@@ -302,15 +306,36 @@ class Env {
            Duration(
              minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
            ),
-       trustEdgeHalfLife =
-           trustEdgeHalfLife ??
+       forwardNoEffectCount =
+           forwardNoEffectCount ??
+           double.tryParse(_env['FORWARD_NO_EFFECT_COUNT'] ?? '') ??
+           1.0,
+       forwardMinOpportunity =
+           forwardMinOpportunity ??
            Duration(
-             days: int.tryParse(_env['TRUST_EDGE_HALF_LIFE_DAYS'] ?? '') ?? 182,
+             hours:
+                 int.tryParse(_env['FORWARD_MIN_OPPORTUNITY_HOURS'] ?? '') ?? 24,
            ),
-       trustEdgeEpsilon =
-           trustEdgeEpsilon ??
-           double.tryParse(_env['TRUST_EDGE_EPSILON'] ?? '') ??
-           0.1,
+       trustSweepInterval =
+           trustSweepInterval ??
+           Duration(
+             hours: int.tryParse(_env['TRUST_SWEEP_INTERVAL_HOURS'] ?? '') ?? 24,
+           ),
+       trustSweepRetry =
+           trustSweepRetry ??
+           Duration(
+             minutes:
+                 int.tryParse(_env['TRUST_SWEEP_RETRY_MINUTES'] ?? '') ?? 15,
+           ),
+       trustSweepBatchSize =
+           trustSweepBatchSize ??
+           int.tryParse(_env['TRUST_SWEEP_BATCH_SIZE'] ?? '') ?? 200,
+       trustSweepTimeBudget =
+           trustSweepTimeBudget ??
+           Duration(
+             minutes:
+                 int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ?? 5,
+           ),
 
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
@@ -619,9 +644,17 @@ class Env {
   // Meritrank service
   final Duration meritrankCalculateTimeout;
 
-  final Duration trustEdgeHalfLife;
+  final double forwardNoEffectCount;
 
-  final double trustEdgeEpsilon;
+  final Duration forwardMinOpportunity;
+
+  final Duration trustSweepInterval;
+
+  final Duration trustSweepRetry;
+
+  final int trustSweepBatchSize;
+
+  final Duration trustSweepTimeBudget;
 
   final Duration chatStatusOfflineAfterDelay;
 

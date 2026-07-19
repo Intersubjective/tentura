@@ -935,6 +935,50 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i15.ForwardEdgeEntity>>);
 
   @override
+  _i3.Future<List<_i15.ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String? beaconId,
+    required String? recipientId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockActiveInboundEdges, [], {
+              #beaconId: beaconId,
+              #recipientId: recipientId,
+            }),
+            returnValue: _i3.Future<List<_i15.ForwardEdgeEntity>>.value(
+              <_i15.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i15.ForwardEdgeEntity>>);
+
+  @override
+  _i3.Future<List<_i15.ForwardEdgeEntity>> fetchAllByBeaconId(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchAllByBeaconId, [beaconId]),
+            returnValue: _i3.Future<List<_i15.ForwardEdgeEntity>>.value(
+              <_i15.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i3.Future<List<_i15.ForwardEdgeEntity>>);
+
+  @override
+  _i3.Future<int> countPriorOutgoingBatches({
+    required String? beaconId,
+    required String? senderId,
+    required String? batchId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countPriorOutgoingBatches, [], {
+              #beaconId: beaconId,
+              #senderId: senderId,
+              #batchId: batchId,
+            }),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
   _i3.Future<_i15.ForwardEdgeEntity?> findActiveEdge({
     required String? beaconId,
     required String? senderId,

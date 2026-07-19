@@ -20,6 +20,7 @@ import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
 import 'compact_beacon_context_strip.dart';
+import 'forward_attribution_dialog.dart';
 import 'forward_bottom_composer.dart';
 import 'forward_input_decoration.dart';
 import 'forward_recipient_row.dart';
@@ -109,6 +110,27 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         _personalizedNoteEditorOpenIds.add(userId);
       }
     });
+  }
+
+  Future<void> _submitForward(BuildContext context) async {
+    final cubit = context.read<ForwardCubit>();
+    List<String>? attributionParentEdgeIds;
+    if (!cubit.state.hasMyOutgoingForward) {
+      try {
+        final sources = await cubit.fetchInboundSources();
+        if (!context.mounted) return;
+        if (sources.length > 1) {
+          attributionParentEdgeIds = await showForwardAttributionDialog(
+            context: context,
+            sources: sources,
+          );
+        }
+      } catch (_) {
+        // Attribution is optional UX sugar; never block the forward.
+      }
+    }
+    if (!context.mounted) return;
+    await cubit.forward(attributionParentEdgeIds: attributionParentEdgeIds);
   }
 
   @override
@@ -468,7 +490,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                           onForward: widget.onSendPressed != null
                               ? (widget.sendEnabled ? widget.onSendPressed : null)
                               : (!widget.embedded && state.selectedCount > 0
-                                    ? () => unawaited(cubit.forward())
+                                    ? () => unawaited(_submitForward(context))
                                     : null),
                           onInvite: widget.beaconId.isNotEmpty
                               ? () => unawaited(_inviteNewPerson(context))

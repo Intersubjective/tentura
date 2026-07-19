@@ -9,6 +9,7 @@ class ForwardLoad {
     required this.suggestedNote,
     required this.autoSelectIds,
     required this.beacon,
+    this.hasMyOutgoingForward = false,
   });
 
   final List<ForwardCandidate> candidates;
@@ -16,4 +17,5 @@ class ForwardLoad {
   final String suggestedNote;
   final Set<String> autoSelectIds;
   final Beacon beacon;
+  final bool hasMyOutgoingForward;
 }

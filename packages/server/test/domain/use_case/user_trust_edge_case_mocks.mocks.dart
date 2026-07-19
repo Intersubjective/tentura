@@ -14,7 +14,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i4;
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart'
     as _i8;
-import 'package:tentura_server/domain/trust/trust_evidence.dart' as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -429,24 +428,6 @@ class MockUserTrustEdgeRepositoryPort extends _i1.Mock
   }
 
   @override
-  _i5.Future<void> applyEvidence(_i9.TrustEvidenceBatch? batch) =>
-      (super.noSuchMethod(
-            Invocation.method(#applyEvidence, [batch]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> applyEvidenceInTransaction(_i9.TrustEvidenceBatch? batch) =>
-      (super.noSuchMethod(
-            Invocation.method(#applyEvidenceInTransaction, [batch]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
   _i5.Future<void> setVoteAmountAndApplyEvidence({
     required String? subjectUserId,
     required String? objectUserId,
@@ -504,15 +485,6 @@ class MockUserTrustEdgeRepositoryPort extends _i1.Mock
   _i5.Future<void> forceRefreshStar(String? sourceUserId) =>
       (super.noSuchMethod(
             Invocation.method(#forceRefreshStar, [sourceUserId]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> forceRefreshAll() =>
-      (super.noSuchMethod(
-            Invocation.method(#forceRefreshAll, []),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )

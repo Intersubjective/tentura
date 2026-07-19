@@ -19,6 +19,7 @@ part 'input_field_beacon_title.dart';
 part 'input_field_id.dart';
 part 'input_field_recipient_ids.dart';
 part 'input_field_forward_recipient_reason.dart';
+part 'input_field_attribution_parent_edge_ids.dart';
 
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';

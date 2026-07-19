@@ -30,6 +30,7 @@ import 'capability_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
+import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import '_use_case_base.dart';
 
 List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
@@ -100,11 +101,13 @@ final class EvaluationCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionExpirySweepCase? attentionExpirySweep,
+    ReviewFinalizationPort? reviewFinalization,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
        _attention = attention,
-       _attentionExpirySweep = attentionExpirySweep;
+       _attentionExpirySweep = attentionExpirySweep,
+       _reviewFinalization = reviewFinalization;
 
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
@@ -113,6 +116,7 @@ final class EvaluationCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final AttentionExpirySweepCase? _attentionExpirySweep;
+  final ReviewFinalizationPort? _reviewFinalization;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CapabilityCase _capabilityCase;
@@ -211,6 +215,16 @@ final class EvaluationCase extends UseCaseBase {
 
           final openedAt = DateTime.timestamp();
           final closesAt = openedAt.add(_reviewWindowDuration);
+
+          final existingWindow =
+              await _evaluationRepository.getReviewWindow(beaconId);
+          if (existingWindow != null && existingWindow.status == 1) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewAlreadyClosed,
+              description:
+                  'Request review is closed and cannot be re-opened',
+            );
+          }
 
           await _evaluationRepository.downgradeSubmittedReviewsToDraft(
             beaconId,
@@ -353,7 +367,19 @@ final class EvaluationCase extends UseCaseBase {
             );
           }
           final w = await _evaluationRepository.getReviewWindow(beaconId);
-          if (w == null || w.status != 0) {
+          if (w == null) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+            );
+          }
+          if (w.status == 1) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.reviewAlreadyClosed,
+              description:
+                  'Request review is closed and cannot be re-opened',
+            );
+          }
+          if (w.status != 0) {
             throw EvaluationException(
               evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
             );
@@ -436,7 +462,7 @@ final class EvaluationCase extends UseCaseBase {
                   actorUserId: userId,
                   sourceEventKey: 'request_status:${generateId('A')}',
                 );
-          await _evaluationRepository.closeBeaconReviewWindow(
+          await _reviewFinalization!.closeAndFinalize(
             beaconId,
             reason: BeaconLifecycleChangeReason.authorCloseNow,
             actorUserId: userId,

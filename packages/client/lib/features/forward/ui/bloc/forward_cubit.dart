@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../domain/entity/forward_inbound_source.dart';
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
@@ -176,6 +177,7 @@ class ForwardCubit extends Cubit<ForwardState> {
               : {...lineagePreselect, ...userPreselect},
           droppedPreselectedIds: droppedPreselected,
           note: load.suggestedNote,
+          hasMyOutgoingForward: load.hasMyOutgoingForward,
           status: const StateIsSuccess(),
         ),
       );
@@ -327,7 +329,13 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
-  Future<bool> forward() async {
+  Future<List<ForwardInboundSource>> fetchInboundSources() async {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) return const [];
+    return forwardCase.fetchInboundForwardSources(beaconId: state.beaconId);
+  }
+
+  Future<bool> forward({List<String>? attributionParentEdgeIds}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
       return false;
@@ -377,6 +385,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         recipientReasons: state.recipientReasons.isEmpty
             ? null
             : state.recipientReasons,
+        attributionParentEdgeIds: attributionParentEdgeIds,
       );
       final outcome = ForwardDeliveryOutcome(
         deliveredRecipientIds: recipientIds,

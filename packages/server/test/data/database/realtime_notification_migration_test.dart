@@ -1531,8 +1531,12 @@ VALUES (@id, @id, @key)
         // UPDATE, not the former upsert + bump (+ prev_sent_weight) trio that
         // each fired the statement trigger.
         await writer.execute(
-          r'SELECT public.trust_apply_evidence($1, $2, $3, $4, $5, $6)',
-          parameters: [subjectId, objectId, 'good', 4.0, 3600.0, 1000000.0],
+          r'SELECT public.trust_apply_source_evidence($1, $2, $3, $4, $5)',
+          parameters: ['personal', subjectId, objectId, 'good', 4.0],
+        );
+        await writer.execute(
+          r'SELECT public.trust_rebuild_effective_edge($1, $2, $3)',
+          parameters: [subjectId, objectId, 1000000.0],
         );
         await _waitUntil(() => edgeChanges().isNotEmpty);
         await _settle();

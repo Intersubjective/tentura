@@ -187,6 +187,24 @@ final class EmptyGraphForwardEdgeRepository
   }) async => [];
 
   @override
+  Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) async => [];
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchAllByBeaconId(String beaconId) async =>
+      [];
+
+  @override
+  Future<int> countPriorOutgoingBatches({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+  }) async =>
+      0;
+
+  @override
   Future<ForwardEdgeEntity?> findActiveEdge({
     required String beaconId,
     required String senderId,

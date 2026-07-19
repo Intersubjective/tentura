@@ -1,6 +1,8 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 
 /// Test env: no-op evaluation persistence.
@@ -13,7 +15,12 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
   const EvaluationRepositoryMock();
 
   @override
-  Future<void> closeExpiredWindows() async {}
+  Future<ReviewCloseSnapshot?> closeReviewWindow(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  }) async =>
+      null;
 
   @override
   Future<int> countDistinctEvaluatorsForEvaluated({
@@ -105,13 +112,6 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
       DateTime.timestamp().add(const Duration(days: 7));
 
   @override
-  Future<void> closeBeaconReviewWindow(
-    String beaconId, {
-    required String reason,
-    String? actorUserId,
-  }) async {}
-
-  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,
@@ -156,6 +156,6 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
     required int value,
     required String reasonTagsCsv,
     required String note,
-    int status = 1,
+    int status = BeaconEvaluationRowStatus.submitted,
   }) async {}
 }

@@ -5,7 +5,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
-import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -18,11 +18,11 @@ class _ExpiryRepository extends Fake implements AttentionExpiryRepositoryPort {
       due;
 }
 
-class _EvaluationRepository extends Fake implements EvaluationRepositoryPort {
+class _ReviewFinalization implements ReviewFinalizationPort {
   final calls = <({String beaconId, String reason, String? actorUserId})>[];
 
   @override
-  Future<void> closeBeaconReviewWindow(
+  Future<bool> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
@@ -32,6 +32,7 @@ class _EvaluationRepository extends Fake implements EvaluationRepositoryPort {
       reason: reason,
       actorUserId: actorUserId,
     ));
+    return true;
   }
 }
 
@@ -42,25 +43,25 @@ void main() {
     'closes and records each expired window with an actor-null intent',
     () async {
       final expiry = _ExpiryRepository()..due = const [beaconId];
-      final evaluation = _EvaluationRepository();
+      final finalization = _ReviewFinalization();
       final attention = TestAttentionHarness(
         context: const BeaconNotificationContext(
           beaconAuthorId: 'Uauthor',
           admittedUserIds: {'Uhelper'},
           inboxStanceUserIds: {'Uwatcher'},
         ),
-        onContextLoaded: () => expect(evaluation.calls, isEmpty),
+        onContextLoaded: () => expect(finalization.calls, isEmpty),
       );
       final case_ = AttentionExpirySweepCase(
         expiry,
-        evaluation,
+        finalization,
         attention.intents,
         attention.transactional,
       );
 
       expect(await case_.runDue(now: DateTime.utc(2026)), 1);
 
-      expect(evaluation.calls, [
+      expect(finalization.calls, [
         (
           beaconId: beaconId,
           reason: BeaconLifecycleChangeReason.reviewExpired,
@@ -76,17 +77,17 @@ void main() {
 
   test('records expired windows without a producer gate', () async {
     final expiry = _ExpiryRepository()..due = const [beaconId];
-    final evaluation = _EvaluationRepository();
+    final finalization = _ReviewFinalization();
     final attention = TestAttentionHarness();
     final case_ = AttentionExpirySweepCase(
       expiry,
-      evaluation,
+      finalization,
       attention.intents,
       attention.transactional,
     );
 
     expect(await case_.runDue(), 1);
-    expect(evaluation.calls, hasLength(1));
+    expect(finalization.calls, hasLength(1));
     expect(attention.recorded, hasLength(1));
   });
 }

@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/enum.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -14,7 +15,8 @@ import '_use_case_base.dart';
 final class UserTrustEdgeCase extends UseCaseBase {
   UserTrustEdgeCase(
     this._userRepository,
-    this._trustEdgeRepository, {
+    this._trustEdgeRepository,
+    this._trustMaintenance, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -24,6 +26,7 @@ final class UserTrustEdgeCase extends UseCaseBase {
 
   final UserRepositoryPort _userRepository;
   final UserTrustEdgeRepositoryPort _trustEdgeRepository;
+  final TrustMaintenancePort _trustMaintenance;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
 
@@ -67,7 +70,7 @@ final class UserTrustEdgeCase extends UseCaseBase {
     Iterable<UserRoles>? userRoles,
   }) async {
     await _ensureMrPrivilege(userId: userId, userRoles: userRoles);
-    await _trustEdgeRepository.forceRefreshAll();
+    await _trustMaintenance.forceRefreshAll();
   }
 
   Future<void> cutoverBackfillIfNeeded() =>

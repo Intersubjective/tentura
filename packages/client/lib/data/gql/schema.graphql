@@ -2231,7 +2231,7 @@ type mutation_root {
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
-  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!], reasons: [String!], recipientReasons: [ForwardRecipientReasonInput!]): String!
+  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!], reasons: [String!], recipientReasons: [ForwardRecipientReasonInput!]): String!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconWithdraw(id: String!, message: String, withdrawReason: String!): Boolean!
@@ -3536,6 +3536,7 @@ type query_root {
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): BeaconLineageForwardSuggestions!
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
+  beaconEligibleInboundForwards(id: String!): [ForwardInboundEdge!]!
   beaconHelpOffererForwardPath(id: String!, helpOffererId: String!): v2_ForwardGraphResult!
   forwardReasonsByBeacon(id: String!): [v2_ForwardReasonRow!]!
 
@@ -5752,6 +5753,14 @@ type v2_ForwardGraphEdge {
   recipientId: String!
   parentEdgeId: String
   batchId: String
+}
+
+type ForwardInboundEdge {
+  edgeId: String!
+  senderId: String!
+  senderName: String!
+  createdAt: String!
+  isSuggestedSource: Boolean!
 }
 
 type v2_ForwardGraphResult {

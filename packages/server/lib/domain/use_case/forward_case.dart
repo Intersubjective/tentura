@@ -1,8 +1,11 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
+import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/forward/forward_constants.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -18,6 +21,7 @@ import '_use_case_base.dart';
 final class ForwardCase extends UseCaseBase {
   ForwardCase(
     this._forwardEdgeRepository,
+    this._forwardAttributionRepository,
     this._helpOfferRepository,
     this._inboxRepository,
     this._capabilityCase,
@@ -32,6 +36,7 @@ final class ForwardCase extends UseCaseBase {
        _attention = attention;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+  final ForwardAttributionRepositoryPort _forwardAttributionRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
@@ -119,6 +124,7 @@ final class ForwardCase extends UseCaseBase {
     required List<String> recipientIds,
     String? context,
     String? parentEdgeId,
+    List<String>? attributionParentEdgeIds,
     String sharedNote = '',
     Map<String, String>? perRecipientNotes,
     List<String>? sharedReasonSlugs,
@@ -126,6 +132,18 @@ final class ForwardCase extends UseCaseBase {
   }) async {
     if (recipientIds.isEmpty) {
       throw ArgumentError('recipientIds must not be empty');
+    }
+
+    if (attributionParentEdgeIds != null) {
+      if (attributionParentEdgeIds.length > kMaxAttributionParents) {
+        throw ArgumentError(
+          'attributionParentEdgeIds must not exceed $kMaxAttributionParents',
+        );
+      }
+      if (attributionParentEdgeIds.toSet().length !=
+          attributionParentEdgeIds.length) {
+        throw ArgumentError('attributionParentEdgeIds must not contain duplicates');
+      }
     }
 
     final recipients = recipientIds.where((id) => id != senderId).toList();
@@ -206,6 +224,14 @@ final class ForwardCase extends UseCaseBase {
         }
 
         if (insertedRecipientIds.isNotEmpty) {
+          await _recordAttributionIfEligible(
+            beaconId: beaconId,
+            senderId: senderId,
+            batchId: batchId,
+            clientParentEdgeId: parentEdgeId,
+            attributionParentEdgeIds: attributionParentEdgeIds,
+          );
+
           await transaction.record(
             await _attentionIntents!.relayReceived(
               beaconId: beaconId,
@@ -219,5 +245,65 @@ final class ForwardCase extends UseCaseBase {
         return batchId;
       },
     );
+  }
+
+  Future<void> _recordAttributionIfEligible({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+    required String? clientParentEdgeId,
+    required List<String>? attributionParentEdgeIds,
+  }) async {
+    final priorBatches = await _forwardEdgeRepository.countPriorOutgoingBatches(
+      beaconId: beaconId,
+      senderId: senderId,
+      batchId: batchId,
+    );
+    if (priorBatches > 0) {
+      logger.info(
+        'attribution_dropped_not_first_episode beacon=$beaconId sender=$senderId',
+      );
+      return;
+    }
+
+    final inbound = await _forwardEdgeRepository.lockActiveInboundEdges(
+      beaconId: beaconId,
+      recipientId: senderId,
+    );
+    final inboundIds = inbound.map((e) => e.id).toSet();
+
+    if (attributionParentEdgeIds != null &&
+        attributionParentEdgeIds.isNotEmpty) {
+      for (final id in attributionParentEdgeIds) {
+        if (!inboundIds.contains(id)) {
+          throw const UnauthorizedException(
+            description: 'Invalid attribution parent forward edge',
+          );
+        }
+      }
+      final weight = 1.0 / attributionParentEdgeIds.length;
+      final method = attributionParentEdgeIds.length == 1
+          ? ForwardAttributionMethod.explicitSingle
+          : ForwardAttributionMethod.explicitMultiple;
+      await _forwardAttributionRepository.record(
+        batchId: batchId,
+        weightByParentEdgeId: {
+          for (final id in attributionParentEdgeIds) id: weight,
+        },
+        method: method,
+      );
+      return;
+    }
+
+    if (clientParentEdgeId != null) {
+      if (!inboundIds.contains(clientParentEdgeId)) {
+        return;
+      }
+      await _forwardAttributionRepository.record(
+        batchId: batchId,
+        weightByParentEdgeId: {clientParentEdgeId: 1.0},
+        method: ForwardAttributionMethod.openedVia,
+      );
+    }
   }
 }

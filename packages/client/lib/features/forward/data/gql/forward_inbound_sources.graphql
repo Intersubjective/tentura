@@ -1,0 +1,9 @@
+query ForwardInboundSources($beaconId: String!) {
+  beaconEligibleInboundForwards(id: $beaconId) {
+    edgeId
+    senderId
+    senderName
+    createdAt
+    isSuggestedSource
+  }
+}

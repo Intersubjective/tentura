@@ -1,16 +1,24 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'trust_bin.dart';
+import 'trust_context.dart';
+import 'trust_evidence_metadata.dart';
+import 'trust_source_type.dart';
 
-/// One piece of trust evidence targeting a single outgoing edge.
-final class TrustEvidence {
-  const TrustEvidence({
-    required this.targetUserId,
-    required this.bin,
-    required this.count,
-  });
+part 'trust_evidence.freezed.dart';
 
-  final String targetUserId;
-  final TrustBin bin;
-  final double count;
+@freezed
+abstract class TrustEvidence with _$TrustEvidence {
+  const factory TrustEvidence({
+    required String targetUserId,
+    required TrustBin bin,
+    required double count,
+    required TrustContext context,
+    required TrustSourceType sourceType,
+    String? requestId,
+    String? sourceId,
+    @Default(TrustEvidenceMetadata()) TrustEvidenceMetadata metadata,
+  }) = _TrustEvidence;
 }
 
 /// Batch of evidence from one source user at a point in time.

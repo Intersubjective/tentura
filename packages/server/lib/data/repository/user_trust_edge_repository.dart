@@ -1,11 +1,14 @@
+import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/trust/trust_context.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_math.dart';
-import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/trust/trust_source_type.dart';
 
 import '../database/tentura_db.dart';
 
@@ -18,50 +21,12 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
   UserTrustEdgeRepository(
     this._db,
     this._meritrank,
-    this._env,
+    this._trustEvidenceRepository,
   );
 
   final TenturaDb _db;
   final MeritrankRepositoryPort _meritrank;
-  final Env _env;
-
-  double get _halfLifeSeconds => _env.trustEdgeHalfLife.inSeconds.toDouble();
-
-  double get _epsilon => _env.trustEdgeEpsilon;
-
-  @override
-  Future<void> applyEvidence(TrustEvidenceBatch batch) async {
-    for (final item in batch.items) {
-      try {
-        await _applyEvidenceItem(
-          subjectUserId: batch.sourceUserId,
-          item: item,
-        );
-      } catch (_) {
-        // Best-effort per edge.
-      }
-    }
-  }
-
-  @override
-  Future<void> applyEvidenceInTransaction(TrustEvidenceBatch batch) async {
-    var index = 0;
-    for (final item in batch.items) {
-      final savepoint = 'trust_ev_$index';
-      index += 1;
-      await _db.customStatement('SAVEPOINT $savepoint');
-      try {
-        await _applyEvidenceItem(
-          subjectUserId: batch.sourceUserId,
-          item: item,
-        );
-      } catch (_) {
-        await _db.customStatement('ROLLBACK TO SAVEPOINT $savepoint');
-      } finally {
-        await _db.customStatement('RELEASE SAVEPOINT $savepoint');
-      }
-    }
-  }
+  final TrustEvidenceRepositoryPort _trustEvidenceRepository;
 
   @override
   Future<void> setVoteAmountAndApplyEvidence({
@@ -118,32 +83,17 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
   Future<void> forceRefreshStar(String sourceUserId) async {
     await _db
         .customSelect(
-          r'SELECT trust_resync_source($1, $2)',
-          variables: [
-            Variable<String>(sourceUserId),
-            Variable<double>(_halfLifeSeconds),
-          ],
+          r'SELECT trust_resync_source($1)',
+          variables: [Variable<String>(sourceUserId)],
         )
         .getSingle();
-  }
-
-  @override
-  Future<void> forceRefreshAll() async {
-    await _db
-        .customSelect(
-          r'SELECT trust_recompute_all($1)',
-          variables: [Variable<double>(_halfLifeSeconds)],
-        )
-        .getSingle();
-    await _meritrank.reset();
-    await _meritrank.init();
   }
 
   @override
   Future<void> cutoverBackfillIfNeeded() async {
     final trustCount = await _db
         .customSelect(
-          'SELECT count(*)::int AS c FROM user_trust_edge',
+          'SELECT count(*)::int AS c FROM user_trust_source_edge',
         )
         .map((r) => r.read<int>('c'))
         .getSingle();
@@ -156,16 +106,24 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
         .get();
     if (votes.isEmpty) return;
 
+    final at = DateTime.timestamp();
     for (final vote in votes) {
       final amount = vote.read<int>('amount');
       final bin = voteAmountToBin(amount);
       if (bin == null) continue;
-      await _applyEvidenceItem(
-        subjectUserId: vote.read<String>('subject'),
-        item: TrustEvidence(
-          targetUserId: vote.read<String>('object'),
-          bin: bin,
-          count: kTrustVoteEvidenceCount,
+      await _trustEvidenceRepository.record(
+        TrustEvidenceBatch(
+          sourceUserId: vote.read<String>('subject'),
+          at: at,
+          items: [
+            TrustEvidence(
+              targetUserId: vote.read<String>('object'),
+              bin: bin,
+              count: kTrustVoteEvidenceCount,
+              context: TrustContext.personal,
+              sourceType: TrustSourceType.userVote,
+            ),
+          ],
         ),
       );
     }
@@ -206,12 +164,19 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     final bin = voteAmountToBin(newAmount);
     if (bin == null) return;
 
-    await _applyEvidenceItem(
-      subjectUserId: subjectUserId,
-      item: TrustEvidence(
-        targetUserId: objectUserId,
-        bin: bin,
-        count: kTrustVoteEvidenceCount,
+    await _trustEvidenceRepository.record(
+      TrustEvidenceBatch(
+        sourceUserId: subjectUserId,
+        at: DateTime.timestamp(),
+        items: [
+          TrustEvidence(
+            targetUserId: objectUserId,
+            bin: bin,
+            count: kTrustVoteEvidenceCount,
+            context: TrustContext.personal,
+            sourceType: TrustSourceType.userVote,
+          ),
+        ],
       ),
     );
   }
@@ -227,21 +192,4 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
         .getSingleOrNull();
     return vote?.amount ?? 0;
   }
-
-  Future<void> _applyEvidenceItem({
-    required String subjectUserId,
-    required TrustEvidence item,
-  }) => _db
-      .customSelect(
-        r'SELECT trust_apply_evidence($1, $2, $3, $4, $5, $6)',
-        variables: [
-          Variable<String>(subjectUserId),
-          Variable<String>(item.targetUserId),
-          Variable<String>(item.bin.key),
-          Variable<double>(item.count),
-          Variable<double>(_halfLifeSeconds),
-          Variable<double>(_epsilon),
-        ],
-      )
-      .getSingle();
 }

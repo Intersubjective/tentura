@@ -125,6 +125,30 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   }) async => const [];
 
   @override
+  Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) => _d.lockActiveInboundEdges(
+    beaconId: beaconId,
+    recipientId: recipientId,
+  );
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchAllByBeaconId(String beaconId) =>
+      _d.fetchAllByBeaconId(beaconId);
+
+  @override
+  Future<int> countPriorOutgoingBatches({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+  }) => _d.countPriorOutgoingBatches(
+    beaconId: beaconId,
+    senderId: senderId,
+    batchId: batchId,
+  );
+
+  @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
       _d.fetchByBeaconId(beaconId);
 

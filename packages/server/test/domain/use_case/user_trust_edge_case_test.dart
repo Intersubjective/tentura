@@ -11,11 +11,13 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 
 import 'user_trust_edge_case_mocks.mocks.dart';
+import '../../support/fake_trust_maintenance_port.dart';
 import '../../support/test_attention_harness.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
   late MockUserTrustEdgeRepositoryPort trustEdgeRepo;
+  late FakeTrustMaintenancePort trustMaintenance;
   late UserTrustEdgeCase case_;
 
   const userId = 'Ucaller';
@@ -29,10 +31,12 @@ void main() {
   setUp(() {
     userRepo = MockUserRepositoryPort();
     trustEdgeRepo = MockUserTrustEdgeRepositoryPort();
+    trustMaintenance = FakeTrustMaintenancePort();
     final attention = TestAttentionHarness();
     case_ = UserTrustEdgeCase(
       userRepo,
       trustEdgeRepo,
+      trustMaintenance,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
@@ -48,7 +52,6 @@ void main() {
       ),
     ).thenAnswer((_) async => false);
     when(trustEdgeRepo.forceRefreshStar(any)).thenAnswer((_) async {});
-    when(trustEdgeRepo.forceRefreshAll()).thenAnswer((_) async {});
     when(trustEdgeRepo.cutoverBackfillIfNeeded()).thenAnswer((_) async {});
   });
 
@@ -78,6 +81,7 @@ void main() {
       final enabled = UserTrustEdgeCase(
         userRepo,
         trustEdgeRepo,
+        trustMaintenance,
         attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(
@@ -110,6 +114,7 @@ void main() {
       final enabled = UserTrustEdgeCase(
         userRepo,
         trustEdgeRepo,
+        trustMaintenance,
         attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(
@@ -146,6 +151,7 @@ void main() {
         final enabled = UserTrustEdgeCase(
           userRepo,
           trustEdgeRepo,
+          trustMaintenance,
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(
@@ -226,7 +232,7 @@ void main() {
         userRoles: [UserRoles.admin],
       );
 
-      verify(trustEdgeRepo.forceRefreshAll()).called(1);
+      expect(trustMaintenance.forceRefreshAllCalls, 1);
       verifyNever(userRepo.getById(any));
     });
 
@@ -238,7 +244,7 @@ void main() {
       await case_.forceRefreshAll(userId: userId);
 
       verify(userRepo.getById(userId)).called(1);
-      verify(trustEdgeRepo.forceRefreshAll()).called(1);
+      expect(trustMaintenance.forceRefreshAllCalls, 1);
     });
 
     test('missing privilege throws UnauthorizedException', () async {
@@ -248,7 +254,7 @@ void main() {
       );
 
       verify(userRepo.getById(userId)).called(1);
-      verifyNever(trustEdgeRepo.forceRefreshAll());
+      expect(trustMaintenance.forceRefreshAllCalls, 0);
     });
   });
 

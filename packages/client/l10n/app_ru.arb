@@ -1668,6 +1668,22 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardAttributionTitle": "Чей форвард побудил вас переслать этот запрос?",
+  "@forwardAttributionTitle": {
+    "context": "First-forward attribution dialog title"
+  },
+  "forwardAttributionMultiple": "Несколько из них",
+  "@forwardAttributionMultiple": {
+    "context": "Switch attribution dialog to multi-select"
+  },
+  "forwardAttributionNotSure": "Не знаю",
+  "@forwardAttributionNotSure": {
+    "context": "Skip attribution dialog without selecting a source"
+  },
+  "requestClosedBannerMessage": "Запрос закрыт. Новые отклики, уведомления и доверие по нему больше не создаются.",
+  "@requestClosedBannerMessage": {
+    "context": "Non-dismissible banner on closed requests (status 6)"
+  },
   "beaconForwardToPersonTitle": "Переслать {name}",
   "@beaconForwardToPersonTitle": {
     "context": "PersonForwardScreen app bar title",

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
@@ -250,6 +251,69 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           .orderBy((e) => e.createdAt.desc())
           .get()
           .then((rows) => rows.map(_toEntity).toList());
+
+  @override
+  Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) async {
+    final idRows = await _database
+        .customSelect(
+          r'''
+SELECT id
+FROM beacon_forward_edge
+WHERE beacon_id = $1
+  AND recipient_id = $2
+  AND cancelled_at IS NULL
+FOR SHARE
+''',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(recipientId),
+          ],
+        )
+        .get();
+    if (idRows.isEmpty) return const [];
+    final ids = idRows.map((r) => r.read<String>('id')).toList();
+    return _database.managers.beaconForwardEdges
+        .filter((e) => e.id.isIn(ids))
+        .orderBy((e) => e.createdAt.desc())
+        .get()
+        .then((rows) => rows.map(_toEntity).toList());
+  }
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchAllByBeaconId(String beaconId) =>
+      _database.managers.beaconForwardEdges
+          .filter((e) => e.beaconId.id(beaconId))
+          .orderBy((e) => e.createdAt.asc())
+          .get()
+          .then((rows) => rows.map(_toEntity).toList());
+
+  @override
+  Future<int> countPriorOutgoingBatches({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+  }) =>
+      _database
+          .customSelect(
+            r'''
+SELECT count(DISTINCT batch_id)::int AS c
+FROM beacon_forward_edge
+WHERE beacon_id = $1
+  AND sender_id = $2
+  AND batch_id IS NOT NULL
+  AND batch_id <> $3
+''',
+            variables: [
+              Variable.withString(beaconId),
+              Variable.withString(senderId),
+              Variable.withString(batchId),
+            ],
+          )
+          .map((r) => r.read<int>('c'))
+          .getSingle();
 
   @override
   Future<ForwardEdgeEntity?> findActiveEdge({

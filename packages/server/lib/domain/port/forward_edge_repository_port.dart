@@ -74,6 +74,23 @@ abstract class ForwardEdgeRepositoryPort {
     required String recipientId,
   });
 
+  /// Same predicate as [fetchActiveInboundEdges] with `FOR SHARE` row locks.
+  Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  });
+
+  /// All edges for a beacon, including cancelled rows.
+  Future<List<ForwardEdgeEntity>> fetchAllByBeaconId(String beaconId);
+
+  /// Prior outgoing batches for [senderId] on [beaconId], excluding [batchId].
+  /// Cancelled batches count toward first-episode semantics.
+  Future<int> countPriorOutgoingBatches({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+  });
+
   /// Returns an active edge for the same sender/recipient/beacon, if any.
   Future<ForwardEdgeEntity?> findActiveEdge({
     required String beaconId,

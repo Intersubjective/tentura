@@ -82,6 +82,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default('') String editNote,
     @Default(<String>[]) List<String> editReasons,
     ForwardDeliveryOutcome? lastDeliveryOutcome,
+    @Default(false) bool hasMyOutgoingForward,
   }) = _ForwardState;
 
   const ForwardState._();
