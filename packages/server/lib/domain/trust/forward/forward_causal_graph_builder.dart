@@ -86,7 +86,7 @@ final class ForwardCausalGraphBuilder {
 
     while (queue.isNotEmpty) {
       final node = queue.removeAt(0);
-      for (final e in inbound[node] ?? const []) {
+      for (final e in inbound[node] ?? const <ForwardProvenanceEdge>[]) {
         reachableEdgeIds.add(e.id);
         if (visitedNodes.add(e.senderId)) {
           queue.add(e.senderId);
@@ -113,7 +113,7 @@ final class ForwardCausalGraphBuilder {
         failed = true;
         return;
       }
-      for (final e in inbound[node] ?? const []) {
+      for (final e in inbound[node] ?? const <ForwardProvenanceEdge>[]) {
         visit(e.senderId, stack);
       }
       stack.remove(node);
