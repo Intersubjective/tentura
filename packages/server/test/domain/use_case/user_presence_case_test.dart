@@ -2,7 +2,6 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
@@ -16,8 +15,8 @@ void main() {
 
   final presence = UserPresenceEntity(
     userId: userId,
-    lastSeenAt: DateTime.utc(2025, 6, 1),
-    lastNotifiedAt: DateTime.utc(2025, 6, 1),
+    lastSeenAt: DateTime.utc(2025, 6),
+    lastNotifiedAt: DateTime.utc(2025, 6),
     offlineAfterDelay: const Duration(minutes: 5),
     status: UserPresenceStatus.online,
   );

@@ -44,7 +44,6 @@ void main() {
     test('verifyAuthRequest rejects non-EdDSA tokens', () {
       final hs256Token = JWT({'pk': base64UrlEncode(kPublicKey.bytes)}).sign(
         SecretKey('not-eddsa'),
-        algorithm: JWTAlgorithm.HS256,
       );
 
       expect(

@@ -90,7 +90,7 @@ final class FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
 final class RecordingTrustEvidence extends Fake
     implements TrustEvidenceRepositoryPort {
   final recorded = <TrustEvidenceBatch>[];
-  var forwardAlreadyRecorded = false;
+  bool forwardAlreadyRecorded = false;
 
   @override
   Future<void> record(TrustEvidenceBatch batch) async {

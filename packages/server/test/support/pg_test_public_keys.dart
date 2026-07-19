@@ -7,7 +7,7 @@ String pgTestPublicKey(String namespace, int slot) {
   if (namespace.isEmpty) {
     throw ArgumentError.value(namespace, 'namespace', 'must not be empty');
   }
-  final ns = namespace.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  final ns = namespace.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
   final tag = ns.length >= 2 ? ns.substring(0, 2) : ns.padRight(2, 'x');
   final c1 = String.fromCharCode('a'.codeUnitAt(0) + (tag.codeUnitAt(0) % 26));
   final c2 = String.fromCharCode('a'.codeUnitAt(0) + (tag.codeUnitAt(1) % 26));

@@ -9,4 +9,3 @@ class NoopInviteAcceptedNotificationPort implements InviteAcceptedNotificationPo
     intents.add(intent);
   }
 }
-
