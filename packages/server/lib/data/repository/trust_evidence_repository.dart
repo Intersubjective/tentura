@@ -105,7 +105,7 @@ RETURNING id
             item.requestId == null
                 ? const Variable<String>(null)
                 : Variable<String>(item.requestId),
-            Variable<PgDateTime>(PgDateTime(batch.at)),
+            Variable(PgDateTime(batch.at), PgTypes.timestampWithTimezone),
             Variable<String>(metadataJson),
           ],
         )

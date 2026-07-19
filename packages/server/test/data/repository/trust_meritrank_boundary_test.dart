@@ -3,10 +3,12 @@ library;
 
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
@@ -41,7 +43,7 @@ Future<void> main() async {
         await db.customStatement(
           '''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
-VALUES ('$id', '$id', '${pgTestPublicKey('tmb', i + 1)}',
+VALUES ('$id', '$id', '${pgTestPublicKey('mbr', i + 1)}',
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
@@ -51,12 +53,14 @@ ON CONFLICT (id) DO NOTHING
 
     tearDown(() async {
       final idList = allIds.map((id) => "'$id'").join(', ');
-      await db.customStatement('''
-DELETE FROM public.user_trust_source_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-DELETE FROM public.user_trust_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-''');
+      await db.customStatement(
+        'DELETE FROM public.user_trust_source_edge '
+        'WHERE subject IN ($idList) OR object IN ($idList)',
+      );
+      await db.customStatement(
+        'DELETE FROM public.user_trust_edge '
+        'WHERE subject IN ($idList) OR object IN ($idList)',
+      );
     });
 
     tearDownAll(() async {
@@ -68,50 +72,51 @@ WHERE subject IN ($idList) OR object IN ($idList);
     });
   }
 
-  test('meritrank_init bulk-loads user_trust_edge only', () async {
-    await db.customStatement(
-      "SELECT trust_apply_source_evidence('personal', '$aliceId', '$bobId', 'good', 1)",
-    );
-    await db.customStatement(
-      "SELECT trust_rebuild_effective_edge('$aliceId', '$bobId')",
-    );
-
-    final sourceInMr = await db.customSelect(
-      '''
-SELECT COUNT(*)::int AS c FROM mr_edgelist() e
-JOIN public.user_trust_source_edge s
-  ON s.subject = e.src AND s.object = e.dst
-WHERE s.subject = '$aliceId' AND s.object = '$bobId'
-''',
+  test('source-only apply does not create effective projection row', () async {
+    await db
+        .customSelect(
+          r'SELECT trust_apply_source_evidence($1, $2, $3, $4, $5)',
+          variables: [
+            const Variable<String>('personal'),
+            Variable<String>(aliceId),
+            Variable<String>(bobId),
+            const Variable<String>('good'),
+            const Variable<double>(1),
+          ],
+        )
+        .getSingle();
+    final effective = await db.customSelect(
+      "SELECT COUNT(*)::int AS c FROM user_trust_edge WHERE subject = '$aliceId'",
     ).getSingle();
-    expect(sourceInMr.read<int>('c'), 0);
-
-    final effectiveInMr = await db.customSelect(
-      '''
-SELECT COUNT(*)::int AS c FROM mr_edgelist() e
-JOIN public.user_trust_edge t ON t.subject = e.src AND t.object = e.dst
-WHERE t.subject = '$aliceId' AND t.object = '$bobId'
-''',
-    ).getSingle();
-    expect(effectiveInMr.read<int>('c'), greaterThanOrEqualTo(0));
+    expect(effective.read<int>('c'), 0);
   }, skip: skipReason);
 
-  test('source-only row is invisible in effective table until rebuild', () async {
-    await db.customStatement(
-      "SELECT trust_apply_source_evidence('personal', '$aliceId', '$bobId', 'very_good', 2)",
-    );
-    final effectiveBefore = await db.customSelect(
+  test('rebuild publishes effective row for the pair', () async {
+    await db
+        .customSelect(
+          r'SELECT trust_apply_source_evidence($1, $2, $3, $4, $5)',
+          variables: [
+            const Variable<String>('personal'),
+            Variable<String>(aliceId),
+            Variable<String>(bobId),
+            const Variable<String>('very_good'),
+            const Variable<double>(2),
+          ],
+        )
+        .getSingle();
+    await db
+        .customSelect(
+          r'SELECT trust_rebuild_effective_edge($1, $2)',
+          variables: [
+            Variable<String>(aliceId),
+            Variable<String>(bobId),
+          ],
+        )
+        .getSingle();
+    final effective = await db.customSelect(
       "SELECT COUNT(*)::int AS c FROM user_trust_edge WHERE subject = '$aliceId'",
     ).getSingle();
-    expect(effectiveBefore.read<int>('c'), 0);
-
-    await db.customStatement(
-      "SELECT trust_rebuild_effective_edge('$aliceId', '$bobId')",
-    );
-    final effectiveAfter = await db.customSelect(
-      "SELECT COUNT(*)::int AS c FROM user_trust_edge WHERE subject = '$aliceId'",
-    ).getSingle();
-    expect(effectiveAfter.read<int>('c'), 1);
+    expect(effective.read<int>('c'), 1);
   }, skip: skipReason);
 }
 

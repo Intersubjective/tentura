@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show TypedValue, Type;
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
@@ -128,16 +129,25 @@ WHERE subject = $1 AND object = $2
         break;
       }
       final row = await _db.transaction(() async {
+        final variables = [
+          Variable<String>(afterSubject),
+          Variable<String>(afterObject),
+          Variable(TypedValue(Type.integer, env.trustSweepBatchSize)),
+        ];
+        if (epsilonOverride == null) {
+          return _db
+              .customSelect(
+                r'SELECT * FROM trust_rebuild_effective_batch($1, $2, $3)',
+                variables: variables,
+              )
+              .getSingleOrNull();
+        }
         return _db
             .customSelect(
               r'SELECT * FROM trust_rebuild_effective_batch($1, $2, $3, $4)',
               variables: [
-                Variable<String>(afterSubject),
-                Variable<String>(afterObject),
-                Variable<int>(env.trustSweepBatchSize),
-                epsilonOverride == null
-                    ? const Variable<double>(null)
-                    : Variable<double>(epsilonOverride),
+                ...variables,
+                Variable<double>(epsilonOverride),
               ],
             )
             .getSingleOrNull();

@@ -785,11 +785,11 @@ ORDER BY account_id
     test(
       'delivery claims lease, throttle, retry, and dead-letter atomically',
       () async {
-        final now = DateTime.parse('2026-07-17T12:00:00Z');
         await unitOfWork.run(
           actorUserId: _viewerId,
           action: () => dispatch.record(_dispatchIntent()),
         );
+        final now = DateTime.timestamp().toUtc();
         final first = await delivery.claimDue(
           workerId: 'worker-a',
           now: now,
@@ -803,16 +803,29 @@ ORDER BY account_id
         );
         expect(competing, isEmpty);
 
-        await writer.execute('''
+        final expiredLease = now.subtract(const Duration(seconds: 1)).toUtc();
+        await writer.execute(
+          Sql.named('''
 UPDATE public.attention_channel_delivery
-SET lease_until = '2026-07-17T11:59:59Z'
-WHERE id = '${first.single.id}'
-''');
-        await writer.execute('''
+SET lease_until = @leaseUntil
+WHERE id = @id
+'''),
+          parameters: {
+            'leaseUntil': expiredLease,
+            'id': first.single.id,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
 UPDATE public.attention_channel_throttle
-SET lease_until = '2026-07-17T11:59:59Z'
-WHERE account_id = '$_otherId' AND channel = 'immediate'
-''');
+SET lease_until = @leaseUntil
+WHERE account_id = @accountId AND channel = 'immediate'
+'''),
+          parameters: {
+            'leaseUntil': expiredLease,
+            'accountId': _otherId,
+          },
+        );
         final reclaimed = await delivery.claimDue(
           workerId: 'worker-c',
           now: now,
@@ -839,12 +852,19 @@ WHERE account_id = '$_otherId' AND channel = 'immediate'
         );
         expect(retry, hasLength(1));
 
-        await writer.execute('''
+        final terminalLease = now.add(const Duration(minutes: 3));
+        await writer.execute(
+          Sql.named('''
 UPDATE public.attention_channel_delivery
 SET attempts = 5, status = 'leased', lease_owner = 'worker-b',
-    lease_until = '2026-07-17T12:03:00Z'
-WHERE id = '${retry.single.id}'
-''');
+    lease_until = @leaseUntil
+WHERE id = @id
+'''),
+          parameters: {
+            'leaseUntil': terminalLease,
+            'id': retry.single.id,
+          },
+        );
         await delivery.retryOrDeadLetter(
           id: retry.single.id,
           workerId: 'worker-b',

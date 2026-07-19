@@ -12,6 +12,7 @@ import 'query_evaluation.dart';
 import 'query_fact_card.dart';
 import 'query_forward_graph.dart';
 import 'query_forward_inbound.dart';
+import 'query_forward_reasons.dart';
 import 'query_invite_genealogy.dart';
 import 'query_invitation.dart';
 import 'query_mutual_friends.dart';

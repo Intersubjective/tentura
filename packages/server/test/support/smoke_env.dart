@@ -36,6 +36,16 @@ Env smokeProdEnv() => Env(
       isDebugModeOn: true,
     );
 
+/// Hermetic test [Env] with email auth explicitly disabled (ignores shell `.env`).
+Env emailAuthUnconfiguredTestEnv() => Env(
+      environment: Environment.test,
+      resendApiKey: '',
+      resendFromEmail: '',
+      emailDebugSinkDir: '',
+      qaAuthEnabled: false,
+      qaAuthToken: '',
+    );
+
 /// Hermetic dev [Env] for DI smoke tests.
 Env smokeDevEnv() => Env(
       environment: Environment.dev,

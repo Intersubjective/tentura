@@ -87,7 +87,7 @@ EvaluationSummaryResult _buildEvaluationSummary({
 }
 
 /// Post-beacon evaluation (Phase 1): open window, visibility, private rows, summaries.
-@Singleton(order: 2)
+@Singleton(order: 5)
 final class EvaluationCase extends UseCaseBase {
   EvaluationCase(
     this._beaconRepository,

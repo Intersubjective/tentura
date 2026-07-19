@@ -58,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0122ForTest(writer);
       await _rollBackM0121ForTest(writer);
       await _rollBackM0120ForTest(writer);
       await _rollBackM0119ForTest(writer);
@@ -1450,8 +1451,21 @@ VALUES (@id, @id, @key)
         // scoped to bulk maintenance, not applied to real relationship changes.
         await writer.execute(
           Sql.named('''
+INSERT INTO public.user_trust_source_edge
+  (trust_context, subject, object, s_good, anchor_at)
+SELECT 'legacy', @subject, @object, 10,
+  now() - make_interval(secs => p.half_life_seconds)
+FROM public.trust_policy p
+ON CONFLICT DO NOTHING
+'''),
+          parameters: {'subject': subjectId, 'object': objectId},
+        );
+        await writer.execute(
+          Sql.named('''
 INSERT INTO public.user_trust_edge (subject, object, anchor_at, s_good)
-VALUES (@subject, @object, now() - interval '1 hour', 10)
+SELECT @subject, @object,
+  now() - make_interval(secs => p.half_life_seconds), 10
+FROM public.trust_policy p
 '''),
           parameters: {'subject': subjectId, 'object': objectId},
         );
@@ -1471,24 +1485,21 @@ WHERE subject = @s AND object = @o
         // Full-graph decay recompute refreshes prev_sent_weight but must emit
         // no relationship invalidation for any edge (bookkeeping-only rewrite).
         await writer.execute(
-          r'SELECT public.trust_recompute_all($1)',
-          parameters: [3600.0],
+          r"SELECT * FROM public.trust_rebuild_effective_batch('', '', 10000, -1)",
         );
         await _settle();
         expect(_ofKind(notifications, 'relationship'), isEmpty);
 
         final after = await writer.execute(
           Sql.named('''
-SELECT prev_sent_weight FROM public.user_trust_edge
+SELECT s_good, prev_sent_weight FROM public.user_trust_edge
 WHERE subject = @s AND object = @o
 '''),
           parameters: {'s': subjectId, 'o': objectId},
         );
         expect((before.single.single! as num).toDouble(), 0);
-        // s_good = 10, ~one half-life old ⇒ f ≈ 0.5 ⇒ weight = 5 / 10 ≈ 0.5
-        // (marginally under 0.5 since elapsed time exceeds the half-life by the
-        // test's own runtime). The point is prev_sent_weight was refreshed off 0.
-        expect((after.single.single! as num).toDouble(), closeTo(0.5, 0.01));
+        // s_good = 10 at one half-life ⇒ decayed effective good mass ≈ 5.
+        expect((after.single[0]! as num).toDouble(), closeTo(5.0, 0.01));
       },
       skip: skipReason,
     );
@@ -1647,6 +1658,27 @@ Future<void> _rollBackM0120ForTest(Connection connection) async {
     'DROP INDEX public.notification_outbox__dedup_seen',
     'DROP INDEX public.notification_outbox__unread_seen',
     "DELETE FROM public.schema_version WHERE version = '0120'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0122ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TRIGGER IF EXISTS trust_edge_effective_delete_mr ON public.user_trust_edge',
+    'DROP FUNCTION IF EXISTS public.trust_edge_on_effective_delete()',
+    'DROP FUNCTION IF EXISTS public.trust_resync_source(text)',
+    'DROP FUNCTION IF EXISTS public.trust_rebuild_effective_batch(text, text, integer, double precision)',
+    'DROP FUNCTION IF EXISTS public.trust_rebuild_effective_edge(text, text, double precision)',
+    'DROP FUNCTION IF EXISTS public.trust_apply_source_evidence(text, text, text, text, double precision)',
+    'DROP FUNCTION IF EXISTS public.trust_pair_lock(text, text)',
+    'DROP TABLE IF EXISTS public.meritrank_edge_tombstone',
+    'DROP TABLE IF EXISTS public.forward_decision_attribution',
+    'DROP TABLE IF EXISTS public.trust_evidence_event',
+    'DROP TABLE IF EXISTS public.user_trust_source_edge',
+    'DROP TABLE IF EXISTS public.trust_context_config',
+    'DROP TABLE IF EXISTS public.trust_policy',
+    "DELETE FROM public.schema_version WHERE version = '0122'",
   ]) {
     await connection.execute(statement);
   }

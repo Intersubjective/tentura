@@ -85,6 +85,7 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
+    List<String>? attributionParentEdgeIds,
   }) async {
     if (!_forwardChanges.isClosed) {
       emitForwardCompleted(beaconId);

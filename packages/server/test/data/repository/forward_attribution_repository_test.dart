@@ -40,6 +40,37 @@ Future<void> main() async {
     setUpAll(() async {
       db = TenturaDb(_testEnv());
       repo = ForwardAttributionRepository(db);
+      final keyA = pgTestPublicKey('fattr', 1);
+      final keyB = pgTestPublicKey('fattr', 2);
+      final keyC = pgTestPublicKey('fattr', 3);
+      await db.customStatement(
+        r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES
+  ('Ufattrauth01', 'Author', $1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('Ufattrsend01', 'Sender', $2, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('Ufattrrecip1', 'Recipient', $3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+        [keyA, keyB, keyC],
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon (id, user_id, title, description, created_at, updated_at)
+VALUES ('Bfattr000001', 'Ufattrauth01', 'attr test', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.beacon_forward_edge
+  (id, beacon_id, sender_id, recipient_id, created_at)
+VALUES
+  ('$edge1', 'Bfattr000001', 'Ufattrsend01', 'Ufattrrecip1', '2026-01-01T00:00:00Z'),
+  ('$edge2', 'Bfattr000001', 'Ufattrauth01', 'Ufattrsend01', '2026-01-02T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
     });
 
     tearDown(() async {
@@ -49,6 +80,18 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
+      await db.customStatement(
+        "DELETE FROM public.forward_decision_attribution WHERE child_forward_batch_id LIKE 'FBattr%'",
+      );
+      await db.customStatement(
+        "DELETE FROM public.beacon_forward_edge WHERE beacon_id = 'Bfattr000001'",
+      );
+      await db.customStatement(
+        "DELETE FROM public.beacon WHERE id = 'Bfattr000001'",
+      );
+      await db.customStatement(
+        '''DELETE FROM public."user" WHERE id LIKE 'Ufattr%' ''',
+      );
       await db.close();
     });
   }

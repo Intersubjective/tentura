@@ -35,14 +35,12 @@ final class QueryForwardInbound extends GqlNodeBase {
         },
       );
 
-  static final _inboundType = GraphQLObjectType(
-    'ForwardInboundEdge',
-    fields: [
-      GraphQLField('edgeId', graphQLString.nonNullable()),
-      GraphQLField('senderId', graphQLString.nonNullable()),
-      GraphQLField('senderName', graphQLString.nonNullable()),
-      GraphQLField('createdAt', graphQLString.nonNullable()),
-      GraphQLField('isSuggestedSource', graphQLBoolean.nonNullable()),
-    ],
-  );
+  static final _inboundType = GraphQLObjectType('ForwardInboundEdge', null)
+    ..fields.addAll([
+      field('edgeId', graphQLString.nonNullable()),
+      field('senderId', graphQLString.nonNullable()),
+      field('senderName', graphQLString.nonNullable()),
+      field('createdAt', graphQLString.nonNullable()),
+      field('isSuggestedSource', graphQLBoolean.nonNullable()),
+    ]);
 }

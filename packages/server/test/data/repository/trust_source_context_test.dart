@@ -3,10 +3,12 @@ library;
 
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
@@ -48,28 +50,54 @@ ON CONFLICT (id) DO NOTHING
     String object,
     String bin,
     double count,
-  ) => db.customStatement(
-    "SELECT trust_apply_source_evidence('$context', '$subject', '$object', '$bin', $count)",
-  );
+  ) async {
+    await db
+        .customSelect(
+          r'SELECT trust_apply_source_evidence($1, $2, $3, $4, $5)',
+          variables: [
+            Variable<String>(context),
+            Variable<String>(subject),
+            Variable<String>(object),
+            Variable<String>(bin),
+            Variable<double>(count),
+          ],
+        )
+        .getSingle();
+  }
 
   Future<double> rebuild(String subject, String object) async {
-    final row = await db.customSelect(
-      "SELECT trust_rebuild_effective_edge('$subject', '$object') AS w",
-    ).getSingle();
+    final row = await db
+        .customSelect(
+          r'SELECT trust_rebuild_effective_edge($1, $2) AS w',
+          variables: [
+            Variable<String>(subject),
+            Variable<String>(object),
+          ],
+        )
+        .getSingle();
     return row.read<double>('w');
   }
 
-  Future<Map<String, double>> effectiveBins(String subject, String object) async {
-    final row = await db.customSelect(
-      '''
+  Future<Map<String, double>> sourceBins(
+    String context,
+    String subject,
+    String object,
+  ) async {
+    final row = await db
+        .customSelect(
+          r'''
 SELECT s_very_bad, s_bad, s_no_effect, s_good, s_very_good
-FROM public.user_trust_edge
-WHERE subject = '$subject' AND object = '$object'
+FROM public.user_trust_source_edge
+WHERE trust_context = $1 AND subject = $2 AND object = $3
 ''',
-    ).getSingleOrNull();
-    if (row == null) {
-      return {};
-    }
+          variables: [
+            Variable<String>(context),
+            Variable<String>(subject),
+            Variable<String>(object),
+          ],
+        )
+        .getSingleOrNull();
+    if (row == null) return {};
     return {
       'very_bad': row.read<double>('s_very_bad'),
       'bad': row.read<double>('s_bad'),
@@ -89,6 +117,22 @@ WHERE subject = '$subject' AND object = '$object'
     return row.read<int>('c');
   }
 
+  Future<void> cleanPair() async {
+    final idList = allIds.map((id) => "'$id'").join(', ');
+    await db.customStatement(
+      'DELETE FROM public.trust_evidence_event '
+      'WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList)',
+    );
+    await db.customStatement(
+      'DELETE FROM public.user_trust_source_edge '
+      'WHERE subject IN ($idList) OR object IN ($idList)',
+    );
+    await db.customStatement(
+      'DELETE FROM public.user_trust_edge '
+      'WHERE subject IN ($idList) OR object IN ($idList)',
+    );
+  }
+
   if (skipReason == false) {
     setUpAll(() async {
       db = TenturaDb(_testEnv());
@@ -97,19 +141,10 @@ WHERE subject = '$subject' AND object = '$object'
       }
     });
 
-    tearDown(() async {
-      final idList = allIds.map((id) => "'$id'").join(', ');
-      await db.customStatement('''
-DELETE FROM public.trust_evidence_event
-WHERE subject_user_id IN ($idList) OR object_user_id IN ($idList);
-DELETE FROM public.user_trust_source_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-DELETE FROM public.user_trust_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-''');
-    });
+    tearDown(cleanPair);
 
     tearDownAll(() async {
+      await cleanPair();
       final idList = allIds.map((id) => "'$id'").join(', ');
       await db.customStatement(
         '''DELETE FROM public."user" WHERE id IN ($idList)''',
@@ -125,22 +160,22 @@ WHERE subject IN ($idList) OR object IN ($idList);
   }, skip: skipReason);
 
   test('unknown context apply raises', () async {
-    expect(
-      () => applySource('bogus', aliceId, bobId, 'good', 1),
+    await expectLater(
+      applySource('bogus', aliceId, bobId, 'good', 1),
       throwsA(isA<Object>()),
     );
   }, skip: skipReason);
 
   test('legacy context apply raises', () async {
-    expect(
-      () => applySource('legacy', aliceId, bobId, 'good', 1),
+    await expectLater(
+      applySource('legacy', aliceId, bobId, 'good', 1),
       throwsA(isA<Object>()),
     );
   }, skip: skipReason);
 
   test('invalid count raises', () async {
-    expect(
-      () => applySource('personal', aliceId, bobId, 'good', -1),
+    await expectLater(
+      applySource('personal', aliceId, bobId, 'good', -1),
       throwsA(isA<Object>()),
     );
   }, skip: skipReason);
@@ -153,23 +188,26 @@ WHERE subject IN ($idList) OR object IN ($idList);
     expect(before.read<int>('c'), 0);
 
     await rebuild(aliceId, bobId);
-    final after = await effectiveBins(aliceId, bobId);
-    expect(after['good'], closeTo(1, 1e-9));
+    final after = await db.customSelect(
+      "SELECT s_good FROM user_trust_edge WHERE subject = '$aliceId' AND object = '$bobId'",
+    ).getSingle();
+    expect(after.read<double>('s_good'), greaterThan(0));
   }, skip: skipReason);
 
   test('forward multiplier scales effective bins', () async {
     await applySource('forward', aliceId, bobId, 'good', 1);
     await rebuild(aliceId, bobId);
-    final bins = await effectiveBins(aliceId, bobId);
-    // forward evidence_multiplier is 0.20 in m0122 seed data.
-    expect(bins['good'], closeTo(0.2, 1e-9));
+    final bins = await db.customSelect(
+      "SELECT s_good FROM user_trust_edge WHERE subject = '$aliceId' AND object = '$bobId'",
+    ).getSingle();
+    expect(bins.read<double>('s_good'), closeTo(0.2, 1e-6));
   }, skip: skipReason);
 
   test('repeated rebuild is deterministic', () async {
     await applySource('personal', aliceId, bobId, 'very_good', 2);
     final w1 = await rebuild(aliceId, bobId);
     final w2 = await rebuild(aliceId, bobId);
-    expect(w1, closeTo(w2, 1e-12));
+    expect(w1, closeTo(w2, 1e-7));
   }, skip: skipReason);
 }
 

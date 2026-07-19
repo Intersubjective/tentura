@@ -6,6 +6,8 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/service/email/file_sink_email_sender.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/smoke_env.dart';
+
 void main() {
   late Directory tempDir;
   late Env env;
@@ -68,7 +70,7 @@ void main() {
   test('debug sink alone makes email auth configured', () {
     expect(env.isEmailAuthConfigured, isTrue);
     expect(
-      Env(environment: 'test').isEmailAuthConfigured,
+      emailAuthUnconfiguredTestEnv().isEmailAuthConfigured,
       isFalse,
     );
     expect(

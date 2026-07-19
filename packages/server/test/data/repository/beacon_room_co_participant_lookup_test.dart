@@ -70,8 +70,8 @@ ON CONFLICT (id) DO NOTHING
     );
     await db.customStatement(
       r'''
-INSERT INTO public.beacon (id, user_id, title, status, created_at, updated_at)
-VALUES ('Bcopres01', 'Ucopresviewer', 'Co-pres beacon', 1,
+INSERT INTO public.beacon (id, user_id, title, description, status, created_at, updated_at)
+VALUES ('Bcopres01', 'Ucopresviewer', 'Co-pres beacon', 'Co-pres beacon', 1,
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',

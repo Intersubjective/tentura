@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
 
-@Singleton(order: 1)
+@Singleton(order: 3)
 class AttentionExpirySweepCase {
   const AttentionExpirySweepCase(
     this._expiryRepository,

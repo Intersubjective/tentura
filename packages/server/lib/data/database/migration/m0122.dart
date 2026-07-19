@@ -6,6 +6,8 @@ part of '_migrations.dart';
 /// `user_trust_edge` stays the effective projection (unchanged schema).
 /// Context multipliers scale evidence mass, not posterior weight; they need
 /// not sum to 1. Policy changes follow the quiesced migration contract only.
+///
+/// Each migration step is a single SQL statement (migrant prepared statements).
 final m0122 = Migration('0122', [
   // §5.1 Source table
   r'''
@@ -26,8 +28,12 @@ CREATE TABLE IF NOT EXISTS public.user_trust_source_edge (
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (trust_context, subject, object)
 );
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS user_trust_source_edge_pair_idx
   ON public.user_trust_source_edge (subject, object);
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS user_trust_source_edge_object_idx
   ON public.user_trust_source_edge (object);
 ''',
@@ -40,6 +46,8 @@ CREATE TABLE IF NOT EXISTS public.trust_policy (
   epsilon double precision NOT NULL CHECK (epsilon >= 0 AND epsilon <= 1),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+''',
+  r'''
 INSERT INTO public.trust_policy (half_life_seconds, epsilon)
 VALUES (15724800, 0.1)
 ON CONFLICT DO NOTHING;
@@ -54,6 +62,8 @@ CREATE TABLE IF NOT EXISTS public.trust_context_config (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+''',
+  r'''
 INSERT INTO public.trust_context_config (trust_context, evidence_multiplier) VALUES
   ('legacy', 1.0), ('personal', 1.0), ('commitment', 1.0), ('forward', 0.20)
 ON CONFLICT (trust_context) DO NOTHING;
@@ -89,17 +99,23 @@ CREATE TABLE IF NOT EXISTS public.trust_evidence_event (
   applied_at timestamptz NOT NULL DEFAULT now(),
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+''',
+  r'''
 CREATE UNIQUE INDEX IF NOT EXISTS trust_evidence_event_propagated_unique
   ON public.trust_evidence_event
   (trust_context, source_type, request_id, subject_user_id, object_user_id, bin)
   WHERE request_id IS NOT NULL
     AND source_type IN ('propagated_author_evaluated_commitment',
                         'negative_commitment_route_no_effect');
+''',
+  r'''
 CREATE UNIQUE INDEX IF NOT EXISTS trust_evidence_event_unsuccessful_unique
   ON public.trust_evidence_event
   (trust_context, request_id, subject_user_id, object_user_id)
   WHERE request_id IS NOT NULL
     AND source_type = 'unsuccessful_request_forward';
+''',
+  r'''
 CREATE UNIQUE INDEX IF NOT EXISTS trust_evidence_event_request_unique
   ON public.trust_evidence_event
   (trust_context, source_type, request_id, subject_user_id, object_user_id)
@@ -107,8 +123,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS trust_evidence_event_request_unique
     AND source_type NOT IN ('propagated_author_evaluated_commitment',
                             'negative_commitment_route_no_effect',
                             'unsuccessful_request_forward');
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS trust_evidence_event_pair_idx
   ON public.trust_evidence_event (subject_user_id, object_user_id, applied_at DESC);
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS trust_evidence_event_request_idx
   ON public.trust_evidence_event (request_id) WHERE request_id IS NOT NULL;
 ''',
@@ -125,6 +145,8 @@ CREATE TABLE IF NOT EXISTS public.forward_decision_attribution (
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (child_forward_batch_id, parent_forward_edge_id)
 );
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS fda_parent_idx
   ON public.forward_decision_attribution (parent_forward_edge_id);
 ''',
@@ -304,8 +326,14 @@ END; $$;
   r'''
 DROP FUNCTION IF EXISTS public.trust_apply_evidence(
   text, text, text, double precision, double precision, double precision);
+''',
+  r'''
 DROP FUNCTION IF EXISTS public.meritrank_sweep(double precision, double precision);
+''',
+  r'''
 DROP FUNCTION IF EXISTS public.trust_recompute_all(double precision);
+''',
+  r'''
 DROP FUNCTION IF EXISTS public.trust_resync_source(text, double precision);
 ''',
   // §5.7 New one-argument resync
@@ -348,7 +376,8 @@ BEGIN
   END;
   RETURN NULL;
 END; $$;
-
+''',
+  r'''
 CREATE OR REPLACE TRIGGER trust_edge_effective_delete_mr
   AFTER DELETE ON public.user_trust_edge
   FOR EACH ROW

@@ -59,16 +59,20 @@ ON CONFLICT (id) DO NOTHING
 
     tearDown(() async {
       final idList = allIds.map((id) => "'$id'").join(', ');
-      await db.customStatement('''
-DELETE FROM public.trust_evidence_event
-WHERE request_id = '$beaconId'
-   OR subject_user_id IN ($idList)
-   OR object_user_id IN ($idList);
-DELETE FROM public.user_trust_source_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-DELETE FROM public.user_trust_edge
-WHERE subject IN ($idList) OR object IN ($idList);
-''');
+      await db.customStatement(
+        "DELETE FROM public.trust_evidence_event "
+        "WHERE request_id = '$beaconId' "
+        "OR subject_user_id IN ($idList) "
+        "OR object_user_id IN ($idList)",
+      );
+      await db.customStatement(
+        "DELETE FROM public.user_trust_source_edge "
+        "WHERE subject IN ($idList) OR object IN ($idList)",
+      );
+      await db.customStatement(
+        "DELETE FROM public.user_trust_edge "
+        "WHERE subject IN ($idList) OR object IN ($idList)",
+      );
     });
 
     tearDownAll(() async {

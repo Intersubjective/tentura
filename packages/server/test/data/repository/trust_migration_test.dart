@@ -6,7 +6,8 @@ import 'dart:io';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
@@ -39,20 +40,22 @@ Future<void> main() async {
         '''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES
-  ('$aliceId', '$aliceId', '${pgTestPublicKey('tmg', 1)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-  ('$bobId', '$bobId', '${pgTestPublicKey('tmg', 2)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+  ('$aliceId', '$aliceId', '${pgTestPublicKey('mga', 1)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('$bobId', '$bobId', '${pgTestPublicKey('mga', 2)}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
       );
     });
 
     tearDown(() async {
-      await db.customStatement('''
-DELETE FROM public.user_trust_source_edge
-WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId');
-DELETE FROM public.user_trust_edge
-WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId');
-''');
+      await db.customStatement(
+        "DELETE FROM public.user_trust_source_edge "
+        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+      );
+      await db.customStatement(
+        "DELETE FROM public.user_trust_edge "
+        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+      );
     });
 
     tearDownAll(() async {

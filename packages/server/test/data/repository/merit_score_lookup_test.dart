@@ -74,12 +74,14 @@ ON CONFLICT (id) DO NOTHING
 
     tearDownAll(() async {
       final idList = allIds.map((id) => "'$id'").join(', ');
-      await db.customStatement('''
-DELETE FROM public.user_trust_source_edge WHERE subject IN ($idList)
-  OR object IN ($idList);
-DELETE FROM public.user_trust_edge WHERE subject IN ($idList)
-  OR object IN ($idList)
-''');
+      await db.customStatement(
+        'DELETE FROM public.user_trust_source_edge '
+        'WHERE subject IN ($idList) OR object IN ($idList)',
+      );
+      await db.customStatement(
+        'DELETE FROM public.user_trust_edge '
+        'WHERE subject IN ($idList) OR object IN ($idList)',
+      );
       await db.customStatement(
         '''DELETE FROM public."user" WHERE id IN ($idList)''',
       );

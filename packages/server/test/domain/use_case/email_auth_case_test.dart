@@ -344,6 +344,9 @@ void main() {
       isNeedInvite: true,
       resendApiKey: '',
       resendFromEmail: '',
+      emailDebugSinkDir: '',
+      qaAuthEnabled: false,
+      qaAuthToken: '',
       publicOrigin: 'https://dev.tentura.io',
     );
     final unconfiguredCase = EmailAuthCase(

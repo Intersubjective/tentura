@@ -6,7 +6,8 @@ import 'dart:io';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/trust_evidence_repository.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/trust/trust_context.dart';
@@ -69,15 +70,19 @@ ON CONFLICT (id) DO NOTHING
     });
 
     tearDown(() async {
-      await db.customStatement('''
-DELETE FROM public.trust_evidence_event
-WHERE subject_user_id IN ('$aliceId', '$bobId')
-   OR object_user_id IN ('$aliceId', '$bobId');
-DELETE FROM public.user_trust_source_edge
-WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId');
-DELETE FROM public.user_trust_edge
-WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId');
-''');
+      await db.customStatement(
+        "DELETE FROM public.trust_evidence_event "
+        "WHERE subject_user_id IN ('$aliceId', '$bobId') "
+        "OR object_user_id IN ('$aliceId', '$bobId')",
+      );
+      await db.customStatement(
+        "DELETE FROM public.user_trust_source_edge "
+        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+      );
+      await db.customStatement(
+        "DELETE FROM public.user_trust_edge "
+        "WHERE subject IN ('$aliceId', '$bobId') OR object IN ('$aliceId', '$bobId')",
+      );
     });
 
     tearDownAll(() async {

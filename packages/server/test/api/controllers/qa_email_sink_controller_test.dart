@@ -211,6 +211,7 @@ void main() {
       Env(
         environment: Environment.test,
         serverUri: Uri.parse('https://test.tentura.local'),
+        emailDebugSinkDir: '',
         qaAuthEnabled: true,
         qaAuthToken: 'secret',
         qaEmailDomains: const ['test.tentura.local'],

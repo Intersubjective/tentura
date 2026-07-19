@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show TypedValue, Type;
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -50,8 +52,8 @@ FROM due, reserved
 WHERE job.id = due.id AND reserved.account_id = job.account_id
 RETURNING job.id, job.payload::text AS payload''',
           variables: [
-            Variable<String>(now.toUtc().toIso8601String()),
-            Variable<int>(limit),
+            Variable(TypedValue(Type.timestampTz, now.toUtc())),
+            Variable(TypedValue(Type.integer, limit)),
             Variable<String>(workerId),
           ],
         )
