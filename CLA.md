@@ -1,6 +1,6 @@
 # Tentura Individual Contributor License Agreement
 
-Version 1.0 — 19 July 2026
+Version 1.1 — 19 July 2026
 
 This agreement is between the individual or entity accepting it
 (`Contributor`) and Vadim Bulavintsev, acting as the Tentura project steward
@@ -29,9 +29,25 @@ section 7 of that licence and recorded in the repository's licensing notices.
 
 This agreement does not authorize the Project Steward to represent the
 Contribution as authored by somebody other than its actual author. It does not
-grant permission to distribute the Contribution as proprietary software.
+grant permission to distribute the Contribution as proprietary software. The
+narrow Apple distribution permission below does not change the licence of the
+Contribution or make it proprietary.
 
-## 3. Patent licence
+## 3. Apple platforms and App Store distribution
+
+The Contributor grants, for the Contribution, the additional permission in
+`LICENSES/LicenseRef-Apple-App-Store-Exception.txt`, version 1.0 dated
+19 July 2026. The Contributor authorizes the Project Steward to offer that
+permission to recipients of the Contribution.
+
+That permission includes combining the Contribution with covered Apple SDK
+materials and conveying resulting executables through Apple's App Store under
+Apple-imposed signing, encryption, digital-rights-management, installation,
+and distribution conditions. It remains subject to the exception's source,
+notice, scope, and AGPL network-source conditions. It does not authorize any
+broader proprietary relicensing.
+
+## 4. Patent licence
 
 The Contributor grants the Project Steward and recipients a perpetual,
 worldwide, non-exclusive, royalty-free, irrevocable patent licence to make,
@@ -42,7 +58,7 @@ licence terminates for a recipient who initiates patent litigation alleging
 that the Contribution or Tentura infringes a patent, to the extent permitted
 by applicable law.
 
-## 4. Contributor representations
+## 5. Contributor representations
 
 The Contributor represents that:
 
@@ -57,7 +73,7 @@ The Contributor represents that:
 The Contributor will promptly notify the Project Steward if any representation
 becomes inaccurate.
 
-## 5. AI-assisted and third-party material
+## 6. AI-assisted and third-party material
 
 The Contributor must disclose materially AI-generated or AI-transformed
 material and identify the relevant tool or provider when reasonably possible.
@@ -66,7 +82,7 @@ the Contributor controls them. Disclosure does not make an AI system an author
 or cure missing rights in training inputs, generated output, or third-party
 material.
 
-## 6. Attribution and project notice
+## 7. Attribution and project notice
 
 The Contributor authorizes the Contribution to carry the reasonable legal
 notice specified in NOTICE:
@@ -85,12 +101,12 @@ modification and combination of the Contribution as authorized by this
 agreement and AGPLv3. Any non-waivable moral right, including the right to
 claim actual authorship, remains subject to applicable law.
 
-## 7. No support obligation
+## 8. No support obligation
 
 The Contribution is provided without an obligation to support it and without
 warranties or conditions beyond those that cannot lawfully be excluded.
 
-## 8. Acceptance and records
+## 9. Acceptance and records
 
 Acceptance must be an affirmative, authenticated act using the procedure in
 CONTRIBUTING.md or a replacement procedure published by the project. The

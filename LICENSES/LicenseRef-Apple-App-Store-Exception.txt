@@ -1,13 +1,124 @@
-Additional Permission for Submission to the Apple App Store
+Tentura Apple Platforms and App Store Distribution Exception
 
-Provided that you are otherwise in compliance with the GPLv3 for each covered
-work you convey (including without limitation making the Corresponding Source
-available in compliance with Section 6 of the GPLv3), Copyright Holders also
-grant you the additional permission to convey through the Apple App Store
-non-source executable versions of the Program as incorporated into each
-applicable covered work as Executable Versions only under the Mozilla Public
-License version 2.0 (https://www.mozilla.org/en-US/MPL/2.0/).
+Version 1.0 — 19 July 2026
 
-Scope note added 19 July 2026: this historical additional permission applies
-only to material and copyright holders that validly granted it. It is not
-extended by the GPLv3/AGPLv3 transition to new AGPL-covered material.
+This document contains additional permissions under section 7 of the GNU
+General Public License version 3 (GPLv3) and the GNU Affero General Public
+License version 3 (AGPLv3). It does not modify the text of either licence.
+
+## 1. Historical GPLv3 permission
+
+The following permission appeared in Tentura's previous GPLv3 notice and is
+preserved verbatim. It applies only to material and copyright holders that
+validly granted it:
+
+> Provided that you are otherwise in compliance with the GPLv3 for each
+> covered work you convey (including without limitation making the
+> Corresponding Source available in compliance with Section 6 of the GPLv3),
+> Copyright Holders also grant you the additional permission to convey through
+> the Apple App Store non-source executable versions of the Program as
+> incorporated into each applicable covered work as Executable Versions only
+> under the Mozilla Public License version 2.0
+> (https://www.mozilla.org/en-US/MPL/2.0/).
+
+Nothing below represents that one copyright holder may enlarge this historical
+grant for material owned by another copyright holder.
+
+## 2. New Apple distribution permission
+
+Vadim Bulavintsev grants the permission in sections 2 through 7 for all
+copyrightable Tentura material he owns or is authorized to license. Each
+contributor accepting Tentura CLA version 1.1, or a later CLA version that
+expressly grants this exception, grants the same permission for that
+contributor's Contribution. Any other copyright holder may adopt it expressly
+for material that holder identifies.
+
+In this exception:
+
+- `Covered Licence` means GPLv3 or AGPLv3 as applicable to the material.
+- `Apple Materials` means unmodified Apple-provided SDKs, frameworks,
+  libraries, APIs, runtime components, toolchains, signing services, and
+  platform components for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS that
+  are governed by Apple's terms and are not part of Tentura's Corresponding
+  Source.
+- `App Store` means an Apple-operated software distribution service.
+- `Covered App` means a Tentura executable, including a modified version, that
+  contains or is combined with material under a Covered Licence.
+
+Notwithstanding conditions of the Covered Licence that would otherwise forbid
+the following solely because of Apple-imposed terms or technical measures, you
+may:
+
+1. link or combine covered Tentura material with Apple Materials and reproduce
+   and convey the resulting Covered App;
+2. submit and convey the Covered App through the App Store; and
+3. authorize Apple, only as necessary for App Store distribution, to host,
+   reproduce, review, code-sign, notarize, encrypt, apply digital-rights or
+   installation controls to, transmit, and deliver the Covered App.
+
+This permission excuses a conflict caused solely and unavoidably by Apple's
+standard store agreement, code signing, encryption, digital-rights management,
+device installation controls, or other technical distribution conditions. It
+does not excuse restrictions selected or added by the app distributor and it
+does not extend to a distribution channel other than an App Store.
+
+## 3. Corresponding Source
+
+No later than the first App Store availability of a Covered App, its complete
+Corresponding Source must be available at no charge from a publicly accessible
+network server without an Apple account, App Store account, password, device
+restriction, encryption, digital-rights management, or acceptance of terms
+that contradict the Covered Licence.
+
+The Corresponding Source must match the exact App Store version and include all
+material required by the applicable Covered Licence, including controlled
+build scripts and non-secret build and configuration material. It must remain
+available for as long as that version is distributed through the App Store and
+for at least three years after its last App Store distribution.
+
+The Covered App must contain, in an About, Legal, Source, or similarly
+prominent screen, a working source URL and the applicable Covered Licence and
+exception notices. The App Store listing must also include the source URL when
+Apple provides a field in which it can reasonably be placed.
+
+## 4. Installation information and Apple-controlled credentials
+
+You must provide Installation Information required by the Covered Licence that
+you possess or control. You need not provide an Apple-controlled signing key,
+certificate, entitlement, notarization credential, or other installation
+information that you neither possess nor can lawfully convey. This paragraph
+excuses only that Apple-controlled inability; it does not excuse withholding
+keys, scripts, entitlements, or installation information that you control.
+
+## 5. Licence and downstream rights
+
+Except for the narrow permission above, the Covered App and its Corresponding
+Source remain governed by their Covered Licences. The permission does not
+convert AGPL-covered or GPL-covered material to a proprietary licence, does not
+restrict source recipients from exercising their Covered Licence rights
+outside Apple's systems, and does not authorize additional restrictions on
+non-Apple distribution.
+
+You must preserve this exception and all applicable copyright, licence,
+authorship, modification, warranty, and project-provenance notices in the
+Corresponding Source and in the Covered App's Appropriate Legal Notices.
+
+## 6. AGPL network interaction
+
+For AGPL-covered material and a GPLv3/AGPLv3 combination, this exception does
+not waive AGPLv3 section 13. If a modified version supports remote network
+interaction, every user interacting with it remotely must still receive a
+prominent opportunity to obtain the complete Corresponding Source as required
+by AGPLv3.
+
+## 7. Scope and severability
+
+This exception grants no trademark rights, rights in Apple Materials, rights
+to App Store data, or patent rights beyond those supplied by the applicable
+Covered Licence or CLA. A copyright holder grants it only for material that
+holder owns or is authorized to license.
+
+If a condition of this exception is not satisfied, the exception supplies no
+permission for the affected conveyance; rights otherwise available under the
+Covered Licence are unaffected. If part of the exception is unenforceable, the
+remaining parts continue to the extent allowed by applicable law.

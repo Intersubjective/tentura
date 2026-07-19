@@ -16,7 +16,7 @@ in the pull-request description or an authenticated pull-request comment,
 together with your legal name:
 
 > I have read and accept the Tentura Individual Contributor License Agreement
-> version 1.0 dated 19 July 2026. I have authority to submit this contribution
+> version 1.1 dated 19 July 2026. I have authority to submit this contribution
 > on its terms.
 
 The maintainer must retain the acceptance record and link it to the merged

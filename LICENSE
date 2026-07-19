@@ -69,10 +69,19 @@ The complete license texts are in:
 The reasonable project-provenance notice specified under section 7(b) of
 GPLv3 and AGPLv3 is recorded in NOTICE.
 
-The historical Apple App Store additional permission is preserved verbatim in
-LICENSES/LicenseRef-Apple-App-Store-Exception.txt. It applies only to material
-and copyright holders that validly granted it. This licensing transition does
-not enlarge that permission or grant it for new AGPL-covered material.
+The Apple Platforms and App Store Distribution Exception is in
+LICENSES/LicenseRef-Apple-App-Store-Exception.txt. It preserves the historical
+GPL permission verbatim and adds a section 7 permission for material owned by
+Vadim Bulavintsev and for contributions accepted under CLA version 1.1, or a
+later CLA version that expressly grants it. The exception permits
+Apple-platform linking and App Store distribution without converting new
+AGPL-covered source or executables to a proprietary licence. Its
+source-availability and notice conditions remain mandatory.
+
+Each copyright holder grants the exception only for material that holder owns
+or is authorized to license. A distributor relying on it for a combined app
+must ensure that every copyrightable part requiring an exception is covered by
+the historical grant, the new grant, or another express grant from its holder.
 
 7. Third-party material
 
