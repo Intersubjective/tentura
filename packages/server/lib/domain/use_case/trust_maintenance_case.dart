@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/use_case/_use_case_base.dart';
 
-import '../database/tentura_db.dart';
+import '../../data/database/tentura_db.dart';
 
 @Singleton(as: TrustMaintenancePort, order: 2)
 base class TrustMaintenanceCase extends UseCaseBase

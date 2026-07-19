@@ -82,6 +82,26 @@ final class ForwardOutcomeFinalizer {
       );
     }
 
+    final mappableEvaluations = <String, int>{
+      for (final entry in authorEvaluationByCommitter.entries)
+        if (mapAuthorEvaluationToForwardOutcome(entry.value) != null)
+          entry.key: entry.value,
+    };
+    if (mappableEvaluations.isEmpty) {
+      return ForwardOutcomeResult(
+        propagatedOutcomes: const [],
+        unsuccessfulPairs: const [],
+        diagnostics: ForwardFinalizationDiagnostics(
+          eligibleEdgeCount: 0,
+          rootlessEdgeCount: 0,
+          integrityFailedCommitters: const [],
+          budgetBySender: const {},
+          observedPairCount: 0,
+          unsuccessfulPairCount: 0,
+        ),
+      );
+    }
+
     final builder = ForwardCausalGraphBuilder();
     final propagator = ForwardMassPropagator();
     final normalizer = ForwardLocalNormalizer();
@@ -100,7 +120,7 @@ final class ForwardOutcomeFinalizer {
     final observedPairs = <ForwardPair>{};
     var eligibleEdgeCount = 0;
 
-    for (final entry in authorEvaluationByCommitter.entries) {
+    for (final entry in mappableEvaluations.entries) {
       final committerId = entry.key;
       final outcome = mapAuthorEvaluationToForwardOutcome(entry.value);
       if (outcome == null) continue;
