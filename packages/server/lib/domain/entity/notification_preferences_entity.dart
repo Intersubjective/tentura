@@ -24,7 +24,7 @@ abstract class NotificationPreferencesEntity
     int? quietHoursStartMinute,
     int? quietHoursEndMinute,
     @Default(0) int tzOffsetMinutes,
-    @Default(DigestCadence.off) DigestCadence emailDigest,
+    @Default(DigestCadence.daily) DigestCadence emailDigest,
 
     /// Global snooze: suppress all push/email until this instant.
     DateTime? snoozeUntil,
@@ -38,8 +38,8 @@ abstract class NotificationPreferencesEntity
 
   const NotificationPreferencesEntity._();
 
-  /// Conservative defaults (see strategy A1): push for everything except
-  /// ambient; email opt-in only for the highest-stakes asksOfMe; digest off.
+  /// Conservative defaults: push for everything except ambient; email for
+  /// asksOfMe / connections / coordination (covers @mentions); digest daily.
   factory NotificationPreferencesEntity.defaults(String accountId) =>
       NotificationPreferencesEntity(
         accountId: accountId,
@@ -52,7 +52,9 @@ abstract class NotificationPreferencesEntity
         emailCategories: const {
           NotificationCategory.asksOfMe,
           NotificationCategory.connections,
+          NotificationCategory.coordination,
         },
+        emailDigest: DigestCadence.daily,
       );
 
   bool get hasQuietHours =>

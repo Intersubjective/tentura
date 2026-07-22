@@ -1311,7 +1311,7 @@
   "notificationCatUnblocksMe": "Разблокировки",
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
   "notificationCatCoordination": "Координация",
-  "notificationCatCoordinationDesc": "Активность в чатах запросов, где вы участвуете",
+  "notificationCatCoordinationDesc": "Активность в чатах запросов, где вы участвуете, включая @упоминания",
   "notificationCatConnections": "Связи",
   "notificationCatConnectionsDesc": "Приглашения и активность связей",
   "notificationCatAmbient": "Фоновые",

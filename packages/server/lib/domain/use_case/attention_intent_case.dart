@@ -292,8 +292,60 @@ class AttentionIntentCase {
     required String excerpt,
     required String sourceEventKey,
     String? threadItemId,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: recipientUserIds,
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    threadItemId: threadItemId,
+    kind: NotificationKind.roomActivityLowPriority,
+    emptyTitle: 'New chat message',
+    emptyBody: 'New chat message',
+  );
+
+  /// Personal `@handle` mention — same Updates event as [roomMessagePosted],
+  /// but [NotificationKind.roomMention] (coordination) for push/email.
+  Future<AttentionDispatchIntent> roomMentioned({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required Set<String> recipientUserIds,
+    required String excerpt,
+    required String sourceEventKey,
+    String? threadItemId,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: recipientUserIds,
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    threadItemId: threadItemId,
+    kind: NotificationKind.roomMention,
+    emptyTitle: 'New mention',
+    emptyBody: 'mentioned you',
+    titleIsActorName: true,
+    bodyPrefixedWithActor: true,
+  );
+
+  Future<AttentionDispatchIntent> _directedRoomMessage({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required Set<String> recipientUserIds,
+    required String excerpt,
+    required String sourceEventKey,
+    required NotificationKind kind,
+    required String emptyTitle,
+    required String emptyBody,
+    String? threadItemId,
+    bool titleIsActorName = true,
+    bool bodyPrefixedWithActor = false,
   }) async {
     final actor = await _users.getById(actorUserId);
+    final actorName = actor.displayName.trim();
     final recipients = <AttentionRecipientSnapshot>[];
     for (final recipientId in recipientUserIds) {
       if (recipientId.isEmpty || recipientId == actorUserId) continue;
@@ -320,16 +372,22 @@ class AttentionIntentCase {
         ? ''
         : '&item=${Uri.encodeQueryComponent(threadItemId)}';
     final safeExcerpt = notificationExcerpt(excerpt);
+    final title = titleIsActorName && actorName.isNotEmpty
+        ? actorName
+        : emptyTitle;
+    final body = safeExcerpt.isNotEmpty
+        ? safeExcerpt
+        : (bodyPrefixedWithActor && actorName.isNotEmpty
+              ? '$actorName $emptyBody'
+              : emptyBody);
     return AttentionDispatchIntent(
       eventType: AttentionEventType.roomMessagePosted,
       sourceEventKey: sourceEventKey,
       actorUserId: actorUserId,
       priority: NotificationPriority.normal,
-      kind: NotificationKind.roomActivityLowPriority,
-      title: actor.displayName.trim().isEmpty
-          ? 'New chat message'
-          : actor.displayName,
-      body: safeExcerpt.isEmpty ? 'New chat message' : safeExcerpt,
+      kind: kind,
+      title: title,
+      body: body,
       actionUrl:
           '/#/shared/view?id=$encodedBeacon&dest=room&message=$encodedMessage$itemParam',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),

@@ -248,6 +248,7 @@ class _UpdatesCard extends StatelessWidget {
 
   static IconData _iconFor(String kind) => switch (kind) {
     'needsMe' || 'blockerOpened' => Icons.notifications_active_outlined,
+    'roomMention' => Icons.alternate_email,
     'roomActivityLowPriority' || 'newRelay' => Icons.forum_outlined,
     'inviteAccepted' => Icons.people_alt_outlined,
     _ => Icons.notifications_outlined,

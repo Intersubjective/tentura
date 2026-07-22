@@ -18,6 +18,7 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_text_controller.dart';
+import 'package:tentura/features/beacon_room/ui/widget/participants_matching_mention_query.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_date_separator.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
@@ -517,6 +518,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   final _composerAnchorKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
+  var _overlaySelectedIndex = 0;
   var _overlaySyncScheduled = false;
   var _hasText = false;
   var _submitting = false;
@@ -532,23 +534,51 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   KeyEventResult _handleComposerKeyEvent(FocusNode node, KeyEvent event) {
-    final isEnter =
-        event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.numpadEnter;
-    if (!isEnter || event is! KeyDownEvent) {
+    if (event is! KeyDownEvent || _overlaySuggestions.isEmpty) {
       return KeyEventResult.ignored;
     }
-    if (_overlaySuggestions.isEmpty) {
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _moveMentionHighlight(1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      _moveMentionHighlight(-1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      _removeOverlay();
+      return KeyEventResult.handled;
+    }
+    final isCommit =
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.tab;
+    if (!isCommit) {
       return KeyEventResult.ignored;
     }
-    final participant = _overlaySuggestions.first;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
       }
-      _acceptMentionSuggestion(participant);
+      _acceptSelectedMentionSuggestion();
     });
     return KeyEventResult.handled;
+  }
+
+  void _moveMentionHighlight(int delta) {
+    if (_overlaySuggestions.isEmpty) {
+      return;
+    }
+    final max = _overlaySuggestions.length < 5
+        ? _overlaySuggestions.length
+        : 5;
+    final next = (_overlaySelectedIndex + delta).clamp(0, max - 1);
+    if (next == _overlaySelectedIndex) {
+      return;
+    }
+    _overlaySelectedIndex = next;
+    _overlayEntry?.markNeedsBuild();
   }
 
   @override
@@ -602,11 +632,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       return;
     }
-    final suggestions = _participantsMatchingQuery(query)
-        .take(5)
-        .toList(
-          growable: false,
-        );
+    final suggestions = participantsMatchingMentionQuery(
+      participants: widget.participants,
+      query: query,
+    ).take(5).toList(growable: false);
     if (suggestions.isEmpty) {
       _removeOverlay();
       return;
@@ -614,20 +643,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     _showOverlay(suggestions);
   }
 
-  List<BeaconParticipant> _participantsMatchingQuery(String query) {
-    final q = query.trim().toLowerCase();
-    return widget.participants
-        .where(
-          (p) =>
-              p.roomAccess == RoomAccessBits.admitted &&
-              p.handle.isNotEmpty &&
-              (q.isEmpty || p.handle.toLowerCase().contains(q)),
-        )
-        .toList(growable: false);
-  }
-
   void _removeOverlay() {
     _overlaySuggestions = const [];
+    _overlaySelectedIndex = 0;
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
@@ -661,15 +679,29 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return inserted;
   }
 
-  bool _acceptFirstMentionSuggestion() {
+  bool _acceptSelectedMentionSuggestion() {
     if (_overlaySuggestions.isEmpty) {
       return false;
     }
-    return _acceptMentionSuggestion(_overlaySuggestions.first);
+    final max = _overlaySuggestions.length < 5
+        ? _overlaySuggestions.length
+        : 5;
+    final index = _overlaySelectedIndex.clamp(0, max - 1);
+    return _acceptMentionSuggestion(_overlaySuggestions[index]);
   }
 
   void _showOverlay(List<BeaconParticipant> suggestions) {
+    final sameHandles = suggestions.length == _overlaySuggestions.length &&
+        [
+          for (var i = 0; i < suggestions.length; i++)
+            suggestions[i].userId == _overlaySuggestions[i].userId,
+        ].every((ok) => ok);
     _overlaySuggestions = suggestions;
+    if (!sameHandles) {
+      _overlaySelectedIndex = 0;
+    } else if (_overlaySelectedIndex >= suggestions.length) {
+      _overlaySelectedIndex = suggestions.length - 1;
+    }
     if (_overlayEntry != null) {
       if (SchedulerBinding.instance.schedulerPhase ==
           SchedulerPhase.persistentCallbacks) {
@@ -690,8 +722,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         return MentionSuggestionsOverlay(
           suggestions: list,
           anchor: anchor,
+          selectedIndex: _overlaySelectedIndex,
           onDismiss: _removeOverlay,
           onSelect: _acceptMentionSuggestion,
+          onHighlight: (index) {
+            _overlaySelectedIndex = index;
+            _overlayEntry?.markNeedsBuild();
+          },
         );
       },
     );
@@ -1067,7 +1104,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     onTapAlwaysCalled: true,
                     onTap: _requestComposerKeyboardFromTap,
                     onSubmitted: (_) {
-                      if (_acceptFirstMentionSuggestion()) {
+                      if (_acceptSelectedMentionSuggestion()) {
                         return;
                       }
                       unawaited(_submit());

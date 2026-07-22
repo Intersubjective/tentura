@@ -64,6 +64,13 @@ void main() {
         NotificationCategory.ambient,
       );
     });
+
+    test('roomMention maps to coordination', () {
+      expect(
+        categoryOf(NotificationKind.roomMention),
+        NotificationCategory.coordination,
+      );
+    });
   });
 
   group('notificationCategoryFromName', () {

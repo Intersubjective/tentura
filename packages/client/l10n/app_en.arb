@@ -1311,7 +1311,7 @@
   "notificationCatUnblocksMe": "Resolutions",
   "notificationCatUnblocksMeDesc": "Updates that let you move forward",
   "notificationCatCoordination": "Coordination",
-  "notificationCatCoordinationDesc": "Activity in request chats you're part of",
+  "notificationCatCoordinationDesc": "Activity in request chats you're part of, including @mentions",
   "notificationCatConnections": "Connections",
   "notificationCatConnectionsDesc": "Invitations and connection activity",
   "notificationCatAmbient": "Ambient",

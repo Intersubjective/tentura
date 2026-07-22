@@ -60,6 +60,7 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.commitmentRemoved => '$n chat removals$suffix',
       NotificationKind.reviewReady => '$n requests ready to review$suffix',
       NotificationKind.staleRemind => '$n items need attention$suffix',
+      NotificationKind.roomMention => '$n mentions of you$suffix',
       _ => '$n request updates$suffix',
     };
   }
@@ -68,7 +69,8 @@ class BeaconNotificationBatchAggregator {
     NotificationKind.needsMe ||
     NotificationKind.staleRemind ||
     NotificationKind.blockerOpened ||
-    NotificationKind.reviewReady => true,
+    NotificationKind.reviewReady ||
+    NotificationKind.roomMention => true,
     _ => false,
   };
 

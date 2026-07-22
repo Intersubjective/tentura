@@ -41,7 +41,7 @@ class NotificationSettings {
     pushCategories: {},
     emailCategories: {},
     tzOffsetMinutes: 0,
-    emailDigest: NotificationDigestCadence.off,
+    emailDigest: NotificationDigestCadence.daily,
     lockScreenSafe: false,
   );
 

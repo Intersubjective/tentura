@@ -2,47 +2,37 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
 
-const double _kMentionOverlayMargin = 8;
 const double _kMentionOverlayMaxWidth = 360;
-const double _kMentionOverlayMinWidth = 0;
 const double _kMentionSuggestionRowHeight = 56;
 
-final class MentionSuggestionsOverlay extends StatefulWidget {
+final class MentionSuggestionsOverlay extends StatelessWidget {
   const MentionSuggestionsOverlay({
     required this.suggestions,
     required this.anchor,
+    required this.selectedIndex,
     required this.onSelect,
     required this.onDismiss,
+    required this.onHighlight,
     super.key,
   });
 
   final List<BeaconParticipant> suggestions;
   final Rect anchor;
+  final int selectedIndex;
   final void Function(BeaconParticipant participant) onSelect;
   final VoidCallback onDismiss;
-
-  @override
-  State<MentionSuggestionsOverlay> createState() =>
-      _MentionSuggestionsOverlayState();
-}
-
-class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
-  int _selectedIndex = 0;
-
-  void _selectAt(int index) {
-    if (widget.suggestions.isEmpty) return;
-    final i = index.clamp(0, widget.suggestions.length - 1);
-    setState(() => _selectedIndex = i);
-  }
+  final void Function(int index) onHighlight;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final list = widget.suggestions;
+    final tt = context.tt;
+    final list = suggestions;
     if (list.isEmpty) return const SizedBox.shrink();
 
     final viewport = MediaQuery.sizeOf(context);
@@ -50,29 +40,24 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
       return const SizedBox.shrink();
     }
 
+    final margin = TenturaSpacing.row;
     final max = list.length < 5 ? list.length : 5;
     final height = max * _kMentionSuggestionRowHeight;
+    final highlighted = selectedIndex.clamp(0, max - 1);
 
-    final left = widget.anchor.left
+    final left = anchor.left
         .clamp(
-          _kMentionOverlayMargin,
-          math.max(
-            _kMentionOverlayMargin,
-            viewport.width - _kMentionOverlayMargin,
-          ),
+          margin,
+          math.max(margin, viewport.width - margin),
         )
         .toDouble();
-    final width = math.min(
-      _kMentionOverlayMaxWidth,
-      math.max(
-        _kMentionOverlayMinWidth,
-        viewport.width - left - _kMentionOverlayMargin,
-      ),
-    );
-    final top = math.max(
-      _kMentionOverlayMargin,
-      widget.anchor.top - height - _kMentionOverlayMargin,
-    );
+    final width = math
+        .min(
+          _kMentionOverlayMaxWidth,
+          math.max(0.0, viewport.width - left - margin),
+        )
+        .toDouble();
+    final top = math.max(margin, anchor.top - height - margin);
 
     if (width <= 0 || height <= 0) {
       return const SizedBox.shrink();
@@ -94,7 +79,7 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
                       position.dy >= top &&
                       position.dy <= top + height;
                   if (!insideCard) {
-                    widget.onDismiss();
+                    onDismiss();
                     return;
                   }
 
@@ -102,7 +87,7 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
                       ((position.dy - top) / _kMentionSuggestionRowHeight)
                           .floor()
                           .clamp(0, max - 1);
-                  widget.onSelect(list[index]);
+                  onSelect(list[index]);
                 },
               ),
             ),
@@ -113,7 +98,7 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
               height: height,
               child: Material(
                 elevation: 6,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(tt.cardRadius),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -121,11 +106,11 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
                     for (var i = 0; i < max; i++)
                       SizedBox(
                         height: _kMentionSuggestionRowHeight,
-                        child: _row(
-                          theme,
-                          list[i],
-                          selected: i == _selectedIndex,
-                          index: i,
+                        child: _MentionSuggestionRow(
+                          participant: list[i],
+                          selected: i == highlighted,
+                          onHover: () => onHighlight(i),
+                          onTap: () => onSelect(list[i]),
                         ),
                       ),
                   ],
@@ -137,39 +122,54 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
       ),
     );
   }
+}
 
-  Widget _row(
-    ThemeData theme,
-    BeaconParticipant p, {
-    required bool selected,
-    required int index,
-  }) {
-    final title = p.userTitle.trim();
+class _MentionSuggestionRow extends StatelessWidget {
+  const _MentionSuggestionRow({
+    required this.participant,
+    required this.selected,
+    required this.onHover,
+    required this.onTap,
+  });
+
+  final BeaconParticipant participant;
+  final bool selected;
+  final VoidCallback onHover;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final title = participant.userTitle.trim();
     return MouseRegion(
-      onEnter: (_) => _selectAt(index),
+      onEnter: (_) => onHover(),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => widget.onSelect(p),
+        onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: selected ? theme.colorScheme.surfaceContainerHighest : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: TenturaSpacing.cardPadding,
+              vertical: TenturaSpacing.row,
+            ),
             child: Row(
               children: [
                 PresenceAvatar.small(
-                  profile: p.toProfile(),
-                  userId: p.userId,
+                  profile: participant.toProfile(),
+                  userId: participant.userId,
                   size: 28,
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: tt.avatarTextGap),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '@${p.handle}',
+                        '@${participant.handle}',
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),

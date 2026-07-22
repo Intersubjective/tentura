@@ -241,18 +241,19 @@ void main() {
   });
 
   group('defaults', () {
-    test('conservative email opt-in (asksOfMe only) and ambient push off', () {
+    test('daily digest, coordination email, ambient push off', () {
       final p = NotificationPreferencesEntity.defaults('a1');
       expect(
         p.emailCategories,
         {
           NotificationCategory.asksOfMe,
           NotificationCategory.connections,
+          NotificationCategory.coordination,
         },
       );
       expect(p.pushCategories.contains(NotificationCategory.ambient), isFalse);
       expect(p.pushCategories.contains(NotificationCategory.asksOfMe), isTrue);
-      expect(p.emailDigest, DigestCadence.off);
+      expect(p.emailDigest, DigestCadence.daily);
     });
   });
 }

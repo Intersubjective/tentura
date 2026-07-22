@@ -94,6 +94,10 @@ class BeaconNotificationCopyBuilder {
         beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
         excerpt.isNotEmpty ? excerpt : 'New chat update',
       ),
+      NotificationKind.roomMention => (
+        actor,
+        excerpt.isNotEmpty ? excerpt : '$actor mentioned you',
+      ),
       NotificationKind.staleRemind => (
         'Still needs attention',
         excerpt.isNotEmpty
@@ -164,7 +168,8 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.coordinationChanged ||
       NotificationKind.blockerOpened ||
       NotificationKind.blockerResolved ||
-      NotificationKind.roomActivityLowPriority =>
+      NotificationKind.roomActivityLowPriority ||
+      NotificationKind.roomMention =>
         '/#$kPathAppLinkView?id=$id&dest=room$itemParam',
     };
   }

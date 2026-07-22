@@ -36,11 +36,13 @@ final class MentionTextController extends TextEditingController {
     final cursor = selectionOffset < 0 ? text.length : selectionOffset;
     if (cursor > text.length) return;
 
-    // Walk left to the beginning of the current token.
+    // Walk left by UTF-16 code units to the token start. Handles are ASCII, so
+    // surrogate pairs (emoji) never match `@` / handle chars; they only act as
+    // non-whitespace boundaries that reject a mention without a preceding space.
     var start = cursor;
     while (start > 0) {
       final ch = text[start - 1];
-      if (ch == ' ' || ch == '\n' || ch == '\t') {
+      if (_isMentionBoundary(ch)) {
         break;
       }
       start--;
@@ -50,9 +52,8 @@ final class MentionTextController extends TextEditingController {
     if (text[start] != '@') return;
 
     // Require mention boundary (start-of-text or whitespace before '@').
-    if (start > 0) {
-      final prev = text[start - 1];
-      if (prev != ' ' && prev != '\n' && prev != '\t') return;
+    if (start > 0 && !_isMentionBoundary(text[start - 1])) {
+      return;
     }
 
     final raw = text.substring(start + 1, cursor);
@@ -63,6 +64,11 @@ final class MentionTextController extends TextEditingController {
     _activeMentionQuery = raw.toLowerCase();
     _activeMentionRange = TextRange(start: start, end: cursor);
   }
+
+  /// Whitespace that ends a mention token. Non-BMP / surrogate units are not
+  /// boundaries — they keep the walk going so `@` glued to an emoji is rejected.
+  static bool _isMentionBoundary(String ch) =>
+      ch == ' ' || ch == '\n' || ch == '\t';
 
   bool insertMention(String handleLowercase) {
     final range = _activeMentionRange;

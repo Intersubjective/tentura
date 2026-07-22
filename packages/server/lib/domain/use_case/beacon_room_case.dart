@@ -233,11 +233,19 @@ final class BeaconRoomCase extends UseCaseBase {
             beaconId: beaconId,
             body: trimmed,
           );
-    final directedRecipientIds = <String>{
-      ...mentionIds,
+    final mentionRecipientIds = {
+      for (final id in mentionIds)
+        if (id.isNotEmpty && id != userId) id,
+    };
+    final otherDirectedIds = <String>{
       if (repliedMessage != null) repliedMessage.authorId,
       if (threadItem?.targetPersonId case final target?) target,
-    }..removeWhere((id) => id.isEmpty || id == userId);
+    }
+      ..removeWhere((id) => id.isEmpty || id == userId)
+      ..removeAll(mentionRecipientIds);
+
+    final hasDirected =
+        mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
 
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
@@ -262,22 +270,38 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
       if (transaction != null) {
-        await transaction.record(
-          await _attentionIntents!.roomMessagePosted(
-            beaconId: beaconId,
-            messageId: row.id,
-            actorUserId: userId,
-            recipientUserIds: directedRecipientIds,
-            excerpt: trimmed.isEmpty ? 'Shared an attachment' : trimmed,
-            threadItemId: inThread ? tid : null,
-            sourceEventKey: 'room_message:${row.id}',
-          ),
-        );
+        final excerpt = trimmed.isEmpty ? 'Shared an attachment' : trimmed;
+        if (mentionRecipientIds.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.roomMentioned(
+              beaconId: beaconId,
+              messageId: row.id,
+              actorUserId: userId,
+              recipientUserIds: mentionRecipientIds,
+              excerpt: excerpt,
+              threadItemId: inThread ? tid : null,
+              sourceEventKey: 'room_mention:${row.id}',
+            ),
+          );
+        }
+        if (otherDirectedIds.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.roomMessagePosted(
+              beaconId: beaconId,
+              messageId: row.id,
+              actorUserId: userId,
+              recipientUserIds: otherDirectedIds,
+              excerpt: excerpt,
+              threadItemId: inThread ? tid : null,
+              sourceEventKey: 'room_message:${row.id}',
+            ),
+          );
+        }
       }
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    if (directedRecipientIds.isEmpty) {
+    if (!hasDirected) {
       return persist(null);
     }
     return _attention!.runAction(
@@ -895,12 +919,40 @@ final class BeaconRoomCase extends UseCaseBase {
       beaconId: beaconId,
       body: trimmed,
     );
-    await _room.updateMessage(
-      messageId: messageId,
-      newBody: trimmed,
-      mentions: mentionIds,
+    final newlyMentionedIds = {
+      for (final id in mentionIds)
+        if (id.isNotEmpty && id != userId && !msg.mentions.contains(id)) id,
+    };
+
+    Future<bool> persist(AttentionTransaction? transaction) async {
+      await _room.updateMessage(
+        messageId: messageId,
+        newBody: trimmed,
+        mentions: mentionIds,
+      );
+      if (transaction != null && newlyMentionedIds.isNotEmpty) {
+        await transaction.record(
+          await _attentionIntents!.roomMentioned(
+            beaconId: beaconId,
+            messageId: messageId,
+            actorUserId: userId,
+            recipientUserIds: newlyMentionedIds,
+            excerpt: trimmed,
+            threadItemId: msg.threadItemId,
+            sourceEventKey: 'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
+          ),
+        );
+      }
+      return true;
+    }
+
+    if (newlyMentionedIds.isEmpty) {
+      return persist(null);
+    }
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: persist,
     );
-    return true;
   }
 
   Future<({Uint8List bytes, String mime, String fileName})> downloadAttachment({

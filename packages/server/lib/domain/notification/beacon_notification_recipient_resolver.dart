@@ -180,6 +180,11 @@ class BeaconNotificationRecipientResolver {
           );
         }
 
+      case NotificationKind.roomMention:
+        // Recipients are already resolved by AttentionIntentCase; legacy
+        // BeaconNotificationIntent path has no directed list on this kind.
+        break;
+
       case NotificationKind.staleRemind:
         final target = intent.targetPersonId;
         if (target != null && target.isNotEmpty) {

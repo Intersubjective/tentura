@@ -75,11 +75,18 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     required Duration window,
   }) async => 0;
 
+  List<String> Function(String body)? resolveMentions;
+
   @override
   Future<List<String>> resolveMentionUserIdsForBeacon({
     required String beaconId,
     required String body,
-  }) async => body.contains('@mention') ? [_otherUserId] : const [];
+  }) async {
+    if (resolveMentions != null) {
+      return resolveMentions!(body);
+    }
+    return body.contains('@mention') ? [_otherUserId] : const [];
+  }
 
   @override
   Future<BeaconRoomMessageRecord> insertRoomMessage({
@@ -192,6 +199,7 @@ void main() {
         expect(room.insertedMentions, [_otherUserId]);
         final intent = attention.recorded.single;
         expect(intent.eventType, AttentionEventType.roomMessagePosted);
+        expect(intent.kind.name, 'roomMention');
         expect(intent.messageId, _messageId);
         expect(intent.coordinationItemId, isNull);
         expect(intent.actionUrl, contains('message=$_messageId'));
@@ -201,6 +209,18 @@ void main() {
         );
       },
     );
+
+    test('self @handle does not notify the author', () async {
+      room.resolveMentions = (_) => [_userId];
+
+      await sut.createMessage(
+        beaconId: _beaconId,
+        userId: _userId,
+        body: 'talking to @me',
+      );
+
+      expect(attention.recorded, isEmpty);
+    });
 
     test('ordinary Chat message creates no Updates receipt', () async {
       await sut.createMessage(
@@ -377,6 +397,53 @@ void main() {
       expect(ok, isTrue);
       expect(room.updatedBody, 'edited @mention');
       expect(room.updatedMentions, [_otherUserId]);
+      final intent = attention.recorded.single;
+      expect(intent.kind.name, 'roomMention');
+      expect(intent.recipients.single.recipientId, _otherUserId);
+    });
+
+    test('edit without new mentions fires no attention', () async {
+      room.messageById = BeaconRoomMessageRecord(
+        id: _messageId,
+        beaconId: _beaconId,
+        authorId: _userId,
+        body: 'original @mention',
+        createdAt: DateTime.utc(2026),
+        mentions: [_otherUserId],
+      );
+
+      await sut.editMessage(
+        beaconId: _beaconId,
+        messageId: _messageId,
+        userId: _userId,
+        newBody: 'original @mention typo fix',
+      );
+
+      expect(attention.recorded, isEmpty);
+    });
+
+    test('mention plus reply notifies once via roomMention', () async {
+      room.replyMessage = BeaconRoomMessageRecord(
+        id: _replyMessageId,
+        beaconId: _beaconId,
+        authorId: _otherUserId,
+        body: 'question',
+        createdAt: DateTime.utc(2026),
+      );
+
+      await sut.createMessage(
+        beaconId: _beaconId,
+        userId: _userId,
+        body: 'answer @mention',
+        replyToMessageId: _replyMessageId,
+      );
+
+      expect(attention.recorded, hasLength(1));
+      expect(attention.recorded.single.kind.name, 'roomMention');
+      expect(
+        attention.recorded.single.recipients.map((r) => r.recipientId),
+        [_otherUserId],
+      );
     });
 
     test('throws IdNotFoundException when message is missing', () async {

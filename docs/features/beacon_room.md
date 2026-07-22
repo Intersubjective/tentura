@@ -67,6 +67,8 @@ In the Room the user can:
 
 Room content stays **scoped**: people who are not in the Room do not see room-private messages or room-only facts on public beacon surfaces.
 
+**@mentions:** typing `@` in the chat composer opens completion-hints for admitted participants (filter by handle or display name; ↑/↓ / Enter / Tab / Esc). Sending a completed `@handle` delivers a **personal push** (coordination category, on by default) and marks the event for the **daily email digest** (also on by default). Only newly added mentionees on message edit are notified.
+
 **Admission** is explicit — offering help or forwarding does not automatically grant full Room access.
 
 ## Forwarding
