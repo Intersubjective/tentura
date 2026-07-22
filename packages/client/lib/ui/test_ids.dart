@@ -24,6 +24,8 @@ abstract final class TestIds {
 
   static const roomMessageInput = 'room.message.input';
   static const roomMessageSend = 'room.message.send';
+  static String roomMentionSuggestion(String handle) =>
+      'room.mention.suggestion.${handle.trim().toLowerCase()}';
   static const beaconRoomOpen = 'beacon.room.open';
   static const beaconTabItems = 'beacon.tab.items';
   static const beaconTabPeople = 'beacon.tab.people';

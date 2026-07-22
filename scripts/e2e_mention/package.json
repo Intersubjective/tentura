@@ -1,0 +1,11 @@
+{
+  "name": "tentura-e2e-mention",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node suite.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.51.0"
+  }
+}

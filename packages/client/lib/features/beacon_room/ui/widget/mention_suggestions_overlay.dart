@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
 
 const double _kMentionOverlayMaxWidth = 360;
@@ -142,51 +143,58 @@ class _MentionSuggestionRow extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final title = participant.userTitle.trim();
-    return MouseRegion(
-      onEnter: (_) => onHover(),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected ? theme.colorScheme.surfaceContainerHighest : null,
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: TenturaSpacing.cardPadding,
-              vertical: TenturaSpacing.row,
+    final handle = participant.handle.trim().toLowerCase();
+    return Semantics(
+      identifier: TestIds.roomMentionSuggestion(handle),
+      button: true,
+      selected: selected,
+      label: '@$handle',
+      child: MouseRegion(
+        onEnter: (_) => onHover(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: selected ? theme.colorScheme.surfaceContainerHighest : null,
             ),
-            child: Row(
-              children: [
-                PresenceAvatar.small(
-                  profile: participant.toProfile(),
-                  userId: participant.userId,
-                  size: 28,
-                ),
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '@${participant.handle}',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (title.isNotEmpty)
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: TenturaSpacing.cardPadding,
+                vertical: TenturaSpacing.row,
+              ),
+              child: Row(
+                children: [
+                  PresenceAvatar.small(
+                    profile: participant.toProfile(),
+                    userId: participant.userId,
+                    size: 28,
+                  ),
+                  SizedBox(width: tt.avatarTextGap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          title,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          '@${participant.handle}',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                    ],
+                        if (title.isNotEmpty)
+                          Text(
+                            title,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
