@@ -2190,8 +2190,9 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "Needs attention",
+  "myWorkStatusOverdue": "Deadline passed",
   "@myWorkStatusOverdue": {
+    "description": "Past deadline on card WHEN line",
     "context": "MyWorkScreen"
   },
   "myWorkStatusDueToday": "due today",
@@ -2323,9 +2324,9 @@
       }
     }
   },
-  "beaconCardScheduleOverdue": "Needs attention",
+  "beaconCardScheduleOverdue": "Deadline passed",
   "@beaconCardScheduleOverdue": {
-    "description": "Card line for a deadline whose date has passed"
+    "description": "Past deadline on card WHEN line"
   },
   "beaconTimingWhenTitle": "When?",
   "@beaconTimingWhenTitle": {
@@ -4186,7 +4187,7 @@
       }
     }
   },
-  "itemNeedsAttention": "Needs attention",
+  "itemNeedsAttention": "Remind",
   "@itemNeedsAttention": {
     "description": "Remind menu fallback when the responsible person has no display name"
   },

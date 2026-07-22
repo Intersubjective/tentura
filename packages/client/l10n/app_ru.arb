@@ -2190,8 +2190,9 @@
   "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOverdue": "Нужно внимание",
+  "myWorkStatusOverdue": "Срок прошёл",
   "@myWorkStatusOverdue": {
+    "description": "Past deadline on card WHEN line",
     "context": "MyWorkScreen"
   },
   "myWorkStatusDueToday": "сегодня",
@@ -2323,9 +2324,9 @@
       }
     }
   },
-  "beaconCardScheduleOverdue": "Нужно внимание",
+  "beaconCardScheduleOverdue": "Срок прошёл",
   "@beaconCardScheduleOverdue": {
-    "description": "Card line for a deadline whose date has passed"
+    "description": "Past deadline on card WHEN line"
   },
   "beaconTimingWhenTitle": "Когда?",
   "@beaconTimingWhenTitle": {
@@ -4089,7 +4090,7 @@
   "beaconRoomFactPinLine": "{author} закрепил(а) факт · {visibility}",
   "beaconRoomPlanAnnounceLine": "{author} обновил(а) план",
   "beaconRoomPlanAnnounceLineWithTitle": "{author} обновил(а) план · {title}",
-  "itemNeedsAttention": "Нужно внимание",
+  "itemNeedsAttention": "Напомнить",
   "itemStaleMinutes": "Просрочено {minutes} мин",
   "itemStaleHours": "Просрочено {hours} ч",
   "itemStaleDays": "{days, plural, one{Просрочено 1 день} few{Просрочено {days} дня} many{Просрочено {days} дней} other{Просрочено {days} дней}}",

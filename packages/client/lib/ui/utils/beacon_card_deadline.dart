@@ -8,15 +8,20 @@ bool _sameCalendarDay(DateTime a, DateTime b) =>
 /// Calendar-relative deadline copy: overdue / due today / due tomorrow / short weekday.
 ///
 /// Same semantics as the My Work status strip time slot when the beacon has a deadline.
+/// When [startAt] is set, a past [endAt] is treated as an ended event (not overdue).
 ({String text, bool overdue})? beaconCardCalendarDeadlineStatus(
   L10n l10n,
   DateTime? endAt, {
+  DateTime? startAt,
   DateTime? now,
 }) {
   if (endAt == null) return null;
   final endLocal = endAt.toLocal();
   final nowLocal = (now ?? DateTime.now()).toLocal();
   if (!endLocal.isAfter(nowLocal)) {
+    if (startAt != null) {
+      return (text: l10n.inboxDeadlineEnded, overdue: false);
+    }
     return (text: l10n.myWorkStatusOverdue, overdue: true);
   }
   if (_sameCalendarDay(endLocal, nowLocal)) {

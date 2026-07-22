@@ -31,6 +31,7 @@ class InboxCardForwardsFold extends StatefulWidget {
   const InboxCardForwardsFold({
     required this.provenance,
     this.deadlineEndAt,
+    this.deadlineStartAt,
     super.key,
   });
 
@@ -39,6 +40,9 @@ class InboxCardForwardsFold extends StatefulWidget {
   /// When set, a calendar-style due line (My Work status strip typography) on
   /// the same row as the forwarder control, left-aligned.
   final DateTime? deadlineEndAt;
+
+  /// When set with [deadlineEndAt], distinguishes event windows from deadlines.
+  final DateTime? deadlineStartAt;
 
   @override
   State<InboxCardForwardsFold> createState() => _InboxCardForwardsFoldState();
@@ -115,6 +119,7 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
     final deadlineMeta = beaconCardCalendarDeadlineStatus(
       l10n,
       widget.deadlineEndAt,
+      startAt: widget.deadlineStartAt,
     );
     final baseDeadlineStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,

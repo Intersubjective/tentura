@@ -28,6 +28,17 @@ void main() {
       expect(status?.overdue, isTrue);
     });
 
+    test('past event end with startAt is ended not overdue', () {
+      final status = beaconCardCalendarDeadlineStatus(
+        l10n,
+        now.subtract(const Duration(hours: 1)),
+        startAt: now.subtract(const Duration(days: 2)),
+        now: now,
+      );
+      expect(status?.text, l10n.inboxDeadlineEnded);
+      expect(status?.overdue, isFalse);
+    });
+
     test('marks same calendar day as due today', () {
       final status = beaconCardCalendarDeadlineStatus(
         l10n,

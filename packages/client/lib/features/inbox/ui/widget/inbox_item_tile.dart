@@ -189,6 +189,7 @@ class InboxItemTile extends StatelessWidget {
             InboxCardForwardsFold(
               provenance: item.provenance,
               deadlineEndAt: beacon.endAt,
+              deadlineStartAt: beacon.startAt,
             ),
           ],
           if (item.status == InboxItemStatus.rejected &&
