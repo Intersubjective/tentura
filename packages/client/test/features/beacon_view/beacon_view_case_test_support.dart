@@ -179,7 +179,8 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
     List<FakeHelpOfferCoordinationRow>? rows,
   }) : rows = rows ?? const [];
 
-  final Duration enrichmentDelay;
+  /// Mutable so tests can slow enrichment after the initial load settles.
+  Duration enrichmentDelay;
   final Object? enrichmentError;
   final List<FakeHelpOfferCoordinationRow> rows;
   final setBeaconStatusCalls = <({String beaconId, int status})>[];

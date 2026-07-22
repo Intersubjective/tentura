@@ -434,6 +434,54 @@ void main() {
     });
 
     test(
+      'background refresh retains beaconContextLoaded during enrichment',
+      () async {
+        var current = readableBeacon();
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.port.dispose);
+        final coordination = FakeBeaconViewCoordinationRepository();
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => current;
+        addTearDown(beaconRepo.dispose);
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: buildTestBeaconViewCase(
+            beaconRepo: beaconRepo,
+            coordinationRepo: coordination,
+            realtimeSyncCase: realtime.case_,
+          ),
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+        await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+        var sawContextCleared = false;
+        final sub = cubit.stream.listen((s) {
+          if (!s.beaconContextLoaded) sawContextCleared = true;
+        });
+        addTearDown(sub.cancel);
+
+        coordination.enrichmentDelay = const Duration(milliseconds: 400);
+        current = current.copyWith(title: 'Caught up');
+        realtime.port.emitCatchUp();
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beacon.title == 'Caught up',
+        );
+
+        expect(cubit.state.beaconContextLoaded, isTrue);
+        expect(sawContextCleared, isFalse);
+
+        await pumpUntil(cubit.stream, () => beaconRepo.fetchByIdCalls >= 2);
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        expect(cubit.state.beaconContextLoaded, isTrue);
+        expect(sawContextCleared, isFalse);
+      },
+    );
+
+    test(
       'failed background convergence keeps usable state without effect',
       () async {
         final effects = FakeUiEffectPort();

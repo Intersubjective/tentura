@@ -809,6 +809,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
       final wasForwardsLoaded = state.forwardsLoaded;
+      // Background refreshes (catch-up / invalidation) must not clear loaded
+      // context mid-fetch — author HUD CTAs gate on beaconContextLoaded and
+      // would flicker off then on. Initial load still clears so room admission
+      // waits for enrichment (see beacon_view_initial_load_test).
+      final retainLoadedContext = background && state.beaconContextLoaded;
 
       late final Beacon beacon;
       try {
@@ -835,7 +840,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           state.copyWith(
             beacon: beacon,
             beaconContentLoaded: true,
-            beaconContextLoaded: false,
+            beaconContextLoaded: retainLoadedContext,
             beaconUnavailable: false,
             status: StateStatus.isSuccess,
           ),
