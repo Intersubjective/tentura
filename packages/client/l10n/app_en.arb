@@ -957,7 +957,7 @@
   "@trustInfoTitle": {
     "context": "Profile — info sheet title"
   },
-  "trustInfoBody": "Trust is one-way and takes effect immediately. They don’t need to confirm. This action doesn’t send them a notification.\n\nMutual trust means you both trust each other. It can change what requests you see and how forwarding works.",
+  "trustInfoBody": "Trusting someone is your personal signal that you’d vouch for them in Tentura. It’s one-way, takes effect immediately, and doesn’t notify them.\n\nThey’ll appear in your trusted network. Tentura uses your trust graph to suggest who might help when you forward a request.",
   "@trustInfoBody": {
     "context": "Profile — info sheet body"
   },
