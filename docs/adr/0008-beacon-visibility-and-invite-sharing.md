@@ -40,3 +40,11 @@ This ADR reverses that: beacon and involvement reads become **relationship-scope
 - **Pure Hasura boolean-expression permissions (no SQL function)** — rejected: reciprocal mutual-friendship and chain checks become gnarly and duplicated across V1 and Dart, risking drift on a security-critical gate.
 - **Migrate all beacon reads off Hasura into gated V2 use cases** — rejected for now: architecturally cleaner but a large client+server migration; the SQL-predicate approach reuses existing Hasura read paths.
 - **Keep ADR 0004's id-capability model and add only UI copy** — rejected: does not fix the leak.
+
+## Amendment A (2026-07-23): remove mutual-friend read access
+
+**Context:** ADR 0008 originally granted content and involvement read to vote-mutual friends of the author. The client profile UI no longer exposes an author-browse entry point for mutual friends (“Requests I'm involved in” replaced “Show Requests”), and product intent is that trust affects routing/network — not passive read access to all of someone's requests.
+
+**Decision:** Remove vote-mutual friendship from `beacon_can_read_content` and `beacon_can_read_involvement` (migration `m0123`). `user_is_mutual_friend` / `is_mutual_friend` remain for profile labels and the mutual-trust bridge query only.
+
+**Consequences:** Mutual friends can open a request only through an involvement path (forward recipient, help offerer, room participant, invite accept, etc.). Trust still affects MeritRank forwarding suggestions and network surfaces.

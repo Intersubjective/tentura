@@ -8,7 +8,6 @@ class BeaconContentVisibilityFacts {
     required this.hasActiveForwardEdgeAsRecipient,
     required this.isRoomAdmittedOrSteward,
     required this.isActiveHelpOfferer,
-    required this.isMutualFriendOfAuthor,
   });
 
   final BeaconStatus status;
@@ -16,7 +15,6 @@ class BeaconContentVisibilityFacts {
   final bool hasActiveForwardEdgeAsRecipient;
   final bool isRoomAdmittedOrSteward;
   final bool isActiveHelpOfferer;
-  final bool isMutualFriendOfAuthor;
 }
 
 /// Typed inputs for [BeaconVisibility.canReadInvolvement].
@@ -26,14 +24,12 @@ class BeaconInvolvementVisibilityFacts {
     required this.isOnActiveForwardEdge,
     required this.isActiveHelpOfferer,
     required this.isRoomAdmittedOrSteward,
-    required this.isMutualFriendOfAuthor,
   });
 
   final BeaconContentVisibilityFacts contentFacts;
   final bool isOnActiveForwardEdge;
   final bool isActiveHelpOfferer;
   final bool isRoomAdmittedOrSteward;
-  final bool isMutualFriendOfAuthor;
 
   bool get isAuthor => contentFacts.isAuthor;
 }
@@ -85,7 +81,8 @@ abstract final class BeaconVisibility {
   BeaconVisibility._();
 
   /// Normal beacon content read — never authorizes deleted rows or drafts
-  /// for non-authors. MeritRank is not part of this predicate.
+  /// for non-authors. MeritRank and vote-mutual friendship are not part of
+  /// this predicate.
   static bool canReadContent(BeaconContentVisibilityFacts facts) {
     if (facts.status == BeaconStatus.draft) {
       return facts.isAuthor;
@@ -98,12 +95,12 @@ abstract final class BeaconVisibility {
     }
     return facts.hasActiveForwardEdgeAsRecipient ||
         facts.isRoomAdmittedOrSteward ||
-        facts.isActiveHelpOfferer ||
-        facts.isMutualFriendOfAuthor;
+        facts.isActiveHelpOfferer;
   }
 
-  /// Involvement graph read — requires content visibility plus involved set
-  /// or author's mutual friends. Deleted beacons return false.
+  /// Involvement graph read — requires content visibility plus the involved
+  /// set (author, forward edge, help offerer, room participant/steward).
+  /// Deleted beacons return false.
   static bool canReadInvolvement(BeaconInvolvementVisibilityFacts facts) {
     if (!canReadContent(facts.contentFacts)) {
       return false;
@@ -111,8 +108,7 @@ abstract final class BeaconVisibility {
     return facts.isAuthor ||
         facts.isOnActiveForwardEdge ||
         facts.isActiveHelpOfferer ||
-        facts.isRoomAdmittedOrSteward ||
-        facts.isMutualFriendOfAuthor;
+        facts.isRoomAdmittedOrSteward;
   }
 
   /// Generic deleted-state UX only — never authorizes normal content columns.

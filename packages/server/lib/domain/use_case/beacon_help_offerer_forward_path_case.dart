@@ -54,8 +54,8 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
     required String currentUserId,
   }) async {
     // Guard first — canReadInvolvement covers author, forward edges,
-    // room participants, help offerers, and mutual friends, matching the
-    // same contract as BeaconForwardGraphCase.
+    // room participants, and help offerers, matching the same contract as
+    // BeaconForwardGraphCase.
     if (!await _guard.canReadInvolvement(
       beaconId: beaconId,
       viewerId: currentUserId,

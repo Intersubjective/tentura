@@ -52,7 +52,7 @@ Higher bridge score means P is more strongly connected to **both** sides, so the
 
 ### Surfaces
 
-- **Profile view screen** — button row below "Show Beacons" in `profile_view_body.dart`
+- **Profile view screen** — button row in `profile_view_body.dart` (alongside invite genealogy and “Requests I'm involved in”)
 - **Invitation accept dialog** — below the inviter's name in `invitation_accept_dialog.dart`
 
 ## Design notes

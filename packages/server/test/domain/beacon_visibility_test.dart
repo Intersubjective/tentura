@@ -9,7 +9,6 @@ BeaconContentVisibilityFacts _content({
   bool hasActiveForwardEdgeAsRecipient = false,
   bool isRoomAdmittedOrSteward = false,
   bool isActiveHelpOfferer = false,
-  bool isMutualFriendOfAuthor = false,
 }) =>
     BeaconContentVisibilityFacts(
       status: status,
@@ -17,7 +16,6 @@ BeaconContentVisibilityFacts _content({
       hasActiveForwardEdgeAsRecipient: hasActiveForwardEdgeAsRecipient,
       isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
       isActiveHelpOfferer: isActiveHelpOfferer,
-      isMutualFriendOfAuthor: isMutualFriendOfAuthor,
     );
 
 BeaconInvolvementVisibilityFacts _involvement({
@@ -25,14 +23,12 @@ BeaconInvolvementVisibilityFacts _involvement({
   bool isOnActiveForwardEdge = false,
   bool isActiveHelpOfferer = false,
   bool isRoomAdmittedOrSteward = false,
-  bool isMutualFriendOfAuthor = false,
 }) =>
     BeaconInvolvementVisibilityFacts(
       contentFacts: contentFacts,
       isOnActiveForwardEdge: isOnActiveForwardEdge,
       isActiveHelpOfferer: isActiveHelpOfferer,
       isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
-      isMutualFriendOfAuthor: isMutualFriendOfAuthor,
     );
 
 void main() {
@@ -110,25 +106,7 @@ void main() {
       );
     });
 
-    test('mutual friend reads non-draft non-deleted beacons', () {
-      expect(
-        BeaconVisibility.canReadContent(
-          _content(isMutualFriendOfAuthor: true),
-        ),
-        isTrue,
-      );
-      expect(
-        BeaconVisibility.canReadContent(
-          _content(
-            status: BeaconStatus.draft,
-            isMutualFriendOfAuthor: true,
-          ),
-        ),
-        isFalse,
-      );
-    });
-
-    test('one-way vote without mutual friendship reads nothing', () {
+    test('vote-mutual friendship alone does not grant content', () {
       expect(BeaconVisibility.canReadContent(_content()), isFalse);
     });
 
@@ -183,18 +161,6 @@ void main() {
       );
     });
 
-    test('mutual friend sees involvement when content visible', () {
-      expect(
-        BeaconVisibility.canReadInvolvement(
-          _involvement(
-            contentFacts: _content(isMutualFriendOfAuthor: true),
-            isMutualFriendOfAuthor: true,
-          ),
-        ),
-        isTrue,
-      );
-    });
-
     test('deleted beacon returns no involvement graph', () {
       expect(
         BeaconVisibility.canReadInvolvement(
@@ -216,7 +182,6 @@ void main() {
           _involvement(
             contentFacts: _content(),
             isOnActiveForwardEdge: true,
-            isMutualFriendOfAuthor: true,
           ),
         ),
         isFalse,

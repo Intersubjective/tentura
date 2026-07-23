@@ -1,6 +1,6 @@
 # Beacon visibility, content access, and forwarding — reference matrix
 
-**Sources:** ADR 0008, `beacon_can_read_content` (m0098), `beacon_visibility.dart`, profile GraphQL queries, `forward_case.dart`.
+**Sources:** ADR 0008 (Amendment A), `beacon_can_read_content` (m0098, amended m0123), `beacon_visibility.dart`, profile GraphQL queries, `forward_case.dart`.
 
 ---
 
@@ -8,7 +8,7 @@
 
 | Term | Definition |
 |------|-----------|
-| **Vote-mutual friend of author** | Both voted for each other: `vote_user.amount > 0` in both directions — the only friendship type that grants beacon read access |
+| **Vote-mutual friend** | Both voted for each other: `vote_user.amount > 0` in both directions — used for profile labels and mutual-trust bridge queries; does **not** grant beacon read access |
 | **One-way friend** | You voted for them (`myVote > 0`, `isFriend` in UI) — does **not** grant read access |
 | **MR bidirectional** | MeritRank scores both ways (`src_score > 0` AND `dst_score > 0`) — controls **who appears in the forward picker**, not read access |
 | **MR one-way ("sees me")** | They have positive MR toward you (`rScore > 0`, `isSeeingMe`) — per-recipient **reachability** gate in the picker |
@@ -35,22 +35,21 @@
 | Viewer has an active forward edge **as sender only** | ❌ |
 | Viewer is a **steward** or **room-admitted participant** (`room_access = 3`) | ✅ |
 | Viewer has an **active help offer** (`status = 0`) | ✅ |
-| Viewer is **vote-mutual friend of the author** | ✅ (all author's non-draft, non-deleted beacons) |
-| One-way friend of author | ❌ |
-| MR-connected (but not vote-mutual with author) | ❌ |
+| Vote-mutual or one-way friend of author (trust only) | ❌ |
+| MR-connected (but not otherwise involved) | ❌ |
 | Bridge / indirect friend | ❌ |
 
 ---
 
 ## Profile surfaces
 
-Three beacon lists appear on another user's profile (P):
+Three request-related lists appear on another user's profile (P):
 
 | Surface | What it shows | List query |
 |---------|--------------|-----------|
-| **Show Beacons** | All beacons **authored by P** that you can read | `beacon(where: { user_id: P, status ∈ … })` — Hasura gates each row by `can_read_content` |
-| **Shared › Forwarded** | Beacons **you forwarded to P** | `beacon_forward_edge(sender = me, recipient = P)` — edge always visible; nested beacon data gated by `can_read_content` |
-| **Shared › Co-help offered** | Beacons where **both you and P** have active help offers | `beacon` filtered by both `help_offers(user_id = me)` AND `help_offers(user_id = P)` — again gated |
+| **Requests I'm involved in** | Requests **authored by P** that were ever **forwarded to you** | `beacon_forward_edge` filter — nested beacon gated by `can_read_content` |
+| **Shared › Forwarded** | Requests **you forwarded to P** | `beacon_forward_edge(sender = me, recipient = P)` — edge always visible; nested beacon data gated by `can_read_content` |
+| **Shared › Co-help offered** | Requests where **both you and P** have active help offers | `beacon` filtered by both `help_offers(user_id = me)` AND `help_offers(user_id = P)` — again gated |
 
 ---
 
@@ -60,11 +59,11 @@ The three profile surfaces + "open detail" + "can forward" for each relationship
 
 "Beacon author" below may differ from profile owner P. Read rules are relative to the **beacon's author**, not P.
 
-| Viewer's relationship | Show Beacons (P-authored) | Shared › Forwarded | Shared › Co-help | Open detail (read content) | Can forward beacon |
-|----------------------|:-------------------------:|:------------------:|:----------------:|:---------------------------:|:-----------------:|
-| **Author of the beacon** | Yes (own) | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
-| **Vote-mutual friend of author** | ✅ all of author's beacons, when author = P | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
-| **One-way friend of author** (you→author, not mutual) | Only if you are otherwise involved | If you forwarded to P | If both offered | ❌ | ❌ |
+| Viewer's relationship | Requests I'm involved in (P-authored) | Shared › Forwarded | Shared › Co-help | Open detail (read content) | Can forward beacon |
+|----------------------|:-------------------------------------:|:------------------:|:----------------:|:---------------------------:|:-----------------:|
+| **Author of the beacon** | If forwarded to you | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
+| **Vote-mutual friend of author** | Only if forwarded to you | If you forwarded to P | If both offered | ❌ (trust alone) | ❌ |
+| **One-way friend of author** (you→author, not mutual) | Only if forwarded to you | If you forwarded to P | If both offered | ❌ | ❌ |
 | **MR bidirectional, not vote-mutual with author** | Only if otherwise involved | If you forwarded to P | If both offered | ❌ | ❌ |
 | **Indirect / bridge friend** (mutual with P, not author) | Only P's own beacons if P = author and you're involved | If you forwarded to P | If both offered | ❌ (to third-party beacons) | ❌ |
 | **Forward recipient** (active inbound edge) | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
@@ -116,9 +115,8 @@ Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 | Situation | Profile UI suggests… | Reality |
 |-----------|---------------------|---------|
 | You forwarded to P, later lost read access | Forwarded card still shows | Tapping → **Beacon unavailable** (sender ≠ reader) |
-| One-way "friend" of profile owner P | **Show Beacons** button always visible | List **empty** unless vote-mutual with P or otherwise involved |
-| MR-strong connection, no vote mutual with author | In forward picker | **Cannot open** author's beacons unless forwarded/help-offered |
-| Vote-mutual with P; beacon authored by stranger C | Co-help section if both offered on C | Co-help reads ✅; Show Beacons shows **P's own** beacons only |
+| Vote-mutual with P, no forward/help path | Might expect to browse P's requests | **Requests I'm involved in** only lists forwards to you; trust alone does not open P's requests |
+| MR-strong connection, no involvement with author | In forward picker | **Cannot open** author's beacons unless forwarded/help-offered |
 | Friends tab `coInvolvedBeaconsCount` | "N shared beacons" badge | Uses involvement SQL without `can_read_content` — may over-count vs actually openable beacons |
 
 ---
@@ -143,11 +141,11 @@ Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 | What | File |
 |------|------|
 | Content-read predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` |
-| Content-read predicate (SQL) | `packages/server/lib/data/database/migration/m0098.dart` |
+| Content-read predicate (SQL) | `packages/server/lib/data/database/migration/m0098.dart`, `m0123.dart` |
 | Hasura computed fields wiring | `packages/server/lib/data/database/migration/m0099.dart` |
 | Product summary | `CONTEXT.md` § "Beacon visibility & sharing" |
 | ADR | `docs/adr/0008-beacon-visibility-and-invite-sharing.md` |
-| Profile "Show Beacons" query | `packages/client/lib/features/beacon/data/gql/beacons_fetch_by_user_id.graphql` |
+| Profile involved-requests query | `packages/client/lib/features/beacon/data/gql/beacons_involved_with_author.graphql` |
 | Profile shared-beacons query | `packages/client/lib/features/profile_view/data/gql/profile_shared_beacons_fetch.graphql` |
 | Forward sender auth | `packages/server/lib/domain/use_case/forward_case.dart` |
 | Forward recipient picker | `packages/client/lib/features/forward/data/gql/forward_candidates_fetch.graphql` |

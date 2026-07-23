@@ -14,7 +14,7 @@ ADR 0008 established a single source of truth: domain policy [`BeaconVisibility`
 
 **Every QA trap shares one defect:** a client surface or one server count re-derives "can this be opened?" from *proxy signals* instead of `beacon_can_read_content`:
 
-- **Show Beacons** on a profile is shown unconditionally (`profile_view_body.dart`) — the list is gated server-side, so one-way friends land on an empty list.
+- **Show Requests author-browse** on another user's profile was removed (replaced by “Requests I'm involved in”). Server mutual-friend read was removed in migration `m0123` / ADR 0008 Amendment A to match.
 - **Forwarded** cards list `beacon_forward_edge` rows; when the viewer is sender-only, nested `beacon` data is unreadable and the card dead-ends in "Beacon unavailable" (`profile_shared_beacons_fetch.graphql`).
 - The **forward picker** uses MeritRank reachability (`rating` bidirectional, `isSeeingMe`) — a *reach* axis users read as *read* access.
 - **`coInvolvedBeaconsCount` / `activeForwardsToCount`** in `person_capability_event_repository.dart` build `viewer_involved` without composing the predicate, so the Friends-tab "N shared" badge over-counts.
@@ -29,8 +29,7 @@ flowchart TD
     R1[Author]
     R2[Active inbound forward edge - recipient]
     R3[Room-admitted / steward]
-    R4[Active help offer]
-    R5[Vote-mutual friend of author]
+    R4[Active help offerer]
   end
   subgraph reachAxis [REACH axis: who can I forward to]
     M1[MeritRank bidirectional - in picker]
@@ -41,7 +40,7 @@ flowchart TD
   MR[MeritRank] -. never gates .-> OpenDetail
 ```
 
-**READ axis** — who can open beacon content: author; active inbound forward edge (recipient); room-admitted participant or steward; active help offerer; vote-mutual friend of the author (all of the author's non-draft, non-deleted beacons). MeritRank is never on this axis.
+**READ axis** — who can open beacon content: author; active inbound forward edge (recipient); room-admitted participant or steward; active help offerer. Vote-mutual friendship is **not** on this axis. MeritRank is never on this axis.
 
 **REACH axis** — who appears in the forward picker: MeritRank bidirectional (`src_score > 0` AND `dst_score > 0`); per-candidate selectability additionally requires `isSeeingMe` (`rScore > 0` toward the viewer). Choosing someone in the picker means you can *reach* them, not that they can already read the beacon.
 
@@ -60,7 +59,7 @@ Sender-only edges satisfy "I forwarded it" for the sender but not "I can open it
 | Trap | Proxy signal used today | Canonical signal | Fix (file) | Priority |
 |------|-------------------------|------------------|------------|----------|
 | 1 — Forwarded card dead-ends after sender lost read access | Edge row always listed; nested `beacon!` null-gated by permissions | `beacon.can_read_content` on the relationship | Add `beacon: { can_read_content: { _eq: true } }` to `ProfileForwardedToUser` where-clause — `profile_shared_beacons_fetch.graphql` | P1 |
-| 2 — Show Beacons on one-way friend → empty list | Button always visible | Vote-mutual friendship ⇒ non-empty author browse | `if (profile.isMutualFriend)` around Show Beacons — `profile_view_body.dart` | P3 |
+| 2 — Profile involved-requests scope | “Requests I'm involved in” on any profile | Only forwards **to viewer** from that author | `beacons_involved_with_author.graphql` — resolved | — |
 | 3 — MR in picker read as open access | MeritRank bidirectional / `isSeeingMe` | Reach only; read = `beacon_can_read_content` | Copy clarifier `forwardReachExplainer` in forward picker header — `app_en.arb`, `forward_beacon_screen.dart` | P4 |
 | 4 — Co-help vs Show Beacons scope confusion | Same picker / profile sections without axis labels | READ vs REACH distinction + profile surface semantics (matrix) | Same P4 copy; matrix doc for Co-help vs Show Beacons | P4 |
 | 5 — Friends tab "N shared" over-counts | `viewer_involved` CTE = raw edges/offers without read gate | `beacon_can_read_content(beacon_id, viewer_id)` | Rename to `viewer_involved_raw`, add gated `viewer_involved` — `person_capability_event_repository.dart` | P2 |
@@ -70,12 +69,9 @@ Sender-only edges satisfy "I forwarded it" for the sender but not "I can open it
 **P3 update (resolved):** "Show Beacons" (the mutual-friend author-browse-all
 button) was replaced outright by a strictly narrower "beacons I'm involved in"
 entry point — shown to any viewer, gated purely on "was this beacon ever
-forwarded to me" (`beacon(where: {user_id: P, forward_edges: {recipient_id:
-viewer}})`, `beacons_involved_with_author.graphql`). This closes the P3 gap by
-construction (no mutual-friendship dependency at all) at the cost of no longer
-offering mutual friends a full author browse from the profile screen. See
-`packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
-and `packages/client/lib/features/beacon/ui/screen/involved_beacon_screen.dart`.
+forwarded to me" (`beacons_involved_with_author.graphql`). Server-side
+vote-mutual read access was removed in `m0123` (ADR 0008 Amendment A) so trust
+no longer grants passive read of all of an author's requests.
 
 ## 5. Server simplification
 
@@ -122,7 +118,7 @@ All styling via `context.tt` + `TenturaText.*`; no raw colors, font sizes, or nu
 | **No dead-end buttons** (traps 1–2) | Hide or disable Show Beacons when the list would be empty; exclude unreadable forwarded edges from the list (P1, P3). |
 | **Available / no longer available** (trap 1 doc alternative) | If tombstones are added later: muted `TenturaText.bodySmall(tt.textMuted)`, non-tappable card, clear copy — not an error snackbar on tap. |
 | **Forward-picker axis copy** (traps 3–4) | One muted line under the header: reach ≠ read until recipient accepts (P4 `forwardReachExplainer`). Existing scope chips (`forwardScopeUnseenShort` / `forwardScopeInvolvedShort`) stay. |
-| **Show Beacons empty state** | If mutual friend but zero readable beacons: empty state in beacon list screen (future) — "No beacons you can open from this person yet" with `TenturaText.bodySmall`. |
+| **Show Beacons empty state** | N/A — author-browse removed from other-user profiles. |
 
 ## 8. Clean-architecture mapping
 

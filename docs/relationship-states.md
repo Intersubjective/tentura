@@ -30,5 +30,7 @@ Trust can affect:
 
 - **Network surfaces**: the person appears in your “friends/network” views (one-way relationship on your side).
 - **Mutual trust**: a person only counts as “mutual trust” when both directions exist.
-- **Request visibility / forwarding**: some routing and visibility cues are based on trust graph signals; mutual trust is a stronger signal than one-way trust.
+- **Forwarding suggestions**: Tentura uses your trust graph when suggesting who might help on a forwarded request. Mutual trust is a stronger routing signal than one-way trust.
+
+Trust does **not** by itself let you open another person’s requests. You need an involvement path (forwarded to you, help offered, room admitted, etc.).
 

@@ -58,6 +58,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0123ForTest(writer);
       await _rollBackM0122ForTest(writer);
       await _rollBackM0121ForTest(writer);
       await _rollBackM0120ForTest(writer);
@@ -1661,6 +1662,14 @@ Future<void> _rollBackM0120ForTest(Connection connection) async {
   ]) {
     await connection.execute(statement);
   }
+}
+
+Future<void> _rollBackM0123ForTest(Connection connection) async {
+  // m0123 only replaces beacon visibility SQL functions; dropping the version
+  // row lets migrateDbSchema replay 0115–0123 after intermediate rollbacks.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0123'",
+  );
 }
 
 Future<void> _rollBackM0122ForTest(Connection connection) async {

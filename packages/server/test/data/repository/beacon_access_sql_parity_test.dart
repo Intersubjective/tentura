@@ -29,6 +29,10 @@ Future<void> main() async {
       if (!await _hasVisibilityFunctions(probe)) {
         skipReason = 'm0098 schema (beacon_can_read_content) missing';
         attentionSkipReason = skipReason;
+      } else if (!await _hasAmendedVisibilityFunctions(probe)) {
+        skipReason =
+            'm0123 schema (mutual-friend read removed from visibility) missing';
+        attentionSkipReason = skipReason;
       } else if (!await _hasAttentionRelation(probe)) {
         attentionSkipReason =
             'm0117 schema (visible_attention_receipts) missing';
@@ -123,7 +127,7 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
       );
 
   test(
-    'SQL content matches Dart policy for author, draft, deleted, mutual friend',
+    'SQL content matches Dart policy for author, draft, and deleted',
     () async {
       await seedUsers();
 
@@ -138,7 +142,6 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: false,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isTrue,
@@ -151,7 +154,6 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: false,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isFalse,
@@ -171,7 +173,7 @@ VALUES
 ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''',
       );
-      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(await sqlContent('Uvisparityview'), isFalse);
       expect(
         BeaconVisibility.canReadContent(
           const BeaconContentVisibilityFacts(
@@ -180,10 +182,9 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: false,
-            isMutualFriendOfAuthor: true,
           ),
         ),
-        isTrue,
+        isFalse,
       );
     },
     skip: skipReason,
@@ -217,12 +218,10 @@ ON CONFLICT (id) DO NOTHING
               hasActiveForwardEdgeAsRecipient: true,
               isRoomAdmittedOrSteward: false,
               isActiveHelpOfferer: false,
-              isMutualFriendOfAuthor: false,
             ),
             isOnActiveForwardEdge: true,
             isActiveHelpOfferer: false,
             isRoomAdmittedOrSteward: false,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isTrue,
@@ -282,7 +281,6 @@ ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: true,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isTrue,
@@ -339,7 +337,6 @@ ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, room_access = EXCLUDED.room
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: true,
             isActiveHelpOfferer: false,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isTrue,
@@ -363,7 +360,6 @@ WHERE id = 'Pvisparity02'
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: false,
-            isMutualFriendOfAuthor: false,
           ),
         ),
         isFalse,
@@ -373,7 +369,7 @@ WHERE id = 'Pvisparity02'
   );
 
   test(
-    'SQL involvement matches Dart for mutual friend and sender-only forward',
+    'SQL involvement denies vote-mutual friendship without involvement',
     () async {
       await seedUsers();
       await insertBeacon(status: BeaconStatus.open.smallintValue);
@@ -386,28 +382,6 @@ VALUES
   ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
 ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''',
-      );
-      expect(await sqlContent('Uvisparityview'), isTrue);
-      expect(await sqlInvolvement('Uvisparityview'), isTrue);
-      expect(
-        BeaconVisibility.canReadInvolvement(
-          _involvementFacts(
-            contentFacts: const BeaconContentVisibilityFacts(
-              status: BeaconStatus.open,
-              isAuthor: false,
-              hasActiveForwardEdgeAsRecipient: false,
-              isRoomAdmittedOrSteward: false,
-              isActiveHelpOfferer: false,
-              isMutualFriendOfAuthor: true,
-            ),
-            isMutualFriendOfAuthor: true,
-          ),
-        ),
-        isTrue,
-      );
-
-      await db.customStatement(
-        "DELETE FROM public.vote_user WHERE subject = 'Uvisparityauth' AND object = 'Uvisparityview'",
       );
       expect(await sqlContent('Uvisparityview'), isFalse);
       expect(await sqlInvolvement('Uvisparityview'), isFalse);
@@ -433,7 +407,6 @@ ON CONFLICT (id) DO NOTHING
               hasActiveForwardEdgeAsRecipient: false,
               isRoomAdmittedOrSteward: false,
               isActiveHelpOfferer: false,
-              isMutualFriendOfAuthor: false,
             ),
             isOnActiveForwardEdge: true,
           ),
@@ -674,14 +647,12 @@ BeaconInvolvementVisibilityFacts _involvementFacts({
   bool isOnActiveForwardEdge = false,
   bool isActiveHelpOfferer = false,
   bool isRoomAdmittedOrSteward = false,
-  bool isMutualFriendOfAuthor = false,
 }) =>
     BeaconInvolvementVisibilityFacts(
       contentFacts: contentFacts,
       isOnActiveForwardEdge: isOnActiveForwardEdge,
       isActiveHelpOfferer: isActiveHelpOfferer,
       isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
-      isMutualFriendOfAuthor: isMutualFriendOfAuthor,
     );
 
 Env _testEnv() => Env(
@@ -703,6 +674,20 @@ LIMIT 1
 ''',
   ).get();
   return rows.isNotEmpty;
+}
+
+Future<bool> _hasAmendedVisibilityFunctions(TenturaDb db) async {
+  final row = await db.customSelect(
+    '''
+SELECT p.prosrc AS src FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = 'beacon_can_read_content'
+LIMIT 1
+''',
+  ).getSingleOrNull();
+  if (row == null) return false;
+  final src = row.read<String>('src');
+  return !src.contains('user_is_mutual_friend');
 }
 
 Future<bool> _hasAttentionRelation(TenturaDb db) async {
