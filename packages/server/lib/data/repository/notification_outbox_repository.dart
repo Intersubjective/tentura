@@ -30,56 +30,6 @@ in_app_preference_class, suppression_class, access_policy
 ''';
 
   @override
-  Future<void> enqueue({
-    required String accountId,
-    required NotificationCategory category,
-    required NotificationKind kind,
-    required NotificationPriority priority,
-    required String title,
-    required String body,
-    required String actionUrl,
-    required String dedupKey,
-    String? beaconId,
-    String? coordinationItemId,
-    String? actorUserId,
-  }) async {
-    await _database.customStatement(
-      r'''
-INSERT INTO public.notification_outbox (
-  id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key,
-  beacon_id, coordination_item_id, actor_user_id
-) VALUES (
-  gen_random_uuid()::text, $1, $2, $3, $4,
-  $5, $6, $7, $8,
-  $9, $10, $11
-)
-ON CONFLICT (dedup_key) WHERE seen_at IS NULL
-DO UPDATE SET
-  created_at      = now(),
-  collapsed_count = notification_outbox.collapsed_count + 1,
-  title           = EXCLUDED.title,
-  body            = EXCLUDED.body,
-  action_url      = EXCLUDED.action_url,
-  priority        = EXCLUDED.priority
-''',
-      [
-        accountId,
-        category.name,
-        kind.name,
-        priority.name,
-        title,
-        body,
-        actionUrl,
-        dedupKey,
-        beaconId,
-        coordinationItemId,
-        actorUserId,
-      ],
-    );
-  }
-
-  @override
   Future<int> markEmailedByDedupKey(String dedupKey) => _database.customUpdate(
     'UPDATE public.notification_outbox SET emailed_at = now() '
     r'WHERE dedup_key = $1 AND emailed_at IS NULL',

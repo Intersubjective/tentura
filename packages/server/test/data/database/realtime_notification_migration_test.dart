@@ -16,10 +16,7 @@ import 'package:tentura_server/data/repository/notification_outbox_repository.da
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
-import 'package:tentura_server/domain/entity/notification_category.dart';
-import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
-import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/env.dart';
 
 Future<void> main() async {
@@ -790,11 +787,9 @@ WHERE id = 'Nt01legacy'
       () async {
         const dedupKey = 't01-collapse';
         for (var i = 0; i < 2; i++) {
-          await outboxRepository.enqueue(
+          await _insertLegacyOutboxRow(
+            writer,
             accountId: 'Ut01migration',
-            category: NotificationCategory.asksOfMe,
-            kind: NotificationKind.needsMe,
-            priority: NotificationPriority.normal,
             title: 'Collapse $i',
             body: 'Body $i',
             actionUrl: '/collapse',
@@ -814,11 +809,9 @@ UPDATE public.notification_outbox
 SET read_at = now()
 WHERE dedup_key = 't01-collapse'
 ''');
-        await outboxRepository.enqueue(
+        await _insertLegacyOutboxRow(
+          writer,
           accountId: 'Ut01migration',
-          category: NotificationCategory.asksOfMe,
-          kind: NotificationKind.needsMe,
-          priority: NotificationPriority.normal,
           title: 'Read-at-only stays collapsed',
           body: 'New body',
           actionUrl: '/collapse/read-at-only',
@@ -836,11 +829,9 @@ UPDATE public.notification_outbox
 SET seen_at = now()
 WHERE dedup_key = 't01-collapse'
 ''');
-        await outboxRepository.enqueue(
+        await _insertLegacyOutboxRow(
+          writer,
           accountId: 'Ut01migration',
-          category: NotificationCategory.asksOfMe,
-          kind: NotificationKind.needsMe,
-          priority: NotificationPriority.normal,
           title: 'Seen receipt opens a new collapse window',
           body: 'New body',
           actionUrl: '/collapse/seen',
@@ -1589,6 +1580,42 @@ Future<void> _waitUntil(
 
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 100));
+
+/// Inserts a legacy-shape row via the same collapse-on-conflict SQL the
+/// removed `NotificationOutboxRepository.enqueue()` used to run.
+Future<void> _insertLegacyOutboxRow(
+  Connection writer, {
+  required String accountId,
+  required String title,
+  required String body,
+  required String actionUrl,
+  required String dedupKey,
+}) => writer.execute(
+  Sql.named(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key
+) VALUES (
+  gen_random_uuid()::text, @accountId, 'asksOfMe', 'needsMe', 'normal',
+  @title, @body, @actionUrl, @dedupKey
+)
+ON CONFLICT (dedup_key) WHERE seen_at IS NULL
+DO UPDATE SET
+  created_at      = now(),
+  collapsed_count = notification_outbox.collapsed_count + 1,
+  title           = EXCLUDED.title,
+  body            = EXCLUDED.body,
+  action_url      = EXCLUDED.action_url,
+  priority        = EXCLUDED.priority
+'''),
+  parameters: {
+    'accountId': accountId,
+    'title': title,
+    'body': body,
+    'actionUrl': actionUrl,
+    'dedupKey': dedupKey,
+  },
+);
 
 Future<bool> _canConnect(Env env) async {
   try {
