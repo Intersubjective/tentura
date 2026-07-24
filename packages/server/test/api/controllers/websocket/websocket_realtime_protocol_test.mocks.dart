@@ -7,26 +7,22 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i8;
-import 'package:tentura_root/domain/enums.dart' as _i14;
+import 'package:tentura_root/domain/enums.dart' as _i12;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i3;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i7;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i4;
-import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart'
-    as _i11;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/user_presence_entity.dart' as _i13;
+import 'package:tentura_server/domain/entity/user_presence_entity.dart' as _i11;
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart'
-    as _i16;
+    as _i14;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i9;
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart'
-    as _i10;
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart'
-    as _i12;
+    as _i10;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i5;
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart'
-    as _i15;
+    as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -647,44 +643,27 @@ class MockInvitationRepositoryPort extends _i1.Mock
           as _i6.Future<bool>);
 }
 
-/// A class which mocks [InviteAcceptedNotificationPort].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockInviteAcceptedNotificationPort extends _i1.Mock
-    implements _i10.InviteAcceptedNotificationPort {
-  @override
-  _i6.Future<void> notifyInviteAccepted(
-    _i11.InviteAcceptedNotificationIntent? intent,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#notifyInviteAccepted, [intent]),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-}
-
 /// A class which mocks [UserPresenceRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUserPresenceRepositoryPort extends _i1.Mock
-    implements _i12.UserPresenceRepositoryPort {
+    implements _i10.UserPresenceRepositoryPort {
   @override
-  _i6.Future<_i13.UserPresenceEntity?> get(String? userId) =>
+  _i6.Future<_i11.UserPresenceEntity?> get(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#get, [userId]),
-            returnValue: _i6.Future<_i13.UserPresenceEntity?>.value(),
+            returnValue: _i6.Future<_i11.UserPresenceEntity?>.value(),
             returnValueForMissingStub:
-                _i6.Future<_i13.UserPresenceEntity?>.value(),
+                _i6.Future<_i11.UserPresenceEntity?>.value(),
           )
-          as _i6.Future<_i13.UserPresenceEntity?>);
+          as _i6.Future<_i11.UserPresenceEntity?>);
 
   @override
   _i6.Future<void> update(
     String? userId, {
     DateTime? lastSeenAt,
     DateTime? lastNotifiedAt,
-    _i14.UserPresenceStatus? status,
+    _i12.UserPresenceStatus? status,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
@@ -706,7 +685,7 @@ class MockUserPresenceRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookupPort extends _i1.Mock
-    implements _i15.VoteUserFriendshipLookupPort {
+    implements _i13.VoteUserFriendshipLookupPort {
   @override
   _i6.Future<Set<String>> reciprocalPositivePeerIds({
     required String? viewerId,
@@ -759,7 +738,7 @@ class MockVoteUserFriendshipLookupPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomCoParticipantLookupPort extends _i1.Mock
-    implements _i16.BeaconRoomCoParticipantLookupPort {
+    implements _i14.BeaconRoomCoParticipantLookupPort {
   @override
   _i6.Future<Set<String>> coParticipantPeerIds({
     required String? viewerId,

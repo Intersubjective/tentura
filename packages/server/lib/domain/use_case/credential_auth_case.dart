@@ -7,7 +7,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -23,7 +22,6 @@ final class CredentialAuthCase extends UseCaseBase {
     this._userRepository,
     this._verifiedContactRepository,
     this._invitationRepository,
-    InviteAcceptedNotificationPort legacyNotificationPort,
     this._invitationCase, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,

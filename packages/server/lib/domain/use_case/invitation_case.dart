@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/entity/invite_accepted_notification_intent
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -30,8 +29,7 @@ final class InvitationCase extends UseCaseBase {
     this._friendshipLookup,
     this._contactRepository,
     this._guard,
-    this._forwardEdgeRepository,
-    InviteAcceptedNotificationPort legacyNotificationPort, {
+    this._forwardEdgeRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,

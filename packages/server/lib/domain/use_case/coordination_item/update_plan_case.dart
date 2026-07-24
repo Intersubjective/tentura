@@ -2,7 +2,6 @@ import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -19,8 +18,7 @@ final class UpdatePlanCase extends UseCaseBase {
   UpdatePlanCase(
     this._beaconRepository,
     this._itemRepository,
-    this._room,
-    BeaconRoomNotificationPort legacyNotificationPort, {
+    this._room, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,

@@ -3,7 +3,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
@@ -94,7 +93,6 @@ final class EvaluationCase extends UseCaseBase {
     this._forwardEdgeRepository,
     this._evaluationRepository,
     this._userProfileBatchLookup,
-    BeaconRoomNotificationPort legacyNotificationPort,
     this._participantGraphBuilder,
     this._draftPurger,
     this._capabilityCase, {

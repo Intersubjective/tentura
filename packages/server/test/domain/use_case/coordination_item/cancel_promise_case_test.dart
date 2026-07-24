@@ -11,7 +11,6 @@ import 'package:tentura_server/domain/use_case/coordination_item/cancel_promise_
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
-import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/test_attention_harness.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
@@ -49,9 +48,7 @@ void main() {
       targetPersonId: targetId,
     );
     sut = CancelPromiseCase(
-      items,
-      _NoopRoomPush(),
-      attentionIntents: attention.intents,
+      items,      attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
@@ -149,4 +146,3 @@ CoordinationItemRecord _samplePromise({
   );
 }
 
-class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

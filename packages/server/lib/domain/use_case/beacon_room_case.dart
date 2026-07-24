@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
@@ -41,7 +40,6 @@ final class BeaconRoomCase extends UseCaseBase {
     this._room,
     this._items,
     this._factCards,
-    BeaconRoomNotificationPort legacyNotificationPort,
     this._imageRepository,
     this._tasksRepository,
     this._remoteStorage,

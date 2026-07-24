@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeSessionRepository implements SessionRepositoryPort {
   String? lastHash;
@@ -71,7 +70,6 @@ void main() {
     authCase = AuthCase(
       _FakeUserRepository(),
       _FakeInvitationRepository(),
-      NoopInviteAcceptedNotificationPort(),
       env: Env(environment: 'test'),
       logger: Logger('AuthCaseTest'),
     );

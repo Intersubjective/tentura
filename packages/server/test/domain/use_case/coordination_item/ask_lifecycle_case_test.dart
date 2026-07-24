@@ -26,7 +26,6 @@ import 'package:tentura_server/domain/use_case/coordination_item/update_draft_as
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
-import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
@@ -421,9 +420,7 @@ void main() {
       final attention = TestAttentionHarness();
       sut = PublishDraftAskCase(
         beacons,
-        items,
-        _NoopRoomPush(),
-        attentionIntents: attention.intents,
+        items,        attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
@@ -531,9 +528,7 @@ void main() {
       final attention = TestAttentionHarness();
       sut = MarkAskCase(
         beacons,
-        items,
-        _NoopRoomPush(),
-        attentionIntents: attention.intents,
+        items,        attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
@@ -1069,4 +1064,3 @@ void main() {
   });
 }
 
-class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -16,8 +15,7 @@ import '../_use_case_base.dart';
 final class PublishDraftAskCase extends UseCaseBase {
   PublishDraftAskCase(
     this._beaconRepository,
-    this._itemRepository,
-    BeaconRoomNotificationPort legacyNotificationPort, {
+    this._itemRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,

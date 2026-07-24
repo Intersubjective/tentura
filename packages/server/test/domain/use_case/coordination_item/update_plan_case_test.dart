@@ -12,7 +12,6 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
@@ -35,9 +34,7 @@ void main() {
     sut = UpdatePlanCase(
       _StubBeacons(),
       _StubItems(),
-      _StubRoom(),
-      _NoopRoomPush(),
-      attentionIntents: attention.intents,
+      _StubRoom(),      attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
@@ -66,4 +63,3 @@ void main() {
   );
 }
 
-class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

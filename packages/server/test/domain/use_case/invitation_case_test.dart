@@ -15,7 +15,6 @@ import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/fake_beacon_access_guard.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 import '../../support/test_attention_harness.dart';
 
 void main() {
@@ -25,7 +24,6 @@ void main() {
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late MockUserContactRepositoryPort contactRepo;
   late FakeBeaconAccessGuard guard;
-  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
   late TestAttentionHarness attention;
   late InvitationCase case_;
 
@@ -70,7 +68,6 @@ void main() {
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
     guard = FakeBeaconAccessGuard();
-    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
     attention = TestAttentionHarness();
     case_ = buildTestInvitationCase(
       invitationRepo: invitationRepo,
@@ -79,7 +76,6 @@ void main() {
       friendshipLookup: friendshipLookup,
       contactRepo: contactRepo,
       guard: guard,
-      inviteAcceptedNotification: inviteAcceptedNotification,
       attention: attention,
       env: Env(environment: Environment.test),
       logger: Logger('InvitationCaseTest'),

@@ -16,7 +16,6 @@ import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
@@ -36,7 +35,6 @@ const _secondId = 'Uffffffffffff';
 @GenerateNiceMocks([
   MockSpec<UserRepositoryPort>(),
   MockSpec<InvitationRepositoryPort>(),
-  MockSpec<InviteAcceptedNotificationPort>(),
   MockSpec<UserPresenceRepositoryPort>(),
   MockSpec<VoteUserFriendshipLookupPort>(),
   MockSpec<BeaconRoomCoParticipantLookupPort>(),
@@ -290,7 +288,6 @@ final class _Dependencies {
     authCase = AuthCase(
       MockUserRepositoryPort(),
       MockInvitationRepositoryPort(),
-      MockInviteAcceptedNotificationPort(),
       env: env,
       logger: logger,
     );

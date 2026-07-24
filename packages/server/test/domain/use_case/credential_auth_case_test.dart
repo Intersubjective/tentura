@@ -16,7 +16,6 @@ import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 import '../../support/test_attention_harness.dart';
 
 void main() {
@@ -26,7 +25,6 @@ void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late InvitationCase invitationCase;
-  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
   late TestAttentionHarness attention;
   late CredentialAuthCase case_;
   late Env env;
@@ -56,12 +54,10 @@ void main() {
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
-    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
     case_ = CredentialAuthCase(
       userRepo,
       contactRepo,
       invitationRepo,
-      inviteAcceptedNotification,
       invitationCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -234,7 +230,6 @@ void main() {
         userRepo,
         contactRepo,
         invitationRepo,
-        NoopInviteAcceptedNotificationPort(),
         invitationCase,
         attentionIntents: attention.intents,
         attention: attention.transactional,
@@ -287,7 +282,6 @@ void main() {
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -470,7 +464,6 @@ void main() {
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,

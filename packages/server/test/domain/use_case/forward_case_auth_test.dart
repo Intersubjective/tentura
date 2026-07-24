@@ -20,7 +20,6 @@ void main() {
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
-  late MockBeaconRoomNotificationPort roomPush;
   late FakeBeaconAccessGuard guard;
   late CapabilityCase capabilityCase;
   late ForwardCase case_;
@@ -34,7 +33,6 @@ void main() {
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
-    roomPush = MockBeaconRoomNotificationPort();
     guard = FakeBeaconAccessGuard();
 
     capabilityCase = CapabilityCase(
@@ -49,7 +47,6 @@ void main() {
       inboxRepo,
       capabilityCase,
       beaconRepo,
-      roomPush,
       guard,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCaseAuthTest'),
@@ -88,14 +85,6 @@ void main() {
           invocation.namedArguments[#recipientIds] as List<String>;
       return recipientIds;
     });
-    when(
-      roomPush.notifyForwardReceived(
-        beaconId: anyNamed('beaconId'),
-        senderId: anyNamed('senderId'),
-        beaconAuthorId: anyNamed('beaconAuthorId'),
-        recipientIds: anyNamed('recipientIds'),
-      ),
-    ).thenAnswer((_) async {});
   });
 
   test('denies forward when sender cannot read beacon content', () async {

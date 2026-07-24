@@ -282,7 +282,6 @@ void main() {
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
-  late MockBeaconRoomNotificationPort roomPush;
   late _TrackingEvaluationRepository evalRepo;
   late CoordinationCase case_;
 
@@ -291,7 +290,6 @@ void main() {
     helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
-    roomPush = MockBeaconRoomNotificationPort();
     evalRepo = _TrackingEvaluationRepository();
     final attention = TestAttentionHarness();
     case_ = CoordinationCase(
@@ -300,7 +298,6 @@ void main() {
       coordinationRepo,
       roomRepo,
       evalRepo,
-      roomPush: roomPush,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
@@ -328,7 +325,6 @@ void main() {
         coordinationRepo,
         roomRepo,
         evalRepo,
-        roomPush: roomPush,
         attentionIntents: attention.intents,
         attention: attention.transactional,
         guard: FakeBeaconAccessGuard(),

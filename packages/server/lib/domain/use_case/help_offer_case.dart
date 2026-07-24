@@ -15,7 +15,6 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -34,7 +33,6 @@ final class HelpOfferCase extends UseCaseBase {
     this._beaconRoomRepository,
     this._forwardEdgeRepository,
     this._admissionRepository,
-    BeaconRoomNotificationPort legacyNotificationPort,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,

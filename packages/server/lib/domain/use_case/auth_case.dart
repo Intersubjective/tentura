@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
-import 'package:tentura_server/domain/port/invite_accepted_notification_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/user_handle_consts.dart';
@@ -24,8 +23,7 @@ import '_use_case_base.dart';
 final class AuthCase extends UseCaseBase {
   AuthCase(
     this._userRepository,
-    this._invitationRepository,
-    InviteAcceptedNotificationPort legacyNotificationPort, {
+    this._invitationRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,

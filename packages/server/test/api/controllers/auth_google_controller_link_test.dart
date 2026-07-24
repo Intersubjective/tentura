@@ -25,7 +25,6 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 
 const _accountId = 'Uabc123456789012345678901234567890';
 
@@ -115,7 +114,6 @@ void main() {
     final authCase = AuthCase(
       userRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
@@ -132,7 +130,6 @@ void main() {
       userRepo,
       MockVerifiedContactRepositoryPort(),
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
@@ -256,7 +253,6 @@ void main() {
     final authCase = AuthCase(
       userRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
@@ -273,7 +269,6 @@ void main() {
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       env: env,
       logger: Logger('AuthGoogleLinkTest'),

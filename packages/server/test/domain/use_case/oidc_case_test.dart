@@ -15,7 +15,6 @@ import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 import '../../support/test_attention_harness.dart';
 
 void main() {
@@ -52,7 +51,6 @@ void main() {
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -259,7 +257,6 @@ void main() {
       userRepo,
       contactRepo,
       invitationRepo,
-      NoopInviteAcceptedNotificationPort(),
       invitationCase,
       attentionIntents: attention.intents,
       attention: attention.transactional,

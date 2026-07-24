@@ -11,7 +11,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/mark_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_blocker_case.dart';
@@ -95,33 +94,6 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   }
 }
 
-class _RecordingPush extends Fake implements BeaconRoomNotificationPort {
-  int blockerOpenedCalls = 0;
-  int blockerResolvedCalls = 0;
-
-  @override
-  Future<void> notifyBlockerOpened({
-    required String beaconId,
-    required String actorUserId,
-    required String excerpt,
-    String? targetPersonId,
-    String? coordinationItemId,
-  }) async {
-    blockerOpenedCalls++;
-  }
-
-  @override
-  Future<void> notifyBlockerResolved({
-    required String beaconId,
-    required String actorUserId,
-    required String excerpt,
-    String? targetPersonId,
-    String? coordinationItemId,
-  }) async {
-    blockerResolvedCalls++;
-  }
-}
-
 BeaconEntity _openBeacon(String id, {String authorId = 'Uowner0000001'}) =>
     BeaconEntity(
       id: id,
@@ -185,7 +157,6 @@ void main() {
   group('MarkBlockerCase', () {
     late _StubBeacons beacons;
     late _StubItems items;
-    late _RecordingPush push;
     late TestAttentionHarness attention;
     late MarkBlockerCase sut;
 
@@ -197,12 +168,10 @@ void main() {
         beaconId: beaconId,
         creatorId: ownerId,
       );
-      push = _RecordingPush();
       attention = TestAttentionHarness();
       sut = MarkBlockerCase(
         beacons,
         items,
-        push,
         attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
@@ -252,7 +221,6 @@ void main() {
 
   group('ResolveBlockerCase', () {
     late _StubItems items;
-    late _RecordingPush push;
     late TestAttentionHarness attention;
     late ResolveBlockerCase sut;
 
@@ -266,11 +234,9 @@ void main() {
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusResolved,
       );
-      push = _RecordingPush();
       attention = TestAttentionHarness();
       sut = ResolveBlockerCase(
         items,
-        push,
         attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),

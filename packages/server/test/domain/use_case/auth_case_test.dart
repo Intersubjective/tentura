@@ -14,7 +14,6 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'invitation_case_mocks.mocks.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 import '../../support/test_attention_harness.dart';
 
 // Reuse the server's default Ed25519 key pair as the test "device key": the
@@ -41,7 +40,6 @@ String _authRequestToken({String? invitationId}) =>
 void main() {
   late MockUserRepositoryPort userRepo;
   late MockInvitationRepositoryPort invitationRepo;
-  late NoopInviteAcceptedNotificationPort inviteAcceptedNotification;
   late TestAttentionHarness attention;
   late AuthCase case_;
 
@@ -51,12 +49,10 @@ void main() {
     when(
       invitationRepo.getById(invitationId: anyNamed('invitationId')),
     ).thenAnswer((_) async => null);
-    inviteAcceptedNotification = NoopInviteAcceptedNotificationPort();
     attention = TestAttentionHarness();
     case_ = AuthCase(
       userRepo,
       invitationRepo,
-      inviteAcceptedNotification,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test, isNeedInvite: true),

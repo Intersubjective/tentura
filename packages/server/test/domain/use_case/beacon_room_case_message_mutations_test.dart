@@ -10,7 +10,6 @@ import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -167,9 +166,7 @@ void main() {
     sut = BeaconRoomCase(
       room,
       items,
-      _FakeFactCards(),
-      _FakePush(),
-      _FakeImages(),
+      _FakeFactCards(),      _FakeImages(),
       _FakeTasks(),
       _FakeRemoteStorage(),
       _FakePolling(),
@@ -608,7 +605,6 @@ void main() {
 
 class _FakeFactCards extends Fake implements BeaconFactCardRepositoryPort {}
 
-class _FakePush extends Fake implements BeaconRoomNotificationPort {}
 
 class _FakeImages extends Fake implements ImageRepositoryPort {}
 

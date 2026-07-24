@@ -11,7 +11,6 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeSessionRepository implements SessionRepositoryPort {
   final List<String> revokedHashes = [];
@@ -68,7 +67,6 @@ void main() {
     final authCase = AuthCase(
       _FakeUserRepository(),
       _FakeInvitationRepository(),
-      NoopInviteAcceptedNotificationPort(),
       env: env,
       logger: Logger('SessionLogoutTest'),
     );

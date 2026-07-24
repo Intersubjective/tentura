@@ -3,7 +3,6 @@ import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -16,8 +15,7 @@ import '../_use_case_base.dart';
 final class MarkAskCase extends UseCaseBase {
   MarkAskCase(
     this._beaconRepository,
-    this._itemRepository,
-    BeaconRoomNotificationPort legacyNotificationPort, {
+    this._itemRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,

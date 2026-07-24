@@ -17,7 +17,6 @@ import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_bl
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_blocker_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/test_attention_harness.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
@@ -244,9 +243,7 @@ void main() {
       final attention = TestAttentionHarness();
       sut = PublishDraftBlockerCase(
         beacons,
-        items,
-        _NoopRoomPush(),
-        attentionIntents: attention.intents,
+        items,        attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
@@ -302,4 +299,3 @@ void main() {
   });
 }
 
-class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

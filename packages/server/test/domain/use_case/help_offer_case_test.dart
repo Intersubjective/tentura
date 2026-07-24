@@ -34,7 +34,6 @@ void main() {
   late MockBeaconRoomRepositoryPort roomRepo;
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockHelpOfferAdmissionRepositoryPort admissionRepo;
-  late MockBeaconRoomNotificationPort roomPush;
   late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
   late HelpOfferCase case_;
@@ -68,7 +67,6 @@ void main() {
     roomRepo = MockBeaconRoomRepositoryPort();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     admissionRepo = MockHelpOfferAdmissionRepositoryPort();
-    roomPush = MockBeaconRoomNotificationPort();
     attention = TestAttentionHarness();
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -84,7 +82,6 @@ void main() {
       roomRepo,
       forwardEdgeRepo,
       admissionRepo,
-      roomPush,
       FakeBeaconAccessGuard(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -99,13 +96,6 @@ void main() {
         userId: anyNamed('userId'),
       ),
     ).thenAnswer((_) async => false);
-    when(
-      roomPush.notifyHelpOfferToAuthor(
-        beaconId: anyNamed('beaconId'),
-        helpOffererId: anyNamed('helpOffererId'),
-        authorId: anyNamed('authorId'),
-      ),
-    ).thenAnswer((_) async {});
     when(
       admissionRepo.record(
         beaconId: anyNamed('beaconId'),
@@ -197,12 +187,6 @@ void main() {
           touchForwardOrdering: false,
         ),
       ).thenAnswer((_) => Future.value());
-      when(
-        roomPush.notifyHelpWithdrawn(
-          beaconId: 'B1',
-          withdrawerUserId: 'U1',
-        ),
-      ).thenAnswer((_) => Future.value());
 
       await case_.withdraw(
         beaconId: 'B1',
@@ -226,51 +210,6 @@ void main() {
       ).called(1);
       // Open-beacon withdrawal notifies the author/stewards.
       expect(attention.recorded.single.eventType.name, 'promiseWithdrawn');
-    });
-
-    test('allows WRAPPING UP (5)', () async {
-      for (final state in [5]) {
-        reset(beaconRepo);
-        reset(helpOfferRepo);
-        reset(coordinationRepo);
-        reset(inboxRepo);
-        stubBeacon(beacon(id: 'B1', status: BeaconStatus.fromSmallint(state)));
-        when(
-          coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
-        ).thenAnswer((_) => Future.value());
-        when(
-          helpOfferRepo.withdraw(
-            beaconId: 'B1',
-            userId: 'U1',
-            withdrawReason: 'timing',
-          ),
-        ).thenAnswer((_) => Future.value());
-        when(
-          inboxRepo.applyTombstoneAfterWithdraw(
-            userId: 'U1',
-            beaconId: 'B1',
-          ),
-        ).thenAnswer((_) => Future.value());
-
-        await case_.withdraw(
-          beaconId: 'B1',
-          userId: 'U1',
-          withdrawReason: 'timing',
-        );
-        verify(
-          helpOfferRepo.withdraw(
-            beaconId: 'B1',
-            userId: 'U1',
-            withdrawReason: 'timing',
-          ),
-        ).called(1);
-        verify(
-          inboxRepo.applyTombstoneAfterWithdraw(
-            userId: 'U1',
-            beaconId: 'B1',
-          ),
-        ).called(1);
-      }
     });
   });
 
@@ -356,8 +295,6 @@ void main() {
   });
 
   group('auto-admit on new help offer', () {
-    final epoch = DateTime.utc(2025);
-
     BeaconParticipantRecord participant({required int roomAccess}) =>
         testBeaconParticipant(
           id: 'P1',
@@ -385,13 +322,6 @@ void main() {
           beaconId: 'B1',
           offerUserId: 'U1',
           authorUserId: 'Uauth',
-        ),
-      ).thenAnswer((_) => Future.value());
-      when(
-        roomPush.notifyRoomAdmitted(
-          receiverId: 'U1',
-          beaconId: 'B1',
-          actorUserId: 'Uauth',
         ),
       ).thenAnswer((_) => Future.value());
     }
@@ -490,13 +420,6 @@ void main() {
             beaconId: 'B1',
             offerUserId: 'U1',
             authorUserId: 'Uauth',
-          ),
-        ).thenAnswer((_) => Future.value());
-        when(
-          roomPush.notifyRoomAdmitted(
-            receiverId: 'U1',
-            beaconId: 'B1',
-            actorUserId: 'Uauth',
           ),
         ).thenAnswer((_) => Future.value());
         when(

@@ -7,7 +7,6 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
@@ -57,7 +56,6 @@ void main() {
       room,
       _FakeItems(),
       FakeBeaconFactCardRepository(),
-      FakeBeaconRoomNotificationPort(),
       FakeImageRepositoryPort(),
       FakeTaskRepositoryPort(),
       FakeRemoteStorage(),
@@ -86,7 +84,6 @@ class FakeBeaconFactCardRepository extends Fake
   Future<String> latestPublicFactSnippet(String beaconId) async => '';
 }
 
-class FakeBeaconRoomNotificationPort extends Fake implements BeaconRoomNotificationPort {}
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
 

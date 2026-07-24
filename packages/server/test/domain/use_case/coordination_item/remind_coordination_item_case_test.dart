@@ -8,7 +8,6 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/remind_coordination_item_case.dart';
@@ -67,27 +66,9 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   }
 }
 
-class _RecordingPush extends Fake implements BeaconRoomNotificationPort {
-  int staleRemindCalls = 0;
-  String? lastTarget;
-
-  @override
-  Future<void> notifyStaleRemind({
-    required String beaconId,
-    required String actorUserId,
-    required String targetPersonId,
-    required String excerpt,
-    String? coordinationItemId,
-  }) async {
-    staleRemindCalls++;
-    lastTarget = targetPersonId;
-  }
-}
-
 void main() {
   late _StubItems items;
   late _StubRoom room;
-  late _RecordingPush push;
   late TestAttentionHarness attention;
   late RemindCoordinationItemCase sut;
 
@@ -126,13 +107,11 @@ void main() {
     attention = TestAttentionHarness();
     items = _StubItems();
     room = _StubRoom(admittedUserIds: {observerId, targetId, creatorId});
-    push = _RecordingPush();
     items.item = staleAsk();
     items.claimSucceeds = true;
     sut = RemindCoordinationItemCase(
       items,
       room,
-      push,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
@@ -152,7 +131,7 @@ void main() {
       () => sut.call(userId: targetId, itemId: itemId),
       throwsA(isA<BeaconCreateException>()),
     );
-    expect(push.staleRemindCalls, 0);
+    expect(attention.recorded, isEmpty);
   });
 
   test('rejects non-stale item', () async {
@@ -177,7 +156,7 @@ void main() {
       () => sut.call(userId: observerId, itemId: itemId),
       throwsA(isA<BeaconCreateException>()),
     );
-    expect(push.staleRemindCalls, 0);
+    expect(attention.recorded, isEmpty);
   });
 
   test('rejects plan items', () async {
@@ -194,7 +173,7 @@ void main() {
       () => sut.call(userId: observerId, itemId: itemId),
       throwsA(isA<BeaconCreateException>()),
     );
-    expect(push.staleRemindCalls, 0);
+    expect(attention.recorded, isEmpty);
   });
 
   test('concurrent remind allows at most one push', () async {

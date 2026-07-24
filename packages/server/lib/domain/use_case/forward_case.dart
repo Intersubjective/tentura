@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/port/forward_attribution_repository_port.d
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -26,7 +25,6 @@ final class ForwardCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRepository,
-    BeaconRoomNotificationPort legacyNotificationPort,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,

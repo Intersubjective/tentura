@@ -15,7 +15,6 @@ import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
-import '../../support/noop_invite_accepted_notification_port.dart';
 
 final class _FakeSessionRepo implements SessionRepositoryPort {
   @override
@@ -50,7 +49,6 @@ void main() {
       AuthCase(
         userRepo,
         invitationRepo,
-        NoopInviteAcceptedNotificationPort(),
         env: env,
         logger: Logger('SessionControllerTest'),
       ),

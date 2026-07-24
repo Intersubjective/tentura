@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import 'package:tentura_server/domain/use_case/coordination_item/create_promise_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../../support/noop_beacon_room_notification_port.dart';
 import '../../../support/test_attention_harness.dart';
 import '../../../support/coordination_item_record_fixtures.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -92,9 +91,7 @@ void main() {
     items = _StubItems();
     sut = CreatePromiseCase(
       beacons,
-      items,
-      _NoopRoomPush(),
-      attentionIntents: attention.intents,
+      items,      attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
@@ -179,4 +176,3 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
   updatedAt: DateTime.utc(2024),
 );
 
-class _NoopRoomPush extends NoopBeaconRoomNotificationPort {}

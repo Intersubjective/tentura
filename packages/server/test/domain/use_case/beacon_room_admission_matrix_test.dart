@@ -32,7 +32,6 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
-import '../../support/noop_beacon_room_notification_port.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
@@ -95,21 +94,6 @@ class _AdmitStubRoom extends Fake implements BeaconRoomRepositoryPort {
   }
 }
 
-class _TrackingRoomAdmittedPush extends NoopBeaconRoomNotificationPort {
-  String? receiverId;
-  String? actorUserId;
-
-  @override
-  Future<void> notifyRoomAdmitted({
-    required String receiverId,
-    required String beaconId,
-    required String actorUserId,
-  }) async {
-    this.receiverId = receiverId;
-    this.actorUserId = actorUserId;
-  }
-}
-
 class _MinimalCoordinationItems extends Fake
     implements CoordinationItemRepositoryPort {}
 
@@ -131,19 +115,16 @@ void main() {
   group('room admission matrix (COV-051)', () {
     group('BeaconRoomCase.admit — actor matrix', () {
       late _AdmitStubRoom room;
-      late _TrackingRoomAdmittedPush push;
       late TestAttentionHarness attention;
       late BeaconRoomCase sut;
 
       setUp(() {
         room = _AdmitStubRoom(authorIds: {_authorId});
-        push = _TrackingRoomAdmittedPush();
         attention = TestAttentionHarness();
         sut = BeaconRoomCase(
           room,
           _MinimalCoordinationItems(),
           _MinimalFactCards(),
-          push,
           _MinimalImages(),
           _MinimalTasks(),
           _MinimalRemoteStorage(),
@@ -163,14 +144,12 @@ void main() {
         test('${row.label} admits participant and notifies', () async {
           if (row.isSteward) {
             room = _AdmitStubRoom(stewardIds: {row.actorId});
-            push = _TrackingRoomAdmittedPush();
-            attention = TestAttentionHarness();
+                attention = TestAttentionHarness();
             sut = BeaconRoomCase(
               room,
               _MinimalCoordinationItems(),
               _MinimalFactCards(),
-              push,
-              _MinimalImages(),
+                  _MinimalImages(),
               _MinimalTasks(),
               _MinimalRemoteStorage(),
               _MinimalPolling(),
@@ -204,7 +183,6 @@ void main() {
           room,
           _MinimalCoordinationItems(),
           _MinimalFactCards(),
-          push,
           _MinimalImages(),
           _MinimalTasks(),
           _MinimalRemoteStorage(),
@@ -231,7 +209,6 @@ void main() {
           ),
         );
         expect(room.admittedParticipantId, isNull);
-        expect(push.receiverId, isNull);
       });
     });
 
@@ -240,7 +217,6 @@ void main() {
       late MockHelpOfferRepositoryPort helpOfferRepo;
       late MockCoordinationRepositoryPort coordinationRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
-      late MockBeaconRoomNotificationPort roomPush;
       late CoordinationCase sut;
 
       setUp(() {
@@ -248,14 +224,12 @@ void main() {
         helpOfferRepo = MockHelpOfferRepositoryPort();
         coordinationRepo = MockCoordinationRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
-        roomPush = MockBeaconRoomNotificationPort();
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
           _MinimalEvaluationRepo(),
-          roomPush: roomPush,
           guard: FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
@@ -397,7 +371,6 @@ void main() {
       late MockHelpOfferRepositoryPort helpOfferRepo;
       late MockCoordinationRepositoryPort coordinationRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
-      late MockBeaconRoomNotificationPort roomPush;
       late TestAttentionHarness attention;
       late CoordinationCase sut;
 
@@ -430,7 +403,6 @@ void main() {
           coordinationRepo,
           roomRepo,
           _MinimalEvaluationRepo(),
-          roomPush: roomPush,
           attentionIntents: attention.intents,
           attention: attention.transactional,
           guard: guard ?? FakeBeaconAccessGuard(),
@@ -453,32 +425,8 @@ void main() {
         helpOfferRepo = MockHelpOfferRepositoryPort();
         coordinationRepo = MockCoordinationRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
-        roomPush = MockBeaconRoomNotificationPort();
         buildSut();
 
-        when(
-          roomPush.notifyRoomAdmitted(
-            receiverId: anyNamed('receiverId'),
-            beaconId: anyNamed('beaconId'),
-            actorUserId: anyNamed('actorUserId'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          roomPush.notifyCommitmentDeclined(
-            receiverId: anyNamed('receiverId'),
-            beaconId: anyNamed('beaconId'),
-            actorUserId: anyNamed('actorUserId'),
-            reason: anyNamed('reason'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          roomPush.notifyCommitmentRemoved(
-            receiverId: anyNamed('receiverId'),
-            beaconId: anyNamed('beaconId'),
-            actorUserId: anyNamed('actorUserId'),
-            reason: anyNamed('reason'),
-          ),
-        ).thenAnswer((_) async {});
       });
 
       test(
@@ -773,7 +721,6 @@ void main() {
       late MockBeaconRoomRepositoryPort roomRepo;
       late MockForwardEdgeRepositoryPort forwardEdgeRepo;
       late MockHelpOfferAdmissionRepositoryPort admissionRepo;
-      late MockBeaconRoomNotificationPort roomPush;
       late TestAttentionHarness attention;
       late HelpOfferCase sut;
 
@@ -793,7 +740,6 @@ void main() {
         roomRepo = MockBeaconRoomRepositoryPort();
         forwardEdgeRepo = MockForwardEdgeRepositoryPort();
         admissionRepo = MockHelpOfferAdmissionRepositoryPort();
-        roomPush = MockBeaconRoomNotificationPort();
         attention = TestAttentionHarness();
         final capabilityCase = CapabilityCase(
           capabilityRepo,
@@ -809,7 +755,6 @@ void main() {
           roomRepo,
           forwardEdgeRepo,
           admissionRepo,
-          roomPush,
           FakeBeaconAccessGuard(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
@@ -830,24 +775,10 @@ void main() {
           helpOfferRepo.upsert(beaconId: _beaconId, userId: _helperId),
         ).thenAnswer((_) async {});
         when(
-          roomPush.notifyHelpOfferToAuthor(
-            beaconId: anyNamed('beaconId'),
-            helpOffererId: anyNamed('helpOffererId'),
-            authorId: anyNamed('authorId'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
           roomRepo.inviteOfferUserToBeaconRoom(
             beaconId: anyNamed('beaconId'),
             offerUserId: anyNamed('offerUserId'),
             authorUserId: anyNamed('authorUserId'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          roomPush.notifyRoomAdmitted(
-            receiverId: anyNamed('receiverId'),
-            beaconId: anyNamed('beaconId'),
-            actorUserId: anyNamed('actorUserId'),
           ),
         ).thenAnswer((_) async {});
         when(

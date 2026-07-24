@@ -19,7 +19,6 @@ import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
-import 'package:tentura_server/domain/port/beacon_room_notification_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -480,7 +479,6 @@ void main() {
       forwardRepo,
       evalRepo,
       userProfileBatchLookup,
-      MockBeaconRoomNotificationPort(),
       graphBuilder,
       draftPurger,
       noopCapabilityCase,
@@ -833,7 +831,6 @@ void main() {
         forwardRepo,
         evalRepo,
         userProfileBatchLookup,
-        MockBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -913,7 +910,6 @@ void main() {
         forwardRepo,
         evalRepo,
         userProfileBatchLookup,
-        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -974,7 +970,6 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1016,7 +1011,6 @@ void main() {
 
   group('beaconClose review-open path', () {
     late _TransactionStubBeaconRepo beaconRepo;
-    late _RecordingReviewOpenedNotificationPort roomPush;
 
     setUp(() {
       evalRepo = _FakeEvaluationRepository();
@@ -1047,13 +1041,11 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
-      roomPush = _RecordingReviewOpenedNotificationPort();
       evaluationCase = EvaluationCase(
         beaconRepo,
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        roomPush,
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1149,7 +1141,6 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1230,7 +1221,6 @@ void main() {
           EmptyGraphForwardEdgeRepository(),
           evalRepo,
           StubUserProfileBatchLookup('User'),
-          _NoopBeaconRoomNotificationPort(),
           graphBuilder,
           EvaluationDraftPurger(evalRepo),
           CapabilityCase(
@@ -1308,7 +1298,6 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1376,7 +1365,6 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         evalRepo,
         StubUserProfileBatchLookup('User'),
-        _NoopBeaconRoomNotificationPort(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
         CapabilityCase(
@@ -1496,48 +1484,6 @@ void main() {
       },
     );
   });
-}
-
-class MockBeaconRoomNotificationPort extends Mock
-    implements BeaconRoomNotificationPort {}
-
-class _NoopBeaconRoomNotificationPort extends Fake
-    implements BeaconRoomNotificationPort {
-  @override
-  Future<void> notifyReviewOpened({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required String actorUserId,
-  }) async {}
-}
-
-class _RecordingReviewOpenedNotificationPort extends Fake
-    implements BeaconRoomNotificationPort {
-  final calls =
-      <
-        ({
-          String beaconId,
-          String beaconTitle,
-          Set<String> recipientUserIds,
-          String actorUserId,
-        })
-      >[];
-
-  @override
-  Future<void> notifyReviewOpened({
-    required String beaconId,
-    required String beaconTitle,
-    required Set<String> recipientUserIds,
-    required String actorUserId,
-  }) async {
-    calls.add((
-      beaconId: beaconId,
-      beaconTitle: beaconTitle,
-      recipientUserIds: recipientUserIds,
-      actorUserId: actorUserId,
-    ));
-  }
 }
 
 final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
