@@ -5,6 +5,13 @@
 Accepted for Updates v1 (2026-07-16). The normative source is revision 4 of
 `docs/archive/plans/updates-tab-implementation-plan.md`.
 
+**Superseded for T-20 (2026-07-24):** the durable occurrence / audience /
+channel-delivery / throttle topology is no longer deferred. See
+[ADR-0011](0011-attention-durable-topology.md) for the accepted five-table
+topology, handoff-job guarantee, idempotency identity, retention, account
+erasure, and operational ownership. V1 feed/badge/event decisions (D-1…D-8)
+in this ADR remain normative for readers.
+
 This ADR records the target contract. T-00 does not implement the schema or the
 transactional durability boundary described below. In the current implementation,
 notification dispatch placement is inconsistent. Many producers dispatch after their
@@ -15,7 +22,8 @@ dispatch service can therefore reach outbox, FCM-queue, and email consideration 
 mutation transaction is still open. Channel attempts remain best effort and have no
 durable retry ledger. Strictly post-commit channel hand-off is the revision-4 target,
 enforced by T-03; it is not the current ordering. T-03 must also close the in-app
-receipt gap. Durable channel delivery remains out of v1 scope.
+receipt gap. Durable channel delivery remains out of v1 scope
+(**historical:** superseded by ADR-0011 once T-20 landed).
 
 ## Decision gates
 
@@ -130,20 +138,28 @@ change.
 
 ## Deferred target topology and proportionality
 
+> **Superseded for T-20:** see [ADR-0011](0011-attention-durable-topology.md).
+> The five tables (`attention_occurrence`, `attention_occurrence_recipient`,
+> `attention_channel_delivery`, `attention_channel_throttle`,
+> `notification_outbox`) are live. The paragraphs below are historical context
+> for the v1 decision record only.
+
 The long-term notification-platform shape remains:
 
 `semantic occurrence -> per-recipient receipt -> durable delivery job`
 
-That topology is deferred to T-20 until durable multi-channel delivery, audit/replay,
-or historical audience reconstruction becomes approved product scope. Issue #80 asks
-for reliable in-app unread activity, not replayable occurrences or retryable push/email
-delivery. Transactional per-recipient receipts provide the required in-app guarantee
-with materially less schema, projection, retry, and operations machinery.
+That topology was deferred to T-20 until durable multi-channel delivery,
+audit/replay, or historical audience reconstruction became approved product
+scope. Issue #80 asked for reliable in-app unread activity, not replayable
+occurrences or retryable push/email delivery. Transactional per-recipient
+receipts provided the required in-app guarantee with materially less schema,
+projection, retry, and operations machinery.
 
-V1 is retention-neutral. Existing outbox cleanup and digest watermarks continue
-unchanged, the extension adds no orphanable tables, and account deletion retains its
-current behavior. Retention windows, erasure rewriting, and noisy-unseen expiry belong
-to T-22; their deferral is not a claim that the broader policy question is resolved.
+V1 was retention-neutral. Existing outbox cleanup and digest watermarks continued
+unchanged, the extension added no orphanable tables, and account deletion retained
+its then-current behavior. Retention windows, erasure rewriting, and noisy-unseen
+expiry belonged to T-22; their deferral was not a claim that the broader policy
+question was resolved.
 
 ## Consequences
 
