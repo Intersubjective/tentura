@@ -49,8 +49,9 @@ Future<void> beaconViewRunInitialHelpOfferDialog(
         ? l10n.dialogOfferHelpAnywayTitle
         : l10n.dialogOfferHelpTitle,
     hintText: l10n.hintOfferHelpMessage,
-    allowEmptyMessage: true,
+    allowEmptyMessage: false,
     showHelpTypeChips: true,
+    automaticSlugs: cubit.state.beacon.needs,
   );
   if (outcome != null && context.mounted) {
     await cubit.offerHelp(
@@ -74,7 +75,7 @@ Future<void> beaconViewRunEditHelpOfferDialog(
     title: l10n.beaconHeaderUpdateHelpOffer,
     hintText: l10n.hintOfferHelpMessage,
     initialText: offer.message,
-    allowEmptyMessage: true,
+    allowEmptyMessage: false,
     showHelpTypeChips: true,
     initialHelpTypeSlugs: helpOfferStoredHelpTypeSlugs(offer.helpType),
     automaticSlugs: cubit.state.beacon.needs,

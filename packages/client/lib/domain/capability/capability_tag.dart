@@ -42,6 +42,7 @@ enum CapabilityTag {
   // Technical
   techHelp(slug: 'tech_help', group: CapabilityGroup.technical),
   repair(slug: 'repair', group: CapabilityGroup.technical),
+  manualWork(slug: 'manual_work', group: CapabilityGroup.technical),
   software(slug: 'software', group: CapabilityGroup.technical),
   design(slug: 'design', group: CapabilityGroup.technical),
   adminPaperwork(slug: 'admin_paperwork', group: CapabilityGroup.technical),
@@ -99,6 +100,7 @@ enum CapabilityTag {
     CapabilityTag.workspace => l10n.capabilityTagWorkspace,
     CapabilityTag.techHelp => l10n.capabilityTagTechHelp,
     CapabilityTag.repair => l10n.capabilityTagRepair,
+    CapabilityTag.manualWork => l10n.capabilityTagManualWork,
     CapabilityTag.software => l10n.capabilityTagSoftware,
     CapabilityTag.design => l10n.capabilityTagDesign,
     CapabilityTag.adminPaperwork => l10n.capabilityTagAdminPaperwork,
@@ -138,6 +140,7 @@ enum CapabilityTag {
     CapabilityTag.workspace => Icons.desk_rounded,
     CapabilityTag.techHelp => Icons.support_rounded,
     CapabilityTag.repair => Icons.handyman_rounded,
+    CapabilityTag.manualWork => Icons.construction_rounded,
     CapabilityTag.software => Icons.code_rounded,
     CapabilityTag.design => Icons.design_services_rounded,
     CapabilityTag.adminPaperwork => Icons.admin_panel_settings_rounded,

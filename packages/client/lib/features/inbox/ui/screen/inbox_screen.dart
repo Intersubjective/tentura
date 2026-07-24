@@ -964,8 +964,9 @@ Future<void> _inboxOfferHelp(BuildContext context, Beacon beacon) async {
         ? l10n.dialogOfferHelpAnywayTitle
         : l10n.dialogOfferHelpTitle,
     hintText: l10n.hintOfferHelpMessage,
-    allowEmptyMessage: true,
+    allowEmptyMessage: false,
     showHelpTypeChips: true,
+    automaticSlugs: beacon.needs,
   );
   if (outcome == null || !context.mounted) return;
   final ok = await GetIt.I<ForwardRepository>().offerHelp(

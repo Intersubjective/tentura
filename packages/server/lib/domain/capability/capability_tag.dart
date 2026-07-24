@@ -33,6 +33,7 @@ const kAllowedCapabilitySlugs = {
   // Technical
   'tech_help',
   'repair',
+  'manual_work',
   'software',
   'design',
   'admin_paperwork',

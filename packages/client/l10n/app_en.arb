@@ -3972,6 +3972,7 @@
   "capabilityTagWorkspace": "Workspace",
   "capabilityTagTechHelp": "Tech help",
   "capabilityTagRepair": "Repair",
+  "capabilityTagManualWork": "Manual work",
   "capabilityTagSoftware": "Software",
   "capabilityTagDesign": "Design",
   "capabilityTagAdminPaperwork": "Admin / paperwork",
@@ -4002,6 +4003,12 @@
       }
     }
   },
+  "helpOfferSubmitAction": "Offer help",
+  "helpOfferOptionalEnrichmentLabel": "Ways you can help (optional)",
+  "helpOfferOptionalEnrichmentHelper": "Optional — helps others find your offer. Choose up to 4.",
+  "helpOfferBrowseCategories": "Browse all categories",
+  "helpOfferHideCategories": "Hide categories",
+  "helpOfferSearchEmpty": "No match — try Other or keep text only",
   "forwardViewInvitations": "View invitations",
   "inboxViewMyWork": "View My Work",
   "logoutConfirmTitle": "Log out?",
