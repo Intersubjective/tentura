@@ -1,6 +1,6 @@
 # Notification / Attention Convergence — Careful Migration Plan
 
-Status: Draft for review · Date: 2026-07-24 · Schema tip: m0124
+Status: Implemented on `feat/notification-attention-convergence` · Date: 2026-07-24 · Schema tip: m0128
 
 **Goal:** finish the in-flight migration so the notification stack has *one* receipt-creation path
 and a slimmer, non-schizophrenic `notification_outbox`, **without breaking the currently-working,
@@ -8,6 +8,12 @@ fragile notification mechanism.** Application and contract changes are designed 
 no-ops for readers, verifiable, and independently revertible. **Step 5** is the explicit exception:
 it deletes pre-real-user legacy receipts, which the project owner has confirmed carry no real-user
 compatibility obligation. (**Step 6** is the other non-reversible point — see §9.6.)
+
+> **Implementation note (2026-07-24):** Steps 1–7 landed on branch
+> `feat/notification-attention-convergence` (migrations m0125–m0128). Remaining deferred work
+> from Step 7: drop `read_at` in a later PR after the Appendix B inventory; leave
+> `dedup_key`/`collapse_key` alone. Production bake gates and the Step-6 mixed-binary
+> preflight still apply at deploy time.
 
 > **This plan was rewritten on 2026-07-24 to incorporate the Appendix A critical review (CR-1 … CR-14).**
 > The earlier draft's Stage 1 ("migrate two legacy producers onto the dispatch repository") was
