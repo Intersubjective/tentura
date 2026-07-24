@@ -55,6 +55,11 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0128ForTest(writer);
+      await _rollBackM0127ForTest(writer);
+      await _rollBackM0126ForTest(writer);
+      await _rollBackM0125ForTest(writer);
+      await _rollBackM0124ForTest(writer);
       await _rollBackM0123ForTest(writer);
       await _rollBackM0122ForTest(writer);
       await _rollBackM0121ForTest(writer);
@@ -153,6 +158,7 @@ FROM generate_series(1, 500) AS i
     test(
       'm0115 expands and m0116 backfills under the statement publisher',
       () async {
+        // m0116 backfill emits update; m0126 one-time legacy wipe emits delete.
         expect(migrationNotifications, [
           {
             'event': 'update',
@@ -160,22 +166,28 @@ FROM generate_series(1, 500) AS i
             'id': 'Ut01migration',
             'user_ids': ['Ut01migration'],
           },
+          {
+            'event': 'delete',
+            'entity': 'notification',
+            'id': 'Ut01migration',
+            'user_ids': ['Ut01migration'],
+          },
         ]);
 
+        // m0126 one-time legacy wipe removed pre-m0115 seed rows.
         final legacy = await writer.execute(r'''
 SELECT read_at, seen_at
 FROM public.notification_outbox
 WHERE id = 'Nt01legacy'
 ''');
-        expect(legacy.single[0], isNotNull);
-        expect(legacy.single[1], legacy.single[0]);
+        expect(legacy, isEmpty);
 
         final backfill = await writer.execute(r'''
 SELECT count(*)::int
 FROM public.notification_outbox
 WHERE id LIKE 'Nt01backfill%' AND seen_at = read_at
 ''');
-        expect(backfill.single.single, 500);
+        expect(backfill.single.single, 0);
 
         final versions = await writer.execute(r'''
 SELECT version
@@ -229,6 +241,7 @@ ORDER BY t.tgname
     test(
       'm0115 through m0120 columns, defaults, checks, and index predicates match C1',
       () async {
+        // tip=m0128; Step 6 contraction (m0127) tightened receipt shape after m0126 wipe.
         final columnRows = await writer.execute(r'''
 SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
 FROM information_schema.columns
@@ -265,8 +278,13 @@ ORDER BY table_name, column_name
         for (final name in const [
           'source_event_key',
           'destination_kind',
-          'target_entity_id',
           'presentation_key',
+        ]) {
+          expect(columns['notification_outbox.$name']?.dataType, 'text');
+          expect(columns['notification_outbox.$name']?.nullable, 'NO');
+        }
+        for (final name in const [
+          'target_entity_id',
           'in_app_preference_class',
         ]) {
           expect(columns['notification_outbox.$name']?.dataType, 'text');
@@ -290,7 +308,7 @@ ORDER BY table_name, column_name
         );
         expect(
           columns['notification_outbox.access_policy']?.defaultValue,
-          "'legacy'::text",
+          isNull,
         );
         expect(
           columns['notification_outbox.requires_action']?.dataType,
@@ -347,7 +365,6 @@ ORDER BY conname
         expect(checks.keys, {
           'notification_outbox__access_policy_chk',
           'notification_outbox__beacon_policy_chk',
-          'notification_outbox__new_shape_chk',
           'notification_outbox__preference_class_chk',
           'notification_outbox__recipient_safe_chk',
           'notification_outbox__settlement_facts_chk',
@@ -356,6 +373,7 @@ ORDER BY conname
           'notification_outbox__suppression_chk',
           'notification_outbox__thread_key_chk',
         });
+        expect(checks, isNot(contains('notification_outbox__new_shape_chk')));
         expect(
           checks['notification_outbox__suppression_chk'],
           allOf(contains('mandatory'), contains('standard'), contains('noisy')),
@@ -363,11 +381,11 @@ ORDER BY conname
         expect(
           checks['notification_outbox__access_policy_chk'],
           allOf(
-            contains('legacy'),
             contains('beacon_content'),
             contains('beacon_tombstone'),
             contains('recipient_safe'),
             contains('profile'),
+            isNot(contains('legacy')),
           ),
         );
         expect(
@@ -389,14 +407,6 @@ ORDER BY conname
             contains('room_member_removed'),
             contains('offer_declined'),
             contains('offer_removed'),
-          ),
-        );
-        expect(
-          checks['notification_outbox__new_shape_chk'],
-          allOf(
-            contains('source_event_key'),
-            contains('destination_kind'),
-            contains('presentation_key'),
           ),
         );
         expect(
@@ -520,19 +530,23 @@ DELETE FROM public."user" WHERE id = 'Ut01publisherother'
 
         await writer.execute(r'''
 INSERT INTO public.notification_outbox (
-  id, account_id, category, kind, title, body, action_url, priority, dedup_key
+  id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  source_event_key, destination_kind, presentation_key, access_policy
 ) VALUES
   (
     'Nt01publisher1', 'Ut01migration', 'asksOfMe', 'needsMe',
-    'Publisher 1', 'Body', '/publisher/1', 'normal', 't01-publisher-1'
+    'Publisher 1', 'Body', '/publisher/1', 'normal', 't01-publisher-1',
+    'event:publisher-1', 'profile', 'needs_me', 'profile'
   ),
   (
     'Nt01publisher2', 'Ut01migration', 'asksOfMe', 'needsMe',
-    'Publisher 2', 'Body', '/publisher/2', 'normal', 't01-publisher-2'
+    'Publisher 2', 'Body', '/publisher/2', 'normal', 't01-publisher-2',
+    'event:publisher-2', 'profile', 'needs_me', 'profile'
   ),
   (
     'Nt01publisher3', 'Ut01publisherother', 'asksOfMe', 'needsMe',
-    'Publisher 3', 'Body', '/publisher/3', 'normal', 't01-publisher-3'
+    'Publisher 3', 'Body', '/publisher/3', 'normal', 't01-publisher-3',
+    'event:publisher-3', 'profile', 'needs_me', 'profile'
   )
 ''');
         await expectAccountChanges('insert');
@@ -564,13 +578,15 @@ WHERE id LIKE 'Nt01publisher%'
       await writer.execute(r'''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, title, body, action_url, priority,
-  dedup_key, target_entity_id
+  dedup_key, target_entity_id,
+  source_event_key, destination_kind, presentation_key, access_policy
 )
 SELECT
   'Nt01budget' || lpad(i::text, 4, '0'),
   'Ut01migration', 'asksOfMe', 'needsMe',
   'Budget', 'Budget body', '/budget', 'normal',
-  't01-budget-' || i::text, i::text
+  't01-budget-' || i::text, i::text,
+  'event:budget-' || i::text, 'profile', 'needs_me', 'profile'
 FROM generate_series(1, 551) AS i
 ''');
       addTearDown(() async {
@@ -632,17 +648,31 @@ WHERE id LIKE 'Nt01budget%'
 
     test('m0115 checks reject every invalid receipt shape', () async {
       var sequence = 0;
+      const shapeColumns =
+          'source_event_key, destination_kind, presentation_key, access_policy';
+      const shapeValues = "'event:shape', 'profile', 'needs_me', 'profile'";
+
       Future<void> expectRejected(String columns, String values) async {
         sequence += 1;
+        final includesShape = columns.contains('source_event_key') ||
+            columns.contains('destination_kind') ||
+            columns.contains('presentation_key') ||
+            columns.contains('access_policy');
+        final allColumns = includesShape
+            ? columns
+            : '$shapeColumns${columns.isEmpty ? '' : ', $columns'}';
+        final allValues = includesShape
+            ? values
+            : '$shapeValues${values.isEmpty ? '' : ', $values'}';
         await expectLater(
           writer.execute('''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, title, body, action_url, priority, dedup_key,
-  $columns
+  $allColumns
 ) VALUES (
   'Nt01invalid$sequence', 'Ut01migration', 'asksOfMe', 'needsMe',
   'Invalid', 'Invalid', '/invalid', 'normal', 't01-invalid-$sequence',
-  $values
+  $allValues
 )
 '''),
           throwsA(isA<ServerException>()),
@@ -655,6 +685,7 @@ INSERT INTO public.notification_outbox (
         'in_app_preference_class, suppression_class',
         "'room_activity', 'standard'",
       );
+      await expectRejected('access_policy', "'legacy'");
       await expectRejected('access_policy', "'beacon_content'");
       await expectRejected('access_policy', "'beacon_tombstone'");
       await expectRejected('access_policy', "'recipient_safe'");
@@ -662,10 +693,17 @@ INSERT INTO public.notification_outbox (
         'access_policy, presentation_key',
         "'recipient_safe', 'not_allowlisted'",
       );
-      await expectRejected('source_event_key', "'event:1'");
       await expectRejected(
-        'source_event_key, destination_kind',
-        "'event:2', 'profile'",
+        shapeColumns,
+        "NULL, 'profile', 'needs_me', 'profile'",
+      );
+      await expectRejected(
+        shapeColumns,
+        "'event:null-dest', NULL, 'needs_me', 'profile'",
+      );
+      await expectRejected(
+        shapeColumns,
+        "'event:null-pres', 'profile', NULL, 'profile'",
       );
       await expectRejected('requires_action', 'true');
       await expectRejected('attention_thread_key', "'v1|needsMe|item|user'");
@@ -692,20 +730,24 @@ INSERT INTO public.notification_outbox (
         await writer.execute(r'''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  source_event_key, destination_kind, presentation_key, access_policy,
   requires_action, attention_thread_key, seen_at
 ) VALUES (
   'Nt01settlement', 'Ut01migration', 'asksOfMe', 'needsMe',
   'Settle', 'Settle body', '/settle', 'normal', 't01-settlement',
+  'event:settlement', 'profile', 'mutual_connection_formed', 'profile',
   true, 'v1|needsMe|item-1|Ut01migration', '2026-07-17T00:00:00Z'
 )
 ''');
         await writer.execute(r'''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, title, body, action_url, priority, dedup_key,
+  source_event_key, destination_kind, presentation_key, access_policy,
   suppression_class, requires_action, attention_thread_key
 ) VALUES (
   'Nt01mandatorysettlement', 'Ut01migration', 'asksOfMe', 'needsMe',
   'Mandatory', 'Mandatory body', '/mandatory', 'normal', 't01-mandatory-settlement',
+  'event:mandatory-settlement', 'profile', 'mutual_connection_formed', 'profile',
   'mandatory', true, 'v1|needsMe|item-2|Ut01migration'
 )
 ''');
@@ -773,12 +815,13 @@ WHERE id = 'Nt01settlement'
           [mandatoryReceiptId],
         );
 
+        // m0126 one-time legacy wipe removed the pre-m0115 Nt01legacy seed row.
         final legacy = await writer.execute(r'''
 SELECT requires_action, settlement_kind
 FROM public.notification_outbox
 WHERE id = 'Nt01legacy'
 ''');
-        expect(legacy.single, [false, null]);
+        expect(legacy, isEmpty);
       },
     );
 
@@ -787,13 +830,14 @@ WHERE id = 'Nt01legacy'
       () async {
         const dedupKey = 't01-collapse';
         for (var i = 0; i < 2; i++) {
-          await _insertLegacyOutboxRow(
+          await _insertOutboxRow(
             writer,
             accountId: 'Ut01migration',
             title: 'Collapse $i',
             body: 'Body $i',
             actionUrl: '/collapse',
             dedupKey: dedupKey,
+            sourceEventKey: 'event:collapse-$i',
           );
         }
         final collapsed = await writer.execute(r'''
@@ -802,20 +846,21 @@ SELECT count(*)::int, max(collapsed_count)::int,
 FROM public.notification_outbox
 WHERE dedup_key = 't01-collapse'
 ''');
-        expect(collapsed.single, [1, 2, 'standard', 'legacy', null]);
+        expect(collapsed.single, [1, 2, 'standard', 'profile', null]);
 
         await writer.execute(r'''
 UPDATE public.notification_outbox
 SET read_at = now()
 WHERE dedup_key = 't01-collapse'
 ''');
-        await _insertLegacyOutboxRow(
+        await _insertOutboxRow(
           writer,
           accountId: 'Ut01migration',
           title: 'Read-at-only stays collapsed',
           body: 'New body',
           actionUrl: '/collapse/read-at-only',
           dedupKey: dedupKey,
+          sourceEventKey: 'event:collapse-read-at',
         );
         final rows = await writer.execute(r'''
 SELECT count(*)::int, max(collapsed_count)::int
@@ -829,13 +874,14 @@ UPDATE public.notification_outbox
 SET seen_at = now()
 WHERE dedup_key = 't01-collapse'
 ''');
-        await _insertLegacyOutboxRow(
+        await _insertOutboxRow(
           writer,
           accountId: 'Ut01migration',
           title: 'Seen receipt opens a new collapse window',
           body: 'New body',
           actionUrl: '/collapse/seen',
           dedupKey: dedupKey,
+          sourceEventKey: 'event:collapse-seen',
         );
         final reopened = await writer.execute(r'''
 SELECT count(*)::int, max(collapsed_count)::int
@@ -1581,23 +1627,29 @@ Future<void> _waitUntil(
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 100));
 
-/// Inserts a legacy-shape row via the same collapse-on-conflict SQL the
+/// Inserts a receipt row via the same collapse-on-conflict SQL the
 /// removed `NotificationOutboxRepository.enqueue()` used to run.
-Future<void> _insertLegacyOutboxRow(
+Future<void> _insertOutboxRow(
   Connection writer, {
   required String accountId,
   required String title,
   required String body,
   required String actionUrl,
   required String dedupKey,
+  required String sourceEventKey,
+  String destinationKind = 'profile',
+  String presentationKey = 'needs_me',
+  String accessPolicy = 'profile',
 }) => writer.execute(
   Sql.named(r'''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key
+  title, body, action_url, dedup_key,
+  source_event_key, destination_kind, presentation_key, access_policy
 ) VALUES (
   gen_random_uuid()::text, @accountId, 'asksOfMe', 'needsMe', 'normal',
-  @title, @body, @actionUrl, @dedupKey
+  @title, @body, @actionUrl, @dedupKey,
+  @sourceEventKey, @destinationKind, @presentationKey, @accessPolicy
 )
 ON CONFLICT (dedup_key) WHERE seen_at IS NULL
 DO UPDATE SET
@@ -1614,6 +1666,10 @@ DO UPDATE SET
     'body': body,
     'actionUrl': actionUrl,
     'dedupKey': dedupKey,
+    'sourceEventKey': sourceEventKey,
+    'destinationKind': destinationKind,
+    'presentationKey': presentationKey,
+    'accessPolicy': accessPolicy,
   },
 );
 
@@ -1689,6 +1745,86 @@ Future<void> _rollBackM0120ForTest(Connection connection) async {
   ]) {
     await connection.execute(statement);
   }
+}
+
+Future<void> _rollBackM0128ForTest(Connection connection) async {
+  for (final statement in const [
+    'ALTER TABLE public.notification_outbox ADD COLUMN digested_at timestamptz',
+    "DELETE FROM public.schema_version WHERE version = '0128'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0127ForTest(Connection connection) async {
+  for (final statement in const [
+    r'''ALTER TABLE public.notification_outbox
+          ALTER COLUMN source_event_key DROP NOT NULL''',
+    r'''ALTER TABLE public.notification_outbox
+          ALTER COLUMN destination_kind DROP NOT NULL''',
+    r'''ALTER TABLE public.notification_outbox
+          ALTER COLUMN presentation_key DROP NOT NULL''',
+    r'''ALTER TABLE public.notification_outbox
+          DROP CONSTRAINT notification_outbox__access_policy_chk,
+          ADD CONSTRAINT notification_outbox__access_policy_chk
+            CHECK (access_policy IN (
+              'legacy', 'beacon_content', 'beacon_tombstone',
+              'recipient_safe', 'profile'
+            ))''',
+    r'''ALTER TABLE public.notification_outbox
+          ADD CONSTRAINT notification_outbox__new_shape_chk CHECK (
+            source_event_key IS NULL
+            OR (destination_kind IS NOT NULL AND presentation_key IS NOT NULL)
+          )''',
+    r'''ALTER TABLE public.notification_outbox
+          ALTER COLUMN access_policy SET DEFAULT 'legacy' ''',
+    "DELETE FROM public.schema_version WHERE version = '0127'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0126ForTest(Connection connection) async {
+  // Data-only migration; version drop is enough for replay.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0126'",
+  );
+}
+
+Future<void> _rollBackM0125ForTest(Connection connection) async {
+  for (final statement in const [
+    r'''ALTER TABLE public.attention_channel_throttle
+          DROP CONSTRAINT attention_channel_throttle_account_id_fkey,
+          ADD CONSTRAINT attention_channel_throttle_account_id_fkey
+            FOREIGN KEY (account_id) REFERENCES public."user"(id)
+            ON DELETE RESTRICT''',
+    r'''ALTER TABLE public.attention_channel_delivery
+          DROP CONSTRAINT attention_channel_delivery_account_id_fkey,
+          ADD CONSTRAINT attention_channel_delivery_account_id_fkey
+            FOREIGN KEY (account_id) REFERENCES public."user"(id)
+            ON DELETE RESTRICT''',
+    r'''ALTER TABLE public.attention_channel_delivery
+          DROP CONSTRAINT attention_channel_delivery_receipt_id_fkey,
+          ADD CONSTRAINT attention_channel_delivery_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.notification_outbox(id)
+            ON DELETE RESTRICT''',
+    r'''ALTER TABLE public.attention_occurrence_recipient
+          DROP CONSTRAINT attention_occurrence_recipient_account_id_fkey,
+          ADD CONSTRAINT attention_occurrence_recipient_account_id_fkey
+            FOREIGN KEY (account_id) REFERENCES public."user"(id)
+            ON DELETE RESTRICT''',
+    "DELETE FROM public.schema_version WHERE version = '0125'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0124ForTest(Connection connection) async {
+  // m0124 only replaces beacon visibility SQL functions; dropping the version
+  // row lets migrateDbSchema replay past the pre-convergence tip.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0124'",
+  );
 }
 
 Future<void> _rollBackM0123ForTest(Connection connection) async {
