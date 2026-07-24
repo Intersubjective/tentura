@@ -159,16 +159,25 @@ INSERT INTO public.notification_preference (
           writer,
           id: 'N02legacycontent',
           beaconId: _contentBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
         );
         await _insertReceipt(
           writer,
           id: 'N03legacytomb',
           beaconId: _tombstoneBeaconId,
+          accessPolicy: 'beacon_tombstone',
+          destinationKind: 'beacon',
+          presentationKey: 'request_removed',
         );
         await _insertReceipt(
           writer,
           id: 'N04legacyhidden',
           beaconId: _hiddenBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
         );
         await _insertReceipt(
           writer,
@@ -1057,9 +1066,9 @@ Future<void> _insertReceipt(
   required String id,
   String? beaconId,
   String? coordinationItemId,
-  String accessPolicy = 'legacy',
-  String? destinationKind,
-  String? presentationKey,
+  String accessPolicy = 'profile',
+  String destinationKind = 'profile',
+  String presentationKey = 'invite_accepted',
   String suppressionClass = 'standard',
   String? preferenceClass,
   String? targetEntityId,
@@ -1093,7 +1102,7 @@ INSERT INTO public.notification_outbox (
     'createdAt': createdAt,
     'beaconId': beaconId,
     'coordinationItemId': coordinationItemId,
-    'sourceEventKey': destinationKind == null ? null : 'source-$id',
+    'sourceEventKey': 'source-$id',
     'destinationKind': destinationKind,
     'targetEntityId': targetEntityId,
     'presentationKey': presentationKey,

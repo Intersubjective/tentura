@@ -19,8 +19,8 @@ import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/env.dart';
 
 /// Retention FK-safety (Step 4 / m0125): `deleteSettledOlderThan` must remove
-/// both a legacy receipt and a delivery-backed canonical receipt in the same
-/// sweep without aborting. Before m0125,
+/// both a receipt with no delivery job and a delivery-backed canonical
+/// receipt in the same sweep without aborting. Before m0125,
 /// `attention_channel_delivery.receipt_id` was `ON DELETE RESTRICT`, so a
 /// settled canonical receipt still referenced by its delivery job aborted the
 /// whole bulk DELETE.
@@ -65,20 +65,23 @@ VALUES ('Uattretactor', 'Retention actor', 'attention-retention-actor-key')
     });
 
     test(
-      'removes both a legacy receipt and a delivery-backed receipt without aborting',
+      'removes both a no-delivery receipt and a delivery-backed receipt without aborting',
       () async {
         final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
 
-        // Legacy-shape receipt: settled and old, no delivery job attached.
+        // A settled, old receipt with no delivery job attached (e.g. an
+        // in-app-only receipt that was never handed to a delivery channel).
         await writer.execute(
           Sql.named(r'''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key, created_at, seen_at
+  title, body, action_url, dedup_key, created_at, seen_at,
+  source_event_key, destination_kind, presentation_key, access_policy
 ) VALUES (
   'Nattretlegacy', 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
-  'Legacy', 'Legacy body', '/legacy', 'attention-retention-legacy',
-  @oldAt, @oldAt
+  'No delivery', 'No delivery body', '/no-delivery',
+  'attention-retention-no-delivery', @oldAt, @oldAt,
+  'attention-retention-no-delivery', 'profile', 'invite_accepted', 'profile'
 )
 '''),
           parameters: {'oldAt': oldAt},
