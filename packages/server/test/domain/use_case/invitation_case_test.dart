@@ -308,9 +308,9 @@ void main() {
       );
 
       expect(ok, isTrue);
-      expect(attention.recorded, hasLength(1));
+      expect(attention.recorded, hasLength(2));
       expect(
-        attention.recorded.single,
+        attention.recorded[0],
         isA<AttentionDispatchIntent>()
             .having(
               (intent) => intent.eventType,
@@ -323,6 +323,26 @@ void main() {
               issuerId,
             )
             .having((intent) => intent.actorUserId, 'actor', 'Ustranger'),
+      );
+      expect(
+        attention.recorded[1],
+        isA<AttentionDispatchIntent>()
+            .having(
+              (intent) => intent.eventType,
+              'eventType',
+              AttentionEventType.mutualConnectionFormed,
+            )
+            .having(
+              (intent) => intent.recipients.single.recipientId,
+              'recipient',
+              'Ustranger',
+            )
+            .having((intent) => intent.actorUserId, 'actor', issuerId)
+            .having(
+              (intent) => intent.sourceEventKey,
+              'sourceEventKey',
+              'invitation:Iabc:mutual',
+            ),
       );
     });
   });
@@ -409,11 +429,16 @@ void main() {
       verify(
         userRepo.bindMutual(invitationId: 'Iabc', userId: 'Ustranger'),
       ).called(1);
-      expect(attention.recorded, hasLength(1));
-      final intent = attention.recorded.single;
-      expect(intent.recipients.single.recipientId, issuerId);
-      expect(intent.actorUserId, 'Ustranger');
-      expect(intent.actionUrl, '/#/shared/view?id=Ustranger');
+      expect(attention.recorded, hasLength(2));
+      expect(attention.recorded[0].recipients.single.recipientId, issuerId);
+      expect(attention.recorded[0].actorUserId, 'Ustranger');
+      expect(attention.recorded[0].actionUrl, '/#/shared/view?id=Ustranger');
+      expect(
+        attention.recorded[1].eventType,
+        AttentionEventType.mutualConnectionFormed,
+      );
+      expect(attention.recorded[1].recipients.single.recipientId, 'Ustranger');
+      expect(attention.recorded[1].actorUserId, issuerId);
     });
   });
 }

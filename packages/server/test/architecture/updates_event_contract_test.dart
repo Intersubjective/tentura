@@ -96,7 +96,8 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'mutualConnectionFormed',
-    'producer': 'UserTrustEdgeCase.setUserVote',
+    'producer':
+        'UserTrustEdgeCase.setUserVote|AuthCase.signUp(invite)|AuthCase.signUpWithInvite|CredentialAuthCase.resolveOrCreate(invite)|InvitationCase.accept|InvitationCase.acceptAsExisting(non-Beacon relationship-forming path)',
     'recipientCategory': 'reciprocal_counterpart',
     'destinationFamily': 'profile',
     'muteability': 'standard',

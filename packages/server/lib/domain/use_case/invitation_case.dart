@@ -242,6 +242,7 @@ final class InvitationCase extends UseCaseBase {
     return _acceptAndRecord(
       invitation: invitation,
       userId: userId,
+      emitMutualConnection: true,
       mutation: () => _userRepository.bindMutual(
         invitationId: invitationId,
         userId: userId,
@@ -303,6 +304,7 @@ final class InvitationCase extends UseCaseBase {
     required InvitationEntity invitation,
     required String userId,
     required Future<bool> Function() mutation,
+    bool emitMutualConnection = false,
   }) => _attention!.runAction(
     actorUserId: userId,
     action: (transaction) async {
@@ -320,6 +322,15 @@ final class InvitationCase extends UseCaseBase {
             sourceEventKey: 'invitation:${invitation.id}:accepted',
           ),
         );
+        if (emitMutualConnection) {
+          await transaction.record(
+            await _attentionIntents!.mutualConnectionFormed(
+              actorUserId: invitation.issuer.id,
+              counterpartUserId: userId,
+              sourceEventKey: 'invitation:${invitation.id}:mutual',
+            ),
+          );
+        }
       }
       return accepted;
     },

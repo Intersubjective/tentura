@@ -4,9 +4,17 @@ import 'package:test/test.dart';
 
 void main() {
   const migratedProducers = <String, List<String>>{
-    'auth_case.dart': ['runAction(', '.inviteAccepted('],
-    'credential_auth_case.dart': ['runAction(', '.inviteAccepted('],
-    'invitation_case.dart': ['runAction(', '.inviteAccepted('],
+    'auth_case.dart': ['runAction(', '.inviteAccepted(', '.mutualConnectionFormed('],
+    'credential_auth_case.dart': [
+      'runAction(',
+      '.inviteAccepted(',
+      '.mutualConnectionFormed(',
+    ],
+    'invitation_case.dart': [
+      'runAction(',
+      '.inviteAccepted(',
+      '.mutualConnectionFormed(',
+    ],
     'help_offer_case.dart': [
       'runAction<',
       '.helpOfferSubmitted(',

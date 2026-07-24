@@ -178,6 +178,13 @@ final class CredentialAuthCase extends UseCaseBase {
                 sourceEventKey: 'invitation:$inviteId:accepted',
               ),
             );
+            await transaction.record(
+              await _attentionIntents!.mutualConnectionFormed(
+                actorUserId: invitation.issuer.id,
+                counterpartUserId: user.id,
+                sourceEventKey: 'invitation:$inviteId:mutual',
+              ),
+            );
           }
           return (accountId: user.id, isNewAccount: true);
         },

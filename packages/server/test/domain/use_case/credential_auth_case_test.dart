@@ -165,9 +165,9 @@ void main() {
         contacts: emailContact,
       ),
     ).called(1);
-    expect(attention.recorded, hasLength(1));
+    expect(attention.recorded, hasLength(2));
     expect(
-      attention.recorded.single,
+      attention.recorded[0],
       isA<AttentionDispatchIntent>()
           .having(
             (intent) => intent.eventType,
@@ -180,6 +180,21 @@ void main() {
             'Uissuer',
           )
           .having((intent) => intent.actorUserId, 'actor', 'Unew'),
+    );
+    expect(
+      attention.recorded[1],
+      isA<AttentionDispatchIntent>()
+          .having(
+            (intent) => intent.eventType,
+            'eventType',
+            AttentionEventType.mutualConnectionFormed,
+          )
+          .having(
+            (intent) => intent.recipients.single.recipientId,
+            'recipient',
+            'Unew',
+          )
+          .having((intent) => intent.actorUserId, 'actor', 'Uissuer'),
     );
   });
 
