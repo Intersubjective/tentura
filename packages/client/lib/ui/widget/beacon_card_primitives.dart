@@ -89,6 +89,7 @@ class BeaconCardShell extends StatelessWidget {
     this.marker,
     this.footer,
     this.muted = false,
+    this.selected = false,
     this.color,
 
     /// When null, uses [kPaddingAllS] (no footer) or tight top/sides padding (with footer).
@@ -108,6 +109,9 @@ class BeaconCardShell extends StatelessWidget {
   /// Placed below [child], outside the card [InkWell] when [onTap] is set.
   final Widget? footer;
   final bool muted;
+
+  /// Master–detail selection chrome (Inbox expanded list). Does not shift layout.
+  final bool selected;
   final Color? color;
   final EdgeInsetsGeometry? padding;
   final String? tapSemanticsLabel;
@@ -157,6 +161,7 @@ class BeaconCardShell extends StatelessWidget {
         if (onTap != null)
           Semantics(
             button: true,
+            selected: selected,
             label:
                 tapSemanticsLabel ??
                 L10n.of(context)?.openBeacon ??
@@ -171,7 +176,10 @@ class BeaconCardShell extends StatelessWidget {
             ),
           )
         else
-          paddedMain,
+          Semantics(
+            selected: selected,
+            child: paddedMain,
+          ),
         if (marker != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -204,7 +212,10 @@ class BeaconCardShell extends StatelessWidget {
         shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(r),
-          side: BorderSide(color: tt.border),
+          side: BorderSide(
+            color: selected ? scheme.primary : tt.border,
+            width: selected ? 2 : 1,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: body,

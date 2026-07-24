@@ -2,22 +2,27 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/features/home/ui/widget/attention_marker.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
-import 'package:tentura/features/home/ui/widget/attention_marker.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
 import 'inbox_card_forwards_fold.dart';
-
-import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
@@ -33,6 +38,7 @@ class InboxItemTile extends StatelessWidget {
     this.showCtaRow = true,
     this.showProvenance = true,
     this.attentionMarked = false,
+    this.isSelected = false,
     super.key,
   });
 
@@ -60,6 +66,9 @@ class InboxItemTile extends StatelessWidget {
 
   /// Whether unread semantic attention currently maps to this Inbox card.
   final bool attentionMarked;
+
+  /// Master–detail selection chrome (Inbox expanded list).
+  final bool isSelected;
 
   String? _secondaryLabel(L10n l10n) {
     // Icon-only tertiary button for dismiss (see _secondaryIcon()).
@@ -126,8 +135,12 @@ class InboxItemTile extends StatelessWidget {
       now: DateTime.now(),
     );
 
+    final description = beacon.description.trim();
+    final forwardNote = _primaryForwardNote(item.provenance);
+
     return BeaconCardShell(
       onTap: onOpenBeacon,
+      selected: isSelected,
       tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
       marker: attentionMarked ? const AttentionMarker() : null,
       footer: showCtaRow
@@ -176,9 +189,23 @@ class InboxItemTile extends StatelessWidget {
             beacon: beacon,
             updatedLine: updatedLine,
           ),
+          if (description.isNotEmpty) ...[
+            SizedBox(height: tt.rowGap),
+            ShowMoreText(
+              description,
+              style: theme.textTheme.bodyMedium,
+              colorClickableText: scheme.primary,
+              trimCollapsedText: l10n.itemShowMore,
+              trimExpandedText: l10n.itemShowLess,
+            ),
+          ],
           if (beacon.needs.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             BeaconRequirementsBar(needs: beacon.needs),
+          ],
+          if (forwardNote != null) ...[
+            SizedBox(height: tt.rowGap),
+            _InboxForwardNotePreview(sender: forwardNote),
           ],
           if (item.roomHints != null) ...[
             SizedBox(height: tt.rowGap),
@@ -208,6 +235,15 @@ class InboxItemTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Highest-MR forwarder with a non-empty note (senders already ordered by MR).
+  InboxForwardSender? _primaryForwardNote(InboxProvenance provenance) {
+    if (!showProvenance) return null;
+    for (final sender in provenance.senders) {
+      if (sender.notePreview.trim().isNotEmpty) return sender;
+    }
+    return null;
   }
 
   List<Widget> _roomHintLines(
@@ -285,5 +321,38 @@ class InboxItemTile extends StatelessWidget {
       }
     }
     return out;
+  }
+}
+
+class _InboxForwardNotePreview extends StatelessWidget {
+  const _InboxForwardNotePreview({required this.sender});
+
+  final InboxForwardSender sender;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final viewerId = context.watch<ProfileCubit>().state.profile.id;
+    final profile = Profile(
+      id: sender.id,
+      displayName: sender.displayName,
+      image: sender.imageId != null &&
+              sender.imageId!.isNotEmpty &&
+              sender.imageId != 'null'
+          ? ImageEntity(id: sender.imageId!, authorId: sender.id)
+          : null,
+    );
+    final name = SelfUserHighlight.displayName(l10n, profile, viewerId);
+    final note = sender.notePreview.trim();
+    return Text(
+      '${l10n.inboxForwardedByLabel} $name: $note',
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: scheme.onSurfaceVariant,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }
