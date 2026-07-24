@@ -728,6 +728,88 @@ FROM public.notification_outbox
     );
 
     test(
+      'idempotency mismatch: reused source_event_key with a different '
+      'event_type throws',
+      () async {
+        const sourceEventKey = 'attention-idem-event-type-mismatch';
+        Future<void> recordWith(AttentionEventType eventType) =>
+            unitOfWork.run(
+              actorUserId: _viewerId,
+              action: () => dispatch.record(
+                AttentionDispatchIntent(
+                  eventType: eventType,
+                  sourceEventKey: sourceEventKey,
+                  actorUserId: _viewerId,
+                  priority: NotificationPriority.normal,
+                  kind: NotificationKind.newRelay,
+                  title: 'Forwarded Request',
+                  body: 'A Request was forwarded to you',
+                  actionUrl: '/#/view?id=$_contentBeaconId',
+                  collapseKey: 'idem-event-type-mismatch',
+                  recipients: const [
+                    AttentionRecipientSnapshot(
+                      recipientId: _otherId,
+                      reasons: {AttentionRecipientReason.forwardRecipient},
+                      role: AttentionRecipientRoleFacts(
+                        canReadBeaconContent: true,
+                        beaconId: _contentBeaconId,
+                        actorUserId: _viewerId,
+                      ),
+                    ),
+                  ],
+                  beaconId: _contentBeaconId,
+                ),
+              ),
+            );
+
+        await recordWith(AttentionEventType.relayReceived);
+        await expectLater(
+          recordWith(AttentionEventType.requestStatusChanged),
+          throwsStateError,
+        );
+      },
+    );
+
+    test(
+      'idempotency mismatch: reused source_event_key with a different '
+      'actor_user_id throws',
+      () async {
+        const sourceEventKey = 'attention-idem-actor-mismatch';
+        Future<void> recordAs(String actorUserId) => unitOfWork.run(
+          actorUserId: actorUserId,
+          action: () => dispatch.record(
+            AttentionDispatchIntent(
+              eventType: AttentionEventType.relayReceived,
+              sourceEventKey: sourceEventKey,
+              actorUserId: actorUserId,
+              priority: NotificationPriority.normal,
+              kind: NotificationKind.newRelay,
+              title: 'Forwarded Request',
+              body: 'A Request was forwarded to you',
+              actionUrl: '/#/view?id=$_contentBeaconId',
+              collapseKey: 'idem-actor-mismatch',
+              recipients: [
+                AttentionRecipientSnapshot(
+                  recipientId: _otherId,
+                  reasons: const {AttentionRecipientReason.forwardRecipient},
+                  role: AttentionRecipientRoleFacts(
+                    canReadBeaconContent: true,
+                    beaconId: _contentBeaconId,
+                    actorUserId: actorUserId,
+                  ),
+                ),
+              ],
+              beaconId: _contentBeaconId,
+            ),
+          ),
+        );
+
+        await recordAs(_viewerId);
+        await expectLater(recordAs(_otherId), throwsStateError);
+      },
+    );
+
+    test(
       'watcher-only status receipt is durable but has no channel decision',
       () async {
         await unitOfWork.run(
@@ -957,9 +1039,6 @@ class _TestChannels implements BeaconNotificationPort {
   final Future<void> Function(List<AttentionChannelDecision>)? onHandOff;
   final bool throwOnHandOff;
   int handOffCalls = 0;
-
-  @override
-  Future<void> dispatch(BeaconNotificationIntent intent) async {}
 
   @override
   Future<void> handOffChannels(

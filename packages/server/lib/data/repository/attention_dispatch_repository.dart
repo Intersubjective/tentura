@@ -36,14 +36,20 @@ RETURNING id''',
         .get();
     // The unique source identity is the transaction-level idempotency guard.
     // A reused key with different source facts is a producer bug, not a no-op.
+    // Idempotency equality = {source_event_key, event_type, actor_user_id,
+    // immutable_payload} at the occurrence grain (CR-9): a replay must match
+    // all four, not just the key and payload.
     if (occurrence.isEmpty) {
       final matching = await _database
           .customSelect(
             r'''SELECT id FROM public.attention_occurrence
-WHERE source_event_key = $1 AND immutable_payload = $2::jsonb''',
+WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
+  AND event_type = $3 AND actor_user_id IS NOT DISTINCT FROM $4''',
             variables: [
               Variable<String>(intent.sourceEventKey),
               Variable<String>(immutablePayload),
+              Variable<String>(intent.eventType.name),
+              Variable<String>(intent.actorUserId),
             ],
           )
           .get();
