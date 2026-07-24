@@ -546,7 +546,7 @@ WHERE id LIKE 'Nt01publisher%'
 
         await writer.execute(r'''
 UPDATE public.notification_outbox
-SET emailed_at = now(), digested_at = now()
+SET emailed_at = now()
 WHERE id LIKE 'Nt01publisher%'
 ''');
         await _settle();

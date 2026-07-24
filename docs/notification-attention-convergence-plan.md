@@ -519,3 +519,30 @@ The full review is retained below for audit. Every blocker is now reflected in �
 The original full review text (CR-1 … CR-14, including verdict, blockers, high-impact corrections,
 and the required corrected sequence) is preserved in this file's git history at the commit prior to
 this rewrite; the mapping above is the authoritative record of how each item was addressed.
+
+## Appendix B — `read_at` dependency inventory (Step 7, deferred)
+
+`notification_outbox.digested_at` was dropped in `m0128` (0 live references outside migrations).
+`read_at` is **not** dropped in this PR — it is a real, load-bearing column, unlike `digested_at`.
+`grep -rIn "read_at\b" packages/server/lib packages/client/lib` (filtered to the actual
+`notification_outbox.read_at` column, excluding the unrelated `recipient_read_at` /
+`beacon_involvement.readAt` forward/involvement columns) turns up:
+
+- **Schema:** `m0096` (column creation), `m0115` (`notification_outbox__unread` index predicate
+  `COALESCE(seen_at, read_at) IS NULL`), `m0116` (realtime UPDATE trigger's old/new changed-row
+  tuple includes `read_at`; one-time backfill `seen_at = read_at`), `m0117`
+  (`bridge_attention_room_seen` sets `seen_at`/`read_at` via `COALESCE`, and the unread-detection
+  predicate `seen_at IS NULL OR read_at IS NULL`).
+- **Server mapping:** `lib/data/repository/notification_outbox_repository.dart` (`_mapRow` reads
+  `read_at` into `readAt`), `lib/domain/entity/notification_outbox_item_entity.dart` (`readAt`
+  field, `isRead` getter).
+- **Compat tests:** `test/data/database/realtime_notification_migration_test.dart` (extensive —
+  the whole m0114–m0120 trigger/backfill contract is expressed in terms of `read_at`),
+  `test/data/repository/attention_repository_pg_test.dart` (`_assertSeenOnly` / `_assertUnread`
+  read `read_at` directly).
+
+Dropping it later requires, in order: (1) decide whether `read_at` is still semantically distinct
+from `seen_at` post-convergence or fully redundant, (2) update the m0116 trigger's changed-row
+tuple and the m0117 bridge function, (3) remove the mapping in the repository/entity, (4) update
+the compat tests above, (5) drop the column and its index predicate in a new migration. Gate on
+mixed-binary compatibility per §9.7. Tracked as a separate, later PR.
