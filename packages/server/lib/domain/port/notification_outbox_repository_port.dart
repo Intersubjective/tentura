@@ -29,6 +29,7 @@ abstract interface class NotificationOutboxRepositoryPort {
     required Duration window,
   });
 
-  /// Retention: deletes seen+emailed rows older than [age]. Returns the count.
+  /// Retention: deletes seen+emailed rows older than [age] only after any
+  /// channel handoff has reached a terminal state. Returns the count.
   Future<int> deleteSettledOlderThan(Duration age);
 }

@@ -1,118 +1,146 @@
+import 'dart:convert';
+
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/query/query_attention.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/port/attention_query_port.dart';
 
-/// Stage-0 / CR-13 semantic compatibility fixture.
-///
-/// Asserts behavioural equality of legacy vs canonical receipt *presentation*
-/// for feed readers — not serialization byte-equality. Legacy rows omit the
-/// new-shape identity columns; canonical rows carry them. Both must still
-/// expose the live fallback fields the client contract requires.
+/// CR-13 compatibility coverage through the production resolver path:
+/// query-port receipt -> [QueryAttention] -> GraphQL-shaped map. It verifies
+/// optional identity fields are emitted as nullable legacy values while the
+/// always-present presentation fallback fields remain available to old clients.
 void main() {
-  final createdAt = DateTime.utc(2026, 7, 24, 12);
+  const auth = {kGlobalInputQueryJwt: JwtEntity(sub: 'Urecipient00001')};
 
-  AttentionReceipt legacyReceipt() => AttentionReceipt(
-    id: 'Nlegacy00000001',
-    accountId: 'Urecipient00001',
-    category: NotificationCategory.connections,
-    kind: NotificationKind.inviteAccepted,
-    priority: NotificationPriority.normal,
-    title: 'Invite accepted',
-    body: 'Alex joined via your invite',
-    actionUrl: '/profile/view/Uactor000000001',
-    createdAt: createdAt,
-    collapsedCount: 1,
-    suppressionClass: AttentionSuppressionClass.standard,
-    accessPolicy: AttentionAccessPolicy.legacy,
-    presentationPayload: const {},
-    actorUserId: 'Uactor000000001',
-  );
+  test(
+    'resolver preserves legacy fallback fields and emits null new identity',
+    () async {
+      final result = await _resolve(_legacyReceipt(), auth);
+      final item = _singleItem(result);
 
-  AttentionReceipt canonicalReceipt() => AttentionReceipt(
-    id: 'Ncanon000000001',
-    accountId: 'Urecipient00001',
-    category: NotificationCategory.connections,
-    kind: NotificationKind.inviteAccepted,
-    priority: NotificationPriority.normal,
-    title: 'Invite accepted',
-    body: 'Alex joined via your invite',
-    actionUrl: '/profile/view/Uactor000000001',
-    createdAt: createdAt,
-    collapsedCount: 1,
-    suppressionClass: AttentionSuppressionClass.standard,
-    accessPolicy: AttentionAccessPolicy.profile,
-    presentationPayload: const {
-      'eventType': 'inviteAccepted',
-      'actorUserId': 'Uactor000000001',
+      expect(item['title'], 'Invite accepted');
+      expect(item['body'], 'Alex joined via your invite');
+      expect(item['actionUrl'], '/profile/view/Uactor000000001');
+      expect(item['sourceEventKey'], isNull);
+      expect(item['destinationKind'], isNull);
+      expect(item['targetEntityId'], isNull);
+      expect(item['presentationKey'], isNull);
+      expect(item['presentationPayloadJson'], jsonEncode({}));
     },
-    actorUserId: 'Uactor000000001',
-    sourceEventKey: 'inviteAccepted:Uactor000000001:Urecipient00001',
-    destinationKind: AttentionDestinationKind.profile,
-    targetEntityId: 'Uactor000000001',
-    presentationKey: 'invite_accepted',
   );
 
-  test('legacy and canonical share feed fallback presentation fields', () {
-    final legacy = legacyReceipt();
-    final canonical = canonicalReceipt();
+  test(
+    'resolver exposes canonical identity alongside the same fallback fields',
+    () async {
+      final result = await _resolve(_canonicalReceipt(), auth);
+      final item = _singleItem(result);
 
-    expect(legacy.title, canonical.title);
-    expect(legacy.body, canonical.body);
-    expect(legacy.actionUrl, canonical.actionUrl);
-    expect(legacy.category, canonical.category);
-    expect(legacy.kind, canonical.kind);
-    expect(legacy.priority, canonical.priority);
-    expect(legacy.collapsedCount, canonical.collapsedCount);
-    expect(legacy.seenAt, isNull);
-    expect(canonical.seenAt, isNull);
-  });
+      expect(item['title'], 'Invite accepted');
+      expect(item['body'], 'Alex joined via your invite');
+      expect(item['actionUrl'], '/profile/view/Uactor000000001');
+      expect(
+        item['sourceEventKey'],
+        'inviteAccepted:Uactor000000001:Urecipient00001',
+      );
+      expect(item['destinationKind'], 'profile');
+      expect(item['targetEntityId'], 'Uactor000000001');
+      expect(item['presentationKey'], 'invite_accepted');
+      expect(
+        item['presentationPayloadJson'],
+        jsonEncode({
+          'eventType': 'inviteAccepted',
+          'actorUserId': 'Uactor000000001',
+        }),
+      );
+    },
+  );
+}
 
-  test('legacy omits new-shape identity; canonical supplies it', () {
-    final legacy = legacyReceipt();
-    final canonical = canonicalReceipt();
+Future<Map<dynamic, dynamic>> _resolve(
+  AttentionReceipt receipt,
+  Map<String, Object> auth,
+) async {
+  final query = QueryAttention(query: _FixtureQuery(receipt));
+  final field = query.all.singleWhere((field) => field.name == 'attentionFeed');
+  return await field.resolve!(null, {...auth, 'view': 'all'})
+      as Map<dynamic, dynamic>;
+}
 
-    expect(legacy.sourceEventKey, isNull);
-    expect(legacy.destinationKind, isNull);
-    expect(legacy.presentationKey, isNull);
-    expect(legacy.accessPolicy, AttentionAccessPolicy.legacy);
+Map<dynamic, dynamic> _singleItem(Map<dynamic, dynamic> result) =>
+    ((result['page'] as Map<dynamic, dynamic>)['items'] as List).single
+        as Map<dynamic, dynamic>;
 
-    expect(canonical.sourceEventKey, isNotNull);
-    expect(canonical.destinationKind, AttentionDestinationKind.profile);
-    expect(canonical.presentationKey, 'invite_accepted');
-    expect(canonical.accessPolicy, isNot(AttentionAccessPolicy.legacy));
-  });
+AttentionReceipt _legacyReceipt() => _receipt(
+  accessPolicy: AttentionAccessPolicy.legacy,
+  presentationPayload: const {},
+);
 
-  test('unread Needs-you summary axes agree when both are unresolved', () {
-    final legacy = legacyReceipt();
-    final canonical = canonicalReceipt();
+AttentionReceipt _canonicalReceipt() => _receipt(
+  accessPolicy: AttentionAccessPolicy.profile,
+  presentationPayload: const {
+    'eventType': 'inviteAccepted',
+    'actorUserId': 'Uactor000000001',
+  },
+  sourceEventKey: 'inviteAccepted:Uactor000000001:Urecipient00001',
+  destinationKind: AttentionDestinationKind.profile,
+  targetEntityId: 'Uactor000000001',
+  presentationKey: 'invite_accepted',
+);
 
-    expect(legacy.seenAt, isNull);
-    expect(canonical.seenAt, isNull);
-    expect(legacy.requiresAction, isFalse);
-    expect(canonical.requiresAction, isFalse);
-    expect(legacy.settlementKind, isNull);
-    expect(canonical.settlementKind, isNull);
-  });
+AttentionReceipt _receipt({
+  required AttentionAccessPolicy accessPolicy,
+  required Map<String, String> presentationPayload,
+  String? sourceEventKey,
+  AttentionDestinationKind? destinationKind,
+  String? targetEntityId,
+  String? presentationKey,
+}) => AttentionReceipt(
+  id: 'Nlegacy00000001',
+  accountId: 'Urecipient00001',
+  category: NotificationCategory.connections,
+  kind: NotificationKind.inviteAccepted,
+  priority: NotificationPriority.normal,
+  title: 'Invite accepted',
+  body: 'Alex joined via your invite',
+  actionUrl: '/profile/view/Uactor000000001',
+  createdAt: DateTime.utc(2026, 7, 24, 12),
+  collapsedCount: 1,
+  suppressionClass: AttentionSuppressionClass.standard,
+  accessPolicy: accessPolicy,
+  presentationPayload: presentationPayload,
+  actorUserId: 'Uactor000000001',
+  sourceEventKey: sourceEventKey,
+  destinationKind: destinationKind,
+  targetEntityId: targetEntityId,
+  presentationKey: presentationKey,
+);
 
-  test('cursor ordering key is createdAt then id for both shapes', () {
-    final older = legacyReceipt();
-    final newer = canonicalReceipt().copyWith(
-      createdAt: createdAt.add(const Duration(seconds: 1)),
-    );
+final class _FixtureQuery implements AttentionQueryPort {
+  _FixtureQuery(this.receipt);
 
-    expect(older.createdAt.isBefore(newer.createdAt), isTrue);
-    // Same timestamp → id is the secondary key (lexicographic).
-    final sameTs = canonicalReceipt().copyWith(createdAt: older.createdAt);
-    final ordered = [older, sameTs]..sort((a, b) {
-      final byTime = a.createdAt.compareTo(b.createdAt);
-      return byTime != 0 ? byTime : a.id.compareTo(b.id);
-    });
-    expect(ordered.map((r) => r.id).toList(), [
-      sameTs.id.compareTo(older.id) < 0 ? sameTs.id : older.id,
-      sameTs.id.compareTo(older.id) < 0 ? older.id : sameTs.id,
-    ]);
-  });
+  final AttentionReceipt receipt;
+
+  @override
+  Future<AttentionFeed> attentionFeed({
+    required String accountId,
+    required AttentionFeedView view,
+    AttentionCursor? cursor,
+    String? search,
+    int limit = 50,
+  }) async => AttentionFeed(
+    summary: const AttentionSummary(unreadTotal: 1),
+    page: AttentionPage(items: [receipt]),
+  );
+
+  @override
+  Future<Set<String>> unreadForBeacons({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async => const {};
 }

@@ -55,6 +55,7 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      await _rollBackM0129ForTest(writer);
       await _rollBackM0128ForTest(writer);
       await _rollBackM0127ForTest(writer);
       await _rollBackM0126ForTest(writer);
@@ -241,7 +242,7 @@ ORDER BY t.tgname
     test(
       'm0115 through m0120 columns, defaults, checks, and index predicates match C1',
       () async {
-        // tip=m0128; Step 6 contraction (m0127) tightened receipt shape after m0126 wipe.
+        // tip=m0129; Step 6 contraction (m0127) tightened receipt shape after m0126 wipe.
         final columnRows = await writer.execute(r'''
 SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
 FROM information_schema.columns
@@ -654,7 +655,8 @@ WHERE id LIKE 'Nt01budget%'
 
       Future<void> expectRejected(String columns, String values) async {
         sequence += 1;
-        final includesShape = columns.contains('source_event_key') ||
+        final includesShape =
+            columns.contains('source_event_key') ||
             columns.contains('destination_kind') ||
             columns.contains('presentation_key') ||
             columns.contains('access_policy');
@@ -1751,6 +1753,19 @@ Future<void> _rollBackM0128ForTest(Connection connection) async {
   for (final statement in const [
     'ALTER TABLE public.notification_outbox ADD COLUMN digested_at timestamptz',
     "DELETE FROM public.schema_version WHERE version = '0128'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0129ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+DROP TRIGGER IF EXISTS attention_anonymize_deleted_actor_trg
+ON public."user"
+''',
+    'DROP FUNCTION IF EXISTS public.attention_anonymize_deleted_actor()',
+    "DELETE FROM public.schema_version WHERE version = '0129'",
   ]) {
     await connection.execute(statement);
   }

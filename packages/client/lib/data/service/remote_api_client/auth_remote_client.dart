@@ -1,13 +1,12 @@
-import 'package:ferry/ferry.dart';
-
 import 'auth_box.dart';
 import 'credentials.dart';
+import 'remote_request_client.dart';
 
-/// Narrow data-layer seam used by the auth repository.
+/// Data-layer transport seam for authentication and realtime lifecycle work.
 ///
-/// Keeping the transport behind this contract makes post-auth realtime binding
-/// directly testable without substituting the application's final API client.
-abstract interface class AuthRemoteClient {
+/// The auth repository also issues GraphQL operations, so this extends the
+/// request-only contract used by ordinary repositories.
+abstract interface class AuthRemoteClient implements RemoteRequestClient {
   bool get isSessionAuth;
   bool get hasValidToken;
 
@@ -24,12 +23,4 @@ abstract interface class AuthRemoteClient {
   Future<void> establishSessionFromBearer({String? authAttemptId});
   Future<void> sessionLogout();
   Future<bool> clearSessionCookie();
-
-  Stream<OperationResponse<TData, TVars>> request<TData, TVars>(
-    OperationRequest<TData, TVars> request, [
-    Stream<OperationResponse<TData, TVars>> Function(
-      OperationRequest<TData, TVars>,
-    )?
-    forward,
-  ]);
 }

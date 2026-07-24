@@ -5,12 +5,16 @@ import 'package:sentry_drift/sentry_drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 @module
 abstract class RegisterModule {
   @singleton
   AuthRemoteClient authRemoteClient(RemoteApiService service) => service;
+
+  @singleton
+  RemoteRequestClient remoteRequestClient(RemoteApiService service) => service;
 
   @singleton
   Logger get logger => Logger.root;

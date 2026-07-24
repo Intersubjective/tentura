@@ -180,6 +180,185 @@ WHERE source_event_key = @sourceEventKey
         expect(occurrence.single.single, 1);
       },
     );
+
+    test(
+      'anonymizes a deleted actor while retaining usable recipient history',
+      () async {
+        const actorId = 'Uattdelactorerase';
+        const actorName = 'Erased Actor';
+        const targetId = 'Uattdeltargeterase';
+        for (final (id, displayName, key) in const [
+          (actorId, actorName, 'attention-delete-actor-erase-key'),
+          (targetId, targetId, 'attention-delete-target-erase-key'),
+        ]) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @displayName, @key)
+'''),
+            parameters: {'id': id, 'displayName': displayName, 'key': key},
+          );
+        }
+
+        await unitOfWork.run(
+          actorUserId: actorId,
+          action: () => dispatch.record(
+            const AttentionDispatchIntent(
+              eventType: AttentionEventType.relayReceived,
+              sourceEventKey: 'attention-delete-actor-erase-relay-1',
+              actorUserId: actorId,
+              priority: NotificationPriority.normal,
+              kind: NotificationKind.newRelay,
+              title: 'Erased Actor forwarded a Request',
+              body: 'Erased Actor shared a private request',
+              actionUrl: '/#/profile?id=Uattdelactorerase',
+              collapseKey: 'attention-delete-actor-erase',
+              recipients: [
+                AttentionRecipientSnapshot(
+                  recipientId: targetId,
+                  reasons: {AttentionRecipientReason.forwardRecipient},
+                  role: AttentionRecipientRoleFacts(
+                    canReadBeaconContent: true,
+                    beaconId: 'Battdelerase',
+                    targetEntityId: actorId,
+                    actorUserId: actorId,
+                  ),
+                ),
+              ],
+              beaconId: 'Battdelerase',
+              targetEntityId: actorId,
+            ),
+          ),
+        );
+
+        final now = DateTime.timestamp().toUtc();
+        expect(
+          await delivery.claimDue(
+            workerId: 'worker-delete-actor-test',
+            now: now,
+            limit: 10,
+          ),
+          hasLength(1),
+        );
+        await writer.execute(
+          Sql.named('''
+UPDATE public.attention_channel_delivery
+SET last_error = @lastError
+WHERE account_id = @targetId
+'''),
+          parameters: {
+            'lastError': '$actorName ($actorId) delivery failed',
+            'targetId': targetId,
+          },
+        );
+
+        final result = await userCase.deleteById(id: actorId);
+        expect(result, isTrue);
+
+        Future<int> countForSource(String table) async {
+          final rows = await writer.execute(
+            Sql.named('''
+SELECT count(*)::int
+FROM public.$table
+WHERE occurrence_id = (
+  SELECT id
+  FROM public.attention_occurrence
+  WHERE source_event_key = 'erased-actor|' || id
+  LIMIT 1
+)
+'''),
+          );
+          return rows.single.single! as int;
+        }
+
+        final userRows = await writer.execute(
+          Sql.named('SELECT count(*)::int FROM public."user" WHERE id = @id'),
+          parameters: {'id': actorId},
+        );
+        expect(userRows.single.single, 0);
+
+        // The occurrence, recipient snapshot, receipt, and delivery all stay
+        // available for the other recipient; only actor-bearing data changes.
+        expect(await countForSource('attention_occurrence_recipient'), 1);
+        expect(await countForSource('notification_outbox'), 1);
+        expect(await countForSource('attention_channel_delivery'), 1);
+
+        final scrubbedOccurrences = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int
+FROM public.attention_occurrence
+WHERE actor_user_id = @actorId
+   OR immutable_payload::text LIKE '%' || @actorId || '%'
+   OR immutable_payload::text LIKE '%' || @actorName || '%'
+'''),
+          parameters: {'actorId': actorId, 'actorName': actorName},
+        );
+        expect(scrubbedOccurrences.single.single, 0);
+
+        final scrubbedRecipients = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int
+FROM public.attention_occurrence_recipient
+WHERE row_to_json(attention_occurrence_recipient)::text LIKE '%' || @actorId || '%'
+   OR row_to_json(attention_occurrence_recipient)::text LIKE '%' || @actorName || '%'
+'''),
+          parameters: {'actorId': actorId, 'actorName': actorName},
+        );
+        expect(scrubbedRecipients.single.single, 0);
+
+        final scrubbedReceipts = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int
+FROM public.notification_outbox
+WHERE actor_user_id = @actorId
+   OR row_to_json(notification_outbox)::text LIKE '%' || @actorId || '%'
+   OR row_to_json(notification_outbox)::text LIKE '%' || @actorName || '%'
+'''),
+          parameters: {'actorId': actorId, 'actorName': actorName},
+        );
+        expect(scrubbedReceipts.single.single, 0);
+
+        final scrubbedDeliveries = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int
+FROM public.attention_channel_delivery
+WHERE row_to_json(attention_channel_delivery)::text LIKE '%' || @actorId || '%'
+   OR row_to_json(attention_channel_delivery)::text LIKE '%' || @actorName || '%'
+'''),
+          parameters: {'actorId': actorId, 'actorName': actorName},
+        );
+        expect(scrubbedDeliveries.single.single, 0);
+
+        final retainedReceipt = await writer.execute(
+          Sql.named('''
+SELECT title, body, actor_user_id, presentation_payload::text
+FROM public.notification_outbox
+WHERE account_id = @targetId
+  AND source_event_key LIKE 'erased-actor|%'
+'''),
+          parameters: {'targetId': targetId},
+        );
+        expect(retainedReceipt, hasLength(1));
+        expect(retainedReceipt.single[0], 'Deleted account');
+        expect(
+          retainedReceipt.single[1],
+          'An account involved in this activity was deleted.',
+        );
+        expect(retainedReceipt.single[2], isNull);
+        expect(retainedReceipt.single[3], contains('relayReceived'));
+
+        final retainedDelivery = await writer.execute(
+          Sql.named('''
+SELECT payload::text
+FROM public.attention_channel_delivery
+WHERE account_id = @targetId
+'''),
+          parameters: {'targetId': targetId},
+        );
+        expect(retainedDelivery, hasLength(1));
+        expect(retainedDelivery.single.single, contains('deleted-account'));
+      },
+    );
   }, skip: skipReason);
 }
 

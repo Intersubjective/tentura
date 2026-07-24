@@ -119,7 +119,15 @@ in_app_preference_class, suppression_class, access_policy
     final before = DateTime.timestamp().subtract(age);
     return _database.customUpdate(
       'DELETE FROM public.notification_outbox '
-      r'WHERE seen_at IS NOT NULL AND created_at < $1::timestamptz',
+      r'''
+WHERE seen_at IS NOT NULL
+  AND emailed_at IS NOT NULL
+  AND created_at < $1::timestamptz
+  AND NOT EXISTS (
+    SELECT 1 FROM public.attention_channel_delivery delivery
+    WHERE delivery.receipt_id = notification_outbox.id
+      AND delivery.status IN ('pending', 'leased')
+  )''',
       variables: [Variable<String>(before.toUtc().toIso8601String())],
       updateKind: UpdateKind.delete,
     );

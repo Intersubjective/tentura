@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -16,9 +17,9 @@ import 'package:tentura/features/attention/data/gql/_g/attention_settle.req.gql.
   env: [Environment.dev, Environment.prod],
 )
 final class AttentionRepository implements AttentionRepositoryPort {
-  AttentionRepository(this._remoteApiService);
+  AttentionRepository(this._remoteClient);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteClient;
 
   static const _label = 'Attention';
 
@@ -29,7 +30,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String? search,
     int limit = 50,
   }) async {
-    final data = await _remoteApiService
+    final data = await _remoteClient
         .request(
           GAttentionFeedReq(
             (request) => request.vars
@@ -88,7 +89,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async {
     if (beaconIds.isEmpty) return const {};
-    final data = await _remoteApiService
+    final data = await _remoteClient
         .request(
           GAttentionMarkersReq(
             (request) => request.vars.beaconIds.addAll(beaconIds),
@@ -102,7 +103,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   @override
   Future<int> markSeen(List<String> ids) async {
     if (ids.isEmpty) return 0;
-    final data = await _remoteApiService
+    final data = await _remoteClient
         .request(
           GAttentionMarkSeenReq((request) => request.vars.ids.addAll(ids)),
         )
@@ -113,7 +114,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
 
   @override
   Future<int> markAllSeen() async {
-    final data = await _remoteApiService
+    final data = await _remoteClient
         .request(GAttentionMarkAllSeenReq())
         .firstWhere((response) => response.dataSource == DataSource.Link)
         .then((response) => response.dataOrThrow(label: _label));
@@ -125,7 +126,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
     required String receiptId,
     required String kind,
   }) async {
-    final data = await _remoteApiService
+    final data = await _remoteClient
         .request(
           GAttentionSettleReq(
             (request) => request.vars

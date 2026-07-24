@@ -18,12 +18,9 @@ import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/env.dart';
 
-/// Retention FK-safety (Step 4 / m0125): `deleteSettledOlderThan` must remove
-/// both a receipt with no delivery job and a delivery-backed canonical
-/// receipt in the same sweep without aborting. Before m0125,
-/// `attention_channel_delivery.receipt_id` was `ON DELETE RESTRICT`, so a
-/// settled canonical receipt still referenced by its delivery job aborted the
-/// whole bulk DELETE.
+/// Retention must keep durable channel handoffs until they reach a terminal
+/// state. Once a receipt has been seen and emailed, m0125 lets retention
+/// remove terminal delivery jobs along with their receipt.
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
   final reachable = await _canConnect(target.adminEnv);
@@ -52,7 +49,7 @@ Future<void> main() async {
       dispatch = AttentionDispatchRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
 
-      await writer.execute(r'''
+      await writer.execute('''
 INSERT INTO public."user" (id, display_name, public_key)
 VALUES ('Uattretactor', 'Retention actor', 'attention-retention-actor-key')
 ''');
@@ -65,69 +62,120 @@ VALUES ('Uattretactor', 'Retention actor', 'attention-retention-actor-key')
     });
 
     test(
-      'removes both a no-delivery receipt and a delivery-backed receipt without aborting',
+      'keeps pending and leased handoffs, then removes terminal and no-delivery receipts',
       () async {
         final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
 
-        // A settled, old receipt with no delivery job attached (e.g. an
-        // in-app-only receipt that was never handed to a delivery channel).
+        // A settled, old receipt with no delivery job attached.
         await writer.execute(
-          Sql.named(r'''
+          Sql.named('''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key, created_at, seen_at,
+  title, body, action_url, dedup_key, created_at, seen_at, emailed_at,
   source_event_key, destination_kind, presentation_key, access_policy
 ) VALUES (
   'Nattretlegacy', 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
   'No delivery', 'No delivery body', '/no-delivery',
-  'attention-retention-no-delivery', @oldAt, @oldAt,
+  'attention-retention-no-delivery', @oldAt, @oldAt, @oldAt,
   'attention-retention-no-delivery', 'profile', 'invite_accepted', 'profile'
 )
 '''),
           parameters: {'oldAt': oldAt},
         );
-
-        // Canonical, delivery-backed receipt via the sole creation path.
-        await unitOfWork.run(
-          actorUserId: 'Uattretactor',
-          action: () => dispatch.record(
-            const AttentionDispatchIntent(
-              eventType: AttentionEventType.relayReceived,
-              sourceEventKey: 'attention-retention-relay-1',
-              actorUserId: 'Uattretactor',
-              priority: NotificationPriority.normal,
-              kind: NotificationKind.newRelay,
-              title: 'Forwarded Request',
-              body: 'A Request was forwarded to you',
-              actionUrl: '/#/view?id=Battret',
-              collapseKey: 'attention-retention-relay',
-              recipients: [
-                AttentionRecipientSnapshot(
-                  recipientId: 'Uattretactor',
-                  reasons: {AttentionRecipientReason.forwardRecipient},
-                  role: AttentionRecipientRoleFacts(
-                    canReadBeaconContent: true,
-                    beaconId: 'Battret',
-                    actorUserId: 'Uattretactor',
-                  ),
-                ),
-              ],
-              beaconId: 'Battret',
-            ),
-          ),
+        // Seeing a receipt alone must never discard an unsent digest entry.
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at, seen_at,
+  source_event_key, destination_kind, presentation_key, access_policy
+) VALUES (
+  'Nattretunemailed', 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
+  'Unsent digest', 'Unsent digest body', '/unsent-digest',
+  'attention-retention-unsent-digest', @oldAt, @oldAt,
+  'attention-retention-unsent-digest', 'profile', 'invite_accepted', 'profile'
+)
+'''),
+          parameters: {'oldAt': oldAt},
         );
-        final canonical = await writer.execute(r'''
+
+        Future<String> recordDeliveryBackedReceipt(String suffix) async {
+          await unitOfWork.run(
+            actorUserId: 'Uattretactor',
+            action: () => dispatch.record(
+              AttentionDispatchIntent(
+                eventType: AttentionEventType.relayReceived,
+                sourceEventKey: 'attention-retention-relay-$suffix',
+                actorUserId: 'Uattretactor',
+                priority: NotificationPriority.normal,
+                kind: NotificationKind.newRelay,
+                title: 'Forwarded Request',
+                body: 'A Request was forwarded to you',
+                actionUrl: '/#/view?id=Battret',
+                collapseKey: 'attention-retention-relay-$suffix',
+                recipients: const [
+                  AttentionRecipientSnapshot(
+                    recipientId: 'Uattretactor',
+                    reasons: {AttentionRecipientReason.forwardRecipient},
+                    role: AttentionRecipientRoleFacts(
+                      canReadBeaconContent: true,
+                      beaconId: 'Battret',
+                      actorUserId: 'Uattretactor',
+                    ),
+                  ),
+                ],
+                beaconId: 'Battret',
+              ),
+            ),
+          );
+          final receipt = await writer.execute(
+            Sql.named('''
 SELECT id FROM public.notification_outbox
-WHERE dedup_key = 'Uattretactor|attention-v1|attention-retention-relay'
-''');
-        final canonicalId = canonical.single.single! as String;
+WHERE dedup_key = @dedupKey
+'''),
+            parameters: {
+              'dedupKey':
+                  'Uattretactor|attention-v1|attention-retention-relay-$suffix',
+            },
+          );
+          return receipt.single.single! as String;
+        }
+
+        final pendingId = await recordDeliveryBackedReceipt('pending');
+        final leasedId = await recordDeliveryBackedReceipt('leased');
+        final terminalId = await recordDeliveryBackedReceipt('terminal');
         await writer.execute(
           Sql.named('''
 UPDATE public.notification_outbox
-SET seen_at = @oldAt, created_at = @oldAt
-WHERE id = @id
+SET seen_at = @oldAt, created_at = @oldAt, emailed_at = @oldAt
+WHERE id IN (@pendingId, @leasedId, @terminalId)
 '''),
-          parameters: {'oldAt': oldAt, 'id': canonicalId},
+          parameters: {
+            'oldAt': oldAt,
+            'pendingId': pendingId,
+            'leasedId': leasedId,
+            'terminalId': terminalId,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+UPDATE public.attention_channel_delivery
+SET status = 'leased', lease_owner = 'retention-test-worker',
+    lease_until = @leaseUntil
+WHERE receipt_id = @receiptId
+'''),
+          parameters: {
+            'leaseUntil': oldAt.add(const Duration(minutes: 2)),
+            'receiptId': leasedId,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+UPDATE public.attention_channel_delivery
+SET status = 'delivered', delivered_at = @deliveredAt
+WHERE receipt_id = @receiptId
+'''),
+          parameters: {'deliveredAt': oldAt, 'receiptId': terminalId},
         );
 
         Future<int> deliveryCountFor(String receiptId) async {
@@ -141,27 +189,50 @@ WHERE receipt_id = @receiptId
           return rows.single.single! as int;
         }
 
-        expect(await deliveryCountFor(canonicalId), 1);
+        expect(await deliveryCountFor(pendingId), 1);
+        expect(await deliveryCountFor(leasedId), 1);
+        expect(await deliveryCountFor(terminalId), 1);
 
         final deleted = await outbox.deleteSettledOlderThan(
           const Duration(days: 30),
         );
         expect(deleted, 2);
 
-        final remaining = await writer.execute(r'''
+        final remaining = await writer.execute(
+          r'''
 SELECT count(*)::int FROM public.notification_outbox
-WHERE id IN ('Nattretlegacy', $1)
-''', parameters: [canonicalId]);
-        expect(remaining.single.single, 0);
+WHERE id IN ('Nattretlegacy', 'Nattretunemailed', $1, $2, $3)
+''',
+          parameters: [pendingId, leasedId, terminalId],
+        );
+        expect(remaining.single.single, 3);
+        final remainingIds = await writer.execute(
+          r'''
+SELECT id FROM public.notification_outbox
+WHERE id IN ('Nattretunemailed', $1, $2, $3)
+ORDER BY id
+''',
+          parameters: [pendingId, leasedId, terminalId],
+        );
+        expect(
+          remainingIds.map((row) => row.single).toSet(),
+          {'Nattretunemailed', pendingId, leasedId},
+        );
 
-        // The delivery job cascades away with its receipt (m0125); the
-        // occurrence itself is shared history and stays untouched.
-        expect(await deliveryCountFor(canonicalId), 0);
-        final occurrence = await writer.execute(r'''
+        // The terminal delivery job cascades away with its receipt (m0125),
+        // while pending and leased handoffs remain available to workers.
+        expect(await deliveryCountFor(pendingId), 1);
+        expect(await deliveryCountFor(leasedId), 1);
+        expect(await deliveryCountFor(terminalId), 0);
+        final occurrence = await writer.execute('''
 SELECT count(*)::int FROM public.attention_occurrence
-WHERE source_event_key = 'attention-retention-relay-1'
+WHERE source_event_key IN (
+  'attention-retention-relay-pending',
+  'attention-retention-relay-leased',
+  'attention-retention-relay-terminal'
+)
 ''');
-        expect(occurrence.single.single, 1);
+        expect(occurrence.single.single, 3);
       },
     );
   }, skip: skipReason);
