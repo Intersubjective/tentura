@@ -33,10 +33,10 @@
     })();
   </script>
 
-  <!-- Circular crop preview for avatar (1:1 aspect ratio set from Flutter). -->
+  <!-- Circular crop preview for avatar only (class toggled from Flutter). -->
   <style>
-    .cropper-view-box,
-    .cropper-face {
+    body.tentura-avatar-crop .cropper-view-box,
+    body.tentura-avatar-crop .cropper-face {
       border-radius: 50%;
     }
   </style>
@@ -129,7 +129,7 @@
     }
   </script>
 
-  <script src="flutter_bootstrap.js?v=5.0.1" async=""></script>
+  <script src="flutter_bootstrap.js?v=5.1.1" async=""></script>
 
   <script>
     if ('serviceWorker' in navigator) {

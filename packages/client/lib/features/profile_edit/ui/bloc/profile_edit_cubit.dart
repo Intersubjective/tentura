@@ -64,7 +64,10 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
       emit(state.copyWith(status: const StateIsLoading()));
     }
     try {
-      final picked = await _imageRepository.pickAndCropImage(cropUiSettings);
+      final picked = await _imageRepository.pickAndCropImage(
+        cropUiSettings,
+        circularWebMask: true,
+      );
       if (isClosed) {
         return;
       }
@@ -111,6 +114,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
       final picked = await _imageRepository.cropImageBytes(
         sourceBytes,
         cropUiSettings,
+        circularWebMask: true,
       );
       if (isClosed) {
         return;

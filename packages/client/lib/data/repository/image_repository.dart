@@ -10,6 +10,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 
+import 'avatar_crop_mask.dart';
 import 'read_blob_url_stub.dart'
     if (dart.library.js_interop) 'read_blob_url_web.dart';
 import 'write_crop_source_stub.dart'
@@ -33,30 +34,42 @@ class ImageRepository implements BeaconImagePort {
     return xFile == null ? null : await _xFileToPicked(xFile);
   }
 
-  /// Gallery pick, then native/web crop UI (1:1, circular guide on mobile).
+  /// Gallery pick, then native/web crop UI (1:1).
   ///
   /// Picker does not downscale first: the cropper must see full pixels so the
   /// exported region matches the user's crop. Output is capped via
   /// [ImageCropper] `maxWidth` / `maxHeight`.
+  ///
+  /// Set [circularWebMask] for profile avatar crop on web (circular preview).
   Future<ImagePicked?> pickAndCropImage(
-    List<PlatformUiSettings> cropUiSettings,
-  ) async {
+    List<PlatformUiSettings> cropUiSettings, {
+    bool circularWebMask = false,
+  }) async {
     final xFile = await _imagePicker.pickImage(
       source: ImageSource.gallery,
     );
     if (xFile == null) return null;
 
-    return _cropSourcePath(xFile.path, cropUiSettings);
+    return _cropSourcePath(
+      xFile.path,
+      cropUiSettings,
+      circularWebMask: circularWebMask,
+    );
   }
 
   /// Open the crop UI for existing image bytes (e.g. current profile photo).
   Future<ImagePicked?> cropImageBytes(
     Uint8List bytes,
-    List<PlatformUiSettings> cropUiSettings,
-  ) async {
+    List<PlatformUiSettings> cropUiSettings, {
+    bool circularWebMask = false,
+  }) async {
     final sourcePath = await writeCropSourceBytes(bytes);
     try {
-      return await _cropSourcePath(sourcePath, cropUiSettings);
+      return await _cropSourcePath(
+        sourcePath,
+        cropUiSettings,
+        circularWebMask: circularWebMask,
+      );
     } finally {
       await disposeCropSourcePath(sourcePath);
     }
@@ -72,18 +85,24 @@ class ImageRepository implements BeaconImagePort {
 
   Future<ImagePicked?> _cropSourcePath(
     String sourcePath,
-    List<PlatformUiSettings> cropUiSettings,
-  ) async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: sourcePath,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      maxWidth: kImageMaxDimension,
-      maxHeight: kImageMaxDimension,
-      uiSettings: cropUiSettings,
-    );
-    if (croppedFile == null) return null;
+    List<PlatformUiSettings> cropUiSettings, {
+    bool circularWebMask = false,
+  }) async {
+    setAvatarCropMaskEnabled(circularWebMask);
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        maxWidth: kImageMaxDimension,
+        maxHeight: kImageMaxDimension,
+        uiSettings: cropUiSettings,
+      );
+      if (croppedFile == null) return null;
 
-    return _croppedFileToPicked(croppedFile);
+      return _croppedFileToPicked(croppedFile);
+    } finally {
+      setAvatarCropMaskEnabled(false);
+    }
   }
 
   Future<List<ImagePicked>> pickMultipleImages() async {
