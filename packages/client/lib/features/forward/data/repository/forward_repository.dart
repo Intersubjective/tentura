@@ -24,7 +24,7 @@ import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
-    show GForwardRecipientReasonInput;
+    show Gv2_ForwardRecipientReasonInput;
 import '../gql/_g/forward_cancel.req.gql.dart';
 import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
@@ -141,7 +141,7 @@ class ForwardRepository {
                 recipientReasons.entries
                     .where((e) => e.value.isNotEmpty)
                     .map(
-                      (e) => GForwardRecipientReasonInput.create(
+                      (e) => Gv2_ForwardRecipientReasonInput.create(
                         recipientId: e.key,
                         slugs: BuiltList<String>.from(e.value),
                       ),
