@@ -7,8 +7,6 @@ mutation BeaconUpdateDraft(
   $startAt: String = "",
   $endAt: String = "",
   $tags: String = "",
-  $iconCode: String,
-  $iconBackground: Int,
   $needs: String,
   $primaryNeedSlug: String,
   $addressLabel: String
@@ -22,8 +20,6 @@ mutation BeaconUpdateDraft(
     startAt: $startAt,
     endAt: $endAt,
     tags: $tags,
-    iconCode: $iconCode,
-    iconBackground: $iconBackground,
     needs: $needs,
     primaryNeedSlug: $primaryNeedSlug,
     addressLabel: $addressLabel

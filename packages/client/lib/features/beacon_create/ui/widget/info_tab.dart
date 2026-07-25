@@ -7,15 +7,12 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/capability/ui/widget/removable_capability_chips.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
@@ -25,7 +22,6 @@ import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
-import '../screen/beacon_icon_picker_screen.dart';
 import 'cover_block.dart';
 
 class InfoTab extends StatefulWidget {
@@ -468,87 +464,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               onManageCapabilities: () =>
                   unawaited(_showRequirementsSheet(context)),
             ),
-          ),
-
-          // Beacon symbol (optional identity tile)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: Text(
-              _l10n.beaconSymbolTitle,
-              style: _theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-            bloc: _cubit,
-            builder: (_, state) {
-              final now = DateTime.timestamp();
-              final preview = Beacon(
-                createdAt: now,
-                updatedAt: now,
-                title: state.title,
-                iconCode: state.iconCode,
-                iconBackground: state.iconBackground,
-              );
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () async {
-                    final r = await BeaconIconPickerScreen.show(
-                      context,
-                      iconCode: state.iconCode,
-                      iconBackground: state.iconBackground,
-                    );
-                    if (!context.mounted || r == null) {
-                      return;
-                    }
-                    if (r.iconCode == null || r.iconCode!.isEmpty) {
-                      _cubit.clearBeaconIdentity();
-                    } else {
-                      _cubit.setIconCode(r.iconCode!);
-                      if (r.iconBackground != null) {
-                        _cubit.setIconBackground(r.iconBackground);
-                      }
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        BeaconIdentityTile(beacon: preview, size: 56),
-                        const SizedBox(width: kSpacingSmall),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _l10n.beaconSymbolSelectHint,
-                                style: _theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _l10n.beaconSymbolHint,
-                                style: _theme.textTheme.bodySmall?.copyWith(
-                                  color: _theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: _theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
           ),
 
           if (_env.isGoogleMapsConfigured)

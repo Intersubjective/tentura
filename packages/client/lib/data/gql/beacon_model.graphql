@@ -3,8 +3,6 @@
 
 fragment BeaconModel on beacon {
   id
-  icon_code
-  icon_background
   primary_need_slug
   cover_image_id
   cover_source

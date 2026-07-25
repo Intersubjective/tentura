@@ -33,8 +33,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     DateTime? cachedDeadlineAt,
     DateTime? cachedEventStartAt,
     DateTime? cachedEventEndAt,
-    String? iconCode,
-    int? iconBackground,
 
     /// Capability slug driving symbol identity; must be a member of [needs].
     String? primaryNeedSlug,

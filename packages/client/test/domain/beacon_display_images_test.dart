@@ -66,17 +66,14 @@ void main() {
     }
   });
 
-  test('imageUrl is the cover-first thumbnail', () {
-    expect(_beacon(coverImageId: 'img-3').imageUrl, _url('img-3'));
+  test('the thumbnail is the first projected url', () {
+    expect(_beacon(coverImageId: 'img-3').displayImageUrls.first, _url('img-3'));
   });
 
-  test('imageUrl is the placeholder with no images', () {
-    expect(_beacon(images: const []).imageUrl, kBeaconPlaceholderUrl);
-  });
+  test('a beacon without images projects nothing', () {
+    final beacon = _beacon(images: const []);
 
-  test('legacy imageUrls alias uses the same ordered projection', () {
-    final beacon = _beacon(coverImageId: 'img-3');
-
-    expect(beacon.imageUrls, beacon.displayImageUrls);
+    expect(beacon.displayImages, isEmpty);
+    expect(beacon.displayImageUrls, isEmpty);
   });
 }

@@ -22,6 +22,25 @@ void main() {
       expect(schema, isNot(contains('beaconSetCover')));
     });
 
+    test('the schema keeps legacy icon arguments the client no longer sends', () {
+      expect(schema, contains('iconCode: String'));
+      expect(schema, contains('iconBackground: Int'));
+
+      for (final relative in [
+        'lib/features/beacon/data/gql/beacon_create.graphql',
+        'lib/features/beacon/data/gql/beacon_update.graphql',
+        'lib/features/beacon/data/gql/beacon_update_draft.graphql',
+      ]) {
+        final doc = File(relative).readAsStringSync();
+        expect(doc, isNot(contains('iconCode')), reason: relative);
+        expect(doc, isNot(contains('iconBackground')), reason: relative);
+      }
+      expect(
+        File('lib/data/gql/beacon_model.graphql').readAsStringSync(),
+        isNot(contains('icon_')),
+      );
+    });
+
     test('legacy create/update/add documents still validate against schema', () {
       for (final relative in [
         'lib/features/beacon/data/gql/beacon_create.graphql',
@@ -33,11 +52,6 @@ void main() {
         expect(doc, contains('mutation '), reason: relative);
         expect(doc, isNot(contains('beaconSetCover')), reason: relative);
       }
-      expect(
-        File('lib/features/beacon/data/gql/beacon_create.graphql')
-            .readAsStringSync(),
-        contains(r'$iconCode'),
-      );
       expect(
         File('lib/features/beacon/data/gql/beacon_create.graphql')
             .readAsStringSync(),

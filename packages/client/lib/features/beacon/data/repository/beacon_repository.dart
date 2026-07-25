@@ -8,7 +8,6 @@ import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
@@ -143,10 +142,6 @@ class BeaconRepository implements BeaconWritePort {
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
         ..image = null
-        ..iconCode = beacon.iconCode
-        ..iconBackground = beacon.iconBackground == null
-            ? null
-            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel
@@ -180,10 +175,6 @@ class BeaconRepository implements BeaconWritePort {
             : (GCoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
-        ..iconCode = beacon.iconCode
-        ..iconBackground = beacon.iconBackground == null
-            ? null
-            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel;
@@ -215,10 +206,6 @@ class BeaconRepository implements BeaconWritePort {
             : (GCoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
-        ..iconCode = beacon.iconCode
-        ..iconBackground = beacon.iconBackground == null
-            ? null
-            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel;

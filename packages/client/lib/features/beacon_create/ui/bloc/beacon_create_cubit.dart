@@ -8,7 +8,6 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -136,8 +135,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       location: coordinates != null ? beacon.addressLabel ?? '' : '',
       startAt: beacon.startAt,
       endAt: beacon.endAt,
-      iconCode: beacon.iconCode,
-      iconBackground: beacon.iconBackground,
       primaryNeedSlug: beacon.primaryNeedSlug,
       coverKey: beacon.coverImage?.key,
       coverSource: beacon.coverSource,
@@ -292,20 +289,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       location: locationName,
     ),
   );
-
-  void setIconCode(String value) => emit(
-    state.copyWith(
-      iconCode: value,
-      iconBackground:
-          state.iconBackground ?? kBeaconIdentityPalette.first.backgroundArgb,
-    ),
-  );
-
-  void setIconBackground(int? value) =>
-      emit(state.copyWith(iconBackground: value));
-
-  void clearBeaconIdentity() =>
-      emit(state.copyWith(iconCode: null, iconBackground: null));
 
   /// Cover
   ///
@@ -469,8 +452,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required String id,
     required bool draftSafeTitle,
   }) {
-    final iconCode = state.iconCode?.trim();
-    final hasIcon = iconCode != null && iconCode.isNotEmpty;
     return Beacon(
       id: id,
       createdAt: now,
@@ -489,8 +470,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       startAt: state.startAt,
       endAt: state.endAt,
       images: state.images,
-      iconCode: hasIcon ? iconCode : null,
-      iconBackground: hasIcon ? state.iconBackground : null,
       primaryNeedSlug: state.primaryNeedSlug,
       coverSource: state.coverSource,
     );

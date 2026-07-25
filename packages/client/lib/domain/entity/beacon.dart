@@ -54,12 +54,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Active help-offer user profiles when `help_offers` relation is fetched (My Work).
     @Default([]) List<Profile> helpOfferUsers,
 
-    /// Curated symbolic icon key (client catalog); null = default identity tile.
-    String? iconCode,
-
-    /// ARGB background from constrained palette; null if unset.
-    int? iconBackground,
-
     /// Capability slug driving symbol identity; null iff [needs] is empty.
     String? primaryNeedSlug,
 
@@ -110,9 +104,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   bool get hasPicture => images.isNotEmpty;
   bool get hasNoPicture => images.isEmpty;
-
-  /// Author chose a curated icon key for the identity tile.
-  bool get hasIdentityTile => iconCode != null && iconCode!.isNotEmpty;
 
   /// Attached image matching [coverImageId]; null when absent or stale.
   ///
@@ -169,15 +160,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     final owner = image.authorId.isNotEmpty ? image.authorId : author.id;
     return '$kImageServer/$kImagesPath/$owner/${image.id}.$kImageExt';
   }
-
-  /// URL for the cover-first thumbnail image.
-  String get imageUrl {
-    final ordered = displayImages;
-    return ordered.isEmpty ? kBeaconPlaceholderUrl : urlForImage(ordered.first);
-  }
-
-  /// URLs for all images in gallery order.
-  List<String> get imageUrls => displayImageUrls;
 
   static final empty = Beacon(
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),

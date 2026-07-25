@@ -501,42 +501,6 @@
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
   },
-  "beaconSymbolTitle": "Request symbol",
-  "@beaconSymbolTitle": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolHint": "Optional. Shown on inbox and lists instead of a photo.",
-  "@beaconSymbolHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolBackground": "Background",
-  "@beaconSymbolBackground": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolSearchHint": "Search symbols",
-  "@beaconSymbolSearchHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolClear": "Clear symbol",
-  "@beaconSymbolClear": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolCategoryAll": "All",
-  "@beaconSymbolCategoryAll": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolSelectHint": "Tap to select a request symbol",
-  "@beaconSymbolSelectHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolDone": "Done",
-  "@beaconSymbolDone": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolNoMatches": "No symbols match your search",
-  "@beaconSymbolNoMatches": {
-    "context": "BeaconCreateScreen"
-  },
   "beaconCoverTitle": "Request cover",
   "@beaconCoverTitle": {
     "context": "BeaconCreateScreen"

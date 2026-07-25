@@ -1,5 +1,4 @@
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -47,8 +46,6 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       reviewWindowStatus: reviewWindow?.status,
       helpOfferCount: i.help_offers_aggregate.aggregate?.count ?? 0,
       unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
-      iconCode: i.icon_code,
-      iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
       primaryNeedSlug: i.primary_need_slug,
       coverImageId: i.cover_image_id,
       coverSource: BeaconCoverSource.fromWireOrPhoto(i.cover_source),

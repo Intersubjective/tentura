@@ -501,42 +501,6 @@
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
   },
-  "beaconSymbolTitle": "Символ запроса",
-  "@beaconSymbolTitle": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolHint": "Необязательно. Показывается во входящих и списках вместо фото.",
-  "@beaconSymbolHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolBackground": "Фон",
-  "@beaconSymbolBackground": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolSearchHint": "Поиск символов",
-  "@beaconSymbolSearchHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolClear": "Сбросить символ",
-  "@beaconSymbolClear": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolCategoryAll": "Все",
-  "@beaconSymbolCategoryAll": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolSelectHint": "Нажмите, чтобы выбрать символ",
-  "@beaconSymbolSelectHint": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolDone": "Готово",
-  "@beaconSymbolDone": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSymbolNoMatches": "Нет символов по запросу",
-  "@beaconSymbolNoMatches": {
-    "context": "BeaconCreateScreen"
-  },
   "beaconCoverTitle": "Обложка запроса",
   "@beaconCoverTitle": {
     "context": "BeaconCreateScreen"
