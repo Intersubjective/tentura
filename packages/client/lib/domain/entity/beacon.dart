@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 
+import 'beacon_cover.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
@@ -57,6 +60,15 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// ARGB background from constrained palette; null if unset.
     int? iconBackground,
 
+    /// Capability slug driving symbol identity; null iff [needs] is empty.
+    String? primaryNeedSlug,
+
+    /// Author-selected cover image id; null when no image is attached.
+    String? coverImageId,
+
+    /// Author preference between photo and symbol presentation.
+    @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
+
     /// Lineage fork: immediate parent beacon id (nullable).
     String? lineageParentBeaconId,
 
@@ -102,16 +114,63 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// Author chose a curated icon key for the identity tile.
   bool get hasIdentityTile => iconCode != null && iconCode!.isNotEmpty;
 
-  /// URL for the first (thumbnail) image.
-  String get imageUrl => hasPicture
-      ? '$kImageServer/$kImagesPath/${author.id}/${images.first.id}.$kImageExt'
-      : kBeaconPlaceholderUrl;
+  /// Attached image matching [coverImageId]; null when absent or stale.
+  ImageEntity? get coverImage {
+    final selected = coverImageId;
+    if (selected == null) return null;
+    for (final image in images) {
+      if (image.id == selected) return image;
+    }
+    return null;
+  }
+
+  /// The only identity decision point. [allowPhoto] is false for image-error
+  /// fallbacks so a broken photo degrades to symbol or neutral.
+  BeaconIdentity resolveIdentity({required bool allowPhoto}) {
+    if (!canReadContent) return const BeaconIdentityNeutral();
+
+    if (allowPhoto && coverSource == BeaconCoverSource.photo) {
+      final selected = coverImage;
+      if (selected != null) return BeaconIdentityPhoto(selected);
+    }
+
+    final slug = primaryNeedSlug;
+    if (slug != null && needs.contains(slug)) {
+      final tag = CapabilityTag.fromSlug(slug);
+      if (tag != null) return BeaconIdentitySymbol(tag);
+    }
+    return const BeaconIdentityNeutral();
+  }
+
+  BeaconIdentity get identity => resolveIdentity(allowPhoto: true);
+
+  /// Gallery order: valid selected cover first, then persisted order.
+  List<ImageEntity> get displayImages {
+    final selected = coverImage;
+    if (selected == null) return images;
+    return [
+      selected,
+      for (final image in images)
+        if (image.id != selected.id) image,
+    ];
+  }
+
+  /// URLs aligned index-for-index with [displayImages].
+  List<String> get displayImageUrls => [
+    for (final img in displayImages) urlForImage(img),
+  ];
+
+  String urlForImage(ImageEntity image) =>
+      '$kImageServer/$kImagesPath/${author.id}/${image.id}.$kImageExt';
+
+  /// URL for the cover-first thumbnail image.
+  String get imageUrl {
+    final ordered = displayImages;
+    return ordered.isEmpty ? kBeaconPlaceholderUrl : urlForImage(ordered.first);
+  }
 
   /// URLs for all images in gallery order.
-  List<String> get imageUrls => [
-    for (final img in images)
-      '$kImageServer/$kImagesPath/${author.id}/${img.id}.$kImageExt',
-  ];
+  List<String> get imageUrls => displayImageUrls;
 
   static final empty = Beacon(
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),

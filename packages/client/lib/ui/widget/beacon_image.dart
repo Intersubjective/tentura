@@ -19,16 +19,18 @@ class BeaconImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (beacon.hasNoPicture) return _placeholder;
+    final ordered = beacon.displayImages;
+    if (ordered.isEmpty) return _placeholder;
 
-    final image = beacon.images.first;
+    final image = ordered.first;
+    final network = _imageNetwork(beacon.urlForImage(image));
     final imageWidget = image.blurHash.isEmpty
-        ? _imageNetwork
+        ? network
         : AspectRatio(
             aspectRatio: image.height > 0
                 ? image.width / image.height
                 : 1,
-            child: BlurHash(image.blurHash, child: _imageNetwork),
+            child: BlurHash(image.blurHash, child: network),
           );
 
     if (!enableGalleryTap) return imageWidget;
@@ -42,8 +44,8 @@ class BeaconImage extends StatelessWidget {
     );
   }
 
-  Widget get _imageNetwork => Image.network(
-    beacon.imageUrl,
+  Widget _imageNetwork(String url) => Image.network(
+    url,
     fit: boxFit,
     errorBuilder: (_, _, _) => _placeholder,
   );

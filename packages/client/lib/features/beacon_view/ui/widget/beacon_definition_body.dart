@@ -143,7 +143,7 @@ class _BeaconDefinitionMediaBand extends StatelessWidget {
         final mediaMaxWidth = _mediaMaxWidth(windowClass);
 
         Widget media;
-        if (beacon.images.length > 1) {
+        if (beacon.displayImages.length > 1) {
           media = BeaconImageGallery(
             beacon: beacon,
             maxHeight: mediaHeight,

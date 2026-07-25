@@ -1,6 +1,7 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../gql/_g/beacon_model.data.gql.dart';
 import 'image_model.dart';
@@ -48,6 +49,9 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
       iconCode: i.icon_code,
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
+      primaryNeedSlug: i.primary_need_slug,
+      coverImageId: i.cover_image_id,
+      coverSource: BeaconCoverSource.fromWireOrPhoto(i.cover_source),
       lineageParentBeaconId: i.lineage_parent_beacon_id,
       lineageRootBeaconId: i.lineage_root_beacon_id,
       canReadContent: i.can_read_content ?? true,

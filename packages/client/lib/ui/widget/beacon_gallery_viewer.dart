@@ -80,7 +80,7 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
   }
 
   void _goTo(int index) {
-    final clamped = index.clamp(0, widget.beacon.imageUrls.length - 1);
+    final clamped = index.clamp(0, widget.beacon.displayImages.length - 1);
     if (clamped != _currentIndex) {
       unawaited(
         _pageController.animateToPage(
@@ -96,8 +96,8 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrls = widget.beacon.imageUrls;
-    final images = widget.beacon.images;
+    final imageUrls = widget.beacon.displayImageUrls;
+    final images = widget.beacon.displayImages;
 
     if (imageUrls.isEmpty) {
       return Scaffold(

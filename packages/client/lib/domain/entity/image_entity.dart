@@ -17,7 +17,13 @@ abstract class ImageEntity with _$ImageEntity implements Identifiable {
     @Default('image/jpeg') String mimeType,
     @Default('') String fileName,
     Uint8List? imageBytes,
+
+    /// Client-generated identity for a locally picked image with no server id.
+    @Default('') String localKey,
   }) = _ImageEntity;
 
   const ImageEntity._();
+
+  /// Stable identity across staging: server id when known, else [localKey].
+  String get key => id.isNotEmpty ? id : localKey;
 }

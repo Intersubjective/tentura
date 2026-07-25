@@ -48,8 +48,8 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
 
   @override
   Widget build(BuildContext context) {
-    final images = widget.beacon.images;
-    final imageUrls = widget.beacon.imageUrls;
+    final images = widget.beacon.displayImages;
+    final imageUrls = widget.beacon.displayImageUrls;
     final storageKey = widget.maxHeight == null
         ? 'beacon-gallery-${widget.beacon.id}-full'
         : 'beacon-gallery-${widget.beacon.id}-compact-${widget.maxHeight}';
