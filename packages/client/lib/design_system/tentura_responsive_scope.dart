@@ -22,7 +22,12 @@ class TenturaResponsiveScope extends StatelessWidget {
     final wc = context.windowClass;
     final tokens = base.applyWindowClass(wc);
     final themed = Theme(
-      data: theme.copyWith(extensions: <ThemeExtension<dynamic>>[tokens]),
+      data: theme.copyWith(
+        extensions: [
+          ...theme.extensions.values.where((e) => e is! TenturaTokens),
+          tokens,
+        ],
+      ),
       child: child,
     );
     // Apply token density only. Do not cap layout width here: a centered

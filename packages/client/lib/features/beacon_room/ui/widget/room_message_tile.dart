@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/design_system/tentura_capability_colors.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -500,11 +501,10 @@ class RoomMessageTile extends StatelessWidget {
         break;
       }
     }
-    final authorCapabilityIcons = helpOfferTypeSlugs(authorHelpTypeWire)
+    final authorCapabilityTags = helpOfferTypeSlugs(authorHelpTypeWire)
         .take(4)
         .map(CapabilityTag.fromSlug)
         .whereType<CapabilityTag>()
-        .map((t) => t.icon)
         .toList();
 
     final imageAttachments = message.attachments
@@ -1059,7 +1059,7 @@ class RoomMessageTile extends StatelessWidget {
                               userId: message.author.id,
                               size: tt.avatarGutter,
                             ),
-                            if (authorCapabilityIcons.isNotEmpty) ...[
+                            if (authorCapabilityTags.isNotEmpty) ...[
                               const SizedBox(height: 1),
                               SizedBox(
                                 width: kTenturaAvatarDefaultMedium,
@@ -1068,11 +1068,13 @@ class RoomMessageTile extends StatelessWidget {
                                   spacing: 2,
                                   runSpacing: 2,
                                   children: [
-                                    for (final icon in authorCapabilityIcons)
+                                    for (final tag in authorCapabilityTags)
                                       Icon(
-                                        icon,
+                                        tag.icon,
                                         size: 12,
-                                        color: scheme.onSurfaceVariant,
+                                        color: context.capabilityColors
+                                            .swatchFor(tag.group)
+                                            .onContainer,
                                       ),
                                   ],
                                 ),

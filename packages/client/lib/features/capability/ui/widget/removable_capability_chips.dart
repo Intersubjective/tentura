@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -25,23 +26,27 @@ class RemovableCapabilityChips extends StatelessWidget {
 
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final fg = theme.colorScheme.onSecondaryContainer;
-    final labelStyle = theme.textTheme.labelSmall?.copyWith(color: fg);
+    final colors = context.capabilityColors;
 
     return Wrap(
       spacing: 4,
       runSpacing: 2,
       children: [
         for (final tag in tags)
-          InputChip(
-            label: Text(tag.labelOf(l10n), style: labelStyle),
-            avatar: Icon(tag.icon, size: 18, color: fg),
-            onDeleted: () => onRemove(tag.slug),
-            backgroundColor: theme.colorScheme.secondaryContainer,
-            deleteIconColor: fg,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
+          () {
+            final swatch = colors.swatchFor(tag.group);
+            final fg = swatch.onContainer;
+            final labelStyle = theme.textTheme.labelSmall?.copyWith(color: fg);
+            return InputChip(
+              label: Text(tag.labelOf(l10n), style: labelStyle),
+              avatar: Icon(tag.icon, size: 18, color: fg),
+              onDeleted: () => onRemove(tag.slug),
+              backgroundColor: swatch.container,
+              deleteIconColor: fg,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            );
+          }(),
       ],
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -15,6 +16,7 @@ class ForwardCapabilityChips extends StatelessWidget {
     if (slugs.isEmpty) return const SizedBox.shrink();
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final colors = context.capabilityColors;
     return Wrap(
       spacing: 4,
       runSpacing: 2,
@@ -22,7 +24,13 @@ class ForwardCapabilityChips extends StatelessWidget {
         for (final slug in slugs)
           () {
             final tag = CapabilityTag.fromSlug(slug);
-            final fg = theme.colorScheme.onSecondaryContainer;
+            final swatch = tag != null
+                ? colors.swatchFor(tag.group)
+                : CapabilitySwatch(
+                    container: theme.colorScheme.secondaryContainer,
+                    onContainer: theme.colorScheme.onSecondaryContainer,
+                  );
+            final fg = swatch.onContainer;
             final label = tag?.labelOf(l10n) ?? slug;
             final labelStyle = theme.textTheme.labelSmall?.copyWith(color: fg);
             return RawChip(
@@ -36,7 +44,7 @@ class ForwardCapabilityChips extends StatelessWidget {
                   Text(label, style: labelStyle),
                 ],
               ),
-              backgroundColor: theme.colorScheme.secondaryContainer,
+              backgroundColor: swatch.container,
               labelPadding: const EdgeInsets.symmetric(horizontal: 8),
               padding: EdgeInsets.zero,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

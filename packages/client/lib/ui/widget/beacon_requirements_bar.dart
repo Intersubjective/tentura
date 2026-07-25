@@ -61,7 +61,9 @@ class BeaconRequirementsBar extends StatelessWidget {
           child: Icon(
             tags[i].icon,
             size: 22,
-            color: tt.textMuted,
+            color: context.capabilityColors
+                .swatchFor(tags[i].group)
+                .onContainer,
           ),
         ),
       if (overflow > 0)

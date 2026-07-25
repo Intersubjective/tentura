@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -224,6 +225,7 @@ class ForwardRecipientRow extends StatelessWidget {
                               _CapabilityHintChip(
                                 label: tag.labelOf(l10n),
                                 icon: tag.icon,
+                                group: tag.group,
                                 matchesNeed: requiredSet.contains(slug.trim()),
                                 matchSemanticsLabel:
                                     l10n.forwardRecipientCapabilityMatchesNeed,
@@ -382,6 +384,7 @@ class _CapabilityHintChip extends StatelessWidget {
   const _CapabilityHintChip({
     required this.label,
     required this.icon,
+    required this.group,
     required this.matchesNeed,
     required this.matchSemanticsLabel,
     required this.tt,
@@ -389,13 +392,16 @@ class _CapabilityHintChip extends StatelessWidget {
 
   final String label;
   final IconData icon;
+  final CapabilityGroup group;
   final bool matchesNeed;
   final String matchSemanticsLabel;
   final TenturaTokens tt;
 
   @override
   Widget build(BuildContext context) {
-    final fg = matchesNeed ? tt.good : tt.text;
+    final swatch = context.capabilityColors.swatchFor(group);
+    // Match highlight stays semantic (tt.good); non-match uses group tint.
+    final fg = matchesNeed ? tt.good : swatch.onContainer;
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [

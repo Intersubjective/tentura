@@ -17,7 +17,7 @@ List<CapabilityTag> resolveCapabilityRequirementTags(Iterable<String> slugs) {
   return tags;
 }
 
-/// Read-only capability requirements: inline icon + muted label (no pill/chip).
+/// Read-only capability requirements: tinted icon + muted label (no pill/chip).
 class CapabilityRequirementTags extends StatelessWidget {
   const CapabilityRequirementTags({
     required this.tags,
@@ -53,6 +53,7 @@ class CapabilityRequirementTags extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
+    final colors = context.capabilityColors;
     final labelStyle = this.labelStyle ?? TenturaText.bodySmall(tt.textMuted);
 
     return Column(
@@ -75,7 +76,7 @@ class CapabilityRequirementTags extends StatelessWidget {
                 tag: tag,
                 label: tag.labelOf(l10n),
                 labelStyle: labelStyle,
-                iconColor: tt.textMuted,
+                swatch: colors.swatchFor(tag.group),
                 iconTextGap: tt.iconTextGap,
               ),
           ],
@@ -90,27 +91,37 @@ class _CapabilityRequirementTagRow extends StatelessWidget {
     required this.tag,
     required this.label,
     required this.labelStyle,
-    required this.iconColor,
+    required this.swatch,
     required this.iconTextGap,
   });
 
   final CapabilityTag tag;
   final String label;
   final TextStyle labelStyle;
-  final Color iconColor;
+  final CapabilitySwatch swatch;
   final double iconTextGap;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: label,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(tag.icon, size: CapabilityRequirementTags._iconSize, color: iconColor),
-          SizedBox(width: iconTextGap),
-          Text(label, style: labelStyle),
-        ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: swatch.container,
+          borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              tag.icon,
+              size: CapabilityRequirementTags._iconSize,
+              color: swatch.onContainer,
+            ),
+            SizedBox(width: iconTextGap),
+            Text(label, style: labelStyle),
+          ],
+        ),
       ),
     );
   }

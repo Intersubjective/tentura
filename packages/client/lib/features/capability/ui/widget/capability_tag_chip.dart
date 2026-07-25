@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -29,27 +30,30 @@ class CapabilityTagFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final swatch = context.capabilityColors.swatchFor(tag.group);
     final chip = FilterChip(
       key: TestIds.key(TestIds.capabilityChip(tag.slug)),
       label: Text(tag.labelOf(l10n)),
       // Show the tag icon when unselected; the Material checkmark replaces it
       // when selected so the selection state is unmistakable.
-      avatar: selected ? null : Icon(tag.icon, size: 18),
+      avatar: selected
+          ? null
+          : Icon(tag.icon, size: 18, color: swatch.onContainer),
       showCheckmark: true,
       selected: selected,
       onSelected: onSelected,
-      selectedColor: isAutomatic && selected
-          ? theme.colorScheme.secondaryContainer
-          : null,
+      labelStyle: TextStyle(color: swatch.onContainer),
+      checkmarkColor: swatch.onContainer,
+      selectedColor: swatch.container,
       backgroundColor: isAutomatic
-          ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.55)
-          : null,
+          ? swatch.container.withValues(alpha: 0.55)
+          : swatch.container.withValues(alpha: 0.45),
       side: isAutomatic
           ? BorderSide(
-              color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+              color: swatch.onContainer.withValues(alpha: 0.7),
               width: 1.5,
             )
-          : null,
+          : BorderSide(color: swatch.container),
     );
     final semanticChip = Semantics(
       identifier: TestIds.capabilityChip(tag.slug),
