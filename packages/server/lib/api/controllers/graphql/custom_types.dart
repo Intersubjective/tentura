@@ -15,6 +15,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInviteGenealogyEdge,
   gqlTypeProfile,
   gqlTypeBeacon,
+  gqlTypeBeaconImageAdded,
+  gqlTypeBeaconImageStaged,
   gqlTypeMyForwardRecipient,
   gqlTypeBeaconInvolvement,
   gqlTypeForwardGraphEdge,
@@ -312,7 +314,28 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('iconCode', graphQLString),
     field('iconBackground', graphQLInt),
     field('addressLabel', graphQLString),
+    field('primaryNeedSlug', graphQLString),
+    field('coverImageId', graphQLString),
+    field('coverSource', graphQLInt.nonNullable()),
   ]);
+
+/// `beaconAddImage` result: legacy compatibility `id` (beacon id) plus the
+/// exact uploaded `imageId` and the refreshed beacon (§2.3).
+final gqlTypeBeaconImageAdded = GraphQLObjectType('v2_BeaconImageAdded', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('imageId', graphQLString.nonNullable()),
+    field('beacon', gqlTypeBeacon.nonNullable()),
+  ]);
+
+/// `beaconStageImage` result: the staged image is invisible until
+/// `beaconSetMedia` promotes it (§2.3, §3.3).
+final gqlTypeBeaconImageStaged =
+    GraphQLObjectType('v2_BeaconImageStaged', null)
+      ..fields.addAll([
+        field('imageId', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+      ]);
 
 /// Per-recipient forward record from the current user's perspective.
 final gqlTypeMyForwardRecipient = GraphQLObjectType('MyForwardRecipient', null)

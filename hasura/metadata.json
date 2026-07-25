@@ -233,7 +233,10 @@
                     "updated_at",
                     "user_id",
                     "lineage_parent_beacon_id",
-                    "lineage_root_beacon_id"
+                    "lineage_root_beacon_id",
+                    "primary_need_slug",
+                    "cover_image_id",
+                    "cover_source"
                   ],
                   "computed_fields": [
                     "is_pinned",

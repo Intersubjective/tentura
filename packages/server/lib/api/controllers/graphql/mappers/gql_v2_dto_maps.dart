@@ -1,5 +1,7 @@
 import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_image_added_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_image_staged_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
@@ -22,6 +24,21 @@ Map<String, dynamic> beaconExtendReviewResultToGqlMap(
   'id': dto.id,
   'closesAt': dto.closesAt.toUtc().toIso8601String(),
   'extensionsRemaining': dto.extensionsRemaining,
+};
+
+Map<String, dynamic> beaconImageAddedResultToGqlMap(
+  BeaconImageAddedResult dto,
+) => {
+  'id': dto.id,
+  'imageId': dto.imageId,
+  'beacon': dto.beacon.asJson,
+};
+
+Map<String, dynamic> beaconImageStagedResultToGqlMap(
+  BeaconImageStagedResult dto,
+) => {
+  'imageId': dto.imageId,
+  'beaconId': dto.beaconId,
 };
 
 Map<String, dynamic> beaconStatusResultToGqlMap(

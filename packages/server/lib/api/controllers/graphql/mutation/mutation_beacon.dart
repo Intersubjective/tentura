@@ -31,6 +31,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _imageId = InputFieldString(fieldName: 'imageId');
 
+  final _primaryNeedSlug = InputFieldString(fieldName: 'primaryNeedSlug');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
@@ -42,6 +44,8 @@ final class MutationBeacon extends GqlNodeBase {
     addImage,
     removeImage,
     reorderImages,
+    stageImage,
+    setMedia,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get deleteById => GraphQLObjectField(
@@ -81,6 +85,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
       _needs.fieldNullable,
+      _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
       _draft.fieldNullable,
     ],
@@ -98,6 +103,8 @@ final class MutationBeacon extends GqlNodeBase {
           needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
+          primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+          primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           draft: _draft.fromArgs(args) ?? false,
           addressLabel: _addressLabel.fromArgs(args),
         )
@@ -131,6 +138,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
       _needs.fieldNullable,
+      _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
@@ -147,6 +155,8 @@ final class MutationBeacon extends GqlNodeBase {
           needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
+          primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+          primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),
         )
         .then((v) => v.asJson),
@@ -167,6 +177,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
       _needs.fieldNullable,
+      _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
@@ -183,6 +194,8 @@ final class MutationBeacon extends GqlNodeBase {
           needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
+          primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
+          primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),
         )
         .then((v) => v.asJson),
@@ -202,7 +215,7 @@ final class MutationBeacon extends GqlNodeBase {
 
   GraphQLObjectField<dynamic, dynamic> get addImage => GraphQLObjectField(
     'beaconAddImage',
-    gqlTypeBeacon.nonNullable(),
+    gqlTypeBeaconImageAdded.nonNullable(),
     arguments: [
       InputFieldId.field,
       InputFieldUpload.fieldImage,
@@ -212,6 +225,42 @@ final class MutationBeacon extends GqlNodeBase {
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           imageBytes: InputFieldUpload.fromArgs(args)!,
+        )
+        .then(beaconImageAddedResultToGqlMap),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get stageImage => GraphQLObjectField(
+    'beaconStageImage',
+    gqlTypeBeaconImageStaged.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      InputFieldUpload.fieldImage,
+    ],
+    resolve: (_, args) => _beaconCase
+        .beaconStageImage(
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+          imageBytes: InputFieldUpload.fromArgs(args)!,
+        )
+        .then(beaconImageStagedResultToGqlMap),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get setMedia => GraphQLObjectField(
+    'beaconSetMedia',
+    gqlTypeBeacon.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      InputFieldBeaconMedia.imageIds,
+      InputFieldBeaconMedia.coverImageId,
+      InputFieldBeaconMedia.coverSource,
+    ],
+    resolve: (_, args) => _beaconCase
+        .beaconSetMedia(
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+          imageIds: InputFieldBeaconMedia.imageIdsFromArgs(args),
+          coverImageId: InputFieldBeaconMedia.coverImageIdFromArgs(args),
+          coverSource: InputFieldBeaconMedia.coverSourceFromArgs(args),
         )
         .then((v) => v.asJson),
   );

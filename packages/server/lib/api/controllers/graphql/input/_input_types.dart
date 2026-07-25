@@ -12,6 +12,7 @@ part 'input_field_description.dart';
 part 'input_field_drop_image.dart';
 part 'input_field_context.dart';
 part 'input_field_image_ids.dart';
+part 'input_field_beacon_media.dart';
 part 'input_field_upload.dart';
 part 'input_field_title.dart';
 part 'input_field_display_name.dart';
@@ -120,9 +121,15 @@ class InputFieldInt {
         fieldName,
         graphQLInt,
         defaultsToNull: true,
+      ),
+      fieldNonNullable = GraphQLFieldInput(
+        fieldName,
+        graphQLInt.nonNullable(),
       );
 
   final GraphQLFieldInput<int?, int?> fieldNullable;
+
+  final GraphQLFieldInput<int, int> fieldNonNullable;
 
   int? fromArgs(Map<String, dynamic> args) {
     final raw = args[fieldNullable.name];
@@ -130,5 +137,21 @@ class InputFieldInt {
     if (raw is int) return raw;
     if (raw is num) return raw.toInt();
     return int.tryParse(raw.toString());
+  }
+
+  /// Required parser for [fieldNonNullable]; throws if absent/non-numeric.
+  int fromArgsNonNullable(Map<String, dynamic> args) {
+    final raw = args[fieldNonNullable.name];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    final parsed = raw == null ? null : int.tryParse(raw.toString());
+    if (parsed == null) {
+      throw ArgumentError.value(
+        raw,
+        fieldNonNullable.name,
+        'required integer argument is missing or invalid',
+      );
+    }
+    return parsed;
   }
 }
