@@ -391,10 +391,12 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Beacon Create New
+    // Beacon Create — do not set maintainState: false: image_cropper (and the
+    // gallery picker) push routes while this screen is covered; that disposed
+    // BlocProvider and closed BeaconCreateCubit before adjustCoverCrop /
+    // pickImages completed (emit after close).
     AutoRoute(
       keepHistory: false,
-      maintainState: false,
       fullscreenDialog: true,
       page: BeaconCreateRoute.page,
       path: kPathBeaconNew,

@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:graphql_parser2/graphql_parser2.dart' show SelectionContext;
+import 'package:graphql_parser2/graphql_parser2.dart'
+    show SelectionContext, TypeContext;
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 
@@ -19,12 +20,63 @@ GraphQL get graphqlSchema => _NullSafeGraphQL(
   customTypes: customTypes,
 );
 
+/// Resolves [name] against [types], accepting Hasura-stitched `v2_*` aliases
+/// used by direct-to-V2 client documents (`v2_Upload` → `Upload`).
+///
+/// Exact match wins so intentionally prefixed server types
+/// (e.g. `v2_PersonTopCapabilities`) stay unchanged.
+GraphQLType? resolveStitchedV2Type(
+  String name,
+  Iterable<GraphQLType<dynamic, dynamic>> types,
+) {
+  final exact = types.firstWhereOrNull((t) => t.name == name);
+  if (exact != null) return exact;
+  if (name.startsWith('v2_') && name.length > 3) {
+    final bare = name.substring(3);
+    return types.firstWhereOrNull((t) => t.name == bare);
+  }
+  return null;
+}
+
 /// Workaround for graphql_server2 bug: `coerceArgumentValues` passes null
 /// values to `argumentType.validate` even for nullable types. Scalar
 /// `validate` methods (e.g. `graphQLString`) reject null, which violates the
 /// GraphQL spec that nullable arguments must accept null.
+///
+/// Also resolves Hasura-stitched `v2_*` names in **direct-to-V2** client
+/// documents to the unprefixed server types (`v2_Upload` → `Upload`,
+/// `v2_Coordinates` → `Coordinates`). Server types stay unprefixed so Hasura
+/// remote-schema stitching still produces a single `v2_` layer — do not
+/// rename those inputs to `v2_*` on the server.
 class _NullSafeGraphQL extends GraphQL {
   _NullSafeGraphQL(super.schema, {super.customTypes});
+
+  /// Prefer stock lookup (keeps introspection types like `__Type`). Only when
+  /// that fails for a Hasura-stitched `v2_*` name, fall back to the bare
+  /// server type (`v2_Upload` → `Upload`).
+  @override
+  GraphQLType convertType(
+    TypeContext ctx, {
+    bool usePolymorphicName = false,
+    GraphQLObjectType? parent,
+  }) {
+    try {
+      return super.convertType(
+        ctx,
+        usePolymorphicName: usePolymorphicName,
+        parent: parent,
+      );
+      // ignore: avoid_catching_errors -- graphql_server2 signals unknown types via ArgumentError
+    } on ArgumentError catch (_) {
+      final name = ctx.typeName?.name;
+      if (name == null || !name.startsWith('v2_') || name.length <= 3) {
+        rethrow;
+      }
+      final resolved = resolveStitchedV2Type(name, customTypes);
+      if (resolved != null) return resolved;
+      rethrow;
+    }
+  }
 
   @override
   Map<String, dynamic> coerceArgumentValues(

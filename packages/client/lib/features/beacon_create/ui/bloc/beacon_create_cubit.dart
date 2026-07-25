@@ -352,7 +352,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> _pickImages({required bool asCover}) async {
     try {
       final picked = await _case.pickImages();
-      if (picked.isEmpty) return;
+      if (isClosed || picked.isEmpty) return;
       final combined = <ImageEntity>[...state.images, ...picked];
       if (combined.length > kMaxImagesPerBeacon) {
         combined.length = kMaxImagesPerBeacon;
@@ -393,7 +393,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         imageUrl: _serverImageUrl(image),
         cropUi: cropUi,
       );
-      if (replacement == null) return;
+      if (isClosed || replacement == null) return;
       replaceImage(image.key, replacement);
     } catch (e) {
       _emitSnackError(e);
