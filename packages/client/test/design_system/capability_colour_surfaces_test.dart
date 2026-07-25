@@ -113,7 +113,7 @@ void main() {
       expect(
         chip.backgroundColor,
         TenturaCapabilityColors.light.communication.container
-            .withValues(alpha: 0.45),
+            .withValues(alpha: 0.4),
       );
       final avatar = chip.avatar! as Icon;
       expect(avatar.size, 18);
