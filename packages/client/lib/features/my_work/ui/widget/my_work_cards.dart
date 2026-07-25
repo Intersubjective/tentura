@@ -465,14 +465,16 @@ class _DraftAuthoredCard extends StatelessWidget {
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
       marker: attentionMarked ? const AttentionMarker() : null,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      footer: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: context.tt.rowGap,
+        runSpacing: context.tt.tightGap,
         children: [
           TenturaTextAction(
             label: l10n.myWorkEditDraft,
             onPressed: () => _openEditDraft(context, b.id),
           ),
-          SizedBox(width: context.tt.rowGap),
           TenturaCommandButton(
             label: l10n.myWorkSendDraft,
             icon: const Icon(Icons.send_outlined),
