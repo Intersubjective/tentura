@@ -128,6 +128,10 @@ http.Client _createGraphqlHttpClient() {
 ///    accepts both JSON and multipart — no extra client routing is needed.
 ///
 /// Operations not listed here use [hasuraLink] (Hasura `/api/v1/graphql`).
+bool isTenturaDirectOperation(String? operationName) =>
+    operationName != null &&
+    _V2RoutingLink._tenturaDirectOperationNames.contains(operationName);
+
 class _V2RoutingLink extends Link {
   _V2RoutingLink({
     required this.hasuraLink,
@@ -140,6 +144,8 @@ class _V2RoutingLink extends Link {
   /// Client operation names whose resolvers live on Tentura V2.
   static const _tenturaDirectOperationNames = {
     'BeaconAddImage',
+    'BeaconStageImage',
+    'BeaconSetMedia',
     'BeaconOfferHelp',
     'BeaconCreate',
     'BeaconFork',

@@ -200,13 +200,13 @@ void main() {
   });
 
   group('new payload types (§2.3, §3.6)', () {
-    test('v2_BeaconImageAdded and v2_BeaconImageStaged are registered', () {
+    test('BeaconImageAdded and BeaconImageStaged are registered', () {
       expect(
-        customTypes.any((t) => t.name == 'v2_BeaconImageAdded'),
+        customTypes.any((t) => t.name == 'BeaconImageAdded'),
         isTrue,
       );
       expect(
-        customTypes.any((t) => t.name == 'v2_BeaconImageStaged'),
+        customTypes.any((t) => t.name == 'BeaconImageStaged'),
         isTrue,
       );
       expect(gqlTypeBeaconImageAdded.fields.map((f) => f.name), [
@@ -272,13 +272,13 @@ void main() {
       expect(_isNonNullable(coverImageId.type), isFalse);
     });
 
-    test('beaconStageImage declares the upload as v2_Upload', () {
+    test('beaconStageImage declares the upload as Upload (Hasura: v2_Upload)', () {
       final field = mutation.all.singleWhere(
         (f) => f.name == 'beaconStageImage',
       );
       final upload = field.inputs.singleWhere((i) => i.name == 'image');
-      expect(InputFieldUpload.type.name, 'v2_Upload');
-      expect(_baseTypeName(upload.type), 'v2_Upload');
+      expect(InputFieldUpload.type.name, 'Upload');
+      expect(_baseTypeName(upload.type), 'Upload');
     });
 
     test('beaconStageImage and beaconSetMedia return the new payload types', () {
@@ -288,7 +288,7 @@ void main() {
       final setMedia = mutation.all.singleWhere(
         (f) => f.name == 'beaconSetMedia',
       );
-      expect(_baseTypeName(stage.type), 'v2_BeaconImageStaged');
+      expect(_baseTypeName(stage.type), 'BeaconImageStaged');
       expect(_baseTypeName(setMedia.type), 'Beacon');
     });
   });

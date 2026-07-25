@@ -20,7 +20,7 @@ abstract class InputFieldUpload {
   );
 
   static final type = GraphQLInputObjectType(
-    'v2_Upload',
+    'Upload',
     inputFields: [
       GraphQLInputObjectField('filename', graphQLString),
       GraphQLInputObjectField('type', graphQLString),

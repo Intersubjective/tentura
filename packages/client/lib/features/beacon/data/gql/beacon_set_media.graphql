@@ -1,0 +1,18 @@
+mutation BeaconSetMedia(
+  $id: String!,
+  $imageIds: [String!],
+  $coverImageId: String,
+  $coverSource: Int!
+) {
+  beaconSetMedia(
+    id: $id,
+    imageIds: $imageIds,
+    coverImageId: $coverImageId,
+    coverSource: $coverSource
+  ) {
+    id
+    primaryNeedSlug
+    coverImageId
+    coverSource
+  }
+}

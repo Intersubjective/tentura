@@ -10,6 +10,7 @@ mutation BeaconCreate(
   $iconCode: String,
   $iconBackground: Int,
   $needs: String,
+  $primaryNeedSlug: String,
   $addressLabel: String,
   $draft: Boolean
 ) {
@@ -25,6 +26,7 @@ mutation BeaconCreate(
     iconCode: $iconCode,
     iconBackground: $iconBackground,
     needs: $needs,
+    primaryNeedSlug: $primaryNeedSlug,
     addressLabel: $addressLabel,
     draft: $draft
   ) {

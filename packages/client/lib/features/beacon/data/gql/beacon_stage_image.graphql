@@ -1,12 +1,12 @@
-mutation BeaconAddImage(
+mutation BeaconStageImage(
   $id: String!,
   $image: Upload = {}
 ) {
-  beaconAddImage(
+  beaconStageImage(
     id: $id,
     image: $image
   ) {
-    id
     imageId
+    beaconId
   }
 }

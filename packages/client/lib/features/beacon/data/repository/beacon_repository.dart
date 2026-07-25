@@ -22,6 +22,8 @@ import '../gql/_g/beacon_fork.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
+import '../gql/_g/beacon_set_media.req.gql.dart';
+import '../gql/_g/beacon_stage_image.req.gql.dart';
 import '../gql/_g/beacon_update.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
@@ -271,7 +273,55 @@ class BeaconRepository {
     await _remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).beaconAddImage.id);
+        .then((r) => r.dataOrThrow(label: _label).beaconAddImage);
+  }
+
+  /// Stages an image that remains invisible until [setMedia].
+  Future<String> stageImage({
+    required String beaconId,
+    required ImageEntity image,
+  }) async {
+    if (image.imageBytes == null) {
+      throw ArgumentError.value(image, 'image', 'imageBytes required');
+    }
+    final request = GBeaconStageImageReq((b) {
+      b.vars
+        ..id = beaconId
+        ..image = MultipartFile.fromBytes(
+          'image',
+          image.imageBytes!,
+          contentType: MediaType.parse(image.mimeType),
+          filename: image.fileName,
+        );
+    });
+    final staged = await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconStageImage);
+    return staged.imageId;
+  }
+
+  /// Atomically publishes ordered attachments and cover preference.
+  Future<Beacon> setMedia({
+    required String beaconId,
+    required List<String> imageIds,
+    required String? coverImageId,
+    required int coverSource,
+  }) async {
+    final request = GBeaconSetMediaReq((b) {
+      b.vars
+        ..id = beaconId
+        ..imageIds.addAll(imageIds)
+        ..coverImageId = coverImageId
+        ..coverSource = coverSource;
+    });
+    await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconSetMedia);
+    final updated = await fetchBeaconById(beaconId);
+    _controller.add(RepositoryEventUpdate(updated));
+    return updated;
   }
 
   //

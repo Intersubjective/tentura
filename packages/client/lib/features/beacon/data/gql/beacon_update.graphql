@@ -10,6 +10,7 @@ mutation BeaconUpdate(
   $iconCode: String,
   $iconBackground: Int,
   $needs: String,
+  $primaryNeedSlug: String,
   $addressLabel: String
 ) {
   beaconUpdate(
@@ -24,6 +25,7 @@ mutation BeaconUpdate(
     iconCode: $iconCode,
     iconBackground: $iconBackground,
     needs: $needs,
+    primaryNeedSlug: $primaryNeedSlug,
     addressLabel: $addressLabel
   ) {
     id

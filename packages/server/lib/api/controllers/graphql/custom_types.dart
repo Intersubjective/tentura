@@ -321,7 +321,7 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
 
 /// `beaconAddImage` result: legacy compatibility `id` (beacon id) plus the
 /// exact uploaded `imageId` and the refreshed beacon (§2.3).
-final gqlTypeBeaconImageAdded = GraphQLObjectType('v2_BeaconImageAdded', null)
+final gqlTypeBeaconImageAdded = GraphQLObjectType('BeaconImageAdded', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
     field('imageId', graphQLString.nonNullable()),
@@ -331,7 +331,7 @@ final gqlTypeBeaconImageAdded = GraphQLObjectType('v2_BeaconImageAdded', null)
 /// `beaconStageImage` result: the staged image is invisible until
 /// `beaconSetMedia` promotes it (§2.3, §3.3).
 final gqlTypeBeaconImageStaged =
-    GraphQLObjectType('v2_BeaconImageStaged', null)
+    GraphQLObjectType('BeaconImageStaged', null)
       ..fields.addAll([
         field('imageId', graphQLString.nonNullable()),
         field('beaconId', graphQLString.nonNullable()),
