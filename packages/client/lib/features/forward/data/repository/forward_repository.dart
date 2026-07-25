@@ -172,7 +172,7 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconEligibleInboundForwards)
       .then(
-        (rows) => rows
+        (rows) => (rows?.toList() ?? const [])
             .map(
               (row) => ForwardInboundSource(
                 edgeId: row.edgeId,
@@ -304,8 +304,10 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => {
-          for (final row in r.dataOrThrow(label: _label).forwardReasonsByBeacon)
-            '${row.senderId}__${row.recipientId}': row.slugs.toList(),
+          for (final row
+              in [...?r.dataOrThrow(label: _label).forwardReasonsByBeacon])
+            '${row.senderId}__${row.recipientId}':
+                row.slugs?.toList() ?? const [],
         },
       );
 

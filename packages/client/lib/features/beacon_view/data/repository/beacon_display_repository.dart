@@ -22,7 +22,12 @@ class BeaconDisplayRepository {
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: 'BeaconDisplayStatuses').beaconDisplayStatuses);
+        .then(
+          (r) =>
+              r.dataOrThrow(label: 'BeaconDisplayStatuses').beaconDisplayStatuses
+                  ?.toList() ??
+              const [],
+        );
     return [
       for (final row in rows)
         beaconDisplayStatusFromGql({

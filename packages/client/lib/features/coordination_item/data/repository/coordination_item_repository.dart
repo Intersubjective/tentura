@@ -94,10 +94,11 @@ class CoordinationItemRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => r
-            .dataOrThrow(label: _label)
-            .coordinationItemsByBeacon
-            .map((e) => (e as CoordinationItemListModel).toEntity())
-            .toList(),
+                .dataOrThrow(label: _label)
+                .coordinationItemsByBeacon
+                ?.map((e) => (e as CoordinationItemListModel).toEntity())
+                .toList() ??
+            const [],
       );
 
   Future<CoordinationItem> remindItem({required String itemId}) => _remote
@@ -792,7 +793,7 @@ class CoordinationItemRepository {
           (r) => r.dataOrThrow(label: _label).coordinationResponsibilityBatch,
         );
     return {
-      for (final row in rows)
+      for (final row in [...?rows])
         row.beaconId: (row as CoordinationResponsibilityBatchRowModel)
             .toEntity(),
     };
@@ -816,12 +817,14 @@ class CoordinationItemRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => r
-            .dataOrThrow(label: _label)
-            .coordinationMyResponsibilityItems
-            .map(
-              (e) => (e as CoordinationMyResponsibilityItemModel).toEntity(),
-            )
-            .toList(growable: false),
+                .dataOrThrow(label: _label)
+                .coordinationMyResponsibilityItems
+                ?.map(
+                  (e) =>
+                      (e as CoordinationMyResponsibilityItemModel).toEntity(),
+                )
+                .toList(growable: false) ??
+            const [],
       );
 
   Future<void> markItemsSeen(String beaconId) => _remote

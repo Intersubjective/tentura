@@ -40,7 +40,7 @@ class InviteGenealogyRepository extends RemoteRepository
     return InviteGenealogyGraph(
       viewerNodeKey: graph.viewer_node_key,
       nodes: [
-        for (final node in graph.nodes)
+        for (final node in [...?graph.nodes])
           InviteGenealogyNode(
             nodeKey: node.node_key,
             profile: node.user == null
@@ -51,7 +51,7 @@ class InviteGenealogyRepository extends RemoteRepository
           ),
       ],
       edges: [
-        for (final edge in graph.edges)
+        for (final edge in [...?graph.edges])
           InviteGenealogyEdge(
             ancestorNodeKey: edge.ancestor_node_key,
             descendantNodeKey: edge.descendant_node_key,
@@ -83,7 +83,7 @@ class InviteGenealogyRepository extends RemoteRepository
       targetNodeKey: graph.target_node_key,
       commonAncestorNodeKey: graph.common_ancestor_node_key,
       nodes: [
-        for (final node in graph.nodes)
+        for (final node in [...?graph.nodes])
           InviteGenealogyNode(
             nodeKey: node.node_key,
             profile: node.user == null
@@ -94,7 +94,7 @@ class InviteGenealogyRepository extends RemoteRepository
           ),
       ],
       edges: [
-        for (final edge in graph.edges)
+        for (final edge in [...?graph.edges])
           InviteGenealogyEdge(
             ancestorNodeKey: edge.ancestor_node_key,
             descendantNodeKey: edge.descendant_node_key,
@@ -133,7 +133,7 @@ class InviteGenealogyRepository extends RemoteRepository
     }
     return (
       nodes: [
-        for (final node in page.nodes)
+        for (final node in [...?page.nodes])
           InviteGenealogyNode(
             nodeKey: node.node_key,
             profile: node.user == null
@@ -144,7 +144,7 @@ class InviteGenealogyRepository extends RemoteRepository
           ),
       ],
       edges: [
-        for (final edge in page.edges)
+        for (final edge in [...?page.edges])
           InviteGenealogyEdge(
             ancestorNodeKey: edge.ancestor_node_key,
             descendantNodeKey: edge.descendant_node_key,
@@ -175,7 +175,7 @@ class InviteGenealogyRepository extends RemoteRepository
       label: _label,
     );
     return {
-      for (final row in data.inviteGenealogyChildCounts)
+      for (final row in [...?data.inviteGenealogyChildCounts])
         row.node_key: row.total_children,
     };
   }

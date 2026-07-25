@@ -117,8 +117,8 @@ class InvitationRepository implements InvitationAcceptPort {
       beaconId: result.beacon_id,
       invitedId: result.invited_id,
       addresseeName: result.addressee_name,
-      createdAt: result.created_at,
-      updatedAt: result.updated_at,
+      createdAt: DateTime.parse(result.created_at),
+      updatedAt: DateTime.parse(result.updated_at),
     );
     _notifyChanges();
     return entity;
@@ -144,8 +144,8 @@ class InvitationRepository implements InvitationAcceptPort {
       beaconId: result.beacon_id,
       invitedId: result.invited_id,
       addresseeName: result.addressee_name,
-      createdAt: result.created_at,
-      updatedAt: result.updated_at,
+      createdAt: DateTime.parse(result.created_at),
+      updatedAt: DateTime.parse(result.updated_at),
     );
     _notifyChanges();
     return entity;

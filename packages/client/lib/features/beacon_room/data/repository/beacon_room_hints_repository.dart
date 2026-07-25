@@ -31,7 +31,9 @@ class BeaconRoomHintsRepository {
           GInboxRoomContextBatchReq((b) => b..vars.beaconIds.addAll(ids)),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final rows = r.dataOrThrow(label: _label).InboxRoomContextBatch;
+    final rows =
+        r.dataOrThrow(label: _label).InboxRoomContextBatch?.toList() ??
+        const [];
     return {
       for (final e in rows)
         e.beaconId: InboxRoomCardHints(

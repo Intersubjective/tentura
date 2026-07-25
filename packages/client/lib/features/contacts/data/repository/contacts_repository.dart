@@ -26,7 +26,7 @@ class ContactsRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => {
-          for (final c in r.dataOrThrow(label: _label).myContacts)
+          for (final c in [...?r.dataOrThrow(label: _label).myContacts])
             c.subjectId: c.contactName,
         },
       );

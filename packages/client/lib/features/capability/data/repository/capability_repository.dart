@@ -58,7 +58,9 @@ class CapabilityRepository implements CapabilityRepositoryPort {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then(
-            (r) => r.dataOrThrow(label: _label).myPrivateLabelsForUser.toList(),
+            (r) =>
+                r.dataOrThrow(label: _label).myPrivateLabelsForUser?.toList() ??
+                const [],
           );
 
   @override
@@ -181,9 +183,14 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final entries = r.dataOrThrow(label: _label).personTopCapabilitiesBatch;
+        final entries = r
+            .dataOrThrow(label: _label)
+            .personTopCapabilitiesBatch
+            ?.toList() ??
+            const [];
         return {
-          for (final e in entries) e.subjectId: e.slugs.toList(),
+          for (final e in entries)
+            e.subjectId: e.slugs?.toList() ?? const [],
         };
       });
 
@@ -203,7 +210,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
         .then((r) => r.dataOrThrow(label: _label).personFriendContextBatch)
         .then(
           (rows) => {
-            for (final row in rows)
+            for (final row in [...?rows])
               row.subjectId: FriendContext(
                 activeForwardsToCount: row.activeForwardsToCount,
                 coInvolvedBeaconsCount: row.coInvolvedBeaconsCount,

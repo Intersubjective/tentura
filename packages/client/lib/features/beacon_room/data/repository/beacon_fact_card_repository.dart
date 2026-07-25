@@ -40,7 +40,8 @@ class BeaconFactCardRepository {
     final r = await _remoteApiService
         .request(GBeaconFactCardListReq((b) => b.vars.beaconId = beaconId))
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final raw = r.dataOrThrow(label: _label).BeaconFactCardList.toList();
+    final raw =
+        r.dataOrThrow(label: _label).BeaconFactCardList?.toList() ?? const [];
     return raw.map(_mapRow).toList(growable: false);
   }
 

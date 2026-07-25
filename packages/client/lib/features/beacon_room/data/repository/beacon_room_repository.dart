@@ -161,7 +161,8 @@ class BeaconRoomRepository {
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final raw = r.dataOrThrow(label: _label).RoomMessageList.toList();
+    final raw =
+        r.dataOrThrow(label: _label).RoomMessageList?.toList() ?? const [];
     final sorted = [...raw]
       ..sort(
         (a, b) => DateTime.parse(a.createdAt).compareTo(
@@ -205,7 +206,7 @@ class BeaconRoomRepository {
             pollDataJson: m.pollDataJson,
             systemPayloadJson: m.systemPayloadJson,
             attachmentsJson: m.attachmentsJson,
-            mentions: m.mentions.toList(),
+            mentions: m.mentions?.toList() ?? const [],
             threadItemId: m.threadItemId,
           ),
         )
@@ -268,7 +269,7 @@ class BeaconRoomRepository {
     pollDataJson: m.pollDataJson,
     systemPayloadJson: m.systemPayloadJson,
     attachmentsJson: m.attachmentsJson,
-    mentions: m.mentions.toList(),
+    mentions: m.mentions?.toList() ?? const [],
     threadItemId: m.threadItemId,
   );
 
@@ -453,7 +454,9 @@ class BeaconRoomRepository {
           GBeaconParticipantListReq((b) => b.vars.beaconId = beaconId),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final rows = r.dataOrThrow(label: _label).BeaconParticipantList;
+    final rows =
+        r.dataOrThrow(label: _label).BeaconParticipantList?.toList() ??
+        const [];
     return rows
         .map(
           (p) => BeaconParticipant(

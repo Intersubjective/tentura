@@ -67,7 +67,9 @@ class MyWorkRepository {
         )
         .timeout(_kNetworkTimeout)
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final rows = r.dataOrThrow(label: _label).myWorkCoordinationItemActivity;
+    final rows =
+        r.dataOrThrow(label: _label).myWorkCoordinationItemActivity?.toList() ??
+        const [];
     final out = <String, DateTime>{};
     for (final row in rows) {
       final at = row.lastCoordinationItemMessageAt;
@@ -92,7 +94,9 @@ class MyWorkRepository {
         )
         .timeout(_kNetworkTimeout)
         .firstWhere((e) => e.dataSource == DataSource.Link);
-    final rows = r.dataOrThrow(label: _label).myWorkLastActivityEvent;
+    final rows =
+        r.dataOrThrow(label: _label).myWorkLastActivityEvent?.toList() ??
+        const [];
     final out = <String, MyWorkLastEvent?>{};
     for (final row in rows) {
       final eventId = row.id;
