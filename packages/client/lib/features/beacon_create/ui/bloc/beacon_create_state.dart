@@ -1,4 +1,8 @@
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -31,6 +35,15 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     DateTime? cachedEventEndAt,
     String? iconCode,
     int? iconBackground,
+
+    /// Capability slug driving symbol identity; must be a member of [needs].
+    String? primaryNeedSlug,
+
+    /// [ImageEntity.key] of the selected cover; null when there are no images.
+    String? coverKey,
+
+    /// Author preference between photo and symbol presentation.
+    @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
 
     /// Server draft beacon id when editing a draft; null otherwise.
     String? draftId,
@@ -66,4 +79,35 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   bool get meetsPublishFormRequirements {
     return publishBlocker == null;
   }
+
+  /// Selected cover among [images], matched by [ImageEntity.key].
+  ImageEntity? get coverImage {
+    final selected = coverKey;
+    if (selected == null) return null;
+    for (final image in images) {
+      if (image.key == selected) return image;
+    }
+    return null;
+  }
+
+  /// Capability behind [primaryNeedSlug] when it is still a member of [needs].
+  CapabilityTag? get primaryCapability {
+    final slug = primaryNeedSlug;
+    if (slug == null || !needs.contains(slug)) return null;
+    return CapabilityTag.fromSlug(slug);
+  }
+
+  /// Symbol presentation needs a resolvable capability to show anything.
+  bool get canSelectSymbolSource => primaryCapability != null;
+
+  /// Draft projection so the form preview goes through
+  /// [Beacon.resolveIdentity] instead of re-deciding identity in the UI.
+  Beacon get coverPreview => Beacon.empty.copyWith(
+    title: title,
+    needs: needs,
+    images: images,
+    primaryNeedSlug: primaryNeedSlug,
+    coverImageId: coverKey,
+    coverSource: coverSource,
+  );
 }

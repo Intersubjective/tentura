@@ -5,7 +5,6 @@ import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -14,12 +13,12 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/features/geo/data/repository/geo_repository.dart';
-import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/geo/data/service/google_geocoding_service.dart';
 import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fake_beacon_ports.dart';
 
 Future<void> _scrollToGroupInSheet(WidgetTester tester, String label) async {
   final scrollable = find.descendant(
@@ -48,15 +47,6 @@ Future<void> _expandLogisticsGroup(WidgetTester tester) async {
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
-class _BeaconRepositoryStub extends Mock implements BeaconRepository {
-  _BeaconRepositoryStub(this._beacon);
-
-  final Beacon _beacon;
-
-  @override
-  Future<Beacon> fetchBeaconById(String id) async => _beacon;
-}
-
 Widget _infoTabHarness(BeaconCreateCubit cubit) {
   return MaterialApp(
     locale: const Locale('en'),
@@ -82,8 +72,7 @@ void main() {
 
   setUp(() {
     cubit = BeaconCreateCubit(
-      beaconRepository: BeaconRepositoryMock(),
-      imageRepository: ImageRepositoryMock(),
+      beaconCreateCase: fakeBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     GetIt.I.registerSingleton<Env>(
@@ -203,8 +192,7 @@ void main() {
     // Switching from deadline to event promotes single-date when no cached range.
     final single = DateTime(2026, 7, 1);
     final fresh = BeaconCreateCubit(
-      beaconRepository: BeaconRepositoryMock(),
-      imageRepository: ImageRepositoryMock(),
+      beaconCreateCase: fakeBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(fresh.close);
@@ -227,11 +215,10 @@ void main() {
       startAt: start,
       endAt: end,
     );
-    final repo = _BeaconRepositoryStub(beacon);
-
     final editCubit = BeaconCreateCubit(
-      beaconRepository: repo,
-      imageRepository: ImageRepositoryMock(),
+      beaconCreateCase: fakeBeaconCreateCase(
+        write: FakeBeaconWritePort(beacon: beacon),
+      ),
       effects: FakeUiEffectPort(),
     );
     addTearDown(editCubit.close);

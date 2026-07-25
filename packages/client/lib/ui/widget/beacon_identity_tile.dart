@@ -48,6 +48,19 @@ class BeaconIdentityTile extends StatelessWidget {
   /// no independent inspection of cover/needs/title semantics happens here.
   Widget _photo(BuildContext context, ImageEntity image) {
     final cacheExtent = (size * MediaQuery.devicePixelRatioOf(context)).round();
+    final bytes = image.imageBytes;
+    if (bytes != null) {
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        cacheWidth: cacheExtent,
+        cacheHeight: cacheExtent,
+        errorBuilder: (_, _, _) =>
+            _content(context, beacon.resolveIdentity(allowPhoto: false)),
+      );
+    }
     return Image.network(
       beacon.urlForImage(image),
       fit: BoxFit.cover,

@@ -115,11 +115,14 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   bool get hasIdentityTile => iconCode != null && iconCode!.isNotEmpty;
 
   /// Attached image matching [coverImageId]; null when absent or stale.
+  ///
+  /// Matching uses [ImageEntity.key] so an in-flight local selection resolves
+  /// the same way a persisted server id does.
   ImageEntity? get coverImage {
     final selected = coverImageId;
-    if (selected == null) return null;
+    if (selected == null || selected.isEmpty) return null;
     for (final image in images) {
-      if (image.id == selected) return image;
+      if (image.key == selected) return image;
     }
     return null;
   }
@@ -151,7 +154,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     return [
       selected,
       for (final image in images)
-        if (image.id != selected.id) image,
+        if (image.key != selected.key) image,
     ];
   }
 
@@ -160,8 +163,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     for (final img in displayImages) urlForImage(img),
   ];
 
-  String urlForImage(ImageEntity image) =>
-      '$kImageServer/$kImagesPath/${author.id}/${image.id}.$kImageExt';
+  /// Image owner comes from the image itself when known, so an image can be
+  /// addressed without a fully hydrated [author] (create/edit form previews).
+  String urlForImage(ImageEntity image) {
+    final owner = image.authorId.isNotEmpty ? image.authorId : author.id;
+    return '$kImageServer/$kImagesPath/$owner/${image.id}.$kImageExt';
+  }
 
   /// URL for the cover-first thumbnail image.
   String get imageUrl {

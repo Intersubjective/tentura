@@ -537,6 +537,84 @@
   "@beaconSymbolNoMatches": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCoverTitle": "Обложка запроса",
+  "@beaconCoverTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSourcePhoto": "Фото",
+  "@beaconCoverSourcePhoto": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSourceSymbol": "Символ",
+  "@beaconCoverSourceSymbol": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolNeedsCapability": "Сначала добавьте возможность.",
+  "@beaconCoverSymbolNeedsCapability": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintPhotoPick": "Нажмите на превью, чтобы добавить фото обложки.",
+  "@beaconCoverHintPhotoPick": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintPhotoSelected": "Нажмите на превью, чтобы выбрать или заменить фото обложки.",
+  "@beaconCoverHintPhotoSelected": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintNoPhotoUsingSymbol": "Фото обложки пока нет — показываем символ «{capability}».",
+  "@beaconCoverHintNoPhotoUsingSymbol": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverHintSymbolSelected": "Показываем символ «{capability}».",
+  "@beaconCoverHintSymbolSelected": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverPreviewSemantics": "Превью обложки запроса",
+  "@beaconCoverPreviewSemantics": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverChangeSymbol": "Изменить символ",
+  "@beaconCoverChangeSymbol": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetTitle": "Выберите символ",
+  "@beaconCoverSymbolSheetTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetHint": "Символы берутся из возможностей, которые нужны запросу.",
+  "@beaconCoverSymbolSheetHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetEmpty": "У запроса пока нет возможностей, поэтому символ показать нечем.",
+  "@beaconCoverSymbolSheetEmpty": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetManage": "Настроить возможности",
+  "@beaconCoverSymbolSheetManage": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverUseAsCover": "Сделать обложкой",
+  "@beaconCoverUseAsCover": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSelected": "Выбранная обложка",
+  "@beaconCoverSelected": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverAdjust": "Изменить кадрирование",
+  "@beaconCoverAdjust": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Координация",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

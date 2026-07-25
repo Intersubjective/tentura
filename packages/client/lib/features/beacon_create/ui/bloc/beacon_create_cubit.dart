@@ -1,23 +1,23 @@
 import 'dart:async' show unawaited;
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/capability/capability_slugs.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/data/repository/image_repository.dart';
-import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
+import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/port/beacon_image_port.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
-
-import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
-import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart'
     show StringInputValidator;
 
@@ -30,13 +30,11 @@ export 'beacon_create_state.dart';
 
 class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   BeaconCreateCubit({
-    ImageRepository? imageRepository,
-    BeaconRepository? beaconRepository,
+    BeaconCreateCase? beaconCreateCase,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
     UiEffectPort? effects,
-  }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
+  }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
@@ -55,9 +53,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  final BeaconRepository _beaconRepository;
-
-  final ImageRepository _imageRepository;
+  final BeaconCreateCase _case;
 
   final UiEffectPort _effects;
 
@@ -93,40 +89,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> loadDraft(String id) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final beacon = await _beaconRepository.fetchBeaconById(id);
+      final beacon = await _case.fetchById(id);
       if (beacon.status != BeaconStatus.draft) {
         _emitSnackError(Exception('Request is not a draft'));
         return;
       }
-
-      final coords = beacon.coordinates;
-      final coordinates = coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel = coordinates != null
-          ? beacon.addressLabel ?? ''
-          : '';
-
-      emit(
-        state.copyWith(
-          draftId: beacon.id,
-          lineageParentBeaconId: beacon.lineageParentBeaconId,
-          title: beacon.title,
-          description: beacon.description,
-          tags: beacon.tags,
-          needs: beacon.needs,
-          coordinates: coordinates,
-          location: locationLabel,
-          startAt: beacon.startAt,
-          endAt: beacon.endAt,
-          iconCode: beacon.iconCode,
-          iconBackground: beacon.iconBackground,
-          images: [...beacon.images],
-          initialServerImageIds: {
-            for (final img in beacon.images)
-              if (img.id.isNotEmpty) img.id,
-          },
-          status: StateStatus.isSuccess,
-        ),
-      );
+      emit(_loadedState(beacon).copyWith(draftId: beacon.id));
       validate();
     } catch (e) {
       _emitSnackError(e);
@@ -136,40 +104,17 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> loadEdit(String id) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final beacon = await _beaconRepository.fetchBeaconById(id);
+      final beacon = await _case.fetchById(id);
       if (beacon.status != BeaconStatus.open) {
         _emitSnackError(Exception('Only open requests can be edited'));
         return;
       }
-
-      final coords = beacon.coordinates;
-      final coordinates = coords != null && coords.isNotEmpty ? coords : null;
-      final locationLabel = coordinates != null
-          ? beacon.addressLabel ?? ''
-          : '';
-
       emit(
-        state.copyWith(
+        _loadedState(beacon).copyWith(
           editId: beacon.id,
-          title: beacon.title,
-          description: beacon.description,
-          tags: beacon.tags,
-          needs: beacon.needs,
-          coordinates: coordinates,
-          location: locationLabel,
-          startAt: beacon.startAt,
-          endAt: beacon.endAt,
           cachedDeadlineAt: beacon.startAt == null ? beacon.endAt : null,
           cachedEventStartAt: beacon.startAt,
           cachedEventEndAt: beacon.startAt != null ? beacon.endAt : null,
-          iconCode: beacon.iconCode,
-          iconBackground: beacon.iconBackground,
-          images: [...beacon.images],
-          initialServerImageIds: {
-            for (final img in beacon.images)
-              if (img.id.isNotEmpty) img.id,
-          },
-          status: StateStatus.isSuccess,
         ),
       );
       validate();
@@ -177,6 +122,48 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       _emitSnackError(e);
     }
   }
+
+  BeaconCreateState _loadedState(Beacon beacon) {
+    final coords = beacon.coordinates;
+    final coordinates = coords != null && coords.isNotEmpty ? coords : null;
+    return state.copyWith(
+      lineageParentBeaconId: beacon.lineageParentBeaconId,
+      title: beacon.title,
+      description: beacon.description,
+      tags: beacon.tags,
+      needs: beacon.needs,
+      coordinates: coordinates,
+      location: coordinates != null ? beacon.addressLabel ?? '' : '',
+      startAt: beacon.startAt,
+      endAt: beacon.endAt,
+      iconCode: beacon.iconCode,
+      iconBackground: beacon.iconBackground,
+      primaryNeedSlug: beacon.primaryNeedSlug,
+      coverKey: beacon.coverImage?.key,
+      coverSource: beacon.coverSource,
+      images: [...beacon.images],
+      initialServerImageIds: {
+        for (final img in beacon.images)
+          if (img.id.isNotEmpty) img.id,
+      },
+      status: StateStatus.isSuccess,
+    );
+  }
+
+  BeaconCreateState _applyServerMedia(
+    BeaconCreateState from,
+    Beacon beacon,
+    List<ImageEntity> published,
+  ) => from.copyWith(
+    images: published,
+    coverKey: beacon.coverImage?.key,
+    coverSource: beacon.coverSource,
+    initialServerImageIds: {
+      for (final img in published)
+        if (img.id.isNotEmpty) img.id,
+    },
+    status: const StateIsSuccess(),
+  );
 
   ///
   ///
@@ -186,15 +173,35 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   void setDescription(String value) => emit(state.copyWith(description: value));
 
-  void setNeeds(Set<String> value) =>
-      emit(state.copyWith(needs: Set<String>.from(value)));
+  void setNeeds(Set<String> value) {
+    final needs = Set<String>.from(value);
+    emit(
+      state.copyWith(
+        needs: needs,
+        primaryNeedSlug: _promotedPrimary(needs, state.primaryNeedSlug),
+      ),
+    );
+  }
 
   void removeNeed(String slug) {
     if (!state.needs.contains(slug)) {
       return;
     }
     final next = Set<String>.from(state.needs)..remove(slug);
-    emit(state.copyWith(needs: next));
+    emit(
+      state.copyWith(
+        needs: next,
+        primaryNeedSlug: _promotedPrimary(next, state.primaryNeedSlug),
+      ),
+    );
+  }
+
+  /// D-1/N3: keep a still-valid primary, otherwise promote the canonical-first
+  /// remaining capability. Empty needs means no primary.
+  static String? _promotedPrimary(Set<String> needs, String? current) {
+    if (needs.isEmpty) return null;
+    if (current != null && needs.contains(current)) return current;
+    return canonicalFirstCapabilitySlug(needs);
   }
 
   ///
@@ -300,38 +307,140 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void clearBeaconIdentity() =>
       emit(state.copyWith(iconCode: null, iconBackground: null));
 
+  /// Cover
+  ///
+  /// Photo preference requires nothing; the resolver falls back on its own.
+  void selectPhotoCoverSource() =>
+      emit(state.copyWith(coverSource: BeaconCoverSource.photo));
+
+  /// Symbol preference requires a resolvable primary; the stored photo
+  /// selection is deliberately kept.
+  void selectSymbolCoverSource() {
+    if (!state.canSelectSymbolSource) return;
+    emit(state.copyWith(coverSource: BeaconCoverSource.symbol));
+  }
+
+  /// D-4: only a capability already in [BeaconCreateState.needs] may be primary.
+  void setPrimaryNeedSlug(String slug) {
+    if (!state.needs.contains(slug)) return;
+    emit(
+      state.copyWith(
+        primaryNeedSlug: slug,
+        coverSource: BeaconCoverSource.symbol,
+      ),
+    );
+  }
+
+  void setCoverImageKey(String key) {
+    if (state.images.every((image) => image.key != key)) return;
+    emit(
+      state.copyWith(
+        coverKey: key,
+        coverSource: BeaconCoverSource.photo,
+      ),
+    );
+  }
+
+  /// Replaces [key] with [replacement] at the same position, repointing the
+  /// cover when the replaced entry was the cover.
+  void replaceImage(String key, ImageEntity replacement) {
+    final index = state.images.indexWhere((image) => image.key == key);
+    if (index < 0) return;
+    final images = [...state.images];
+    images[index] = replacement;
+    emit(
+      state.copyWith(
+        images: images,
+        coverKey: state.coverKey == key ? replacement.key : state.coverKey,
+      ),
+    );
+  }
+
   ///
   ///
   static const kMaxImagesPerBeacon = 10;
 
-  Future<void> pickImages() async {
+  Future<void> pickImages() => _pickImages(asCover: false);
+
+  /// Picking from the cover block is an explicit cover choice, so the first
+  /// newly picked photo takes the selection.
+  Future<void> pickCoverPhoto() => _pickImages(asCover: true);
+
+  Future<void> _pickImages({required bool asCover}) async {
     try {
-      final picked = await _imageRepository.pickMultipleImages();
-      if (picked.isNotEmpty) {
-        final combined = <ImageEntity>[
-          ...state.images,
-          ...picked.map((e) => e.toImageEntity()),
-        ];
-        if (combined.length > kMaxImagesPerBeacon) {
-          combined.length = kMaxImagesPerBeacon;
-        }
-        emit(state.copyWith(images: combined));
+      final picked = await _case.pickImages();
+      if (picked.isEmpty) return;
+      final combined = <ImageEntity>[...state.images, ...picked];
+      if (combined.length > kMaxImagesPerBeacon) {
+        combined.length = kMaxImagesPerBeacon;
       }
+      final requested = picked.first.key;
+      final kept = combined.any((image) => image.key == requested);
+      final String? cover;
+      if (asCover && kept) {
+        cover = requested;
+      } else if (state.coverImage == null) {
+        // First image becomes the cover; a later one never steals it.
+        cover = combined.first.key;
+      } else {
+        cover = state.coverKey;
+      }
+      emit(
+        state.copyWith(
+          images: combined,
+          coverKey: cover,
+          coverSource: asCover && kept
+              ? BeaconCoverSource.photo
+              : state.coverSource,
+        ),
+      );
     } catch (e) {
       _emitSnackError(e);
     }
   }
 
+  /// Re-crops the selected cover at 1:1 and replaces it in place. Cancelling
+  /// preserves images, cover key, and source exactly.
+  Future<void> adjustCoverCrop(ImageCropUiPort cropUi) async {
+    final image = state.coverImage;
+    if (image == null) return;
+    try {
+      final replacement = await _case.adjustCoverCrop(
+        image: image,
+        imageUrl: _serverImageUrl(image),
+        cropUi: cropUi,
+      );
+      if (replacement == null) return;
+      replaceImage(image.key, replacement);
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  static String _serverImageUrl(ImageEntity image) =>
+      '$kImageServer/$kImagesPath/${image.authorId}/${image.id}.$kImageExt';
+
   ///
   ///
   void removeImage(int index) {
+    final removed = state.images[index];
     final images = [...state.images]..removeAt(index);
-    emit(state.copyWith(images: images));
+    emit(
+      state.copyWith(
+        images: images,
+        // Deleting the cover selects the first remaining image by list order;
+        // deleting the last one clears the key but keeps the preference.
+        coverKey: state.coverKey == removed.key
+            ? (images.isEmpty ? null : images.first.key)
+            : state.coverKey,
+      ),
+    );
   }
 
   ///
   ///
-  void clearAllImages() => emit(state.copyWith(images: []));
+  void clearAllImages() =>
+      emit(state.copyWith(images: [], coverKey: null));
 
   ///
   ///
@@ -354,39 +463,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  Future<void> _syncDraftServerImages(
-    String beaconId, {
-
-    /// When true, skip index 0 (already sent as multipart on `beaconCreate`).
-    bool skipFirstMultipart = false,
-  }) async {
-    final currentIds = state.images
-        .map((e) => e.id)
-        .where((e) => e.isNotEmpty)
-        .toSet();
-    for (final id in state.initialServerImageIds) {
-      if (!currentIds.contains(id)) {
-        await _beaconRepository.removeImage(beaconId: beaconId, imageId: id);
-      }
-    }
-    for (var i = 0; i < state.images.length; i++) {
-      final img = state.images[i];
-      if (img.imageBytes != null) {
-        if (skipFirstMultipart && i == 0) {
-          continue;
-        }
-        await _beaconRepository.addImage(beaconId: beaconId, image: img);
-      }
-    }
-  }
-
   Beacon _beaconPayload({
     required String context,
     required DateTime now,
+    required String id,
+    required bool draftSafeTitle,
   }) {
     final iconCode = state.iconCode?.trim();
     final hasIcon = iconCode != null && iconCode.isNotEmpty;
-    final id = state.draftId ?? '';
     return Beacon(
       id: id,
       createdAt: now,
@@ -394,18 +478,54 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       context: context,
       tags: state.tags,
       needs: state.needs,
-      title: _draftSafeTitle(state.title),
+      title: draftSafeTitle ? _draftSafeTitle(state.title) : state.title,
       coordinates: state.coordinates,
       addressLabel: state.location.trim().isEmpty
           ? null
           : state.location.trim(),
-      description: state.description.trim(),
+      description: draftSafeTitle
+          ? state.description.trim()
+          : state.description,
       startAt: state.startAt,
       endAt: state.endAt,
       images: state.images,
       iconCode: hasIcon ? iconCode : null,
       iconBackground: hasIcon ? state.iconBackground : null,
+      primaryNeedSlug: state.primaryNeedSlug,
+      coverSource: state.coverSource,
     );
+  }
+
+  BeaconSaveCommand _command({
+    required String context,
+    required String id,
+    required bool draftSafeTitle,
+    bool draft = false,
+  }) => BeaconSaveCommand(
+    fields: _beaconPayload(
+      context: context,
+      now: DateTime.timestamp(),
+      id: id,
+      draftSafeTitle: draftSafeTitle,
+    ),
+    images: state.images,
+    coverKey: state.coverKey,
+    draft: draft,
+  );
+
+  /// Keeps the known beacon id and every already-staged image so a retry never
+  /// re-creates the request or re-uploads a staged photo.
+  void _emitSaveFailure(BeaconSaveFailure failure) {
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          draftId: state.draftId ?? failure.beaconId,
+          images: failure.images,
+          coverKey: failure.coverKey,
+        ),
+      );
+    }
+    _emitSnackError(failure.cause);
   }
 
   ///
@@ -419,34 +539,23 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final now = DateTime.timestamp();
-      final beaconPayload = _beaconPayload(context: context, now: now);
-      final created = await _beaconRepository.create(
-        beaconPayload,
-        draft: true,
+      final result = await _case.create(
+        _command(context: context, id: '', draftSafeTitle: true, draft: true),
       );
-      final skipFirst =
-          state.images.isNotEmpty && state.images.first.imageBytes != null;
-      await _syncDraftServerImages(
-        created.id,
-        skipFirstMultipart: skipFirst,
-      );
-      final refreshed = await _beaconRepository.fetchBeaconById(created.id);
       emit(
-        state.copyWith(
-          draftId: refreshed.id,
-          images: [...refreshed.images],
-          initialServerImageIds: {
-            for (final img in refreshed.images)
-              if (img.id.isNotEmpty) img.id,
-          },
-          status: const StateIsSuccess(),
+        _applyServerMedia(
+          state.copyWith(draftId: result.beacon.id),
+          result.beacon,
+          result.images,
         ),
       );
       if (showMessage) {
         _emitSnackMessage(const DraftSavedMessage());
       }
-      return refreshed.id;
+      return result.beacon.id;
+    } on BeaconSaveFailure catch (e) {
+      _emitSaveFailure(e);
+      return null;
     } catch (e) {
       _emitSnackError(e);
       return null;
@@ -459,55 +568,23 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required String context,
     bool showMessage = true,
   }) async {
+    final existing = state.draftId;
+    if (existing == null || existing.isEmpty) {
+      await ensureDraft(context: context, showMessage: showMessage);
+      return;
+    }
+
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final now = DateTime.timestamp();
-      final beaconPayload = _beaconPayload(context: context, now: now);
-
-      if (state.draftId == null) {
-        final created = await _beaconRepository.create(
-          beaconPayload,
-          draft: true,
-        );
-        final skipFirst =
-            state.images.isNotEmpty && state.images.first.imageBytes != null;
-        await _syncDraftServerImages(
-          created.id,
-          skipFirstMultipart: skipFirst,
-        );
-        final refreshed = await _beaconRepository.fetchBeaconById(created.id);
-        emit(
-          state.copyWith(
-            draftId: refreshed.id,
-            images: [...refreshed.images],
-            initialServerImageIds: {
-              for (final img in refreshed.images)
-                if (img.id.isNotEmpty) img.id,
-            },
-            status: const StateIsSuccess(),
-          ),
-        );
-        if (showMessage) {
-          _emitSnackMessage(const DraftSavedMessage());
-        }
-      } else {
-        final id = state.draftId!;
-        await _syncDraftServerImages(id);
-        final updated = await _beaconRepository.updateDraft(beaconPayload);
-        emit(
-          state.copyWith(
-            images: [...updated.images],
-            initialServerImageIds: {
-              for (final img in updated.images)
-                if (img.id.isNotEmpty) img.id,
-            },
-            status: const StateIsSuccess(),
-          ),
-        );
-        if (showMessage) {
-          _emitSnackMessage(const DraftSavedMessage());
-        }
+      final result = await _case.saveDraft(
+        _command(context: context, id: existing, draftSafeTitle: true),
+      );
+      emit(_applyServerMedia(state, result.beacon, result.images));
+      if (showMessage) {
+        _emitSnackMessage(const DraftSavedMessage());
       }
+    } on BeaconSaveFailure catch (e) {
+      _emitSaveFailure(e);
     } catch (e) {
       _emitSnackError(e);
     }
@@ -524,19 +601,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final draftId = state.draftId ?? await ensureDraft(
-        context: context,
-        showMessage: false,
-      );
+      final draftId =
+          state.draftId ??
+          await ensureDraft(context: context, showMessage: false);
       if (draftId == null || draftId.isEmpty) {
         return null;
       }
 
-      final now = DateTime.timestamp();
-      final beaconPayload = _beaconPayload(context: context, now: now);
-      await _syncDraftServerImages(draftId);
-      await _beaconRepository.updateDraft(beaconPayload);
-      await _beaconRepository.publishDraft(draftId);
+      await saveDraft(context: context, showMessage: false);
+      await _case.publishDraft(draftId);
 
       await forwardCubit.reloadCandidates(forceReload: true);
       await forwardCubit.forward();
@@ -545,6 +618,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       emit(state.copyWith(status: const StateIsSuccess()));
 
       return outcome;
+    } on BeaconSaveFailure catch (e) {
+      _emitSaveFailure(e);
+      return null;
     } catch (e) {
       _emitSnackError(e);
       return null;
@@ -556,62 +632,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> saveEdit({required String context}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final id = state.editId!;
-      final now = DateTime.timestamp();
-      final iconCode = state.iconCode?.trim();
-      final hasIcon = iconCode != null && iconCode.isNotEmpty;
-      final beaconPayload = Beacon(
-        id: id,
-        createdAt: now,
-        updatedAt: now,
-        context: context,
-        tags: state.tags,
-        needs: state.needs,
-        title: state.title,
-        coordinates: state.coordinates,
-        addressLabel: state.location.trim().isEmpty
-            ? null
-            : state.location.trim(),
-        description: state.description,
-        startAt: state.startAt,
-        endAt: state.endAt,
-        images: state.images,
-        iconCode: hasIcon ? iconCode : null,
-        iconBackground: hasIcon ? state.iconBackground : null,
+      final result = await _case.saveEdit(
+        _command(context: context, id: state.editId!, draftSafeTitle: false),
       );
-
-      await _syncEditServerImages(id);
-      final updated = await _beaconRepository.update(beaconPayload);
-      emit(
-        state.copyWith(
-          images: [...updated.images],
-          initialServerImageIds: {
-            for (final img in updated.images)
-              if (img.id.isNotEmpty) img.id,
-          },
-          status: const StateIsSuccess(),
-        ),
-      );
+      emit(_applyServerMedia(state, result.beacon, result.images));
       _emitNavigateBack();
+    } on BeaconSaveFailure catch (e) {
+      _emitSaveFailure(e);
     } catch (e) {
       _emitSnackError(e);
-    }
-  }
-
-  Future<void> _syncEditServerImages(String beaconId) async {
-    final currentIds = state.images
-        .map((e) => e.id)
-        .where((e) => e.isNotEmpty)
-        .toSet();
-    for (final id in state.initialServerImageIds) {
-      if (!currentIds.contains(id)) {
-        await _beaconRepository.removeImage(beaconId: beaconId, imageId: id);
-      }
-    }
-    for (final img in state.images) {
-      if (img.imageBytes != null) {
-        await _beaconRepository.addImage(beaconId: beaconId, image: img);
-      }
     }
   }
 
@@ -620,56 +649,41 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> publish({required String context}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final now = DateTime.timestamp();
-      final beaconPayload = _beaconPayload(context: context, now: now);
-
-      if (state.draftId != null) {
-        final id = state.draftId!;
-        await _syncDraftServerImages(id);
-        await _beaconRepository.updateDraft(beaconPayload);
-        await _beaconRepository.publishDraft(id);
-        emit(state.copyWith(status: const StateIsSuccess()));
-        _effects.emit(
-          ShowMessage(
-            BeaconCreatedMessage(
-              onPressed: () => GetIt.I<ScreenCubit>().showBeacon(id),
-            ),
-          ),
+      final existing = state.draftId;
+      final String id;
+      if (existing != null && existing.isNotEmpty) {
+        final result = await _case.saveDraft(
+          _command(context: context, id: existing, draftSafeTitle: false),
         );
-        _emitNavigateBack();
+        emit(_applyServerMedia(state, result.beacon, result.images));
+        id = existing;
       } else {
-        final iconCode = state.iconCode?.trim();
-        final hasIcon = iconCode != null && iconCode.isNotEmpty;
-        final beacon = await _beaconRepository.create(
-          Beacon(
-            createdAt: now,
-            updatedAt: now,
-            context: context,
-            tags: state.tags,
-            needs: state.needs,
-            title: state.title,
-            coordinates: state.coordinates,
-            addressLabel: state.location.trim().isEmpty
-                ? null
-                : state.location.trim(),
-            description: state.description,
-            startAt: state.startAt,
-            endAt: state.endAt,
-            images: state.images,
-            iconCode: hasIcon ? iconCode : null,
-            iconBackground: hasIcon ? state.iconBackground : null,
+        // Created as a draft so media reconciles before anyone can read it.
+        final result = await _case.create(
+          _command(context: context, id: '', draftSafeTitle: false, draft: true),
+        );
+        emit(
+          _applyServerMedia(
+            state.copyWith(draftId: result.beacon.id),
+            result.beacon,
+            result.images,
           ),
         );
-        emit(state.copyWith(status: const StateIsSuccess()));
-        _effects.emit(
-          ShowMessage(
-            BeaconCreatedMessage(
-              onPressed: () => GetIt.I<ScreenCubit>().showBeacon(beacon.id),
-            ),
-          ),
-        );
-        _emitNavigateBack();
+        id = result.beacon.id;
       }
+
+      await _case.publishDraft(id);
+      emit(state.copyWith(status: const StateIsSuccess()));
+      _effects.emit(
+        ShowMessage(
+          BeaconCreatedMessage(
+            onPressed: () => GetIt.I<ScreenCubit>().showBeacon(id),
+          ),
+        ),
+      );
+      _emitNavigateBack();
+    } on BeaconSaveFailure catch (e) {
+      _emitSaveFailure(e);
     } catch (e) {
       _emitSnackError(e);
     }

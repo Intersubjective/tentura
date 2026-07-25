@@ -537,6 +537,84 @@
   "@beaconSymbolNoMatches": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCoverTitle": "Request cover",
+  "@beaconCoverTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSourcePhoto": "Photo",
+  "@beaconCoverSourcePhoto": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSourceSymbol": "Symbol",
+  "@beaconCoverSourceSymbol": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolNeedsCapability": "Add a capability first.",
+  "@beaconCoverSymbolNeedsCapability": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintPhotoPick": "Tap the preview to add a cover photo.",
+  "@beaconCoverHintPhotoPick": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintPhotoSelected": "Tap the preview to choose or replace the cover photo.",
+  "@beaconCoverHintPhotoSelected": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintNoPhotoUsingSymbol": "No cover photo yet — showing the {capability} symbol.",
+  "@beaconCoverHintNoPhotoUsingSymbol": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverHintSymbolSelected": "Showing the {capability} symbol.",
+  "@beaconCoverHintSymbolSelected": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverPreviewSemantics": "Request cover preview",
+  "@beaconCoverPreviewSemantics": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverChangeSymbol": "Change symbol",
+  "@beaconCoverChangeSymbol": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetTitle": "Choose a symbol",
+  "@beaconCoverSymbolSheetTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetHint": "Symbols come from the capabilities this request asks for.",
+  "@beaconCoverSymbolSheetHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetEmpty": "This request has no capabilities yet, so there is no symbol to show.",
+  "@beaconCoverSymbolSheetEmpty": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSymbolSheetManage": "Manage capabilities",
+  "@beaconCoverSymbolSheetManage": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverUseAsCover": "Use as cover",
+  "@beaconCoverUseAsCover": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverSelected": "Selected cover",
+  "@beaconCoverSelected": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverAdjust": "Adjust cover crop",
+  "@beaconCoverAdjust": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Coordination",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

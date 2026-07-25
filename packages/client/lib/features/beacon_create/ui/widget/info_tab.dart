@@ -26,6 +26,7 @@ import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../screen/beacon_icon_picker_screen.dart';
+import 'cover_block.dart';
 
 class InfoTab extends StatefulWidget {
   const InfoTab({super.key});
@@ -457,6 +458,15 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     ),
                 ],
               ),
+            ),
+          ),
+
+          // Request cover — persisted photo/symbol preference
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+            child: CoverBlock(
+              onManageCapabilities: () =>
+                  unawaited(_showRequirementsSheet(context)),
             ),
           ),
 

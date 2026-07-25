@@ -11,7 +11,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/domain/entity/image_entity.dart';
 
@@ -31,7 +33,7 @@ import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 import '../gql/_g/beacons_involved_with_author.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class BeaconRepository {
+class BeaconRepository implements BeaconWritePort {
   BeaconRepository(
     this._remoteApiService,
     RealtimeSyncPort realtimeSync,
@@ -124,8 +126,9 @@ class BeaconRepository {
 
   //
   //
+  /// Field-only create. Media is published separately via [stageImage] and
+  /// [setMedia]; the legacy multipart `image` argument is never used.
   Future<Beacon> create(Beacon beacon, {bool draft = false}) async {
-    final firstImage = beacon.images.isEmpty ? null : beacon.images.first;
     final request = GBeaconCreateReq((b) {
       b.vars
         ..title = beacon.title
@@ -139,19 +142,13 @@ class BeaconRepository {
             : (GCoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
-        ..image = firstImage?.imageBytes == null
-            ? null
-            : MultipartFile.fromBytes(
-                'image',
-                firstImage!.imageBytes!,
-                contentType: MediaType.parse(firstImage.mimeType),
-                filename: firstImage.fileName,
-              )
+        ..image = null
         ..iconCode = beacon.iconCode
         ..iconBackground = beacon.iconBackground == null
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel
         ..draft = draft;
     });
@@ -159,14 +156,6 @@ class BeaconRepository {
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconCreate.id);
-
-    // Upload additional images (index 1+) via beaconAddImage
-    for (var i = 1; i < beacon.images.length; i++) {
-      final img = beacon.images[i];
-      if (img.imageBytes != null) {
-        await addImage(beaconId: beaconId, image: img);
-      }
-    }
 
     final beaconNew = await fetchBeaconById(beaconId);
     _controller.add(RepositoryEventCreate(beaconNew));
@@ -196,6 +185,7 @@ class BeaconRepository {
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel;
     });
     await _remoteApiService
@@ -230,6 +220,7 @@ class BeaconRepository {
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
+        ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel;
     });
     await _remoteApiService
@@ -306,14 +297,14 @@ class BeaconRepository {
     required String beaconId,
     required List<String> imageIds,
     required String? coverImageId,
-    required int coverSource,
+    required BeaconCoverSource coverSource,
   }) async {
     final request = GBeaconSetMediaReq((b) {
       b.vars
         ..id = beaconId
         ..imageIds.addAll(imageIds)
         ..coverImageId = coverImageId
-        ..coverSource = coverSource;
+        ..coverSource = coverSource.wireValue;
     });
     await _remoteApiService
         .request(request)

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
+import 'package:tentura/domain/port/beacon_image_port.dart';
 
 import 'read_blob_url_stub.dart'
     if (dart.library.js_interop) 'read_blob_url_web.dart';
@@ -19,7 +20,7 @@ import 'write_crop_source_stub.dart'
 const _kCroppedAvatarFileName = 'avatar_crop.jpg';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class ImageRepository {
+class ImageRepository implements BeaconImagePort {
   final _imagePicker = ImagePicker();
 
   Future<ImagePicked?> pickImage() async {
