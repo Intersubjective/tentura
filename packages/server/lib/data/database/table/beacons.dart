@@ -47,6 +47,15 @@ class Beacons extends Table
   /// ARGB background for identity tile from constrained palette; null with iconCode.
   late final iconBackground = integer().nullable()();
 
+  /// Canonical primary capability slug; null iff [needs] is empty.
+  late final primaryNeedSlug = text().nullable()();
+
+  /// Selected cover image id (may remain set while cover_source is symbol).
+  late final coverImageId = customType(PgTypes.uuid).nullable()();
+
+  /// 0 = photo, 1 = symbol. Membership FK is enforced in SQL (m0130).
+  late final Column<int> coverSource = integer().withDefault(const Constant(0))();
+
   /// Immediate source beacon when this row was created via lineage fork.
   late final lineageParentBeaconId = text().nullable().references(
     Beacons,

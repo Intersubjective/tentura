@@ -36,6 +36,7 @@ import 'table/beacon_activity_events.dart';
 import 'table/beacon_fact_cards.dart';
 import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
+import 'table/beacon_image_stages.dart';
 import 'table/beacon_review_statuses.dart';
 import 'table/beacon_review_windows.dart';
 import 'table/beacons.dart';
@@ -51,6 +52,7 @@ import 'table/beacon_stewards.dart';
 import 'table/complaints.dart';
 import 'table/fcm_tokens.dart';
 import 'table/images.dart';
+import 'table/image_object_gcs.dart';
 import 'table/inbox_items.dart';
 import 'table/invite_genealogy.dart';
 import 'table/invitations.dart';
@@ -90,6 +92,7 @@ part 'tentura_db.g.dart';
     BeaconFactCards,
     BeaconForwardEdges,
     BeaconImages,
+    BeaconImageStages,
     BeaconReviewStatuses,
     BeaconReviewWindows,
     ForwardDecisionAttributions,
@@ -106,6 +109,7 @@ part 'tentura_db.g.dart';
     Complaints,
     FcmTokens,
     Images,
+    ImageObjectGcs,
     InboxItems,
     InviteGenealogy,
     Invitations,
