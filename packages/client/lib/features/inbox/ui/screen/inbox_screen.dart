@@ -209,7 +209,7 @@ class _InboxScreenState extends State<InboxScreen> {
                     row: useExpandedPane
                         ? LayoutBuilder(
                             builder: (context, constraints) {
-                              final masterWidth = inboxMasterPaneWidth(
+                              final masterWidth = deskMasterPaneWidth(
                                 constraints.maxWidth,
                                 context.tt,
                               );
@@ -265,9 +265,6 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 }
 
-double inboxMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
-    (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
-
 class _InboxExpandedBody extends StatelessWidget {
   const _InboxExpandedBody({
     required this.tabView,
@@ -286,7 +283,7 @@ class _InboxExpandedBody extends StatelessWidget {
     final tt = context.tt;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final masterWidth = inboxMasterPaneWidth(constraints.maxWidth, tt);
+        final masterWidth = deskMasterPaneWidth(constraints.maxWidth, tt);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

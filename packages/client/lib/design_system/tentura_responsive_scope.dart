@@ -91,6 +91,10 @@ class TenturaChatColumn extends StatelessWidget {
   }
 }
 
+/// Master list width for expanded master–detail shells (Inbox, My Work).
+double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
+    (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
+
 /// Expands [child] to the full viewport width.
 ///
 /// Kept for graph routes; a no-op when the app root is already full width.
