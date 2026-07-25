@@ -102,7 +102,9 @@ DEBUG_MODE=false
 IMAGE_SERVER=https://YOUR_SPACE.fra1.digitaloceanspaces.com/tentura
 SESSION_EXPIRES_IN=2592000
 REALTIME_ACTOR_ECHO_ENABLED=true
-MIN_CLIENT_VERSION=4.0.0
+# MIN_CLIENT_VERSION is optional — the server image ships a baked default
+# (packages/server/lib/env.dart). Uncomment only to override that release:
+# MIN_CLIENT_VERSION=5.0.0
 
 # === S3 (DO Spaces) ===
 S3_ENDPOINT=fra1.digitaloceanspaces.com   # host only, no scheme

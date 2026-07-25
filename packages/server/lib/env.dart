@@ -20,6 +20,15 @@ bool resolveRealtimeActorEchoEnabled(String? value) =>
 bool resolveAttentionV1ShadowEnabled(String? value) =>
     value?.trim().toLowerCase() == 'true';
 
+String? _nonEmptyEnv(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
+}
+
+/// Baked minimum client semver; bump when shipping breaking client changes.
+const kDefaultMinClientVersion = '5.0.0';
+
 class Env {
   Env({
     // Common
@@ -264,8 +273,10 @@ class Env {
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
            resolveAttentionV1ShadowEnabled(_env['ATTENTION_V1_SHADOW_ENABLED']),
-       minClientVersion =
-           minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
+      minClientVersion =
+          minClientVersion ??
+          _nonEmptyEnv(_env['MIN_CLIENT_VERSION']) ??
+          kDefaultMinClientVersion,
 
        // Postgres
        pgHost = pgHost ?? _env['POSTGRES_HOST'] ?? 'postgres',

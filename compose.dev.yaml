@@ -26,8 +26,8 @@
 # Point server Env at localhost: POSTGRES_HOST=127.0.0.1, S3_ENDPOINT=localhost:9000,
 # S3_PATH_STYLE=true, S3_USE_SSL=false (HTTP MinIO), IMAGE_SERVER=http://localhost:9000/tentura
 #
-# Client version gate: set MIN_CLIENT_VERSION in .env to test the update banner locally.
-# The locally-run server reads it from the environment; 0.0.0 (default) disables the check.
+# Client version gate: optional MIN_CLIENT_VERSION in .env overrides the baked
+# server default (packages/server/lib/env.dart). Set 0.0.0 to disable the check.
 #
 # Invite genealogy (optional locally): set GENEALOGY_NODE_KEY_SECRET in .env if you need
 # stable G… node keys across restarts/backfills. Unset → dev fallback (see .env.example).

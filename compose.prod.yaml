@@ -165,7 +165,7 @@ services:
       - FB_PRIVATE_KEY
       # Final convergence mode; set false only as the actor-echo rollback switch.
       - REALTIME_ACTOR_ECHO_ENABLED
-      # Minimum client semver; bump with breaking releases (see .env.example, versioning.mdc).
+      # Optional override of baked default in packages/server/lib/env.dart (versioning.mdc).
       - MIN_CLIENT_VERSION
       - SERVER_SENTRY_DSN
       - SENTRY_TRACES_SAMPLE_RATE

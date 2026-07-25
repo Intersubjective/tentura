@@ -1,6 +1,6 @@
 ---
 description: Semver (patch/minor/major) + MIN_CLIENT_VERSION; use when bumping package versions or editing release config (pubspec, compose, .env, workflows).
-globs: **/pubspec.yaml,compose*.yaml,.env*,.github/workflows/**
+globs: **/pubspec.yaml,packages/client/lib/**,packages/server/lib/env.dart,compose*.yaml,.env*,.github/workflows/**
 alwaysApply: false
 ---
 
@@ -14,6 +14,18 @@ When bumping package versions (`pubspec.yaml` per package in this monorepo):
 
 Apply the bump in each affected package's `pubspec.yaml` when releasing that package.
 
+## Client version bumps (mandatory)
+
+Any **user-visible** client change (UI, copy, navigation, client-side behavior) **must** include a semver bump in `packages/client/pubspec.yaml` using the patch/minor/major rules above. Do not merge client feature/fix work without bumping the client version.
+
 ## Client version gate (`MIN_CLIENT_VERSION`)
 
-After a client bump, decide whether to raise the server's `MIN_CLIENT_VERSION`. The canonical when/where procedure (WS pong, decision table, env locations, relevant files) lives in **`DEV_GUIDELINES.md` § Client version gate** — follow it there.
+The server's minimum acceptable client version is **baked into the binary** via `kDefaultMinClientVersion` in `packages/server/lib/env.dart` (currently `5.0.0`). After a client bump, decide whether to raise it using the decision table in **`DEV_GUIDELINES.md` § Client version gate**.
+
+When the gate must rise:
+
+1. Update **`kDefaultMinClientVersion`** in `packages/server/lib/env.dart` (primary edit — this ships in the server image).
+2. Sync the commented example in **`.env.example`** if present.
+3. Do **not** rely on post-deploy `.env` or GitHub Environment variables unless you need a temporary override (e.g. rollback to `0.0.0`).
+
+The canonical when/where procedure (WS pong, decision table, override locations, relevant files) lives in **`DEV_GUIDELINES.md` § Client version gate** — follow it there.

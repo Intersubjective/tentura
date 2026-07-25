@@ -429,8 +429,8 @@ jobs:
           echo "| Server  | ${{ steps.versions.outputs.server_version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Client  | ${{ steps.versions.outputs.client_version }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Set **\`MIN_CLIENT_VERSION\`** in the \`dev\` GitHub Environment variable" \
-               "(and on the VPS \`.env\`) when this release requires clients to update." >> $GITHUB_STEP_SUMMARY
+          echo "Client version gate default ships in the server image (\`packages/server/lib/env.dart\`)." \
+               "Override \`MIN_CLIENT_VERSION\` in the \`dev\` GitHub Environment or VPS \`.env\` only when needed." >> $GITHUB_STEP_SUMMARY
 
   deploy-dev:
     runs-on: ubuntu-latest

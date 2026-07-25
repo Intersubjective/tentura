@@ -30,6 +30,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 - **Never edit generated files** (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`, `*.schema.dart`); run codegen instead.
 - **Search ladder:** known path → Read; semantic → Serena MCP; then Grep/Glob.
 - **Terminology alias:** user-facing **Request** / **Chat**; internal **Beacon** (`Request (internally: Beacon)` in docs). Never introduce a `Request` domain entity. See `.cursor/rules/terminology.mdc` and `bash scripts/check-user-facing-terminology.sh`.
+- **Client versioning + gate:** user-visible client changes require a semver bump in `packages/client/pubspec.yaml`; when a release forces clients to update, raise `kDefaultMinClientVersion` in `packages/server/lib/env.dart` (see `.cursor/rules/versioning.mdc` and `DEV_GUIDELINES.md` § Client version gate).
 
 ## Product docs
 

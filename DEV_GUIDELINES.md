@@ -246,19 +246,21 @@ The client (`AppUpdateCubit`) compares this against its own version (`PackageInf
 | **Minor** (`x.Y.z`) | Only when the old client cannot work with the new server (removed endpoint, new required WS field, etc.) |
 | **Patch** (`x.y.Z`) | Rarely — only if the old client is broken against the new server |
 
-Default is `0.0.0`, which disables the check (any client is accepted).
+The default minimum version is **baked into the server binary** (`kDefaultMinClientVersion` in `packages/server/lib/env.dart`, currently `5.0.0`). Bump it there when a release requires clients to update. Set `0.0.0` only to disable the check (e.g. CI or emergency rollback).
 
-### Where to set it
+### Where to override it (optional)
 
 | Environment | Location |
 |---|---|
-| Local dev | `.env` (read by `scripts/run-server-local.sh`) |
-| Production / VPS | `.env` for all secrets; `compose.prod.yaml` pass-through; optional `compose.override.yaml` for non-secret per-host deltas (see `examples/compose.override.example.yaml`) |
-| CI / GitHub | GitHub Environment variable `MIN_CLIENT_VERSION` in the `dev` environment |
+| Local dev | `.env` (`MIN_CLIENT_VERSION=…`; read by `scripts/run-server-local.sh`) |
+| Production / VPS | `.env` pass-through via `compose.prod.yaml`; optional `compose.override.yaml` for per-host deltas |
+| CI / GitHub | GitHub Environment variable `MIN_CLIENT_VERSION` |
+
+Omit the env var on deploy — the baked default from the server image applies. Use an override only when you need a value different from the one compiled into that release.
 
 ### Relevant files
 
-- **Server env:** `packages/server/lib/env.dart` — `minClientVersion` field
+- **Baked default (primary edit):** `packages/server/lib/env.dart` — `kDefaultMinClientVersion` / `minClientVersion` field
 - **WS pong:** `packages/server/lib/api/controllers/websocket/session/websocket_session_handler_base.dart` — `onPing`
 - **Client stream:** `packages/client/lib/data/service/remote_api_client/remote_api_client_ws.dart` — `minClientVersionStream`
 - **Cubit:** `packages/client/lib/ui/bloc/app_update_cubit.dart` — `AppUpdateCubit`
