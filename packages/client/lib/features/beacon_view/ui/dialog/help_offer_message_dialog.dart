@@ -11,6 +11,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 final _log = Logger('HelpOfferMessageDialog');
 
@@ -258,64 +259,60 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
             ),
             if (widget.showHelpTypeChips) ...[
               SizedBox(height: tt.sectionGap),
-              Text(
-                l10n.helpOfferOptionalEnrichmentLabel,
-                style: theme.textTheme.labelLarge,
-              ),
-              SizedBox(height: tt.rowGap / 2),
-              Text(
-                l10n.helpOfferOptionalEnrichmentHelper,
-                style: theme.textTheme.bodySmall,
-              ),
-              SizedBox(height: tt.rowGap),
-              Wrap(
-                spacing: tt.rowGap,
-                runSpacing: tt.rowGap,
+              Row(
                 children: [
-                  for (final slug in _suggestedSlugs)
-                    if (CapabilityTag.fromSlug(slug) case final tag?)
-                      CapabilityTagFilterChip(
-                        tag: tag,
-                        l10n: l10n,
-                        theme: theme,
-                        selected: _helpTypeSlugs.contains(slug),
-                        isAutomatic: widget.automaticSlugs.contains(slug),
-                        onSelected:
-                            _helpTypeSlugs.length >= _maxSelection &&
-                                !_helpTypeSlugs.contains(slug)
-                            ? null
-                            : (v) => _toggleSlug(slug, v),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Semantics(
+                        identifier: TestIds.helpOfferBrowseCategories,
+                        button: true,
+                        child: TextButton.icon(
+                          key: TestIds.key(TestIds.helpOfferBrowseCategories),
+                          onPressed: () {
+                            setState(() {
+                              _browseOpen = !_browseOpen;
+                              if (_browseOpen) {
+                                _browsedFullTaxonomy = true;
+                              }
+                            });
+                          },
+                          icon: Icon(
+                            _browseOpen
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                          ),
+                          label: Text(
+                            _browseOpen
+                                ? l10n.helpOfferHideCategories
+                                : l10n.helpOfferBrowseCategories,
+                          ),
+                        ),
                       ),
-                ],
-              ),
-              SizedBox(height: tt.rowGap),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Semantics(
-                  identifier: TestIds.helpOfferBrowseCategories,
-                  button: true,
-                  child: TextButton.icon(
-                    key: TestIds.key(TestIds.helpOfferBrowseCategories),
-                    onPressed: () {
-                      setState(() {
-                        _browseOpen = !_browseOpen;
-                        if (_browseOpen) {
-                          _browsedFullTaxonomy = true;
-                        }
-                      });
-                    },
-                    icon: Icon(
-                      _browseOpen
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                    ),
-                    label: Text(
-                      _browseOpen
-                          ? l10n.helpOfferHideCategories
-                          : l10n.helpOfferBrowseCategories,
                     ),
                   ),
-                ),
+                  if (_helpTypeSlugs.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(left: tt.tightGap),
+                      child: Wrap(
+                        spacing: tt.tightGap / 2,
+                        runSpacing: tt.tightGap / 2,
+                        children: [
+                          for (final slug in _helpTypeSlugs)
+                            if (CapabilityTag.fromSlug(slug) case final tag?)
+                              CapabilityTagIconChip(
+                                tag: tag,
+                                l10n: l10n,
+                                onTap: () => _toggleSlug(slug, false),
+                              ),
+                        ],
+                      ),
+                    ),
+                  TenturaInfoHintButton(
+                    fullText: l10n.helpOfferOptionalEnrichmentHelper,
+                    semanticsLabel: l10n.helpOfferOptionalEnrichmentLabel,
+                  ),
+                ],
               ),
               if (_browseOpen) ...[
                 SizedBox(height: tt.rowGap),
@@ -400,7 +397,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                 children: [
                   Text(
                     widget.title,
-                    style: theme.textTheme.titleLarge,
+                    style: theme.textTheme.titleMedium,
                   ),
                   SizedBox(height: tt.sectionGap),
                   Flexible(

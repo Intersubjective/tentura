@@ -6,6 +6,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/offer_help_classification.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
+import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -157,15 +158,56 @@ void main() {
   );
 
   testWidgets(
-    'suggested chips appear for automaticSlugs without opening browse',
+    'automaticSlugs do not show chips until browse is opened',
     (tester) async {
       await _pumpDialog(
         tester,
         automaticSlugs: {CapabilityTag.transport.slug},
       );
-      expect(find.widgetWithText(FilterChip, 'Transport'), findsOneWidget);
-      expect(find.widgetWithText(FilterChip, 'Other'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Transport'), findsNothing);
+      expect(find.byType(CapabilityTagIconChip), findsNothing);
       expect(find.byKey(TestIds.key(TestIds.helpOfferSearch)), findsNothing);
+
+      await _openBrowse(tester);
+      await tester.enterText(
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
+        'transport',
+      );
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(FilterChip, 'Transport'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'selected chips appear as icon chips in browse row when collapsed',
+    (tester) async {
+      await _pumpDialog(tester, allowEmptyMessage: true);
+      await _openBrowse(tester);
+      await tester.enterText(
+        find.byKey(TestIds.key(TestIds.helpOfferSearch)),
+        'time',
+      );
+      await tester.pumpAndSettle();
+      final timeChipKey = TestIds.key(TestIds.capabilityChip('time'));
+      final timeInBrowser = find.descendant(
+        of: find.byType(CapabilityChipSet),
+        matching: find.byKey(timeChipKey),
+      );
+      await tester.ensureVisible(timeInBrowser);
+      await tester.pumpAndSettle();
+      await tester.tap(timeInBrowser);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<FilterChip>(timeInBrowser).selected, isTrue);
+      expect(find.byType(CapabilityTagIconChip), findsOneWidget);
+
+      // Collapse browse — icon chip stays in the browse row.
+      await tester.tap(find.text('Hide categories'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CapabilityChipSet), findsNothing);
+      expect(find.byType(CapabilityTagIconChip), findsOneWidget);
+      expect(find.text('1'), findsNothing);
     },
   );
 
@@ -252,7 +294,7 @@ void main() {
   );
 
   testWidgets(
-    'suggested chip selection without browse is suggestedChip path',
+    'preselected suggested slug without browse is suggestedChip path',
     (tester) async {
       HelpOfferDialogOutcome? outcome;
 
@@ -273,6 +315,7 @@ void main() {
                     showHelpTypeChips: true,
                     allowEmptyMessage: false,
                     automaticSlugs: {CapabilityTag.money.slug},
+                    initialHelpTypeSlugs: {CapabilityTag.money.slug},
                   );
                 },
                 child: const Text('open'),
@@ -291,8 +334,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Money'));
-      await tester.pumpAndSettle();
+      expect(find.byType(CapabilityTagIconChip), findsOneWidget);
 
       await tester.tap(find.text('Offer help'));
       await tester.pumpAndSettle();

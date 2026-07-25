@@ -31,20 +31,20 @@ void main() {
   });
 
   group('suggestOfferHelpSlugs', () {
-    test('prioritizes automatic needs, then hints, then other', () {
+    test('prioritizes automatic needs, then keyword hints', () {
       final slugs = suggestOfferHelpSlugs(
         message: 'I can sew the costume',
         automaticSlugs: {CapabilityTag.transport.slug},
       );
       expect(slugs.first, CapabilityTag.transport.slug);
       expect(slugs, contains(CapabilityTag.manualWork.slug));
-      expect(slugs.last, CapabilityTag.other.slug);
+      expect(slugs, isNot(contains(CapabilityTag.other.slug)));
     });
 
-    test('always includes other even without message or needs', () {
+    test('returns empty without message or needs', () {
       expect(
         suggestOfferHelpSlugs(message: '', automaticSlugs: {}),
-        equals([CapabilityTag.other.slug]),
+        isEmpty,
       );
     });
 
@@ -60,13 +60,16 @@ void main() {
       expect(slugs.length, 6);
     });
 
-    test('skips unknown automatic slugs', () {
+    test('skips unknown and other automatic slugs', () {
       expect(
         suggestOfferHelpSlugs(
           message: '',
-          automaticSlugs: {'not_a_real_slug'},
+          automaticSlugs: {
+            'not_a_real_slug',
+            CapabilityTag.other.slug,
+          },
         ),
-        equals([CapabilityTag.other.slug]),
+        isEmpty,
       );
     });
   });

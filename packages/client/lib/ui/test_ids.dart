@@ -22,6 +22,7 @@ abstract final class TestIds {
   static const helpOfferSubmit = 'help_offer.submit';
   static const helpOfferBrowseCategories = 'help_offer.browse_categories';
   static String capabilityChip(String slug) => 'capability.$slug';
+  static String capabilitySummaryChip(String slug) => 'capability.$slug.summary';
 
   static const roomMessageInput = 'room.message.input';
   static const roomMessageSend = 'room.message.send';

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/features/capability/ui/widget/capability_selection_count_badge.dart';
 import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -42,32 +44,51 @@ class CapabilityChipSet extends StatelessWidget {
     final theme = Theme.of(context);
     final searching = query.trim().isNotEmpty;
 
+    final sections = <Widget>[];
+    for (final group in CapabilityGroup.values) {
+      final tags = _matchingTags(group, l10n);
+      if (tags.isEmpty) continue;
+      sections.add(
+        _GroupSection(
+          group: group,
+          groupLabel: _groupLabel(l10n, group),
+          groupDescription: _groupDescription(l10n, group),
+          tags: tags,
+          forceExpanded: searching,
+          selectedSlugs: selectedSlugs,
+          automaticSlugs: automaticSlugs,
+          maxSelection: maxSelection,
+          onToggle: (slug, selected) {
+            final next = Set<String>.from(selectedSlugs);
+            selected ? next.add(slug) : next.remove(slug);
+            onChanged(next);
+          },
+          theme: theme,
+          l10n: l10n,
+        ),
+      );
+    }
+
     return AccordionExpansionGroup(
       accordionMode: !searching,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final group in CapabilityGroup.values)
-            if (_matchingTags(group, l10n).isNotEmpty)
-              _GroupSection(
-                group: group,
-                groupLabel: _groupLabel(l10n, group),
-                groupDescription: _groupDescription(l10n, group),
-                tags: _matchingTags(group, l10n),
-                forceExpanded: searching,
-                selectedSlugs: selectedSlugs,
-                automaticSlugs: automaticSlugs,
-                maxSelection: maxSelection,
-                onToggle: (slug, selected) {
-                  final next = Set<String>.from(selectedSlugs);
-                  selected ? next.add(slug) : next.remove(slug);
-                  onChanged(next);
-                },
-                theme: theme,
-                l10n: l10n,
-              ),
-        ],
+      child: Theme(
+        // One interaction theme for the whole set — avoids ThemeData.copyWith
+        // per group on every rebuild (was amplifying browse-open jank).
+        data: theme.copyWith(
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          colorScheme: theme.colorScheme.copyWith(
+            surfaceTint: Colors.transparent,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: sections,
+        ),
       ),
     );
   }
@@ -109,42 +130,6 @@ class CapabilityChipSet extends StatelessWidget {
       };
 }
 
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({
-    required this.count,
-    required this.preExisting,
-  });
-
-  final int count;
-  final bool preExisting;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final bg = preExisting ? cs.secondaryContainer : cs.primaryContainer;
-    final fg = preExisting ? cs.onSecondaryContainer : cs.onPrimaryContainer;
-    final text = preExisting ? '★ $count' : '$count';
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Text(
-            text,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _GroupSection extends StatelessWidget {
   const _GroupSection({
     required this.group,
@@ -183,72 +168,76 @@ class _GroupSection extends StatelessWidget {
     final atSelectionLimit =
         selectionLimit != null && selectedSlugs.length >= selectionLimit;
 
-    final cs = theme.colorScheme;
-    final categoryInteractionTheme = theme.copyWith(
-      splashFactory: NoSplash.splashFactory,
-      highlightColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      focusColor: Colors.transparent,
-      splashColor: Colors.transparent,
-      colorScheme: cs.copyWith(surfaceTint: Colors.transparent),
-    );
-
-    return Theme(
-      data: categoryInteractionTheme,
-      child: AccordionExpansionTile(
-        id: group.name,
-        initiallyExpanded: initiallyExpanded,
-        title: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    groupLabel,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    groupDescription,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (selectedCount > 0)
-              _CountBadge(count: selectedCount, preExisting: false),
-            if (autoCount > 0) _CountBadge(count: autoCount, preExisting: true),
-          ],
-        ),
+    return AccordionExpansionTile(
+      id: group.name,
+      initiallyExpanded: initiallyExpanded,
+      // Collapsed groups must not keep chip Wrap in the tree — with the
+      // default maintainState:true, opening browse built all ~37 FilterChips
+      // at once and froze the UI for a noticeable beat (no network involved).
+      maintainState: false,
+      title: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final tag in tags)
-                  CapabilityTagFilterChip(
-                    tag: tag,
-                    l10n: l10n,
-                    theme: theme,
-                    selected: selectedSlugs.contains(tag.slug),
-                    isAutomatic: automaticSlugs.contains(tag.slug),
-                    onSelected:
-                        atSelectionLimit && !selectedSlugs.contains(tag.slug)
-                        ? null
-                        : (v) => onToggle(tag.slug, v),
+                Text(
+                  groupLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+                Text(
+                  groupDescription,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
+          // Widest plausible badges (`★ 9`) reserve space so selection
+          // counters never shift the title or chip wrap below.
+          CapabilityReservedCountSlot(
+            visible: selectedCount > 0,
+            count: selectedCount,
+          ),
+          CapabilityReservedCountSlot(
+            visible: autoCount > 0,
+            count: autoCount,
+            preExisting: true,
+          ),
         ],
       ),
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.tt.tightGap,
+            0,
+            context.tt.tightGap,
+            context.tt.rowGap,
+          ),
+          child: Wrap(
+            spacing: context.tt.tightGap,
+            runSpacing: context.tt.tightGap,
+            children: [
+              for (final tag in tags)
+                CapabilityTagFilterChip(
+                  tag: tag,
+                  l10n: l10n,
+                  theme: theme,
+                  selected: selectedSlugs.contains(tag.slug),
+                  isAutomatic: automaticSlugs.contains(tag.slug),
+                  onSelected:
+                      atSelectionLimit && !selectedSlugs.contains(tag.slug)
+                      ? null
+                      : (v) => onToggle(tag.slug, v),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

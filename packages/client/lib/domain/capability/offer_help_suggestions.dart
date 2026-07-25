@@ -58,9 +58,11 @@ Iterable<String> keywordHintsFromOfferMessage(String message) sync* {
   }
 }
 
-/// Ordered suggestion slugs: author needs, keyword hints, then [CapabilityTag.other].
+/// Ordered suggestion slugs from author needs and keyword hints.
 ///
-/// Only known [CapabilityTag] slugs are included. Caps at [maxSuggestions].
+/// [CapabilityTag.other] is never suggested here — it stays in the full
+/// category browser. Only known [CapabilityTag] slugs are included.
+/// Caps at [maxSuggestions].
 List<String> suggestOfferHelpSlugs({
   required String message,
   required Set<String> automaticSlugs,
@@ -69,6 +71,7 @@ List<String> suggestOfferHelpSlugs({
   final ordered = <String>[];
 
   void add(String slug) {
+    if (slug == CapabilityTag.other.slug) return;
     if (ordered.contains(slug)) return;
     if (CapabilityTag.fromSlug(slug) == null) return;
     ordered.add(slug);
@@ -80,7 +83,6 @@ List<String> suggestOfferHelpSlugs({
   for (final slug in keywordHintsFromOfferMessage(message)) {
     add(slug);
   }
-  add(CapabilityTag.other.slug);
 
   if (ordered.length <= maxSuggestions) return ordered;
   return ordered.sublist(0, maxSuggestions);

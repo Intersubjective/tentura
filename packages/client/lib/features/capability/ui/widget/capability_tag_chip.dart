@@ -31,29 +31,43 @@ class CapabilityTagFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = context.capabilityColors.swatchFor(tag.group);
+    // Selected: saturated on-container fill so selection reads clearly against
+    // the pastel unselected state (same swatch, inverted roles).
+    final selectedFg = swatch.container;
+    final selectedBg = swatch.onContainer;
+    final idleFg = swatch.onContainer;
+    final idleBg = isAutomatic
+        ? swatch.container.withValues(alpha: 0.55)
+        : swatch.container.withValues(alpha: 0.4);
     final chip = FilterChip(
       key: TestIds.key(TestIds.capabilityChip(tag.slug)),
       label: Text(tag.labelOf(l10n)),
-      // Show the tag icon when unselected; the Material checkmark replaces it
-      // when selected so the selection state is unmistakable.
-      avatar: selected
-          ? null
-          : Icon(tag.icon, size: 18, color: swatch.onContainer),
-      showCheckmark: true,
+      // Keep the category glyph in both states — Material's checkmark would
+      // replace the avatar and hurt scannability. Selection is conveyed by
+      // saturated fill, weight, and Semantics.selected (not color alone).
+      avatar: Icon(
+        tag.icon,
+        size: 18,
+        color: selected ? selectedFg : idleFg,
+      ),
+      showCheckmark: false,
       selected: selected,
       onSelected: onSelected,
-      labelStyle: TextStyle(color: swatch.onContainer),
-      checkmarkColor: swatch.onContainer,
-      selectedColor: swatch.container,
-      backgroundColor: isAutomatic
-          ? swatch.container.withValues(alpha: 0.55)
-          : swatch.container.withValues(alpha: 0.45),
-      side: isAutomatic
-          ? BorderSide(
-              color: swatch.onContainer.withValues(alpha: 0.7),
-              width: 1.5,
-            )
-          : BorderSide(color: swatch.container),
+      labelStyle: TextStyle(
+        color: selected ? selectedFg : idleFg,
+        fontWeight: FontWeight.w600,
+      ),
+      selectedColor: selectedBg,
+      backgroundColor: idleBg,
+      side: BorderSide(
+        color: selected
+            ? selectedBg
+            : isAutomatic
+            ? idleFg.withValues(alpha: 0.7)
+            : swatch.container,
+        // Keep width constant so Wrap layout does not shift on toggle.
+        width: 1.5,
+      ),
     );
     final semanticChip = Semantics(
       identifier: TestIds.capabilityChip(tag.slug),
@@ -75,4 +89,47 @@ class CapabilityTagFilterChip extends StatelessWidget {
         CapabilityGroup.technical => l10n.capabilityGroupTechnical,
         CapabilityGroup.special => l10n.capabilityGroupSpecial,
       };
+}
+
+/// Circular icon-only chip for selected capabilities in compact summary rows.
+class CapabilityTagIconChip extends StatelessWidget {
+  const CapabilityTagIconChip({
+    required this.tag,
+    required this.l10n,
+    required this.onTap,
+    super.key,
+  });
+
+  final CapabilityTag tag;
+  final L10n l10n;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final size = tt.metadataAvatarSize;
+    final swatch = context.capabilityColors.swatchFor(tag.group);
+    final fg = swatch.container;
+    final bg = swatch.onContainer;
+    final iconSize = size * 0.52;
+
+    return Semantics(
+      identifier: TestIds.capabilitySummaryChip(tag.slug),
+      button: true,
+      selected: true,
+      label: tag.labelOf(l10n),
+      child: Material(
+        color: bg,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox.square(
+            dimension: size,
+            child: Icon(tag.icon, size: iconSize, color: fg),
+          ),
+        ),
+      ),
+    );
+  }
 }
