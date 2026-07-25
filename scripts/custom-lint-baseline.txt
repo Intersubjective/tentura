@@ -1,0 +1,20 @@
+# tentura_lints debt baseline — enforced by scripts/check-custom-lints.sh.
+#
+# These rules were never actually running in CI (see the script header for the
+# three reasons), so the counts below are debt discovered when the plugin was
+# wired up, not newly introduced breakage.
+#
+# The number may only go DOWN. Fix violations, then lower the baseline.
+#
+# packages/client (2026-07-25): no_raw_edge_insets 81, no_raw_border_radius 28,
+#   no_domain_to_data_or_ui_import 4, no_operational_pill_widgets_in_beacon_view 2.
+#   All `info` severity — every rule that reports at *error* severity is enabled
+#   and passing on the client.
+#
+# packages/server: clean, but `no_map_dynamic_in_use_case_api` is switched off in
+#   packages/server/analysis_options.yaml with a TODO — it reports at *error*
+#   severity and 15 legacy use cases still return Map<String, dynamic>, so
+#   enabling it would fail `dart analyze` outright. Tracked there, not here.
+
+packages/client 115
+packages/server 0

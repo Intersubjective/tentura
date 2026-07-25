@@ -108,7 +108,7 @@ frozen here and must be rerun against the named production environment.
 | Existing client bytes API | `ImageRepository.fetchImageBytes` already exists at `packages/client/lib/data/repository/image_repository.dart:64-70`; do not add `fetchBytes`. |
 | Hasura metadata | Beacon select permission lists legacy icon columns at `hasura/metadata.json:222-223`. The surrounding list is not alphabetically sorted; make only required edits. |
 | Local audit | Read-only local counts were 573 users, 187 beacons, six legacy-icon beacons, zero duplicate attached image IDs, zero beacon/image author mismatches, and zero duplicate positions. This is not proof about production users. |
-| Custom lints | Run `./scripts/check-custom-lints.sh` at package roots. Current ratchets are client 118 and server 0. `flutter analyze` does not load the plugin. |
+| Custom lints | Run `./scripts/check-custom-lints.sh` at package roots. Current ratchets are client 115 and server 0. `flutter analyze` does not load the plugin, and neither does `dart analyze <subdir>`. |
 | Goldens | The existing `typography_overhaul_test.dart` golden group is skipped. New cover goldens must be active standalone tests. |
 
 ---
@@ -1053,10 +1053,10 @@ Files:
 - add required English/Russian localization keys and generate them;
 - add the create/edit tests in §9.3-§9.4.
 
-After the repository fields/imports are gone, re-enable
-`cubit_requires_use_case_for_multi_repos` for this cubit in
-`packages/client/analysis_options.yaml`. The custom-lint count may fall; it must
-not rise above 118.
+`cubit_requires_use_case_for_multi_repos` is already enabled and passing for this
+cubit, so keep the case-only injection — reintroducing a second repository will
+fail `dart analyze` outright (the rule reports at error severity). The
+custom-lint count may fall; it must not rise above 115.
 
 Gate:
 

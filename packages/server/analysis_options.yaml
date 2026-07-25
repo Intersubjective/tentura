@@ -1,6 +1,31 @@
 include:
   - package:very_good_analysis/analysis_options.yaml
 
+# The analyzer resolves options from the *nearest* analysis_options.yaml, so the
+# root `plugins:` block never reaches this package — it has to be declared here
+# too. Keep the rule list in sync with the root analysis_options.yaml.
+#
+# NOTE: plugin diagnostics only appear when the analysis target is the package
+# root (`dart analyze` / `dart analyze .`) or a single file — passing a
+# subdirectory silently skips them. `flutter analyze` never loads plugins.
+plugins:
+  tentura_lints:
+    path: ../tentura_lints
+    diagnostics:
+      no_domain_to_data_or_ui_import: true
+      no_cubit_to_data_service_import: true
+      no_raw_graphql_in_dart: true
+      no_request_domain_entity: true
+      # TODO(lints): re-enable once the legacy use cases return typed DTOs.
+      # This rule reports at *error* severity, and 15 pre-existing sites
+      # (beacon_room_case ×10, beacon_fact_card_case ×2, fcm_case,
+      # session_case, email_test_case) still return Map<String, dynamic>, so
+      # switching it on fails `dart analyze` outright. Plugin diagnostics
+      # honour neither `analyzer: errors:` overrides nor `// ignore:` /
+      # `// ignore_for_file:` comments (verified), so this on/off switch is the
+      # only available lever.
+      no_map_dynamic_in_use_case_api: false
+
 analyzer:
   errors:
     specify_nonobvious_property_types: ignore

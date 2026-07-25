@@ -162,9 +162,10 @@ See `advanced-patterns.mdc` for `RemoteRepository`, `StateBase`, and `StateStatu
 
 ## Static enforcement (`tentura_lints` + CI)
 
-- **Package:** `packages/tentura_lints` — first-party **`analysis_server_plugin`** registered at workspace root [`analysis_options.yaml`](../../analysis_options.yaml) under `plugins:`. The **rule list** (one-line per rule) is owned by [`lint-after-changes.mdc`](lint-after-changes.mdc) — do not re-list it here.
-- **CI:** `.github/workflows/pipeline.yml` runs **`dart analyze --no-fatal-warnings`** (server) and **`flutter analyze --no-fatal-warnings --no-fatal-infos`** (client) before tests — plugin lints are included automatically; fix new **errors** and **warnings** when touching analyzed paths.
-- **Adding a lint:** add a rule under `packages/tentura_lints/lib/src/rules/`, register it in `packages/tentura_lints/lib/main.dart`, enable it under root `analysis_options.yaml` `plugins.tentura_lints.diagnostics`, and keep rules **narrow** (path-scoped) to avoid noise.
+- **Package:** `packages/tentura_lints` — first-party **`analysis_server_plugin`**. The `plugins:` block must be declared in **each** package's own `analysis_options.yaml` (root, `packages/client`, `packages/server`): the analyzer reads the *nearest* options file, so a root-only block never reaches package code. The **rule list** (one-line per rule) is owned by [`lint-after-changes.mdc`](lint-after-changes.mdc) — do not re-list it here.
+- **CI:** `.github/workflows/pipeline.yml` runs **`scripts/check-custom-lints.sh <package>`** for server and client before tests. It wraps `dart analyze` and ratchets the custom-rule count against `scripts/custom-lint-baseline.txt`; fix new **errors**, **warnings**, and **any custom-rule growth** when touching analyzed paths.
+- **Do not check these rules with `flutter analyze`** — it does not load analyzer plugins at all. Nor with `dart analyze <subdir>`: plugin diagnostics surface only when the analysis target is the package root or a single file. Plugin diagnostics also ignore `analyzer: errors:` severity overrides and `// ignore:` comments, so the `diagnostics: <rule>: true|false` switch is the only lever.
+- **Adding a lint:** add a rule under `packages/tentura_lints/lib/src/rules/`, register it in `packages/tentura_lints/lib/main.dart`, enable it under `plugins.tentura_lints.diagnostics` in every package that should enforce it, add a rule unit test, and keep rules **narrow** (path-scoped) to avoid noise. Scope-exclude on `packages/<pkg>/test/`, never a bare `/test/` — the rule-test sandbox roots files at `/home/test/lib/…`.
 
 ## Testing Implications
 

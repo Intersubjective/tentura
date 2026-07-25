@@ -97,6 +97,17 @@ final class _Visitor extends SimpleAstVisitor<void> {
     if (path.contains('packages/tentura_lints/')) {
       return true;
     }
+    // Transport-level tests legitimately build a document by hand to exercise
+    // the link itself (e.g. v2_upload_multipart_link_test), where routing
+    // through ferry_generator would defeat the point of the test.
+    //
+    // Match on `packages/<pkg>/test/`, not a bare `/test/`: the rule test
+    // sandbox roots files at `/home/test/lib/…`, which a bare match would
+    // exclude wholesale — silently disabling the rule's own tests.
+    if (path.contains('packages/client/test/') ||
+        path.contains('packages/server/test/')) {
+      return true;
+    }
     if (path.contains('.g.dart') ||
         path.contains('.gql.dart') ||
         path.contains('.freezed.dart') ||

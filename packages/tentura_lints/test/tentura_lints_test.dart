@@ -179,6 +179,29 @@ const title = 'hello world';
 }
 
 @reflectiveTest
+class NoRawGraphqlInDartClientTestScopeTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/test/data/service/some_link_test.dart';
+
+  @override
+  void setUp() {
+    rule = NoRawGraphqlInDart();
+    super.setUp();
+  }
+
+  /// Transport-level tests hand-build a document on purpose; the rule must not
+  /// fire under `packages/<pkg>/test/`.
+  Future<void> test_allows_raw_document_in_package_test_dir() async {
+    await assertNoDiagnostics(
+      '''
+const doc = 'mutation Foo { Foo(id: 1) }';
+''',
+    );
+  }
+}
+
+@reflectiveTest
 class NoRawEdgeInsetsTest extends AnalysisRuleTest {
   @override
   String get testFileName =>
@@ -342,6 +365,7 @@ void main() {
     defineReflectiveTests(NoCubitToDataServiceImportsTest);
     defineReflectiveTests(CubitRequiresUseCaseForMultiReposTest);
     defineReflectiveTests(NoRawGraphqlInDartTest);
+    defineReflectiveTests(NoRawGraphqlInDartClientTestScopeTest);
     defineReflectiveTests(NoRawEdgeInsetsTest);
     defineReflectiveTests(NoRawBorderRadiusTest);
     defineReflectiveTests(NoRequestDomainEntityTest);

@@ -39,10 +39,17 @@ Orientation and feature specs live under [`docs/`](docs/) — start at [`docs/RE
 
 ```bash
 cd packages/tentura_lints && dart test                                   # custom lint rules
-cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos
+./scripts/check-custom-lints.sh packages/client                          # analyzer + tentura_lints gate
+./scripts/check-custom-lints.sh packages/server
 cd packages/client && flutter test
 cd packages/client && flutter test --update-goldens <path>               # regenerate a golden intentionally
 ```
 
-CI (`.github/workflows/pipeline.yml`) runs the lint tests, `flutter analyze`,
-`bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push to `main`.
+> Do **not** use `flutter analyze` to check `tentura_lints` rules — it does not load analyzer
+> plugins and always reports them clean. Nor `dart analyze <subdir>`: plugin diagnostics only
+> surface when the target is the package root. `scripts/check-custom-lints.sh` invokes the
+> analyzer correctly and ratchets the count against `scripts/custom-lint-baseline.txt`.
+
+CI (`.github/workflows/pipeline.yml`) runs the lint tests, `scripts/check-custom-lints.sh` for
+both packages, `bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push
+to `main`.

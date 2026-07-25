@@ -5,12 +5,12 @@ alwaysApply: true
 
 # Lints after work
 
-- **After** a coherent task or meaningful source edit: run workspace diagnostics on changed paths and fix issues you introduced (includes `tentura_lints` plugin rules via `dart analyze` / `flutter analyze`).
+- **After** a coherent task or meaningful source edit: run workspace diagnostics on changed paths and fix issues you introduced. For `tentura_lints` plugin rules use `./scripts/check-custom-lints.sh <package-dir>` — **never** `flutter analyze` (does not load plugins) and never `dart analyze <subdir>` (drops plugin diagnostics).
 - **Before** `git commit` (or staging a commit): re-check the same scope so analyzer/CI stays green.
 
 ## `tentura_lints` (`packages/tentura_lints`)
 
-Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/main.dart`. Enabled for the workspace via root `analysis_options.yaml` `plugins:` (not per-package `custom_lint:`). CI runs `dart analyze --no-fatal-warnings` (server) and `flutter analyze --no-fatal-warnings --no-fatal-infos` (client), which include plugin diagnostics (see `.github/workflows/pipeline.yml`). Full wording: **Static enforcement** in `architecture.mdc`.
+Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/main.dart`. Enabled via a `plugins:` block in **each** package's own `analysis_options.yaml` (root, `packages/client`, `packages/server`) — the analyzer reads the nearest options file, so a root-only block does not reach package code. CI runs `scripts/check-custom-lints.sh` for both packages (see `.github/workflows/pipeline.yml`); it wraps `dart analyze` and ratchets the custom-rule count against `scripts/custom-lint-baseline.txt`. One error-severity rule is currently switched off with a TODO: `no_map_dynamic_in_use_case_api` (server). Full wording: **Static enforcement** in `architecture.mdc`.
 
 | Rule | One line |
 |------|----------|
