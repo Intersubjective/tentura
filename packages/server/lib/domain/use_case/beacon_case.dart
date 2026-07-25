@@ -38,7 +38,6 @@ const kMaxImagesPerBeacon = 10;
 /// Stage rows older than this are eligible for the expiry sweep (§3.3).
 const kBeaconStageExpiry = Duration(hours: 24);
 
-const _kMaxIconCodeLength = 64;
 
 String? _trimOrNull(String? raw) {
   if (raw == null) return null;
@@ -110,21 +109,6 @@ BeaconCoverSource _parseCoverSourceStrict(int wireValue) {
     if (source.wireValue == wireValue) return source;
   }
   throw const BeaconMediaInvalidException();
-}
-
-bool _isValidIconCodeKey(String s) =>
-    RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(s) && s.length <= _kMaxIconCodeLength;
-
-/// Curated key from client catalog; rejects empty/oversized/non-[a-z0-9_] input.
-String? _normalizeIconCode(String? raw) {
-  if (raw == null) return null;
-  final t = raw.trim();
-  if (t.isEmpty) return null;
-  final truncated = t.length > _kMaxIconCodeLength
-      ? t.substring(0, _kMaxIconCodeLength)
-      : t;
-  if (!_isValidIconCodeKey(truncated)) return null;
-  return truncated;
 }
 
 @Singleton(order: 2)
@@ -228,8 +212,6 @@ final class BeaconCase extends UseCaseBase {
     DateTime? startAt,
     Coordinates? coordinates,
     Stream<Uint8List>? imageBytes,
-    String? iconCode,
-    int? iconBackground,
     bool draft = false,
     String? addressLabel,
   }) async {
@@ -256,7 +238,6 @@ final class BeaconCase extends UseCaseBase {
         );
       }
 
-      final normalizedIcon = _normalizeIconCode(iconCode);
       final desc = _normalizeBeaconDescription(description);
       return await _beaconRepository.createBeacon(
         authorId: userId,
@@ -271,8 +252,6 @@ final class BeaconCase extends UseCaseBase {
         primaryNeedSlug: resolvedPrimary,
         startAt: startAt,
         endAt: endAt,
-        iconCode: normalizedIcon,
-        iconBackground: normalizedIcon == null ? null : iconBackground,
         status: draft ? BeaconStatus.draft : null,
         addressLabel: _trimOrNull(addressLabel),
       );
@@ -313,11 +292,8 @@ final class BeaconCase extends UseCaseBase {
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
-    String? iconCode,
-    int? iconBackground,
     String? addressLabel,
   }) async {
-    final normalizedIcon = _normalizeIconCode(iconCode);
     final desc = _normalizeBeaconDescription(description);
     final normalizedNeeds = _normalizeNeeds(needs);
     final resolvedPrimary = _resolvePrimaryNeedSlug(
@@ -338,8 +314,6 @@ final class BeaconCase extends UseCaseBase {
       longitude: coordinates?.long,
       startAt: startAt,
       endAt: endAt,
-      iconCode: normalizedIcon,
-      iconBackground: normalizedIcon == null ? null : iconBackground,
       addressLabel: _trimOrNull(addressLabel),
     );
     return beacon;
@@ -359,11 +333,8 @@ final class BeaconCase extends UseCaseBase {
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
-    String? iconCode,
-    int? iconBackground,
     String? addressLabel,
   }) async {
-    final normalizedIcon = _normalizeIconCode(iconCode);
     final desc = _normalizeBeaconDescription(description);
     final normalizedNeeds = _normalizeNeeds(needs);
     final resolvedPrimary = _resolvePrimaryNeedSlug(
@@ -384,8 +355,6 @@ final class BeaconCase extends UseCaseBase {
       longitude: coordinates?.long,
       startAt: startAt,
       endAt: endAt,
-      iconCode: normalizedIcon,
-      iconBackground: normalizedIcon == null ? null : iconBackground,
       addressLabel: _trimOrNull(addressLabel),
     );
   }
@@ -697,8 +666,6 @@ final class BeaconCase extends UseCaseBase {
         longitude: source.coordinates?.long,
         tags: source.tags,
         needs: source.needs,
-        iconCode: source.iconCode,
-        iconBackground: source.iconBackground,
         primaryNeedSlug: source.primaryNeedSlug,
         coverImageId: mappedCoverImageId,
         coverSource: source.coverSource,

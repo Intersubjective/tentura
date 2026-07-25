@@ -23,8 +23,6 @@ abstract class BeaconRepositoryPort {
     Set<String>? tags,
     Set<String>? needs,
     int ticker = 0,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? coverImageId,
     BeaconCoverSource coverSource = BeaconCoverSource.photo,
@@ -51,8 +49,6 @@ abstract class BeaconRepositoryPort {
     DateTime? endAt,
     double? latitude,
     double? longitude,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? addressLabel,
   });
@@ -70,8 +66,6 @@ abstract class BeaconRepositoryPort {
     DateTime? endAt,
     double? latitude,
     double? longitude,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? addressLabel,
   });

@@ -41,12 +41,6 @@ class Beacons extends Table
     PgTypes.timestampWithTimezone,
   ).nullable()();
 
-  /// Curated symbolic icon key (client catalog); null = default tile.
-  late final iconCode = text().nullable()();
-
-  /// ARGB background for identity tile from constrained palette; null with iconCode.
-  late final iconBackground = integer().nullable()();
-
   /// Canonical primary capability slug; null iff [needs] is empty.
   late final primaryNeedSlug = text().nullable()();
 

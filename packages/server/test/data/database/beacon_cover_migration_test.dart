@@ -52,8 +52,6 @@ ORDER BY column_name
           [
             'cover_image_id',
             'cover_source',
-            'icon_background',
-            'icon_code',
             'primary_need_slug',
           ],
         );
@@ -78,7 +76,8 @@ WHERE conname IN (
   'beacon_cover_source_ck',
   'beacon_cover_image_membership_fk',
   'beacon_image_position_uq',
-  'beacon_image_image_id_uq'
+  'beacon_image_image_id_uq',
+  'beacon_primary_need_membership_ck'
 )
 ORDER BY conname
 ''');
@@ -89,6 +88,7 @@ ORDER BY conname
             'beacon_cover_source_ck',
             'beacon_image_image_id_uq',
             'beacon_image_position_uq',
+            'beacon_primary_need_membership_ck',
           ],
         );
 

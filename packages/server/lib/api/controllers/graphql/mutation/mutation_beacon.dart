@@ -17,10 +17,6 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _tags = InputFieldString(fieldName: 'tags');
 
-  final _iconCode = InputFieldString(fieldName: 'iconCode');
-
-  final _iconBackground = InputFieldInt(fieldName: 'iconBackground');
-
   final _needs = InputFieldString(fieldName: 'needs');
 
   final _addressLabel = InputFieldString(fieldName: 'addressLabel');
@@ -82,8 +78,6 @@ final class MutationBeacon extends GqlNodeBase {
       _startAt.fieldNullable,
       _endAt.fieldNullable,
       _tags.fieldNullable,
-      _iconCode.fieldNullable,
-      _iconBackground.fieldNullable,
       _needs.fieldNullable,
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
@@ -101,8 +95,6 @@ final class MutationBeacon extends GqlNodeBase {
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
           needs: _needs.fromArgs(args),
-          iconCode: _iconCode.fromArgs(args),
-          iconBackground: _iconBackground.fromArgs(args),
           primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           draft: _draft.fromArgs(args) ?? false,
@@ -135,8 +127,6 @@ final class MutationBeacon extends GqlNodeBase {
       _startAt.fieldNullable,
       _endAt.fieldNullable,
       _tags.fieldNullable,
-      _iconCode.fieldNullable,
-      _iconBackground.fieldNullable,
       _needs.fieldNullable,
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
@@ -153,8 +143,6 @@ final class MutationBeacon extends GqlNodeBase {
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
           needs: _needs.fromArgs(args),
-          iconCode: _iconCode.fromArgs(args),
-          iconBackground: _iconBackground.fromArgs(args),
           primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),
@@ -174,8 +162,6 @@ final class MutationBeacon extends GqlNodeBase {
       _startAt.fieldNullable,
       _endAt.fieldNullable,
       _tags.fieldNullable,
-      _iconCode.fieldNullable,
-      _iconBackground.fieldNullable,
       _needs.fieldNullable,
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
@@ -192,8 +178,6 @@ final class MutationBeacon extends GqlNodeBase {
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
           needs: _needs.fromArgs(args),
-          iconCode: _iconCode.fromArgs(args),
-          iconBackground: _iconBackground.fromArgs(args),
           primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),

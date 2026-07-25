@@ -33,8 +33,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? context,
     Set<String>? tags,
     @Default(<String>{}) Set<String> needs,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? coverImageId,
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
@@ -76,8 +74,6 @@ abstract class BeaconEntity with _$BeaconEntity {
   /// V2 GraphQL `Beacon` shape (camelCase); keep in sync with `gqlTypeBeacon` in custom_types.dart.
   Map<String, Object?> get asJson => {
     'id': id,
-    'iconCode': iconCode,
-    'iconBackground': iconBackground,
     'addressLabel': addressLabel,
     'primaryNeedSlug': primaryNeedSlug,
     'coverImageId': coverImageId,

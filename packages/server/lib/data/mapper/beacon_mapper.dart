@@ -33,8 +33,6 @@ BeaconEntity beaconModelToEntity(
   needs: model.needs.isEmpty
       ? const <String>{}
       : model.needs.split(',').toSet(),
-  iconCode: model.iconCode,
-  iconBackground: model.iconBackground,
   primaryNeedSlug: model.primaryNeedSlug,
   coverImageId: model.coverImageId?.uuid,
   coverSource: BeaconCoverSource.fromWireOrPhoto(model.coverSource),

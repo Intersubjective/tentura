@@ -62,8 +62,6 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     Set<String>? tags,
     Set<String>? needs,
     int ticker = 0,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? coverImageId,
     BeaconCoverSource coverSource = BeaconCoverSource.photo,

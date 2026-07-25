@@ -39,8 +39,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     Set<String>? tags,
     Set<String>? needs,
     int ticker = 0,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? coverImageId,
     BeaconCoverSource coverSource = BeaconCoverSource.photo,
@@ -78,8 +76,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       images: images,
       tags: tags,
       needs: needs ?? const <String>{},
-      iconCode: iconCode,
-      iconBackground: iconBackground,
       primaryNeedSlug: primaryNeedSlug,
       coverImageId: images.isEmpty ? null : (coverImageId ?? images.first.id),
       coverSource: coverSource,
@@ -101,8 +97,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     DateTime? endAt,
     double? latitude,
     double? longitude,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? addressLabel,
   }) async {
@@ -126,8 +120,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       coordinates: latitude != null && longitude != null
           ? Coordinates(lat: latitude, long: longitude)
           : null,
-      iconCode: iconCode,
-      iconBackground: iconBackground,
       primaryNeedSlug: primaryNeedSlug,
       updatedAt: now,
       addressLabel: addressLabel,
@@ -148,8 +140,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     DateTime? endAt,
     double? latitude,
     double? longitude,
-    String? iconCode,
-    int? iconBackground,
     String? primaryNeedSlug,
     String? addressLabel,
   }) async {
@@ -173,8 +163,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       coordinates: latitude != null && longitude != null
           ? Coordinates(lat: latitude, long: longitude)
           : null,
-      iconCode: iconCode,
-      iconBackground: iconBackground,
       primaryNeedSlug: primaryNeedSlug,
       updatedAt: DateTime.timestamp(),
       addressLabel: addressLabel,

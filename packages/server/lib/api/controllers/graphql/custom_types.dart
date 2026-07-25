@@ -311,8 +311,6 @@ final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
 final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
-    field('iconCode', graphQLString),
-    field('iconBackground', graphQLInt),
     field('addressLabel', graphQLString),
     field('primaryNeedSlug', graphQLString),
     field('coverImageId', graphQLString),

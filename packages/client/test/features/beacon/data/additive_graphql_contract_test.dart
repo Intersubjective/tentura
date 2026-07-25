@@ -40,9 +40,11 @@ void main() {
       );
     });
 
-    test('the schema keeps legacy icon arguments the client no longer sends', () {
-      expect(schema, contains('iconCode: String'));
-      expect(schema, contains('iconBackground: Int'));
+    test('schema and client documents omit legacy icon arguments', () {
+      expect(schema, isNot(contains('iconCode: String')));
+      expect(schema, isNot(contains('iconBackground: Int')));
+      expect(schema, isNot(contains('icon_code')));
+      expect(schema, isNot(contains('icon_background')));
 
       for (final relative in [
         'lib/features/beacon/data/gql/beacon_create.graphql',
