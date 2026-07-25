@@ -18,6 +18,7 @@ abstract class BeaconRepositoryPort {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
@@ -43,6 +44,7 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   });
 
@@ -61,6 +63,7 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   });
 

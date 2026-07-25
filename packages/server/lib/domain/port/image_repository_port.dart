@@ -20,5 +20,14 @@ abstract class ImageRepositoryPort {
     required String imageId,
   });
 
+  /// Deletes the image row iff owned by [authorId]; returns the affected-row
+  /// count (0 or 1) so callers can detect an ownership/attachment mismatch.
+  /// Does not touch remote object storage; pair with [ImageObjectGcPort] to
+  /// enqueue removal before/around this call.
+  Future<int> deleteOwnedRow({
+    required String imageId,
+    required String authorId,
+  });
+
   Future<void> deleteAllOf({required String userId});
 }

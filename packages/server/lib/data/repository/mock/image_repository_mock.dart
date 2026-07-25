@@ -19,6 +19,14 @@ class ImageRepositoryMock implements ImageRepositoryPort {
   }
 
   @override
+  Future<int> deleteOwnedRow({
+    required String imageId,
+    required String authorId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> deleteAllOf({required String userId}) {
     throw UnimplementedError();
   }

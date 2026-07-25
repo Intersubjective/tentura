@@ -491,6 +491,20 @@ class MockImageRepositoryPort extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<int> deleteOwnedRow({
+    required String? imageId,
+    required String? authorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteOwnedRow, [], {
+              #imageId: imageId,
+              #authorId: authorId,
+            }),
+            returnValue: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
+
+  @override
   _i5.Future<void> deleteAllOf({required String? userId}) =>
       (super.noSuchMethod(
             Invocation.method(#deleteAllOf, [], {#userId: userId}),

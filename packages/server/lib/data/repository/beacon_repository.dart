@@ -57,6 +57,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
@@ -78,6 +79,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         needs: Value(needs == null || needs.isEmpty ? '' : needs.join(',')),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
+        primaryNeedSlug: Value(primaryNeedSlug),
         status: Value(effectiveStatus.smallintValue),
         addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
@@ -159,6 +161,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
@@ -200,6 +203,7 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             iconCode: Value(iconCode),
             iconBackground: Value(iconBackground),
+            primaryNeedSlug: Value(primaryNeedSlug),
             addressLabel: Value(addressLabel),
           ),
         );
@@ -222,6 +226,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
@@ -262,6 +267,7 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             iconCode: Value(iconCode),
             iconBackground: Value(iconBackground),
+            primaryNeedSlug: Value(primaryNeedSlug),
             addressLabel: Value(addressLabel),
           ),
         );

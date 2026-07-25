@@ -36,6 +36,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
@@ -71,6 +72,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       needs: needs ?? const <String>{},
       iconCode: iconCode,
       iconBackground: iconBackground,
+      primaryNeedSlug: primaryNeedSlug,
       addressLabel: addressLabel,
     );
     return storageById[beacon.id] = beacon;
@@ -91,6 +93,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) async {
     final existing = storageById[beaconId];
@@ -115,6 +118,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
           : null,
       iconCode: iconCode,
       iconBackground: iconBackground,
+      primaryNeedSlug: primaryNeedSlug,
       updatedAt: now,
       addressLabel: addressLabel,
     );
@@ -136,6 +140,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) async {
     final existing = storageById[beaconId];
@@ -160,6 +165,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
           : null,
       iconCode: iconCode,
       iconBackground: iconBackground,
+      primaryNeedSlug: primaryNeedSlug,
       updatedAt: DateTime.timestamp(),
       addressLabel: addressLabel,
     );

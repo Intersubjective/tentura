@@ -1,9 +1,11 @@
 
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
@@ -20,11 +22,13 @@ import 'package:tentura_server/domain/port/remote_storage_port.dart';
   order: 1,
 )
 class ImageRepository implements ImageRepositoryPort {
-  const ImageRepository(
+  ImageRepository(
     this._database,
     this._remoteStorageService,
     this._uploadQuota,
+    this._imageObjectGc,
     this._env,
+    this._logger,
   );
 
   final TenturaDb _database;
@@ -33,7 +37,11 @@ class ImageRepository implements ImageRepositoryPort {
 
   final UploadQuotaRepositoryPort _uploadQuota;
 
+  final ImageObjectGcPort _imageObjectGc;
+
   final Env _env;
+
+  final Logger _logger;
 
   @override
   Future<Uint8List> get({required String id}) async {
@@ -66,14 +74,37 @@ class ImageRepository implements ImageRepositoryPort {
     final imageModel = await _database.managers.images.createReturning(
       (o) => o(authorId: authorId),
     );
-    await _remoteStorageService.putObject(
-      _getImagePath(
-        authorId: authorId,
-        imageId: imageModel.id.uuid,
-      ),
-      Stream.value(buffered),
-    );
-    return imageModel.id.uuid;
+    final imageId = imageModel.id.uuid;
+    try {
+      await _remoteStorageService.putObject(
+        _getImagePath(authorId: authorId, imageId: imageId),
+        Stream.value(buffered),
+      );
+    } catch (_) {
+      // The remote write failed or may have partially written; never leave
+      // an orphan row pointing at an unknown/partial object.
+      await _compensateFailedPut(imageId: imageId, authorId: authorId);
+      rethrow;
+    }
+    return imageId;
+  }
+
+  Future<void> _compensateFailedPut({
+    required String imageId,
+    required String authorId,
+  }) async {
+    try {
+      await _database.transaction(() async {
+        await _imageObjectGc.enqueue(imageId: imageId, authorId: authorId);
+        await deleteOwnedRow(imageId: imageId, authorId: authorId);
+      });
+    } catch (compensationError, compensationStackTrace) {
+      _logger.severe(
+        'ImageRepository.put compensation failed for image $imageId',
+        compensationError,
+        compensationStackTrace,
+      );
+    }
   }
 
   @override
@@ -104,6 +135,16 @@ class ImageRepository implements ImageRepositoryPort {
       _getImagePath(authorId: authorId, imageId: imageId),
     );
   }
+
+  @override
+  Future<int> deleteOwnedRow({
+    required String imageId,
+    required String authorId,
+  }) => _database.customUpdate(
+    r'DELETE FROM public.image WHERE id = $1::uuid AND author_id = $2',
+    variables: [Variable<String>(imageId), Variable<String>(authorId)],
+    updateKind: UpdateKind.delete,
+  );
 
   @override
   Future<void> deleteAllOf({required String userId}) =>

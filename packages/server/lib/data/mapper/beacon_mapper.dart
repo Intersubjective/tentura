@@ -1,3 +1,4 @@
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
@@ -34,6 +35,9 @@ BeaconEntity beaconModelToEntity(
       : model.needs.split(',').toSet(),
   iconCode: model.iconCode,
   iconBackground: model.iconBackground,
+  primaryNeedSlug: model.primaryNeedSlug,
+  coverImageId: model.coverImageId?.uuid,
+  coverSource: BeaconCoverSource.fromWireOrPhoto(model.coverSource),
   lineageParentBeaconId: model.lineageParentBeaconId,
   lineageRootBeaconId: model.lineageRootBeaconId,
 );

@@ -83,6 +83,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     int? ticker = 0,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     _i6.BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
@@ -104,6 +105,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #ticker: ticker,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
+              #primaryNeedSlug: primaryNeedSlug,
               #status: status,
               #addressLabel: addressLabel,
               #lineageParentBeaconId: lineageParentBeaconId,
@@ -127,6 +129,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #ticker: ticker,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
+                  #primaryNeedSlug: primaryNeedSlug,
                   #status: status,
                   #addressLabel: addressLabel,
                   #lineageParentBeaconId: lineageParentBeaconId,
@@ -174,6 +177,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) =>
       (super.noSuchMethod(
@@ -191,6 +195,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
+              #primaryNeedSlug: primaryNeedSlug,
               #addressLabel: addressLabel,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
@@ -210,6 +215,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
+                  #primaryNeedSlug: primaryNeedSlug,
                   #addressLabel: addressLabel,
                 }),
               ),
@@ -232,6 +238,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
     String? addressLabel,
   }) =>
       (super.noSuchMethod(
@@ -249,6 +256,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
+              #primaryNeedSlug: primaryNeedSlug,
               #addressLabel: addressLabel,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
@@ -268,6 +276,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
+                  #primaryNeedSlug: primaryNeedSlug,
                   #addressLabel: addressLabel,
                 }),
               ),

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
@@ -34,6 +35,9 @@ abstract class BeaconEntity with _$BeaconEntity {
     @Default(<String>{}) Set<String> needs,
     String? iconCode,
     int? iconBackground,
+    String? primaryNeedSlug,
+    String? coverImageId,
+    @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) = _BeaconEntity;
