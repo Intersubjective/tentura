@@ -196,7 +196,7 @@ Constants: `BeaconRoomSemanticMarker` (`packages/server/lib/consts/beacon_room_c
 
 **Evidence**
 
-- Blockers are `coordination_item` kind=3; legacy `beacon_blocker` table dropped in `m0076`
+- Blockers are `coordination_item` kind=3; the legacy blocker table was dropped in `m0076`
 - Creation: `MarkBlockerCase` / `createDraftBlockerCase` + publish
 - Resolution: `ResolveBlockerCase` requires kind=blocker, status=open, then `updateStatus` → resolved (`resolve_blocker_case.dart`)
 - Client: `ItemActionsCubit.resolveBlocker`, Items tab, phase CTA `resolveBlocker`, room promote flows
