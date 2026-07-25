@@ -95,20 +95,36 @@ class TenturaChatColumn extends StatelessWidget {
 double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
     (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
 
+/// Minimum usable width for an expanded master–detail detail pane.
+const double kDeskDetailMinWidth = 360.0;
+
 /// Comfortable ops + room pair (standalone / four-column detail).
 const double kDeskOpsRoomMinPair = 720.0;
 
 /// Tight ops + room pair when My Work list is collapsed (embedded).
 const double kDeskOpsRoomMinPairTight = 560.0;
 
-/// Horizontal chrome between My Work master list and detail pane.
+/// Horizontal chrome between expanded master list and detail pane.
+double deskMasterDetailSeparatorWidth(TenturaTokens tt) =>
+    tt.screenHPadding * 2 + 1;
+
+/// @deprecated Use [deskMasterDetailSeparatorWidth].
 double myWorkMasterDetailSeparatorWidth(TenturaTokens tt) =>
-    tt.screenHPadding * 3 + 1;
+    deskMasterDetailSeparatorWidth(tt);
+
+/// Detail pane width after master list and separator at [bodyWidth].
+double deskDetailBudget(double bodyWidth, TenturaTokens tt) {
+  final master = deskMasterPaneWidth(bodyWidth, tt);
+  return bodyWidth - master - deskMasterDetailSeparatorWidth(tt);
+}
+
+/// Whether [bodyWidth] can show master list and detail side by side.
+bool deskFitsMasterDetail(double bodyWidth, TenturaTokens tt) =>
+    deskDetailBudget(bodyWidth, tt) >= kDeskDetailMinWidth;
 
 /// Whether list + ops + room fit beside the rail at [bodyWidth].
 bool myWorkFitsFourColumns(double bodyWidth, TenturaTokens tt) {
-  final master = deskMasterPaneWidth(bodyWidth, tt);
-  final detail = bodyWidth - master - myWorkMasterDetailSeparatorWidth(tt);
+  final detail = deskDetailBudget(bodyWidth, tt);
   return myWorkDetailFitsOpsRoom(detail, tight: false);
 }
 

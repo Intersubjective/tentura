@@ -4,7 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
 
 void main() {
-  group('My Work layout packing helpers', () {
+  group('Desk layout packing helpers', () {
     late TenturaTokens expanded;
 
     setUp(() {
@@ -12,7 +12,14 @@ void main() {
     });
 
     test('separator width matches live Row chrome', () {
-      expect(myWorkMasterDetailSeparatorWidth(expanded), 73);
+      expect(deskMasterDetailSeparatorWidth(expanded), 49);
+      expect(myWorkMasterDetailSeparatorWidth(expanded), 49);
+    });
+
+    test('deskFitsMasterDetail respects 360px detail floor', () {
+      expect(deskFitsMasterDetail(535, expanded), isFalse);
+      expect(deskFitsMasterDetail(719, expanded), isFalse);
+      expect(deskFitsMasterDetail(969, expanded), isTrue);
     });
 
     test('detailFitsOpsRoom respects comfortable and tight floors', () {
@@ -28,11 +35,11 @@ void main() {
     });
 
     test('fitsFour needs master + separators + comfortable ops|room pair', () {
-      final master = deskMasterPaneWidth(1353, expanded);
-      final detail =
-          1353 - master - myWorkMasterDetailSeparatorWidth(expanded);
+      final master = deskMasterPaneWidth(1329, expanded);
+      final detail = deskDetailBudget(1329, expanded);
+      expect(master, 560);
       expect(detail, 720);
-      expect(myWorkFitsFourColumns(1353, expanded), isTrue);
+      expect(myWorkFitsFourColumns(1329, expanded), isTrue);
     });
 
     test('collapsed list at ~1024 viewport body (~720px) fits tight ops|room', () {

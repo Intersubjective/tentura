@@ -37,6 +37,7 @@ class InboxScreen extends StatefulWidget {
 class _InboxScreenState extends State<InboxScreen> {
   String? _selectedNeedsBeaconId;
   String? _selectedWatchingBeaconId;
+  var _fitsMasterDetail = true;
 
   void _selectNeedsItem(InboxItem item) {
     setState(() => _selectedNeedsBeaconId = item.beaconId);
@@ -44,6 +45,28 @@ class _InboxScreenState extends State<InboxScreen> {
 
   void _selectWatchingItem(InboxItem item) {
     setState(() => _selectedWatchingBeaconId = item.beaconId);
+  }
+
+  void _onLayoutMetrics(bool fitsMasterDetail) {
+    if (_fitsMasterDetail == fitsMasterDetail) return;
+    setState(() => _fitsMasterDetail = fitsMasterDetail);
+  }
+
+  void _backToListForTab(int tabIndex) {
+    setState(() {
+      if (tabIndex == 1) {
+        _selectedWatchingBeaconId = null;
+      } else {
+        _selectedNeedsBeaconId = null;
+      }
+    });
+  }
+
+  bool _showListForTab(int tabIndex) {
+    if (_fitsMasterDetail) return true;
+    return tabIndex == 1
+        ? _selectedWatchingBeaconId == null
+        : _selectedNeedsBeaconId == null;
   }
 
   @override
@@ -117,14 +140,6 @@ class _InboxScreenState extends State<InboxScreen> {
                     ],
                   );
                 } else {
-                  final effectiveNeedsId = _selectedInboxItem(
-                    state.needsMe,
-                    _selectedNeedsBeaconId,
-                  )?.beaconId;
-                  final effectiveWatchingId = _selectedInboxItem(
-                    state.watching,
-                    _selectedWatchingBeaconId,
-                  )?.beaconId;
                   body = BlocBuilder<HomeAttentionCubit, HomeAttentionState>(
                     builder: (context, _) {
                       final attentionMarkerIds = context
@@ -145,7 +160,7 @@ class _InboxScreenState extends State<InboxScreen> {
                                   ? _selectNeedsItem
                                   : null,
                               selectedBeaconId: useExpandedPane
-                                  ? effectiveNeedsId
+                                  ? _selectedNeedsBeaconId
                                   : null,
                             ),
                           ),
@@ -161,7 +176,7 @@ class _InboxScreenState extends State<InboxScreen> {
                                   ? _selectWatchingItem
                                   : null,
                               selectedBeaconId: useExpandedPane
-                                  ? effectiveWatchingId
+                                  ? _selectedWatchingBeaconId
                                   : null,
                             ),
                           ),
@@ -172,18 +187,6 @@ class _InboxScreenState extends State<InboxScreen> {
                 }
 
                 final tt = context.tt;
-                final effectiveNeedsIdForPane = state.items.isEmpty
-                    ? null
-                    : _selectedInboxItem(
-                        state.needsMe,
-                        _selectedNeedsBeaconId,
-                      )?.beaconId;
-                final effectiveWatchingIdForPane = state.items.isEmpty
-                    ? null
-                    : _selectedInboxItem(
-                        state.watching,
-                        _selectedWatchingBeaconId,
-                      )?.beaconId;
 
                 return Scaffold(
                   backgroundColor: scheme.surface,
@@ -213,29 +216,65 @@ class _InboxScreenState extends State<InboxScreen> {
                                 constraints.maxWidth,
                                 context.tt,
                               );
-                              return Row(
-                                children: [
-                                  SizedBox(
-                                    width: masterWidth,
-                                    child: const Row(
-                                      children: [
-                                        Expanded(child: _InboxTabStrip()),
-                                        _InboxSortButton(),
-                                      ],
-                                    ),
-                                  ),
-                                  const Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _InboxOverflowMenu(),
-                                        ],
+                              final tabController =
+                                  DefaultTabController.of(context);
+                              return AnimatedBuilder(
+                                animation: tabController,
+                                builder: (context, _) {
+                                  final tabIndex = tabController.index;
+                                  final showList = _showListForTab(tabIndex);
+                                  final useMasterWidth =
+                                      showList && _fitsMasterDetail;
+                                  return Row(
+                                    children: [
+                                      if (showList)
+                                        useMasterWidth
+                                            ? SizedBox(
+                                                width: masterWidth,
+                                                child: const Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: _InboxTabStrip(),
+                                                    ),
+                                                    _InboxSortButton(),
+                                                  ],
+                                                ),
+                                              )
+                                            : const Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: _InboxTabStrip(),
+                                                    ),
+                                                    _InboxSortButton(),
+                                                  ],
+                                                ),
+                                              )
+                                      else
+                                        Semantics(
+                                          label: l10n.myWorkBackToList,
+                                          button: true,
+                                          child: IconButton(
+                                            tooltip: l10n.myWorkBackToList,
+                                            onPressed: () =>
+                                                _backToListForTab(tabIndex),
+                                            icon: const Icon(Icons.arrow_back),
+                                          ),
+                                        ),
+                                      const Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _InboxOverflowMenu(),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ],
+                                    ],
+                                  );
+                                },
                               );
                             },
                           )
@@ -249,8 +288,10 @@ class _InboxScreenState extends State<InboxScreen> {
                         ? _InboxExpandedBody(
                             tabView: body,
                             state: state,
-                            selectedNeedsBeaconId: effectiveNeedsIdForPane,
-                            selectedWatchingBeaconId: effectiveWatchingIdForPane,
+                            selectedNeedsBeaconId: _selectedNeedsBeaconId,
+                            selectedWatchingBeaconId: _selectedWatchingBeaconId,
+                            allowDefaultToFirst: _fitsMasterDetail,
+                            onLayoutMetrics: _onLayoutMetrics,
                           )
                         : TenturaContentColumn(child: body),
                   ),
@@ -271,19 +312,49 @@ class _InboxExpandedBody extends StatelessWidget {
     required this.state,
     required this.selectedNeedsBeaconId,
     required this.selectedWatchingBeaconId,
+    required this.allowDefaultToFirst,
+    required this.onLayoutMetrics,
   });
 
   final Widget tabView;
   final InboxState state;
   final String? selectedNeedsBeaconId;
   final String? selectedWatchingBeaconId;
+  final bool allowDefaultToFirst;
+  final ValueChanged<bool> onLayoutMetrics;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final masterWidth = deskMasterPaneWidth(constraints.maxWidth, tt);
+        final bodyWidth = constraints.maxWidth;
+        final fitsMasterDetail = deskFitsMasterDetail(bodyWidth, tt);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          onLayoutMetrics(fitsMasterDetail);
+        });
+
+        if (!fitsMasterDetail) {
+          final tabController = DefaultTabController.of(context);
+          return AnimatedBuilder(
+            animation: tabController,
+            builder: (context, _) {
+              final watchingTab = tabController.index == 1;
+              final selectedId = watchingTab
+                  ? selectedWatchingBeaconId
+                  : selectedNeedsBeaconId;
+              if (selectedId == null) return tabView;
+              return _InboxExpandedPreview(
+                state: state,
+                selectedNeedsBeaconId: selectedNeedsBeaconId,
+                selectedWatchingBeaconId: selectedWatchingBeaconId,
+                allowDefaultToFirst: false,
+              );
+            },
+          );
+        }
+
+        final masterWidth = deskMasterPaneWidth(bodyWidth, tt);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -296,6 +367,7 @@ class _InboxExpandedBody extends StatelessWidget {
                 state: state,
                 selectedNeedsBeaconId: selectedNeedsBeaconId,
                 selectedWatchingBeaconId: selectedWatchingBeaconId,
+                allowDefaultToFirst: allowDefaultToFirst,
               ),
             ),
           ],
@@ -310,11 +382,13 @@ class _InboxExpandedPreview extends StatelessWidget {
     required this.state,
     required this.selectedNeedsBeaconId,
     required this.selectedWatchingBeaconId,
+    required this.allowDefaultToFirst,
   });
 
   final InboxState state;
   final String? selectedNeedsBeaconId;
   final String? selectedWatchingBeaconId;
+  final bool allowDefaultToFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +401,11 @@ class _InboxExpandedPreview extends StatelessWidget {
         final selectedId = watchingTab
             ? selectedWatchingBeaconId
             : selectedNeedsBeaconId;
-        final selected = _selectedInboxItem(items, selectedId);
+        final selected = _selectedInboxItem(
+          items,
+          selectedId,
+          allowDefaultToFirst: allowDefaultToFirst,
+        );
         if (selected == null) {
           final tt = context.tt;
           final l10n = L10n.of(context)!;
@@ -354,7 +432,11 @@ class _InboxExpandedPreview extends StatelessWidget {
   }
 }
 
-InboxItem? _selectedInboxItem(List<InboxItem> items, String? selectedId) {
+InboxItem? _selectedInboxItem(
+  List<InboxItem> items,
+  String? selectedId, {
+  bool allowDefaultToFirst = true,
+}) {
   if (items.isEmpty) return null;
   if (selectedId != null) {
     for (final item in items) {
@@ -363,6 +445,7 @@ InboxItem? _selectedInboxItem(List<InboxItem> items, String? selectedId) {
       }
     }
   }
+  if (!allowDefaultToFirst) return null;
   return items.first;
 }
 

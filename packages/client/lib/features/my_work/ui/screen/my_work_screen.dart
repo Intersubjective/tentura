@@ -40,6 +40,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
   var _roomOpen = false;
   var _roomCloseNonce = 0;
   var _fitsFourColumns = false;
+  var _fitsMasterDetail = true;
 
   void _selectCard(
     MyWorkCardViewModel vm, {
@@ -72,19 +73,35 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
     setState(() => _roomOpen = open);
   }
 
-  void _onLayoutMetrics({required bool fitsFour}) {
-    if (_fitsFourColumns == fitsFour) return;
-    setState(() => _fitsFourColumns = fitsFour);
+  void _onLayoutMetrics({
+    required bool fitsFour,
+    required bool fitsMasterDetail,
+  }) {
+    if (_fitsFourColumns == fitsFour && _fitsMasterDetail == fitsMasterDetail) {
+      return;
+    }
+    setState(() {
+      _fitsFourColumns = fitsFour;
+      _fitsMasterDetail = fitsMasterDetail;
+    });
   }
 
   void _backToList() {
     setState(() {
+      if (!_fitsMasterDetail) {
+        _selectedBeaconId = null;
+        _selectedViewTab = null;
+        _selectedPeopleTabAttention = null;
+      }
       _roomOpen = false;
       _roomCloseNonce++;
     });
   }
 
-  bool get _showList => !(_roomOpen && !_fitsFourColumns);
+  bool get _showList {
+    if (!_fitsMasterDetail) return _selectedBeaconId == null;
+    return !(_roomOpen && !_fitsFourColumns);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -137,18 +154,28 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                       context.tt,
                     );
                     final showList = _showList;
+                    final useMasterWidth = showList && _fitsMasterDetail;
                     return Row(
                       children: [
                         if (showList)
-                          SizedBox(
-                            width: masterWidth,
-                            child: const Row(
-                              children: [
-                                Expanded(child: _MyWorkFilterMenu()),
-                                _MyWorkSortButton(),
-                              ],
-                            ),
-                          )
+                          useMasterWidth
+                              ? SizedBox(
+                                  width: masterWidth,
+                                  child: const Row(
+                                    children: [
+                                      Expanded(child: _MyWorkFilterMenu()),
+                                      _MyWorkSortButton(),
+                                    ],
+                                  ),
+                                )
+                              : const Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(child: _MyWorkFilterMenu()),
+                                      _MyWorkSortButton(),
+                                    ],
+                                  ),
+                                )
                         else
                           Semantics(
                             label: l10n.myWorkBackToList,
@@ -395,8 +422,9 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
 
 MyWorkCardViewModel? _selectedMyWorkCard(
   List<MyWorkCardViewModel> cards,
-  String? selectedId,
-) {
+  String? selectedId, {
+  bool allowDefaultToFirst = true,
+}) {
   final viewable = cards
       .where((c) => c.kind != MyWorkCardKind.authoredDraft)
       .toList(growable: false);
@@ -408,6 +436,7 @@ MyWorkCardViewModel? _selectedMyWorkCard(
       }
     }
   }
+  if (!allowDefaultToFirst) return null;
   return viewable.first;
 }
 
@@ -434,7 +463,10 @@ class _MyWorkBody extends StatelessWidget {
   final MyWorkCardSelect onSelectCard;
   final VoidCallback onEmbeddedLeave;
   final ValueChanged<bool> onEmbeddedRoomOpenChanged;
-  final void Function({required bool fitsFour}) onLayoutMetrics;
+  final void Function({
+    required bool fitsFour,
+    required bool fitsMasterDetail,
+  }) onLayoutMetrics;
 
   bool _shouldRebuild(MyWorkState p, MyWorkState c) {
     if (p.status != c.status ||
@@ -494,18 +526,44 @@ class _MyWorkBody extends StatelessWidget {
             return TenturaContentColumn(child: listBody);
           }
 
-          final selected = _selectedMyWorkCard(
-            state.visibleCards,
-            selectedBeaconId,
-          );
-
           return LayoutBuilder(
             builder: (context, constraints) {
-              final fitsFour = myWorkFitsFourColumns(constraints.maxWidth, tt);
+              final bodyWidth = constraints.maxWidth;
+              final fitsMasterDetail = deskFitsMasterDetail(bodyWidth, tt);
+              final fitsFour = myWorkFitsFourColumns(bodyWidth, tt);
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                onLayoutMetrics(fitsFour: fitsFour);
+                onLayoutMetrics(
+                  fitsFour: fitsFour,
+                  fitsMasterDetail: fitsMasterDetail,
+                );
               });
-              final masterWidth = deskMasterPaneWidth(constraints.maxWidth, tt);
+
+              if (!fitsMasterDetail) {
+                if (selectedBeaconId == null) {
+                  return listBody;
+                }
+                final swapSelected = _selectedMyWorkCard(
+                  state.visibleCards,
+                  selectedBeaconId,
+                  allowDefaultToFirst: false,
+                );
+                return _MyWorkExpandedPreview(
+                  selected: swapSelected,
+                  viewTab: selectedViewTab,
+                  peopleTabAttention: selectedPeopleTabAttention,
+                  embeddedRoomCoVisible: false,
+                  suppressEmbeddedRoomBack: true,
+                  roomCloseNonce: roomCloseNonce,
+                  onEmbeddedRoomOpenChanged: onEmbeddedRoomOpenChanged,
+                  onEmbeddedLeave: onEmbeddedLeave,
+                );
+              }
+
+              final masterWidth = deskMasterPaneWidth(bodyWidth, tt);
+              final splitSelected = _selectedMyWorkCard(
+                state.visibleCards,
+                selectedBeaconId,
+              );
               final children = <Widget>[
                 if (showList) ...[
                   SizedBox(width: masterWidth, child: listBody),
@@ -515,12 +573,12 @@ class _MyWorkBody extends StatelessWidget {
                 ],
                 Expanded(
                   child: _MyWorkExpandedPreview(
-                    selected: selected,
-                    viewTab: selected?.beaconId == selectedBeaconId
+                    selected: splitSelected,
+                    viewTab: splitSelected?.beaconId == selectedBeaconId
                         ? selectedViewTab
                         : null,
                     peopleTabAttention:
-                        selected?.beaconId == selectedBeaconId
+                        splitSelected?.beaconId == selectedBeaconId
                         ? selectedPeopleTabAttention
                         : null,
                     embeddedRoomCoVisible: fitsFour,
