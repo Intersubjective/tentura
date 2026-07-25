@@ -281,6 +281,19 @@ VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Ucoverauthor')
 
 Future<void> _rollBackM0130ForTest(Connection connection) async {
   for (final statement in const [
+    // m0131 sits above m0130, and migrant only applies versions above the
+    // highest recorded one. Leaving '0131' recorded would make the
+    // re-application of m0130 below a silent no-op, so unwind it first.
+    '''
+ALTER TABLE public.beacon
+  DROP CONSTRAINT IF EXISTS beacon_primary_need_membership_ck
+''',
+    'ALTER TABLE public.beacon ADD COLUMN IF NOT EXISTS icon_code TEXT NULL',
+    '''
+ALTER TABLE public.beacon
+  ADD COLUMN IF NOT EXISTS icon_background INTEGER NULL
+''',
+    "DELETE FROM public.schema_version WHERE version = '0131'",
     'ALTER TABLE public.beacon DROP CONSTRAINT IF EXISTS beacon_cover_image_membership_fk',
     'DROP INDEX IF EXISTS public.beacon_cover_image_id_idx',
     'DROP TABLE IF EXISTS public.beacon_image_stage',

@@ -55,6 +55,12 @@ Future<void> main() async {
       // while reconstructing the legacy schema from the checked-in history.
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      // Migrant only applies versions above the highest recorded one, so every
+      // migration appended after this test was written must be unwound here as
+      // well — otherwise the re-application below is a silent no-op and the
+      // m0117-m0120 columns never come back.
+      await _rollBackM0131ForTest(writer);
+      await _rollBackM0130ForTest(writer);
       await _rollBackM0129ForTest(writer);
       await _rollBackM0128ForTest(writer);
       await _rollBackM0127ForTest(writer);
@@ -1753,6 +1759,53 @@ Future<void> _rollBackM0128ForTest(Connection connection) async {
   for (final statement in const [
     'ALTER TABLE public.notification_outbox ADD COLUMN digested_at timestamptz',
     "DELETE FROM public.schema_version WHERE version = '0128'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0131ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+ALTER TABLE public.beacon
+  DROP CONSTRAINT IF EXISTS beacon_primary_need_membership_ck
+''',
+    'ALTER TABLE public.beacon ADD COLUMN IF NOT EXISTS icon_code TEXT NULL',
+    '''
+ALTER TABLE public.beacon
+  ADD COLUMN IF NOT EXISTS icon_background INTEGER NULL
+''',
+    "DELETE FROM public.schema_version WHERE version = '0131'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0130ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+ALTER TABLE public.beacon
+  DROP CONSTRAINT IF EXISTS beacon_cover_image_membership_fk
+''',
+    'DROP INDEX IF EXISTS public.beacon_cover_image_id_idx',
+    'DROP TABLE IF EXISTS public.beacon_image_stage',
+    'DROP TABLE IF EXISTS public.image_object_gc',
+    '''
+ALTER TABLE public.beacon_image
+  DROP CONSTRAINT IF EXISTS beacon_image_position_uq
+''',
+    '''
+ALTER TABLE public.beacon_image
+  DROP CONSTRAINT IF EXISTS beacon_image_image_id_uq
+''',
+    'ALTER TABLE public.beacon DROP CONSTRAINT IF EXISTS beacon_cover_source_ck',
+    '''
+ALTER TABLE public.beacon
+  DROP COLUMN IF EXISTS primary_need_slug,
+  DROP COLUMN IF EXISTS cover_image_id,
+  DROP COLUMN IF EXISTS cover_source
+''',
+    "DELETE FROM public.schema_version WHERE version = '0130'",
   ]) {
     await connection.execute(statement);
   }
