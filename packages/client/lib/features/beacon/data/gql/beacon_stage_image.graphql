@@ -1,6 +1,6 @@
 mutation BeaconStageImage(
   $id: String!,
-  $image: Upload = {}
+  $image: v2_Upload = {}
 ) {
   beaconStageImage(
     id: $id,

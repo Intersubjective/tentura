@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/model/image_model.dart';
+import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -212,7 +212,7 @@ Profile _profileFromHelpOfferUser(
   final p = user.user_presence;
   if (p != null) {
     presenceStatus = _userPresenceStatusFromSmallint(p.status);
-    presenceLastSeenAt = p.last_seen_at;
+    presenceLastSeenAt = DateTime.tryParse(p.last_seen_at);
   }
   return Profile(
     id: user.id,
@@ -220,7 +220,7 @@ Profile _profileFromHelpOfferUser(
     contactName: contactNameOf(user.id),
     description: user.description,
     myVote: user.my_vote ?? 0,
-    image: user.image == null ? null : ImageModel(user.image!).asEntity,
+    image: user.image == null ? null : ImageModelV2(user.image!).asEntity,
     isMutualFriend: user.is_mutual_friend,
     presenceStatus: presenceStatus,
     presenceLastSeenAt: presenceLastSeenAt,

@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
-import 'package:http/http.dart' show MultipartFile;
-import 'package:http_parser/http_parser.dart' show MediaType;
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -138,7 +137,7 @@ class BeaconRepository implements BeaconWritePort {
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
             ? null
-            : (GCoordinatesBuilder()
+            : (Gv2_CoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
         ..image = null
@@ -172,7 +171,7 @@ class BeaconRepository implements BeaconWritePort {
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
             ? null
-            : (GCoordinatesBuilder()
+            : (Gv2_CoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
@@ -203,7 +202,7 @@ class BeaconRepository implements BeaconWritePort {
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
             ? null
-            : (GCoordinatesBuilder()
+            : (Gv2_CoordinatesBuilder()
                 ..lat = beacon.coordinates!.lat
                 ..long = beacon.coordinates!.long)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
@@ -241,11 +240,10 @@ class BeaconRepository implements BeaconWritePort {
     final request = GBeaconAddImageReq((b) {
       b.vars
         ..id = beaconId
-        ..image = MultipartFile.fromBytes(
-          'image',
-          image.imageBytes!,
-          contentType: MediaType.parse(image.mimeType),
+        ..image = TenturaV2Upload(
           filename: image.fileName,
+          mimeType: image.mimeType,
+          bytes: image.imageBytes!,
         );
     });
     await _remoteApiService
@@ -265,11 +263,10 @@ class BeaconRepository implements BeaconWritePort {
     final request = GBeaconStageImageReq((b) {
       b.vars
         ..id = beaconId
-        ..image = MultipartFile.fromBytes(
-          'image',
-          image.imageBytes!,
-          contentType: MediaType.parse(image.mimeType),
+        ..image = TenturaV2Upload(
           filename: image.fileName,
+          mimeType: image.mimeType,
+          bytes: image.imageBytes!,
         );
     });
     final staged = await _remoteApiService

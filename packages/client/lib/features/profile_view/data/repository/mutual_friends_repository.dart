@@ -23,6 +23,9 @@ class MutualFriendsRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
         final rows = r.dataOrThrow(label: _label).mutualFriends;
+        if (rows == null) {
+          return <Profile>[];
+        }
         return rows.map(
           (e) {
             final image = e.image;
@@ -35,7 +38,7 @@ class MutualFriendsRepository {
             DateTime? presenceLastSeenAt;
             if (p != null) {
               presenceStatus = _userPresenceStatusFromSmallint(p.status);
-              presenceLastSeenAt = p.last_seen_at;
+              presenceLastSeenAt = DateTime.tryParse(p.last_seen_at);
             }
             return Profile(
               id: e.id,
@@ -52,7 +55,7 @@ class MutualFriendsRepository {
                     ),
               score: firstScore?.dst_score ?? 0,
               rScore: firstScore?.src_score ?? 0,
-              isMutualFriend: e.is_mutual_friend ?? false,
+              isMutualFriend: e.is_mutual_friend,
               presenceStatus: presenceStatus,
               presenceLastSeenAt: presenceLastSeenAt,
             );

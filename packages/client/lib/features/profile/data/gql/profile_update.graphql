@@ -3,7 +3,7 @@ mutation ProfileUpdate(
   $description: String,
   $handle: String,
   $dropImage: Boolean = false,
-  $image: Upload = {}
+  $image: v2_Upload = {}
 ) {
   userUpdate(
     displayName: $displayName,

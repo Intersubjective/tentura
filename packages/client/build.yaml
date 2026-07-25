@@ -37,12 +37,11 @@ targets:
             Date:
               name: DateTime
 
-            timestamptz:
+            v2_Date:
               name: DateTime
 
-            Upload:
-              name: MultipartFile
-              import: 'package:http/http.dart'
+            timestamptz:
+              name: DateTime
 
             v2_Upload:
               name: TenturaV2Upload
@@ -67,12 +66,11 @@ targets:
             Date:
               name: DateTime
 
-            timestamptz:
+            v2_Date:
               name: DateTime
 
-            Upload:
-              name: MultipartFile
-              import: 'package:http/http.dart'
+            timestamptz:
+              name: DateTime
 
             v2_Upload:
               name: TenturaV2Upload
@@ -90,9 +88,6 @@ targets:
           custom_serializers:
             - import: "package:tentura/data/gql/timestamptz_serializer.dart"
               name: TimestamptzSerializer
-
-            - import: "package:tentura/data/gql/upload_serializer.dart"
-              name: UploadSerializer
 
             - import: "package:tentura/data/gql/tentura_v2_upload_serializer.dart"
               name: TenturaV2UploadSerializer

@@ -22,6 +22,24 @@ void main() {
       expect(schema, isNot(contains('beaconSetCover')));
     });
 
+    // Server declares input Upload; Hasura stitches it to v2_Upload. The
+    // fetched schema must expose only the stitched name — never a hand-added
+    // bare `input Upload` alias beside it.
+    test('schema exposes stitched v2_Upload only (no hand-added Upload)', () {
+      expect(schema, contains('input v2_Upload {'));
+      expect(schema, isNot(contains('input Upload {')));
+      expect(
+        File('lib/features/beacon/data/gql/beacon_stage_image.graphql')
+            .readAsStringSync(),
+        contains(r'$image: v2_Upload'),
+      );
+      expect(
+        File('lib/features/beacon/data/gql/beacon_add_image.graphql')
+            .readAsStringSync(),
+        contains(r'$image: v2_Upload'),
+      );
+    });
+
     test('the schema keeps legacy icon arguments the client no longer sends', () {
       expect(schema, contains('iconCode: String'));
       expect(schema, contains('iconBackground: Int'));

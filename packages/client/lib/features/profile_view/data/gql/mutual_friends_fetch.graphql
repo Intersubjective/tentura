@@ -1,4 +1,4 @@
-# import '/data/gql/image_model.graphql'
+# import '/data/gql/image_model_v2.graphql'
 
 query MutualFriendsFetch($id: String!) {
   mutualFriends(id: $id) {
@@ -6,7 +6,7 @@ query MutualFriendsFetch($id: String!) {
     displayName
     is_mutual_friend
     image {
-      ...ImageModel
+      ...ImageModelV2
     }
     scores {
       src_score

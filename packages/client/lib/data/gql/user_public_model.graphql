@@ -1,6 +1,7 @@
-# import '/data/gql/image_model.graphql'
+# import '/data/gql/image_model_v2.graphql'
 
-fragment UserPublicModel on user {
+# V2 remote-schema user projection (Hasura stitches server `user` → `v2_user`).
+fragment UserPublicModel on v2_user {
   id
   displayName
   handle
@@ -8,7 +9,7 @@ fragment UserPublicModel on user {
   my_vote
   is_mutual_friend
   image {
-    ...ImageModel
+    ...ImageModelV2
   }
   scores {
     src_score

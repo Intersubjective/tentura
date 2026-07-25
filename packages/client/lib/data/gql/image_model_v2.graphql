@@ -1,0 +1,8 @@
+fragment ImageModelV2 on v2_image {
+  id
+  hash
+  height
+  width
+  author_id
+  created_at
+}

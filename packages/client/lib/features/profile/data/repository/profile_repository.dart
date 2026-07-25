@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'package:http/http.dart' show MultipartFile;
-import 'package:http_parser/http_parser.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -78,11 +77,10 @@ class ProfileRepository implements ProfileRepositoryPort {
         ..dropImage = dropImage
         ..image = image?.imageBytes == null
             ? null
-            : MultipartFile.fromBytes(
-                'image',
-                image!.imageBytes!,
-                contentType: MediaType.parse(image.mimeType),
-                filename: image.fileName,
+            : TenturaV2Upload(
+                filename: image!.fileName,
+                mimeType: image.mimeType,
+                bytes: image.imageBytes!,
               );
       if (updateHandle) {
         b.vars.handle = handle;

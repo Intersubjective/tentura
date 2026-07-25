@@ -1,4 +1,4 @@
-# import '/data/gql/image_model.graphql'
+# import '/data/gql/image_model_v2.graphql'
 
 query HelpOffersWithCoordination($beaconId: String!) {
   helpOffersWithCoordination(id: $beaconId) {
@@ -24,7 +24,7 @@ query HelpOffersWithCoordination($beaconId: String!) {
       my_vote
       is_mutual_friend
       image {
-        ...ImageModel
+        ...ImageModelV2
       }
       user_presence {
         last_seen_at

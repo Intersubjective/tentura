@@ -17,26 +17,10 @@ directive @cached(
 columns and relationships of "beacon"
 """
 type beacon {
+  address_label: String
+
   """An object relationship"""
   author: user!
-
-  """An array relationship"""
-  beacon_pinneds(
-    """distinct select on columns"""
-    distinct_on: [beacon_pinned_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [beacon_pinned_order_by!]
-
-    """filter the rows returned"""
-    where: beacon_pinned_bool_exp
-  ): [beacon_pinned!]!
 
   """An array relationship"""
   beacon_archiveds(
@@ -56,8 +40,127 @@ type beacon {
     where: beacon_archived_bool_exp
   ): [beacon_archived!]!
 
+  """An array relationship"""
+  beacon_images(
+    """distinct select on columns"""
+    distinct_on: [beacon_image_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_image_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_image_bool_exp
+  ): [beacon_image!]!
+
+  """An array relationship"""
+  beacon_participants(
+    """distinct select on columns"""
+    distinct_on: [beacon_participant_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_participant_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_participant_bool_exp
+  ): [beacon_participant!]!
+
+  """An array relationship"""
+  beacon_pinneds(
+    """distinct select on columns"""
+    distinct_on: [beacon_pinned_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_pinned_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_pinned_bool_exp
+  ): [beacon_pinned!]!
+
   """An object relationship"""
   beacon_review_window: beacon_review_window
+
+  """An array relationship"""
+  beacon_room_state(
+    """distinct select on columns"""
+    distinct_on: [beacon_room_state_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_room_state_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_room_state_bool_exp
+  ): [beacon_room_state!]!
+
+  """An array relationship"""
+  beacon_steward(
+    """distinct select on columns"""
+    distinct_on: [beacon_steward_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_steward_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_steward_bool_exp
+  ): [beacon_steward!]!
+
+  """
+  A computed field, executes function "beacon_get_can_read_content"
+  """
+  can_read_content: Boolean
+  context: String
+  cover_image_id: uuid
+  cover_source: smallint!
+  created_at: timestamptz!
+  description: String!
+  end_at: timestamptz
+
+  """An array relationship"""
+  forward_edges(
+    """distinct select on columns"""
+    distinct_on: [beacon_forward_edge_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_forward_edge_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_forward_edge_bool_exp
+  ): [beacon_forward_edge!]!
 
   """An array relationship"""
   help_offers(
@@ -94,68 +197,14 @@ type beacon {
     """filter the rows returned"""
     where: beacon_help_offer_bool_exp
   ): beacon_help_offer_aggregate!
-  address_label: String
-  context: String
-
-  created_at: timestamptz!
-  description: String!
-  need_summary: String
-  needs: String!
-  success_criteria: String
-  end_at: timestamptz
-
-  """An array relationship"""
-  forward_edges(
-    """distinct select on columns"""
-    distinct_on: [beacon_forward_edge_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [beacon_forward_edge_order_by!]
-
-    """filter the rows returned"""
-    where: beacon_forward_edge_bool_exp
-  ): [beacon_forward_edge!]!
-  id: String!
-
-  """Curated symbolic icon key for beacon identity tile."""
-  icon_code: String
-
-  """ARGB int from constrained palette for identity tile background."""
   icon_background: Int
-  primary_need_slug: String
-  cover_image_id: uuid
-  cover_source: smallint!
-
-  """An array relationship"""
-  beacon_images(
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [beacon_image_order_by!]
-
-    """filter the rows returned"""
-    where: beacon_image_bool_exp
-  ): [beacon_image!]!
+  icon_code: String
+  id: String!
 
   """
   A computed field, executes function "beacon_get_is_pinned"
   """
   is_pinned: Boolean
-
-  """
-  A computed field, executes function "beacon_get_can_read_content"
-  """
-  can_read_content: Boolean
   lat: float8
   lineage_parent_beacon_id: String
   lineage_root_beacon_id: String
@@ -165,15 +214,8 @@ type beacon {
   A computed field, executes function "beacon_get_my_vote"
   """
   my_vote: Int
-
-  """An object relationship"""
-  polling: polling
-  polling_id: String
-
-  """
-  A computed field, executes function "beacon_get_rejected_user_ids"
-  """
-  rejected_user_ids: String
+  needs: String!
+  primary_need_slug: String
 
   """
   A computed field, executes function "beacon_get_scores"
@@ -195,13 +237,15 @@ type beacon {
     where: mutual_score_bool_exp
   ): [mutual_score!]
   start_at: timestamptz
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: smallint!
   status_changed_at: timestamptz
   tags: String!
   title: String!
   updated_at: timestamptz!
-
-  """An array relationship"""
   user_id: String!
 
   """An array relationship"""
@@ -241,11 +285,159 @@ input beacon_aggregate_order_by {
 }
 
 """
+columns and relationships of "beacon_archived"
+"""
+type beacon_archived {
+  archived_at: timestamptz!
+
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+order by aggregate values of table "beacon_archived"
+"""
+input beacon_archived_aggregate_order_by {
+  count: order_by
+  max: beacon_archived_max_order_by
+  min: beacon_archived_min_order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_archived". All fields are combined with a logical 'AND'.
+"""
+input beacon_archived_bool_exp {
+  _and: [beacon_archived_bool_exp!]
+  _not: beacon_archived_bool_exp
+  _or: [beacon_archived_bool_exp!]
+  archived_at: timestamptz_comparison_exp
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "beacon_archived"
+"""
+enum beacon_archived_constraint {
+  """
+  unique or primary key constraint on columns "user_id", "beacon_id"
+  """
+  beacon_archived_pkey
+}
+
+"""
+input type for inserting data into table "beacon_archived"
+"""
+input beacon_archived_insert_input {
+  beacon_id: String
+}
+
+"""
+order by max() on columns of table "beacon_archived"
+"""
+input beacon_archived_max_order_by {
+  archived_at: order_by
+  beacon_id: order_by
+  user_id: order_by
+}
+
+"""
+order by min() on columns of table "beacon_archived"
+"""
+input beacon_archived_min_order_by {
+  archived_at: order_by
+  beacon_id: order_by
+  user_id: order_by
+}
+
+"""
+response of any mutation on the table "beacon_archived"
+"""
+type beacon_archived_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+
+  """data from the rows affected by the mutation"""
+  returning: [beacon_archived!]!
+}
+
+"""
+on_conflict condition type for table "beacon_archived"
+"""
+input beacon_archived_on_conflict {
+  constraint: beacon_archived_constraint!
+  update_columns: [beacon_archived_update_column!]! = []
+  where: beacon_archived_bool_exp
+}
+
+"""Ordering options when selecting data from "beacon_archived"."""
+input beacon_archived_order_by {
+  archived_at: order_by
+  beacon: beacon_order_by
+  beacon_id: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "beacon_archived"
+"""
+enum beacon_archived_select_column {
+  """column name"""
+  archived_at
+
+  """column name"""
+  beacon_id
+
+  """column name"""
+  user_id
+}
+
+"""
+Streaming cursor of the table "beacon_archived"
+"""
+input beacon_archived_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_archived_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_archived_stream_cursor_value_input {
+  archived_at: timestamptz
+  beacon_id: String
+  user_id: String
+}
+
+"""
+placeholder for update columns of table "beacon_archived" (current role has no relevant permissions)
+"""
+enum beacon_archived_update_column {
+  """placeholder (do not use)"""
+  _PLACEHOLDER
+}
+
+"""
 order by avg() on columns of table "beacon"
 """
 input beacon_avg_order_by {
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -256,34 +448,40 @@ input beacon_bool_exp {
   _and: [beacon_bool_exp!]
   _not: beacon_bool_exp
   _or: [beacon_bool_exp!]
+  address_label: String_comparison_exp
   author: user_bool_exp
   beacon_archiveds: beacon_archived_bool_exp
+  beacon_images: beacon_image_bool_exp
+  beacon_participants: beacon_participant_bool_exp
   beacon_pinneds: beacon_pinned_bool_exp
   beacon_review_window: beacon_review_window_bool_exp
-  help_offers: beacon_help_offer_bool_exp
-  help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
+  beacon_room_state: beacon_room_state_bool_exp
+  beacon_steward: beacon_steward_bool_exp
+  can_read_content: Boolean_comparison_exp
   context: String_comparison_exp
-  address_label: String_comparison_exp
-  status: smallint_comparison_exp
-  status_changed_at: timestamptz_comparison_exp
+  cover_image_id: uuid_comparison_exp
+  cover_source: smallint_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   end_at: timestamptz_comparison_exp
   forward_edges: beacon_forward_edge_bool_exp
+  help_offers: beacon_help_offer_bool_exp
+  help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   icon_background: Int_comparison_exp
   icon_code: String_comparison_exp
   id: String_comparison_exp
-  beacon_images: beacon_image_bool_exp
   is_pinned: Boolean_comparison_exp
-  can_read_content: Boolean_comparison_exp
   lat: float8_comparison_exp
+  lineage_parent_beacon_id: String_comparison_exp
+  lineage_root_beacon_id: String_comparison_exp
   long: float8_comparison_exp
   my_vote: Int_comparison_exp
-  polling: polling_bool_exp
-  polling_id: String_comparison_exp
-  rejected_user_ids: String_comparison_exp
+  needs: String_comparison_exp
+  primary_need_slug: String_comparison_exp
   scores: mutual_score_bool_exp
   start_at: timestamptz_comparison_exp
+  status: smallint_comparison_exp
+  status_changed_at: timestamptz_comparison_exp
   tags: String_comparison_exp
   title: String_comparison_exp
   updated_at: timestamptz_comparison_exp
@@ -292,38 +490,198 @@ input beacon_bool_exp {
 }
 
 """
-columns and relationships of "beacon_image"
+columns and relationships of "beacon_forward_edge"
 """
-type beacon_image {
+type beacon_forward_edge {
+  batch_id: String
+
   """An object relationship"""
   beacon: beacon!
   beacon_id: String!
+  cancelled_at: timestamptz
+  context: String
+  created_at: timestamptz!
+  id: String!
+  note: String!
 
   """An object relationship"""
-  image: image!
-  image_id: uuid!
-  position: smallint!
+  parent_edge: beacon_forward_edge
+  parent_edge_id: String
+
+  """An object relationship"""
+  recipient: user!
+  recipient_id: String!
+  recipient_read_at: timestamptz
+  recipient_rejected: Boolean!
+  recipient_rejection_message: String!
+
+  """An object relationship"""
+  sender: user!
+  sender_id: String!
 }
 
 """
-order by clause for "beacon_image"
+order by aggregate values of table "beacon_forward_edge"
 """
-input beacon_image_order_by {
-  beacon_id: order_by
-  image_id: order_by
-  position: order_by
+input beacon_forward_edge_aggregate_order_by {
+  count: order_by
+  max: beacon_forward_edge_max_order_by
+  min: beacon_forward_edge_min_order_by
 }
 
 """
-Boolean expression to filter rows from the table "beacon_image"
+Boolean expression to filter rows from the table "beacon_forward_edge". All fields are combined with a logical 'AND'.
 """
-input beacon_image_bool_exp {
-  _and: [beacon_image_bool_exp!]
-  _not: beacon_image_bool_exp
-  _or: [beacon_image_bool_exp!]
+input beacon_forward_edge_bool_exp {
+  _and: [beacon_forward_edge_bool_exp!]
+  _not: beacon_forward_edge_bool_exp
+  _or: [beacon_forward_edge_bool_exp!]
+  batch_id: String_comparison_exp
+  beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
-  image_id: uuid_comparison_exp
-  position: smallint_comparison_exp
+  cancelled_at: timestamptz_comparison_exp
+  context: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  id: String_comparison_exp
+  note: String_comparison_exp
+  parent_edge: beacon_forward_edge_bool_exp
+  parent_edge_id: String_comparison_exp
+  recipient: user_bool_exp
+  recipient_id: String_comparison_exp
+  recipient_read_at: timestamptz_comparison_exp
+  recipient_rejected: Boolean_comparison_exp
+  recipient_rejection_message: String_comparison_exp
+  sender: user_bool_exp
+  sender_id: String_comparison_exp
+}
+
+"""
+order by max() on columns of table "beacon_forward_edge"
+"""
+input beacon_forward_edge_max_order_by {
+  batch_id: order_by
+  beacon_id: order_by
+  cancelled_at: order_by
+  context: order_by
+  created_at: order_by
+  id: order_by
+  note: order_by
+  parent_edge_id: order_by
+  recipient_id: order_by
+  recipient_read_at: order_by
+  recipient_rejection_message: order_by
+  sender_id: order_by
+}
+
+"""
+order by min() on columns of table "beacon_forward_edge"
+"""
+input beacon_forward_edge_min_order_by {
+  batch_id: order_by
+  beacon_id: order_by
+  cancelled_at: order_by
+  context: order_by
+  created_at: order_by
+  id: order_by
+  note: order_by
+  parent_edge_id: order_by
+  recipient_id: order_by
+  recipient_read_at: order_by
+  recipient_rejection_message: order_by
+  sender_id: order_by
+}
+
+"""Ordering options when selecting data from "beacon_forward_edge"."""
+input beacon_forward_edge_order_by {
+  batch_id: order_by
+  beacon: beacon_order_by
+  beacon_id: order_by
+  cancelled_at: order_by
+  context: order_by
+  created_at: order_by
+  id: order_by
+  note: order_by
+  parent_edge: beacon_forward_edge_order_by
+  parent_edge_id: order_by
+  recipient: user_order_by
+  recipient_id: order_by
+  recipient_read_at: order_by
+  recipient_rejected: order_by
+  recipient_rejection_message: order_by
+  sender: user_order_by
+  sender_id: order_by
+}
+
+"""
+select columns of table "beacon_forward_edge"
+"""
+enum beacon_forward_edge_select_column {
+  """column name"""
+  batch_id
+
+  """column name"""
+  beacon_id
+
+  """column name"""
+  cancelled_at
+
+  """column name"""
+  context
+
+  """column name"""
+  created_at
+
+  """column name"""
+  id
+
+  """column name"""
+  note
+
+  """column name"""
+  parent_edge_id
+
+  """column name"""
+  recipient_id
+
+  """column name"""
+  recipient_read_at
+
+  """column name"""
+  recipient_rejected
+
+  """column name"""
+  recipient_rejection_message
+
+  """column name"""
+  sender_id
+}
+
+"""
+Streaming cursor of the table "beacon_forward_edge"
+"""
+input beacon_forward_edge_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_forward_edge_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_forward_edge_stream_cursor_value_input {
+  batch_id: String
+  beacon_id: String
+  cancelled_at: timestamptz
+  context: String
+  created_at: timestamptz
+  id: String
+  note: String
+  parent_edge_id: String
+  recipient_id: String
+  recipient_read_at: timestamptz
+  recipient_rejected: Boolean
+  recipient_rejection_message: String
+  sender_id: String
 }
 
 """
@@ -333,23 +691,23 @@ type beacon_help_offer {
   """An object relationship"""
   beacon: beacon!
   beacon_id: String!
+
+  """An object relationship"""
+  coordination: beacon_help_offer_coordination
   created_at: timestamptz!
 
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String!
   status: smallint!
-
-  """Author coordination feedback for this help offer (if any)."""
-  coordination: beacon_help_offer_coordination
-
-  """Reason tag key when status=withdrawn"""
-  withdraw_reason: String
   updated_at: timestamptz!
 
   """An object relationship"""
   user: user!
   user_id: String!
+
+  """Reason tag key when status=withdrawn"""
+  withdraw_reason: String
 }
 
 """
@@ -431,10 +789,10 @@ input beacon_help_offer_bool_exp {
   help_type: String_comparison_exp
   message: String_comparison_exp
   status: smallint_comparison_exp
-  withdraw_reason: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
+  withdraw_reason: String_comparison_exp
 }
 
 """
@@ -454,12 +812,12 @@ type beacon_help_offer_coordination {
   """An object relationship"""
   author: user!
   author_user_id: String!
-  offer_beacon_id: String!
-  offer_user_id: String!
+  created_at: timestamptz!
 
   """An object relationship"""
-  commitment: beacon_help_offer
-  created_at: timestamptz!
+  help_offer: beacon_help_offer
+  offer_beacon_id: String!
+  offer_user_id: String!
   response_type: smallint!
   updated_at: timestamptz!
 }
@@ -474,10 +832,10 @@ input beacon_help_offer_coordination_bool_exp {
   _or: [beacon_help_offer_coordination_bool_exp!]
   author: user_bool_exp
   author_user_id: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  help_offer: beacon_help_offer_bool_exp
   offer_beacon_id: String_comparison_exp
   offer_user_id: String_comparison_exp
-  commitment: beacon_help_offer_bool_exp
-  created_at: timestamptz_comparison_exp
   response_type: smallint_comparison_exp
   updated_at: timestamptz_comparison_exp
 }
@@ -488,10 +846,10 @@ Ordering options when selecting data from "beacon_help_offer_coordination".
 input beacon_help_offer_coordination_order_by {
   author: user_order_by
   author_user_id: order_by
+  created_at: order_by
+  help_offer: beacon_help_offer_order_by
   offer_beacon_id: order_by
   offer_user_id: order_by
-  commitment: beacon_help_offer_order_by
-  created_at: order_by
   response_type: order_by
   updated_at: order_by
 }
@@ -504,13 +862,13 @@ enum beacon_help_offer_coordination_select_column {
   author_user_id
 
   """column name"""
+  created_at
+
+  """column name"""
   offer_beacon_id
 
   """column name"""
   offer_user_id
-
-  """column name"""
-  created_at
 
   """column name"""
   response_type
@@ -533,9 +891,9 @@ input beacon_help_offer_coordination_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input beacon_help_offer_coordination_stream_cursor_value_input {
   author_user_id: String
+  created_at: timestamptz
   offer_beacon_id: String
   offer_user_id: String
-  created_at: timestamptz
   response_type: smallint
   updated_at: timestamptz
 }
@@ -564,11 +922,11 @@ type beacon_help_offer_max_fields {
   help_type: String
   message: String
   status: smallint
+  updated_at: timestamptz
+  user_id: String
 
   """Reason tag key when status=withdrawn"""
   withdraw_reason: String
-  updated_at: timestamptz
-  user_id: String
 }
 
 """
@@ -582,11 +940,11 @@ input beacon_help_offer_max_order_by {
   help_type: order_by
   message: order_by
   status: order_by
+  updated_at: order_by
+  user_id: order_by
 
   """Reason tag key when status=withdrawn"""
   withdraw_reason: order_by
-  updated_at: order_by
-  user_id: order_by
 }
 
 """aggregate min on columns"""
@@ -598,11 +956,11 @@ type beacon_help_offer_min_fields {
   help_type: String
   message: String
   status: smallint
+  updated_at: timestamptz
+  user_id: String
 
   """Reason tag key when status=withdrawn"""
   withdraw_reason: String
-  updated_at: timestamptz
-  user_id: String
 }
 
 """
@@ -616,11 +974,11 @@ input beacon_help_offer_min_order_by {
   help_type: order_by
   message: order_by
   status: order_by
+  updated_at: order_by
+  user_id: order_by
 
   """Reason tag key when status=withdrawn"""
   withdraw_reason: order_by
-  updated_at: order_by
-  user_id: order_by
 }
 
 """
@@ -652,10 +1010,10 @@ input beacon_help_offer_order_by {
   help_type: order_by
   message: order_by
   status: order_by
-  withdraw_reason: order_by
   updated_at: order_by
   user: user_order_by
   user_id: order_by
+  withdraw_reason: order_by
 }
 
 """primary key columns input for table: beacon_help_offer"""
@@ -684,13 +1042,13 @@ enum beacon_help_offer_select_column {
   status
 
   """column name"""
-  withdraw_reason
-
-  """column name"""
   updated_at
 
   """column name"""
   user_id
+
+  """column name"""
+  withdraw_reason
 }
 
 """
@@ -757,11 +1115,11 @@ input beacon_help_offer_stream_cursor_value_input {
   help_type: String
   message: String
   status: smallint
+  updated_at: timestamptz
+  user_id: String
 
   """Reason tag key when status=withdrawn"""
   withdraw_reason: String
-  updated_at: timestamptz
-  user_id: String
 }
 
 """aggregate sum on columns"""
@@ -835,260 +1193,173 @@ input beacon_help_offer_variance_order_by {
 }
 
 """
-columns and relationships of "beacon_forward_edge"
+columns and relationships of "beacon_image"
 """
-type beacon_forward_edge {
-  batch_id: String
-
+type beacon_image {
   """An object relationship"""
   beacon: beacon!
   beacon_id: String!
-  context: String
-  created_at: timestamptz!
-  id: String!
-  note: String!
 
   """An object relationship"""
-  parent_edge: beacon_forward_edge
-  parent_edge_id: String
-
-  """An object relationship"""
-  recipient: user!
-  recipient_id: String!
-  recipient_read_at: timestamptz
-  recipient_rejected: Boolean!
-  recipient_rejection_message: String!
-
-  """An object relationship"""
-  sender: user!
-  sender_id: String!
+  image: image!
+  image_id: uuid!
+  position: smallint!
 }
 
 """
-order by aggregate values of table "beacon_forward_edge"
+order by aggregate values of table "beacon_image"
 """
-input beacon_forward_edge_aggregate_order_by {
+input beacon_image_aggregate_order_by {
+  avg: beacon_image_avg_order_by
   count: order_by
-  max: beacon_forward_edge_max_order_by
-  min: beacon_forward_edge_min_order_by
+  max: beacon_image_max_order_by
+  min: beacon_image_min_order_by
+  stddev: beacon_image_stddev_order_by
+  stddev_pop: beacon_image_stddev_pop_order_by
+  stddev_samp: beacon_image_stddev_samp_order_by
+  sum: beacon_image_sum_order_by
+  var_pop: beacon_image_var_pop_order_by
+  var_samp: beacon_image_var_samp_order_by
+  variance: beacon_image_variance_order_by
 }
 
 """
-Boolean expression to filter rows from the table "beacon_forward_edge". All fields are combined with a logical 'AND'.
+order by avg() on columns of table "beacon_image"
 """
-input beacon_forward_edge_bool_exp {
-  _and: [beacon_forward_edge_bool_exp!]
-  _not: beacon_forward_edge_bool_exp
-  _or: [beacon_forward_edge_bool_exp!]
-  batch_id: String_comparison_exp
+input beacon_image_avg_order_by {
+  position: order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_image". All fields are combined with a logical 'AND'.
+"""
+input beacon_image_bool_exp {
+  _and: [beacon_image_bool_exp!]
+  _not: beacon_image_bool_exp
+  _or: [beacon_image_bool_exp!]
   beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
-  context: String_comparison_exp
-  created_at: timestamptz_comparison_exp
-  id: String_comparison_exp
-  note: String_comparison_exp
-  parent_edge: beacon_forward_edge_bool_exp
-  parent_edge_id: String_comparison_exp
-  recipient: user_bool_exp
-  recipient_id: String_comparison_exp
-  recipient_rejected: Boolean_comparison_exp
-  recipient_rejection_message: String_comparison_exp
-  sender: user_bool_exp
-  sender_id: String_comparison_exp
+  image: image_bool_exp
+  image_id: uuid_comparison_exp
+  position: smallint_comparison_exp
 }
 
 """
-unique or primary key constraints on table "beacon_forward_edge"
+order by max() on columns of table "beacon_image"
 """
-enum beacon_forward_edge_constraint {
-  """
-  unique or primary key constraint on columns "id"
-  """
-  beacon_forward_edge_pkey
-}
-
-"""
-input type for inserting data into table "beacon_forward_edge"
-"""
-input beacon_forward_edge_insert_input {
-  batch_id: String
-  beacon_id: String
-  context: String
-  note: String
-  parent_edge: beacon_forward_edge_obj_rel_insert_input
-  parent_edge_id: String
-  recipient_id: String
-}
-
-"""
-order by max() on columns of table "beacon_forward_edge"
-"""
-input beacon_forward_edge_max_order_by {
-  batch_id: order_by
+input beacon_image_max_order_by {
   beacon_id: order_by
-  context: order_by
-  created_at: order_by
-  id: order_by
-  note: order_by
-  parent_edge_id: order_by
-  recipient_id: order_by
-  recipient_rejection_message: order_by
-  sender_id: order_by
+  image_id: order_by
+  position: order_by
 }
 
 """
-order by min() on columns of table "beacon_forward_edge"
+order by min() on columns of table "beacon_image"
 """
-input beacon_forward_edge_min_order_by {
-  batch_id: order_by
+input beacon_image_min_order_by {
   beacon_id: order_by
-  context: order_by
-  created_at: order_by
-  id: order_by
-  note: order_by
-  parent_edge_id: order_by
-  recipient_id: order_by
-  recipient_rejection_message: order_by
-  sender_id: order_by
+  image_id: order_by
+  position: order_by
 }
 
-"""
-response of any mutation on the table "beacon_forward_edge"
-"""
-type beacon_forward_edge_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-
-  """data from the rows affected by the mutation"""
-  returning: [beacon_forward_edge!]!
-}
-
-"""
-input type for inserting object relation for remote table "beacon_forward_edge"
-"""
-input beacon_forward_edge_obj_rel_insert_input {
-  data: beacon_forward_edge_insert_input!
-
-  """upsert condition"""
-  on_conflict: beacon_forward_edge_on_conflict
-}
-
-"""
-on_conflict condition type for table "beacon_forward_edge"
-"""
-input beacon_forward_edge_on_conflict {
-  constraint: beacon_forward_edge_constraint!
-  update_columns: [beacon_forward_edge_update_column!]! = []
-  where: beacon_forward_edge_bool_exp
-}
-
-"""Ordering options when selecting data from "beacon_forward_edge"."""
-input beacon_forward_edge_order_by {
-  batch_id: order_by
+"""Ordering options when selecting data from "beacon_image"."""
+input beacon_image_order_by {
   beacon: beacon_order_by
   beacon_id: order_by
-  context: order_by
-  created_at: order_by
-  id: order_by
-  note: order_by
-  parent_edge: beacon_forward_edge_order_by
-  parent_edge_id: order_by
-  recipient: user_order_by
-  recipient_id: order_by
-  recipient_rejected: order_by
-  recipient_rejection_message: order_by
-  sender: user_order_by
-  sender_id: order_by
+  image: image_order_by
+  image_id: order_by
+  position: order_by
 }
 
 """
-select columns of table "beacon_forward_edge"
+select columns of table "beacon_image"
 """
-enum beacon_forward_edge_select_column {
-  """column name"""
-  batch_id
-
+enum beacon_image_select_column {
   """column name"""
   beacon_id
 
   """column name"""
-  context
+  image_id
 
   """column name"""
-  created_at
-
-  """column name"""
-  id
-
-  """column name"""
-  note
-
-  """column name"""
-  parent_edge_id
-
-  """column name"""
-  recipient_id
-
-  """column name"""
-  recipient_rejected
-
-  """column name"""
-  recipient_rejection_message
-
-  """column name"""
-  sender_id
+  position
 }
 
 """
-Streaming cursor of the table "beacon_forward_edge"
+order by stddev() on columns of table "beacon_image"
 """
-input beacon_forward_edge_stream_cursor_input {
+input beacon_image_stddev_order_by {
+  position: order_by
+}
+
+"""
+order by stddev_pop() on columns of table "beacon_image"
+"""
+input beacon_image_stddev_pop_order_by {
+  position: order_by
+}
+
+"""
+order by stddev_samp() on columns of table "beacon_image"
+"""
+input beacon_image_stddev_samp_order_by {
+  position: order_by
+}
+
+"""
+Streaming cursor of the table "beacon_image"
+"""
+input beacon_image_stream_cursor_input {
   """Stream column input with initial value"""
-  initial_value: beacon_forward_edge_stream_cursor_value_input!
+  initial_value: beacon_image_stream_cursor_value_input!
 
   """cursor ordering"""
   ordering: cursor_ordering
 }
 
 """Initial value of the column from where the streaming should start"""
-input beacon_forward_edge_stream_cursor_value_input {
-  batch_id: String
+input beacon_image_stream_cursor_value_input {
   beacon_id: String
-  context: String
-  created_at: timestamptz
-  id: String
-  note: String
-  parent_edge_id: String
-  recipient_id: String
-  recipient_rejected: Boolean
-  recipient_rejection_message: String
-  sender_id: String
+  image_id: uuid
+  position: smallint
 }
 
 """
-placeholder for update columns of table "beacon_forward_edge" (current role has no relevant permissions)
+order by sum() on columns of table "beacon_image"
 """
-enum beacon_forward_edge_update_column {
-  """placeholder (do not use)"""
-  _PLACEHOLDER
+input beacon_image_sum_order_by {
+  position: order_by
 }
 
 """
-input type for incrementing numeric columns in table "beacon"
+order by var_pop() on columns of table "beacon_image"
 """
-input beacon_inc_input {
-  status: smallint
+input beacon_image_var_pop_order_by {
+  position: order_by
+}
+
+"""
+order by var_samp() on columns of table "beacon_image"
+"""
+input beacon_image_var_samp_order_by {
+  position: order_by
+}
+
+"""
+order by variance() on columns of table "beacon_image"
+"""
+input beacon_image_variance_order_by {
+  position: order_by
 }
 
 """
 order by max() on columns of table "beacon"
 """
 input beacon_max_order_by {
+  address_label: order_by
   context: order_by
-
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_image_id: order_by
+  cover_source: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1096,10 +1367,18 @@ input beacon_max_order_by {
   icon_code: order_by
   id: order_by
   lat: order_by
+  lineage_parent_beacon_id: order_by
+  lineage_root_beacon_id: order_by
   long: order_by
-  polling_id: order_by
+  needs: order_by
+  primary_need_slug: order_by
   start_at: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
+  status_changed_at: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
@@ -1110,11 +1389,10 @@ input beacon_max_order_by {
 order by min() on columns of table "beacon"
 """
 input beacon_min_order_by {
+  address_label: order_by
   context: order_by
-
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_image_id: order_by
+  cover_source: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1122,58 +1400,346 @@ input beacon_min_order_by {
   icon_code: order_by
   id: order_by
   lat: order_by
+  lineage_parent_beacon_id: order_by
+  lineage_root_beacon_id: order_by
   long: order_by
-  polling_id: order_by
+  needs: order_by
+  primary_need_slug: order_by
   start_at: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
+  status_changed_at: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
   user_id: order_by
-}
-
-"""
-response of any mutation on the table "beacon"
-"""
-type beacon_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-
-  """data from the rows affected by the mutation"""
-  returning: [beacon!]!
 }
 
 """Ordering options when selecting data from "beacon"."""
 input beacon_order_by {
   address_label: order_by
   author: user_order_by
+  beacon_archiveds_aggregate: beacon_archived_aggregate_order_by
+  beacon_images_aggregate: beacon_image_aggregate_order_by
+  beacon_participants_aggregate: beacon_participant_aggregate_order_by
   beacon_pinneds_aggregate: beacon_pinned_aggregate_order_by
   beacon_review_window: beacon_review_window_order_by
-  help_offers_aggregate: beacon_help_offer_aggregate_order_by
+  beacon_room_state_aggregate: beacon_room_state_aggregate_order_by
+  beacon_steward_aggregate: beacon_steward_aggregate_order_by
+  can_read_content: order_by
   context: order_by
+  cover_image_id: order_by
+  cover_source: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
   forward_edges_aggregate: beacon_forward_edge_aggregate_order_by
+  help_offers_aggregate: beacon_help_offer_aggregate_order_by
   icon_background: order_by
   icon_code: order_by
   id: order_by
   is_pinned: order_by
-  can_read_content: order_by
   lat: order_by
+  lineage_parent_beacon_id: order_by
+  lineage_root_beacon_id: order_by
   long: order_by
   my_vote: order_by
-  polling: polling_order_by
-  polling_id: order_by
-  rejected_user_ids: order_by
+  needs: order_by
+  primary_need_slug: order_by
   scores_aggregate: mutual_score_aggregate_order_by
   start_at: order_by
   status: order_by
+  status_changed_at: order_by
   tags: order_by
   title: order_by
   updated_at: order_by
   user_id: order_by
   vote_beacons_aggregate: vote_beacon_aggregate_order_by
+}
+
+"""
+columns and relationships of "beacon_participant"
+"""
+type beacon_participant {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  created_at: timestamptz!
+  id: String!
+  linked_message_id: String
+  next_move_source: smallint
+  next_move_status: smallint
+  next_move_text: String
+  offer_note: String
+  role: smallint!
+  room_access: smallint!
+  status: smallint!
+  updated_at: timestamptz!
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+order by aggregate values of table "beacon_participant"
+"""
+input beacon_participant_aggregate_order_by {
+  avg: beacon_participant_avg_order_by
+  count: order_by
+  max: beacon_participant_max_order_by
+  min: beacon_participant_min_order_by
+  stddev: beacon_participant_stddev_order_by
+  stddev_pop: beacon_participant_stddev_pop_order_by
+  stddev_samp: beacon_participant_stddev_samp_order_by
+  sum: beacon_participant_sum_order_by
+  var_pop: beacon_participant_var_pop_order_by
+  var_samp: beacon_participant_var_samp_order_by
+  variance: beacon_participant_variance_order_by
+}
+
+"""
+order by avg() on columns of table "beacon_participant"
+"""
+input beacon_participant_avg_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_participant". All fields are combined with a logical 'AND'.
+"""
+input beacon_participant_bool_exp {
+  _and: [beacon_participant_bool_exp!]
+  _not: beacon_participant_bool_exp
+  _or: [beacon_participant_bool_exp!]
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  id: String_comparison_exp
+  linked_message_id: String_comparison_exp
+  next_move_source: smallint_comparison_exp
+  next_move_status: smallint_comparison_exp
+  next_move_text: String_comparison_exp
+  offer_note: String_comparison_exp
+  role: smallint_comparison_exp
+  room_access: smallint_comparison_exp
+  status: smallint_comparison_exp
+  updated_at: timestamptz_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""
+order by max() on columns of table "beacon_participant"
+"""
+input beacon_participant_max_order_by {
+  beacon_id: order_by
+  created_at: order_by
+  id: order_by
+  linked_message_id: order_by
+  next_move_source: order_by
+  next_move_status: order_by
+  next_move_text: order_by
+  offer_note: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+  updated_at: order_by
+  user_id: order_by
+}
+
+"""
+order by min() on columns of table "beacon_participant"
+"""
+input beacon_participant_min_order_by {
+  beacon_id: order_by
+  created_at: order_by
+  id: order_by
+  linked_message_id: order_by
+  next_move_source: order_by
+  next_move_status: order_by
+  next_move_text: order_by
+  offer_note: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+  updated_at: order_by
+  user_id: order_by
+}
+
+"""Ordering options when selecting data from "beacon_participant"."""
+input beacon_participant_order_by {
+  beacon: beacon_order_by
+  beacon_id: order_by
+  created_at: order_by
+  id: order_by
+  linked_message_id: order_by
+  next_move_source: order_by
+  next_move_status: order_by
+  next_move_text: order_by
+  offer_note: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+  updated_at: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "beacon_participant"
+"""
+enum beacon_participant_select_column {
+  """column name"""
+  beacon_id
+
+  """column name"""
+  created_at
+
+  """column name"""
+  id
+
+  """column name"""
+  linked_message_id
+
+  """column name"""
+  next_move_source
+
+  """column name"""
+  next_move_status
+
+  """column name"""
+  next_move_text
+
+  """column name"""
+  offer_note
+
+  """column name"""
+  role
+
+  """column name"""
+  room_access
+
+  """column name"""
+  status
+
+  """column name"""
+  updated_at
+
+  """column name"""
+  user_id
+}
+
+"""
+order by stddev() on columns of table "beacon_participant"
+"""
+input beacon_participant_stddev_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+order by stddev_pop() on columns of table "beacon_participant"
+"""
+input beacon_participant_stddev_pop_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+order by stddev_samp() on columns of table "beacon_participant"
+"""
+input beacon_participant_stddev_samp_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+Streaming cursor of the table "beacon_participant"
+"""
+input beacon_participant_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_participant_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_participant_stream_cursor_value_input {
+  beacon_id: String
+  created_at: timestamptz
+  id: String
+  linked_message_id: String
+  next_move_source: smallint
+  next_move_status: smallint
+  next_move_text: String
+  offer_note: String
+  role: smallint
+  room_access: smallint
+  status: smallint
+  updated_at: timestamptz
+  user_id: String
+}
+
+"""
+order by sum() on columns of table "beacon_participant"
+"""
+input beacon_participant_sum_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+order by var_pop() on columns of table "beacon_participant"
+"""
+input beacon_participant_var_pop_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+order by var_samp() on columns of table "beacon_participant"
+"""
+input beacon_participant_var_samp_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
+}
+
+"""
+order by variance() on columns of table "beacon_participant"
+"""
+input beacon_participant_variance_order_by {
+  next_move_source: order_by
+  next_move_status: order_by
+  role: order_by
+  room_access: order_by
+  status: order_by
 }
 
 """
@@ -1309,103 +1875,6 @@ enum beacon_pinned_update_column {
 }
 
 """
-columns and relationships of "beacon_archived"
-"""
-type beacon_archived {
-  archived_at: timestamptz!
-  """An object relationship"""
-  beacon: beacon!
-  beacon_id: String!
-  """An object relationship"""
-  user: user!
-  user_id: String!
-}
-
-"""
-Boolean expression to filter rows from the table "beacon_archived". All fields are combined with a logical 'AND'.
-"""
-input beacon_archived_bool_exp {
-  _and: [beacon_archived_bool_exp!]
-  _not: beacon_archived_bool_exp
-  _or: [beacon_archived_bool_exp!]
-  archived_at: timestamptz_comparison_exp
-  beacon: beacon_bool_exp
-  beacon_id: String_comparison_exp
-  user: user_bool_exp
-  user_id: String_comparison_exp
-}
-
-"""
-unique or primary key constraints on table "beacon_archived"
-"""
-enum beacon_archived_constraint {
-  """
-  unique or primary key constraint on columns "user_id", "beacon_id"
-  """
-  beacon_archived_pkey
-}
-
-"""
-input type for inserting data into table "beacon_archived"
-"""
-input beacon_archived_insert_input {
-  beacon_id: String
-}
-
-"""
-response of any mutation on the table "beacon_archived"
-"""
-type beacon_archived_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-  """data from the rows affected by the mutation"""
-  returning: [beacon_archived!]!
-}
-
-"""
-on_conflict condition type for table "beacon_archived"
-"""
-input beacon_archived_on_conflict {
-  constraint: beacon_archived_constraint!
-  update_columns: [beacon_archived_update_column!]! = []
-  where: beacon_archived_bool_exp
-}
-
-"""Ordering options when selecting data from "beacon_archived"."""
-input beacon_archived_order_by {
-  archived_at: order_by
-  beacon: beacon_order_by
-  beacon_id: order_by
-  user: user_order_by
-  user_id: order_by
-}
-
-"""
-select columns of table "beacon_archived"
-"""
-enum beacon_archived_select_column {
-  """column name"""
-  archived_at
-  """column name"""
-  beacon_id
-  """column name"""
-  user_id
-}
-
-"""
-placeholder for update columns of table "beacon_archived" (current role has no relevant permissions)
-"""
-enum beacon_archived_update_column {
-  """placeholder (do not use)"""
-  _PLACEHOLDER
-}
-
-"""primary key columns input for table: beacon"""
-input beacon_pk_columns_input {
-  id: String!
-}
-
-"""
 columns and relationships of "beacon_review_window"
 """
 type beacon_review_window {
@@ -1491,6 +1960,129 @@ input beacon_review_window_stream_cursor_value_input {
 }
 
 """
+columns and relationships of "beacon_room_state"
+"""
+type beacon_room_state {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  current_line: String!
+  last_room_meaningful_change: String
+  open_blocker_id: String
+  updated_at: timestamptz!
+  updated_by: String
+
+  """An object relationship"""
+  updated_by_user: user
+}
+
+"""
+order by aggregate values of table "beacon_room_state"
+"""
+input beacon_room_state_aggregate_order_by {
+  count: order_by
+  max: beacon_room_state_max_order_by
+  min: beacon_room_state_min_order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_room_state". All fields are combined with a logical 'AND'.
+"""
+input beacon_room_state_bool_exp {
+  _and: [beacon_room_state_bool_exp!]
+  _not: beacon_room_state_bool_exp
+  _or: [beacon_room_state_bool_exp!]
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  current_line: String_comparison_exp
+  last_room_meaningful_change: String_comparison_exp
+  open_blocker_id: String_comparison_exp
+  updated_at: timestamptz_comparison_exp
+  updated_by: String_comparison_exp
+  updated_by_user: user_bool_exp
+}
+
+"""
+order by max() on columns of table "beacon_room_state"
+"""
+input beacon_room_state_max_order_by {
+  beacon_id: order_by
+  current_line: order_by
+  last_room_meaningful_change: order_by
+  open_blocker_id: order_by
+  updated_at: order_by
+  updated_by: order_by
+}
+
+"""
+order by min() on columns of table "beacon_room_state"
+"""
+input beacon_room_state_min_order_by {
+  beacon_id: order_by
+  current_line: order_by
+  last_room_meaningful_change: order_by
+  open_blocker_id: order_by
+  updated_at: order_by
+  updated_by: order_by
+}
+
+"""Ordering options when selecting data from "beacon_room_state"."""
+input beacon_room_state_order_by {
+  beacon: beacon_order_by
+  beacon_id: order_by
+  current_line: order_by
+  last_room_meaningful_change: order_by
+  open_blocker_id: order_by
+  updated_at: order_by
+  updated_by: order_by
+  updated_by_user: user_order_by
+}
+
+"""
+select columns of table "beacon_room_state"
+"""
+enum beacon_room_state_select_column {
+  """column name"""
+  beacon_id
+
+  """column name"""
+  current_line
+
+  """column name"""
+  last_room_meaningful_change
+
+  """column name"""
+  open_blocker_id
+
+  """column name"""
+  updated_at
+
+  """column name"""
+  updated_by
+}
+
+"""
+Streaming cursor of the table "beacon_room_state"
+"""
+input beacon_room_state_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_room_state_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_room_state_stream_cursor_value_input {
+  beacon_id: String
+  current_line: String
+  last_room_meaningful_change: String
+  open_blocker_id: String
+  updated_at: timestamptz
+  updated_by: String
+}
+
+"""
 select columns of table "beacon"
 """
 enum beacon_select_column {
@@ -1501,22 +2093,16 @@ enum beacon_select_column {
   context
 
   """column name"""
-  status
+  cover_image_id
 
   """column name"""
-  status_changed_at
+  cover_source
 
   """column name"""
   created_at
 
   """column name"""
   description
-
-  """column name"""
-  need_summary
-
-  """column name"""
-  success_criteria
 
   """column name"""
   end_at
@@ -1534,13 +2120,28 @@ enum beacon_select_column {
   lat
 
   """column name"""
+  lineage_parent_beacon_id
+
+  """column name"""
+  lineage_root_beacon_id
+
+  """column name"""
   long
 
   """column name"""
-  polling_id
+  needs
+
+  """column name"""
+  primary_need_slug
 
   """column name"""
   start_at
+
+  """column name"""
+  status
+
+  """column name"""
+  status_changed_at
 
   """column name"""
   tags
@@ -1556,21 +2157,17 @@ enum beacon_select_column {
 }
 
 """
-input type for updating data in table "beacon"
-"""
-input beacon_set_input {
-  status: smallint
-}
-
-"""
 order by stddev() on columns of table "beacon"
 """
 input beacon_stddev_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -1578,11 +2175,14 @@ input beacon_stddev_order_by {
 order by stddev_pop() on columns of table "beacon"
 """
 input beacon_stddev_pop_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -1590,12 +2190,102 @@ input beacon_stddev_pop_order_by {
 order by stddev_samp() on columns of table "beacon"
 """
 input beacon_stddev_samp_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
+}
+
+"""
+columns and relationships of "beacon_steward"
+"""
+type beacon_steward {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+order by aggregate values of table "beacon_steward"
+"""
+input beacon_steward_aggregate_order_by {
+  count: order_by
+  max: beacon_steward_max_order_by
+  min: beacon_steward_min_order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_steward". All fields are combined with a logical 'AND'.
+"""
+input beacon_steward_bool_exp {
+  _and: [beacon_steward_bool_exp!]
+  _not: beacon_steward_bool_exp
+  _or: [beacon_steward_bool_exp!]
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""
+order by max() on columns of table "beacon_steward"
+"""
+input beacon_steward_max_order_by {
+  beacon_id: order_by
+  user_id: order_by
+}
+
+"""
+order by min() on columns of table "beacon_steward"
+"""
+input beacon_steward_min_order_by {
+  beacon_id: order_by
+  user_id: order_by
+}
+
+"""Ordering options when selecting data from "beacon_steward"."""
+input beacon_steward_order_by {
+  beacon: beacon_order_by
+  beacon_id: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "beacon_steward"
+"""
+enum beacon_steward_select_column {
+  """column name"""
+  beacon_id
+
+  """column name"""
+  user_id
+}
+
+"""
+Streaming cursor of the table "beacon_steward"
+"""
+input beacon_steward_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_steward_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_steward_stream_cursor_value_input {
+  beacon_id: String
+  user_id: String
 }
 
 """
@@ -1611,12 +2301,10 @@ input beacon_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input beacon_stream_cursor_value_input {
+  address_label: String
   context: String
-
-  """
-  Persisted beacon status smallint.
-  """
-  status_changed_at: timestamptz
+  cover_image_id: uuid
+  cover_source: smallint
   created_at: timestamptz
   description: String
   end_at: timestamptz
@@ -1624,10 +2312,18 @@ input beacon_stream_cursor_value_input {
   icon_code: String
   id: String
   lat: float8
+  lineage_parent_beacon_id: String
+  lineage_root_beacon_id: String
   long: float8
-  polling_id: String
+  needs: String
+  primary_need_slug: String
   start_at: timestamptz
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: smallint
+  status_changed_at: timestamptz
   tags: String
   title: String
   updated_at: timestamptz
@@ -1638,34 +2334,29 @@ input beacon_stream_cursor_value_input {
 order by sum() on columns of table "beacon"
 """
 input beacon_sum_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
-}
-
-input beacon_updates {
-  """increments the numeric columns with given value of the filtered values"""
-  _inc: beacon_inc_input
-
-  """sets the columns of the filtered rows to the given values"""
-  _set: beacon_set_input
-
-  """filter the rows which have to be updated"""
-  where: beacon_bool_exp!
 }
 
 """
 order by var_pop() on columns of table "beacon"
 """
 input beacon_var_pop_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -1673,11 +2364,14 @@ input beacon_var_pop_order_by {
 order by var_samp() on columns of table "beacon"
 """
 input beacon_var_samp_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -1685,11 +2379,14 @@ input beacon_var_samp_order_by {
 order by variance() on columns of table "beacon"
 """
 input beacon_variance_order_by {
-  """
-  0=no help_offers, 1=waiting for review, 2=more help needed, 3=enough help
-  """
+  cover_source: order_by
+  icon_background: order_by
   lat: order_by
   long: order_by
+
+  """
+  0=open, 1=cancelled, 2=deleted, 3=draft, 5=reviewOpen, 6=closed, 7=needsMoreHelp, 8=enoughHelp
+  """
   status: order_by
 }
 
@@ -1723,7 +2420,6 @@ columns and relationships of "edge"
 type edge {
   """An object relationship"""
   beacon: beacon
-
   dst: String
   score: float8
   src: String
@@ -1808,6 +2504,96 @@ input graph_args {
   context: String
   focus: String
   positive_only: Boolean
+}
+
+"""
+columns and relationships of "graph_score"
+"""
+type graph_score {
+  """An object relationship"""
+  beacon: beacon
+  dst: String
+  dst_score: float8
+  dst_total_neighbor_count: Int
+  src: String
+  src_score: float8
+  src_total_neighbor_count: Int
+
+  """An object relationship"""
+  user: user
+}
+
+"""
+Boolean expression to filter rows from the table "graph_score". All fields are combined with a logical 'AND'.
+"""
+input graph_score_bool_exp {
+  _and: [graph_score_bool_exp!]
+  _not: graph_score_bool_exp
+  _or: [graph_score_bool_exp!]
+  beacon: beacon_bool_exp
+  dst: String_comparison_exp
+  dst_score: float8_comparison_exp
+  dst_total_neighbor_count: Int_comparison_exp
+  src: String_comparison_exp
+  src_score: float8_comparison_exp
+  src_total_neighbor_count: Int_comparison_exp
+  user: user_bool_exp
+}
+
+"""Ordering options when selecting data from "graph_score"."""
+input graph_score_order_by {
+  beacon: beacon_order_by
+  dst: order_by
+  dst_score: order_by
+  dst_total_neighbor_count: order_by
+  src: order_by
+  src_score: order_by
+  src_total_neighbor_count: order_by
+  user: user_order_by
+}
+
+"""
+select columns of table "graph_score"
+"""
+enum graph_score_select_column {
+  """column name"""
+  dst
+
+  """column name"""
+  dst_score
+
+  """column name"""
+  dst_total_neighbor_count
+
+  """column name"""
+  src
+
+  """column name"""
+  src_score
+
+  """column name"""
+  src_total_neighbor_count
+}
+
+"""
+Streaming cursor of the table "graph_score"
+"""
+input graph_score_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: graph_score_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input graph_score_stream_cursor_value_input {
+  dst: String
+  dst_score: float8
+  dst_total_neighbor_count: Int
+  src: String
+  src_score: float8
+  src_total_neighbor_count: Int
 }
 
 """
@@ -1898,6 +2684,8 @@ type inbox_item {
   """An object relationship"""
   beacon: beacon!
   beacon_id: String!
+
+  """When the row first entered a before-response terminal status (3 or 4)"""
   before_response_terminal_at: timestamptz
   context: String
   forward_count: Int!
@@ -1908,11 +2696,17 @@ type inbox_item {
   inbox_provenance_data: String
 
   """An object relationship"""
-  inbox_user_commitment: beacon_help_offer
+  inbox_user_help_offer: beacon_help_offer
   latest_forward_at: timestamptz!
   latest_note_preview: String!
   rejection_message: String!
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
   status: smallint!
+
+  """When set, client hides passive tombstone card; does not change stance"""
   tombstone_dismissed_at: timestamptz
 
   """An object relationship"""
@@ -1933,7 +2727,7 @@ input inbox_item_bool_exp {
   context: String_comparison_exp
   forward_count: Int_comparison_exp
   inbox_provenance_data: String_comparison_exp
-  inbox_user_commitment: beacon_help_offer_bool_exp
+  inbox_user_help_offer: beacon_help_offer_bool_exp
   latest_forward_at: timestamptz_comparison_exp
   latest_note_preview: String_comparison_exp
   rejection_message: String_comparison_exp
@@ -1947,6 +2741,9 @@ input inbox_item_bool_exp {
 input type for incrementing numeric columns in table "inbox_item"
 """
 input inbox_item_inc_input {
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
   status: smallint
 }
 
@@ -1969,7 +2766,7 @@ input inbox_item_order_by {
   context: order_by
   forward_count: order_by
   inbox_provenance_data: order_by
-  inbox_user_commitment: beacon_help_offer_order_by
+  inbox_user_help_offer: beacon_help_offer_order_by
   latest_forward_at: order_by
   latest_note_preview: order_by
   rejection_message: order_by
@@ -2025,7 +2822,13 @@ input type for updating data in table "inbox_item"
 """
 input inbox_item_set_input {
   rejection_message: String
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
   status: smallint
+
+  """When set, client hides passive tombstone card; does not change stance"""
   tombstone_dismissed_at: timestamptz
 }
 
@@ -2043,13 +2846,21 @@ input inbox_item_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input inbox_item_stream_cursor_value_input {
   beacon_id: String
+
+  """When the row first entered a before-response terminal status (3 or 4)"""
   before_response_terminal_at: timestamptz
   context: String
   forward_count: Int
   latest_forward_at: timestamptz
   latest_note_preview: String
   rejection_message: String
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
   status: smallint
+
+  """When set, client hides passive tombstone card; does not change stance"""
   tombstone_dismissed_at: timestamptz
   user_id: String
 }
@@ -2084,13 +2895,13 @@ input Int_comparison_exp {
 columns and relationships of "invitation"
 """
 type invitation {
-  created_at: timestamptz!
-  id: String!
-  beacon_id: String
   addressee_name: String
 
   """An object relationship"""
   beacon: beacon
+  beacon_id: String
+  created_at: timestamptz!
+  id: String!
 
   """An object relationship"""
   invited: user
@@ -2109,6 +2920,9 @@ input invitation_bool_exp {
   _and: [invitation_bool_exp!]
   _not: invitation_bool_exp
   _or: [invitation_bool_exp!]
+  addressee_name: String_comparison_exp
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
   created_at: timestamptz_comparison_exp
   id: String_comparison_exp
   invited: user_bool_exp
@@ -2160,6 +2974,9 @@ input invitation_on_conflict {
 
 """Ordering options when selecting data from "invitation"."""
 input invitation_order_by {
+  addressee_name: order_by
+  beacon: beacon_order_by
+  beacon_id: order_by
   created_at: order_by
   id: order_by
   invited: user_order_by
@@ -2173,6 +2990,12 @@ input invitation_order_by {
 select columns of table "invitation"
 """
 enum invitation_select_column {
+  """column name"""
+  addressee_name
+
+  """column name"""
+  beacon_id
+
   """column name"""
   created_at
 
@@ -2202,6 +3025,8 @@ input invitation_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input invitation_stream_cursor_value_input {
+  addressee_name: String
+  beacon_id: String
   created_at: timestamptz
   id: String
   invited_id: String
@@ -2219,101 +3044,84 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  beaconClose(id: String!, expectedRequiresReviewWindow: Boolean!): v2_BeaconCloseResult!
-  beaconCancel(id: String!): v2_BeaconLifecycleResult!
-  beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
-  beaconReopen(id: String!): v2_BeaconLifecycleResult!
-  beaconCloseNow(id: String!): v2_BeaconLifecycleResult!
-  beaconFork(id: String!): v2_Beacon!
-  beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
-  beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
-  beaconCreate(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconBackground: Int, iconCode: String, image: v2_Upload = {}, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdate(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconBackground: Int, iconCode: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdateDraft(addressLabel: String, context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconBackground: Int, iconCode: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
-  beaconPublish(id: String!): v2_Beacon!
-  beaconDeleteById(id: String!): Boolean!
-  beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
-  beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
-  beaconSetMedia(coverImageId: String, coverSource: Int!, id: String!, imageIds: [String!]): v2_Beacon!
-  beaconStageImage(id: String!, image: v2_Upload = {}): v2_BeaconImageStaged!
-  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!], reasons: [String!], recipientReasons: [ForwardRecipientReasonInput!]): String!
-  beaconForwardCancel(id: String!): Boolean!
-  beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
-  beaconWithdraw(id: String!, message: String, withdrawReason: String!): Boolean!
-  RoomMessageCreate(
-    beaconId: String!
-    body: String!
-    replyToMessageId: String
-    threadItemId: String
-    file: v2_Upload = {}
-  ): RoomMessageCreatePayload!
-  RoomMessageAttachmentAdd(
-    beaconId: String!
-    messageId: String!
-    file: v2_Upload!
-  ): Boolean!
-  BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
-  BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
-  BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
-  RoomMessageReactionToggle(
-    beaconId: String!
-    messageId: String!
-    emoji: String!
-  ): Boolean!
-  BeaconFactCardPin(
-    beaconId: String!
-    factText: String!
-    visibility: Int!
-    sourceMessageId: String
-  ): Boolean!
   BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
+  BeaconFactCardPin(beaconId: String!, factText: String!, sourceMessageId: String, visibility: Int!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
-  RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
-  RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
+  BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
+  BeaconParticipantRoomSeen(beaconId: String!, readThroughAt: String): v2_BeaconRoomSeenResult!
+  BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
+  BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
+  MarkBeaconRoomSeen(beaconId: String!, readThroughAt: String, threadItemId: String): v2_BeaconRoomSeenResult!
+  RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
+  RoomMessageCreate(beaconId: String!, body: String!, file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
-  BeaconParticipantRoomSeen(beaconId: String!, readThroughAt: String): BeaconRoomSeenResult!
-  MarkBeaconRoomSeen(beaconId: String!, threadItemId: String, readThroughAt: String): BeaconRoomSeenResult!
-  RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!, pollType: String, isAnonymous: Boolean, allowRevote: Boolean): RoomMessageRow!
-  capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
-  capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
-  contactSet(subjectUserId: String!, contactName: String!): Boolean!
-  contactDelete(subjectUserId: String!): Boolean!
+  RoomMessageEdit(beaconId: String!, body: String!, messageId: String!): Boolean!
+  RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
+  RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
+  RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
+  acceptAsk(itemId: String!): v2_CoordinationItemRow!
+  acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
+  acceptPromise(itemId: String!): v2_CoordinationItemRow!
+  acceptResolution(itemId: String!): v2_CoordinationItemRow!
+  addPlanStep(body: String, parentItemId: String!, title: String!): v2_CoordinationItemRow!
+  attentionMarkAllSeen: Int!
+  attentionMarkSeen(ids: [String!]): Int!
+  attentionSettle(kind: String!, receiptId: String!): Int!
+  beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
+  beaconCancel(id: String!): v2_BeaconCloseReviewResult!
+  beaconClose(expectedRequiresReviewWindow: Boolean!, id: String!): v2_BeaconCloseReviewResult!
+  beaconCloseNow(id: String!): v2_BeaconCloseReviewResult!
+  beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, iconBackground: Int, iconCode: String, image: v2_Upload = {}, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconDeleteById(id: String!): Boolean!
+  beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
+  beaconFork(id: String!): v2_Beacon!
+  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): String!
+  beaconForwardCancel(id: String!): Boolean!
+  beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
+  beaconMuteClear(beaconId: String!): Boolean!
+  beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
+  beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
+  beaconPublish(id: String!): v2_Beacon!
+  beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
+  beaconReopen(id: String!): v2_BeaconCloseReviewResult!
+  beaconReorderImages(beaconId: String!, imageIds: [String!]): Boolean!
+  beaconSetMedia(coverImageId: String, coverSource: Int!, id: String!, imageIds: [String!]): v2_Beacon!
+  beaconStageImage(id: String!, image: v2_Upload = {}): v2_BeaconImageStaged!
+  beaconUpdate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, iconBackground: Int, iconCode: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdateDraft(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, iconBackground: Int, iconCode: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconWithdraw(id: String!, message: String, withdrawReason: String!): Boolean!
+  cancelAsk(itemId: String!, reason: String): v2_CoordinationItemRow!
+  cancelBlocker(itemId: String!, reason: String): v2_CoordinationItemRow!
+  cancelPromise(itemId: String!, reason: String): v2_CoordinationItemRow!
+  capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
+  capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
-  markBlocker(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
-  resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
-  cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
-  markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
-  createPromise(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
-  createDraftPromise(beaconId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
-  publishPromise(itemId: String!, targetPersonId: String!, staleAfterDays: Int): CoordinationItemRow!
-  updateDraftPromise(itemId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
-  deleteDraftPromise(itemId: String!): Boolean!
-  acceptPromise(itemId: String!): CoordinationItemRow!
-  resolvePromise(itemId: String!, note: String): CoordinationItemRow!
-  cancelPromise(itemId: String!, reason: String): CoordinationItemRow!
-  redirectPromise(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
-  createDraftAsk(beaconId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
-  publishAsk(itemId: String!, targetPersonId: String!, staleAfterDays: Int): CoordinationItemRow!
-  updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
+  contactDelete(subjectUserId: String!): Boolean!
+  contactSet(contactName: String!, subjectUserId: String!): Boolean!
+  createDraftAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  createDraftBlocker(beaconId: String!, body: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  createDraftPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  createPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
+  createResolution(beaconId: String!, body: String, linkedMessageId: String, targetItemId: String, targetMessageId: String, title: String!): v2_CoordinationItemRow!
+  declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   deleteDraftAsk(itemId: String!): Boolean!
-  createDraftBlocker(beaconId: String!, title: String!, body: String, staleAfterDays: Int): CoordinationItemRow!
-  publishBlocker(itemId: String!, staleAfterDays: Int): CoordinationItemRow!
-  updateDraftBlocker(itemId: String!, title: String!, body: String, staleAfterDays: Int): CoordinationItemRow!
   deleteDraftBlocker(itemId: String!): Boolean!
-  acceptAsk(itemId: String!): CoordinationItemRow!
-  resolveAsk(itemId: String!, note: String): CoordinationItemRow!
-  cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
-  redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
-  remindCoordinationItem(itemId: String!): CoordinationItemRow!
-  updateCoordinationItem(itemId: String!, title: String!, body: String): CoordinationItemRow!
-  updateCoordinationPlan(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
-  addPlanStep(parentItemId: String!, title: String!, body: String): CoordinationItemRow!
-  resolvePlanStep(itemId: String!): CoordinationItemRow!
-  createResolution(beaconId: String!, title: String!, body: String, targetItemId: String, targetMessageId: String, linkedMessageId: String): CoordinationItemRow!
-  acceptResolution(itemId: String!): CoordinationItemRow!
-  rejectResolution(itemId: String!, reason: String): CoordinationItemRow!
-  markBeaconItemsSeen(beaconId: String!): BeaconItemsSeenResult!
+  deleteDraftPromise(itemId: String!): Boolean!
+
+  """
+  delete data from the table: "beacon_archived"
+  """
+  delete_beacon_archived(
+    """filter the rows which have to be deleted"""
+    where: beacon_archived_bool_exp!
+  ): beacon_archived_mutation_response
+
+  """
+  delete single row from the table: "beacon_archived"
+  """
+  delete_beacon_archived_by_pk(beacon_id: String!, user_id: String!): beacon_archived
+
   """
   delete data from the table: "beacon_pinned"
   """
@@ -2328,14 +3136,6 @@ type mutation_root {
   delete_beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
 
   """
-  delete data from the table: "beacon_archived"
-  """
-  delete_beacon_archived(
-    """filter the rows which have to be deleted"""
-    where: beacon_archived_bool_exp!
-  ): beacon_archived_mutation_response
-
-  """
   delete data from the table: "user_context"
   """
   delete_user_context(
@@ -2347,35 +3147,37 @@ type mutation_root {
   delete single row from the table: "user_context"
   """
   delete_user_context_by_pk(context_name: String!, user_id: String!): user_context
-
-  """
-  delete data from the table: "vote_user"
-  """
-  delete_vote_user(
-    """filter the rows which have to be deleted"""
-    where: vote_user_bool_exp!
-  ): vote_user_mutation_response
-
-  """
-  delete single row from the table: "vote_user"
-  """
-  delete_vote_user_by_pk(object: String!, subject: String!): vote_user
+  emailSendTest: v2_EmailTestSendResult!
   evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
   evaluationDraftSave(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   evaluationFinalize(id: String!): Boolean!
   evaluationSkip(id: String!): Boolean!
-  evaluationSubmit(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
-  fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
+  evaluationSubmit(acknowledgedHelpTags: [String!], evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
+  fcmSendTestNotification: v2_FcmTestSendResult!
   fcmTokenDelete(appId: String!): Boolean!
-  fcmSendTestNotification: FcmTestSendResult!
-  emailSendTest: EmailTestSendResult!
-  userRecalculateBookkeeping: UserRecalculateBookkeepingResult!
-  attentionMarkSeen(ids: [String!]!): Int!
-  attentionMarkAllSeen: Int!
-  attentionSettle(receiptId: String!, kind: String!): Int!
-  notificationPreferencesUpdate(pushCategories: [String!], emailCategories: [String!], mutedInAppEventClasses: [String!], quietHoursStart: Int, quietHoursEnd: Int, clearQuietHours: Boolean, tzOffsetMinutes: Int, emailDigest: String, snoozeUntil: String, clearSnooze: Boolean, lockScreenSafe: Boolean, locale: String): NotificationPreferences!
-  beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
-  beaconMuteClear(beaconId: String!): Boolean!
+  fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
+
+  """
+  insert data into the table: "beacon_archived"
+  """
+  insert_beacon_archived(
+    """the rows to be inserted"""
+    objects: [beacon_archived_insert_input!]!
+
+    """upsert condition"""
+    on_conflict: beacon_archived_on_conflict
+  ): beacon_archived_mutation_response
+
+  """
+  insert a single row into the table: "beacon_archived"
+  """
+  insert_beacon_archived_one(
+    """the row to be inserted"""
+    object: beacon_archived_insert_input!
+
+    """upsert condition"""
+    on_conflict: beacon_archived_on_conflict
+  ): beacon_archived
 
   """
   insert data into the table: "beacon_help_offer"
@@ -2400,28 +3202,6 @@ type mutation_root {
   ): beacon_help_offer
 
   """
-  insert data into the table: "beacon_forward_edge"
-  """
-  insert_beacon_forward_edge(
-    """the rows to be inserted"""
-    objects: [beacon_forward_edge_insert_input!]!
-
-    """upsert condition"""
-    on_conflict: beacon_forward_edge_on_conflict
-  ): beacon_forward_edge_mutation_response
-
-  """
-  insert a single row into the table: "beacon_forward_edge"
-  """
-  insert_beacon_forward_edge_one(
-    """the row to be inserted"""
-    object: beacon_forward_edge_insert_input!
-
-    """upsert condition"""
-    on_conflict: beacon_forward_edge_on_conflict
-  ): beacon_forward_edge
-
-  """
   insert data into the table: "beacon_pinned"
   """
   insert_beacon_pinned(
@@ -2442,17 +3222,6 @@ type mutation_root {
     """upsert condition"""
     on_conflict: beacon_pinned_on_conflict
   ): beacon_pinned
-
-  """
-  insert a single row into the table: "beacon_archived"
-  """
-  insert_beacon_archived_one(
-    """the row to be inserted"""
-    object: beacon_archived_insert_input!
-
-    """upsert condition"""
-    on_conflict: beacon_archived_on_conflict
-  ): beacon_archived
 
   """
   insert data into the table: "invitation"
@@ -2519,73 +3288,40 @@ type mutation_root {
     """upsert condition"""
     on_conflict: vote_beacon_on_conflict
   ): vote_beacon
-
-  """
-  insert data into the table: "vote_user"
-  """
-  insert_vote_user(
-    """the rows to be inserted"""
-    objects: [vote_user_insert_input!]!
-
-    """upsert condition"""
-    on_conflict: vote_user_on_conflict
-  ): vote_user_mutation_response
-
-  """
-  insert a single row into the table: "vote_user"
-  """
-  insert_vote_user_one(
-    """the row to be inserted"""
-    object: vote_user_insert_input!
-
-    """upsert condition"""
-    on_conflict: vote_user_on_conflict
-  ): vote_user
-  invitationCreate(addresseeName: String!, beaconId: String): invitation!
-  invitationUpdate(id: String!, addresseeName: String!): invitation!
   invitationAccept(id: String!): Boolean!
+  invitationCreate(addresseeName: String!, beaconId: String): v2_Invitation!
   invitationDelete(id: String!): Boolean!
+  invitationUpdate(addresseeName: String!, id: String!): v2_Invitation!
+  markAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
+  markBeaconItemsSeen(beaconId: String!): v2_BeaconItemsSeenResult!
+  markBlocker(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   meritrankInit(forceCalculate: Boolean): Int!
-  trustForceRefreshAll: Boolean!
-  trustForceRefreshStar(sourceUserId: String!): Boolean!
-  userSubscribe(objectId: String!): Int!
-  userUnsubscribe(objectId: String!): Int!
-  userVote(amount: Int!, objectId: String!): Int!
-  pollingAct(pollingId: String!, variantIds: [String!]!, score: Int): Boolean!
-  acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
-  declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
+  notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
+  pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
+  publishAsk(itemId: String!, staleAfterDays: Int, targetPersonId: String!): v2_CoordinationItemRow!
+  publishBlocker(itemId: String!, staleAfterDays: Int): v2_CoordinationItemRow!
+  publishPromise(itemId: String!, staleAfterDays: Int, targetPersonId: String!): v2_CoordinationItemRow!
+  redirectAsk(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
+  redirectPromise(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
+  rejectResolution(itemId: String!, reason: String): v2_CoordinationItemRow!
+  remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  setBeaconStatus(status: Int!, id: String!): v2_BeaconStatusResult!
-  setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_BeaconStatusResult!
+  resolveAsk(itemId: String!, note: String): v2_CoordinationItemRow!
+  resolveBlocker(itemId: String!, note: String): v2_CoordinationItemRow!
+  resolvePlanStep(itemId: String!): v2_CoordinationItemRow!
+  resolvePromise(itemId: String!, note: String): v2_CoordinationItemRow!
+  setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
+  setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
   signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
-
-  """
-  update data of the table: "beacon"
-  """
-  update_beacon(
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: beacon_inc_input
-
-    """sets the columns of the filtered rows to the given values"""
-    _set: beacon_set_input
-
-    """filter the rows which have to be updated"""
-    where: beacon_bool_exp!
-  ): beacon_mutation_response
-
-  """
-  update single row of the table: "beacon"
-  """
-  update_beacon_by_pk(
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: beacon_inc_input
-
-    """sets the columns of the filtered rows to the given values"""
-    _set: beacon_set_input
-    pk_columns: beacon_pk_columns_input!
-  ): beacon
+  trustForceRefreshAll: Boolean!
+  trustForceRefreshStar(sourceUserId: String!): Boolean!
+  updateCoordinationItem(body: String, itemId: String!, title: String!): v2_CoordinationItemRow!
+  updateCoordinationPlan(beaconId: String!, body: String, linkedMessageId: String, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  updateDraftAsk(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  updateDraftBlocker(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
+  updateDraftPromise(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
 
   """
   update data of the table: "beacon_help_offer"
@@ -2620,14 +3356,6 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [beacon_help_offer_updates!]!
   ): [beacon_help_offer_mutation_response]
-
-  """
-  update multiples rows of table: "beacon"
-  """
-  update_beacon_many(
-    """updates to execute, in order"""
-    updates: [beacon_updates!]!
-  ): [beacon_mutation_response]
 
   """
   update data of the table: "inbox_item"
@@ -2696,42 +3424,12 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [vote_beacon_updates!]!
   ): [vote_beacon_mutation_response]
-
-  """
-  update data of the table: "vote_user"
-  """
-  update_vote_user(
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: vote_user_inc_input
-
-    """sets the columns of the filtered rows to the given values"""
-    _set: vote_user_set_input
-
-    """filter the rows which have to be updated"""
-    where: vote_user_bool_exp!
-  ): vote_user_mutation_response
-
-  """
-  update single row of the table: "vote_user"
-  """
-  update_vote_user_by_pk(
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: vote_user_inc_input
-
-    """sets the columns of the filtered rows to the given values"""
-    _set: vote_user_set_input
-    pk_columns: vote_user_pk_columns_input!
-  ): vote_user
-
-  """
-  update multiples rows of table: "vote_user"
-  """
-  update_vote_user_many(
-    """updates to execute, in order"""
-    updates: [vote_user_updates!]!
-  ): [vote_user_mutation_response]
   userDelete: Boolean!
-  userUpdate(description: String, dropImage: Boolean, handle: String, image: v2_Upload = {}, displayName: String): v2_User!
+  userRecalculateBookkeeping: v2_UserRecalculateBookkeepingResult!
+  userSubscribe(objectId: String!): Int!
+  userUnsubscribe(objectId: String!): Int!
+  userUpdate(description: String, displayName: String, dropImage: Boolean, handle: String, image: v2_Upload = {}): v2_User!
+  userVote(amount: Int, objectId: String!): Int!
 }
 
 """
@@ -2740,10 +3438,8 @@ columns and relationships of "mutual_score"
 type mutual_score {
   """An object relationship"""
   beacon: beacon
-
   dst: String
   dst_score: float8
-
   src: String
   src_score: float8
 
@@ -2882,96 +3578,6 @@ input mutual_score_stream_cursor_value_input {
 }
 
 """
-columns and relationships of "graph_score"
-"""
-type graph_score {
-  """An object relationship"""
-  beacon: beacon
-  dst: String
-  dst_score: float8
-  dst_total_neighbor_count: Int
-  src: String
-  src_score: float8
-  src_total_neighbor_count: Int
-
-  """An object relationship"""
-  user: user
-}
-
-"""
-Boolean expression to filter rows from the table "graph_score". All fields are combined with a logical 'AND'.
-"""
-input graph_score_bool_exp {
-  _and: [graph_score_bool_exp!]
-  _not: graph_score_bool_exp
-  _or: [graph_score_bool_exp!]
-  beacon: beacon_bool_exp
-  dst: String_comparison_exp
-  dst_score: float8_comparison_exp
-  dst_total_neighbor_count: Int_comparison_exp
-  src: String_comparison_exp
-  src_score: float8_comparison_exp
-  src_total_neighbor_count: Int_comparison_exp
-  user: user_bool_exp
-}
-
-"""Ordering options when selecting data from "graph_score"."""
-input graph_score_order_by {
-  beacon: beacon_order_by
-  dst: order_by
-  dst_score: order_by
-  dst_total_neighbor_count: order_by
-  src: order_by
-  src_score: order_by
-  src_total_neighbor_count: order_by
-  user: user_order_by
-}
-
-"""
-select columns of table "graph_score"
-"""
-enum graph_score_select_column {
-  """column name"""
-  dst
-
-  """column name"""
-  dst_score
-
-  """column name"""
-  dst_total_neighbor_count
-
-  """column name"""
-  src
-
-  """column name"""
-  src_score
-
-  """column name"""
-  src_total_neighbor_count
-}
-
-"""
-Streaming cursor of the table "graph_score"
-"""
-input graph_score_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: graph_score_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input graph_score_stream_cursor_value_input {
-  dst: String
-  dst_score: float8
-  dst_total_neighbor_count: Int
-  src: String
-  src_score: float8
-  src_total_neighbor_count: Int
-}
-
-"""
 order by sum() on columns of table "mutual_score"
 """
 input mutual_score_sum_order_by {
@@ -3005,87 +3611,6 @@ input mutual_score_variance_order_by {
 
 input my_field_args {
   context: String
-}
-
-"""
-columns and relationships of "neighbors_score"
-"""
-type neighbors_score {
-  dst: String
-  dst_cluster_score: Int
-  dst_score: float8
-  src: String
-  src_cluster_score: Int
-  src_score: float8
-}
-
-"""
-Boolean expression to filter rows from the table "neighbors_score". All fields are combined with a logical 'AND'.
-"""
-input neighbors_score_bool_exp {
-  _and: [neighbors_score_bool_exp!]
-  _not: neighbors_score_bool_exp
-  _or: [neighbors_score_bool_exp!]
-  dst: String_comparison_exp
-  dst_cluster_score: Int_comparison_exp
-  dst_score: float8_comparison_exp
-  src: String_comparison_exp
-  src_cluster_score: Int_comparison_exp
-  src_score: float8_comparison_exp
-}
-
-"""Ordering options when selecting data from "neighbors_score"."""
-input neighbors_score_order_by {
-  dst: order_by
-  dst_cluster_score: order_by
-  dst_score: order_by
-  src: order_by
-  src_cluster_score: order_by
-  src_score: order_by
-}
-
-"""
-select columns of table "neighbors_score"
-"""
-enum neighbors_score_select_column {
-  """column name"""
-  dst
-
-  """column name"""
-  dst_cluster_score
-
-  """column name"""
-  dst_score
-
-  """column name"""
-  src
-
-  """column name"""
-  src_cluster_score
-
-  """column name"""
-  src_score
-}
-
-"""
-Streaming cursor of the table "neighbors_score"
-"""
-input neighbors_score_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: neighbors_score_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input neighbors_score_stream_cursor_value_input {
-  dst: String
-  dst_cluster_score: Int
-  dst_score: float8
-  src: String
-  src_cluster_score: Int
-  src_score: float8
 }
 
 """column ordering options"""
@@ -3167,7 +3692,6 @@ type polling_act {
   created_at: timestamptz!
   polling_id: String!
   polling_variant_id: String!
-  score: Int
 }
 
 """
@@ -3285,10 +3809,6 @@ input polling_order_by {
   question: order_by
   updated_at: order_by
   variants_aggregate: polling_variant_aggregate_order_by
-}
-
-input polling_results_args {
-  focus: String
 }
 
 """
@@ -3422,103 +3942,16 @@ input polling_variant_stream_cursor_value_input {
   polling_id: String
 }
 
-type NotificationPreferences {
-  accountId: String!
-  pushCategories: [String!]!
-  emailCategories: [String!]!
-  quietHoursStart: Int
-  quietHoursEnd: Int
-  tzOffsetMinutes: Int!
-  emailDigest: String!
-  snoozeUntil: String
-  lockScreenSafe: Boolean!
-  locale: String!
-  mutedInAppEventClasses: [String!]!
-}
-
-type AttentionReceipt {
-  id: String!
-  category: String!
-  kind: String!
-  priority: String!
-  title: String!
-  body: String!
-  actionUrl: String!
-  createdAt: String!
-  seenAt: String
-  collapsedCount: Int!
-  beaconId: String
-  coordinationItemId: String
-  actorUserId: String
-  sourceEventKey: String
-  destinationKind: String
-  targetEntityId: String
-  presentationKey: String
-  presentationPayloadJson: String!
-  inAppPreferenceClass: String
-  requiresAction: Boolean!
-  attentionThreadKey: String
-  settlementKind: String
-  settledAt: String
-}
-
-type AttentionSummary {
-  unreadTotal: Int!
-  needsYouTotal: Int!
-}
-
-type AttentionPage {
-  items: [AttentionReceipt!]!
-  nextCursor: String
-}
-
-type AttentionFeed {
-  summary: AttentionSummary!
-  page: AttentionPage!
-}
-
-type AttentionMarkers {
-  unreadBeaconIds: [String!]!
-}
-
-type InviteGenealogyNode {
-  node_key: String!
-  user: user
-  deleted_at: String
-  user_created_at: String
-}
-
-type InviteGenealogyEdge {
-  ancestor_node_key: String!
-  descendant_node_key: String!
-  ancestor_user_created_at: String!
-  descendant_user_created_at: String!
-  created_at: String!
-}
-
-type InviteGenealogy {
-  viewer_node_key: String!
-  target_node_key: String
-  common_ancestor_node_key: String
-  nodes: [InviteGenealogyNode!]!
-  edges: [InviteGenealogyEdge!]!
-}
-
-type InviteGenealogyChildrenPage {
-  nodes: [InviteGenealogyNode!]!
-  edges: [InviteGenealogyEdge!]!
-}
-
-type InviteGenealogyChildCount {
-  node_key: String!
-  total_children: Int!
-}
-
 type query_root {
-  attentionFeed(view: String!, cursor: String, search: String, limit: Int): AttentionFeed!
-  attentionMarkers(beaconIds: [String!]): AttentionMarkers!
-  roomMessageTarget(beaconId: String!, messageId: String!): RoomMessageRow
-  notificationPreferences: NotificationPreferences!
+  BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
+  BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
+  BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
+  BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
+  InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
+  RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
+  attentionFeed(cursor: String, limit: Int, search: String, view: String!): v2_AttentionFeed!
+  attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
+
   """
   fetch data from the table: "beacon"
   """
@@ -3538,15 +3971,63 @@ type query_root {
     """filter the rows returned"""
     where: beacon_bool_exp
   ): [beacon!]!
-  beaconInvolvement(id: String!): v2_BeaconInvolvement!
-  beaconLineageForwardSuggestions(id: String!): BeaconLineageForwardSuggestions!
+  beaconDisplayStatuses(beaconIds: [String!]): [v2_BeaconDisplayStatus!]
+  beaconEligibleInboundForwards(id: String!): [v2_ForwardInboundEdge!]
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
-  beaconEligibleInboundForwards(id: String!): [ForwardInboundEdge!]!
-  beaconHelpOffererForwardPath(id: String!, helpOffererId: String!): v2_ForwardGraphResult!
-  forwardReasonsByBeacon(id: String!): [v2_ForwardReasonRow!]!
+  beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
+  beaconInvolvement(id: String!): v2_BeaconInvolvement!
+  beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
+
+  """
+  fetch data from the table: "beacon_archived"
+  """
+  beacon_archived(
+    """distinct select on columns"""
+    distinct_on: [beacon_archived_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_archived_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_archived_bool_exp
+  ): [beacon_archived!]!
+
+  """fetch data from the table: "beacon_archived" using primary key columns"""
+  beacon_archived_by_pk(beacon_id: String!, user_id: String!): beacon_archived
 
   """fetch data from the table: "beacon" using primary key columns"""
   beacon_by_pk(id: String!): beacon
+
+  """
+  fetch data from the table: "beacon_forward_edge"
+  """
+  beacon_forward_edge(
+    """distinct select on columns"""
+    distinct_on: [beacon_forward_edge_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_forward_edge_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_forward_edge_bool_exp
+  ): [beacon_forward_edge!]!
+
+  """
+  fetch data from the table: "beacon_forward_edge" using primary key columns
+  """
+  beacon_forward_edge_by_pk(id: String!): beacon_forward_edge
 
   """
   fetch data from the table: "beacon_help_offer"
@@ -3619,11 +4100,11 @@ type query_root {
   beacon_help_offer_coordination_by_pk(offer_beacon_id: String!, offer_user_id: String!): beacon_help_offer_coordination
 
   """
-  fetch data from the table: "beacon_forward_edge"
+  fetch data from the table: "beacon_image"
   """
-  beacon_forward_edge(
+  beacon_image(
     """distinct select on columns"""
-    distinct_on: [beacon_forward_edge_select_column!]
+    distinct_on: [beacon_image_select_column!]
 
     """limit the number of rows returned"""
     limit: Int
@@ -3632,16 +4113,39 @@ type query_root {
     offset: Int
 
     """sort the rows by one or more columns"""
-    order_by: [beacon_forward_edge_order_by!]
+    order_by: [beacon_image_order_by!]
 
     """filter the rows returned"""
-    where: beacon_forward_edge_bool_exp
-  ): [beacon_forward_edge!]!
+    where: beacon_image_bool_exp
+  ): [beacon_image!]!
+
+  """fetch data from the table: "beacon_image" using primary key columns"""
+  beacon_image_by_pk(beacon_id: String!, image_id: uuid!): beacon_image
 
   """
-  fetch data from the table: "beacon_forward_edge" using primary key columns
+  fetch data from the table: "beacon_participant"
   """
-  beacon_forward_edge_by_pk(id: String!): beacon_forward_edge
+  beacon_participant(
+    """distinct select on columns"""
+    distinct_on: [beacon_participant_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_participant_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_participant_bool_exp
+  ): [beacon_participant!]!
+
+  """
+  fetch data from the table: "beacon_participant" using primary key columns
+  """
+  beacon_participant_by_pk(id: String!): beacon_participant
 
   """
   fetch data from the table: "beacon_pinned"
@@ -3665,26 +4169,6 @@ type query_root {
 
   """fetch data from the table: "beacon_pinned" using primary key columns"""
   beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
-
-  """
-  fetch data from the table: "beacon_archived"
-  """
-  beacon_archived(
-    """distinct select on columns"""
-    distinct_on: [beacon_archived_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [beacon_archived_order_by!]
-
-    """filter the rows returned"""
-    where: beacon_archived_bool_exp
-  ): [beacon_archived!]!
 
   """
   fetch data from the table: "beacon_review_window"
@@ -3711,8 +4195,52 @@ type query_root {
   """
   beacon_review_window_by_pk(beacon_id: String!): beacon_review_window
 
-  helpOffersWithCoordination(id: String!): [v2_HelpOfferWithCoordinationRow!]
-  beaconDisplayStatuses(beaconIds: [String!]!): [v2_BeaconDisplayStatus!]!
+  """An array relationship"""
+  beacon_room_state(
+    """distinct select on columns"""
+    distinct_on: [beacon_room_state_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_room_state_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_room_state_bool_exp
+  ): [beacon_room_state!]!
+
+  """
+  fetch data from the table: "beacon_room_state" using primary key columns
+  """
+  beacon_room_state_by_pk(beacon_id: String!): beacon_room_state
+
+  """An array relationship"""
+  beacon_steward(
+    """distinct select on columns"""
+    distinct_on: [beacon_steward_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_steward_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_steward_bool_exp
+  ): [beacon_steward!]!
+
+  """fetch data from the table: "beacon_steward" using primary key columns"""
+  beacon_steward_by_pk(beacon_id: String!): beacon_steward
+  coordinationItemsByBeacon(acceptedById: String, beaconId: String!, kind: Int, linkedParentItemId: String, rootOnly: Boolean, status: Int, targetPersonId: String): [v2_CoordinationItemRow!]
+  coordinationMyResponsibilityItems(beaconId: String!): [v2_CoordinationItemRow!]
+  coordinationResponsibilityBatch(beaconIds: [String!]): [v2_CoordinationResponsibilityBatchRow!]
 
   """
   fetch data from the table: "edge"
@@ -3737,22 +4265,7 @@ type query_root {
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationSummary(id: String!): v2_EvaluationSummary!
-  RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [RoomMessageRow!]!
-  BeaconParticipantList(beaconId: String!): [BeaconParticipantRow!]!
-  BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
-  BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
-  coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String, linkedParentItemId: String, rootOnly: Boolean): [CoordinationItemRow!]!
-  coordinationResponsibilityBatch(beaconIds: [String!]!): [CoordinationResponsibilityBatchRow!]!
-  coordinationMyResponsibilityItems(beaconId: String!): [CoordinationItemRow!]!
-  myWorkCoordinationItemActivity(beaconIds: [String!]!): [MyWorkBeaconCoordinationActivityRow!]!
-  myWorkLastActivityEvent(beaconIds: [String!]!): [MyWorkLastActivityEventRow!]!
-  InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
-  BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
-  myPrivateLabelsForUser(subjectUserId: String!): [String!]!
-  myContacts: [v2_UserContact!]!
-  personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
-  personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int, prioritizeSlugs: [String!]): [v2_PersonTopCapabilities!]!
-  personFriendContextBatch(subjectUserIds: [String!]!): [v2_PersonFriendContext!]!
+  forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
 
   """
   execute function "graph" which returns "graph_score"
@@ -3778,6 +4291,27 @@ type query_root {
     """filter the rows returned"""
     where: graph_score_bool_exp
   ): [graph_score!]!
+
+  """
+  fetch data from the table: "graph_score"
+  """
+  graph_score(
+    """distinct select on columns"""
+    distinct_on: [graph_score_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [graph_score_order_by!]
+
+    """filter the rows returned"""
+    where: graph_score_bool_exp
+  ): [graph_score!]!
+  helpOffersWithCoordination(id: String!): [v2_HelpOfferWithCoordinationRow!]
 
   """
   fetch data from the table: "image"
@@ -3846,23 +4380,13 @@ type query_root {
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
 
-  """V2: invite signup genealogy for the signed-in viewer."""
-  inviteGenealogy: InviteGenealogy
-
-  """V2: shared invite genealogy between the viewer and [target_id]."""
-  inviteGenealogyBetween(target_id: String!): InviteGenealogy
-
-  """V2: total direct invite-genealogy children for each node key."""
-  inviteGenealogyChildCounts(node_keys: [String!]): [InviteGenealogyChildCount!]!
-
-  """V2: one bounded page of direct invite-genealogy children."""
-  inviteGenealogyChildren(node_key: String!, after_created_at: String, after_node_key: String, limit: Int): InviteGenealogyChildrenPage
-
-  """V2: mutual friends (MeritRank intersection) for viewer and [id]."""
-  mutualFriends(id: String!): [user!]!
-
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
+  inviteGenealogy: v2_InviteGenealogy
+  inviteGenealogyBetween(target_id: String!): v2_InviteGenealogy
+  inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
+  inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
+  mutualFriends(id: String!): [v2_user!]
 
   """
   fetch data from the table: "mutual_score"
@@ -3883,6 +4407,10 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
+  myContacts: [v2_UserContact!]
+  myPrivateLabelsForUser(subjectUserId: String!): [String!]
+  myWorkCoordinationItemActivity(beaconIds: [String!]): [v2_MyWorkBeaconCoordinationActivityRow!]
+  myWorkLastActivityEvent(beaconIds: [String!]): [v2_MyWorkLastActivityEventRow!]
 
   """
   execute function "my_field" which returns "mutual_score"
@@ -3908,26 +4436,10 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
-
-  """
-  fetch data from the table: "neighbors_score"
-  """
-  neighbors_score(
-    """distinct select on columns"""
-    distinct_on: [neighbors_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [neighbors_score_order_by!]
-
-    """filter the rows returned"""
-    where: neighbors_score_bool_exp
-  ): [neighbors_score!]!
+  notificationPreferences: v2_NotificationPreferences!
+  personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
+  personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
+  personTopCapabilitiesBatch(limit: Int, prioritizeSlugs: [String!], subjectUserIds: [String!]): [v2_v2_PersonTopCapabilities!]
 
   """
   fetch data from the table: "polling"
@@ -3970,35 +4482,10 @@ type query_root {
   ): [polling_act!]!
 
   """fetch data from the table: "polling_act" using primary key columns"""
-  polling_act_by_pk(author_id: String!, polling_id: String!): polling_act
+  polling_act_by_pk(author_id: String!, polling_variant_id: String!): polling_act
 
   """fetch data from the table: "polling" using primary key columns"""
   polling_by_pk(id: String!): polling
-
-  """
-  execute function "polling_results" which returns "neighbors_score"
-  """
-  polling_results(
-    """
-    input parameters for function "polling_results"
-    """
-    args: polling_results_args!
-
-    """distinct select on columns"""
-    distinct_on: [neighbors_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [neighbors_score_order_by!]
-
-    """filter the rows returned"""
-    where: neighbors_score_bool_exp
-  ): [neighbors_score!]!
 
   """
   fetch data from the table: "polling_variant"
@@ -4048,6 +4535,7 @@ type query_root {
     where: mutual_score_bool_exp
   ): [mutual_score!]!
   reviewWindowStatus(id: String!): v2_ReviewWindowStatus!
+  roomMessageTarget(beaconId: String!, messageId: String!): v2_RoomMessageRow
 
   """
   fetch data from the table: "user"
@@ -4261,8 +4749,84 @@ type subscription_root {
     where: beacon_bool_exp
   ): [beacon!]!
 
+  """
+  fetch data from the table: "beacon_archived"
+  """
+  beacon_archived(
+    """distinct select on columns"""
+    distinct_on: [beacon_archived_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_archived_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_archived_bool_exp
+  ): [beacon_archived!]!
+
+  """fetch data from the table: "beacon_archived" using primary key columns"""
+  beacon_archived_by_pk(beacon_id: String!, user_id: String!): beacon_archived
+
+  """
+  fetch data from the table in a streaming manner: "beacon_archived"
+  """
+  beacon_archived_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_archived_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_archived_bool_exp
+  ): [beacon_archived!]!
+
   """fetch data from the table: "beacon" using primary key columns"""
   beacon_by_pk(id: String!): beacon
+
+  """
+  fetch data from the table: "beacon_forward_edge"
+  """
+  beacon_forward_edge(
+    """distinct select on columns"""
+    distinct_on: [beacon_forward_edge_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_forward_edge_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_forward_edge_bool_exp
+  ): [beacon_forward_edge!]!
+
+  """
+  fetch data from the table: "beacon_forward_edge" using primary key columns
+  """
+  beacon_forward_edge_by_pk(id: String!): beacon_forward_edge
+
+  """
+  fetch data from the table in a streaming manner: "beacon_forward_edge"
+  """
+  beacon_forward_edge_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_forward_edge_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_forward_edge_bool_exp
+  ): [beacon_forward_edge!]!
 
   """
   fetch data from the table: "beacon_help_offer"
@@ -4363,11 +4927,11 @@ type subscription_root {
   ): [beacon_help_offer!]!
 
   """
-  fetch data from the table: "beacon_forward_edge"
+  fetch data from the table: "beacon_image"
   """
-  beacon_forward_edge(
+  beacon_image(
     """distinct select on columns"""
-    distinct_on: [beacon_forward_edge_select_column!]
+    distinct_on: [beacon_image_select_column!]
 
     """limit the number of rows returned"""
     limit: Int
@@ -4376,30 +4940,67 @@ type subscription_root {
     offset: Int
 
     """sort the rows by one or more columns"""
-    order_by: [beacon_forward_edge_order_by!]
+    order_by: [beacon_image_order_by!]
 
     """filter the rows returned"""
-    where: beacon_forward_edge_bool_exp
-  ): [beacon_forward_edge!]!
+    where: beacon_image_bool_exp
+  ): [beacon_image!]!
+
+  """fetch data from the table: "beacon_image" using primary key columns"""
+  beacon_image_by_pk(beacon_id: String!, image_id: uuid!): beacon_image
 
   """
-  fetch data from the table: "beacon_forward_edge" using primary key columns
+  fetch data from the table in a streaming manner: "beacon_image"
   """
-  beacon_forward_edge_by_pk(id: String!): beacon_forward_edge
-
-  """
-  fetch data from the table in a streaming manner: "beacon_forward_edge"
-  """
-  beacon_forward_edge_stream(
+  beacon_image_stream(
     """maximum number of rows returned in a single batch"""
     batch_size: Int!
 
     """cursor to stream the results returned by the query"""
-    cursor: [beacon_forward_edge_stream_cursor_input]!
+    cursor: [beacon_image_stream_cursor_input]!
 
     """filter the rows returned"""
-    where: beacon_forward_edge_bool_exp
-  ): [beacon_forward_edge!]!
+    where: beacon_image_bool_exp
+  ): [beacon_image!]!
+
+  """
+  fetch data from the table: "beacon_participant"
+  """
+  beacon_participant(
+    """distinct select on columns"""
+    distinct_on: [beacon_participant_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_participant_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_participant_bool_exp
+  ): [beacon_participant!]!
+
+  """
+  fetch data from the table: "beacon_participant" using primary key columns
+  """
+  beacon_participant_by_pk(id: String!): beacon_participant
+
+  """
+  fetch data from the table in a streaming manner: "beacon_participant"
+  """
+  beacon_participant_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_participant_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_participant_bool_exp
+  ): [beacon_participant!]!
 
   """
   fetch data from the table: "beacon_pinned"
@@ -4477,6 +5078,78 @@ type subscription_root {
     where: beacon_review_window_bool_exp
   ): [beacon_review_window!]!
 
+  """An array relationship"""
+  beacon_room_state(
+    """distinct select on columns"""
+    distinct_on: [beacon_room_state_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_room_state_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_room_state_bool_exp
+  ): [beacon_room_state!]!
+
+  """
+  fetch data from the table: "beacon_room_state" using primary key columns
+  """
+  beacon_room_state_by_pk(beacon_id: String!): beacon_room_state
+
+  """
+  fetch data from the table in a streaming manner: "beacon_room_state"
+  """
+  beacon_room_state_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_room_state_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_room_state_bool_exp
+  ): [beacon_room_state!]!
+
+  """An array relationship"""
+  beacon_steward(
+    """distinct select on columns"""
+    distinct_on: [beacon_steward_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_steward_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_steward_bool_exp
+  ): [beacon_steward!]!
+
+  """fetch data from the table: "beacon_steward" using primary key columns"""
+  beacon_steward_by_pk(beacon_id: String!): beacon_steward
+
+  """
+  fetch data from the table in a streaming manner: "beacon_steward"
+  """
+  beacon_steward_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_steward_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_steward_bool_exp
+  ): [beacon_steward!]!
+
   """
   fetch data from the table in a streaming manner: "beacon"
   """
@@ -4545,6 +5218,40 @@ type subscription_root {
 
     """sort the rows by one or more columns"""
     order_by: [graph_score_order_by!]
+
+    """filter the rows returned"""
+    where: graph_score_bool_exp
+  ): [graph_score!]!
+
+  """
+  fetch data from the table: "graph_score"
+  """
+  graph_score(
+    """distinct select on columns"""
+    distinct_on: [graph_score_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [graph_score_order_by!]
+
+    """filter the rows returned"""
+    where: graph_score_bool_exp
+  ): [graph_score!]!
+
+  """
+  fetch data from the table in a streaming manner: "graph_score"
+  """
+  graph_score_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [graph_score_stream_cursor_input]!
 
     """filter the rows returned"""
     where: graph_score_bool_exp
@@ -4721,40 +5428,6 @@ type subscription_root {
   ): [mutual_score!]!
 
   """
-  fetch data from the table: "neighbors_score"
-  """
-  neighbors_score(
-    """distinct select on columns"""
-    distinct_on: [neighbors_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [neighbors_score_order_by!]
-
-    """filter the rows returned"""
-    where: neighbors_score_bool_exp
-  ): [neighbors_score!]!
-
-  """
-  fetch data from the table in a streaming manner: "neighbors_score"
-  """
-  neighbors_score_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [neighbors_score_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: neighbors_score_bool_exp
-  ): [neighbors_score!]!
-
-  """
   fetch data from the table: "polling"
   """
   polling(
@@ -4795,7 +5468,7 @@ type subscription_root {
   ): [polling_act!]!
 
   """fetch data from the table: "polling_act" using primary key columns"""
-  polling_act_by_pk(author_id: String!, polling_id: String!): polling_act
+  polling_act_by_pk(author_id: String!, polling_variant_id: String!): polling_act
 
   """
   fetch data from the table in a streaming manner: "polling_act"
@@ -4813,31 +5486,6 @@ type subscription_root {
 
   """fetch data from the table: "polling" using primary key columns"""
   polling_by_pk(id: String!): polling
-
-  """
-  execute function "polling_results" which returns "neighbors_score"
-  """
-  polling_results(
-    """
-    input parameters for function "polling_results"
-    """
-    args: polling_results_args!
-
-    """distinct select on columns"""
-    distinct_on: [neighbors_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [neighbors_score_order_by!]
-
-    """filter the rows returned"""
-    where: neighbors_score_bool_exp
-  ): [neighbors_score!]!
 
   """
   fetch data from the table in a streaming manner: "polling"
@@ -5101,8 +5749,6 @@ type subscription_root {
   ): [vote_user!]!
 }
 
-scalar Date
-
 scalar timestamptz
 
 """
@@ -5159,9 +5805,9 @@ type user {
     """filter the rows returned"""
     where: beacon_bool_exp
   ): [beacon!]!
-
   created_at: timestamptz!
   description: String!
+  display_name: String!
   handle: String
   id: String!
 
@@ -5170,14 +5816,32 @@ type user {
   image_id: uuid
 
   """
-  A computed field, executes function "user_get_my_vote"
-  """
-  my_vote: Int
-
-  """
   A computed field, executes function "user_get_is_mutual_friend"
   """
   is_mutual_friend: Boolean
+
+  """An array relationship"""
+  my_beacon_participations(
+    """distinct select on columns"""
+    distinct_on: [beacon_participant_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_participant_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_participant_bool_exp
+  ): [beacon_participant!]!
+
+  """
+  A computed field, executes function "user_get_my_vote"
+  """
+  my_vote: Int
   public_key: String!
 
   """
@@ -5199,9 +5863,6 @@ type user {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]
-  display_name: String!
-  """V2 direct user projection (mutualFriends, invitationById issuer, etc.)."""
-  displayName: String!
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -5273,13 +5934,16 @@ input user_bool_exp {
   beacons: beacon_bool_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
+  display_name: String_comparison_exp
+  handle: String_comparison_exp
   id: String_comparison_exp
   image: image_bool_exp
   image_id: uuid_comparison_exp
+  is_mutual_friend: Boolean_comparison_exp
+  my_beacon_participations: beacon_participant_bool_exp
   my_vote: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
-  display_name: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_presence: user_presence_bool_exp
   voteUsersBySubject: vote_user_bool_exp
@@ -5391,13 +6055,16 @@ input user_order_by {
   beacons_aggregate: beacon_aggregate_order_by
   created_at: order_by
   description: order_by
+  display_name: order_by
+  handle: order_by
   id: order_by
   image: image_order_by
   image_id: order_by
+  is_mutual_friend: order_by
+  my_beacon_participations_aggregate: beacon_participant_aggregate_order_by
   my_vote: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
-  display_name: order_by
   updated_at: order_by
   user_presence: user_presence_order_by
   voteUsersBySubject_aggregate: vote_user_aggregate_order_by
@@ -5481,6 +6148,12 @@ enum user_select_column {
   description
 
   """column name"""
+  display_name
+
+  """column name"""
+  handle
+
+  """column name"""
   id
 
   """column name"""
@@ -5488,9 +6161,6 @@ enum user_select_column {
 
   """column name"""
   public_key
-
-  """column name"""
-  display_name
 
   """column name"""
   updated_at
@@ -5511,10 +6181,11 @@ input user_stream_cursor_input {
 input user_stream_cursor_value_input {
   created_at: timestamptz
   description: String
+  display_name: String
+  handle: String
   id: String
   image_id: uuid
   public_key: String
-  display_name: String
   updated_at: timestamptz
 }
 
@@ -5535,155 +6206,49 @@ input uuid_comparison_exp {
   _nin: [uuid!]
 }
 
-type RoomMessageCreatePayload {
-  id: String!
+type v2_AttentionFeed {
+  page: v2_AttentionPage!
+  summary: v2_AttentionSummary!
 }
 
-type RoomMessageRow {
-  id: String!
-  beaconId: String!
-  authorId: String!
+type v2_AttentionMarkers {
+  unreadBeaconIds: [String!]!
+}
+
+type v2_AttentionPage {
+  items: [v2_AttentionReceipt!]!
+  nextCursor: String
+}
+
+type v2_AttentionReceipt {
+  actionUrl: String!
+  actorUserId: String
+  attentionThreadKey: String
+  beaconId: String
   body: String!
-  createdAt: String!
-  editedAt: String
-  semanticMarker: Int
-  linkedBlockerId: String
-  linkedFactCardId: String
-  linkedPollingId: String
-  linkedItemId: String
-  linkedEventKind: Int
-  linkedItemKind: Int
-  linkedItemStatus: Int
-  linkedItemTitle: String
-  linkedItemBody: String
-  linkedItemCreatorId: String
-  linkedItemTargetPersonId: String
-  linkedItemCreatedAt: String
-  linkedItemUpdatedAt: String
-  linkedItemLinkedMessageId: String
-  linkedItemResolvedAt: String
-  pollDataJson: String
-  systemPayloadJson: String
-  authorTitle: String!
-  authorHasPicture: Boolean!
-  authorPicHeight: Int!
-  authorPicWidth: Int!
-  authorBlurHash: String!
-  authorImageId: String!
-  reactionsJson: String
-  myReaction: String
-  reactorsJson: String
-  attachmentsJson: String!
-  mentions: [String!]!
-  threadItemId: String
-}
-
-type BeaconRoomStateRow {
-  beaconId: String!
-  currentLine: String!
-  openBlockerId: String
-  openBlockerTitle: String
-  lastRoomMeaningfulChange: String
-  updatedAt: String!
-  updatedBy: String
-}
-
-type BeaconActivityEventRow {
-  id: String!
-  beaconId: String!
-  visibility: Int!
-  type: Int!
-  actorId: String
-  targetUserId: String
-  sourceMessageId: String
+  category: String!
+  collapsedCount: Int!
   coordinationItemId: String
-  diffJson: String
   createdAt: String!
-}
-
-type InboxRoomContextRow {
-  beaconId: String!
-  isRoomMember: Boolean!
-  currentLine: String
-  lastRoomMeaningfulChange: String
-  nextMoveText: String
-  roomUnreadCount: Int!
-  lastSeenAt: String
-  openBlockerTitle: String
-  openBlockerCreatorId: String
-  openBlockerTargetPersonId: String
-  openBlockerResponsibleUserId: String
-  openBlockerCreatedAt: String
-  openBlockerCreatorDisplayName: String
-  openBlockerCreatorImageId: String
-  openBlockerCreatorHasPicture: Boolean
-  publicFactSnippet: String
-}
-
-type BeaconRoomSeenResult {
-  beaconId: String!
-  threadItemId: String
-  seenAt: String!
-}
-
-type FcmTestSendResult {
-  ok: Boolean!
-  devices: Int!
-  sent: Int!
-  mock: Boolean!
-  reason: String
-}
-
-type EmailTestSendResult {
-  ok: Boolean!
-  mock: Boolean!
-  reason: String
-}
-
-type UserRecalculateBookkeepingResult {
-  coordinationRepairedCount: Int!
-  inboxRowsRepairedCount: Int!
-  inboxRowsInsertedCount: Int!
-  affectedBeaconIds: [String!]!
-}
-
-type BeaconParticipantRow {
+  destinationKind: String
   id: String!
-  beaconId: String!
-  userId: String!
-  userTitle: String!
-  userHandle: String
-  userHasPicture: Boolean!
-  userPicHeight: Int!
-  userPicWidth: Int!
-  userBlurHash: String!
-  userImageId: String!
-  role: Int!
-  status: Int!
-  roomAccess: Int!
-  offerNote: String
-  nextMoveText: String
-  nextMoveStatus: Int
-  nextMoveSource: Int
-  linkedMessageId: String
-  lastSeenRoomAt: String
-  helpType: String
-  createdAt: String!
-  updatedAt: String!
+  inAppPreferenceClass: String
+  kind: String!
+  presentationKey: String
+  presentationPayloadJson: String!
+  priority: String!
+  requiresAction: Boolean!
+  seenAt: String
+  settledAt: String
+  settlementKind: String
+  sourceEventKey: String
+  targetEntityId: String
+  title: String!
 }
 
-type BeaconFactCardRow {
-  id: String!
-  beaconId: String!
-  factText: String!
-  visibility: Int!
-  pinnedBy: String!
-  pinnedByTitle: String!
-  sourceMessageId: String
-  status: Int!
-  createdAt: String!
-  updatedAt: String
-  attachmentsJson: String!
+type v2_AttentionSummary {
+  needsYouTotal: Int!
+  unreadTotal: Int!
 }
 
 type v2_AuthResponse {
@@ -5704,6 +6269,57 @@ type v2_Beacon {
   primaryNeedSlug: String
 }
 
+type v2_BeaconActivityEventRow {
+  actorId: String
+  beaconId: String!
+  coordinationItemId: String
+  createdAt: String!
+  diffJson: String
+  id: String!
+  sourceMessageId: String
+  targetUserId: String
+  type: Int!
+  visibility: Int!
+}
+
+type v2_BeaconCloseReviewResult {
+  closesAt: String
+  id: String!
+  status: Int!
+}
+
+type v2_BeaconDisplayStatus {
+  beaconId: String!
+  lastActivityAt: String
+  lifecycleEndedAt: String
+  phase: String!
+  reviewClosesAt: String
+  slot2Kind: String!
+  status: Int!
+  suggestedAction: String!
+  tier: String!
+}
+
+type v2_BeaconExtendReviewResult {
+  closesAt: String!
+  extensionsRemaining: Int!
+  id: String!
+}
+
+type v2_BeaconFactCardRow {
+  attachmentsJson: String!
+  beaconId: String!
+  createdAt: String!
+  factText: String!
+  id: String!
+  pinnedBy: String!
+  pinnedByTitle: String!
+  sourceMessageId: String
+  status: Int!
+  updatedAt: String
+  visibility: Int!
+}
+
 type v2_BeaconImageAdded {
   beacon: v2_Beacon!
   id: String!
@@ -5715,43 +6331,9 @@ type v2_BeaconImageStaged {
   imageId: String!
 }
 
-type BeaconLineageSuggestion {
-  userId: String!
-  group: String!
-  reasonCode: String!
-  reasonArg: String
-  autoSelect: Boolean!
-}
-
-type BeaconLineageForwardSuggestions {
-  sourceBeaconId: String!
-  rootBeaconId: String!
-  suggestedNote: String!
-  suggestions: [BeaconLineageSuggestion!]!
-}
-
-type v2_BeaconCloseResult {
-  branchMismatch: Boolean!
-  closesAt: String
-  id: String!
-  requiresReviewWindow: Boolean!
-  status: Int!
-}
-
-type v2_BeaconExtendReviewResult {
-  closesAt: String!
-  extensionsRemaining: Int!
-  id: String!
-}
-
-type v2_BeaconLifecycleResult {
-  id: String!
-  status: Int!
-}
-
 type v2_BeaconInvolvement {
-  helpOfferedIds: [String!]
   forwardedToIds: [String!]
+  helpOfferedIds: [String!]
   myForwardedRecipients: [v2_MyForwardRecipient!]
   onwardForwarderIds: [String!]
   rejectedIds: [String!]
@@ -5759,66 +6341,65 @@ type v2_BeaconInvolvement {
   withdrawnIds: [String!]
 }
 
-type v2_MyForwardRecipient {
-  edgeId: String!
-  recipientId: String!
-  note: String!
-  readAt: String
-}
-
-type v2_ForwardGraphEdge {
-  id: String!
+type v2_BeaconItemsSeenResult {
   beaconId: String!
-  senderId: String!
-  recipientId: String!
-  parentEdgeId: String
-  batchId: String
+  seenAt: String!
 }
 
-type ForwardInboundEdge {
-  edgeId: String!
-  senderId: String!
-  senderName: String!
-  createdAt: String!
-  isSuggestedSource: Boolean!
+type v2_BeaconLineageForwardSuggestions {
+  rootBeaconId: String!
+  sourceBeaconId: String!
+  suggestedNote: String!
+  suggestions: [v2_BeaconLineageSuggestion!]!
 }
 
-type v2_ForwardGraphResult {
-  beaconId: String!
-  authorId: String!
-  viewerId: String
-  helpOffererIds: [String!]!
-  edges: [v2_ForwardGraphEdge!]!
-}
-
-type v2_HelpOfferWithCoordinationRow {
-  admissionAction: Int
-  beaconId: String!
-  createdAt: String!
-  helpType: String
-  lastDeclineReason: String
-  lastRemoveReason: String
-  message: String!
-  responseAuthorUserId: String
-  responseType: Int
-  responseUpdatedAt: String
-  roomAccess: Int
-  status: Int!
-  withdrawReason: String
-  updatedAt: String!
-  user: v2_user!
+type v2_BeaconLineageSuggestion {
+  autoSelect: Boolean!
+  group: String!
+  reasonArg: String
+  reasonCode: String!
   userId: String!
 }
 
-input v2_Coordinates {
-  lat: Float
-  long: Float
+type v2_BeaconParticipantRow {
+  beaconId: String!
+  createdAt: String!
+  helpType: String
+  id: String!
+  lastSeenRoomAt: String
+  linkedMessageId: String
+  nextMoveSource: Int
+  nextMoveStatus: Int
+  nextMoveText: String
+  offerNote: String
+  role: Int!
+  roomAccess: Int!
+  status: Int!
+  updatedAt: String!
+  userBlurHash: String!
+  userHandle: String
+  userHasPicture: Boolean!
+  userId: String!
+  userImageId: String!
+  userPicHeight: Int!
+  userPicWidth: Int!
+  userTitle: String!
 }
 
-"""Tentura V2 native name for coordinate input (same shape as v2_Coordinates)."""
-input Coordinates {
-  lat: Float
-  long: Float
+type v2_BeaconRoomSeenResult {
+  beaconId: String!
+  seenAt: String!
+  threadItemId: String
+}
+
+type v2_BeaconRoomStateRow {
+  beaconId: String!
+  currentLine: String!
+  lastRoomMeaningfulChange: String
+  openBlockerId: String
+  openBlockerTitle: String
+  updatedAt: String!
+  updatedBy: String
 }
 
 type v2_BeaconStatusResult {
@@ -5827,22 +6408,60 @@ type v2_BeaconStatusResult {
   statusChangedAt: String
 }
 
-type v2_BeaconDisplayStatus {
-  beaconId: String!
-  status: Int!
-  phase: String!
-  suggestedAction: String!
-  slot2Kind: String!
-  tier: String!
-  reviewClosesAt: String
-  lastActivityAt: String
-  lifecycleEndedAt: String
+input v2_Coordinates {
+  lat: Float
+  long: Float
 }
 
-type v2_CoordinationStatusResult {
+type v2_CoordinationItemRow {
+  acceptedById: String
   beaconId: String!
+  body: String!
+  cancelledAt: String
+  createdAt: String!
+  creatorId: String!
+  id: String!
+  kind: Int!
+  lastRemindedAt: String
+  lastSeenAt: String
+  linkedMessageId: String
+  linkedParentItemId: String
+  messageCount: Int!
+  ordering: Int!
+  published: Boolean!
+  resolvedAt: String
+  source: Int!
+  staleAfterDays: Int
+  staleAt: String
   status: Int!
-  statusChangedAt: String
+  targetItemId: String
+  targetMessageId: String
+  targetPersonId: String
+  title: String!
+  unreadCount: Int!
+  updatedAt: String!
+}
+
+type v2_CoordinationResponsibilityBatchRow {
+  askNew: Int!
+  askOpen: Int!
+  beaconId: String!
+  blockerNew: Int!
+  blockerOpen: Int!
+  othersOpenCount: Int!
+  promiseNew: Int!
+  promiseOpen: Int!
+  reviewNew: Int!
+  reviewOpen: Int!
+}
+
+"""An ISO-8601 Date."""
+scalar v2_Date
+
+type v2_EmailTestSendResult {
+  mock: Boolean!
+  ok: Boolean!
+  reason: String
 }
 
 type v2_EvaluationDraftRow {
@@ -5855,12 +6474,12 @@ type v2_EvaluationDraftRow {
 type v2_EvaluationParticipant {
   causalHint: String!
   contributionSummary: String!
+  displayName: String!
   imageId: String!
   note: String!
   promptVariant: String!
   reasonTags: [String!]
   role: Int!
-  displayName: String!
   userId: String!
   value: Int
 }
@@ -5878,30 +6497,134 @@ type v2_EvaluationSummary {
   zero: Int
 }
 
+type v2_FcmTestSendResult {
+  devices: Int!
+  mock: Boolean!
+  ok: Boolean!
+  reason: String
+  sent: Int!
+}
+
+type v2_ForwardGraphEdge {
+  batchId: String
+  beaconId: String!
+  id: String!
+  parentEdgeId: String
+  recipientId: String!
+  senderId: String!
+}
+
+type v2_ForwardGraphResult {
+  authorId: String!
+  beaconId: String!
+  edges: [v2_ForwardGraphEdge!]!
+  helpOffererIds: [String!]!
+  viewerId: String
+}
+
+type v2_ForwardInboundEdge {
+  createdAt: String!
+  edgeId: String!
+  isSuggestedSource: Boolean!
+  senderId: String!
+  senderName: String!
+}
+
+input v2_ForwardRecipientReasonInput {
+  recipientId: String!
+  slugs: [String!]
+}
+
+type v2_HelpOfferWithCoordinationRow {
+  admissionAction: Int
+  beaconId: String!
+  createdAt: String!
+  helpType: String
+  lastDeclineReason: String
+  lastRemoveReason: String
+  message: String!
+  responseAuthorUserId: String
+  responseType: Int
+  responseUpdatedAt: String
+  roomAccess: Int
+  status: Int!
+  updatedAt: String!
+  user: v2_user!
+  userId: String!
+  withdrawReason: String
+}
+
 type v2_image {
   author_id: String!
-  created_at: Date!
+  created_at: v2_Date!
   hash: String!
   height: Int!
   id: String!
   width: Int!
 }
 
+type v2_InboxRoomContextRow {
+  beaconId: String!
+  currentLine: String
+  isRoomMember: Boolean!
+  lastRoomMeaningfulChange: String
+  lastSeenAt: String
+  nextMoveText: String
+  openBlockerCreatedAt: String
+  openBlockerCreatorDisplayName: String
+  openBlockerCreatorHasPicture: Boolean
+  openBlockerCreatorId: String
+  openBlockerCreatorImageId: String
+  openBlockerResponsibleUserId: String
+  openBlockerTargetPersonId: String
+  openBlockerTitle: String
+  publicFactSnippet: String
+  roomUnreadCount: Int!
+}
+
 type v2_Invitation {
   addressee_name: String
+  beacon_id: String
   created_at: String!
   id: String!
   invited: user
   invited_id: String
-  issuer: user!
+  issuer: v2_user!
   issuer_id: String!
   updated_at: String!
 }
 
-type v2_UserContact {
-  subjectId: String!
-  contactName: String!
-  updatedAt: String!
+type v2_InviteGenealogy {
+  common_ancestor_node_key: String
+  edges: [v2_InviteGenealogyEdge!]
+  nodes: [v2_InviteGenealogyNode!]
+  target_node_key: String
+  viewer_node_key: String!
+}
+
+type v2_InviteGenealogyChildCount {
+  node_key: String!
+  total_children: Int!
+}
+
+type v2_InviteGenealogyChildrenPage {
+  edges: [v2_InviteGenealogyEdge!]
+  nodes: [v2_InviteGenealogyNode!]
+}
+
+type v2_InviteGenealogyEdge {
+  ancestor_node_key: String!
+  ancestor_user_created_at: String!
+  created_at: String!
+  descendant_node_key: String!
+  descendant_user_created_at: String!
+}
+
+type v2_InviteGenealogyNode {
+  deleted_at: String
+  node_key: String!
+  user: v2_user
+  user_created_at: String
 }
 
 type v2_mutual_score {
@@ -5909,9 +6632,41 @@ type v2_mutual_score {
   src_score: Float
 }
 
-input v2_PollingInput {
-  question: String
-  variants: [String]
+type v2_MyForwardRecipient {
+  edgeId: String!
+  note: String!
+  readAt: String
+  recipientId: String!
+}
+
+type v2_MyWorkBeaconCoordinationActivityRow {
+  beaconId: String!
+  lastCoordinationItemMessageAt: String
+}
+
+type v2_MyWorkLastActivityEventRow {
+  actorId: String
+  actorImageId: String
+  actorTitle: String
+  beaconId: String!
+  createdAt: String
+  diffJson: String
+  id: String
+  type: Int
+}
+
+type v2_NotificationPreferences {
+  accountId: String!
+  emailCategories: [String!]!
+  emailDigest: String!
+  locale: String!
+  lockScreenSafe: Boolean!
+  mutedInAppEventClasses: [String!]!
+  pushCategories: [String!]!
+  quietHoursEnd: Int
+  quietHoursStart: Int
+  snoozeUntil: String
+  tzOffsetMinutes: Int!
 }
 
 type v2_ReviewWindowStatus {
@@ -5928,32 +6683,131 @@ type v2_ReviewWindowStatus {
   windowComplete: Boolean
 }
 
-input v2_Upload {
-  filename: String
-  type: String
+type v2_RoomMessageCreatePayload {
+  id: String!
 }
 
-"""Client document alias for multipart upload variables."""
-input Upload {
+type v2_RoomMessageRow {
+  attachmentsJson: String!
+  authorBlurHash: String!
+  authorHasPicture: Boolean!
+  authorId: String!
+  authorImageId: String!
+  authorPicHeight: Int!
+  authorPicWidth: Int!
+  authorTitle: String!
+  beaconId: String!
+  body: String!
+  createdAt: String!
+  editedAt: String
+  id: String!
+  linkedBlockerId: String
+  linkedEventKind: Int
+  linkedFactCardId: String
+  linkedItemBody: String
+  linkedItemCreatedAt: String
+  linkedItemCreatorId: String
+  linkedItemId: String
+  linkedItemKind: Int
+  linkedItemLinkedMessageId: String
+  linkedItemResolvedAt: String
+  linkedItemStatus: Int
+  linkedItemTargetPersonId: String
+  linkedItemTitle: String
+  linkedItemUpdatedAt: String
+  linkedPollingId: String
+  mentions: [String!]
+  myReaction: String
+  pollDataJson: String
+  reactionsJson: String
+  reactorsJson: String
+  semanticMarker: Int
+  systemPayloadJson: String
+  threadItemId: String
+}
+
+input v2_Upload {
   filename: String
   type: String
 }
 
 type v2_user {
   description: String!
+  displayName: String!
   handle: String
   id: String!
   image: v2_image
-  my_vote: Int
   is_mutual_friend: Boolean!
+  my_vote: Int
   scores: [v2_mutual_score!]
-  displayName: String!
-  user_presence: user_presence
+  user_presence: v2_user_presence
 }
 
 type v2_User {
-  id: String!
   handle: String
+  id: String!
+}
+
+type v2_user_presence {
+  last_seen_at: String!
+  status: Int!
+}
+
+type v2_UserContact {
+  contactName: String!
+  subjectId: String!
+  updatedAt: String!
+}
+
+type v2_UserRecalculateBookkeepingResult {
+  affectedBeaconIds: [String!]!
+  coordinationRepairedCount: Int!
+  inboxRowsInsertedCount: Int!
+  inboxRowsRepairedCount: Int!
+}
+
+type v2_v2_CapabilityForViewer {
+  hasManualLabel: Boolean!
+  slug: String!
+}
+
+type v2_v2_ForwardReasonRow {
+  recipientId: String!
+  senderId: String!
+  slugs: [String!]
+}
+
+type v2_v2_PersonCapabilityCuesPayload {
+  closeAckAboutMe: [v2_v2_TagBeaconRef!]
+  closeAckByMe: [v2_v2_TagBeaconRef!]
+  commitRoles: [v2_v2_TagBeaconRef!]
+  forwardReasonsByMe: [v2_v2_TagCount!]
+  privateLabels: [String!]
+  viewerVisible: [v2_v2_CapabilityForViewer!]
+}
+
+type v2_v2_PersonFriendContext {
+  activeForwardsToCount: Int!
+  coInvolvedBeaconsCount: Int!
+  subjectId: String!
+}
+
+type v2_v2_PersonTopCapabilities {
+  slugs: [String!]
+  subjectId: String!
+}
+
+type v2_v2_TagBeaconRef {
+  beaconId: String!
+  beaconTitle: String!
+  createdAt: String!
+  slug: String!
+}
+
+type v2_v2_TagCount {
+  count: Int!
+  lastSeenAt: String!
+  slug: String!
 }
 
 """
@@ -6270,31 +7124,6 @@ input vote_user_bool_exp {
 }
 
 """
-unique or primary key constraints on table "vote_user"
-"""
-enum vote_user_constraint {
-  """
-  unique or primary key constraint on columns "object", "subject"
-  """
-  vote_user_pkey
-}
-
-"""
-input type for incrementing numeric columns in table "vote_user"
-"""
-input vote_user_inc_input {
-  amount: Int
-}
-
-"""
-input type for inserting data into table "vote_user"
-"""
-input vote_user_insert_input {
-  amount: Int
-  object: String
-}
-
-"""
 order by max() on columns of table "vote_user"
 """
 input vote_user_max_order_by {
@@ -6316,26 +7145,6 @@ input vote_user_min_order_by {
   updated_at: order_by
 }
 
-"""
-response of any mutation on the table "vote_user"
-"""
-type vote_user_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-
-  """data from the rows affected by the mutation"""
-  returning: [vote_user!]!
-}
-
-"""
-on_conflict condition type for table "vote_user"
-"""
-input vote_user_on_conflict {
-  constraint: vote_user_constraint!
-  update_columns: [vote_user_update_column!]! = []
-  where: vote_user_bool_exp
-}
-
 """Ordering options when selecting data from "vote_user"."""
 input vote_user_order_by {
   amount: order_by
@@ -6345,12 +7154,6 @@ input vote_user_order_by {
   updated_at: order_by
   user: user_order_by
   userBySubject: user_order_by
-}
-
-"""primary key columns input for table: vote_user"""
-input vote_user_pk_columns_input {
-  object: String!
-  subject: String!
 }
 
 """
@@ -6371,13 +7174,6 @@ enum vote_user_select_column {
 
   """column name"""
   updated_at
-}
-
-"""
-input type for updating data in table "vote_user"
-"""
-input vote_user_set_input {
-  amount: Int
 }
 
 """
@@ -6429,25 +7225,6 @@ input vote_user_sum_order_by {
 }
 
 """
-update columns of table "vote_user"
-"""
-enum vote_user_update_column {
-  """column name"""
-  amount
-}
-
-input vote_user_updates {
-  """increments the numeric columns with given value of the filtered values"""
-  _inc: vote_user_inc_input
-
-  """sets the columns of the filtered rows to the given values"""
-  _set: vote_user_set_input
-
-  """filter the rows which have to be updated"""
-  where: vote_user_bool_exp!
-}
-
-"""
 order by var_pop() on columns of table "vote_user"
 """
 input vote_user_var_pop_order_by {
@@ -6468,114 +7245,3 @@ input vote_user_variance_order_by {
   amount: order_by
 }
 
-input ForwardRecipientReasonInput {
-  recipientId: String!
-  slugs: [String!]
-}
-
-type v2_TagCount {
-  slug: String!
-  count: Int!
-  lastSeenAt: String!
-}
-
-type v2_TagBeaconRef {
-  slug: String!
-  beaconId: String!
-  beaconTitle: String!
-  createdAt: String!
-}
-
-type v2_CapabilityForViewer {
-  slug: String!
-  hasManualLabel: Boolean!
-}
-
-type v2_PersonCapabilityCuesPayload {
-  privateLabels: [String!]
-  forwardReasonsByMe: [v2_TagCount!]
-  commitRoles: [v2_TagBeaconRef!]
-  closeAckByMe: [v2_TagBeaconRef!]
-  closeAckAboutMe: [v2_TagBeaconRef!]
-  viewerVisible: [v2_CapabilityForViewer!]
-}
-
-type v2_ForwardReasonRow {
-  senderId: String!
-  recipientId: String!
-  slugs: [String!]!
-}
-
-type v2_PersonTopCapabilities {
-  subjectId: String!
-  slugs: [String!]!
-}
-
-type v2_PersonFriendContext {
-  subjectId: String!
-  activeForwardsToCount: Int!
-  coInvolvedBeaconsCount: Int!
-}
-
-type CoordinationResponsibilityBatchRow {
-  beaconId: String!
-  askOpen: Int!
-  askNew: Int!
-  promiseOpen: Int!
-  promiseNew: Int!
-  blockerOpen: Int!
-  blockerNew: Int!
-  reviewOpen: Int!
-  reviewNew: Int!
-  othersOpenCount: Int!
-}
-
-type BeaconItemsSeenResult {
-  beaconId: String!
-  seenAt: String!
-}
-
-type CoordinationItemRow {
-  id: String!
-  beaconId: String!
-  kind: Int!
-  status: Int!
-  source: Int!
-  published: Boolean!
-  title: String!
-  body: String!
-  creatorId: String!
-  targetPersonId: String
-  acceptedById: String
-  targetItemId: String
-  targetMessageId: String
-  linkedMessageId: String
-  linkedParentItemId: String
-  ordering: Int!
-  createdAt: String!
-  updatedAt: String!
-  resolvedAt: String
-  cancelledAt: String
-  staleAt: String
-  lastRemindedAt: String
-  staleAfterDays: Int
-  messageCount: Int!
-  unreadCount: Int!
-  lastSeenAt: String
-}
-
-type MyWorkBeaconCoordinationActivityRow {
-  beaconId: String!
-  lastCoordinationItemMessageAt: String
-}
-
-type MyWorkLastActivityEventRow {
-  beaconId: String!
-  id: String
-  type: Int
-  actorId: String
-  actorTitle: String
-  actorImageId: String
-  createdAt: String
-  diffJson: String
-}

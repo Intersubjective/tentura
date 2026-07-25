@@ -3,17 +3,17 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/user_public_model.data.gql.dart';
-import 'image_model.dart';
+import 'image_model_v2.dart';
 
 extension type const UserPublicModel(GUserPublicModel i)
     implements GUserPublicModel {
-  Profile toEntity({ImageModel? image}) {
+  Profile toEntity({ImageModelV2? image}) {
     final p = i.user_presence;
     UserPresenceStatus? presenceStatus;
     DateTime? presenceLastSeenAt;
     if (p != null) {
       presenceStatus = _userPresenceStatusFromSmallint(p.status);
-      presenceLastSeenAt = p.last_seen_at;
+      presenceLastSeenAt = DateTime.tryParse(p.last_seen_at);
     }
     return Profile(
       id: i.id,
@@ -22,8 +22,8 @@ extension type const UserPublicModel(GUserPublicModel i)
       handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,
-      isMutualFriend: i.is_mutual_friend ?? false,
-      image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
+      isMutualFriend: i.is_mutual_friend,
+      image: (i.image as ImageModelV2?)?.asEntity ?? image?.asEntity,
       score: i.scores?.firstOrNull?.dst_score ?? 0,
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       presenceStatus: presenceStatus,

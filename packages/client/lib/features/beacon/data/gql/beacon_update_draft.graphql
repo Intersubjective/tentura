@@ -3,7 +3,7 @@ mutation BeaconUpdateDraft(
   $title: String!,
   $context: String = "",
   $description: String = "",
-  $coordinates: Coordinates = {},
+  $coordinates: v2_Coordinates = {},
   $startAt: String = "",
   $endAt: String = "",
   $tags: String = "",
