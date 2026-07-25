@@ -102,13 +102,15 @@ bool beaconViewShowsLegacyRoomSurface({
 double beaconViewRoomSplitPaneWidth(
   TenturaTokens tt, {
   double? availableWidth,
+  double minPaneWidth = 360.0,
 }) {
-  const minPaneWidth = 360.0;
   const maxPaneWidth = 560.0;
   var effectiveMaxPaneWidth = maxPaneWidth;
   if (availableWidth != null && availableWidth.isFinite) {
-    final minOperationalWidth =
-        (tt.contentMaxWidth ?? tt.chatColumnMaxWidth) / 2;
+    final minOperationalWidth = math.max(
+      minPaneWidth,
+      (tt.contentMaxWidth ?? tt.chatColumnMaxWidth) / 2,
+    );
     effectiveMaxPaneWidth = math.max(
       minPaneWidth,
       math.min(maxPaneWidth, availableWidth - minOperationalWidth),
@@ -129,6 +131,11 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
     @QueryParam(kQueryMessageId) this.messageId,
     this.embedded = false,
+    this.embeddedAllowRoomSplit = false,
+    this.embeddedRoomCoVisible = false,
+    this.suppressEmbeddedRoomBack = false,
+    this.embeddedRoomCloseNonce = 0,
+    this.onEmbeddedRoomOpenChanged,
     this.onEmbeddedLeave,
     super.key,
   });
@@ -159,6 +166,21 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   /// Hosted inside another screen (e.g. Inbox master–detail). Skips Scaffold /
   /// TenturaTopBar / route URL room lifecycle; room is pane-local.
   final bool embedded;
+
+  /// When [embedded], allow ops|room split if pane width permits (My Work).
+  final bool embeddedAllowRoomSplit;
+
+  /// When [embedded] and true, room stays co-visible (four-column band).
+  final bool embeddedRoomCoVisible;
+
+  /// When [embedded], hide pane-header back — host owns "back to list".
+  final bool suppressEmbeddedRoomBack;
+
+  /// Increment to request pane-local room exit from the host (back to list).
+  final int embeddedRoomCloseNonce;
+
+  /// Notifies host when embedded room focus/swap changes (list collapse).
+  final ValueChanged<bool>? onEmbeddedRoomOpenChanged;
 
   /// Called from embedded error "go back" — host may clear selection.
   final VoidCallback? onEmbeddedLeave;
@@ -406,6 +428,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _embeddedRoomOpen = false;
       _didApplyFetchResolution = false;
     }
+    if (widget.embedded &&
+        widget.embeddedRoomCloseNonce != oldWidget.embeddedRoomCloseNonce) {
+      _exitRoomSurface();
+    }
     final wasRoom = _roomFromRouteParams(oldWidget);
     final isRoom = _roomFromRouteParams(widget);
     if (isRoom &&
@@ -449,14 +475,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _usesExpandedRoomSplitForState(
     BeaconViewState s, {
     bool? showBeaconContent,
+    double? detailWidth,
   }) {
-    if (widget.embedded) return false;
-    return beaconViewUsesExpandedRoomSplit(
+    final content =
+        showBeaconContent ?? (s.beaconContentLoaded && !s.beaconUnavailable);
+    if (!beaconViewUsesExpandedRoomSplit(
       windowClass: context.windowClass,
-      showBeaconContent:
-          showBeaconContent ?? (s.beaconContentLoaded && !s.beaconUnavailable),
+      showBeaconContent: content,
       canNavigateBeaconRoom: s.canNavigateBeaconRoom,
-    );
+    )) {
+      return false;
+    }
+    if (!widget.embedded) return true;
+    if (!widget.embeddedAllowRoomSplit) return false;
+    if (widget.embeddedRoomCoVisible) {
+      if (detailWidth == null) return true;
+      return myWorkDetailFitsOpsRoom(detailWidth, tight: false);
+    }
+    if (!_embeddedRoomOpen) return false;
+    if (detailWidth == null) return true;
+    return myWorkDetailFitsOpsRoom(detailWidth, tight: true);
+  }
+
+  void _notifyEmbeddedRoomOpen(bool open) {
+    widget.onEmbeddedRoomOpenChanged?.call(open);
   }
 
   /// Releases the embedded room cubit once neither the expanded split nor a
@@ -471,6 +513,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!_hasLiveRoomCubit) return;
     if (widget.embedded) {
       if (_embeddedRoomOpen) return;
+      final state = context.read<BeaconViewCubit>().state;
+      if (widget.embeddedAllowRoomSplit &&
+          widget.embeddedRoomCoVisible &&
+          _usesExpandedRoomSplitForState(state)) {
+        return;
+      }
+      if (_usesExpandedRoomSplitForState(state)) return;
       _roomExitInProgress = false;
       _pendingRoomExit = _exitRoomAndSyncUnread();
       unawaited(_pendingRoomExit);
@@ -723,10 +772,23 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
     if (widget.embedded) {
+      if (_usesExpandedRoomSplitForState(
+        context.read<BeaconViewCubit>().state,
+      )) {
+        setState(() {
+          _activateExpandedRoomSplit(focusItem: focusItem, focusRoom: true);
+        });
+        if (!widget.embeddedRoomCoVisible) {
+          _embeddedRoomOpen = true;
+          _notifyEmbeddedRoomOpen(true);
+        }
+        return;
+      }
       setState(() {
         _embeddedRoomOpen = true;
         _ensureEmbeddedRoomCubit();
       });
+      _notifyEmbeddedRoomOpen(true);
       final c = _roomCubit;
       if (c == null || c.isClosed) return;
       if (focusItem == null || focusItem.id.isEmpty) {
@@ -788,7 +850,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
     if (widget.embedded) {
       _roomExitInProgress = true;
+      if (_usesExpandedRoomSplitForState(
+        context.read<BeaconViewCubit>().state,
+      )) {
+        if (!widget.embeddedRoomCoVisible) {
+          if (_hasLiveRoomCubit) {
+            _applyRoomSurfaceState(open: false);
+          }
+          setState(() => _embeddedRoomOpen = false);
+          _notifyEmbeddedRoomOpen(false);
+        }
+        _roomExitInProgress = false;
+        return;
+      }
       setState(() => _embeddedRoomOpen = false);
+      _notifyEmbeddedRoomOpen(false);
       if (_hasLiveRoomCubit) {
         _applyRoomSurfaceState(open: false);
       }
@@ -993,12 +1069,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required BeaconViewCubit beaconViewCubit,
     required ScreenCubit screenCubit,
     required TenturaTokens tt,
+    bool useTightPaneWidths = false,
   }) {
+    final minPane = useTightPaneWidths ? 280.0 : 360.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final roomPaneWidth = beaconViewRoomSplitPaneWidth(
           tt,
           availableWidth: constraints.maxWidth,
+          minPaneWidth: minPane,
         );
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1047,6 +1126,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             // `canNavigateBeaconRoom` is false — no local flag to clear here.
             if (widget.embedded) {
               _embeddedRoomOpen = false;
+              _notifyEmbeddedRoomOpen(false);
             }
             if (s.showsRoomAccessUnavailableBanner) {
               _bannerMessage = L10n.of(
@@ -1094,21 +1174,27 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final showBeaconContent =
               state.beaconContentLoaded && !state.beaconUnavailable;
 
-          final isSplit = beaconViewUsesExpandedRoomSplit(
-            windowClass: context.windowClass,
-            showBeaconContent: showBeaconContent,
-            canNavigateBeaconRoom: state.canNavigateBeaconRoom,
-          ) &&
-              !widget.embedded;
-          if (isSplit) {
-            _ensureEmbeddedRoomCubit();
-            _scheduleExpandedRoomPaneRouteFocusIfNeeded();
-          }
-          final showLegacyRoomSurface = beaconViewShowsLegacyRoomSurface(
-            isSplit: isSplit,
-            roomRequestedByRoute: _roomSurfaceRequested(),
-            canNavigateBeaconRoom: state.canNavigateBeaconRoom,
-          );
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final detailWidth = constraints.maxWidth;
+              final isSplit = _usesExpandedRoomSplitForState(
+                state,
+                showBeaconContent: showBeaconContent,
+                detailWidth: detailWidth,
+              );
+              final useTightPaneWidths =
+                  widget.embedded &&
+                  widget.embeddedAllowRoomSplit &&
+                  !widget.embeddedRoomCoVisible;
+              if (isSplit) {
+                _ensureEmbeddedRoomCubit();
+                _scheduleExpandedRoomPaneRouteFocusIfNeeded();
+              }
+              final showLegacyRoomSurface = beaconViewShowsLegacyRoomSurface(
+                isSplit: isSplit,
+                roomRequestedByRoute: _roomSurfaceRequested(),
+                canNavigateBeaconRoom: state.canNavigateBeaconRoom,
+              );
           final roomUnread = _effectiveRoomUnreadCount(
             state,
             useLiveRoomCubit: showLegacyRoomSurface || isSplit,
@@ -1156,6 +1242,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               beaconViewCubit: beaconViewCubit,
               screenCubit: screenCubit,
               tt: tt,
+              useTightPaneWidths: useTightPaneWidths,
             );
           } else if (showLegacyRoomSurface) {
             body = _buildRoomPane(state);
@@ -1196,6 +1283,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   showBeaconContent: showBeaconContent,
                   showInitialLoading: showInitialLoading,
                   showLegacyRoomSurface: showLegacyRoomSurface,
+                  isSplit: isSplit,
                   appBarStatusLine: appBarStatusLine,
                   appBarStatusTone: appBarStatusTone,
                 ),
@@ -1357,6 +1445,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               body: SafeArea(child: contentColumn),
             ),
           );
+            },
+          );
         },
       ),
     );
@@ -1371,6 +1461,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required bool showBeaconContent,
     required bool showInitialLoading,
     required bool showLegacyRoomSurface,
+    required bool isSplit,
     required String appBarStatusLine,
     required TenturaTone appBarStatusTone,
   }) {
@@ -1384,7 +1475,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         ),
         child: Row(
           children: [
-            if (showLegacyRoomSurface)
+            if (showLegacyRoomSurface && !widget.suppressEmbeddedRoomBack)
               IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 onPressed: _exitRoomSurface,
@@ -1402,6 +1493,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             if (showBeaconContent &&
                 !showInitialLoading &&
                 !showLegacyRoomSurface &&
+                !isSplit &&
                 state.canNavigateBeaconRoom)
               BeaconViewRoomAppBarButton(
                 state: state,

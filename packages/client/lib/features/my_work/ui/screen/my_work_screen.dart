@@ -37,6 +37,9 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
   String? _selectedBeaconId;
   String? _selectedViewTab;
   String? _selectedPeopleTabAttention;
+  var _roomOpen = false;
+  var _roomCloseNonce = 0;
+  var _fitsFourColumns = false;
 
   void _selectCard(
     MyWorkCardViewModel vm, {
@@ -45,7 +48,11 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
   }) {
     if (vm.kind == MyWorkCardKind.authoredDraft) return;
     setState(() {
-      _selectedBeaconId = vm.beaconId;
+      final nextId = vm.beaconId;
+      if (_selectedBeaconId != nextId) {
+        _roomOpen = false;
+      }
+      _selectedBeaconId = nextId;
       _selectedViewTab = viewTab;
       _selectedPeopleTabAttention = peopleTabAttention;
     });
@@ -56,8 +63,28 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       _selectedBeaconId = null;
       _selectedViewTab = null;
       _selectedPeopleTabAttention = null;
+      _roomOpen = false;
     });
   }
+
+  void _onEmbeddedRoomOpenChanged(bool open) {
+    if (_roomOpen == open) return;
+    setState(() => _roomOpen = open);
+  }
+
+  void _onLayoutMetrics({required bool fitsFour}) {
+    if (_fitsFourColumns == fitsFour) return;
+    setState(() => _fitsFourColumns = fitsFour);
+  }
+
+  void _backToList() {
+    setState(() {
+      _roomOpen = false;
+      _roomCloseNonce++;
+    });
+  }
+
+  bool get _showList => !(_roomOpen && !_fitsFourColumns);
 
   @override
   Widget build(BuildContext context) {
@@ -109,17 +136,29 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                       constraints.maxWidth,
                       context.tt,
                     );
+                    final showList = _showList;
                     return Row(
                       children: [
-                        SizedBox(
-                          width: masterWidth,
-                          child: const Row(
-                            children: [
-                              Expanded(child: _MyWorkFilterMenu()),
-                              _MyWorkSortButton(),
-                            ],
+                        if (showList)
+                          SizedBox(
+                            width: masterWidth,
+                            child: const Row(
+                              children: [
+                                Expanded(child: _MyWorkFilterMenu()),
+                                _MyWorkSortButton(),
+                              ],
+                            ),
+                          )
+                        else
+                          Semantics(
+                            label: l10n.myWorkBackToList,
+                            button: true,
+                            child: IconButton(
+                              tooltip: l10n.myWorkBackToList,
+                              onPressed: _backToList,
+                              icon: const Icon(Icons.arrow_back),
+                            ),
                           ),
-                        ),
                         Expanded(
                           child: Align(
                             alignment: Alignment.centerRight,
@@ -153,8 +192,12 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
             selectedBeaconId: _selectedBeaconId,
             selectedViewTab: _selectedViewTab,
             selectedPeopleTabAttention: _selectedPeopleTabAttention,
+            showList: _showList,
+            roomCloseNonce: _roomCloseNonce,
             onSelectCard: _selectCard,
             onEmbeddedLeave: _clearSelection,
+            onEmbeddedRoomOpenChanged: _onEmbeddedRoomOpenChanged,
+            onLayoutMetrics: _onLayoutMetrics,
           ),
         ),
       ),
@@ -374,16 +417,24 @@ class _MyWorkBody extends StatelessWidget {
     required this.selectedBeaconId,
     required this.selectedViewTab,
     required this.selectedPeopleTabAttention,
+    required this.showList,
+    required this.roomCloseNonce,
     required this.onSelectCard,
     required this.onEmbeddedLeave,
+    required this.onEmbeddedRoomOpenChanged,
+    required this.onLayoutMetrics,
   });
 
   final bool useExpandedPane;
   final String? selectedBeaconId;
   final String? selectedViewTab;
   final String? selectedPeopleTabAttention;
+  final bool showList;
+  final int roomCloseNonce;
   final MyWorkCardSelect onSelectCard;
   final VoidCallback onEmbeddedLeave;
+  final ValueChanged<bool> onEmbeddedRoomOpenChanged;
+  final void Function({required bool fitsFour}) onLayoutMetrics;
 
   bool _shouldRebuild(MyWorkState p, MyWorkState c) {
     if (p.status != c.status ||
@@ -450,28 +501,39 @@ class _MyWorkBody extends StatelessWidget {
 
           return LayoutBuilder(
             builder: (context, constraints) {
+              final fitsFour = myWorkFitsFourColumns(constraints.maxWidth, tt);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onLayoutMetrics(fitsFour: fitsFour);
+              });
               final masterWidth = deskMasterPaneWidth(constraints.maxWidth, tt);
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              final children = <Widget>[
+                if (showList) ...[
                   SizedBox(width: masterWidth, child: listBody),
                   SizedBox(width: tt.screenHPadding),
                   const TenturaVerticalHairline(),
                   SizedBox(width: tt.screenHPadding),
-                  Expanded(
-                    child: _MyWorkExpandedPreview(
-                      selected: selected,
-                      viewTab: selected?.beaconId == selectedBeaconId
-                          ? selectedViewTab
-                          : null,
-                      peopleTabAttention:
-                          selected?.beaconId == selectedBeaconId
-                          ? selectedPeopleTabAttention
-                          : null,
-                      onEmbeddedLeave: onEmbeddedLeave,
-                    ),
-                  ),
                 ],
+                Expanded(
+                  child: _MyWorkExpandedPreview(
+                    selected: selected,
+                    viewTab: selected?.beaconId == selectedBeaconId
+                        ? selectedViewTab
+                        : null,
+                    peopleTabAttention:
+                        selected?.beaconId == selectedBeaconId
+                        ? selectedPeopleTabAttention
+                        : null,
+                    embeddedRoomCoVisible: fitsFour,
+                    suppressEmbeddedRoomBack: !showList,
+                    roomCloseNonce: roomCloseNonce,
+                    onEmbeddedRoomOpenChanged: onEmbeddedRoomOpenChanged,
+                    onEmbeddedLeave: onEmbeddedLeave,
+                  ),
+                ),
+              ];
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
               );
             },
           );
@@ -486,12 +548,20 @@ class _MyWorkExpandedPreview extends StatelessWidget {
     required this.selected,
     required this.viewTab,
     required this.peopleTabAttention,
+    required this.embeddedRoomCoVisible,
+    required this.suppressEmbeddedRoomBack,
+    required this.roomCloseNonce,
+    required this.onEmbeddedRoomOpenChanged,
     required this.onEmbeddedLeave,
   });
 
   final MyWorkCardViewModel? selected;
   final String? viewTab;
   final String? peopleTabAttention;
+  final bool embeddedRoomCoVisible;
+  final bool suppressEmbeddedRoomBack;
+  final int roomCloseNonce;
+  final ValueChanged<bool> onEmbeddedRoomOpenChanged;
   final VoidCallback onEmbeddedLeave;
 
   @override
@@ -521,6 +591,10 @@ class _MyWorkExpandedPreview extends StatelessWidget {
       beaconId: selectedCard.beaconId,
       viewTab: viewTab,
       peopleTabAttention: peopleTabAttention,
+      embeddedRoomCoVisible: embeddedRoomCoVisible,
+      suppressEmbeddedRoomBack: suppressEmbeddedRoomBack,
+      embeddedRoomCloseNonce: roomCloseNonce,
+      onEmbeddedRoomOpenChanged: onEmbeddedRoomOpenChanged,
       onEmbeddedLeave: onEmbeddedLeave,
     );
   }

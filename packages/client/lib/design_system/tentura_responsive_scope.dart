@@ -95,6 +95,27 @@ class TenturaChatColumn extends StatelessWidget {
 double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
     (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
 
+/// Comfortable ops + room pair (standalone / four-column detail).
+const double kDeskOpsRoomMinPair = 720.0;
+
+/// Tight ops + room pair when My Work list is collapsed (embedded).
+const double kDeskOpsRoomMinPairTight = 560.0;
+
+/// Horizontal chrome between My Work master list and detail pane.
+double myWorkMasterDetailSeparatorWidth(TenturaTokens tt) =>
+    tt.screenHPadding * 3 + 1;
+
+/// Whether list + ops + room fit beside the rail at [bodyWidth].
+bool myWorkFitsFourColumns(double bodyWidth, TenturaTokens tt) {
+  final master = deskMasterPaneWidth(bodyWidth, tt);
+  final detail = bodyWidth - master - myWorkMasterDetailSeparatorWidth(tt);
+  return myWorkDetailFitsOpsRoom(detail, tight: false);
+}
+
+/// Whether a detail pane can show ops and room side by side.
+bool myWorkDetailFitsOpsRoom(double detailWidth, {required bool tight}) =>
+    detailWidth >= (tight ? kDeskOpsRoomMinPairTight : kDeskOpsRoomMinPair);
+
 /// Expands [child] to the full viewport width.
 ///
 /// Kept for graph routes; a no-op when the app root is already full width.

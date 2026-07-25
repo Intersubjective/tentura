@@ -60,6 +60,21 @@ void main() {
 
       expect(beaconViewRoomSplitPaneWidth(narrow), 360);
     });
+
+    test('embedded tight split allows 280px room pane floor', () {
+      final expanded = TenturaTokens.light.applyWindowClass(
+        WindowClass.expanded,
+      );
+
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 560,
+          minPaneWidth: 280,
+        ),
+        280,
+      );
+    });
   });
 
   group('Beacon view room derived-from-route state (Phase 2 step 6)', () {
