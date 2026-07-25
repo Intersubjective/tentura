@@ -89,6 +89,8 @@ python3 -m json.tool hasura/metadata.json > /dev/null
 Default endpoint: `http://127.0.0.1:8080` (compose.dev.yaml).
 Default admin secret: `password`.
 
+**Production / VPS:** every [`deploy.sh`](../../../deploy.sh) run applies metadata automatically after `docker compose up -d --wait`. CI copies `hasura/metadata.json` and this script to `/opt/tentura` before deploy. Do not rely on the Hasura console for durable changes — `replace_metadata` wipes console-only edits.
+
 Override with env vars:
 
 ```bash
@@ -130,7 +132,8 @@ Increment `resource_version` at the top of `metadata.json` after each change (co
 
 | Symptom | Fix |
 |---------|-----|
-| `is_consistent: false` | Table or FK doesn't exist in Postgres; run migrations first. |
+| `is_consistent: false` | Table or FK doesn't exist in Postgres; run migrations first. On VPS, check `deploy.sh` logs after `--wait`. |
+| Deploy apply fails | Ensure `hasura/metadata.json` and `scripts/hasura_apply_metadata.sh` exist under `/opt/tentura`; check `HASURA_GRAPHQL_ADMIN_SECRET` in `.env`. |
 | HTTP 401 | Wrong admin secret; check `HASURA_GRAPHQL_ADMIN_SECRET`. |
 | `jq: command not found` | Install jq: `sudo apt install jq`. |
 | New field returns null in client | Ensure `schema.graphql` has the type and the `.graphql` fragment selects it; re-run codegen. |

@@ -25,7 +25,8 @@ RUN dart build cli -t bin/tentura.dart -o bin/cli-build
 FROM debian:bookworm-slim
 ARG GIT_SHA=unknown
 ARG SERVER_VERSION=0.0.0
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/packages/server/bin/cli-build/bundle/bin/tentura /tentura
 COPY --from=build /app/packages/server/bin/cli-build/bundle/lib/libsqlite3.so /lib/libsqlite3.so
 

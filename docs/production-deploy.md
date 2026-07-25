@@ -23,8 +23,12 @@ Copy these files from your local repo to the server:
 
 ```bash
 scp compose.prod.yaml Caddyfile deploy.sh root@YOUR_SERVER:/opt/tentura/
+scp hasura/metadata.json root@YOUR_SERVER:/opt/tentura/hasura/metadata.json
+scp scripts/hasura_apply_metadata.sh root@YOUR_SERVER:/opt/tentura/scripts/hasura_apply_metadata.sh
 ssh root@YOUR_SERVER "chmod +x /opt/tentura/deploy.sh"
 ```
+
+Create `hasura/` and `scripts/` on the server first if needed (`mkdir -p /opt/tentura/hasura /opt/tentura/scripts`). CI copies the metadata files on every deploy; bootstrap still needs them before the first CI run.
 
 ---
 
@@ -205,13 +209,24 @@ The Tentura server runs all 104 SQL migrations on startup. This creates the full
 
 ---
 
-## 7. Apply Hasura metadata
+## 7. Hasura metadata (automatic on deploy)
 
-Run once after first start (and after any schema changes):
+Every `deploy.sh` run (CI or manual) waits for Tentura and Hasura healthchecks (`docker compose up -d --wait`), then applies [`hasura/metadata.json`](../hasura/metadata.json) via the internal Docker network using [`scripts/hasura_apply_metadata.sh`](../scripts/hasura_apply_metadata.sh).
+
+**CI** copies `hasura/metadata.json` and the apply script to `/opt/tentura` before invoking `deploy.sh`. **Bootstrap** must seed those files once (see §1).
+
+`replace_metadata` is a **full replace** — git `hasura/metadata.json` is the source of truth. Console-only edits (common when staging override enables the Hasura console) are wiped on the next deploy.
+
+**Break-glass manual apply** (from a machine that can reach Hasura):
 
 ```bash
-# from local dev machine
-HASURA_URL=https://dev.tentura.io/api/v1 \
+# Internal (on VPS, after stack is up):
+HASURA_URL=http://hasura:8080 \
+HASURA_GRAPHQL_ADMIN_SECRET=<your-admin-secret> \
+bash /opt/tentura/scripts/hasura_apply_metadata.sh
+
+# Or from local dev against a public endpoint (path must be the Metadata API root):
+HASURA_URL=https://dev.tentura.io/api \
 HASURA_GRAPHQL_ADMIN_SECRET=<your-admin-secret> \
 bash scripts/hasura_apply_metadata.sh
 ```
@@ -335,4 +350,6 @@ curl https://dev.tentura.io/api/v2/graphql \
 - **Do not enable synchronous replication** (`synchronous_standby_names`) without migrating realtime off LISTEN/NOTIFY first. NOTIFY holds a cluster-global lock across each notifying commit's WAL flush; with a synchronous standby that hold grows to the replication RTT and serializes practically all writes (nearly every write transaction fires realtime triggers). Adopt the transactional-outbox fallback (`docs/archive/plans/issue-73-full-interactivity-plan.md`, section 16 item 7) before adding a synchronous standby. Async replicas are unaffected.
 - **Caddy TLS** auto-provisions via ACME on first start. Port 80 must be open for the HTTP-01 challenge.
 - **After `.env` changes**, recreate only the affected container: `docker compose -f compose.prod.yaml up -d --force-recreate tentura`.
-- **Hasura remote schema cache**: if you redeploy the server with changed GraphQL mutations, reload the remote schema: `curl -X POST http://hasura:8080/v1/metadata -H "X-Hasura-Admin-Secret: $SECRET" -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}'`.
+- **Hasura metadata deploy**: `deploy.sh` fails if `hasura/metadata.json` or the apply script are missing, if `docker compose up --wait` times out (migrations/crashloop), or if metadata is inconsistent with Postgres (migration/metadata mismatch). Keep healthchecks and `depends_on: service_healthy` in `compose.prod.yaml`; overrides should be additive only — do not drop healthy dependencies.
+- **Hasura console edits** on staging (override enables console) are overwritten every deploy — edit `hasura/metadata.json` in git instead.
+- **Hasura remote schema cache**: deploy applies metadata (including `reload_remote_schema` for `tentura`). For ad-hoc reload without a full deploy: `curl -X POST http://hasura:8080/v1/metadata -H "X-Hasura-Admin-Secret: $SECRET" -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}'` (from a container on the `backend` network).

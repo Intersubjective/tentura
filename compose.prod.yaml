@@ -17,8 +17,10 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - hasura
-      - tentura
+      hasura:
+        condition: service_healthy
+      tentura:
+        condition: service_healthy
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web:/srv/web:ro
@@ -49,10 +51,18 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - tentura
-      - postgres
+      postgres:
+        condition: service_healthy
+      tentura:
+        condition: service_healthy
     networks:
       - backend
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8080/healthz || exit 1']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
     environment:
       - HASURA_GRAPHQL_ADMIN_SECRET
       - HASURA_GRAPHQL_CORS_DOMAIN
@@ -73,11 +83,18 @@ services:
     image: vbulavintsev/postgres-tentura:v0.8.0
     # No host ports: reachable only from services on `backend`.
     depends_on:
-      - meritrank
+      meritrank:
+        condition: service_started
     networks:
       - backend
     volumes:
       - ./pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
     environment:
       - POSTGRES_PASSWORD
       - 'MERITRANK_SERVICE_URL=tcp://meritrank:8080'
@@ -112,10 +129,17 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - frontend
       - backend
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:2080/health || exit 1']
+      interval: 3s
+      timeout: 3s
+      retries: 60
+      start_period: 60s
     environment:
       - 'DEBUG_MODE=false'
       - ENVIRONMENT

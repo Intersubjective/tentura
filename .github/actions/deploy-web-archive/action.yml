@@ -46,6 +46,23 @@ runs:
               deploy@"$VPS_HOST":/tmp/
         fi
 
+        # Hasura metadata (applied by deploy.sh after compose --wait).
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            deploy@"$VPS_HOST" \
+            "mkdir -p /opt/tentura/hasura /opt/tentura/scripts"
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            hasura/metadata.json \
+            deploy@"$VPS_HOST":/opt/tentura/hasura/metadata.json
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            scripts/hasura_apply_metadata.sh \
+            deploy@"$VPS_HOST":/opt/tentura/scripts/hasura_apply_metadata.sh
+
     - name: Deploy to VPS
       shell: bash
       env:
