@@ -1,4 +1,5 @@
 
+import 'package:drift/drift.dart' show QueryRow;
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
@@ -83,13 +84,14 @@ class ImageRepository implements ImageRepositoryPort {
     } catch (_) {
       // The remote write failed or may have partially written; never leave
       // an orphan row pointing at an unknown/partial object.
-      await _compensateFailedPut(imageId: imageId, authorId: authorId);
+      await compensateOrphanedUpload(imageId: imageId, authorId: authorId);
       rethrow;
     }
     return imageId;
   }
 
-  Future<void> _compensateFailedPut({
+  @override
+  Future<void> compensateOrphanedUpload({
     required String imageId,
     required String authorId,
   }) async {
@@ -100,7 +102,7 @@ class ImageRepository implements ImageRepositoryPort {
       });
     } catch (compensationError, compensationStackTrace) {
       _logger.severe(
-        'ImageRepository.put compensation failed for image $imageId',
+        'ImageRepository compensation failed for image $imageId',
         compensationError,
         compensationStackTrace,
       );
@@ -147,10 +149,30 @@ class ImageRepository implements ImageRepositoryPort {
   );
 
   @override
-  Future<void> deleteAllOf({required String userId}) =>
-      _remoteStorageService.removeObject(
-        '$kImagesPath/$userId',
-      );
+  Future<void> deleteAllOf({required String userId}) => _database.transaction(
+    () async {
+      for (final imageId in await listOwnedIds(authorId: userId)) {
+        await _imageObjectGc.enqueue(imageId: imageId, authorId: userId);
+        await deleteOwnedRow(imageId: imageId, authorId: userId);
+      }
+    },
+  );
+
+  @override
+  Future<List<String>> listOwnedIds({required String authorId}) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT id FROM public.image WHERE author_id = $1',
+          variables: [Variable<String>(authorId)],
+        )
+        .get();
+    return [for (final row in rows) _readUuid(row, 'id')];
+  }
+
+  static String _readUuid(QueryRow row, String column) {
+    final value = row.data[column];
+    return value is UuidValue ? value.uuid : value.toString();
+  }
 
   static String _getImagePath({
     required String authorId,

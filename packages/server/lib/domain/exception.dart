@@ -278,6 +278,64 @@ final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
       };
 }
 
+/// `primaryNeedSlug` is not one of the 37 allowed capability slugs.
+final class BeaconPrimaryNeedInvalidException extends ExceptionBase {
+  const BeaconPrimaryNeedInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconPrimaryNeedInvalid,
+        ),
+        description: description ?? 'Unknown capability slug',
+      );
+}
+
+/// A non-null `primaryNeedSlug` is absent from the submitted `needs`, or the
+/// primary is null while `needs` is non-empty.
+final class BeaconPrimaryNeedNotInNeedsException extends ExceptionBase {
+  const BeaconPrimaryNeedNotInNeedsException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconPrimaryNeedNotInNeeds,
+        ),
+        description:
+            description ?? 'Primary capability must be one of the needs',
+      );
+}
+
+/// A media id in `beaconSetMedia` is outside the attached-or-staged set.
+final class BeaconImageNotAttachedException extends ExceptionBase {
+  const BeaconImageNotAttachedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconImageNotAttached,
+        ),
+        description: description ?? 'Image is not attached to this request',
+      );
+}
+
+/// The requested cover id is outside the desired media set.
+final class BeaconCoverNotAttachedException extends ExceptionBase {
+  const BeaconCoverNotAttachedException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconCoverNotAttached,
+        ),
+        description: description ?? 'Cover image is not part of this update',
+      );
+}
+
+/// Duplicate media ids, an over-cap list, an unknown `coverSource`, or a
+/// null/non-null cover mismatch with the desired image list.
+final class BeaconMediaInvalidException extends ExceptionBase {
+  const BeaconMediaInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconMediaInvalid,
+        ),
+        description: description ?? 'Invalid media update',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

@@ -30,4 +30,15 @@ abstract class ImageRepositoryPort {
   });
 
   Future<void> deleteAllOf({required String userId});
+
+  /// Ids of every image row owned by [authorId] (no ordering guarantee).
+  Future<List<String>> listOwnedIds({required String authorId});
+
+  /// Enqueues [imageId] for object GC and deletes its owned row, atomically,
+  /// to clean up an upload that will never be attached (failed stage/attach
+  /// transaction, create/fork cleanup). Never touches remote storage itself.
+  Future<void> compensateOrphanedUpload({
+    required String imageId,
+    required String authorId,
+  });
 }

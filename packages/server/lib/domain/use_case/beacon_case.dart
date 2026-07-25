@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/env.dart';
@@ -16,6 +17,7 @@ import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -26,10 +28,15 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../entity/beacon_entity.dart';
 import '../entity/gql_public/beacon_close_review_result.dart';
+import '../entity/gql_public/beacon_image_added_result.dart';
+import '../entity/gql_public/beacon_image_staged_result.dart';
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
 
 const kMaxImagesPerBeacon = 10;
+
+/// Stage rows older than this are eligible for the expiry sweep (§3.3).
+const kBeaconStageExpiry = Duration(hours: 24);
 
 const _kMaxIconCodeLength = 64;
 
@@ -67,6 +74,44 @@ Set<String>? _normalizeNeeds(String? raw) {
   return slugs.isEmpty ? null : slugs;
 }
 
+/// Resolves the strict/compatibility `primaryNeedSlug` (N1-N3, §3.5).
+///
+/// When [primaryNeedSlugProvided] is false (legacy caller omitted the
+/// argument), derives canonical-first from [needs]. Otherwise validates
+/// strictly: an unknown slug throws [BeaconPrimaryNeedInvalidException]; a
+/// non-null primary absent from [needs], or a null primary while [needs] is
+/// non-empty, throws [BeaconPrimaryNeedNotInNeedsException].
+String? _resolvePrimaryNeedSlug({
+  required Set<String>? needs,
+  required String? primaryNeedSlug,
+  required bool primaryNeedSlugProvided,
+}) {
+  final needsSet = needs ?? const <String>{};
+  if (!primaryNeedSlugProvided) {
+    return canonicalFirstCapabilitySlug(needsSet);
+  }
+  if (primaryNeedSlug == null) {
+    if (needsSet.isNotEmpty) {
+      throw const BeaconPrimaryNeedNotInNeedsException();
+    }
+    return null;
+  }
+  if (!kAllowedCapabilitySlugs.contains(primaryNeedSlug)) {
+    throw const BeaconPrimaryNeedInvalidException();
+  }
+  if (!needsSet.contains(primaryNeedSlug)) {
+    throw const BeaconPrimaryNeedNotInNeedsException();
+  }
+  return primaryNeedSlug;
+}
+
+BeaconCoverSource _parseCoverSourceStrict(int wireValue) {
+  for (final source in BeaconCoverSource.values) {
+    if (source.wireValue == wireValue) return source;
+  }
+  throw const BeaconMediaInvalidException();
+}
+
 bool _isValidIconCodeKey(String s) =>
     RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(s) && s.length <= _kMaxIconCodeLength;
 
@@ -90,6 +135,7 @@ final class BeaconCase extends UseCaseBase {
     Logger logger,
     BeaconRepositoryPort beaconRepository,
     ImageRepositoryPort imageRepository,
+    ImageObjectGcPort imageObjectGc,
     TaskRepositoryPort tasksRepository,
     CoordinationRepositoryPort coordinationRepository,
     HelpOfferRepositoryPort helpOfferRepository,
@@ -99,6 +145,7 @@ final class BeaconCase extends UseCaseBase {
   ) async => BeaconCase(
     beaconRepository,
     imageRepository,
+    imageObjectGc,
     tasksRepository,
     coordinationRepository,
     helpOfferRepository,
@@ -112,6 +159,7 @@ final class BeaconCase extends UseCaseBase {
   BeaconCase(
     this._beaconRepository,
     this._imageRepository,
+    this._imageObjectGc,
     this._tasksRepository,
     this._coordinationRepository,
     this._helpOfferRepository,
@@ -126,6 +174,8 @@ final class BeaconCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
 
   final ImageRepositoryPort _imageRepository;
+
+  final ImageObjectGcPort _imageObjectGc;
 
   final TaskRepositoryPort _tasksRepository;
 
@@ -154,6 +204,16 @@ final class BeaconCase extends UseCaseBase {
     }
   }
 
+  Future<void> _scheduleHashTaskNonFatal(String imageId) async {
+    try {
+      await _tasksRepository.schedule(
+        TaskEntity(details: TaskCalculateImageHashDetails(imageId: imageId)),
+      );
+    } catch (e, st) {
+      logger.warning('failed to schedule hash task for image $imageId', e, st);
+    }
+  }
+
   //
   Future<BeaconEntity> create({
     required String userId,
@@ -162,6 +222,8 @@ final class BeaconCase extends UseCaseBase {
     String? context,
     String? tags,
     String? needs,
+    String? primaryNeedSlug,
+    bool primaryNeedSlugProvided = false,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -172,42 +234,57 @@ final class BeaconCase extends UseCaseBase {
     String? addressLabel,
   }) async {
     await _enforceCreateRateLimit(userId);
+    final normalizedNeeds = _normalizeNeeds(needs);
+    final resolvedPrimary = _resolvePrimaryNeedSlug(
+      needs: normalizedNeeds,
+      primaryNeedSlug: primaryNeedSlug,
+      primaryNeedSlugProvided: primaryNeedSlugProvided,
+    );
     final imageIds = <String>[];
 
-    if (imageBytes != null) {
-      final imageId = await _imageRepository.put(
+    try {
+      if (imageBytes != null) {
+        final imageId = await _imageRepository.put(
+          authorId: userId,
+          bytes: imageBytes,
+        );
+        imageIds.add(imageId);
+        await _tasksRepository.schedule(
+          TaskEntity(
+            details: TaskCalculateImageHashDetails(imageId: imageId),
+          ),
+        );
+      }
+
+      final normalizedIcon = _normalizeIconCode(iconCode);
+      final desc = _normalizeBeaconDescription(description);
+      return await _beaconRepository.createBeacon(
         authorId: userId,
-        bytes: imageBytes,
+        title: title,
+        imageIds: imageIds.isEmpty ? null : imageIds,
+        context: (context?.isEmpty ?? true) ? null : context,
+        description: desc,
+        latitude: coordinates?.lat,
+        longitude: coordinates?.long,
+        tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+        needs: normalizedNeeds,
+        primaryNeedSlug: resolvedPrimary,
+        startAt: startAt,
+        endAt: endAt,
+        iconCode: normalizedIcon,
+        iconBackground: normalizedIcon == null ? null : iconBackground,
+        status: draft ? BeaconStatus.draft : null,
+        addressLabel: _trimOrNull(addressLabel),
       );
-      imageIds.add(imageId);
-      await _tasksRepository.schedule(
-        TaskEntity(
-          details: TaskCalculateImageHashDetails(imageId: imageId),
-        ),
-      );
+    } catch (_) {
+      for (final imageId in imageIds) {
+        await _imageRepository.compensateOrphanedUpload(
+          imageId: imageId,
+          authorId: userId,
+        );
+      }
+      rethrow;
     }
-
-    final normalizedIcon = _normalizeIconCode(iconCode);
-    final desc = _normalizeBeaconDescription(description);
-    final beacon = await _beaconRepository.createBeacon(
-      authorId: userId,
-      title: title,
-      imageIds: imageIds.isEmpty ? null : imageIds,
-      context: (context?.isEmpty ?? true) ? null : context,
-      description: desc,
-      latitude: coordinates?.lat,
-      longitude: coordinates?.long,
-      tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
-      needs: _normalizeNeeds(needs),
-      startAt: startAt,
-      endAt: endAt,
-      iconCode: normalizedIcon,
-      iconBackground: normalizedIcon == null ? null : iconBackground,
-      status: draft ? BeaconStatus.draft : null,
-      addressLabel: _trimOrNull(addressLabel),
-    );
-
-    return beacon;
   }
 
   /// Publishes a draft beacon (state 3 → 0) and emits a `beaconPublished` event.
@@ -231,6 +308,8 @@ final class BeaconCase extends UseCaseBase {
     String? context,
     String? tags,
     String? needs,
+    String? primaryNeedSlug,
+    bool primaryNeedSlugProvided = false,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -240,6 +319,12 @@ final class BeaconCase extends UseCaseBase {
   }) async {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final desc = _normalizeBeaconDescription(description);
+    final normalizedNeeds = _normalizeNeeds(needs);
+    final resolvedPrimary = _resolvePrimaryNeedSlug(
+      needs: normalizedNeeds,
+      primaryNeedSlug: primaryNeedSlug,
+      primaryNeedSlugProvided: primaryNeedSlugProvided,
+    );
     final beacon = await _beaconRepository.updateDraftBeacon(
       beaconId: beaconId,
       userId: userId,
@@ -247,7 +332,8 @@ final class BeaconCase extends UseCaseBase {
       description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
-      needs: _normalizeNeeds(needs),
+      needs: normalizedNeeds,
+      primaryNeedSlug: resolvedPrimary,
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       startAt: startAt,
@@ -268,6 +354,8 @@ final class BeaconCase extends UseCaseBase {
     String? context,
     String? tags,
     String? needs,
+    String? primaryNeedSlug,
+    bool primaryNeedSlugProvided = false,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -277,6 +365,12 @@ final class BeaconCase extends UseCaseBase {
   }) async {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final desc = _normalizeBeaconDescription(description);
+    final normalizedNeeds = _normalizeNeeds(needs);
+    final resolvedPrimary = _resolvePrimaryNeedSlug(
+      needs: normalizedNeeds,
+      primaryNeedSlug: primaryNeedSlug,
+      primaryNeedSlugProvided: primaryNeedSlugProvided,
+    );
     return _beaconRepository.updateBeacon(
       beaconId: beaconId,
       userId: userId,
@@ -284,7 +378,8 @@ final class BeaconCase extends UseCaseBase {
       description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
-      needs: _normalizeNeeds(needs),
+      needs: normalizedNeeds,
+      primaryNeedSlug: resolvedPrimary,
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       startAt: startAt,
@@ -295,80 +390,268 @@ final class BeaconCase extends UseCaseBase {
     );
   }
 
-  //
-  Future<BeaconEntity> addImage({
+  /// Legacy immediate-attach bridge (§3.3). Hardened: precheck owner before
+  /// upload, re-authorize and cap-check under the beacon lock, and
+  /// post-rollback compensation.
+  Future<BeaconImageAddedResult> addImage({
     required String beaconId,
     required String userId,
     required Stream<Uint8List> imageBytes,
   }) async {
-    final currentCount = await _beaconRepository.getImageCount(beaconId);
-    if (currentCount >= kMaxImagesPerBeacon) {
-      throw const BeaconCreateException(
-        description: 'Maximum images per request reached',
-      );
-    }
-
-    final imageId = await _imageRepository.put(
-      authorId: userId,
-      bytes: imageBytes,
-    );
-    await _tasksRepository.schedule(
-      TaskEntity(
-        details: TaskCalculateImageHashDetails(imageId: imageId),
-      ),
-    );
-
-    await _beaconRepository.addImage(
-      beaconId: beaconId,
-      imageId: imageId,
-      position: currentCount,
-    );
-
-    return _beaconRepository.getBeaconById(
-      beaconId: beaconId,
-      filterByUserId: userId,
-    );
-  }
-
-  //
-  Future<bool> removeImage({
-    required String beaconId,
-    required String imageId,
-    required String userId,
-  }) async {
-    final beacon = await _beaconRepository.getBeaconById(
-      beaconId: beaconId,
-      filterByUserId: userId,
-    );
-
-    // Deleting the image row cascades to beacon_image via FK ON DELETE CASCADE
-    await _imageRepository.delete(
-      authorId: beacon.author.id,
-      imageId: imageId,
-    );
-
-    return true;
-  }
-
-  //
-  Future<bool> reorderImages({
-    required String beaconId,
-    required String userId,
-    required List<String> imageIds,
-  }) async {
-    // Verify ownership
     await _beaconRepository.getBeaconById(
       beaconId: beaconId,
       filterByUserId: userId,
     );
 
-    await _beaconRepository.reorderImages(
-      beaconId: beaconId,
-      imageIds: imageIds,
+    final imageId = await _imageRepository.put(
+      authorId: userId,
+      bytes: imageBytes,
     );
 
-    return true;
+    final BeaconEntity beacon;
+    try {
+      beacon = await _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (locked) async {
+          if (locked.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+            );
+          }
+          final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
+          if (snapshot.combinedCount >= kMaxImagesPerBeacon) {
+            throw const BeaconCreateException(
+              description: 'Maximum images per request reached',
+            );
+          }
+          await _beaconRepository.addImage(
+            beaconId: beaconId,
+            imageId: imageId,
+            position: snapshot.attachedImageIds.length,
+          );
+          if (locked.coverImageId == null) {
+            await _beaconRepository.setCover(
+              beaconId: beaconId,
+              coverImageId: imageId,
+              coverSource: locked.coverSource,
+            );
+          }
+          return _beaconRepository.getBeaconById(
+            beaconId: beaconId,
+            filterByUserId: userId,
+          );
+        },
+      );
+    } catch (_) {
+      await _imageRepository.compensateOrphanedUpload(
+        imageId: imageId,
+        authorId: userId,
+      );
+      rethrow;
+    }
+
+    await _scheduleHashTaskNonFatal(imageId);
+
+    return BeaconImageAddedResult(imageId: imageId, beacon: beacon);
   }
+
+  /// Uploads an invisible stage image (§3.3). No reader of the beacon can see
+  /// the stage until [beaconSetMedia] promotes it.
+  Future<BeaconImageStagedResult> beaconStageImage({
+    required String beaconId,
+    required String userId,
+    required Stream<Uint8List> imageBytes,
+  }) async {
+    await _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
+
+    final imageId = await _imageRepository.put(
+      authorId: userId,
+      bytes: imageBytes,
+    );
+
+    try {
+      await _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (locked) async {
+          if (locked.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+            );
+          }
+          final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
+          if (snapshot.combinedCount >= kMaxImagesPerBeacon) {
+            throw const BeaconCreateException(
+              description: 'Maximum images per request reached',
+            );
+          }
+          final ownedIds = await _imageRepository.listOwnedIds(
+            authorId: userId,
+          );
+          if (!ownedIds.contains(imageId)) {
+            throw IdNotFoundException(id: imageId);
+          }
+          await _beaconRepository.insertStage(
+            beaconId: beaconId,
+            imageId: imageId,
+          );
+        },
+      );
+    } catch (_) {
+      await _imageRepository.compensateOrphanedUpload(
+        imageId: imageId,
+        authorId: userId,
+      );
+      rethrow;
+    }
+
+    await _scheduleHashTaskNonFatal(imageId);
+
+    return BeaconImageStagedResult(imageId: imageId, beaconId: beaconId);
+  }
+
+  /// Reconciles attached media to exactly [imageIds], promoting any staged
+  /// ids, then sets the cover (§3.3). Strictly validated (§3.5).
+  Future<BeaconEntity> beaconSetMedia({
+    required String beaconId,
+    required String userId,
+    required List<String> imageIds,
+    required int coverSource,
+    String? coverImageId,
+  }) => _beaconRepository.runInBeaconStateTransaction(
+    beaconId: beaconId,
+    userId: userId,
+    fn: (locked) async {
+      if (locked.author.id != userId) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+        );
+      }
+
+      final desired = imageIds.toSet();
+      if (desired.length != imageIds.length ||
+          imageIds.length > kMaxImagesPerBeacon) {
+        throw const BeaconMediaInvalidException();
+      }
+
+      final resolvedCoverSource = _parseCoverSourceStrict(coverSource);
+
+      final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
+      final available = {
+        ...snapshot.attachedImageIds,
+        ...snapshot.stagedImageIds,
+      };
+      for (final id in desired) {
+        if (!available.contains(id)) {
+          throw const BeaconImageNotAttachedException();
+        }
+      }
+
+      if (coverImageId == null) {
+        if (imageIds.isNotEmpty) throw const BeaconMediaInvalidException();
+      } else {
+        if (imageIds.isEmpty) throw const BeaconMediaInvalidException();
+        if (!desired.contains(coverImageId)) {
+          throw const BeaconCoverNotAttachedException();
+        }
+      }
+
+      final removedIds = await _beaconRepository.replaceMedia(
+        beaconId: beaconId,
+        imageIds: imageIds,
+        coverImageId: coverImageId,
+        coverSource: resolvedCoverSource,
+      );
+      for (final removedId in removedIds) {
+        await _imageObjectGc.enqueue(imageId: removedId, authorId: userId);
+        await _imageRepository.deleteOwnedRow(
+          imageId: removedId,
+          authorId: userId,
+        );
+      }
+
+      return _beaconRepository.getBeaconById(
+        beaconId: beaconId,
+        filterByUserId: userId,
+      );
+    },
+  );
+
+  /// Retained and hardened for legacy clients; the new save path never calls
+  /// this. Enqueues GC and deletes the actor-owned image row in the same
+  /// transaction, and re-selects the lowest remaining cover when needed.
+  Future<bool> removeImage({
+    required String beaconId,
+    required String imageId,
+    required String userId,
+  }) => _beaconRepository.runInBeaconStateTransaction(
+    beaconId: beaconId,
+    userId: userId,
+    fn: (locked) async {
+      if (locked.author.id != userId) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+        );
+      }
+      final attachedIds = [for (final image in locked.images) image.id];
+      if (!attachedIds.contains(imageId)) {
+        throw const BeaconImageNotAttachedException();
+      }
+
+      await _imageObjectGc.enqueue(imageId: imageId, authorId: userId);
+      await _imageRepository.deleteOwnedRow(
+        imageId: imageId,
+        authorId: userId,
+      );
+
+      if (locked.coverImageId == imageId) {
+        final remaining = attachedIds.where((id) => id != imageId);
+        await _beaconRepository.setCover(
+          beaconId: beaconId,
+          coverImageId: remaining.isEmpty ? null : remaining.first,
+          coverSource: locked.coverSource,
+        );
+      }
+
+      return true;
+    },
+  );
+
+  /// Retained and hardened for legacy clients; the new save path never calls
+  /// this. Requires the supplied set to exactly equal the attached set.
+  Future<bool> reorderImages({
+    required String beaconId,
+    required String userId,
+    required List<String> imageIds,
+  }) => _beaconRepository.runInBeaconStateTransaction(
+    beaconId: beaconId,
+    userId: userId,
+    fn: (locked) async {
+      if (locked.author.id != userId) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+        );
+      }
+      final attachedIds = {for (final image in locked.images) image.id};
+      final desired = imageIds.toSet();
+      if (desired.length != imageIds.length ||
+          desired.length != attachedIds.length ||
+          !attachedIds.containsAll(desired)) {
+        throw const BeaconMediaInvalidException();
+      }
+
+      await _beaconRepository.reorderImages(
+        beaconId: beaconId,
+        imageIds: imageIds,
+      );
+
+      return true;
+    },
+  );
 
   /// Creates a DRAFT beacon from a visible source, copying reusable content only.
   Future<BeaconEntity> fork({
@@ -384,40 +667,55 @@ final class BeaconCase extends UseCaseBase {
     );
 
     final imageIds = <String>[];
-    if (source.author.id == userId && source.images.isNotEmpty) {
-      for (final image in source.images) {
-        final bytes = await _imageRepository.get(id: image.id);
-        final newId = await _imageRepository.put(
+    String? mappedCoverImageId;
+    try {
+      if (source.author.id == userId && source.images.isNotEmpty) {
+        for (final image in source.images) {
+          final bytes = await _imageRepository.get(id: image.id);
+          final newId = await _imageRepository.put(
+            authorId: userId,
+            bytes: Stream.value(bytes),
+          );
+          imageIds.add(newId);
+          if (image.id == source.coverImageId) {
+            mappedCoverImageId = newId;
+          }
+          await _tasksRepository.schedule(
+            TaskEntity(
+              details: TaskCalculateImageHashDetails(imageId: newId),
+            ),
+          );
+        }
+      }
+
+      return await _beaconRepository.createBeacon(
+        authorId: userId,
+        title: source.title,
+        description: source.description,
+        context: source.context,
+        latitude: source.coordinates?.lat,
+        longitude: source.coordinates?.long,
+        tags: source.tags,
+        needs: source.needs,
+        iconCode: source.iconCode,
+        iconBackground: source.iconBackground,
+        primaryNeedSlug: source.primaryNeedSlug,
+        coverImageId: mappedCoverImageId,
+        coverSource: source.coverSource,
+        status: BeaconStatus.draft,
+        imageIds: imageIds.isEmpty ? null : imageIds,
+        lineageParentBeaconId: source.id,
+        lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
+      );
+    } catch (_) {
+      for (final imageId in imageIds) {
+        await _imageRepository.compensateOrphanedUpload(
+          imageId: imageId,
           authorId: userId,
-          bytes: Stream.value(bytes),
-        );
-        imageIds.add(newId);
-        await _tasksRepository.schedule(
-          TaskEntity(
-            details: TaskCalculateImageHashDetails(imageId: newId),
-          ),
         );
       }
+      rethrow;
     }
-
-    final draft = await _beaconRepository.createBeacon(
-      authorId: userId,
-      title: source.title,
-      description: source.description,
-      context: source.context,
-      latitude: source.coordinates?.lat,
-      longitude: source.coordinates?.long,
-      tags: source.tags,
-      needs: source.needs,
-      iconCode: source.iconCode,
-      iconBackground: source.iconBackground,
-      status: BeaconStatus.draft,
-      imageIds: imageIds.isEmpty ? null : imageIds,
-      lineageParentBeaconId: source.id,
-      lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
-    );
-
-    return draft;
   }
 
   /// Author cancels an open beacon with zero acknowledged committers (state 1).
@@ -506,9 +804,13 @@ final class BeaconCase extends UseCaseBase {
 
         if (beacon.status == BeaconStatus.draft) {
           for (final image in beacon.images) {
-            await _imageRepository.delete(
-              authorId: beacon.author.id,
+            await _imageObjectGc.enqueue(
               imageId: image.id,
+              authorId: beacon.author.id,
+            );
+            await _imageRepository.deleteOwnedRow(
+              imageId: image.id,
+              authorId: beacon.author.id,
             );
           }
           await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
@@ -562,5 +864,44 @@ final class BeaconCase extends UseCaseBase {
     );
 
     return _attention!.runAction(actorUserId: userId, action: mutate);
+  }
+
+  /// Stage-expiry sweep (§3.3): locks each candidate's beacon, rechecks age
+  /// and presence, enqueues GC, and deletes the owned image row. Never
+  /// expires an attachment.
+  Future<int> expireStaleStages({
+    required DateTime now,
+    int limit = 100,
+  }) async {
+    final olderThan = now.subtract(kBeaconStageExpiry);
+    final candidates = await _beaconRepository.staleStages(
+      olderThan: olderThan,
+      limit: limit,
+    );
+    var expired = 0;
+    for (final stage in candidates) {
+      final handled = await _beaconRepository.runInBeaconStateTransaction(
+        beaconId: stage.beaconId,
+        userId: stage.authorId,
+        fn: (locked) async {
+          final snapshot = await _beaconRepository.getMediaSnapshot(
+            stage.beaconId,
+          );
+          if (!snapshot.stagedImageIds.contains(stage.imageId)) return false;
+          await _beaconRepository.deleteStage(imageId: stage.imageId);
+          await _imageObjectGc.enqueue(
+            imageId: stage.imageId,
+            authorId: stage.authorId,
+          );
+          await _imageRepository.deleteOwnedRow(
+            imageId: stage.imageId,
+            authorId: stage.authorId,
+          );
+          return true;
+        },
+      );
+      if (handled) expired++;
+    }
+    return expired;
   }
 }

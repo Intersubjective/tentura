@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
@@ -110,11 +111,24 @@ class _TrackingImageRepo extends Fake implements ImageRepositoryPort {
   final deletedImages = <({String authorId, String imageId})>[];
 
   @override
-  Future<void> delete({
-    required String authorId,
+  Future<int> deleteOwnedRow({
     required String imageId,
+    required String authorId,
   }) async {
     deletedImages.add((authorId: authorId, imageId: imageId));
+    return 1;
+  }
+}
+
+class _TrackingImageObjectGc extends Fake implements ImageObjectGcPort {
+  final enqueued = <({String authorId, String imageId})>[];
+
+  @override
+  Future<void> enqueue({
+    required String imageId,
+    required String authorId,
+  }) async {
+    enqueued.add((authorId: authorId, imageId: imageId));
   }
 }
 
@@ -126,6 +140,7 @@ void main() {
   late _TransactionBeaconRepo beaconRepo;
   late _StubCoordinationRepo coordinationRepo;
   late _TrackingImageRepo imageRepo;
+  late _TrackingImageObjectGc imageObjectGc;
   late BeaconCase case_;
   final now = DateTime.utc(2026, 6, 25);
 
@@ -147,11 +162,13 @@ void main() {
     beaconRepo = _TransactionBeaconRepo(beacon(status: BeaconStatus.open));
     coordinationRepo = _StubCoordinationRepo();
     imageRepo = _TrackingImageRepo();
+    imageObjectGc = _TrackingImageObjectGc();
     coordinationRepo.onCoordinationResponseTypeByOfferUserId = () async => {};
     final attention = TestAttentionHarness();
     case_ = BeaconCase(
       beaconRepo,
       imageRepo,
+      imageObjectGc,
       _FakeTaskRepo(),
       coordinationRepo,
       _FakeHelpOfferRepo(),
@@ -178,6 +195,9 @@ void main() {
 
     expect(result, isTrue);
     expect(imageRepo.deletedImages, [
+      (authorId: 'Uauth', imageId: 'Img1'),
+    ]);
+    expect(imageObjectGc.enqueued, [
       (authorId: 'Uauth', imageId: 'Img1'),
     ]);
     expect(beaconRepo.deleteBeaconByIdCalls, 1);

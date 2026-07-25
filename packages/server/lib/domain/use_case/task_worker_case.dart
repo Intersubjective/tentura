@@ -6,14 +6,17 @@ import 'package:blurhash_dart/blurhash_dart.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -25,6 +28,8 @@ final class TaskWorkerCase extends UseCaseBase {
     Env env,
     Logger logger,
     ImageRepositoryPort imageRepository,
+    ImageObjectGcPort imageObjectGc,
+    BeaconCase beaconCase,
     TaskRepositoryPort tasksRepository,
     EmailDigestCase emailDigestCase,
     NotificationOutboxRepositoryPort notificationOutbox,
@@ -37,6 +42,8 @@ final class TaskWorkerCase extends UseCaseBase {
       tasksRepository,
       emailDigestCase,
       notificationOutbox,
+      imageObjectGc: imageObjectGc,
+      beaconCase: beaconCase,
       attentionExpirySweep: attentionExpirySweep,
       attentionChannelDelivery: attentionChannelDelivery,
       trustMaintenance: trustMaintenance,
@@ -50,12 +57,16 @@ final class TaskWorkerCase extends UseCaseBase {
     this._tasksRepository,
     this._emailDigestCase,
     this._notificationOutbox, {
+    ImageObjectGcPort? imageObjectGc,
+    BeaconCase? beaconCase,
     AttentionExpirySweepCase? attentionExpirySweep,
     AttentionChannelDeliveryCase? attentionChannelDelivery,
     TrustMaintenancePort? trustMaintenance,
     required super.env,
     required super.logger,
-  }) : _attentionExpirySweep = attentionExpirySweep,
+  }) : _imageObjectGc = imageObjectGc,
+       _beaconCase = beaconCase,
+       _attentionExpirySweep = attentionExpirySweep,
        _attentionChannelDelivery = attentionChannelDelivery,
        _trustMaintenance = trustMaintenance;
 
@@ -67,9 +78,14 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final NotificationOutboxRepositoryPort _notificationOutbox;
 
+  final ImageObjectGcPort? _imageObjectGc;
+  final BeaconCase? _beaconCase;
   final AttentionExpirySweepCase? _attentionExpirySweep;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
   final TrustMaintenancePort? _trustMaintenance;
+
+  /// Per-process identity for `image_object_gc` lease ownership (§3.4).
+  final _gcLeaseOwner = generateId('W');
 
   final _runnerCompleter = Completer<void>();
 
@@ -80,6 +96,8 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastImageGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastStageExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     () async {
@@ -155,6 +173,49 @@ final class TaskWorkerCase extends UseCaseBase {
         const Duration(days: 30),
       );
     },
+    // Image object GC (§3.4): removes remote objects for rows already
+    // deleted from the database, only after their owning transaction
+    // committed.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastImageGcSweep) < const Duration(seconds: 30)) {
+        return;
+      }
+      _lastImageGcSweep = now;
+      final leases = await _imageObjectGc!.claim(
+        leaseOwner: _gcLeaseOwner,
+        now: now,
+      );
+      for (final lease in leases) {
+        try {
+          await _imageObjectGc!.removeObject(
+            imageId: lease.imageId,
+            authorId: lease.authorId,
+          );
+          await _imageObjectGc!.complete(
+            imageId: lease.imageId,
+            leaseOwner: _gcLeaseOwner,
+          );
+        } catch (e) {
+          await _imageObjectGc!.fail(
+            imageId: lease.imageId,
+            leaseOwner: _gcLeaseOwner,
+            retryAt: now.add(_gcRetryBackoff(lease.attempts)),
+            error: e.toString(),
+          );
+        }
+      }
+    },
+    // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastStageExpirySweep) <
+          const Duration(minutes: 5)) {
+        return;
+      }
+      _lastStageExpirySweep = now;
+      await _beaconCase!.expireStaleStages(now: now);
+    },
   ];
 
   bool _canRun = true;
@@ -176,6 +237,13 @@ final class TaskWorkerCase extends UseCaseBase {
       }
     }
     _runnerCompleter.complete();
+  }
+
+  /// Exponential backoff capped at 16 minutes, keyed by the post-claim
+  /// attempt count returned by [ImageObjectGcPort.claim].
+  static Duration _gcRetryBackoff(int attempts) {
+    final capped = attempts < 1 ? 1 : (attempts > 6 ? 6 : attempts);
+    return Duration(seconds: 30 * (1 << (capped - 1)));
   }
 
   static ({String hash, int height, int width}) processImage(

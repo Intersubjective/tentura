@@ -79,5 +79,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     'iconCode': iconCode,
     'iconBackground': iconBackground,
     'addressLabel': addressLabel,
+    'primaryNeedSlug': primaryNeedSlug,
+    'coverImageId': coverImageId,
+    'coverSource': coverSource.wireValue,
   };
 }

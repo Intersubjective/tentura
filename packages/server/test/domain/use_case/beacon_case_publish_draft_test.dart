@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
@@ -40,6 +41,8 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
 
 class _FakeImageRepo extends Fake implements ImageRepositoryPort {}
 
+class _FakeImageObjectGc extends Fake implements ImageObjectGcPort {}
+
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
 class _FakeCoordinationRepo extends Fake implements CoordinationRepositoryPort {}
@@ -65,6 +68,7 @@ void main() {
     case_ = BeaconCase(
       beaconRepo,
       _FakeImageRepo(),
+      _FakeImageObjectGc(),
       _FakeTaskRepo(),
       _FakeCoordinationRepo(),
       _FakeHelpOfferRepo(),

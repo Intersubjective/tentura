@@ -512,6 +512,29 @@ class MockImageRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<String>> listOwnedIds({required String? authorId}) =>
+      (super.noSuchMethod(
+            Invocation.method(#listOwnedIds, [], {#authorId: authorId}),
+            returnValue: _i5.Future<List<String>>.value(<String>[]),
+          )
+          as _i5.Future<List<String>>);
+
+  @override
+  _i5.Future<void> compensateOrphanedUpload({
+    required String? imageId,
+    required String? authorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#compensateOrphanedUpload, [], {
+              #imageId: imageId,
+              #authorId: authorId,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
 }
 
 /// A class which mocks [TaskRepositoryPort].

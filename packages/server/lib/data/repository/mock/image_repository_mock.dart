@@ -53,4 +53,17 @@ class ImageRepositoryMock implements ImageRepositoryPort {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<String>> listOwnedIds({required String authorId}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> compensateOrphanedUpload({
+    required String imageId,
+    required String authorId,
+  }) {
+    throw UnimplementedError();
+  }
 }

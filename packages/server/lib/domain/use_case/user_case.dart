@@ -103,10 +103,11 @@ final class UserCase extends UseCaseBase {
     return _userRepository.getById(id);
   }
 
-  //
+  /// Enqueues GC and deletes every owned image row before the user row
+  /// itself, so no object is orphaned in remote storage (§3.4).
   Future<bool> deleteById({required String id}) async {
-    await _userRepository.deleteById(id: id);
     await _imageRepository.deleteAllOf(userId: id);
+    await _userRepository.deleteById(id: id);
     return true;
   }
 }

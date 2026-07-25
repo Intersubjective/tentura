@@ -76,6 +76,11 @@ enum BeaconExceptionCode {
   beaconCreateException,
   beaconNeedSummaryTooShort,
   beaconFactCardAlreadyPinned,
+  beaconPrimaryNeedInvalid, // 1304
+  beaconPrimaryNeedNotInNeeds, // 1305
+  beaconImageNotAttached, // 1306
+  beaconCoverNotAttached, // 1307
+  beaconMediaInvalid, // 1308
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

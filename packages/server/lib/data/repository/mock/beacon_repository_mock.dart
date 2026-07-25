@@ -1,8 +1,10 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -17,6 +19,9 @@ import 'data/beacons.dart';
 )
 class BeaconRepositoryMock implements BeaconRepositoryPort {
   static final storageById = <String, BeaconEntity>{...kBeaconById};
+
+  /// beaconId -> imageId -> stagedAt (mock outbox for `beaconStageImage`).
+  static final stagesByBeaconId = <String, Map<String, DateTime>>{};
 
   const BeaconRepositoryMock();
 
@@ -37,12 +42,23 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     String? primaryNeedSlug,
+    String? coverImageId,
+    BeaconCoverSource coverSource = BeaconCoverSource.photo,
     BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) async {
     final now = DateTime.timestamp();
+    final images = [
+      if (imageIds != null)
+        for (final imageId in imageIds)
+          ImageEntity(
+            id: imageId,
+            authorId: authorId,
+            createdAt: DateTime.utc(2020),
+          ),
+    ];
     final beacon = BeaconEntity(
       id: BeaconEntity.newId,
       title: title,
@@ -59,20 +75,14 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       coordinates: latitude != null && longitude != null
           ? Coordinates(lat: latitude, long: longitude)
           : null,
-      images: [
-        if (imageIds != null)
-          for (final imageId in imageIds)
-            ImageEntity(
-              id: imageId,
-              authorId: authorId,
-              createdAt: DateTime.utc(2020),
-            ),
-      ],
+      images: images,
       tags: tags,
       needs: needs ?? const <String>{},
       iconCode: iconCode,
       iconBackground: iconBackground,
       primaryNeedSlug: primaryNeedSlug,
+      coverImageId: images.isEmpty ? null : (coverImageId ?? images.first.id),
+      coverSource: coverSource,
       addressLabel: addressLabel,
     );
     return storageById[beacon.id] = beacon;
@@ -285,4 +295,94 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     }
     return b;
   }
+
+  @override
+  Future<BeaconMediaSnapshot> getMediaSnapshot(String beaconId) async {
+    final b = storageById[beaconId];
+    return BeaconMediaSnapshot(
+      attachedImageIds: [
+        for (final image in b?.images ?? const <ImageEntity>[]) image.id,
+      ],
+      stagedImageIds: {...?stagesByBeaconId[beaconId]?.keys},
+    );
+  }
+
+  @override
+  Future<void> insertStage({
+    required String beaconId,
+    required String imageId,
+  }) async {
+    (stagesByBeaconId[beaconId] ??= {})[imageId] = DateTime.timestamp();
+  }
+
+  @override
+  Future<void> deleteStage({required String imageId}) async {
+    for (final stages in stagesByBeaconId.values) {
+      stages.remove(imageId);
+    }
+  }
+
+  @override
+  Future<void> setCover({
+    required String beaconId,
+    required String? coverImageId,
+    required BeaconCoverSource coverSource,
+  }) async {
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(
+        coverImageId: coverImageId,
+        coverSource: coverSource,
+      );
+    }
+  }
+
+  @override
+  Future<List<String>> replaceMedia({
+    required String beaconId,
+    required List<String> imageIds,
+    required String? coverImageId,
+    required BeaconCoverSource coverSource,
+  }) async {
+    final b = storageById[beaconId];
+    if (b == null) return const [];
+    final currentAttached = {for (final image in b.images) image.id: image};
+    final staged = stagesByBeaconId[beaconId] ?? const <String, DateTime>{};
+    final desired = imageIds.toSet();
+    final removed = [
+      ...currentAttached.keys.where((id) => !desired.contains(id)),
+      ...staged.keys.where((id) => !desired.contains(id)),
+    ];
+    stagesByBeaconId[beaconId]?.removeWhere((id, _) => !desired.contains(id));
+    storageById[beaconId] = b.copyWith(
+      images: [
+        for (final imageId in imageIds)
+          currentAttached[imageId] ??
+              ImageEntity(
+                id: imageId,
+                authorId: b.author.id,
+                createdAt: DateTime.timestamp(),
+              ),
+      ],
+      coverImageId: coverImageId,
+      coverSource: coverSource,
+    );
+    return removed;
+  }
+
+  @override
+  Future<List<BeaconStageRow>> staleStages({
+    required DateTime olderThan,
+    int limit = 100,
+  }) async => [
+    for (final entry in stagesByBeaconId.entries)
+      for (final stage in entry.value.entries)
+        if (!stage.value.isAfter(olderThan))
+          BeaconStageRow(
+            beaconId: entry.key,
+            imageId: stage.key,
+            authorId: storageById[entry.key]?.author.id ?? '',
+            stagedAt: stage.value,
+          ),
+  ];
 }

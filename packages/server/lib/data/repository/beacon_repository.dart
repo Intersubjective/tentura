@@ -1,6 +1,8 @@
+import 'package:drift/drift.dart' show QueryRow;
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart'
@@ -8,6 +10,7 @@ import 'package:tentura_server/consts.dart'
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
@@ -58,13 +61,15 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     String? primaryNeedSlug,
+    String? coverImageId,
+    BeaconCoverSource coverSource = BeaconCoverSource.photo,
     BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = status ?? BeaconStatus.open;
-    final beacon = await _database.managers.beacons.createReturning(
+    var beacon = await _database.managers.beacons.createReturning(
       (o) => o(
         userId: authorId,
         title: title,
@@ -80,6 +85,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
         primaryNeedSlug: Value(primaryNeedSlug),
+        coverSource: Value(coverSource.wireValue),
         status: Value(effectiveStatus.smallintValue),
         addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
@@ -98,6 +104,17 @@ class BeaconRepository implements BeaconRepositoryPort {
             ),
         ],
       );
+      // Set cover last so the composite membership FK sees the attachment
+      // row inserted just above (same transaction, same-tx visibility).
+      final effectiveCover = coverImageId ?? imageIds.first;
+      await _database.managers.beacons
+          .filter((e) => e.id.equals(beacon.id))
+          .update(
+            (o) => o(coverImageId: Value(UuidValue.fromString(effectiveCover))),
+          );
+      beacon = await _database.managers.beacons
+          .filter((e) => e.id.equals(beacon.id))
+          .getSingle();
     }
 
     if (effectiveStatus == BeaconStatus.open) {
@@ -501,5 +518,157 @@ WHERE user_id = $1 AND created_at >= $2
     return [
       for (final bi in beaconImageRows) ?imageMap[bi.imageId],
     ];
+  }
+
+  @override
+  Future<BeaconMediaSnapshot> getMediaSnapshot(String beaconId) async {
+    final attachedRows = await _database.managers.beaconImages
+        .filter((e) => e.beaconId.id.equals(beaconId))
+        .orderBy((e) => e.position.asc())
+        .get();
+    final stagedRows = await _database.managers.beaconImageStages
+        .filter((e) => e.beaconId.id.equals(beaconId))
+        .get();
+    return BeaconMediaSnapshot(
+      attachedImageIds: [for (final row in attachedRows) row.imageId.uuid],
+      stagedImageIds: {for (final row in stagedRows) row.imageId.uuid},
+    );
+  }
+
+  @override
+  Future<void> insertStage({
+    required String beaconId,
+    required String imageId,
+  }) => _database.managers.beaconImageStages.create(
+    (o) => o(beaconId: beaconId, imageId: UuidValue.fromString(imageId)),
+  );
+
+  @override
+  Future<void> deleteStage({required String imageId}) =>
+      _database.managers.beaconImageStages
+          .filter((e) => e.imageId.id(UuidValue.fromString(imageId)))
+          .delete();
+
+  @override
+  Future<void> setCover({
+    required String beaconId,
+    required String? coverImageId,
+    required BeaconCoverSource coverSource,
+  }) => _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
+    (o) => o(
+      coverImageId: coverImageId == null
+          ? const Value(null)
+          : Value(UuidValue.fromString(coverImageId)),
+      coverSource: Value(coverSource.wireValue),
+    ),
+  );
+
+  @override
+  Future<List<String>> replaceMedia({
+    required String beaconId,
+    required List<String> imageIds,
+    required String? coverImageId,
+    required BeaconCoverSource coverSource,
+  }) async {
+    final currentAttachedIds = (await _database.managers.beaconImages
+            .filter((e) => e.beaconId.id.equals(beaconId))
+            .get())
+        .map((e) => e.imageId.uuid)
+        .toSet();
+    final currentStagedIds = (await _database.managers.beaconImageStages
+            .filter((e) => e.beaconId.id.equals(beaconId))
+            .get())
+        .map((e) => e.imageId.uuid)
+        .toSet();
+
+    final desired = imageIds.toSet();
+    final toDetach = currentAttachedIds.difference(desired);
+    final toDiscardStage = currentStagedIds.difference(desired);
+
+    for (final imageId in toDetach) {
+      await _database.managers.beaconImages
+          .filter(
+            (e) =>
+                e.beaconId.id.equals(beaconId) &
+                e.imageId.id(UuidValue.fromString(imageId)),
+          )
+          .delete();
+    }
+    for (final imageId in toDiscardStage) {
+      await _database.managers.beaconImageStages
+          .filter((e) => e.imageId.id(UuidValue.fromString(imageId)))
+          .delete();
+    }
+
+    // Deferrable `beacon_image_position_uq` permits transient duplicate
+    // positions here; it is enforced at commit.
+    for (var i = 0; i < imageIds.length; i++) {
+      final imageId = imageIds[i];
+      if (currentAttachedIds.contains(imageId)) {
+        await _database.managers.beaconImages
+            .filter(
+              (e) =>
+                  e.beaconId.id.equals(beaconId) &
+                  e.imageId.id(UuidValue.fromString(imageId)),
+            )
+            .update((o) => o(position: Value(i)));
+      } else {
+        await _database.managers.beaconImageStages
+            .filter((e) => e.imageId.id(UuidValue.fromString(imageId)))
+            .delete();
+        await _database.managers.beaconImages.create(
+          (o) => o(
+            beaconId: beaconId,
+            imageId: UuidValue.fromString(imageId),
+            position: Value(i),
+          ),
+        );
+      }
+    }
+
+    await setCover(
+      beaconId: beaconId,
+      coverImageId: coverImageId,
+      coverSource: coverSource,
+    );
+
+    return [...toDetach, ...toDiscardStage];
+  }
+
+  @override
+  Future<List<BeaconStageRow>> staleStages({
+    required DateTime olderThan,
+    int limit = 100,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT s.beacon_id, s.image_id, s.staged_at, b.user_id AS author_id
+FROM public.beacon_image_stage AS s
+JOIN public.beacon AS b ON b.id = s.beacon_id
+WHERE s.staged_at <= $1
+ORDER BY s.staged_at, s.beacon_id, s.image_id
+LIMIT $2
+''',
+          variables: [
+            Variable(TypedValue(Type.timestampTz, olderThan.toUtc())),
+            Variable(TypedValue(Type.integer, limit)),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        BeaconStageRow(
+          beaconId: row.read<String>('beacon_id'),
+          imageId: _readUuid(row, 'image_id'),
+          authorId: row.read<String>('author_id'),
+          stagedAt: row.read<PgDateTime>('staged_at').dateTime,
+        ),
+    ];
+  }
+
+  static String _readUuid(QueryRow row, String column) {
+    final value = row.data[column];
+    return value is UuidValue ? value.uuid : value.toString();
   }
 }
