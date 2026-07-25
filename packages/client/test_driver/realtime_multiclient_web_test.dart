@@ -165,6 +165,8 @@ Future<void> _runJourney({
 
   // 2. Helper offers help; the already-mounted People projection converges.
   await helper.clickTestId('inbox.offer_help');
+  await helper.setTestId('help_offer.message', 'I can help with software');
+  await helper.clickTestId('help_offer.browse_categories');
   await helper.setTestId('help_offer.search', 'software');
   await helper.clickTestId('capability.software');
   await helper.clickTestId('help_offer.submit');

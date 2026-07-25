@@ -244,6 +244,15 @@ Future<void> offerHelpFromInbox(
     find.byKey(TestIds.key(TestIds.inboxOfferHelp)).first,
   );
   await tester.enterText(
+    find.byKey(TestIds.key(TestIds.helpOfferMessage)),
+    'I can help with software',
+  );
+  await tester.pumpAndSettle();
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.helpOfferBrowseCategories)),
+  );
+  await tester.enterText(
     find.byKey(TestIds.key(TestIds.helpOfferSearch)),
     'software',
   );
