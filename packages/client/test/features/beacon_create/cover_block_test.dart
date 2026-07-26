@@ -140,7 +140,10 @@ void main() {
     expect(cubit.state.coverKey, cubit.state.images.single.key);
     expect(cubit.state.coverSource, BeaconCoverSource.photo);
     expect(
-      find.text('Tap the preview to choose or replace the cover photo.'),
+      find.text(
+        'Tap the preview to choose or replace the cover photo. '
+        'The full photo stays on the request; cropping affects only the small card.',
+      ),
       findsOneWidget,
     );
     expect(find.byType(Image), findsOneWidget);
