@@ -91,12 +91,16 @@ class BeaconYouBlockedSegmentPresentation {
     required this.semanticsLabel,
     this.raiserAvatar,
     this.elapsedLabel,
+    this.labelTone = TenturaTone.warn,
+    this.elapsedTone = TenturaTone.neutral,
   });
 
   final String label;
   final String semanticsLabel;
   final Widget? raiserAvatar;
   final String? elapsedLabel;
+  final TenturaTone labelTone;
+  final TenturaTone elapsedTone;
 }
 
 @immutable
@@ -106,11 +110,15 @@ class BeaconYouSegmentPresentation {
     required this.count,
     this.label,
     this.newCount = 0,
+    this.tone,
   });
 
   final IconData icon;
   final int count;
   final String? label;
+
+  /// When null, renders as content ([ColorScheme.onSurface]).
+  final TenturaTone? tone;
   final int newCount;
 }
 
@@ -120,16 +128,19 @@ class BeaconYouPresentation {
     required this.segments,
     this.blockedSegment,
   }) : fallbackText = null,
+       fallbackTone = TenturaTone.neutral,
        blockedOnly = false;
 
   const BeaconYouPresentation.blockedOnly({
     required this.blockedSegment,
   }) : segments = const [],
        fallbackText = null,
+       fallbackTone = TenturaTone.neutral,
        blockedOnly = true;
 
   const BeaconYouPresentation.fallback({
     required this.fallbackText,
+    this.fallbackTone = TenturaTone.neutral,
   }) : segments = const [],
        blockedSegment = null,
        blockedOnly = false;
@@ -137,12 +148,14 @@ class BeaconYouPresentation {
   const BeaconYouPresentation.hidden()
     : segments = const [],
       fallbackText = null,
+      fallbackTone = TenturaTone.neutral,
       blockedSegment = null,
       blockedOnly = false;
 
   final List<BeaconYouSegmentPresentation> segments;
   final BeaconYouBlockedSegmentPresentation? blockedSegment;
   final String? fallbackText;
+  final TenturaTone fallbackTone;
   final bool blockedOnly;
 
   bool get isHidden =>
@@ -159,6 +172,7 @@ BeaconYouPresentation buildBeaconYouPresentation(
   required BeaconYouEmptyFallback emptyFallback,
   required bool showNewBadges,
   BeaconYouBlockedSegmentPresentation? blockedSegment,
+  BeaconCoordinationPhaseResult? phaseResult,
 }) {
   final reviewSegments = offerReviewSegments(input: situationInput);
   if (blockedSegment != null &&
@@ -181,6 +195,7 @@ BeaconYouPresentation buildBeaconYouPresentation(
           count: entry.open,
           label: collapse ? null : _kindLabel(l10n, entry.kind, entry.open),
           newCount: showNewBadges ? entry.newCount : 0,
+          tone: toneForCoordinationKind(entry.kind),
         ),
       ),
     ];
@@ -194,24 +209,48 @@ BeaconYouPresentation buildBeaconYouPresentation(
     BeaconYouEmptyFallback.hidden => const BeaconYouPresentation.hidden(),
     BeaconYouEmptyFallback.waitingOnOthers => BeaconYouPresentation.fallback(
       fallbackText: l10n.beaconYouWaitingOnOthers,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
     ),
     BeaconYouEmptyFallback.noOpenItems => BeaconYouPresentation.fallback(
       fallbackText: l10n.beaconYouNoOpenItems,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
     ),
     BeaconYouEmptyFallback.awaitingAuthorReview =>
       BeaconYouPresentation.fallback(
         fallbackText: l10n.beaconYouOfferSent,
+        fallbackTone: toneForYouEmptyFallback(
+          emptyFallback,
+          phase: phaseResult?.phase,
+        ),
       ),
     BeaconYouEmptyFallback.authorReviewOffers => BeaconYouPresentation.fallback(
       fallbackText: l10n.beaconHudYouAuthorReview(
         situationInput.authorUnreviewedHelpOfferCount,
       ),
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
     ),
     BeaconYouEmptyFallback.noInfo => BeaconYouPresentation.fallback(
       fallbackText: l10n.beaconYouNoInfo,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
     ),
     BeaconYouEmptyFallback.closed => BeaconYouPresentation.fallback(
       fallbackText: l10n.beaconYouClosed,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
     ),
   };
 }
@@ -234,16 +273,61 @@ List<BeaconYouSegmentPresentation> _buildOfferReviewSegmentPresentations(
                 : l10n.beaconHudYouAuthorReview(
                     situationInput.authorUnreviewedHelpOfferCount,
                   ),
+            tone: toneForOfferReviewSegment(segment),
           ),
         BeaconYouOfferReviewSegmentKind.helperAwaitingAuthor =>
           BeaconYouSegmentPresentation(
             icon: coordinationKindIcon(CoordinationItemKind.resolution),
             count: 0,
             label: l10n.beaconYouOfferSent,
+            tone: toneForOfferReviewSegment(segment),
           ),
       },
   ];
 }
+
+TenturaTone toneForYouEmptyFallback(
+  BeaconYouEmptyFallback fallback, {
+  BeaconCoordinationPhase? phase,
+}) {
+  return switch (fallback) {
+    BeaconYouEmptyFallback.authorReviewOffers => TenturaTone.info,
+    BeaconYouEmptyFallback.awaitingAuthorReview => TenturaTone.info,
+    BeaconYouEmptyFallback.waitingOnOthers => TenturaTone.neutral,
+    BeaconYouEmptyFallback.noInfo => TenturaTone.neutral,
+    BeaconYouEmptyFallback.closed => TenturaTone.neutral,
+    BeaconYouEmptyFallback.noOpenItems => _noOpenItemsTone(phase),
+    BeaconYouEmptyFallback.hidden => TenturaTone.neutral,
+  };
+}
+
+TenturaTone _noOpenItemsTone(BeaconCoordinationPhase? phase) {
+  if (phase == null) return TenturaTone.neutral;
+  return switch (phase) {
+    BeaconCoordinationPhase.blocked => TenturaTone.neutral,
+    BeaconCoordinationPhase.needsMoreHelp => TenturaTone.neutral,
+    BeaconCoordinationPhase.closed => TenturaTone.neutral,
+    BeaconCoordinationPhase.cancelled => TenturaTone.neutral,
+    BeaconCoordinationPhase.draft => TenturaTone.neutral,
+    _ => TenturaTone.good,
+  };
+}
+
+TenturaTone? toneForCoordinationKind(CoordinationItemKind kind) =>
+    switch (kind) {
+      CoordinationItemKind.ask => null,
+      CoordinationItemKind.promise => null,
+      CoordinationItemKind.blocker => TenturaTone.warn,
+      CoordinationItemKind.resolution => TenturaTone.info,
+      CoordinationItemKind.plan => TenturaTone.neutral,
+    };
+
+TenturaTone toneForOfferReviewSegment(
+  BeaconYouOfferReviewSegmentKind kind,
+) => switch (kind) {
+      BeaconYouOfferReviewSegmentKind.authorReview => TenturaTone.info,
+      BeaconYouOfferReviewSegmentKind.helperAwaitingAuthor => TenturaTone.info,
+    };
 
 String _kindLabel(L10n l10n, CoordinationItemKind kind, int count) =>
     switch (kind) {

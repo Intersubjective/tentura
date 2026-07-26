@@ -113,6 +113,54 @@ void main() {
     expect(pres.statusLine, isNot(contains(',')));
   });
 
+  test('offers awaiting author slot2 active today uses good tone', () {
+    final now = DateTime.utc(2026, 6, 20, 12);
+    final beacon = _beacon().copyWith(
+      helpOfferCount: 2,
+      updatedAt: now,
+    );
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: beacon,
+        tier: BeaconVisibilityTier.coordination,
+        now: now,
+        hasUnreviewedOffers: true,
+      ),
+    );
+    final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
+    expect(pres.slot1Tone, TenturaTone.info);
+    expect(pres.slot2Tone, TenturaTone.good);
+  });
+
+  test('looking for helpers uses info tone', () {
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(),
+        tier: BeaconVisibilityTier.coordination,
+        now: _t,
+      ),
+    );
+    final pres = formatBeaconPhaseStatus(_l10n, result, now: _t);
+    expect(pres.slot1Tone, TenturaTone.info);
+  });
+
+  test('freshness quiet 7 days uses warn slot2 tone', () {
+    final now = DateTime.utc(2026, 6, 20, 12);
+    final beacon = _beacon().copyWith(
+      status: BeaconStatus.enoughHelp,
+      updatedAt: now.subtract(const Duration(days: 7)),
+    );
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: beacon,
+        tier: BeaconVisibilityTier.coordination,
+        now: now,
+      ),
+    );
+    final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
+    expect(pres.slot2Tone, TenturaTone.warn);
+  });
+
   test('offers awaiting author includes active today when updated today', () {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
@@ -168,7 +216,7 @@ void main() {
       ),
     );
     final pres = formatBeaconPhaseStatus(l10nRu, result, now: now);
-    expect(pres.statusLine, 'В работе · сегодня');
+    expect(pres.statusLine, 'В работе · акт. сегодня');
     expect(pres.statusLine.length, lessThan(30));
     expect(pres.tone, TenturaTone.good);
   });

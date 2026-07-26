@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 /// AppBar title: beacon identity tile, elided title, single-line anchor status.
@@ -13,8 +14,7 @@ import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 class BeaconViewAppBarTitle extends StatelessWidget {
   const BeaconViewAppBarTitle({
     required this.beacon,
-    required this.statusLine,
-    required this.statusTone,
+    required this.phaseStatus,
     required this.l10n,
     this.showBeaconContent = true,
     this.onTap,
@@ -28,11 +28,8 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   /// When false (loading / gated null), do not render beacon title or identity.
   final bool showBeaconContent;
 
-  /// Single-line operational status (caller chooses terse vs full).
-  final String statusLine;
-
-  /// Semantic tone for [statusLine].
-  final TenturaTone statusTone;
+  /// Single-line operational status (dual-tone when slot2 is set).
+  final BeaconPhaseStatusPresentation phaseStatus;
 
   final L10n l10n;
 
@@ -51,6 +48,7 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final statusLine = phaseStatus.statusLine;
 
     if (!showBeaconContent) {
       final label = l10n.beaconViewTitle;
@@ -89,9 +87,11 @@ class BeaconViewAppBarTitle extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.titleSmall(scheme.onSurface),
               ),
-              TenturaStatusText(
-                statusLine,
-                tone: statusTone,
+              TenturaStatusLine(
+                slot1: phaseStatus.slot1,
+                slot2: phaseStatus.slot2,
+                slot1Tone: phaseStatus.slot1Tone,
+                slot2Tone: phaseStatus.slot2Tone,
               ),
             ],
           ),

@@ -17,6 +17,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_title
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
@@ -1200,12 +1201,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             useLiveRoomCubit: showLegacyRoomSurface || isSplit,
           );
           final statusSlots = beaconViewStatusSlots(l10n, state);
-          final (appBarStatusLine, appBarStatusTone) = showLegacyRoomSurface
-              ? beaconViewRoomAppBarStatus(l10n, roomUnread)
-              : (
-                  statusSlots.displayLine,
-                  statusSlots.tone,
-                );
+          final appBarPhaseStatus = showLegacyRoomSurface
+              ? beaconViewRoomAppBarPhaseStatus(l10n, roomUnread)
+              : statusSlots.presentation;
 
           Widget body;
           if (showInitialLoading) {
@@ -1284,8 +1282,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   showInitialLoading: showInitialLoading,
                   showLegacyRoomSurface: showLegacyRoomSurface,
                   isSplit: isSplit,
-                  appBarStatusLine: appBarStatusLine,
-                  appBarStatusTone: appBarStatusTone,
+                  appBarPhaseStatus: appBarPhaseStatus,
                 ),
                 if (state.isLoading)
                   LinearProgressIndicator(
@@ -1331,8 +1328,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     : BeaconViewAppBarTitle(
                         beacon: state.beacon,
                         showBeaconContent: showBeaconContent,
-                        statusLine: appBarStatusLine,
-                        statusTone: appBarStatusTone,
+                        phaseStatus: appBarPhaseStatus,
                         l10n: l10n,
                       ),
                 actions: isSplit
@@ -1419,8 +1415,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                         child: BeaconViewAppBarTitle(
                                           beacon: state.beacon,
                                           showBeaconContent: showBeaconContent,
-                                          statusLine: appBarStatusLine,
-                                          statusTone: appBarStatusTone,
+                                          phaseStatus: appBarPhaseStatus,
                                           l10n: l10n,
                                         ),
                                       ),
@@ -1462,8 +1457,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required bool showInitialLoading,
     required bool showLegacyRoomSurface,
     required bool isSplit,
-    required String appBarStatusLine,
-    required TenturaTone appBarStatusTone,
+    required BeaconPhaseStatusPresentation appBarPhaseStatus,
   }) {
     final tt = context.tt;
     return Material(
@@ -1485,8 +1479,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               child: BeaconViewAppBarTitle(
                 beacon: state.beacon,
                 showBeaconContent: showBeaconContent,
-                statusLine: appBarStatusLine,
-                statusTone: appBarStatusTone,
+                phaseStatus: appBarPhaseStatus,
                 l10n: l10n,
               ),
             ),

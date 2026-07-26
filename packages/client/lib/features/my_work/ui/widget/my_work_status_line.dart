@@ -7,43 +7,50 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
-/// Two semantic slots for the My Work status row (`slot1 [· slot2]`).
+/// Phase STATUS + optional room subtitle for My Work card headers.
 final class MyWorkStatusLineData {
   const MyWorkStatusLineData({
-    required this.slot1,
-    required this.slot2,
+    required this.phaseStatus,
     required this.timeSlotOverdue,
     this.slot1ResponseType,
     this.slot1CoordinationStatus,
-    this.tone = TenturaTone.neutral,
   });
 
-  final String slot1;
-  final String slot2;
-
+  final BeaconPhaseStatusPresentation phaseStatus;
   final CoordinationResponseType? slot1ResponseType;
   final BeaconStatus? slot1CoordinationStatus;
   final bool timeSlotOverdue;
-  final TenturaTone tone;
 
-  bool get isEmpty => slot1.trim().isEmpty && slot2.trim().isEmpty;
+  bool get isEmpty => phaseStatus.statusLine.trim().isEmpty;
+
+  String get slot1 => phaseStatus.slot1;
+  String get slot2 => phaseStatus.slot2 ?? '';
+  TenturaTone get tone => phaseStatus.slot1Tone;
+}
+
+/// Header STATUS with optional room subtitle merged into slot2.
+BeaconPhaseStatusPresentation myWorkHeaderPhaseStatus(
+  MyWorkStatusLineData data, {
+  String? roomSubtitle,
+}) {
+  var s2 = data.phaseStatus.slot2?.trim() ?? '';
+  if (s2.isEmpty) {
+    s2 = roomSubtitle?.trim() ?? '';
+  }
+  if (s2.isEmpty) return data.phaseStatus;
+  return BeaconPhaseStatusPresentation(
+    slot1: data.phaseStatus.slot1,
+    slot2: s2,
+    slot1Tone: data.phaseStatus.slot1Tone,
+    slot2Tone: data.phaseStatus.slot2Tone,
+  );
 }
 
 /// Assembles `slot1 [· slot2]` for compact header / app bar subtitles.
 String myWorkStatusDisplayLine(
   MyWorkStatusLineData data, {
   String? roomSubtitle,
-}) {
-  var slot2 = data.slot2.trim();
-  if (slot2.isEmpty) {
-    slot2 = roomSubtitle?.trim() ?? '';
-  }
-  final slot1 = data.slot1.trim();
-  if (slot1.isEmpty && slot2.isEmpty) return '';
-  if (slot1.isEmpty) return slot2;
-  if (slot2.isEmpty) return slot1;
-  return '$slot1 · $slot2';
-}
+}) => myWorkHeaderPhaseStatus(data, roomSubtitle: roomSubtitle).statusLine;
 
 TenturaTone myWorkStatusTone(MyWorkStatusLineData data) => data.tone;
 
@@ -59,9 +66,7 @@ MyWorkStatusLineData myWorkStatusLine({
   final pres = formatBeaconPhaseStatus(l10n, result, now: clock);
 
   return MyWorkStatusLineData(
-    slot1: pres.statusLine,
-    slot2: '',
+    phaseStatus: pres,
     timeSlotOverdue: false,
-    tone: pres.tone,
   );
 }

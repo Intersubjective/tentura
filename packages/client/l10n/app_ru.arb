@@ -4197,7 +4197,7 @@
   "beaconPhaseCancelled": "Отменён",
   "beaconPhaseCourtAuthor": "ход автора",
   "beaconPhaseNoOffersYet": "нет предложений",
-  "beaconPhaseActiveToday": "сегодня",
+  "beaconPhaseActiveToday": "акт. сегодня",
   "beaconPhaseQuietForDays": "неакт. {days} д",
   "beaconYouBlockedGeneric": "Нужно снять блок",
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",

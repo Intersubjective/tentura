@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
@@ -121,10 +122,65 @@ void main() {
     },
   );
 
+  testWidgets('header status subtitle wraps when card is narrow', (
+    tester,
+  ) async {
+    const phaseStatus = BeaconPhaseStatusPresentation(
+      slot1: 'Ждут автора',
+      slot2: 'акт. сегодня · ещё одна длинная часть статуса',
+      slot1Tone: TenturaTone.info,
+      slot2Tone: TenturaTone.good,
+    );
+    final beacon = Beacon.empty.copyWith(
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+      id: 'b-status-wrap',
+      title: 'Title',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 200,
+                child: BeaconCardHeaderRow(
+                  beacon: beacon,
+                  titleMaxLines: 1,
+                  phaseStatus: phaseStatus,
+                  menu: const SizedBox(
+                    width: 32,
+                    height: 40,
+                    child: Placeholder(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final statusFinder = find.textContaining('Ждут автора');
+    expect(statusFinder, findsOneWidget);
+    final statusRender = tester.renderObject<RenderParagraph>(statusFinder);
+    expect(statusRender.maxLines, isNull);
+    expect(statusRender.size.height > 20, isTrue);
+  });
+
   testWidgets('header shows one-line title and status subtitle', (
     tester,
   ) async {
     const status = 'Needs more help';
+    const phaseStatus = BeaconPhaseStatusPresentation(
+      slot1: status,
+      slot1Tone: TenturaTone.warn,
+    );
     final beacon = Beacon.empty.copyWith(
       createdAt: DateTime(2025),
       updatedAt: DateTime(2025),
@@ -145,8 +201,7 @@ void main() {
                 child: BeaconCardHeaderRow(
                   beacon: beacon,
                   titleMaxLines: 1,
-                  statusLine: status,
-                  statusTone: TenturaTone.warn,
+                  phaseStatus: phaseStatus,
                   menu: const SizedBox(
                     width: 32,
                     height: 40,

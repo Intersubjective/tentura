@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
 
@@ -133,6 +135,89 @@ void main() {
       expect(presentation.isHidden, isTrue);
       expect(presentation.segments, isEmpty);
       expect(presentation.fallbackText, isNull);
+    });
+
+    test('ask segment uses content tone (null)', () {
+      const responsibility = CoordinationResponsibility(
+        beaconId: 'b1',
+        askOpen: 2,
+      );
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(hasRoomObligations: true),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+      );
+      expect(presentation.segments.single.tone, isNull);
+    });
+
+    test('blocker segment uses warn tone', () {
+      const responsibility = CoordinationResponsibility(
+        beaconId: 'b1',
+        blockerOpen: 1,
+      );
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(hasRoomObligations: true),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+      );
+      expect(presentation.segments.single.tone, TenturaTone.warn);
+    });
+
+    test('author review segment uses info tone', () {
+      const responsibility = CoordinationResponsibility(
+        beaconId: 'b1',
+        askOpen: 1,
+      );
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(
+          isAuthorOrSteward: true,
+          hasRoomObligations: true,
+          authorUnreviewedHelpOfferCount: 2,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+      );
+      expect(presentation.segments.first.tone, TenturaTone.info);
+    });
+
+    test('waitingOnOthers fallback uses neutral tone', () {
+      const responsibility = CoordinationResponsibility(beaconId: 'b1');
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(othersOpenCount: 3),
+        emptyFallback: BeaconYouEmptyFallback.waitingOnOthers,
+        showNewBadges: false,
+      );
+      expect(presentation.fallbackTone, TenturaTone.neutral);
+    });
+
+    test('noOpenItems with enoughHelp phase uses good tone', () {
+      const responsibility = CoordinationResponsibility(beaconId: 'b1');
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+        phaseResult: const BeaconCoordinationPhaseResult(
+          phase: BeaconCoordinationPhase.enoughHelpInMotion,
+          suggestedAction: BeaconPhasePrimaryAction.none,
+          rowHarmony: BeaconPhaseRowHarmony.empty,
+        ),
+      );
+      expect(presentation.fallbackTone, TenturaTone.good);
     });
   });
 

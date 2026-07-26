@@ -90,6 +90,64 @@ Blocked YOU: generic copy + raiser avatar + elapsed time — **only when `respon
 
 ---
 
+## Visual layers (card typography)
+
+Text is primary; color is secondary (`color-not-only`). Three roles on beacon cards:
+
+| Layer | Color | Role |
+|-------|-------|------|
+| **Content** | `onSurface` | Title; YOU **inventory** (ask/promise counts) |
+| **Operational** | `TenturaTone` info / good / warn / danger | Entire STATUS line; YOU **situation** (wait / block / review / clear) |
+| **Meta** | `tt.textMuted` (`neutral`) | Separators, elapsed time, idle fallbacks, quiet freshness |
+
+Rule: **inventory = content; situation = tone.**
+
+### STATUS — slot1 (phase)
+
+| Phase | Tone |
+|-------|------|
+| `blocked`, `needsMoreHelp` | `warn` |
+| `offersAwaitingAuthor`, `wrappingUp`, `lookingForHelpers` | `info` |
+| `enoughHelpInMotion` | `good` |
+| `coordinating`, `closed`, `cancelled`, `draft`, `openFloor` | `neutral` |
+
+### STATUS — slot2 (cue)
+
+| Slot2 kind | Tone |
+|------------|------|
+| `blockerNeedsClearing` | `warn` |
+| `courtAuthor`, `reviewCountdown` | `info` (`reviewCountdown` &lt; 24h → `warn`) |
+| freshness active today | `good` |
+| freshness quiet 1–6 d | `neutral` |
+| freshness quiet ≥ 7 d | `warn` |
+| `noOffersYet`, `lifecycleEndedAt`, `none` | `neutral` |
+
+Rendered by `TenturaStatusLine` (dual-tone `slot1 · slot2`). Presenter: `formatBeaconPhaseStatus` in `beacon_phase_presenter.dart`.
+
+### YOU — tones
+
+| Variant | Tone |
+|---------|------|
+| Fallback `authorReviewOffers`, `awaitingAuthorReview` | `info` |
+| Fallback `waitingOnOthers`, `noInfo`, `closed` | `neutral` |
+| Fallback `noOpenItems` | `good` when open-family phase is healthy; else `neutral` |
+| Chip `ask`, `promise` | content (`onSurface`, tone `null`) |
+| Chip `blocker` | `warn` |
+| Chip `resolution`, `authorReview`, `helperAwaitingAuthor` | `info` |
+| Blocked label | `warn`; elapsed | `neutral` |
+| «new N» | `info` |
+
+### Card ad-hoc hints
+
+| Hint | Tone |
+|------|------|
+| Inbox room unread | `info` |
+| Inbox open blocker | `warn` |
+| Deadline overdue | `danger` (unchanged) |
+| Last-event self-highlight | `primary` (identity, unchanged) |
+
+---
+
 ## File index
 
 | Layer | Path |
@@ -111,4 +169,5 @@ Blocked YOU: generic copy + raiser avatar + elapsed time — **only when `respon
 
 - `test/domain/coordination/derive_beacon_coordination_phase_test.dart` — ladder, tiers
 - `test/domain/coordination/beacon_coordination_phase_boundary_test.dart` — import boundaries
-- `test/ui/presenter/beacon_phase_presenter_test.dart` — l10n, blocked copy, CTA gating
+- `test/ui/presenter/beacon_phase_presenter_test.dart` — l10n, blocked copy, CTA gating, slot2 tones
+- `test/ui/utils/beacon_you_presentation_test.dart` — YOU segment/fallback tones

@@ -163,8 +163,7 @@ class InboxItemTile extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: beacon,
             onTitleBlockTap: onOpenBeacon,
-            statusLine: phaseStatus.statusLine,
-            statusTone: phaseStatus.tone,
+            phaseStatus: phaseStatus,
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
@@ -228,8 +227,7 @@ class InboxItemTile extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
               ),
             ),
         ],
@@ -256,11 +254,11 @@ class InboxItemTile extends StatelessWidget {
     final out = <Widget>[];
     if (h.isRoomMember) {
       out.add(
-        Text(
+        TenturaStatusText(
           l10n.inboxCardRoomUnread(h.roomUnreadCount),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.secondary,
-          ),
+          tone: TenturaTone.info,
+          maxLines: null,
+          overflow: TextOverflow.visible,
         ),
       );
       if (h.openBlockerTitle.isNotEmpty ||
@@ -269,13 +267,11 @@ class InboxItemTile extends StatelessWidget {
         out.add(
           Padding(
             padding: EdgeInsets.only(top: tt.tightGap),
-            child: Text(
+            child: TenturaStatusText(
               l10n.inboxCardOpenBlocker(title),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.tertiary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              tone: TenturaTone.warn,
+              maxLines: null,
+              overflow: TextOverflow.visible,
             ),
           ),
         );
@@ -287,8 +283,7 @@ class InboxItemTile extends StatelessWidget {
             child: Text(
               l10n.inboxCardRoomCurrentLine(h.currentLineSnippet),
               style: theme.textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
             ),
           ),
         );
@@ -300,8 +295,7 @@ class InboxItemTile extends StatelessWidget {
             child: Text(
               l10n.inboxCardRoomNextMove(h.myNextMove),
               style: theme.textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
             ),
           ),
         );
@@ -313,8 +307,7 @@ class InboxItemTile extends StatelessWidget {
             child: Text(
               l10n.inboxCardRoomLastChange(h.lastRoomMeaningfulChange),
               style: theme.textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
             ),
           ),
         );
@@ -351,8 +344,7 @@ class _InboxForwardNotePreview extends StatelessWidget {
       style: theme.textTheme.bodySmall?.copyWith(
         color: scheme.onSurfaceVariant,
       ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+      softWrap: true,
     );
   }
 }

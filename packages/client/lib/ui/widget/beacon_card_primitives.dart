@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
@@ -417,9 +418,8 @@ class BeaconCardHeaderRow extends StatelessWidget {
     this.identitySize = kBeaconCardHeaderIconSize,
     this.onTitleBlockTap,
     this.titleStyle,
-    this.statusLine,
+    this.phaseStatus,
     this.statusSemanticsIdentifier,
-    this.statusTone = TenturaTone.neutral,
     super.key,
   });
 
@@ -438,14 +438,11 @@ class BeaconCardHeaderRow extends StatelessWidget {
   /// outranks section cards.
   final TextStyle? titleStyle;
 
-  /// Optional single-line operational status under the title (My Work cards).
-  final String? statusLine;
+  /// Operational STATUS under the title (dual-tone when slot2 is set).
+  final BeaconPhaseStatusPresentation? phaseStatus;
 
   /// Stable automation/accessibility identifier for the operational status.
   final String? statusSemanticsIdentifier;
-
-  /// Semantic tone for [statusLine].
-  final TenturaTone statusTone;
 
   @override
   Widget build(BuildContext context) {
@@ -472,17 +469,25 @@ class BeaconCardHeaderRow extends StatelessWidget {
       );
     }
 
-    final subtitle = statusLine?.trim() ?? '';
-    Widget statusText = TenturaStatusText(
-      subtitle,
-      tone: statusTone,
-    );
-    final statusIdentifier = statusSemanticsIdentifier;
-    if (statusIdentifier != null) {
-      statusText = Semantics(
-        identifier: statusIdentifier,
-        child: statusText,
+    final status = phaseStatus;
+    final subtitle = status?.statusLine.trim() ?? '';
+    Widget? statusText;
+    if (status != null && subtitle.isNotEmpty) {
+      statusText = TenturaStatusLine(
+        slot1: status.slot1,
+        slot2: status.slot2,
+        slot1Tone: status.slot1Tone,
+        slot2Tone: status.slot2Tone,
+        maxLines: null,
+        overflow: TextOverflow.visible,
       );
+      final statusIdentifier = statusSemanticsIdentifier;
+      if (statusIdentifier != null) {
+        statusText = Semantics(
+          identifier: statusIdentifier,
+          child: statusText,
+        );
+      }
     }
     final titleColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +495,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         titleBlock,
-        if (subtitle.isNotEmpty) statusText,
+        if (subtitle.isNotEmpty && statusText != null) statusText,
       ],
     );
 

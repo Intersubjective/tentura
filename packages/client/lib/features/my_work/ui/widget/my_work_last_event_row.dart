@@ -72,8 +72,7 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
       return Text(
         l10n.myWorkUpdatedRelative(ago),
         style: beaconCardUpdatedLineTextStyle(theme),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        softWrap: true,
       );
     }
 
@@ -128,8 +127,7 @@ class _EventLineBody extends StatelessWidget {
             height: 1.15,
             color: scheme.onSurfaceVariant,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          softWrap: true,
         ),
       );
     }
@@ -195,8 +193,7 @@ class _EventLineBody extends StatelessWidget {
             ),
           ],
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        softWrap: true,
       ),
     );
   }

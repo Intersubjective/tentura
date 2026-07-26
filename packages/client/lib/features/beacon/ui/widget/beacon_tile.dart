@@ -50,8 +50,7 @@ class BeaconTile extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
-            statusLine: phaseStatus.statusLine,
-            statusTone: phaseStatus.tone,
+            phaseStatus: phaseStatus,
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,

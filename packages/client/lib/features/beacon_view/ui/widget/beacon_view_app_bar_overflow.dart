@@ -25,6 +25,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -151,6 +152,14 @@ bool _authorLifecycleToggleEnabled(BeaconViewState state) {
     return state.closureActionPriority != ClosureActionPriority.hidden;
   }
   return true;
+}
+
+BeaconPhaseStatusPresentation beaconViewRoomAppBarPhaseStatus(
+  L10n l10n,
+  int roomUnread,
+) {
+  final (line, tone) = beaconViewRoomAppBarStatus(l10n, roomUnread);
+  return BeaconPhaseStatusPresentation(slot1: line, slot1Tone: tone);
 }
 
 (String, TenturaTone) beaconViewRoomAppBarStatus(L10n l10n, int roomUnread) {

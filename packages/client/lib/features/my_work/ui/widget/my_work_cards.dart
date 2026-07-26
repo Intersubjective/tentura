@@ -13,6 +13,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dar
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -173,18 +174,15 @@ void _openReviewContributions(BuildContext context, String id) {
   unawaited(context.router.push(ReviewContributionsRoute(id: id)));
 }
 
-({String? statusLine, TenturaTone statusTone}) _myWorkCardHeaderStatus(
+({BeaconPhaseStatusPresentation? phaseStatus}) _myWorkCardHeaderStatus(
   MyWorkStatusLineData data, {
   String? roomSubtitle,
 }) {
-  final line = myWorkStatusDisplayLine(data, roomSubtitle: roomSubtitle);
-  if (line.isEmpty) {
-    return (statusLine: null, statusTone: TenturaTone.neutral);
+  final pres = myWorkHeaderPhaseStatus(data, roomSubtitle: roomSubtitle);
+  if (pres.statusLine.trim().isEmpty) {
+    return (phaseStatus: null);
   }
-  return (
-    statusLine: line,
-    statusTone: myWorkStatusTone(data),
-  );
+  return (phaseStatus: pres);
 }
 
 Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
@@ -316,9 +314,8 @@ class _AuthoredActiveCard extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: b,
             titleMaxLines: 1,
-            statusLine: headerStatus.statusLine,
+            phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
-            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onShare: b.allowsForward
@@ -469,9 +466,8 @@ class _HelpOfferedActiveCard extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: b,
             titleMaxLines: 1,
-            statusLine: headerStatus.statusLine,
+            phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
-            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: b.allowsForward
@@ -554,9 +550,8 @@ class _DraftAuthoredCard extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: b,
             titleMaxLines: 1,
-            statusLine: headerStatus.statusLine,
+            phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
-            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               editActionLabel: l10n.myWorkEditDraft,
@@ -644,9 +639,8 @@ class _FinishedAuthoredCard extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: b,
             titleMaxLines: 1,
-            statusLine: headerStatus.statusLine,
+            phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
-            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onShare: b.allowsForward
@@ -789,9 +783,8 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: b,
             titleMaxLines: 1,
-            statusLine: headerStatus.statusLine,
+            phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
-            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: b.allowsForward

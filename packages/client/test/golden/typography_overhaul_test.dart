@@ -12,6 +12,7 @@ import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 class _GoldenProfileCubit extends Mock implements ProfileCubit {
@@ -290,12 +291,11 @@ class _MyWorkGoldenBody extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: beacon,
             menu: const SizedBox(width: 40, height: 40),
-            statusLine: myWorkStatusDisplayLine(
-              const MyWorkStatusLineData(
-                slot1: 'Open',
-                slot2: 'Closes 2025-05-01',
-                timeSlotOverdue: false,
-              ),
+            phaseStatus: const BeaconPhaseStatusPresentation(
+              slot1: 'Open',
+              slot2: 'Closes 2025-05-01',
+              slot1Tone: TenturaTone.neutral,
+              slot2Tone: TenturaTone.neutral,
             ),
           ),
           const SizedBox(height: 6),

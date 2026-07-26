@@ -138,11 +138,12 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
         ? TenturaStatusText(
             deadlineMeta.text,
             tone: TenturaTone.danger,
+            maxLines: null,
+            overflow: TextOverflow.visible,
           )
         : Text(
             deadlineMeta.text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            softWrap: true,
             style: deadlineStyle,
           );
 

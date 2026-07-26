@@ -41,6 +41,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     final collapse = beaconYouCompactSurface(context, tableRowWidth);
     final isViewerBlocked = shouldShowBlockedYouSegment(
@@ -70,31 +71,31 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
       emptyFallback: emptyFallback,
       showNewBadges: showNewBadges,
       blockedSegment: blockedSegment,
+      phaseResult: phaseResult,
     );
 
     if (presentation.isHidden) {
       return const SizedBox.shrink();
     }
 
-    final bodyStyle = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurface,
+    final contentStyle = theme.textTheme.bodySmall!.copyWith(
+      color: scheme.onSurface,
     );
-    final mutedStyle = theme.textTheme.bodySmall?.copyWith(
+    final mutedStyle = theme.textTheme.bodySmall!.copyWith(
       color: tt.textMuted,
     );
 
     if (presentation.fallbackText != null) {
-      return Text(
+      return TenturaStatusText(
         presentation.fallbackText!,
-        style: bodyStyle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        tone: presentation.fallbackTone,
+        maxLines: null,
+        overflow: TextOverflow.visible,
       );
     }
     if (presentation.blockedOnly && presentation.blockedSegment != null) {
       return _BlockedSegmentRow(
         segment: presentation.blockedSegment!,
-        bodyStyle: bodyStyle,
         mutedStyle: mutedStyle,
       );
     }
@@ -107,7 +108,6 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
         if (presentation.blockedSegment != null) ...[
           _BlockedSegmentRow(
             segment: presentation.blockedSegment!,
-            bodyStyle: bodyStyle,
             mutedStyle: mutedStyle,
           ),
           if (presentation.segments.isNotEmpty) Text('·', style: mutedStyle),
@@ -116,8 +116,8 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           if (i > 0) Text('·', style: mutedStyle),
           _SegmentChip(
             segment: presentation.segments[i],
-            bodyStyle: bodyStyle,
-            accentColor: tt.info,
+            contentStyle: contentStyle,
+            infoColor: tt.info,
           ),
         ],
       ],
@@ -166,16 +166,23 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
 class _BlockedSegmentRow extends StatelessWidget {
   const _BlockedSegmentRow({
     required this.segment,
-    required this.bodyStyle,
     required this.mutedStyle,
   });
 
   final BeaconYouBlockedSegmentPresentation segment;
-  final TextStyle? bodyStyle;
   final TextStyle? mutedStyle;
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
+    final labelStyle = (mutedStyle ?? const TextStyle()).copyWith(
+      color: tenturaToneColor(tt, segment.labelTone),
+    );
+    final elapsedStyle = (mutedStyle ?? const TextStyle()).copyWith(
+      color: tenturaToneColor(tt, segment.elapsedTone),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
     return Semantics(
       label: segment.semanticsLabel,
       child: Row(
@@ -185,17 +192,10 @@ class _BlockedSegmentRow extends StatelessWidget {
             segment.raiserAvatar!,
             const SizedBox(width: 6),
           ],
-          Text(segment.label, style: bodyStyle),
+          Text(segment.label, style: labelStyle),
           if (segment.elapsedLabel != null) ...[
             Text(' · ', style: mutedStyle),
-            Text(
-              segment.elapsedLabel!,
-              style: bodyStyle?.copyWith(
-                fontFeatures: const [
-                  FontFeature.tabularFigures(),
-                ],
-              ),
-            ),
+            Text(segment.elapsedLabel!, style: elapsedStyle),
           ],
         ],
       ),
@@ -206,31 +206,36 @@ class _BlockedSegmentRow extends StatelessWidget {
 class _SegmentChip extends StatelessWidget {
   const _SegmentChip({
     required this.segment,
-    required this.bodyStyle,
-    required this.accentColor,
+    required this.contentStyle,
+    required this.infoColor,
   });
 
   final BeaconYouSegmentPresentation segment;
-  final TextStyle? bodyStyle;
-  final Color accentColor;
+  final TextStyle? contentStyle;
+  final Color infoColor;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
     final label = segment.label?.trim();
     final hasLabel = label != null && label.isNotEmpty;
+    final segmentColor = segment.tone == null
+        ? contentStyle?.color
+        : tenturaToneColor(tt, segment.tone!);
+    final segmentStyle = contentStyle?.copyWith(color: segmentColor);
     final children = <Widget>[
-      Icon(segment.icon, size: 16, color: bodyStyle?.color),
+      Icon(segment.icon, size: 16, color: segmentColor),
     ];
     if (hasLabel) {
       children.addAll([
         const SizedBox(width: 4),
-        Text(label, style: bodyStyle),
+        Text(label, style: segmentStyle),
       ]);
     } else {
       children.addAll([
         const SizedBox(width: 4),
-        Text('${segment.count}', style: bodyStyle),
+        Text('${segment.count}', style: segmentStyle),
       ]);
     }
     if (segment.newCount > 0) {
@@ -238,8 +243,8 @@ class _SegmentChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           l10n.beaconYouNewCount(segment.newCount),
-          style: bodyStyle?.copyWith(
-            color: accentColor,
+          style: segmentStyle?.copyWith(
+            color: infoColor,
             fontWeight: FontWeight.w600,
           ),
         ),

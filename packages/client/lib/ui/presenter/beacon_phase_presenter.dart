@@ -3,15 +3,25 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
 
-/// Localized STATUS line + tone from domain phase result.
+/// Localized STATUS line + per-slot tones from domain phase result.
 class BeaconPhaseStatusPresentation {
   const BeaconPhaseStatusPresentation({
-    required this.statusLine,
-    required this.tone,
+    required this.slot1,
+    this.slot2,
+    required this.slot1Tone,
+    this.slot2Tone,
   });
 
-  final String statusLine;
-  final TenturaTone tone;
+  final String slot1;
+  final String? slot2;
+  final TenturaTone slot1Tone;
+  final TenturaTone? slot2Tone;
+
+  /// Joined line for semantics and compact surfaces.
+  String get statusLine => _joinSlots(slot1, slot2);
+
+  /// Primary (slot1) tone — backward-compatible alias.
+  TenturaTone get tone => slot1Tone;
 }
 
 BeaconPhaseStatusPresentation formatBeaconPhaseStatus(
@@ -21,10 +31,11 @@ BeaconPhaseStatusPresentation formatBeaconPhaseStatus(
 }) {
   final slot1 = _phaseSlot1(l10n, result.phase);
   final slot2 = _formatSlot2(l10n, result, now: now);
-  final line = _joinSlots(slot1, slot2);
   return BeaconPhaseStatusPresentation(
-    statusLine: line,
-    tone: _toneForPhase(result.phase),
+    slot1: slot1,
+    slot2: slot2,
+    slot1Tone: _toneForPhase(result.phase),
+    slot2Tone: slot2 == null ? null : _toneForSlot2(result, now: now),
   );
 }
 
@@ -156,5 +167,45 @@ TenturaTone _toneForPhase(BeaconCoordinationPhase phase) => switch (phase) {
       BeaconCoordinationPhase.enoughHelpInMotion => TenturaTone.good,
       BeaconCoordinationPhase.offersAwaitingAuthor => TenturaTone.info,
       BeaconCoordinationPhase.wrappingUp => TenturaTone.info,
+      BeaconCoordinationPhase.lookingForHelpers => TenturaTone.info,
       _ => TenturaTone.neutral,
     };
+
+TenturaTone _toneForSlot2(
+  BeaconCoordinationPhaseResult result, {
+  required DateTime now,
+}) {
+  return switch (result.slot2Kind) {
+    BeaconPhaseSlot2Kind.blockerNeedsClearing => TenturaTone.warn,
+    BeaconPhaseSlot2Kind.courtAuthor => TenturaTone.info,
+    BeaconPhaseSlot2Kind.reviewCountdown => _reviewCountdownTone(result, now),
+    BeaconPhaseSlot2Kind.freshness => _freshnessTone(result, now),
+    BeaconPhaseSlot2Kind.noOffersYet => TenturaTone.neutral,
+    BeaconPhaseSlot2Kind.lifecycleEndedAt => TenturaTone.neutral,
+    BeaconPhaseSlot2Kind.none => TenturaTone.neutral,
+  };
+}
+
+TenturaTone _reviewCountdownTone(
+  BeaconCoordinationPhaseResult result,
+  DateTime now,
+) {
+  final closesAt = result.reviewClosesAt;
+  if (closesAt == null) return TenturaTone.info;
+  final remaining = closesAt.toUtc().difference(now.toUtc());
+  if (remaining.isNegative) return TenturaTone.info;
+  if (remaining < const Duration(hours: 24)) return TenturaTone.warn;
+  return TenturaTone.info;
+}
+
+TenturaTone _freshnessTone(
+  BeaconCoordinationPhaseResult result,
+  DateTime now,
+) {
+  final at = result.lastActivityAt;
+  if (at == null) return TenturaTone.neutral;
+  final days = now.toUtc().difference(at.toUtc()).inDays;
+  if (days <= 0) return TenturaTone.good;
+  if (days >= 7) return TenturaTone.warn;
+  return TenturaTone.neutral;
+}

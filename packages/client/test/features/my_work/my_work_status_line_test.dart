@@ -41,10 +41,8 @@ void main() {
     final result = deriveBeaconCoordinationPhase(input);
     final pres = formatBeaconPhaseStatus(l10n, result, now: clock);
     return MyWorkStatusLineData(
-      slot1: pres.statusLine,
-      slot2: '',
+      phaseStatus: pres,
       timeSlotOverdue: false,
-      tone: pres.tone,
     );
   }
 
@@ -69,7 +67,7 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.isEmpty, isFalse);
     expect(line.slot1, expected.slot1);
-    expect(line.slot2, isEmpty);
+    expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.info);
   });
 
@@ -92,7 +90,7 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
     expect(line.slot1, contains(l10n.beaconPhaseNeedsMoreHelp));
-    expect(line.slot2, isEmpty);
+    expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.warn);
   });
 
@@ -119,7 +117,7 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
     expect(line.slot1, contains(l10n.beaconPhaseWrappingUp));
-    expect(line.slot2, isEmpty);
+    expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.info);
   });
 
@@ -142,7 +140,7 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
     expect(line.slot1, contains(l10n.beaconPhaseEnoughHelpInMotion));
-    expect(line.slot2, isEmpty);
+    expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.good);
   });
 
@@ -191,8 +189,7 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
     expect(line.slot1, startsWith(l10n.beaconPhaseClosed));
-    expect(line.slot1, contains('·'));
-    expect(line.slot2, isEmpty);
+    expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.neutral);
   });
 }

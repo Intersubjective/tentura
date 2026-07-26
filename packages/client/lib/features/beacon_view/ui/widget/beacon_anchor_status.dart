@@ -19,25 +19,15 @@ TenturaTone beaconAnchorStatusTone(BeaconStatus s) => switch (s) {
 /// Shared operational status for beacon detail app bar subtitle.
 final class BeaconViewStatusSlots {
   const BeaconViewStatusSlots({
-    required this.slot1,
-    required this.slot2,
-    required this.tone,
+    required this.presentation,
   });
 
-  final String slot1;
-  final String slot2;
-  final TenturaTone tone;
+  final BeaconPhaseStatusPresentation presentation;
 
-  bool get isEmpty => slot1.trim().isEmpty && slot2.trim().isEmpty;
-
-  String get displayLine {
-    final s1 = slot1.trim();
-    final s2 = slot2.trim();
-    if (s1.isEmpty && s2.isEmpty) return '';
-    if (s1.isEmpty) return s2;
-    if (s2.isEmpty) return s1;
-    return '$s1 · $s2';
-  }
+  String get slot1 => presentation.slot1;
+  String get slot2 => presentation.slot2 ?? '';
+  TenturaTone get tone => presentation.slot1Tone;
+  String get displayLine => presentation.statusLine;
 }
 
 /// Shared phase-based status from [BeaconViewState] (identical per visibility tier).
@@ -51,9 +41,10 @@ BeaconViewStatusSlots beaconViewStatusSlots(
 
   if (beacon.status == BeaconStatus.deleted) {
     return BeaconViewStatusSlots(
-      slot1: l10n.beaconHudBeaconUnavailable,
-      slot2: '',
-      tone: TenturaTone.neutral,
+      presentation: BeaconPhaseStatusPresentation(
+        slot1: l10n.beaconHudBeaconUnavailable,
+        slot1Tone: TenturaTone.neutral,
+      ),
     );
   }
 
@@ -63,11 +54,7 @@ BeaconViewStatusSlots beaconViewStatusSlots(
 
   assert(pres.statusLine.trim().isNotEmpty, 'phase status must never be empty');
 
-  return BeaconViewStatusSlots(
-    slot1: pres.statusLine,
-    slot2: '',
-    tone: pres.tone,
-  );
+  return BeaconViewStatusSlots(presentation: pres);
 }
 
 /// Localized anchor line: coordination label · help offers fragment.
