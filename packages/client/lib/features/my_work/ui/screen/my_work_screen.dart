@@ -87,14 +87,17 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
   }
 
   void _backToList() {
+    if (_roomOpen) {
+      setState(() {
+        _roomOpen = false;
+        _roomCloseNonce++;
+      });
+      return;
+    }
     setState(() {
-      if (!_fitsMasterDetail) {
-        _selectedBeaconId = null;
-        _selectedViewTab = null;
-        _selectedPeopleTabAttention = null;
-      }
-      _roomOpen = false;
-      _roomCloseNonce++;
+      _selectedBeaconId = null;
+      _selectedViewTab = null;
+      _selectedPeopleTabAttention = null;
     });
   }
 

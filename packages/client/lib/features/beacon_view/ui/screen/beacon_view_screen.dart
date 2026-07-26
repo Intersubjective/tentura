@@ -910,6 +910,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_roomExitInProgress) return;
     if (_activeThreadItem != null) {
       unawaited(_closeActiveThread());
+      if (!fromRouteSync) return;
     }
 
     if (widget.embedded) {
@@ -1602,9 +1603,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         ),
         child: Row(
           children: [
-            if (showLegacyRoomSurface &&
-                !widget.suppressEmbeddedRoomBack &&
-                !isSplit)
+            if ((showLegacyRoomSurface || threadActive) && !isSplit)
               IconButton(
                 tooltip: threadActive
                     ? l10n.beaconRoomBackToChat
