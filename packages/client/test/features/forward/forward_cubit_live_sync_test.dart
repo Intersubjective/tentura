@@ -14,6 +14,7 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/message/forward_messages.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
@@ -271,6 +272,10 @@ void main() {
 
         await cubit.forward();
 
+        expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
+        final showMessage = effects.emitted.whereType<ShowMessage>().single;
+        expect(showMessage.message, isA<ForwardSentMessage>());
+        expect((showMessage.message as ForwardSentMessage).count, 1);
         expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
       },

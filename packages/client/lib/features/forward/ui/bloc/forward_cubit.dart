@@ -10,6 +10,7 @@ import '../../domain/entity/forward_inbound_source.dart';
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
+import '../message/forward_messages.dart';
 import 'forward_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -399,6 +400,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         );
       }
       if (!embedded) {
+        _effects.emit(ShowMessage(ForwardSentMessage(recipientIds.length)));
         _emitNavigateBack(result: true);
       }
       return true;

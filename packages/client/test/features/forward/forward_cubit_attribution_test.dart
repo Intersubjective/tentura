@@ -16,6 +16,7 @@ import 'package:tentura/features/forward/domain/entity/lineage_suggestion_group.
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
@@ -201,10 +202,11 @@ void main() {
     );
     addTearDown(() => _disposeHarness(harness));
 
+    final effects = FakeUiEffectPort();
     final cubit = ForwardCubit(
       beaconId: 'B-draft',
       forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
+      effects: effects,
       embedded: true,
     );
     addTearDown(cubit.close);
@@ -217,6 +219,7 @@ void main() {
 
     expect(ok, isTrue);
     expect(harness.forwardRepo.lastAttributionParentEdgeIds, attributionIds);
+    expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
   });
 
   test('forward omits attribution when not provided', () async {
@@ -228,10 +231,11 @@ void main() {
     );
     addTearDown(() => _disposeHarness(harness));
 
+    final effects = FakeUiEffectPort();
     final cubit = ForwardCubit(
       beaconId: 'B-draft',
       forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
+      effects: effects,
       embedded: true,
     );
     addTearDown(cubit.close);
@@ -242,5 +246,6 @@ void main() {
     final ok = await cubit.forward();
     expect(ok, isTrue);
     expect(harness.forwardRepo.lastAttributionParentEdgeIds, isNull);
+    expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
   });
 }

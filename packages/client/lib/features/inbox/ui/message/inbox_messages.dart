@@ -6,15 +6,10 @@ class InboxBeaconMovedMessage extends LocalizableMessage {
   const InboxBeaconMovedMessage({
     required this.beaconId,
     required this.toStatus,
-    this.ownBeaconForward = false,
   });
 
   final String beaconId;
   final InboxItemStatus toStatus;
-
-  /// After forwarding your own request, inbox moves to Watching; show a forward
-  /// confirmation instead of the generic "moved to Watching" copy.
-  final bool ownBeaconForward;
 
   /// Inbox primary tabs: 0 = Needs me, 1 = Watching. Rejected uses
   /// [navigatesToRejectedArchive] instead of tab index.
@@ -28,17 +23,15 @@ class InboxBeaconMovedMessage extends LocalizableMessage {
 
   @override
   String get toEn => switch (toStatus) {
-        InboxItemStatus.watching =>
-          ownBeaconForward ? 'Forwards sent' : 'Request moved to Watching',
+        InboxItemStatus.watching => 'Request moved to Watching',
         InboxItemStatus.rejected => 'Request moved to Rejected',
         _ => 'Request moved',
       };
 
   @override
   String get toRu => switch (toStatus) {
-        InboxItemStatus.watching => ownBeaconForward
-            ? 'Пересылки отправлены'
-            : 'Запрос перемещён во вкладку «Наблюдаю»',
+        InboxItemStatus.watching =>
+          'Запрос перемещён во вкладку «Наблюдаю»',
         InboxItemStatus.rejected =>
           'Запрос перемещён во вкладку «Отклонённые»',
         _ => 'Запрос перемещён',

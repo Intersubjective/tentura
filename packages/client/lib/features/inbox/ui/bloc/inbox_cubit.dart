@@ -136,17 +136,11 @@ class InboxCubit extends Cubit<InboxState> {
       return;
     }
 
-    final item = state.items[newIdx];
-    final ownBeaconForward =
-        newStatus == InboxItemStatus.watching &&
-        item.beacon?.author.id == _userId;
-
     emit(
       state.copyWith(
         pendingMovedNudge: InboxBeaconMovedMessage(
           beaconId: beaconId,
           toStatus: newStatus,
-          ownBeaconForward: ownBeaconForward,
         ),
       ),
     );
