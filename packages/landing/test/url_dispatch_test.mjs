@@ -106,6 +106,7 @@ test('email magic link shows in-page check-your-email confirmation', () => {
   assert.match(block, /Check your email/);
   assert.match(block, /Link sent — check your email/);
   assert.match(block, /successEl\.scrollIntoView/);
+  assert.match(block, /novalidate: ''/);
   assert.doesNotMatch(block, /submit\.hidden = true/);
 });
 
