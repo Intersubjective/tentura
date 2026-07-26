@@ -8,17 +8,33 @@
 
 ## Quick Start
 
+One-shot bootstrap — creates `.env` with a real dev JWT keypair, starts infra,
+and applies Hasura metadata:
+
 ```bash
-# 1. Create .env from the example (once)
+./scripts/dev-up.sh
+```
+
+Or step by step:
+
+```bash
+# 1. Create .env from the example (once), then write a real dev JWT keypair.
+#    The .env.example keys are placeholders the server rejects under
+#    ENVIRONMENT=dev/prod (Env._assertJwtKeys).
 cp .env.example .env
+./scripts/gen-dev-jwt.sh
 
 # 2. Start infrastructure (Postgres, MeritRank, Hasura, MinIO, pgAdmin)
 docker compose up -d
 
-# 3. Start the Tentura API server (port 2080)
+# 3. Apply Hasura metadata (else My Work / My people show
+#    "field 'beacon' not found in type: 'query_root'")
+./scripts/hasura_apply_metadata.sh
+
+# 4. Start the Tentura API server (port 2080)
 ./scripts/run-server-local.sh
 
-# 4. In a second terminal — start the Flutter web debug server (port 8888)
+# 5. In a second terminal — start the Flutter web debug server (port 8888)
 cd packages/client
 flutter run -d web-server --web-port=8888 \
   --dart-define=SERVER_NAME=http://localhost:8888 \

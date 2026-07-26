@@ -762,7 +762,9 @@ class Env {
         normPublic == kJwtPublicKey.trim()) {
       throw StateError(
         'JWT_PRIVATE_PEM / JWT_PUBLIC_PEM must not be the embedded test keys '
-        'in dev/prod environments.',
+        'in dev/prod environments. Generate a local dev keypair with '
+        './scripts/gen-dev-jwt.sh (then recreate Hasura), or run '
+        './scripts/dev-up.sh.',
       );
     }
   }
