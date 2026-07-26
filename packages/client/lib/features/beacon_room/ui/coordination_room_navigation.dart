@@ -8,6 +8,18 @@ import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 bool planItemSuppressesItemDiscussion(CoordinationItem item) =>
     item.kind == CoordinationItemKind.plan;
 
+/// Whether an item thread can replace the room chat column instead of pushing
+/// a full-screen [ItemDiscussionRoute].
+bool canNestItemDiscussionInRoomPane({
+  required bool isSplit,
+  required bool showLegacyRoomSurface,
+  required bool embedded,
+  required bool embeddedRoomOpen,
+}) =>
+    isSplit ||
+    showLegacyRoomSurface ||
+    (embedded && embeddedRoomOpen);
+
 /// Opens an item thread from the beacon room, or scrolls to a plan anchor.
 Future<void> openCoordinationItemFromRoom(
   BuildContext context, {

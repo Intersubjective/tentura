@@ -37,6 +37,7 @@ class BeaconRoomBody extends StatefulWidget {
     this.enableComposer = true,
     this.beaconAuthorId = '',
     this.onCoordinationSaved,
+    this.onOpenCoordinationItem,
   });
 
   final bool enableComposer;
@@ -46,6 +47,9 @@ class BeaconRoomBody extends StatefulWidget {
 
   /// Called after a coordination item is created from the room (e.g. refresh Items tab).
   final VoidCallback? onCoordinationSaved;
+
+  /// Opens an item thread or scrolls to a plan anchor; host-owned when nested.
+  final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
 
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
@@ -256,13 +260,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onScrollToPromoteSource: cubit.requestScrollToMessage,
             onOpenCoordinationItem: isThreadMode
                 ? null
-                : (item) => unawaited(
-                    openCoordinationItemFromRoom(
-                      context,
-                      item: item,
-                      roomCubit: cubit,
-                    ),
-                  ),
+                : widget.onOpenCoordinationItem ??
+                    ((item) => unawaited(
+                          openCoordinationItemFromRoom(
+                            context,
+                            item: item,
+                            roomCubit: cubit,
+                          ),
+                        )),
             pinnedFactForMessage: state.factForRoomMessage,
           );
         },
@@ -509,6 +514,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           ),
                           onTap: () {
                             Navigator.pop(ctx);
+                            final open = widget.onOpenCoordinationItem;
+                            if (open != null) {
+                              open(linkedItem);
+                              return;
+                            }
                             unawaited(
                               openCoordinationItemFromRoom(
                                 context,

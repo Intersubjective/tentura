@@ -3644,6 +3644,11 @@
   "beaconRoomTitle": "Чат",
   "beaconRoomMessageHint": "Напишите сообщение…",
   "beaconRoomOpen": "Чат",
+  "beaconRoomBackToChat": "К чату",
+  "@beaconRoomBackToChat": {
+    "context": "BeaconViewScreen",
+    "description": "Возврат из вложенного обсуждения элемента в основной чат."
+  },
   "beaconFactsSheetTitle": "Закреплённые факты",
   "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
   "beaconRoomPinFactTitle": "Закрепить как факт",

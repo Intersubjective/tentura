@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
 
@@ -14,11 +15,13 @@ class BeaconRoomSurface extends StatelessWidget {
     required this.beacon,
     super.key,
     this.onCoordinationSaved,
+    this.onOpenCoordinationItem,
   });
 
   final String beaconAuthorId;
   final Beacon beacon;
   final VoidCallback? onCoordinationSaved;
+  final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +34,7 @@ class BeaconRoomSurface extends StatelessWidget {
             child: BeaconRoomBody(
               beaconAuthorId: beaconAuthorId,
               onCoordinationSaved: onCoordinationSaved,
+              onOpenCoordinationItem: onOpenCoordinationItem,
             ),
           ),
         ],

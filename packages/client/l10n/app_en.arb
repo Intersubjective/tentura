@@ -3679,6 +3679,11 @@
   "beaconRoomTitle": "Chat",
   "beaconRoomMessageHint": "Write a message…",
   "beaconRoomOpen": "Chat",
+  "beaconRoomBackToChat": "Back to chat",
+  "@beaconRoomBackToChat": {
+    "context": "BeaconViewScreen",
+    "description": "Returns from a nested item thread to the main room chat column."
+  },
   "beaconFactsSheetTitle": "Pinned facts",
   "beaconFactsSheetEmpty": "No pinned facts yet.",
   "beaconRoomPinFactTitle": "Pin as fact",
