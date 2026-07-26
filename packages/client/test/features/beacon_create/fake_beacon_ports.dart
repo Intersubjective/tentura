@@ -25,12 +25,14 @@ class SetMediaCall {
     required this.beaconId,
     required this.imageIds,
     required this.coverImageId,
+    required this.coverThumbImageId,
     required this.coverSource,
   });
 
   final String beaconId;
   final List<String> imageIds;
   final String? coverImageId;
+  final String? coverThumbImageId;
   final BeaconCoverSource coverSource;
 }
 
@@ -127,6 +129,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
     required String beaconId,
     required List<String> imageIds,
     required String? coverImageId,
+    required String? coverThumbImageId,
     required BeaconCoverSource coverSource,
   }) async {
     final call = setMediaCalls.length;
@@ -135,18 +138,23 @@ class FakeBeaconWritePort implements BeaconWritePort {
         beaconId: beaconId,
         imageIds: imageIds,
         coverImageId: coverImageId,
+        coverThumbImageId: coverThumbImageId,
         coverSource: coverSource,
       ),
     );
     if (failSetMediaAtCall == call) {
       throw setMediaError ?? Exception('setMedia failed');
     }
+    final thumb = coverThumbImageId == null
+        ? null
+        : ImageEntity(id: coverThumbImageId, authorId: 'author-1');
     return beacon = beacon.copyWith(
       id: beaconId,
       images: [
         for (final id in imageIds) ImageEntity(id: id, authorId: 'author-1'),
       ],
       coverImageId: coverImageId,
+      coverThumb: thumb,
       coverSource: coverSource,
     );
   }

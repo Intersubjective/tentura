@@ -104,6 +104,7 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     required List<String> imageIds,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
+    String? coverThumbImageId,
   }) async => const [];
 }
 

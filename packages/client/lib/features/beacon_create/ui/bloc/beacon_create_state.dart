@@ -40,6 +40,9 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     /// [ImageEntity.key] of the selected cover; null when there are no images.
     String? coverKey,
 
+    /// Cropped card thumb; separate from gallery [images].
+    ImageEntity? coverThumb,
+
     /// Author preference between photo and symbol presentation.
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
 
@@ -107,5 +110,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     primaryNeedSlug: primaryNeedSlug,
     coverImageId: coverKey,
     coverSource: coverSource,
+    coverThumb: coverThumb,
   );
 }

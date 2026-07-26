@@ -16,6 +16,7 @@ class BeaconSaveCommand {
     required this.fields,
     required this.images,
     required this.coverKey,
+    this.coverThumb,
     this.draft = false,
   });
 
@@ -28,6 +29,9 @@ class BeaconSaveCommand {
   /// [ImageEntity.key] of the selected cover, or null when there are none.
   final String? coverKey;
 
+  /// Cropped card thumb; not part of [images].
+  final ImageEntity? coverThumb;
+
   /// Create only: whether the new request starts as a server draft.
   final bool draft;
 
@@ -38,12 +42,16 @@ class BeaconSaveResult {
   const BeaconSaveResult({
     required this.beacon,
     required this.images,
+    this.coverThumb,
   });
 
   final Beacon beacon;
 
   /// Server-identified images in the order that was published.
   final List<ImageEntity> images;
+
+  /// Published thumb after reconcile, when present.
+  final ImageEntity? coverThumb;
 }
 
 /// Carries progressed state so a retry never re-creates or re-uploads work
@@ -55,6 +63,7 @@ class BeaconSaveFailure implements Exception {
     required this.beaconId,
     required this.images,
     required this.coverKey,
+    this.coverThumb,
   });
 
   final Object cause;
@@ -66,6 +75,7 @@ class BeaconSaveFailure implements Exception {
   /// Image list with every already-staged entry carrying its server id.
   final List<ImageEntity> images;
   final String? coverKey;
+  final ImageEntity? coverThumb;
 
   @override
   String toString() => 'BeaconSaveFailure(${phase.name}): $cause';
@@ -134,6 +144,7 @@ class BeaconCreateCase {
         beaconId: kind == _Save.create ? null : command.fields.id,
         images: command.images,
         coverKey: command.coverKey,
+        coverThumb: command.coverThumb,
       );
     }
 
@@ -141,6 +152,7 @@ class BeaconCreateCase {
       beaconId: written.id,
       images: command.images,
       coverKey: command.coverKey,
+      coverThumb: command.coverThumb,
       coverSource: command.coverSource,
     );
   }
@@ -150,6 +162,7 @@ class BeaconCreateCase {
     required String beaconId,
     required List<ImageEntity> images,
     required String? coverKey,
+    required ImageEntity? coverThumb,
     required BeaconCoverSource coverSource,
     bool allowStageRecovery = true,
   }) async {
@@ -174,6 +187,27 @@ class BeaconCreateCase {
           beaconId: beaconId,
           images: progressed,
           coverKey: cover,
+          coverThumb: coverThumb,
+        );
+      }
+    }
+
+    var progressedThumb = coverThumb;
+    if (progressedThumb != null && progressedThumb.id.isEmpty) {
+      try {
+        final thumbId = await _beacons.stageImage(
+          beaconId: beaconId,
+          image: progressedThumb,
+        );
+        progressedThumb = progressedThumb.copyWith(id: thumbId);
+      } catch (e) {
+        throw BeaconSaveFailure(
+          cause: e,
+          phase: BeaconSavePhase.stage,
+          beaconId: beaconId,
+          images: progressed,
+          coverKey: cover,
+          coverThumb: progressedThumb,
         );
       }
     }
@@ -186,9 +220,14 @@ class BeaconCreateCase {
         beaconId: beaconId,
         imageIds: imageIds,
         coverImageId: imageIds.isEmpty ? null : coverImageId ?? imageIds.first,
+        coverThumbImageId: progressedThumb?.id,
         coverSource: coverSource,
       );
-      return BeaconSaveResult(beacon: beacon, images: progressed);
+      return BeaconSaveResult(
+        beacon: beacon,
+        images: progressed,
+        coverThumb: progressedThumb,
+      );
     } catch (e) {
       if (allowStageRecovery) {
         final recovered = await _recoverExpiredStages(
@@ -202,6 +241,7 @@ class BeaconCreateCase {
             beaconId: beaconId,
             images: recovered,
             coverKey: coverIndex < 0 ? cover : recovered[coverIndex].key,
+            coverThumb: progressedThumb,
             coverSource: coverSource,
             allowStageRecovery: false,
           );
@@ -213,6 +253,7 @@ class BeaconCreateCase {
         beaconId: beaconId,
         images: progressed,
         coverKey: cover,
+        coverThumb: progressedThumb,
       );
     }
   }

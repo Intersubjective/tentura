@@ -49,6 +49,9 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       primaryNeedSlug: i.primary_need_slug,
       coverImageId: i.cover_image_id,
       coverSource: BeaconCoverSource.fromWireOrPhoto(i.cover_source),
+      coverThumb: i.cover_thumb_image == null
+          ? null
+          : (i.cover_thumb_image as ImageModel).asEntity,
       lineageParentBeaconId: i.lineage_parent_beacon_id,
       lineageRootBeaconId: i.lineage_root_beacon_id,
       canReadContent: i.can_read_content ?? true,

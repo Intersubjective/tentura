@@ -2,17 +2,20 @@ mutation BeaconSetMedia(
   $id: String!,
   $imageIds: [String!],
   $coverImageId: String,
+  $coverThumbImageId: String,
   $coverSource: Int!
 ) {
   beaconSetMedia(
     id: $id,
     imageIds: $imageIds,
     coverImageId: $coverImageId,
+    coverThumbImageId: $coverThumbImageId,
     coverSource: $coverSource
   ) {
     id
     primaryNeedSlug
     coverImageId
+    coverThumbImageId
     coverSource
   }
 }

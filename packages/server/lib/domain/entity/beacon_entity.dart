@@ -36,6 +36,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? primaryNeedSlug,
     String? coverImageId,
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
+    String? coverThumbImageId,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
   }) = _BeaconEntity;
@@ -78,5 +79,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     'primaryNeedSlug': primaryNeedSlug,
     'coverImageId': coverImageId,
     'coverSource': coverSource.wireValue,
+    'coverThumbImageId': coverThumbImageId,
   };
 }

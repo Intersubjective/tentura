@@ -36,6 +36,7 @@ BeaconEntity beaconModelToEntity(
   primaryNeedSlug: model.primaryNeedSlug,
   coverImageId: model.coverImageId?.uuid,
   coverSource: BeaconCoverSource.fromWireOrPhoto(model.coverSource),
+  coverThumbImageId: model.coverThumbImageId?.uuid,
   lineageParentBeaconId: model.lineageParentBeaconId,
   lineageRootBeaconId: model.lineageRootBeaconId,
 );

@@ -331,6 +331,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     required List<String> imageIds,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
+    String? coverThumbImageId,
   }) async {
     final b = storageById[beaconId];
     if (b == null) return const [];
@@ -354,6 +355,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       ],
       coverImageId: coverImageId,
       coverSource: coverSource,
+      coverThumbImageId: coverThumbImageId,
     );
     return removed;
   }

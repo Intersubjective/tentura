@@ -30,11 +30,13 @@ BeaconSaveCommand _command({
   String id = '',
   List<ImageEntity> images = const [],
   String? coverKey,
+  ImageEntity? coverThumb,
   bool draft = false,
 }) => BeaconSaveCommand(
   fields: _fields(id: id),
   images: images,
   coverKey: coverKey,
+  coverThumb: coverThumb,
   draft: draft,
 );
 
@@ -100,7 +102,24 @@ void main() {
       final call = write.setMediaCalls.single;
       expect(call.imageIds, ['s1', 's2']);
       expect(call.coverImageId, 's2');
+      expect(call.coverThumbImageId, isNull);
       expect(call.coverSource, BeaconCoverSource.photo);
+    });
+
+    test('stages cover thumb separately and sends its id in setMedia', () async {
+      final write = FakeBeaconWritePort()..stageIds.addAll(['s1', 'thumb-1']);
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      await sut.create(
+        _command(
+          images: [_local('k1')],
+          coverKey: 'k1',
+          coverThumb: _local('thumb'),
+        ),
+      );
+
+      expect(write.stagedKeys, ['k1', 'thumb']);
+      expect(write.setMediaCalls.single.coverThumbImageId, 'thumb-1');
     });
 
     test('an already staged image is not staged again', () async {

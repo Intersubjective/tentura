@@ -44,8 +44,7 @@ class BeaconIdentityTile extends StatelessWidget {
         BeaconIdentityNeutral() => _neutral(context),
       };
 
-  /// Photo failure degrades through the same resolver with photo disabled, so
-  /// no independent inspection of cover/needs/title semantics happens here.
+  /// Photo failure: thumb → full cover → symbol/neutral.
   Widget _photo(BuildContext context, ImageEntity image) {
     final cacheExtent = (size * MediaQuery.devicePixelRatioOf(context)).round();
     final bytes = image.imageBytes;
@@ -57,8 +56,7 @@ class BeaconIdentityTile extends StatelessWidget {
         height: size,
         cacheWidth: cacheExtent,
         cacheHeight: cacheExtent,
-        errorBuilder: (_, _, _) =>
-            _content(context, beacon.resolveIdentity(allowPhoto: false)),
+        errorBuilder: (_, _, _) => _photoErrorFallback(context, image),
       );
     }
     return Image.network(
@@ -68,9 +66,20 @@ class BeaconIdentityTile extends StatelessWidget {
       height: size,
       cacheWidth: cacheExtent,
       cacheHeight: cacheExtent,
-      errorBuilder: (_, _, _) =>
-          _content(context, beacon.resolveIdentity(allowPhoto: false)),
+      errorBuilder: (_, _, _) => _photoErrorFallback(context, image),
     );
+  }
+
+  Widget _photoErrorFallback(BuildContext context, ImageEntity failed) {
+    final thumb = beacon.coverThumb;
+    final cover = beacon.coverImage;
+    if (thumb != null &&
+        failed.key == thumb.key &&
+        cover != null &&
+        cover.key != thumb.key) {
+      return _photo(context, cover);
+    }
+    return _content(context, beacon.resolveIdentity(allowPhoto: false));
   }
 
   Widget _neutral(BuildContext context) {

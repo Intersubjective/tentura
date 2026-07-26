@@ -63,6 +63,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Author preference between photo and symbol presentation.
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
 
+    /// Cropped square for card identity only; not in [images] gallery.
+    ImageEntity? coverThumb,
+
     /// Lineage fork: immediate parent beacon id (nullable).
     String? lineageParentBeaconId,
 
@@ -118,12 +121,17 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     return null;
   }
 
+  /// Card identity thumb when the author adjusted crop; not in [images].
+  ImageEntity? get coverThumbImage => coverThumb;
+
   /// The only identity decision point. [allowPhoto] is false for image-error
   /// fallbacks so a broken photo degrades to symbol or neutral.
   BeaconIdentity resolveIdentity({required bool allowPhoto}) {
     if (!canReadContent) return const BeaconIdentityNeutral();
 
     if (allowPhoto && coverSource == BeaconCoverSource.photo) {
+      final thumb = coverThumb;
+      if (thumb != null) return BeaconIdentityPhoto(thumb);
       final selected = coverImage;
       if (selected != null) return BeaconIdentityPhoto(selected);
     }

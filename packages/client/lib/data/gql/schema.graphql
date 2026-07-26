@@ -139,6 +139,10 @@ type beacon {
   can_read_content: Boolean
   context: String
   cover_image_id: uuid
+
+  """An object relationship"""
+  cover_thumb_image: image
+  cover_thumb_image_id: uuid
   cover_source: smallint!
   created_at: timestamptz!
   description: String!
@@ -2085,6 +2089,9 @@ enum beacon_select_column {
   cover_image_id
 
   """column name"""
+  cover_thumb_image_id
+
+  """column name"""
   cover_source
 
   """column name"""
@@ -3060,7 +3067,7 @@ type mutation_root {
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReopen(id: String!): v2_BeaconCloseReviewResult!
   beaconReorderImages(beaconId: String!, imageIds: [String!]): Boolean!
-  beaconSetMedia(coverImageId: String, coverSource: Int!, id: String!, imageIds: [String!]): v2_Beacon!
+  beaconSetMedia(coverImageId: String, coverThumbImageId: String, coverSource: Int!, id: String!, imageIds: [String!]): v2_Beacon!
   beaconStageImage(id: String!, image: v2_Upload = {}): v2_BeaconImageStaged!
   beaconUpdate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconUpdateDraft(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
@@ -6236,6 +6243,7 @@ type v2_AuthResponse {
 type v2_Beacon {
   addressLabel: String
   coverImageId: String
+  coverThumbImageId: String
   coverSource: Int!
   id: String!
   primaryNeedSlug: String

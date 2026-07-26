@@ -38,6 +38,7 @@ class CoverBlock extends StatelessWidget {
       buildWhen: (p, c) =>
           p.images != c.images ||
           p.coverKey != c.coverKey ||
+          p.coverThumb != c.coverThumb ||
           p.coverSource != c.coverSource ||
           p.needs != c.needs ||
           p.primaryNeedSlug != c.primaryNeedSlug,
@@ -192,7 +193,8 @@ class CoverBlock extends StatelessWidget {
           : l10n.beaconCoverHintSymbolSelected(capability);
     }
     if (state.coverImage != null) {
-      return l10n.beaconCoverHintPhotoSelected;
+      return '${l10n.beaconCoverHintPhotoSelected} '
+          '${l10n.beaconCoverHintThumbOnCard}';
     }
     if (capability != null) {
       return l10n.beaconCoverHintNoPhotoUsingSymbol(capability);

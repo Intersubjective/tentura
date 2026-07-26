@@ -144,6 +144,7 @@ abstract class BeaconRepositoryPort {
     required List<String> imageIds,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
+    String? coverThumbImageId,
   });
 
   /// Sets cover fields directly (legacy add/remove paths that do not run a

@@ -22,10 +22,13 @@ abstract interface class BeaconWritePort {
   });
 
   /// Publishes the complete ordered media state in one locked command.
+  ///
+  /// [coverThumbImageId] is always sent by current clients (null clears thumb).
   Future<Beacon> setMedia({
     required String beaconId,
     required List<String> imageIds,
     required String? coverImageId,
+    required String? coverThumbImageId,
     required BeaconCoverSource coverSource,
   });
 }

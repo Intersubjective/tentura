@@ -20,6 +20,12 @@
                 }
               },
               {
+                "name": "cover_thumb_image",
+                "using": {
+                  "foreign_key_constraint_on": "cover_thumb_image_id"
+                }
+              },
+              {
                 "name": "beacon_review_window",
                 "using": {
                   "foreign_key_constraint_on": {
@@ -234,6 +240,7 @@
                     "lineage_root_beacon_id",
                     "primary_need_slug",
                     "cover_image_id",
+                    "cover_thumb_image_id",
                     "cover_source"
                   ],
                   "computed_fields": [

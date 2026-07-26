@@ -281,6 +281,7 @@ class BeaconRepository implements BeaconWritePort {
     required String beaconId,
     required List<String> imageIds,
     required String? coverImageId,
+    required String? coverThumbImageId,
     required BeaconCoverSource coverSource,
   }) async {
     final request = GBeaconSetMediaReq((b) {
@@ -288,6 +289,7 @@ class BeaconRepository implements BeaconWritePort {
         ..id = beaconId
         ..imageIds.addAll(imageIds)
         ..coverImageId = coverImageId
+        ..coverThumbImageId = coverThumbImageId
         ..coverSource = coverSource.wireValue;
     });
     await _remoteApiService

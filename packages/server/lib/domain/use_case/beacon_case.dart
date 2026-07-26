@@ -111,6 +111,56 @@ BeaconCoverSource _parseCoverSourceStrict(int wireValue) {
   throw const BeaconMediaInvalidException();
 }
 
+/// Resolves the thumb id to persist for [beaconSetMedia].
+String? _resolveCoverThumbId({
+  required BeaconEntity locked,
+  required String? coverImageId,
+  required bool thumbArgPresent,
+  required String? thumbArgValue,
+  required Set<String> stagedIds,
+}) {
+  final String? resolved;
+  if (!thumbArgPresent) {
+    if (coverImageId != locked.coverImageId) {
+      resolved = null;
+    } else {
+      resolved = locked.coverThumbImageId;
+    }
+  } else {
+    resolved = thumbArgValue;
+  }
+
+  if (resolved == null || resolved.isEmpty) {
+    if (coverImageId == null && thumbArgPresent && thumbArgValue != null) {
+      throw const BeaconMediaInvalidException();
+    }
+    return null;
+  }
+
+  if (coverImageId == null) {
+    throw const BeaconMediaInvalidException();
+  }
+
+  for (final image in locked.images) {
+    if (image.id == resolved) {
+      throw const BeaconMediaInvalidException();
+    }
+  }
+
+  final isCurrent = resolved == locked.coverThumbImageId;
+  final isStaged = stagedIds.contains(resolved);
+  if (!isCurrent && !isStaged) {
+    throw const BeaconImageNotAttachedException();
+  }
+
+  if (coverImageId != locked.coverImageId &&
+      resolved == locked.coverThumbImageId) {
+    throw const BeaconMediaInvalidException();
+  }
+
+  return resolved;
+}
+
 @Singleton(order: 2)
 final class BeaconCase extends UseCaseBase {
   @FactoryMethod(preResolve: true)
@@ -491,6 +541,8 @@ final class BeaconCase extends UseCaseBase {
     required List<String> imageIds,
     required int coverSource,
     String? coverImageId,
+    String? coverThumbImageId,
+    bool coverThumbImageIdPresent = false,
   }) => _beaconRepository.runInBeaconStateTransaction(
     beaconId: beaconId,
     userId: userId,
@@ -529,16 +581,36 @@ final class BeaconCase extends UseCaseBase {
         }
       }
 
+      final resolvedThumb = _resolveCoverThumbId(
+        locked: locked,
+        coverImageId: coverImageId,
+        thumbArgPresent: coverThumbImageIdPresent,
+        thumbArgValue: coverThumbImageId,
+        stagedIds: snapshot.stagedImageIds,
+      );
+
+      final oldThumb = locked.coverThumbImageId;
+
       final removedIds = await _beaconRepository.replaceMedia(
         beaconId: beaconId,
         imageIds: imageIds,
         coverImageId: coverImageId,
         coverSource: resolvedCoverSource,
+        coverThumbImageId: resolvedThumb,
       );
       for (final removedId in removedIds) {
         await _imageObjectGc.enqueue(imageId: removedId, authorId: userId);
         await _imageRepository.deleteOwnedRow(
           imageId: removedId,
+          authorId: userId,
+        );
+      }
+      if (oldThumb != null &&
+          oldThumb.isNotEmpty &&
+          oldThumb != resolvedThumb) {
+        await _imageObjectGc.enqueue(imageId: oldThumb, authorId: userId);
+        await _imageRepository.deleteOwnedRow(
+          imageId: oldThumb,
           authorId: userId,
         );
       }
@@ -777,6 +849,17 @@ final class BeaconCase extends UseCaseBase {
             );
             await _imageRepository.deleteOwnedRow(
               imageId: image.id,
+              authorId: beacon.author.id,
+            );
+          }
+          final thumbId = beacon.coverThumbImageId;
+          if (thumbId != null && thumbId.isNotEmpty) {
+            await _imageObjectGc.enqueue(
+              imageId: thumbId,
+              authorId: beacon.author.id,
+            );
+            await _imageRepository.deleteOwnedRow(
+              imageId: thumbId,
               authorId: beacon.author.id,
             );
           }

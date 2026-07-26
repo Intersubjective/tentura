@@ -189,6 +189,31 @@ void main() {
       expect(cubit.state.coverSource, BeaconCoverSource.photo);
     });
 
+    test('picking a new cover photo clears an existing thumb', () async {
+      images.bytes = Uint8List.fromList([4, 5, 6]);
+      await seedServerImages([_serverA, _serverB], coverKey: 'srv-a');
+      await cubit.adjustCoverCrop(FakeImageCropUi(result: _picked('crop.jpg')));
+      expect(cubit.state.coverThumb, isNotNull);
+
+      images.picked = [_picked('c.jpg')];
+      await cubit.pickCoverPhoto();
+
+      expect(cubit.state.coverThumb, isNull);
+      expect(cubit.state.coverKey, isNot(cubit.state.images.first.key));
+    });
+
+    test('reordering images retains the cover thumb', () async {
+      images.bytes = Uint8List.fromList([4, 5, 6]);
+      await seedServerImages([_serverA, _serverB], coverKey: 'srv-b');
+      await cubit.adjustCoverCrop(FakeImageCropUi(result: _picked('crop.jpg')));
+      final thumb = cubit.state.coverThumb;
+
+      cubit.reorderImages(1, 0);
+
+      expect(cubit.state.coverThumb, thumb);
+      expect(cubit.state.coverKey, 'srv-b');
+    });
+
     test('an unknown key cannot be selected as cover', () async {
       images.picked = [_picked('a.jpg')];
       await cubit.pickImages();
@@ -227,26 +252,27 @@ void main() {
   });
 
   group('cover crop', () {
-    test('a replacement keeps its position and the cover follows it', () async {
+    test('adjust stores thumb only; gallery and cover key stay unchanged', () async {
       images.bytes = Uint8List.fromList([4, 5, 6]);
       await seedServerImages([_serverA, _serverB], coverKey: 'srv-a');
 
       await cubit.adjustCoverCrop(FakeImageCropUi(result: _picked('crop.jpg')));
 
-      final ids = cubit.state.images.map((e) => e.id).toList();
-      expect(ids[1], 'srv-b');
-      expect(ids.first, isEmpty);
-      expect(cubit.state.coverKey, cubit.state.images.first.key);
+      expect(cubit.state.images.map((e) => e.id), ['srv-a', 'srv-b']);
+      expect(cubit.state.coverKey, 'srv-a');
+      expect(cubit.state.coverThumb, isNotNull);
+      expect(cubit.state.coverThumb!.fileName, 'crop.jpg');
       expect(images.fetchedUrls, hasLength(1));
     });
 
-    test('cancelling preserves images, cover, and preference', () async {
+    test('cancelling preserves images, cover, thumb, and preference', () async {
       await seedServerImages([_serverA, _serverB], coverKey: 'srv-a');
 
       await cubit.adjustCoverCrop(FakeImageCropUi());
 
       expect(cubit.state.images.map((e) => e.id), ['srv-a', 'srv-b']);
       expect(cubit.state.coverKey, 'srv-a');
+      expect(cubit.state.coverThumb, isNull);
       expect(cubit.state.coverSource, BeaconCoverSource.photo);
     });
 
@@ -259,6 +285,7 @@ void main() {
       expect(effects.emitted.whereType<ShowError>(), hasLength(1));
       expect(cubit.state.images.map((e) => e.id), ['srv-a']);
       expect(cubit.state.coverKey, 'srv-a');
+      expect(cubit.state.coverThumb, isNull);
     });
 
     test('there is nothing to crop without a selected cover', () async {

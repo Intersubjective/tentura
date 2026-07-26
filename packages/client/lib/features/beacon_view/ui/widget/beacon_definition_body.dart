@@ -129,6 +129,7 @@ class _BeaconDefinitionMediaBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -145,12 +146,16 @@ class _BeaconDefinitionMediaBand extends StatelessWidget {
         } else {
           media = ClipRRect(
             borderRadius: BorderRadius.circular(tt.cardRadius),
-            child: SizedBox(
-              height: mediaHeight,
-              width: double.infinity,
-              child: BeaconImage(
-                beacon: beacon,
-                enableGalleryTap: true,
+            child: ColoredBox(
+              color: scheme.surfaceContainerHighest,
+              child: SizedBox(
+                height: mediaHeight,
+                width: double.infinity,
+                child: BeaconImage(
+                  beacon: beacon,
+                  boxFit: BoxFit.contain,
+                  enableGalleryTap: true,
+                ),
               ),
             ),
           );

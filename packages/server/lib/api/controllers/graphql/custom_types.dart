@@ -315,6 +315,7 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('primaryNeedSlug', graphQLString),
     field('coverImageId', graphQLString),
     field('coverSource', graphQLInt.nonNullable()),
+    field('coverThumbImageId', graphQLString),
   ]);
 
 /// `beaconAddImage` result: legacy compatibility `id` (beacon id) plus the

@@ -5,7 +5,11 @@ fragment BeaconModel on beacon {
   id
   primary_need_slug
   cover_image_id
+  cover_thumb_image_id
   cover_source
+  cover_thumb_image {
+    ...ImageModel
+  }
   title
   description
   needs

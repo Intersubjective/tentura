@@ -138,6 +138,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       primaryNeedSlug: beacon.primaryNeedSlug,
       coverKey: beacon.coverImage?.key,
       coverSource: beacon.coverSource,
+      coverThumb: beacon.coverThumb,
       images: [...beacon.images],
       initialServerImageIds: {
         for (final img in beacon.images)
@@ -150,11 +151,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   BeaconCreateState _applyServerMedia(
     BeaconCreateState from,
     Beacon beacon,
-    List<ImageEntity> published,
-  ) => from.copyWith(
+    List<ImageEntity> published, {
+    ImageEntity? coverThumb,
+  }) => from.copyWith(
     images: published,
     coverKey: beacon.coverImage?.key,
     coverSource: beacon.coverSource,
+    coverThumb: coverThumb ?? beacon.coverThumb,
     initialServerImageIds: {
       for (final img in published)
         if (img.id.isNotEmpty) img.id,
@@ -320,24 +323,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       state.copyWith(
         coverKey: key,
         coverSource: BeaconCoverSource.photo,
+        coverThumb: null,
       ),
     );
   }
 
-  /// Replaces [key] with [replacement] at the same position, repointing the
-  /// cover when the replaced entry was the cover.
-  void replaceImage(String key, ImageEntity replacement) {
-    final index = state.images.indexWhere((image) => image.key == key);
-    if (index < 0) return;
-    final images = [...state.images];
-    images[index] = replacement;
-    emit(
-      state.copyWith(
-        images: images,
-        coverKey: state.coverKey == key ? replacement.key : state.coverKey,
-      ),
-    );
-  }
+  void clearCoverThumb() => emit(state.copyWith(coverThumb: null));
 
   ///
   ///
@@ -368,10 +359,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       } else {
         cover = state.coverKey;
       }
+      final coverChanged = cover != state.coverKey;
       emit(
         state.copyWith(
           images: combined,
           coverKey: cover,
+          coverThumb: coverChanged ? null : state.coverThumb,
           coverSource: asCover && kept
               ? BeaconCoverSource.photo
               : state.coverSource,
@@ -382,8 +375,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  /// Re-crops the selected cover at 1:1 and replaces it in place. Cancelling
-  /// preserves images, cover key, and source exactly.
+  /// Re-crops the selected cover at 1:1 into [coverThumb] only. Cancelling
+  /// preserves images, cover key, thumb, and source exactly.
   Future<void> adjustCoverCrop(ImageCropUiPort cropUi) async {
     final image = state.coverImage;
     if (image == null) return;
@@ -394,7 +387,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         cropUi: cropUi,
       );
       if (isClosed || replacement == null) return;
-      replaceImage(image.key, replacement);
+      emit(state.copyWith(coverThumb: replacement));
     } catch (e) {
       _emitSnackError(e);
     }
@@ -408,22 +401,25 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void removeImage(int index) {
     final removed = state.images[index];
     final images = [...state.images]..removeAt(index);
+    final coverRemoved = state.coverKey == removed.key;
     emit(
       state.copyWith(
         images: images,
         // Deleting the cover selects the first remaining image by list order;
         // deleting the last one clears the key but keeps the preference.
-        coverKey: state.coverKey == removed.key
+        coverKey: coverRemoved
             ? (images.isEmpty ? null : images.first.key)
             : state.coverKey,
+        coverThumb: coverRemoved ? null : state.coverThumb,
       ),
     );
   }
 
   ///
   ///
-  void clearAllImages() =>
-      emit(state.copyWith(images: [], coverKey: null));
+  void clearAllImages() => emit(
+    state.copyWith(images: [], coverKey: null, coverThumb: null),
+  );
 
   ///
   ///
@@ -489,6 +485,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     ),
     images: state.images,
     coverKey: state.coverKey,
+    coverThumb: state.coverThumb,
     draft: draft,
   );
 
@@ -501,6 +498,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           draftId: state.draftId ?? failure.beaconId,
           images: failure.images,
           coverKey: failure.coverKey,
+          coverThumb: failure.coverThumb,
         ),
       );
     }
@@ -526,6 +524,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           state.copyWith(draftId: result.beacon.id),
           result.beacon,
           result.images,
+          coverThumb: result.coverThumb,
         ),
       );
       if (showMessage) {
@@ -558,7 +557,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final result = await _case.saveDraft(
         _command(context: context, id: existing, draftSafeTitle: true),
       );
-      emit(_applyServerMedia(state, result.beacon, result.images));
+      emit(
+        _applyServerMedia(
+          state,
+          result.beacon,
+          result.images,
+          coverThumb: result.coverThumb,
+        ),
+      );
       if (showMessage) {
         _emitSnackMessage(const DraftSavedMessage());
       }
@@ -614,7 +620,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final result = await _case.saveEdit(
         _command(context: context, id: state.editId!, draftSafeTitle: false),
       );
-      emit(_applyServerMedia(state, result.beacon, result.images));
+      emit(
+        _applyServerMedia(
+          state,
+          result.beacon,
+          result.images,
+          coverThumb: result.coverThumb,
+        ),
+      );
       _emitNavigateBack();
     } on BeaconSaveFailure catch (e) {
       _emitSaveFailure(e);
@@ -634,7 +647,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         final result = await _case.saveDraft(
           _command(context: context, id: existing, draftSafeTitle: false),
         );
-        emit(_applyServerMedia(state, result.beacon, result.images));
+        emit(
+          _applyServerMedia(
+            state,
+            result.beacon,
+            result.images,
+            coverThumb: result.coverThumb,
+          ),
+        );
         id = existing;
       } else {
         // Created as a draft so media reconciles before anyone can read it.
@@ -646,6 +666,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             state.copyWith(draftId: result.beacon.id),
             result.beacon,
             result.images,
+            coverThumb: result.coverThumb,
           ),
         );
         id = result.beacon.id;

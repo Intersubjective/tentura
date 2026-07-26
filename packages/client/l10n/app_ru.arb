@@ -575,8 +575,16 @@
   "@beaconCoverSelected": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCoverAdjust": "Изменить кадрирование",
+  "beaconCoverAdjust": "Настроить миниатюру карточки",
   "@beaconCoverAdjust": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverThumbReset": "Сбросить миниатюру карточки",
+  "@beaconCoverThumbReset": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintThumbOnCard": "На запросе остаётся полное фото; кадрирование влияет только на маленькую карточку.",
+  "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryMeta": "Координация",

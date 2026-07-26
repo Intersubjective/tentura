@@ -122,6 +122,7 @@ Beacon _beacon({
   Set<String> needs = const {},
   List<ImageEntity> images = const [],
   String? coverImageId,
+  ImageEntity? coverThumb,
   BeaconCoverSource coverSource = BeaconCoverSource.photo,
 }) =>
     Beacon.empty.copyWith(
@@ -133,12 +134,28 @@ Beacon _beacon({
       images: images,
       primaryNeedSlug: primaryNeedSlug,
       coverImageId: coverImageId,
+      coverThumb: coverThumb,
       coverSource: coverSource,
     );
 
 final _photoBeacon = _beacon(
   images: const [_coverImage],
   coverImageId: 'cover-1',
+  needs: const {'transport'},
+  primaryNeedSlug: 'transport',
+);
+
+const _thumbImage = ImageEntity(
+  id: 'thumb-1',
+  authorId: 'author-1',
+  width: 16,
+  height: 16,
+);
+
+final _thumbBeacon = _beacon(
+  images: const [_coverImage],
+  coverImageId: 'cover-1',
+  coverThumb: _thumbImage,
   needs: const {'transport'},
   primaryNeedSlug: 'transport',
 );
@@ -210,6 +227,19 @@ void main() {
   }
 
   group('identity branches', () {
+    testWidgets('photo with card thumb at 40px', (tester) async {
+      await pumpGolden(
+        tester,
+        name: 'thumb_photo_light_40',
+        logicalSize: const Size(120, 120),
+        brightness: Brightness.light,
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: BeaconIdentityTile(beacon: _thumbBeacon, size: 40),
+        ),
+      );
+    });
+
     for (final brightness in Brightness.values) {
       for (final size in <double>[32, 40, 56]) {
         testWidgets(

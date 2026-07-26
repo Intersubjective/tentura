@@ -1017,6 +1017,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     required List<String>? imageIds,
     required String? coverImageId,
     required _i15.BeaconCoverSource? coverSource,
+    String? coverThumbImageId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#replaceMedia, [], {
@@ -1024,6 +1025,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #imageIds: imageIds,
               #coverImageId: coverImageId,
               #coverSource: coverSource,
+              #coverThumbImageId: coverThumbImageId,
             }),
             returnValue: _i6.Future<List<String>>.value(<String>[]),
           )

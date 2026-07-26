@@ -575,8 +575,16 @@
   "@beaconCoverSelected": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCoverAdjust": "Adjust cover crop",
+  "beaconCoverAdjust": "Adjust card thumbnail",
   "@beaconCoverAdjust": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverThumbReset": "Reset card thumbnail",
+  "@beaconCoverThumbReset": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverHintThumbOnCard": "The full photo stays on the request; cropping affects only the small card.",
+  "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryMeta": "Coordination",

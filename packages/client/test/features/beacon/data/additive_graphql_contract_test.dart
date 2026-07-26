@@ -97,6 +97,7 @@ void main() {
         'lib/features/beacon/data/gql/beacon_set_media.graphql',
       ).readAsStringSync();
       expect(setMedia, contains(r'$coverSource: Int!'));
+      expect(setMedia, contains(r'$coverThumbImageId: String'));
       expect(setMedia, contains(r'$imageIds: [String!]'));
     });
   });

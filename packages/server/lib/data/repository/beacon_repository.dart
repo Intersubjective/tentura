@@ -548,6 +548,7 @@ WHERE user_id = $1 AND created_at >= $2
           ? const Value(null)
           : Value(UuidValue.fromString(coverImageId)),
       coverSource: Value(coverSource.wireValue),
+      coverThumbImageId: const Value(null),
     ),
   );
 
@@ -557,6 +558,7 @@ WHERE user_id = $1 AND created_at >= $2
     required List<String> imageIds,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
+    String? coverThumbImageId,
   }) async {
     final currentAttachedIds = (await _database.managers.beaconImages
             .filter((e) => e.beaconId.id.equals(beaconId))
@@ -614,11 +616,22 @@ WHERE user_id = $1 AND created_at >= $2
       }
     }
 
-    await setCover(
-      beaconId: beaconId,
-      coverImageId: coverImageId,
-      coverSource: coverSource,
+    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
+      (o) => o(
+        coverImageId: coverImageId == null
+            ? const Value(null)
+            : Value(UuidValue.fromString(coverImageId)),
+        coverSource: Value(coverSource.wireValue),
+        coverThumbImageId: coverThumbImageId == null
+            ? const Value(null)
+            : Value(UuidValue.fromString(coverThumbImageId)),
+      ),
     );
+
+    if (coverThumbImageId != null &&
+        currentStagedIds.contains(coverThumbImageId)) {
+      await deleteStage(imageId: coverThumbImageId);
+    }
 
     return [...toDetach, ...toDiscardStage];
   }

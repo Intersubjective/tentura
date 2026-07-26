@@ -44,6 +44,7 @@ class _MediaBeaconRepo extends Fake implements BeaconRepositoryPort {
           String beaconId,
           List<String> imageIds,
           String? coverImageId,
+          String? coverThumbImageId,
           BeaconCoverSource coverSource,
         })
       >[];
@@ -102,11 +103,13 @@ class _MediaBeaconRepo extends Fake implements BeaconRepositoryPort {
     required List<String> imageIds,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
+    String? coverThumbImageId,
   }) async {
     replaceMediaCalls.add((
       beaconId: beaconId,
       imageIds: imageIds,
       coverImageId: coverImageId,
+      coverThumbImageId: coverThumbImageId,
       coverSource: coverSource,
     ));
     return replaceMediaReturns;

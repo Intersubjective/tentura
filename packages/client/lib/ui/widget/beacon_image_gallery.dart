@@ -19,7 +19,7 @@ class BeaconImageGallery extends StatefulWidget {
 
   final Beacon beacon;
 
-  /// Non-null ⇒ fixed viewport height; images use [BoxFit.cover].
+  /// Non-null ⇒ fixed viewport height; images use [BoxFit.contain].
   final double? maxHeight;
 
   @override
@@ -54,6 +54,9 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
         ? 'beacon-gallery-${widget.beacon.id}-full'
         : 'beacon-gallery-${widget.beacon.id}-compact-${widget.maxHeight}';
 
+    final maxH = widget.maxHeight;
+    final compactFit = maxH != null;
+
     final pageView = PageView.builder(
       key: PageStorageKey<String>(storageKey),
       controller: _pageController,
@@ -63,12 +66,12 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
         final image = images[index];
         final networkImage = Image.network(
           imageUrls[index],
-          fit: BoxFit.cover,
+          fit: compactFit ? BoxFit.contain : BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (_, _, _) => Image.asset(
             'images/placeholder/beacon.jpg',
-            fit: BoxFit.cover,
+            fit: compactFit ? BoxFit.contain : BoxFit.cover,
           ),
         );
 
@@ -85,15 +88,18 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
       },
     );
 
-    final maxH = widget.maxHeight;
     const radius = BorderRadius.vertical(top: Radius.circular(16));
+    final scheme = Theme.of(context).colorScheme;
     final Widget viewport = maxH != null
         ? SizedBox(
             height: maxH,
             width: double.infinity,
             child: ClipRRect(
               borderRadius: radius,
-              child: pageView,
+              child: ColoredBox(
+                color: scheme.surfaceContainerHighest,
+                child: pageView,
+              ),
             ),
           )
         : ClipRRect(

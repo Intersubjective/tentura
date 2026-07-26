@@ -21,10 +21,14 @@ class ImageTab extends StatelessWidget {
     return BlocSelector<
       BeaconCreateCubit,
       BeaconCreateState,
-      ({List<ImageEntity> images, String? coverKey})
+      ({List<ImageEntity> images, String? coverKey, ImageEntity? coverThumb})
     >(
       bloc: cubit,
-      selector: (state) => (images: state.images, coverKey: state.coverKey),
+      selector: (state) => (
+        images: state.images,
+        coverKey: state.coverKey,
+        coverThumb: state.coverThumb,
+      ),
       builder: (context, media) {
         final images = media.images;
         return LayoutBuilder(
@@ -70,6 +74,7 @@ class ImageTab extends StatelessWidget {
                           image: images[index],
                           index: index,
                           coverKey: media.coverKey,
+                          coverThumb: media.coverThumb,
                         ),
                         childCount: images.length,
                       ),
@@ -89,6 +94,7 @@ class ImageTab extends StatelessWidget {
                               image: images[index],
                               index: index,
                               coverKey: media.coverKey,
+                              coverThumb: media.coverThumb,
                             ),
                           ),
                     ),
@@ -139,10 +145,12 @@ class ImageTab extends StatelessWidget {
     required ImageEntity image,
     required int index,
     required String? coverKey,
+    required ImageEntity? coverThumb,
   }) => _ImageCard(
     image: image,
     index: index,
     isCover: coverKey == image.key,
+    hasCoverThumb: coverKey == image.key && coverThumb != null,
     onRemove: () => cubit.removeImage(index),
     onUseAsCover: () => cubit.setCoverImageKey(image.key),
     onAdjustCover: (context) => unawaited(
@@ -150,6 +158,7 @@ class ImageTab extends StatelessWidget {
         BeaconCoverCropUi(context, L10n.of(context)!),
       ),
     ),
+    onResetCoverThumb: cubit.clearCoverThumb,
   );
 }
 
@@ -158,17 +167,21 @@ class _ImageCard extends StatelessWidget {
     required this.image,
     required this.index,
     required this.isCover,
+    required this.hasCoverThumb,
     required this.onRemove,
     required this.onUseAsCover,
     required this.onAdjustCover,
+    required this.onResetCoverThumb,
   });
 
   final ImageEntity image;
   final int index;
   final bool isCover;
+  final bool hasCoverThumb;
   final VoidCallback onRemove;
   final VoidCallback onUseAsCover;
   final void Function(BuildContext context) onAdjustCover;
+  final VoidCallback onResetCoverThumb;
 
   @override
   Widget build(BuildContext context) {
@@ -307,6 +320,18 @@ class _ImageCard extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        if (hasCoverThumb)
+          _pill(
+            context,
+            child: IconButton(
+              key: Key('BeaconImage.ResetCoverThumb.${image.key}'),
+              tooltip: l10n.beaconCoverThumbReset,
+              color: scheme.onPrimary,
+              icon: Icon(Icons.restart_alt_rounded, size: tt.iconSize),
+              onPressed: onResetCoverThumb,
+            ),
+          ),
+        if (hasCoverThumb) SizedBox(width: tt.tightGap),
         _pill(
           context,
           child: IconButton(

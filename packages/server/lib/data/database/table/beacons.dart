@@ -50,6 +50,9 @@ class Beacons extends Table
   /// 0 = photo, 1 = symbol. Membership FK is enforced in SQL (m0130).
   late final Column<int> coverSource = integer().withDefault(const Constant(0))();
 
+  /// Cropped square used only for card identity; not in beacon_image gallery.
+  late final coverThumbImageId = customType(PgTypes.uuid).nullable()();
+
   /// Immediate source beacon when this row was created via lineage fork.
   late final lineageParentBeaconId = text().nullable().references(
     Beacons,

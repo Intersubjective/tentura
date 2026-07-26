@@ -236,6 +236,7 @@ final class MutationBeacon extends GqlNodeBase {
       InputFieldId.field,
       InputFieldBeaconMedia.imageIds,
       InputFieldBeaconMedia.coverImageId,
+      InputFieldBeaconMedia.coverThumbImageId,
       InputFieldBeaconMedia.coverSource,
     ],
     resolve: (_, args) => _beaconCase
@@ -244,6 +245,10 @@ final class MutationBeacon extends GqlNodeBase {
           userId: getCredentials(args).sub,
           imageIds: InputFieldBeaconMedia.imageIdsFromArgs(args),
           coverImageId: InputFieldBeaconMedia.coverImageIdFromArgs(args),
+          coverThumbImageId:
+              InputFieldBeaconMedia.coverThumbImageIdFromArgs(args),
+          coverThumbImageIdPresent:
+              InputFieldBeaconMedia.coverThumbImageIdPresent(args),
           coverSource: InputFieldBeaconMedia.coverSourceFromArgs(args),
         )
         .then((v) => v.asJson),
