@@ -258,10 +258,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
-            onOpenCoordinationItem: isThreadMode
-                ? null
-                : widget.onOpenCoordinationItem ??
-                    ((item) => unawaited(
+            onOpenCoordinationItem: widget.onOpenCoordinationItem ??
+                (isThreadMode
+                    ? null
+                    : (item) => unawaited(
                           openCoordinationItemFromRoom(
                             context,
                             item: item,
@@ -500,7 +500,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         ),
                       ],
                       // ── …or open / resolve an already-linked item. ──
-                      if (linkedItem != null && !isThreadMode) ...[
+                      if (linkedItem != null &&
+                          (!isThreadMode ||
+                              widget.onOpenCoordinationItem != null)) ...[
                         ListTile(
                           leading: Icon(
                             planItemSuppressesItemDiscussion(linkedItem)

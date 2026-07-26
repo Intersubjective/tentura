@@ -20,6 +20,7 @@ Widget itemDiscussionProviders({
   required Widget child,
 }) {
   return MultiBlocProvider(
+    key: ValueKey('item-discussion-root-${item.id}'),
     providers: [
       BlocProvider(
         key: ValueKey('item-discussion-room-${item.id}'),
@@ -30,6 +31,7 @@ Widget itemDiscussionProviders({
         ),
       ),
       BlocProvider(
+        key: ValueKey('item-discussion-actions-${item.id}'),
         create: (_) => ItemActionsCubit(item: item),
       ),
     ],

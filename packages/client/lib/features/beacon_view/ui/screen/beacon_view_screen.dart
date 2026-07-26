@@ -1126,6 +1126,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               ),
             Expanded(
               child: ItemDiscussionPane(
+                key: ValueKey('item-discussion-pane-${threadItem.id}'),
                 onOpenCoordinationItem: _openItemDiscussion,
               ),
             ),
