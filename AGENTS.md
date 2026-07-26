@@ -54,3 +54,16 @@ cd packages/client && flutter test --update-goldens <path>               # regen
 CI (`.github/workflows/pipeline.yml`) runs the lint tests, `scripts/check-custom-lints.sh` for
 both packages, `bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push
 to `main`.
+
+## Cursor Cloud specific instructions
+
+Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the non-obvious cloud caveats are below. Flutter 3.44 lives at `/opt/flutter/bin` (on `PATH` via `~/.bashrc`). Docker, Caddy, and `jq` are pre-installed in the snapshot. The startup update script only runs `flutter pub get`; everything else (Docker daemon, infra, servers) must be started manually.
+
+- **Generated code + `.env` persist in the snapshot, not git.** `*.g.dart`/`*.gr.dart`/`*.config.dart`/l10n and repo-root `.env` are git-ignored but were generated/created during setup and live in the snapshot. Re-run codegen only after changing GraphQL/Freezed/Drift/AutoRoute/Injectable/`.arb`: `cd packages/client && flutter gen-l10n && dart run build_runner build -d` (and `dart run build_runner build -d` in `packages/server`).
+- **Start Docker before infra:** `sudo service docker start` (daemon does not auto-start), then `docker compose up -d`. Docker 29 uses `fuse-overlayfs` with `containerd-snapshotter` disabled (`/etc/docker/daemon.json`).
+- **Server rejects the embedded test JWT keys.** With `ENVIRONMENT=dev`, `Env._assertJwtKeys` refuses the `.env.example` keys. `.env` already has a generated Ed25519 keypair; if you regenerate it, restart Hasura too (`docker compose up -d --force-recreate hasura`) so its `HASURA_GRAPHQL_JWT_SECRET` picks up the new `JWT_PUBLIC_PEM`, or Hasura returns `invalid-jwt`.
+- **QA login needs `ENVIRONMENT=dev`.** `.env` sets `ENVIRONMENT=dev`, `QA_SIMPLE_LOGIN_MODE=true`, `QA_AUTH_ENABLED=true`; QA routes 404 under the default `prod`. `access-token` is a **POST** to `/api/v2/session/access-token` and returns `access_token` (snake_case).
+- **Apply Hasura metadata after starting infra**, or the app shows `field 'beacon'/'invitation' not found in type: 'query_root'` on My Work / My people: `./scripts/hasura_apply_metadata.sh`.
+- **Flutter web dev server binds to `::1`, so Caddy → 127.0.0.1:8888 gives 502.** Start it bound to IPv4: `./scripts/run-flutter-web-local.sh --web-hostname=127.0.0.1`.
+- **Caddy needs sudo and a trusted CA for the Chrome/computerUse browser:** `sudo caddy run --config Caddyfile.local`. The Caddy local root CA is installed into the system store and the user NSS DB (`~/.pki/nssdb`) so `https://dev.lvh.me:9443` is trusted; `dev.lvh.me` is mapped to `127.0.0.1` in `/etc/hosts`.
+- **UI text entry:** the Flutter web app uses CanvasKit, so DOM typing does not reach the framework — set up state via the v2 API (e.g. `beaconCreate`) and use the UI to view it (see `local-debug` skill). The landing page (`/`, plain HTML) accepts typing, so the QA "Test login" form there works (enabled via `packages/landing/config.local.js` `qaTestLogin: true`).
