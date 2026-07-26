@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_location_actions.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
@@ -354,13 +355,18 @@ class _LocationMeta extends StatelessWidget {
     );
 
     return Semantics(
+      button: true,
       label: l10n.beaconCardLocationSemantics(
         displayLabel,
       ),
-      child: BeaconCardMetaItem(
-        icon: TenturaIcons.location,
-        mainAxisSize: MainAxisSize.max,
-        child: label,
+      child: InkWell(
+        onTap: () => showBeaconLocationActions(context, beacon),
+        borderRadius: BorderRadius.circular(8),
+        child: BeaconCardMetaItem(
+          icon: TenturaIcons.location,
+          mainAxisSize: MainAxisSize.max,
+          child: label,
+        ),
       ),
     );
   }
