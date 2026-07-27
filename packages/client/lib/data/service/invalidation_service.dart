@@ -9,6 +9,7 @@ import 'package:tentura/data/service/remote_api_client/realtime_transport_status
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import 'remote_api_service.dart';
@@ -84,6 +85,7 @@ class InvalidationService implements RealtimeSyncPort {
   // Leave enough room to collapse one transaction's trigger burst while
   // preserving the 1.5 s end-to-end connected-delivery budget.
   static const _batchWindow = Duration(milliseconds: 100);
+  static const _roomMessageBatchWindow = Duration(milliseconds: 16);
 
   late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
   late final StreamSubscription<RealtimeTransportStatus> _transportSubscription;
@@ -104,11 +106,20 @@ class InvalidationService implements RealtimeSyncPort {
       );
 
   @override
-  late final Stream<RealtimeEntityChange> entityChanges =
-      _bufferAfterFirstEvent(
-        _entityChangeController.stream,
-        _batchWindow,
-      ).expand(_deduplicateEntityChanges).asBroadcastStream();
+  late final Stream<RealtimeEntityChange> entityChanges = Rx.merge([
+    _bufferAfterFirstEvent(
+      _entityChangeController.stream.where(
+        (change) => change.kind == RealtimeEntityKind.roomMessage,
+      ),
+      _roomMessageBatchWindow,
+    ).expand(_deduplicateEntityChanges),
+    _bufferAfterFirstEvent(
+      _entityChangeController.stream.where(
+        (change) => change.kind != RealtimeEntityKind.roomMessage,
+      ),
+      _batchWindow,
+    ).expand(_deduplicateEntityChanges),
+  ]).asBroadcastStream();
 
   @override
   late final Stream<RealtimeCatchUp> catchUps = _bufferAfterFirstEvent(
@@ -147,6 +158,14 @@ class InvalidationService implements RealtimeSyncPort {
     if (actorUserId != null && actorUserId is! String) {
       return;
     }
+    final childId = _parseChildId(payload['message_id']);
+    final paint = _parseRoomMessagePaint(
+      kind: kind,
+      operation: operation,
+      aggregateId: id,
+      childId: childId,
+      rawMessage: payload['message'],
+    );
 
     _entityChangeController.add(
       RealtimeEntityChange(
@@ -155,6 +174,8 @@ class InvalidationService implements RealtimeSyncPort {
         operation: operation,
         source: RealtimeChangeSource.serverInvalidation,
         actorUserId: actorUserId as String?,
+        childId: childId,
+        roomMessagePaint: paint,
       ),
     );
   }
@@ -232,11 +253,85 @@ class InvalidationService implements RealtimeSyncPort {
     List<RealtimeEntityChange> batch,
   ) {
     final latestByProjectionKey =
-        <(RealtimeEntityKind, String), RealtimeEntityChange>{};
+        <(RealtimeEntityKind, String, String?), RealtimeEntityChange>{};
     for (final change in batch) {
-      latestByProjectionKey[(change.kind, change.aggregateId)] = change;
+      latestByProjectionKey[
+        (change.kind, change.aggregateId, change.roomMessagePaint?.id)
+      ] = change;
     }
     return latestByProjectionKey.values;
+  }
+
+  static String? _parseChildId(Object? raw) =>
+      raw is String && raw.isNotEmpty ? raw : null;
+
+  static RealtimeRoomMessagePaint? _parseRoomMessagePaint({
+    required RealtimeEntityKind? kind,
+    required RealtimeOperation? operation,
+    required String aggregateId,
+    required String? childId,
+    required Object? rawMessage,
+  }) {
+    if (kind != RealtimeEntityKind.roomMessage ||
+        operation != RealtimeOperation.insert ||
+        childId == null ||
+        rawMessage == null) {
+      return null;
+    }
+    final message = _normalizeJsonObject(rawMessage);
+    if (message == null) {
+      return null;
+    }
+    final id = message['id'];
+    final beaconId = message['beaconId'];
+    final authorId = message['authorId'];
+    final body = message['body'];
+    final createdAtRaw = message['createdAt'];
+    final editedAtRaw = message['editedAt'];
+    final mentionsRaw = message['mentions'];
+    final threadItemIdRaw = message['threadItemId'];
+    if (id is! String ||
+        id.isEmpty ||
+        beaconId is! String ||
+        beaconId.isEmpty ||
+        authorId is! String ||
+        authorId.isEmpty ||
+        body is! String ||
+        createdAtRaw is! String) {
+      return null;
+    }
+    if (id != childId || beaconId != aggregateId) {
+      return null;
+    }
+    final createdAt = DateTime.tryParse(createdAtRaw);
+    if (createdAt == null) {
+      return null;
+    }
+    DateTime? editedAt;
+    if (editedAtRaw is String) {
+      editedAt = DateTime.tryParse(editedAtRaw);
+      if (editedAt == null) {
+        return null;
+      }
+    } else if (editedAtRaw != null) {
+      return null;
+    }
+  final mentions = mentionsRaw is List
+        ? mentionsRaw.whereType<String>().toList(growable: false)
+        : const <String>[];
+    final threadItemId = threadItemIdRaw is String && threadItemIdRaw.isNotEmpty
+        ? threadItemIdRaw
+        : null;
+    return RealtimeRoomMessagePaint(
+      id: id,
+      beaconId: beaconId,
+      authorId: authorId,
+      body: body,
+      createdAt: createdAt,
+      editedAt: editedAt,
+      mentions: mentions,
+      threadItemId: threadItemId,
+    );
   }
 
   static Iterable<RealtimeCatchUp> _deduplicateCatchUps(

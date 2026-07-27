@@ -12,7 +12,7 @@ void main() {
         .toList(growable: false);
     final repoRoot = contractFile.parent.parent.parent;
     final publisherMigrations = [
-      for (final name in const ['m0114.dart', 'm0116.dart'])
+      for (final name in const ['m0114.dart', 'm0116.dart', 'm0133.dart'])
         File.fromUri(
           repoRoot.uri.resolve(
             'packages/server/lib/data/database/migration/$name',
@@ -66,6 +66,7 @@ void main() {
         'notify_notification_outbox_insert',
         'notify_notification_outbox_update',
         'notify_relationship_change',
+        'notify_room_message_attachment_change',
       },
     );
 

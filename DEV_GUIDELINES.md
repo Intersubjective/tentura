@@ -175,10 +175,17 @@ actor account's sessions converge through the same server hint as other affected
 sessions. Do not reintroduce SQL actor removal or a session-local derived-state
 bus.
 
-The client coalesces `(kind, aggregateId)` bursts for 100 ms. Cubits use one
-in-flight silent refresh plus at most one queued rerun and reject stale account or
-generation results. Command success/failure owns user-visible effects; an echoed
-invalidation only reconciles server truth and must not show a second success.
+The client coalesces `(kind, aggregateId)` bursts for 100 ms, except
+`room_message`, which uses a 16 ms lane. Cubits use one in-flight silent refresh
+plus at most one queued rerun and reject stale account or generation results.
+Command success/failure owns user-visible effects; an echoed invalidation only
+reconciles server truth and must not show a second success.
+
+`room_message` NOTIFY envelopes may include optional `message_id` extras. On WS
+fan-out, eligible plain-text inserts may carry an optional viewer-neutral
+`message` paint object. Missing or invalid paint always falls back to an
+authoritative messages-only refetch. No other entity kind may carry projection
+data on the wire.
 
 ### Catch-up protocol and lifecycle
 

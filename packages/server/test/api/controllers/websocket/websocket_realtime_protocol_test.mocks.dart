@@ -12,12 +12,16 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i3;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i7;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i4;
+import 'package:tentura_server/domain/entity/room_message_snapshot.dart'
+    as _i16;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/user_presence_entity.dart' as _i11;
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart'
     as _i14;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i9;
+import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart'
+    as _i15;
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart'
     as _i10;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i5;
@@ -755,4 +759,26 @@ class MockBeaconRoomCoParticipantLookupPort extends _i1.Mock
             ),
           )
           as _i6.Future<Set<String>>);
+}
+
+/// A class which mocks [RoomMessageSnapshotLookupPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockRoomMessageSnapshotLookupPort extends _i1.Mock
+    implements _i15.RoomMessageSnapshotLookupPort {
+  @override
+  _i6.Future<_i16.RoomMessageSnapshot?> findEligibleInsert({
+    required String? messageId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#findEligibleInsert, [], {
+              #messageId: messageId,
+              #beaconId: beaconId,
+            }),
+            returnValue: _i6.Future<_i16.RoomMessageSnapshot?>.value(),
+            returnValueForMissingStub:
+                _i6.Future<_i16.RoomMessageSnapshot?>.value(),
+          )
+          as _i6.Future<_i16.RoomMessageSnapshot?>);
 }

@@ -6,6 +6,9 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -123,7 +126,7 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
 
-  Future<void> createMessage({
+  Future<String?> createMessage({
     required String beaconId,
     required String body,
     String? replyToMessageId,
@@ -131,7 +134,7 @@ final class BeaconRoomCase extends UseCaseBase {
     List<RoomPendingUpload> uploads = const [],
   }) async {
     if (body.trim().isEmpty && uploads.isEmpty) {
-      return;
+      return null;
     }
     final first = uploads.isNotEmpty ? uploads.first : null;
     final extras = uploads.length > 1
@@ -151,6 +154,57 @@ final class BeaconRoomCase extends UseCaseBase {
         upload: u,
       );
     }
+    return messageId;
+  }
+
+  RoomMessage roomMessageFromPaint({
+    required RealtimeRoomMessagePaint paint,
+    required List<RoomMessage> currentMessages,
+    required List<BeaconParticipant> participants,
+  }) {
+    Profile author = const Profile();
+    for (final message in currentMessages) {
+      if (message.authorId == paint.authorId) {
+        author = message.author;
+        break;
+      }
+    }
+    if (author.id.isEmpty) {
+      for (final participant in participants) {
+        if (participant.userId == paint.authorId) {
+          author = Profile(
+            id: paint.authorId,
+            displayName: participant.userTitle,
+            handle: participant.handle,
+            image: participant.userHasPicture &&
+                    participant.userImageId.isNotEmpty
+                ? ImageEntity(
+                    id: participant.userImageId,
+                    authorId: paint.authorId,
+                    blurHash: participant.userBlurHash,
+                    height: participant.userPicHeight,
+                    width: participant.userPicWidth,
+                  )
+                : null,
+          );
+          break;
+        }
+      }
+    }
+    if (author.id.isEmpty) {
+      author = Profile(id: paint.authorId, displayName: '');
+    }
+    return RoomMessage(
+      id: paint.id,
+      beaconId: paint.beaconId,
+      authorId: paint.authorId,
+      body: paint.body,
+      createdAt: paint.createdAt,
+      editedAt: paint.editedAt,
+      author: author,
+      mentions: paint.mentions,
+      threadItemId: paint.threadItemId,
+    );
   }
 
   Future<void> editMessage({

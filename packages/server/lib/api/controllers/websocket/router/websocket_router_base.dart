@@ -23,6 +23,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     super.userPresenceCase,
     super.friendshipLookup,
     super.coParticipantLookup,
+    super.roomMessageSnapshotLookup,
     super.qaRealtimeSocketGate,
     this.pgNotificationService,
   ) {
@@ -72,14 +73,16 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   }
 
   void _onEntityChangeNotification(String payload) {
-    try {
-      final data = jsonDecode(payload) as Map<String, dynamic>;
-      fanOutEntityChange(data);
-    } catch (e) {
-      logger.severe(
-        '[RealtimeFanout] realtime_event=payload_failure error=$e',
-      );
-    }
+    unawaited(() async {
+      try {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        await fanOutEntityChange(data);
+      } catch (e) {
+        logger.severe(
+          '[RealtimeFanout] realtime_event=payload_failure error=$e',
+        );
+      }
+    }());
   }
 
   Future<void> onTextMessage(

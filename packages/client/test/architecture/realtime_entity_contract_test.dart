@@ -14,7 +14,7 @@ void main() {
         .toList(growable: false);
     final repoRoot = contractFile.parent.parent.parent;
 
-    expect(contract['schemaVersion'], 1);
+    expect(contract['schemaVersion'], 2);
     expect(contract['channel'], 'entity_changes');
     expect(entries, isNotEmpty);
 

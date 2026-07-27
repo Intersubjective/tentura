@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -25,6 +28,8 @@ import 'room_state.dart';
 export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'room_state.dart';
+
+enum _RoomRefreshScope { messages, full }
 
 class RoomCubit extends Cubit<RoomState> {
   RoomCubit({
@@ -52,7 +57,7 @@ class RoomCubit extends Cubit<RoomState> {
        ) {
     _refreshSub = _case.beaconRoomInvalidations.listen(_onRoomInvalidation);
     _catchUpsSub = _case.catchUps.listen(
-      (_) => unawaited(_fetchRoomData(silent: true)),
+      (_) => _requestRefresh(scope: _RoomRefreshScope.full),
       cancelOnError: false,
     );
     if (threadItemId == null) {
@@ -91,15 +96,119 @@ class RoomCubit extends Cubit<RoomState> {
   String? _pendingThreadMessageId;
   String? _pendingThreadItemId;
 
+  static const _uuid = Uuid();
+
+  final Set<String> _pendingLocalMessageIds = {};
+
+  final Map<String, RoomMessage> _deferredOwnPaintByServerId = {};
+
   bool _markSeenEmittedThisVisit = false;
   bool _initialLoadDone = false;
-  bool _loadInProgress = false;
-  bool _loadQueued = false;
-  bool _queuedLoadSilent = true;
+  bool _refreshInProgress = false;
+  _RoomRefreshScope? _queuedRefreshScope;
+  bool _queuedRefreshSilent = true;
 
   void _onRoomInvalidation(BeaconRoomInvalidation invalidation) {
     if (isClosed || invalidation.beaconId != state.beaconId) return;
-    unawaited(_fetchRoomData(silent: true));
+
+    if (invalidation.entityType == BeaconRoomEntityType.roomMessage &&
+        invalidation.operation == RealtimeOperation.insert &&
+        invalidation.paint != null) {
+      final paint = invalidation.paint!;
+      if (paint.threadItemId != state.threadItemId) {
+        return;
+      }
+      final message = _case.roomMessageFromPaint(
+        paint: paint,
+        currentMessages: state.messages,
+        participants: state.participants,
+      );
+      if (message.authorId == state.myUserId &&
+          _pendingLocalMessageIds.isNotEmpty) {
+        _deferredOwnPaintByServerId[message.id] = message;
+        return;
+      }
+      _mergePaintedMessage(message);
+      return;
+    }
+
+    final scope = switch (invalidation.entityType) {
+      BeaconRoomEntityType.roomMessage ||
+      BeaconRoomEntityType.roomReaction ||
+      BeaconRoomEntityType.roomPoll => _RoomRefreshScope.messages,
+      _ => _RoomRefreshScope.full,
+    };
+    _requestRefresh(scope: scope);
+  }
+
+  void _mergePaintedMessage(RoomMessage message) {
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        messages: _sortMessages(
+          _dedupeMessages([...state.messages, message]),
+        ),
+      ),
+    );
+  }
+
+  void _flushDeferredOwnPaints() {
+    if (_deferredOwnPaintByServerId.isEmpty || isClosed) {
+      return;
+    }
+    var messages = List<RoomMessage>.from(state.messages);
+    for (final painted in _deferredOwnPaintByServerId.values) {
+      messages = _replaceOrAppendMessage(messages, painted);
+    }
+    _deferredOwnPaintByServerId.clear();
+    emit(
+      state.copyWith(
+        messages: _sortMessages(_dedupeMessages(messages)),
+      ),
+    );
+  }
+
+  Future<void> _requestRefresh({
+    required _RoomRefreshScope scope,
+    bool silent = true,
+  }) async {
+    if (isClosed) return;
+    if (_refreshInProgress) {
+      final alreadyQueued = _queuedRefreshScope != null;
+      _queuedRefreshScope =
+          scope == _RoomRefreshScope.full ||
+              _queuedRefreshScope == _RoomRefreshScope.full
+          ? _RoomRefreshScope.full
+          : _RoomRefreshScope.messages;
+      _queuedRefreshSilent = alreadyQueued
+          ? _queuedRefreshSilent && silent
+          : silent;
+      return;
+    }
+    await _runRefresh(scope: scope, silent: silent);
+  }
+
+  Future<void> _runRefresh({
+    required _RoomRefreshScope scope,
+    required bool silent,
+  }) async {
+    _refreshInProgress = true;
+    try {
+      if (scope == _RoomRefreshScope.full) {
+        await _fetchFullSnapshot(silent: silent);
+      } else {
+        await _fetchMessagesSnapshot(silent: silent);
+      }
+    } finally {
+      _refreshInProgress = false;
+      if (_queuedRefreshScope != null && !isClosed) {
+        final nextScope = _queuedRefreshScope!;
+        final nextSilent = _queuedRefreshSilent;
+        _queuedRefreshScope = null;
+        _queuedRefreshSilent = true;
+        unawaited(_runRefresh(scope: nextScope, silent: nextSilent));
+      }
+    }
   }
 
   /// Patches joined item snapshots on all messages referencing the item.
@@ -143,8 +252,11 @@ class RoomCubit extends Cubit<RoomState> {
     emit(state.copyWith(messages: patched));
   }
 
+  Future<void> load() =>
+      _requestRefresh(scope: _RoomRefreshScope.full, silent: false);
+
   Future<void> reloadMessages({bool silent = false}) =>
-      _fetchRoomData(silent: silent);
+      _requestRefresh(scope: _RoomRefreshScope.full, silent: silent);
 
   void clearScrollToMessageTarget() {
     if (state.scrollToMessageId != null) {
@@ -174,7 +286,9 @@ class RoomCubit extends Cubit<RoomState> {
         (_pendingThreadMessageId != null || _pendingThreadItemId != null)) {
       if (_pendingThreadMessageId != null &&
           !state.messages.any((m) => m.id == _pendingThreadMessageId)) {
-        unawaited(_fetchRoomData(silent: true));
+        unawaited(
+          _requestRefresh(scope: _RoomRefreshScope.full, silent: true),
+        );
         return;
       }
       _applyPendingThreadScroll(state.messages);
@@ -267,16 +381,8 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> load() => _fetchRoomData(silent: false);
-
-  Future<void> _fetchRoomData({required bool silent}) async {
+  Future<void> _fetchFullSnapshot({required bool silent}) async {
     if (isClosed) return;
-    if (_loadInProgress) {
-      _loadQueued = true;
-      _queuedLoadSilent = _queuedLoadSilent && silent;
-      return;
-    }
-    _loadInProgress = true;
     if (!silent) {
       emit(state.copyWith(status: const StateIsLoading()));
     }
@@ -314,7 +420,7 @@ class RoomCubit extends Cubit<RoomState> {
           ? const <CoordinationItem>[]
           : await _case.fetchCoordinationItems(state.beaconId);
       final messages = _joinCoordinationCounts(
-        _normalizeMessages([
+        _dedupeMessages([
           ...rawMessages,
           if (target != null) target,
         ]),
@@ -382,22 +488,95 @@ class RoomCubit extends Cubit<RoomState> {
         }
       }
     } finally {
-      _loadInProgress = false;
-      if (_loadQueued && !isClosed) {
-        _loadQueued = false;
-        final queuedSilent = _queuedLoadSilent;
-        _queuedLoadSilent = true;
-        unawaited(_fetchRoomData(silent: queuedSilent));
+      /* refresh queue handled by _runRefresh */
+    }
+  }
+
+  Future<void> _fetchMessagesSnapshot({required bool silent}) async {
+    if (isClosed) return;
+    try {
+      final rawMessages = await _case.fetchMessages(
+        beaconId: state.beaconId,
+        threadItemId: state.threadItemId,
+      );
+      final preservedCounts =
+          <String, ({int messageCount, int unreadCount})>{};
+      for (final message in state.messages) {
+        if (_pendingLocalMessageIds.contains(message.id)) {
+          continue;
+        }
+        final linkedItemId = message.linkedItemId;
+        if (linkedItemId != null) {
+          preservedCounts[linkedItemId] = (
+            messageCount: message.linkedItemMessageCount,
+            unreadCount: message.linkedItemUnreadCount,
+          );
+        }
+      }
+      final refreshed = [
+        for (final message in rawMessages)
+          if (message.linkedItemId != null &&
+              preservedCounts.containsKey(message.linkedItemId))
+            message.copyWith(
+              linkedItemMessageCount:
+                  preservedCounts[message.linkedItemId!]!.messageCount,
+              linkedItemUnreadCount:
+                  preservedCounts[message.linkedItemId!]!.unreadCount,
+            )
+          else
+            message,
+      ];
+      final pendingLocals = state.messages.where(
+        (message) => _pendingLocalMessageIds.contains(message.id),
+      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            messages: _sortMessages(
+              _dedupeMessages([...refreshed, ...pendingLocals]),
+            ),
+            loadError: null,
+          ),
+        );
+      }
+    } on Object catch (e) {
+      if (!isClosed && !silent) {
+        _showSnackError(e);
       }
     }
   }
 
-  static List<RoomMessage> _normalizeMessages(List<RoomMessage> messages) {
+  static List<RoomMessage> _dedupeMessages(List<RoomMessage> messages) {
     final byId = <String, RoomMessage>{};
     for (final message in messages) {
       byId[message.id] = message;
     }
     return byId.values.toList(growable: false);
+  }
+
+  static List<RoomMessage> _sortMessages(List<RoomMessage> messages) {
+    final sorted = List<RoomMessage>.from(messages);
+    sorted.sort((a, b) {
+      final byTime = a.createdAt.compareTo(b.createdAt);
+      if (byTime != 0) {
+        return byTime;
+      }
+      return a.id.compareTo(b.id);
+    });
+    return sorted;
+  }
+
+  static List<RoomMessage> _replaceOrAppendMessage(
+    List<RoomMessage> messages,
+    RoomMessage message,
+  ) {
+    final idx = messages.indexWhere((m) => m.id == message.id);
+    if (idx >= 0) {
+      final updated = List<RoomMessage>.from(messages);
+      updated[idx] = message;
+      return updated;
+    }
+    return [...messages, message];
   }
 
   Future<void> updatePlan(
@@ -533,19 +712,70 @@ class RoomCubit extends Cubit<RoomState> {
     if (trimmed.isEmpty && uploads.isEmpty) {
       return;
     }
-    emit(state.copyWith(status: const StateIsLoading()));
+    final localId = 'local:${_uuid.v4()}';
+    final profile = GetIt.I<ProfileCubit>().state.profile;
+    final localMessage = RoomMessage(
+      id: localId,
+      beaconId: state.beaconId,
+      authorId: profile.id,
+      body: trimmed,
+      createdAt: DateTime.now().toUtc(),
+      author: profile,
+      threadItemId: state.threadItemId,
+    );
+    _pendingLocalMessageIds.add(localId);
+    emit(
+      state.copyWith(
+        messages: _sortMessages(
+          _dedupeMessages([...state.messages, localMessage]),
+        ),
+      ),
+    );
     try {
-      await _case.createMessage(
+      final serverId = await _case.createMessage(
         beaconId: state.beaconId,
         body: trimmed,
         threadItemId: state.threadItemId,
         uploads: uploads,
       );
+      _pendingLocalMessageIds.remove(localId);
+      final deferred = serverId != null
+          ? _deferredOwnPaintByServerId.remove(serverId)
+          : null;
+      final reconciled =
+          deferred ?? localMessage.copyWith(id: serverId ?? localId);
+      final withoutLocal = state.messages
+          .where((message) => message.id != localId)
+          .toList();
+      emit(
+        state.copyWith(
+          messages: _sortMessages(
+            _dedupeMessages(
+              _replaceOrAppendMessage(withoutLocal, reconciled),
+            ),
+          ),
+        ),
+      );
+      _flushDeferredOwnPaints();
       _markSeenEmittedThisVisit = false;
       await markSeenNowIfNeeded();
-      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
-      await load();
+      if (uploads.isNotEmpty) {
+        _requestRefresh(scope: _RoomRefreshScope.messages);
+      }
     } on Object catch (e) {
+      _pendingLocalMessageIds.remove(localId);
+      emit(
+        state.copyWith(
+          messages: state.messages
+              .where((message) => message.id != localId)
+              .toList(),
+        ),
+      );
+      _flushDeferredOwnPaints();
+      await _runRefresh(
+        scope: _RoomRefreshScope.messages,
+        silent: true,
+      );
       _showSnackError(e);
     }
   }
@@ -722,7 +952,7 @@ class RoomCubit extends Cubit<RoomState> {
       // Silent refresh: an optimistic vote is already shown, so reconcile in
       // the background without flipping to StateIsLoading — that would disable
       // the composer and block the keyboard right after voting on a poll.
-      await _fetchRoomData(silent: true);
+      _requestRefresh(scope: _RoomRefreshScope.messages, silent: true);
     } on Object catch (e) {
       emit(
         state.copyWith(

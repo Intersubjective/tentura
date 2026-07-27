@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'realtime_room_message_paint.dart';
+
 part 'realtime_entity_change.freezed.dart';
 
 /// Closed set of server-owned state that can invalidate a client projection.
@@ -59,5 +61,9 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     required RealtimeOperation operation,
     required RealtimeChangeSource source,
     String? actorUserId,
+  /// Child row id from NOTIFY extras (e.g. `message_id` for room messages).
+    String? childId,
+  /// Validated plain-text insert paint from WS `payload.message`.
+    RealtimeRoomMessagePaint? roomMessagePaint,
   }) = _RealtimeEntityChange;
 }

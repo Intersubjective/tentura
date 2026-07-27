@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:logging/logging.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -15,6 +16,8 @@ import 'package:tentura_server/api/controllers/websocket/session/qa_realtime_soc
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
+import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
+import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -38,6 +41,7 @@ const _secondId = 'Uffffffffffff';
   MockSpec<UserPresenceRepositoryPort>(),
   MockSpec<VoteUserFriendshipLookupPort>(),
   MockSpec<BeaconRoomCoParticipantLookupPort>(),
+  MockSpec<RoomMessageSnapshotLookupPort>(),
 ])
 void main() {
   group('realtime websocket protocol', () {
@@ -57,7 +61,7 @@ void main() {
       affected.sent.clear();
       unauthorized.sent.clear();
 
-      handler.fanOutEntityChange({
+      await handler.fanOutEntityChange({
         'entity': 'beacon',
         'id': 'beacon-1',
         'event': 'update',
@@ -90,7 +94,7 @@ void main() {
         actor.sent.clear();
         affected.sent.clear();
 
-        handler.fanOutEntityChange({
+        await handler.fanOutEntityChange({
           'entity': 'forward',
           'id': 'beacon-1',
           'event': 'insert',
@@ -110,7 +114,7 @@ void main() {
       await dependencies.authenticate(handler, session, _affectedId);
       session.sent.clear();
 
-      handler.fanOutEntityChange({
+      await handler.fanOutEntityChange({
         'entity': 'beacon',
         'id': '',
         'event': 'upsert',
@@ -150,6 +154,7 @@ void main() {
           dependencies.userPresenceCase,
           dependencies.friendshipLookup,
           dependencies.coParticipantLookup,
+          dependencies.roomMessageSnapshotLookup,
           dependencies.qaRealtimeSocketGate,
           notificationService,
         );
@@ -200,6 +205,7 @@ void main() {
           firstDependencies.userPresenceCase,
           firstDependencies.friendshipLookup,
           firstDependencies.coParticipantLookup,
+          firstDependencies.roomMessageSnapshotLookup,
           firstDependencies.qaRealtimeSocketGate,
           firstNotifications,
         );
@@ -210,6 +216,7 @@ void main() {
           secondDependencies.userPresenceCase,
           secondDependencies.friendshipLookup,
           secondDependencies.coParticipantLookup,
+          secondDependencies.roomMessageSnapshotLookup,
           secondDependencies.qaRealtimeSocketGate,
           secondNotifications,
         );
@@ -266,6 +273,114 @@ void main() {
         );
       },
     );
+
+    test('eligible room_message insert includes paint snapshot', () async {
+      final dependencies = _Dependencies();
+      final snapshot = RoomMessageSnapshot(
+        id: 'Rpaint0001',
+        beaconId: 'Bpaint0001',
+        authorId: _actorId,
+        body: 'hello',
+        createdAt: DateTime.utc(2026, 7, 27, 17),
+      );
+      when(
+        dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+          messageId: 'Rpaint0001',
+          beaconId: 'Bpaint0001',
+        ),
+      ).thenAnswer((_) async => snapshot);
+      final handler = _EntityChangeHarness(Env(), dependencies);
+      final session = _RecordingSession();
+      await dependencies.authenticate(handler, session, _affectedId);
+      session.sent.clear();
+
+      await handler.fanOutEntityChange({
+        'entity': 'room_message',
+        'id': 'Bpaint0001',
+        'event': 'insert',
+        'message_id': 'Rpaint0001',
+        'user_ids': [_affectedId],
+      });
+
+      expect(session.sent, hasLength(1));
+      final message = jsonDecode(session.sent.single! as String) as Map;
+      final payload = message['payload'] as Map;
+      expect(payload['message_id'], 'Rpaint0001');
+      expect(payload['message'], isA<Map>());
+      expect((payload['message'] as Map)['body'], 'hello');
+    });
+
+    test('empty sessions skip snapshot lookup', () async {
+      final dependencies = _Dependencies();
+      final handler = _EntityChangeHarness(Env(), dependencies);
+      await handler.fanOutEntityChange({
+        'entity': 'room_message',
+        'id': 'Bpaint0002',
+        'event': 'insert',
+        'message_id': 'Rpaint0002',
+        'user_ids': ['Uunknown00001'],
+      });
+      verifyNever(
+        dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+          messageId: anyNamed('messageId'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      );
+    });
+
+    test('lookup null still delivers thin frame with message_id', () async {
+      final dependencies = _Dependencies();
+      when(
+        dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+          messageId: 'Rpaint0003',
+          beaconId: 'Bpaint0003',
+        ),
+      ).thenAnswer((_) async => null);
+      final handler = _EntityChangeHarness(Env(), dependencies);
+      final session = _RecordingSession();
+      await dependencies.authenticate(handler, session, _affectedId);
+      session.sent.clear();
+
+      await handler.fanOutEntityChange({
+        'entity': 'room_message',
+        'id': 'Bpaint0003',
+        'event': 'insert',
+        'message_id': 'Rpaint0003',
+        'user_ids': [_affectedId],
+      });
+
+      final payload =
+          (jsonDecode(session.sent.single! as String) as Map)['payload'] as Map;
+      expect(payload['message_id'], 'Rpaint0003');
+      expect(payload.containsKey('message'), isFalse);
+    });
+
+    test('update forwards message_id without paint lookup', () async {
+      final dependencies = _Dependencies();
+      final handler = _EntityChangeHarness(Env(), dependencies);
+      final session = _RecordingSession();
+      await dependencies.authenticate(handler, session, _affectedId);
+      session.sent.clear();
+
+      await handler.fanOutEntityChange({
+        'entity': 'room_message',
+        'id': 'Bpaint0004',
+        'event': 'update',
+        'message_id': 'Rpaint0004',
+        'user_ids': [_affectedId],
+      });
+
+      verifyNever(
+        dependencies.roomMessageSnapshotLookup.findEligibleInsert(
+          messageId: anyNamed('messageId'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      );
+      final payload =
+          (jsonDecode(session.sent.single! as String) as Map)['payload'] as Map;
+      expect(payload['message_id'], 'Rpaint0004');
+      expect(payload.containsKey('message'), isFalse);
+    });
   });
 }
 
@@ -304,6 +419,7 @@ final class _Dependencies {
   final qaRealtimeSocketGate = QaRealtimeSocketGate();
   final friendshipLookup = MockVoteUserFriendshipLookupPort();
   final coParticipantLookup = MockBeaconRoomCoParticipantLookupPort();
+  final roomMessageSnapshotLookup = MockRoomMessageSnapshotLookupPort();
 
   Future<void> authenticate(
     WebsocketSessionHandlerBase handler,
@@ -328,6 +444,7 @@ final class _EntityChangeHarness extends WebsocketSessionHandlerBase
         dependencies.userPresenceCase,
         dependencies.friendshipLookup,
         dependencies.coParticipantLookup,
+        dependencies.roomMessageSnapshotLookup,
         dependencies.qaRealtimeSocketGate,
       );
 }

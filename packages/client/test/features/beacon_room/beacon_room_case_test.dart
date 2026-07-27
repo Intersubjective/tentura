@@ -54,15 +54,17 @@ void main() {
 
   group('createMessage', () {
     test('no-ops when body is blank and uploads empty', () async {
-      await case_.createMessage(beaconId: beaconId, body: '   ');
+      final id = await case_.createMessage(beaconId: beaconId, body: '   ');
 
+      expect(id, isNull);
       expect(room.createMessageCalls, 0);
       expect(room.addAttachmentCalls, 0);
     });
 
     test('sends text-only without attachment', () async {
-      await case_.createMessage(beaconId: beaconId, body: 'hello');
+      final id = await case_.createMessage(beaconId: beaconId, body: 'hello');
 
+      expect(id, messageId);
       expect(room.createMessageCalls, 1);
       expect(room.lastCreateBody, 'hello');
       expect(room.lastFirstAttachment, isNull);

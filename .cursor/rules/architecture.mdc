@@ -145,7 +145,10 @@ See `advanced-patterns.mdc` for `RemoteRepository`, `StateBase`, and `StateStatu
 ## Important Rules
 
 1. **Domain is pure**: No imports from `data/` or `ui/` in domain layer
-2. **Entities are Freezed**: All domain entities use `@freezed`
+2. **Entities are Freezed**: All domain entities use `@freezed`, except
+   `BeaconRoomInvalidation` (handwritten immutable class — Flutter web/DDC RTI
+   with enum-bearing JS-interop invalidation events; see
+   `beacon_room_invalidation.dart`).
 3. **Repositories return entities**: Never return Ferry types or Drift models
 4. **Use cases orchestrate**: Business logic goes in use cases, not repositories
 5. **BLoC uses use cases**: Prefer use cases for orchestration (especially multi-repo flows); direct repository access is acceptable only for **thin** single-source cubits

@@ -223,9 +223,13 @@ void main() {
             ),
           );
         }
-        async.elapse(const Duration(milliseconds: 500));
+        async.elapse(const Duration(milliseconds: 16));
+        async.elapse(const Duration(milliseconds: 100));
 
-        expect(received.map((change) => change.kind).toSet(), wireKinds.values);
+        expect(
+          received.map((change) => change.kind).toSet(),
+          wireKinds.values.toSet(),
+        );
         expect(
           received,
           everyElement(
@@ -583,30 +587,36 @@ void main() {
         wsMessages.add(_entityChange(entity: 'room_reaction', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_poll', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_seen', id: 'room-1'));
-        async.elapse(const Duration(milliseconds: 500));
+        async.elapse(const Duration(milliseconds: 16));
+        async.elapse(const Duration(milliseconds: 100));
 
         expect(
           received.toSet(),
           {
-            const BeaconRoomInvalidation(
+            BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomMessage,
+              operation: RealtimeOperation.update,
             ),
-            const BeaconRoomInvalidation(
+            BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.participant,
+              operation: RealtimeOperation.update,
             ),
-            const BeaconRoomInvalidation(
+            BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomReaction,
+              operation: RealtimeOperation.update,
             ),
-            const BeaconRoomInvalidation(
+            BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomPoll,
+              operation: RealtimeOperation.update,
             ),
-            const BeaconRoomInvalidation(
+            BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomSeen,
+              operation: RealtimeOperation.update,
             ),
           },
         );
@@ -638,6 +648,177 @@ void main() {
           ['first', 'second'],
         );
 
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('parses valid room_message paint', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bpaint1',
+            'event': 'insert',
+            'message_id': 'Rpaint1',
+            'message': {
+              'id': 'Rpaint1',
+              'beaconId': 'Bpaint1',
+              'authorId': 'Upaint1',
+              'body': 'hello',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'mentions': <String>[],
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        expect(received, hasLength(1));
+        expect(received.single.roomMessagePaint?.body, 'hello');
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('malformed paint is ignored but thin invalidation remains', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bpaint2',
+            'event': 'insert',
+            'message_id': 'Rpaint2',
+            'message': {'id': 'wrong', 'beaconId': 'Bpaint2'},
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        expect(received, hasLength(1));
+        expect(received.single.roomMessagePaint, isNull);
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('two painted messages with different ids both emit', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        for (final id in ['R1', 'R2']) {
+          wsMessages.add({
+            'type': 'subscription',
+            'path': 'entity_changes',
+            'payload': {
+              'entity': 'room_message',
+              'id': 'Bdedupe',
+              'event': 'insert',
+              'message_id': id,
+              'message': {
+                'id': id,
+                'beaconId': 'Bdedupe',
+                'authorId': 'U1',
+                'body': id,
+                'createdAt': '2026-07-27T17:00:00.000Z',
+              },
+            },
+          });
+        }
+        async.elapse(const Duration(milliseconds: 20));
+
+        expect(
+          received.map((change) => change.roomMessagePaint?.id),
+          ['R1', 'R2'],
+        );
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('two thin room_message events collapse to one', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add(_entityChange(
+          entity: 'room_message',
+          id: 'Bthin',
+          event: 'update',
+        ));
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bthin',
+            'event': 'delete',
+            'message_id': 'Rthin1',
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        expect(received, hasLength(1));
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('room_message emits after 16ms and reaction after 100ms', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityKind>[];
+        final sub = service.entityChanges.listen(
+          (change) => received.add(change.kind),
+        );
+
+        wsMessages.add(_entityChange(entity: 'room_message', id: 'Bfast'));
+        wsMessages.add(_entityChange(entity: 'room_reaction', id: 'Bslow'));
+        async.elapse(const Duration(milliseconds: 16));
+        expect(received, [RealtimeEntityKind.roomMessage]);
+        async.elapse(const Duration(milliseconds: 84));
+        expect(received, [
+          RealtimeEntityKind.roomMessage,
+          RealtimeEntityKind.roomReaction,
+        ]);
         unawaited(sub.cancel());
       });
     });

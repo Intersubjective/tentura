@@ -1336,6 +1336,106 @@ INSERT INTO public.beacon_room_message (
     );
 
     test(
+      'm0133 room_message NOTIFY carries message_id and attachment update',
+      () async {
+        final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();
+        final ownerId = 'Urtm0133owner$suffix';
+        final authorId = 'Urtm0133author$suffix';
+        final beaconId = 'Brtm0133$suffix';
+        final messageId = 'Rrtm0133$suffix';
+        final attachmentId = 'Artm0133$suffix';
+
+        addTearDown(() async {
+          await writer.execute(
+            Sql.named('DELETE FROM public.beacon WHERE id = @beaconId'),
+            parameters: {'beaconId': beaconId},
+          );
+          await writer.execute(
+            Sql.named('DELETE FROM public."user" WHERE id = ANY(@userIds)'),
+            parameters: {'userIds': [ownerId, authorId]},
+          );
+        });
+
+        for (final userId in [ownerId, authorId]) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@userId, @userId, @publicKey)
+'''),
+            parameters: {
+              'userId': userId,
+              'publicKey': 'm0133-$userId',
+            },
+          );
+        }
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description)
+VALUES (@beaconId, @ownerId, 'm0133', 'message_id extras')
+'''),
+          parameters: {'beaconId': beaconId, 'ownerId': ownerId},
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access
+) VALUES (@id, @beaconId, @userId, 2, 0, 3)
+'''),
+          parameters: {
+            'id': 'Prtm0133$suffix',
+            'beaconId': beaconId,
+            'userId': ownerId,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_room_message (
+  id, beacon_id, author_id, body
+) VALUES (@id, @beaconId, @authorId, 'plain text')
+'''),
+          parameters: {
+            'id': messageId,
+            'beaconId': beaconId,
+            'authorId': authorId,
+          },
+        );
+        await _settle();
+        notifications.clear();
+
+        List<Map<String, dynamic>> insertChanges() => _ofKind(
+          notifications,
+          'room_message',
+        ).where((message) => message['id'] == beaconId).toList();
+        await _waitUntil(() => insertChanges().isNotEmpty);
+        final insert = insertChanges().single;
+        expect(insert['event'], 'insert');
+        expect(insert['message_id'], messageId);
+        expect(utf8.encode(jsonEncode(insert)).length, lessThan(7900));
+        notifications.clear();
+
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_room_message_attachment (
+  id, message_id, kind, mime, size_bytes
+) VALUES (@id, @messageId, 1, 'image/png', 1)
+'''),
+          parameters: {'id': attachmentId, 'messageId': messageId},
+        );
+        List<Map<String, dynamic>> attachmentChanges() => _ofKind(
+          notifications,
+          'room_message',
+        ).where(
+          (message) =>
+              message['id'] == beaconId && message['event'] == 'update',
+        ).toList();
+        await _waitUntil(() => attachmentChanges().isNotEmpty);
+        final attachmentUpdate = attachmentChanges().single;
+        expect(attachmentUpdate['message_id'], messageId);
+      },
+      skip: skipReason,
+    );
+
+    test(
       'profile updates emit only for profile-visible columns',
       () async {
         final suffix = DateTime.timestamp().microsecondsSinceEpoch.toString();

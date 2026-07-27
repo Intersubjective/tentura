@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/entity/user_presence_entity.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
+import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 import 'websocket_user_session.dart';
@@ -28,6 +29,7 @@ base class WebsocketSessionHandlerBase {
     this.userPresenceCase,
     this.friendshipLookup,
     this.coParticipantLookup,
+    this.roomMessageSnapshotLookup,
     this.qaRealtimeSocketGate,
   );
 
@@ -42,6 +44,8 @@ base class WebsocketSessionHandlerBase {
   final VoteUserFriendshipLookupPort friendshipLookup;
 
   final BeaconRoomCoParticipantLookupPort coParticipantLookup;
+
+  final RoomMessageSnapshotLookupPort roomMessageSnapshotLookup;
 
   final QaRealtimeSocketGate qaRealtimeSocketGate;
   final _sessions = <WebSocketSession, WebsocketUserSession>{};

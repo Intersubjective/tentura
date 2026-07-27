@@ -1,11 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "channel": "entity_changes",
   "contractTests": [
     "packages/server/test/architecture/realtime_entity_contract_test.dart",
     "packages/server/test/data/database/realtime_notification_migration_test.dart",
+    "packages/server/test/data/repository/room_message_snapshot_lookup_test.dart",
     "packages/client/test/architecture/realtime_entity_contract_test.dart",
-    "packages/client/test/data/service/invalidation_service_test.dart"
+    "packages/client/test/data/service/invalidation_service_test.dart",
+    "packages/client/test/features/beacon_room/beacon_room_case_test.dart",
+    "packages/client/test/features/beacon_room/room_cubit_unread_test.dart",
+    "packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.dart"
   ],
   "kinds": [
     {
@@ -49,7 +53,12 @@
       "acceptedWireKinds": ["room_message"],
       "clientKind": "roomMessage",
       "genericTriggerArgs": ["room_message"],
-      "specializedPublishers": [],
+      "specializedPublishers": ["notify_room_message_attachment_change"],
+      "payloadContract": {
+        "childIdField": "message_id",
+        "optionalPaintField": "message",
+        "paintEvents": ["insert"]
+      },
       "impacts": ["chat", "request_activity", "unread", "inbox", "my_work"],
       "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
     },
