@@ -12,7 +12,7 @@ void main() {
       expect(tokens.chatColumnMaxWidth, 720);
       expect(tokens.bubbleMinWidth, 160);
       expect(tokens.avatarGutter, 40);
-      expect(tokens.bubbleFarGutter, 56);
+      expect(tokens.bubbleFarGutter, 16);
       expect(tokens.mediaMaxWidth, 520);
       expect(tokens.albumGridGap, 4);
       expect(tokens.avatarSize, 36);

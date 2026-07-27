@@ -98,6 +98,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final double avatarGutter;
 
   /// Far-side gutter for outgoing message bubbles.
+  ///
+  /// Compact uses [TenturaSpacing.screenH] so bubbles hug the right edge;
+  /// regular/expanded keep the wider Telegram-style far margin (56).
   final double bubbleFarGutter;
 
   /// Max content width for media and poll bubbles.
@@ -222,7 +225,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           chatColumnMaxWidth: 720,
           bubbleMinWidth: 160,
           avatarGutter: 40,
-          bubbleFarGutter: 56,
+          // Match near-side padding so outgoing bubbles sit on the right edge
+          // (desktop Telegram's 56 far gutter reads as centered on phones).
+          bubbleFarGutter: TenturaSpacing.screenH,
           mediaMaxWidth: 520,
           albumGridGap: 4,
           cardPadding: TenturaSpacing.cardPaddingAll,

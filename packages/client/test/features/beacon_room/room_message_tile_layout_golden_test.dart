@@ -214,6 +214,71 @@ void main() {
   }, skip: 'Goldens disabled');
 
   group('room message layout', () {
+    testWidgets('mine bubble hugs the right edge on compact width', (
+      tester,
+    ) async {
+      const compactSize = Size(390, 800);
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.binding.setSurfaceSize(compactSize);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: compactSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: ListView(
+                    children: [
+                      RoomMessageTile(
+                        message: textMessage(
+                          id: 'm-mine',
+                          authorId: 'me',
+                          author: me,
+                          body: 'Hey there friend',
+                        ),
+                        myProfile: me,
+                        onToggleReaction: (_, _) async {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Bubble shell is the Material > DecoratedBox under the interaction
+      // wrapper; avatar for others also uses DecoratedBox, so scope to mine.
+      final bubble = find.descendant(
+        of: find.byType(RoomMessageTile),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).border != null,
+        ),
+      );
+      final rect = tester.getRect(bubble);
+      const farGutter = TenturaSpacing.screenH;
+      expect(compactSize.width - rect.right, closeTo(farGutter, 0.5));
+      expect(rect.left, greaterThan(farGutter + 1));
+    });
+
     testWidgets('image album caps to readable media width on wide viewport', (
       tester,
     ) async {
