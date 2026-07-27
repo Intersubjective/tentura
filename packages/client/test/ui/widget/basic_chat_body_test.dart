@@ -178,4 +178,91 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     },
   );
+
+  testWidgets('auto-scrolls to latest when own message is appended', (
+    tester,
+  ) async {
+    final chatKey = GlobalKey<BasicChatBodyState>();
+    final baseMessages = List<RoomMessage>.generate(
+      40,
+      (i) => RoomMessage(
+        id: 'm$i',
+        beaconId: 'b1',
+        authorId: 'other',
+        author: const Profile(id: 'other', displayName: 'Alex'),
+        body: 'Background message $i',
+        createdAt: DateTime.utc(2026, 6, 30, 12).add(Duration(minutes: i)),
+      ),
+    );
+
+    Future<void> pumpMessages(List<RoomMessage> messages) async {
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+            BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 720)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BasicChatBody(
+                    key: chatKey,
+                    messages: messages,
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    enableComposerAttachments: false,
+                    enableParticipantMentions: false,
+                    onSend: (_, _) async {},
+                    onToggleReaction: (_, _) async {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    await pumpMessages(baseMessages);
+    chatKey.currentState!.onRoomDataChangedForViewport(
+      firstUnreadMessageId: null,
+      messagesEmpty: false,
+    );
+    await tester.pumpAndSettle();
+
+    final listScrollable = find.descendant(
+      of: find.byType(ListView),
+      matching: find.byType(Scrollable),
+    );
+    final before = tester.state<ScrollableState>(listScrollable).position
+      ..jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(before.pixels, lessThan(before.maxScrollExtent - 56));
+
+    await pumpMessages([
+      ...baseMessages,
+      RoomMessage(
+        id: 'local:new',
+        beaconId: 'b1',
+        authorId: 'me',
+        author: const Profile(id: 'me', displayName: 'Me'),
+        body: 'Just sent by me',
+        createdAt: DateTime.utc(2026, 6, 30, 13),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    final after = tester.state<ScrollableState>(listScrollable).position;
+    expect(after.pixels, closeTo(after.maxScrollExtent, 1));
+    expect(find.textContaining('Just sent by me'), findsOneWidget);
+  });
 }

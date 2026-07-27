@@ -304,11 +304,44 @@ class BasicChatBodyState extends State<BasicChatBody> {
     await _invokeMarkSeenNearBottom();
   }
 
+  /// After the list grows (own send, or inbound while near bottom), pin to the
+  /// new max extent once layout has applied. Jump — not animate — so we don't
+  /// undershoot a maxScrollExtent that updates mid-animation.
+  void _followLatestAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      _onMessageListScroll();
+      unawaited(_invokeMarkSeenNearBottom());
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onMessageListScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onMessageListScroll());
+  }
+
+  @override
+  void didUpdateWidget(covariant BasicChatBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Initial viewport (first unread / bottom) owns the first scroll; only
+    // auto-follow after that so we don't fight unread targeting.
+    if (!_viewportScrollDone) return;
+    final oldLen = oldWidget.messages.length;
+    final newLen = widget.messages.length;
+    if (newLen <= oldLen || newLen == 0) return;
+
+    final newest = widget.messages.last;
+    final mine = newest.authorId == widget.myProfile.id;
+    final nearBottom =
+        !_scrollController.hasClients ||
+        (_scrollController.position.maxScrollExtent -
+                _scrollController.position.pixels) <=
+            56;
+    if (!mine && !nearBottom) return;
+    _followLatestAfterLayout();
   }
 
   @override
