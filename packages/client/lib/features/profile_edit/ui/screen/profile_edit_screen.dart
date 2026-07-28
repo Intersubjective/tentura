@@ -36,11 +36,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
     with StringInputValidator {
   final _formKey = GlobalKey<FormState>();
 
-  void _save(ProfileEditCubit cubit) {
+  // Direct pop bypasses the dirty-close PopScope guard — see the comment on
+  // [ProfileEditCubit.save] for why routing this through the shared
+  // NavigateBack effect would still show the discard-changes dialog.
+  Future<void> _save(ProfileEditCubit cubit) async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    unawaited(cubit.save());
+    final saved = await cubit.save();
+    if (saved && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _requestClose(BuildContext context, {required bool isDirty}) {

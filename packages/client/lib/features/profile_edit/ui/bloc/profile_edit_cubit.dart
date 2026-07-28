@@ -151,8 +151,13 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     ),
   );
 
-  //
-  Future<void> save() async {
+  // Returns whether the save succeeded; the screen pops itself on success
+  // (bypassing the dirty-close guard) instead of going through the shared
+  // NavigateBack effect — that effect's `maybePop` reads PopScope.canPop from
+  // the widget's *last build*, which races the state reset emitted here (no
+  // frame renders between the two `emit`/effect calls), so it would still see
+  // the stale "dirty" value and incorrectly show the discard-changes dialog.
+  Future<bool> save() async {
     if (!isClosed) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
@@ -167,13 +172,27 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         image: state.image,
       );
       if (!isClosed) {
-        _effects.emit(const NavigateBack());
-        emit(state.copyWith(status: const StateIsSuccess()));
+        final savedHandle = state.handle.trim().toLowerCase();
+        emit(
+          state.copyWith(
+            handle: savedHandle,
+            original: state.original.copyWith(
+              displayName: state.displayName,
+              handle: savedHandle,
+              description: state.description,
+            ),
+            image: null,
+            willDropImage: false,
+            status: const StateIsSuccess(),
+          ),
+        );
       }
+      return true;
     } catch (e) {
       if (!isClosed) {
         _emitSnackError(e);
       }
+      return false;
     }
   }
 }
