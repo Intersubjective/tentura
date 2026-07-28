@@ -163,10 +163,7 @@ class _BeaconDefinitionHudRowState extends State<BeaconDefinitionHudRow> {
   }
 
   bool _hasExpandableDefinitionContent(Beacon beacon) {
-    return beacon.startAt != null ||
-        beacon.endAt != null ||
-        (beacon.coordinates?.isNotEmpty ?? false) ||
-        beacon.needs.isNotEmpty ||
+    return beacon.needs.isNotEmpty ||
         beacon.hasPicture ||
         beacon.description.trim().isNotEmpty;
   }

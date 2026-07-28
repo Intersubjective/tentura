@@ -7,6 +7,13 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_location_maps_uri.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+
+String beaconHudLocationDisplayLabel(Beacon beacon, L10n l10n) {
+  final label = beacon.addressLabel?.trim();
+  if (label != null && label.isNotEmpty) return label;
+  return l10n.showOnMap;
+}
 
 BeaconMapsPlatform currentBeaconMapsPlatform() {
   if (kIsWeb) return BeaconMapsPlatform.web;

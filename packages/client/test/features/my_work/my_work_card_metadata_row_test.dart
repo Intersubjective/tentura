@@ -111,11 +111,11 @@ void main() {
         supportedLocales: L10n.supportedLocales,
         locale: const Locale('en'),
         home: MediaQuery(
-          data: const MediaQueryData(size: Size(360, 800)),
+          data: const MediaQueryData(size: Size(480, 800)),
           child: Scaffold(
             body: Center(
               child: SizedBox(
-                width: 360,
+                width: 480,
                 child: MyWorkCardMetadataRow(
                   beacon: beacon,
                   viewModel: _viewModel(beacon),

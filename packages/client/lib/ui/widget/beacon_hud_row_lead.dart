@@ -18,6 +18,8 @@ abstract final class BeaconHudRowIcons {
   static const IconData now = Icons.flag_outlined;
   static const IconData you = Icons.person_outline;
   static const IconData lastEvent = Icons.history_outlined;
+  static const IconData schedule = Icons.event_outlined;
+  static const IconData location = Icons.location_on_outlined;
 }
 
 /// Vertical alignment of the lead icon within [BeaconHudIconRow].

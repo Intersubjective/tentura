@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_icons.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -56,7 +57,7 @@ Widget _metadataHarness(Widget child) {
       child: Scaffold(
         body: Center(
           child: SizedBox(
-            width: 360,
+            width: 480,
             child: child,
           ),
         ),
@@ -101,7 +102,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Museumplein 6, Amsterdam'));
+    await tester.tap(find.byIcon(TenturaIcons.location));
     await tester.pumpAndSettle();
 
     expect(find.text('Open in Maps'), findsOneWidget);
@@ -144,10 +145,51 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Museumplein 6, Amsterdam'));
+    await tester.tap(find.byIcon(TenturaIcons.location));
     await tester.pumpAndSettle();
 
     expect(find.text('Open in Maps'), findsOneWidget);
     expect(cardTapped, isFalse);
+  });
+
+  testWidgets('compact strip shows icon only when address does not fit', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-long-address',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+      helpOfferCount: 1,
+      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
+      startAt: DateTime.utc(2099, 12, 20, 12),
+      endAt: DateTime.utc(2099, 12, 25, 12),
+      coordinates: const Coordinates(lat: 52.358, long: 4.881),
+      addressLabel:
+          'Museumplein 6, Amsterdam, Netherlands, very long address line',
+      createdAt: DateTime(2026, 6, 10, 9),
+      updatedAt: DateTime(2026, 6, 10, 10),
+    );
+
+    await tester.pumpWidget(
+      _metadataHarness(
+        MyWorkCardMetadataRow(
+          beacon: beacon,
+          viewModel: _viewModel(beacon),
+          currentUserId: 'viewer',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Museumplein 6, Amsterdam, Netherlands, very long address line',
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(find.byIcon(TenturaIcons.location));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open in Maps'), findsOneWidget);
   });
 }

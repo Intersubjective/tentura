@@ -21,6 +21,7 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
     required this.involvedProfiles,
     required this.currentUserId,
     this.onFacePileTap,
+    this.includeScheduleAndLocation = true,
     super.key,
   });
 
@@ -29,11 +30,16 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
   final String currentUserId;
   final VoidCallback? onFacePileTap;
 
+  /// When false, only the face pile is shown (beacon HUD defers schedule/location
+  /// to dedicated metadata table rows).
+  final bool includeScheduleAndLocation;
+
   static const double _compactWrapWidth = 360;
 
   static bool hasVisibleContent({
     required Beacon beacon,
     required List<Profile> involvedProfiles,
+    bool includeScheduleAndLocation = true,
   }) {
     final display = beaconInvolvedPeopleDisplay(
       author: beacon.author,
@@ -41,6 +47,9 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
       helpOfferCount: involvedProfiles.length,
     );
     final hasPile = display.visible.isNotEmpty;
+    if (!includeScheduleAndLocation) {
+      return hasPile;
+    }
     final hasSchedule = beacon.hasScheduleDates;
     final hasLocation = beacon.coordinates?.isNotEmpty ?? false;
     return hasPile || hasSchedule || hasLocation;
@@ -51,6 +60,7 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
     if (!hasVisibleContent(
       beacon: beacon,
       involvedProfiles: involvedProfiles,
+      includeScheduleAndLocation: includeScheduleAndLocation,
     )) {
       return const SizedBox.shrink();
     }
@@ -66,12 +76,14 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
                 involvedProfiles: involvedProfiles,
                 currentUserId: currentUserId,
                 onFacePileTap: onFacePileTap,
+                includeScheduleAndLocation: includeScheduleAndLocation,
               )
             : _MetadataRowLayout(
                 beacon: beacon,
                 involvedProfiles: involvedProfiles,
                 currentUserId: currentUserId,
                 onFacePileTap: onFacePileTap,
+                includeScheduleAndLocation: includeScheduleAndLocation,
               );
       },
     );
@@ -84,12 +96,14 @@ class _MetadataRowLayout extends StatelessWidget {
     required this.involvedProfiles,
     required this.currentUserId,
     this.onFacePileTap,
+    this.includeScheduleAndLocation = true,
   });
 
   final Beacon beacon;
   final List<Profile> involvedProfiles;
   final String currentUserId;
   final VoidCallback? onFacePileTap;
+  final bool includeScheduleAndLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -100,10 +114,11 @@ class _MetadataRowLayout extends StatelessWidget {
       onTap: onFacePileTap,
     );
     final schedule = _ScheduleMeta(beacon: beacon);
-    final location = _LocationMeta(beacon: beacon);
     final hasPile = pile.hasProfiles;
-    final hasSchedule = beacon.hasScheduleDates;
-    final hasLocation = beacon.coordinates?.isNotEmpty ?? false;
+    final hasSchedule =
+        includeScheduleAndLocation && beacon.hasScheduleDates;
+    final hasLocation = includeScheduleAndLocation &&
+        (beacon.coordinates?.isNotEmpty ?? false);
 
     if (!hasPile && !hasSchedule && !hasLocation) {
       return const SizedBox.shrink();
@@ -114,17 +129,30 @@ class _MetadataRowLayout extends StatelessWidget {
         if (hasPile) pile,
         if (hasSchedule || hasLocation)
           Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasSchedule) schedule,
-                  if (hasSchedule && hasLocation)
-                    const SizedBox(width: kSpacingSmall),
-                  if (hasLocation) location,
-                ],
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final available = constraints.maxWidth;
+                final locationMaxWidth = hasSchedule
+                    ? available - kSpacingSmall - 160
+                    : available;
+                return Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasSchedule) schedule,
+                      if (hasSchedule && hasLocation)
+                        const SizedBox(width: kSpacingSmall),
+                      if (hasLocation)
+                        _LocationMeta(
+                          beacon: beacon,
+                          maxWidth: locationMaxWidth,
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
       ],
@@ -138,12 +166,14 @@ class _MetadataWrapLayout extends StatelessWidget {
     required this.involvedProfiles,
     required this.currentUserId,
     this.onFacePileTap,
+    this.includeScheduleAndLocation = true,
   });
 
   final Beacon beacon;
   final List<Profile> involvedProfiles;
   final String currentUserId;
   final VoidCallback? onFacePileTap;
+  final bool includeScheduleAndLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -154,10 +184,11 @@ class _MetadataWrapLayout extends StatelessWidget {
       onTap: onFacePileTap,
     );
     final schedule = _ScheduleMeta(beacon: beacon);
-    final location = _LocationMeta(beacon: beacon);
     final hasPile = pile.hasProfiles;
-    final hasSchedule = beacon.hasScheduleDates;
-    final hasLocation = beacon.coordinates?.isNotEmpty ?? false;
+    final hasSchedule =
+        includeScheduleAndLocation && beacon.hasScheduleDates;
+    final hasLocation = includeScheduleAndLocation &&
+        (beacon.coordinates?.isNotEmpty ?? false);
 
     if (!hasPile && !hasSchedule && !hasLocation) {
       return const SizedBox.shrink();
@@ -168,15 +199,27 @@ class _MetadataWrapLayout extends StatelessWidget {
         if (hasPile) pile,
         if (hasSchedule || hasLocation)
           Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: kSpacingSmall,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (hasSchedule) schedule,
-                if (hasLocation) location,
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final available = constraints.maxWidth;
+                final locationMaxWidth = hasSchedule
+                    ? available - kSpacingSmall - 160
+                    : available;
+                return Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: kSpacingSmall,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (hasSchedule) schedule,
+                    if (hasLocation)
+                      _LocationMeta(
+                        beacon: beacon,
+                        maxWidth: locationMaxWidth,
+                      ),
+                  ],
+                );
+              },
             ),
           ),
       ],
@@ -231,9 +274,10 @@ class _FacePile extends StatelessWidget {
     );
 
     if (onTap == null) return child;
+    final radius = BorderRadius.circular(TenturaRadii.cardDense);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: radius,
       child: child,
     );
   }
@@ -328,9 +372,34 @@ class _ScheduleMetaState extends State<_ScheduleMeta> {
 }
 
 class _LocationMeta extends StatelessWidget {
-  const _LocationMeta({required this.beacon});
+  const _LocationMeta({
+    required this.beacon,
+    this.maxWidth,
+  });
 
   final Beacon beacon;
+  final double? maxWidth;
+
+  static const double _metaIconSize = 16;
+  static const double _metaIconGap = 4;
+  static const double _minTapExtent = 44;
+
+  static bool _rowFitsWidth({
+    required String text,
+    required TextStyle style,
+    required double maxWidth,
+    required TextDirection textDirection,
+  }) {
+    if (!maxWidth.isFinite || maxWidth <= 0) {
+      return false;
+    }
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: textDirection,
+    )..layout();
+    return _metaIconSize + _metaIconGap + painter.width <= maxWidth;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -341,33 +410,66 @@ class _LocationMeta extends StatelessWidget {
 
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final baseStyle = beaconCardUpdatedLineTextStyle(theme);
     final addressLabel = beacon.addressLabel?.trim();
     final displayLabel = addressLabel == null || addressLabel.isEmpty
         ? l10n.beaconCardLocationSet
         : addressLabel;
+    final semanticsLabel = l10n.beaconCardLocationSemantics(displayLabel);
 
-    final label = Text(
-      displayLabel,
-      style: baseStyle,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
+    final width = maxWidth;
+    final textDirection = Directionality.of(context);
+    final tapRadius = BorderRadius.circular(TenturaRadii.cardDense);
+    final showIconOnly = width != null &&
+        width.isFinite &&
+        width > 0 &&
+        !_rowFitsWidth(
+          text: displayLabel,
+          style: baseStyle,
+          maxWidth: width,
+          textDirection: textDirection,
+        );
+
+    Widget child;
+    if (showIconOnly) {
+      child = InkWell(
+        onTap: () => showBeaconLocationActions(context, beacon),
+        borderRadius: tapRadius,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: _minTapExtent,
+            minHeight: _minTapExtent,
+          ),
+          child: Center(
+            child: Icon(
+              TenturaIcons.location,
+              size: _metaIconSize,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    } else {
+      child = InkWell(
+        onTap: () => showBeaconLocationActions(context, beacon),
+        borderRadius: tapRadius,
+        child: BeaconCardMetaItem(
+          icon: TenturaIcons.location,
+          child: Text(
+            displayLabel,
+            style: baseStyle,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+          ),
+        ),
+      );
+    }
 
     return Semantics(
       button: true,
-      label: l10n.beaconCardLocationSemantics(
-        displayLabel,
-      ),
-      child: InkWell(
-        onTap: () => showBeaconLocationActions(context, beacon),
-        borderRadius: BorderRadius.circular(8),
-        child: BeaconCardMetaItem(
-          icon: TenturaIcons.location,
-          mainAxisSize: MainAxisSize.max,
-          child: label,
-        ),
-      ),
+      label: semanticsLabel,
+      child: child,
     );
   }
 }

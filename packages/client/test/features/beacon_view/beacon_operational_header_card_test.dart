@@ -8,6 +8,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:get_it/get_it.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
@@ -27,6 +30,29 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
+
+class _FakePlatformRepository implements PlatformRepositoryPort {
+  Uri? launchedUri;
+
+  @override
+  Future<String> getAppVersion() async => 'test';
+
+  @override
+  Future<String> getStringFromClipboard() async => '';
+
+  @override
+  Future<void> launchUri(Uri uri) async {
+    launchedUri = uri;
+  }
+
+  @override
+  Future<void> launchUrl(String uri) async {
+    launchedUri = Uri.parse(uri);
+  }
+
+  @override
+  Future<void> launchUserLink(Uri uri) async {}
 }
 
 Beacon _openAuthorBeacon({
@@ -128,6 +154,89 @@ void main() {
     final stripY = tester.getTopLeft(find.byType(BeaconCompactMetadataStrip)).dy;
     final nowY = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dy;
     expect(stripY, lessThan(nowY));
+  });
+
+  testWidgets('HUD shows schedule and location rows outside compact strip', (
+    tester,
+  ) async {
+    final beacon = Beacon(
+      id: 'b-hud-sched-loc',
+      title: 'Beacon HUD',
+      author: const Profile(id: 'auth', displayName: 'Author'),
+      createdAt: t,
+      updatedAt: t,
+      startAt: DateTime.utc(2099, 6, 20, 12),
+      endAt: DateTime.utc(2099, 6, 25, 12),
+      coordinates: const Coordinates(lat: 52.358, long: 4.881),
+      addressLabel: 'Museumplein 6, Amsterdam',
+    );
+    final state = BeaconViewState(
+      beacon: beacon,
+      myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'help',
+          createdAt: t,
+          updatedAt: t,
+        ),
+      ],
+      beaconContextLoaded: true,
+    );
+
+    await _pumpHeaderCard(tester, state: state);
+
+    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.schedule), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.location), findsOneWidget);
+    expect(find.text('Museumplein 6, Amsterdam'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BeaconCompactMetadataStrip),
+        matching: find.text('Museumplein 6, Amsterdam'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('HUD location row opens actions and launches Maps URI', (
+    tester,
+  ) async {
+    await GetIt.I.reset();
+    final platform = _FakePlatformRepository();
+    GetIt.I.registerSingleton<PlatformRepositoryPort>(platform);
+
+    final beacon = Beacon(
+      id: 'b-hud-location',
+      title: 'Beacon HUD',
+      author: const Profile(id: 'auth', displayName: 'Author'),
+      createdAt: t,
+      updatedAt: t,
+      coordinates: const Coordinates(lat: 52.358, long: 4.881),
+      addressLabel: 'Museumplein 6, Amsterdam',
+    );
+    final state = BeaconViewState(
+      beacon: beacon,
+      myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      beaconContextLoaded: true,
+    );
+
+    await _pumpHeaderCard(tester, state: state);
+
+    await tester.tap(find.text('Museumplein 6, Amsterdam'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open in Maps'), findsOneWidget);
+
+    await tester.tap(find.text('Open in Maps'));
+    await tester.pumpAndSettle();
+
+    expect(
+      platform.launchedUri.toString(),
+      'geo:52.358,4.881?q=52.358,4.881(Museumplein%206%2C%20Amsterdam)',
+    );
+
+    await GetIt.I.reset();
   });
 
   testWidgets('NOW edit works and row body is not tappable', (tester) async {
