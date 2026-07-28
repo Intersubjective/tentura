@@ -842,6 +842,118 @@
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
+  "graphLegendTitle": "Легенда",
+  "@graphLegendTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendOpen": "Показать легенду",
+  "@graphLegendOpen": {
+    "context": "GraphScreen"
+  },
+  "graphLegendClose": "Скрыть легенду",
+  "@graphLegendClose": {
+    "context": "GraphScreen"
+  },
+  "graphLegendBadgesTitle": "Значки людей",
+  "@graphLegendBadgesTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendMutual": "Взаимное доверие — вы оба отметили доверие",
+  "@graphLegendMutual": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEyeOpen": "Открытый глаз — положительный обратный балл к вам; тот же порог, что для пересылки",
+  "@graphLegendEyeOpen": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEyeClosed": "Закрытый глаз — нет положительного обратного балла (включая одностороннее «я доверяю» и «нет связи»)",
+  "@graphLegendEyeClosed": {
+    "context": "GraphScreen"
+  },
+  "graphLegendNoteTextLabels": "В профиле и списке людей также есть текстовые метки (взаимное, исходящее, входящее, нет) для состояний, которые закрытый глаз объединяет.",
+  "@graphLegendNoteTextLabels": {
+    "context": "ProfileViewScreen"
+  },
+  "graphLegendEdgesTitle": "Связи",
+  "@graphLegendEdgesTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeEgo": "Золотой — касается вас на графе",
+  "@graphLegendEdgeEgo": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeOther": "Синий — другие положительные связи",
+  "@graphLegendEdgeOther": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeNegative": "Красный — отрицательная связь",
+  "@graphLegendEdgeNegative": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeUndirected": "Линии показывают соседство, а не направление голоса",
+  "@graphLegendEdgeUndirected": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeForwardOther": "Синий — другие пересылки",
+  "@graphLegendEdgeForwardOther": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendEdgeForwardDirected": "Стрелки: отправитель → получатель",
+  "@graphLegendEdgeForwardDirected": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendEdgeGenealogyEgo": "Золотой — ваша ветка приглашений",
+  "@graphLegendEdgeGenealogyEgo": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyTarget": "Зелёный — их ветка приглашений",
+  "@graphLegendEdgeGenealogyTarget": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyNeutral": "Синий — общий ствол",
+  "@graphLegendEdgeGenealogyNeutral": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyDirected": "Стрелки: пригласивший → приглашённый",
+  "@graphLegendEdgeGenealogyDirected": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendOtherTitle": "Другие символы",
+  "@graphLegendOtherTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendSelf": "Основное кольцо — вы",
+  "@graphLegendSelf": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHiddenNeighbors": "Счётчик — ещё не загруженные соседи (нажмите, чтобы исследовать)",
+  "@graphLegendHiddenNeighbors": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHiddenChildren": "Счётчик — ещё не загруженные приглашённые",
+  "@graphLegendHiddenChildren": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendRequestNode": "Изображение запроса — запрос на графе",
+  "@graphLegendRequestNode": {
+    "context": "GraphScreen"
+  },
+  "graphLegendRatingArcs": "Основные дуги — ваша оценка к ним (не значок глаза)",
+  "@graphLegendRatingArcs": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHelpOfferer": "Третичное кольцо — предложил помощь на этом графе пересылок",
+  "@graphLegendHelpOfferer": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendDeletedInvitee": "Человек выключен — удалённый участник приглашения",
+  "@graphLegendDeletedInvitee": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendForwardEligible": "Открытый глаз означает, что вы можете переслать этому человеку (положительный обратный балл к вам)",
+  "@graphLegendForwardEligible": {
+    "context": "ForwardsGraphScreen"
+  },
   "forwardsGraphMenuTitle": "Граф пересылок",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"

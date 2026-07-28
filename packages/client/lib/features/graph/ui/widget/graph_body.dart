@@ -13,6 +13,8 @@ import '../utils/animated_highlighted_edge_painter.dart';
 import '../utils/initial_position_extractor.dart';
 import '../utils/ease_in_out_reynolds.dart';
 import '../bloc/graph_cubit.dart';
+import 'graph_legend_mode.dart';
+import 'graph_legend_panel.dart';
 import 'graph_node_widget.dart';
 
 class GraphBody extends StatefulWidget {
@@ -62,6 +64,22 @@ class GraphBodyState extends State<GraphBody>
 
   String? _lastTapNodeId;
   DateTime? _lastTapTime;
+  bool _legendExpanded = false;
+
+  GraphLegendMode get _legendMode {
+    if (_graphCubit.genealogyMode) {
+      return GraphLegendMode.genealogy;
+    }
+    if (_graphCubit.forwardsGraphBeaconId != null) {
+      return GraphLegendMode.forwards;
+    }
+    return GraphLegendMode.trust;
+  }
+
+  bool get _showEdgeDirection =>
+      _graphCubit.forwardsGraphBeaconId != null || _graphCubit.genealogyMode;
+
+  void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
   void _onNodeTap(NodeDetails node) {
     final now = DateTime.now();
@@ -130,6 +148,8 @@ class GraphBodyState extends State<GraphBody>
                 showFilterToggle:
                     windowClass == WindowClass.expanded &&
                     !_graphCubit.genealogyMode,
+                legendExpanded: _legendExpanded,
+                onToggleLegend: _toggleLegend,
               ),
             ],
           );
@@ -145,6 +165,22 @@ class GraphBodyState extends State<GraphBody>
             left: 0,
             right: 0,
             child: LinearPiActive.builder(context, graphState.isLoading),
+          ),
+          Positioned(
+            left: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              right: false,
+              child: Padding(
+                padding: EdgeInsets.all(context.tt.rowGap),
+                child: GraphLegendPanel(
+                  mode: _legendMode,
+                  expanded: _legendExpanded,
+                  onToggle: _toggleLegend,
+                ),
+              ),
+            ),
           ),
         ],
       );
@@ -164,6 +200,7 @@ class GraphBodyState extends State<GraphBody>
       ),
       highlightRadius: 0.15,
       isAnimated: _graphCubit.state.isAnimated,
+      showDirection: _showEdgeDirection,
     ),
     labelBuilder: widget.isLabeled
         ? BottomLabelBuilder(
@@ -217,9 +254,15 @@ class GraphBodyState extends State<GraphBody>
 }
 
 class _GraphSideControls extends StatelessWidget {
-  const _GraphSideControls({required this.showFilterToggle});
+  const _GraphSideControls({
+    required this.showFilterToggle,
+    required this.legendExpanded,
+    required this.onToggleLegend,
+  });
 
   final bool showFilterToggle;
+  final bool legendExpanded;
+  final VoidCallback onToggleLegend;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +283,13 @@ class _GraphSideControls extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              IconButton(
+                tooltip: l10n.graphLegendOpen,
+                onPressed: onToggleLegend,
+                icon: Icon(
+                  legendExpanded ? Icons.map : Icons.map_outlined,
+                ),
+              ),
               IconButton(
                 tooltip: l10n.goToEgo,
                 onPressed: cubit.jumpToEgo,

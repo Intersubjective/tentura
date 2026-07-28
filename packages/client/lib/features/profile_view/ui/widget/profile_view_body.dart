@@ -8,6 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
@@ -58,6 +59,8 @@ class ProfileViewBody extends StatelessWidget {
                   l10n.trustInfoBody,
                   style: Theme.of(ctx).textTheme.bodyMedium,
                 ),
+                SizedBox(height: tt.sectionGap),
+                const ContactBadgeLegend(showTextLabelNote: true),
               ],
             ),
           );

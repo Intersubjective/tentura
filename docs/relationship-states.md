@@ -34,3 +34,25 @@ Trust can affect:
 
 Trust does **not** by itself let you open another person’s requests. You need an involvement path (forwarded to you, help offered, room admitted, etc.).
 
+## Icons & graph legend
+
+Avatars, graph nodes, and People lists reuse the same contact-badge chrome. Three signals are easy to confuse — keep them separate:
+
+| Signal | What it means |
+|--------|----------------|
+| **Text label** (profile / People) | Vote-based reciprocity: mutual, one-way out, one-way in, none |
+| **Two linked dots** | Vote mutual trust (`isMutualFriend`) |
+| **Open / closed eye** | MeritRank reverse score toward you (`rScore > 0`); same gate as forward eligibility — **not** the same as the text label or graph reachability |
+| **Primary rating arcs** | Your rating toward them (`score`); separate from the eye |
+
+The closed eye merges **one-way out** and **none**; use the text label when you need that distinction.
+
+### Graph edge colors (mode-dependent)
+
+**Trust graph** (undirected lines): gold touches you; blue other positive links; red negative. Lines show neighborhood hops, not vote direction.
+
+**Forwards graph** (arrows sender → recipient): gold includes you; blue other forwards. Tertiary ring = active help offerer.
+
+**Invite genealogy** (arrows inviter → invitee): gold your branch; green their branch; blue shared trunk. Count badge = unloaded invitees.
+
+Open the in-graph **Legend** control on any graph screen for the full list.

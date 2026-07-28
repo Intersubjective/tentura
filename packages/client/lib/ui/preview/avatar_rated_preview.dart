@@ -26,7 +26,7 @@ Widget sampleTenturaAvatarBig() => const TenturaAvatar.big(
   theme: previewThemeData,
 )
 Widget sampleTenturaAvatarMediumEyeOpen() => const TenturaAvatar.medium(
-  profile: Profile(id: '1', displayName: 'Alex Rivera', score: 50),
+  profile: Profile(id: '1', displayName: 'Alex Rivera', rScore: 1),
   withContactBadge: true,
 );
 
@@ -41,11 +41,11 @@ Widget sampleTenturaAvatarMediumEyeClosed() => const TenturaAvatar.medium(
 );
 
 @Preview(
-  name: 'TenturaAvatar (medium · handshake)',
+  name: 'TenturaAvatar (medium · mutual contact)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarMediumHandshake() => const TenturaAvatar.medium(
+Widget sampleTenturaAvatarMediumMutualContact() => const TenturaAvatar.medium(
   profile: Profile(
     id: '1',
     displayName: 'Alex Rivera',

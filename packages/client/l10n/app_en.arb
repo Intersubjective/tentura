@@ -842,6 +842,118 @@
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
+  "graphLegendTitle": "Legend",
+  "@graphLegendTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendOpen": "Show legend",
+  "@graphLegendOpen": {
+    "context": "GraphScreen"
+  },
+  "graphLegendClose": "Hide legend",
+  "@graphLegendClose": {
+    "context": "GraphScreen"
+  },
+  "graphLegendBadgesTitle": "People badges",
+  "@graphLegendBadgesTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendMutual": "Mutual trust — you each marked trust",
+  "@graphLegendMutual": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEyeOpen": "Open eye — positive reverse score toward you; same gate as forward eligibility",
+  "@graphLegendEyeOpen": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEyeClosed": "Closed eye — no positive reverse score (includes one-way out and none)",
+  "@graphLegendEyeClosed": {
+    "context": "GraphScreen"
+  },
+  "graphLegendNoteTextLabels": "Profile and People lists also show text labels (mutual, one-way out, one-way in, none) for states the closed eye merges.",
+  "@graphLegendNoteTextLabels": {
+    "context": "ProfileViewScreen"
+  },
+  "graphLegendEdgesTitle": "Connections",
+  "@graphLegendEdgesTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeEgo": "Gold — touches you on the graph",
+  "@graphLegendEdgeEgo": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeOther": "Blue — other positive connections",
+  "@graphLegendEdgeOther": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeNegative": "Red — negative connection",
+  "@graphLegendEdgeNegative": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeUndirected": "Lines show neighborhood links, not vote direction",
+  "@graphLegendEdgeUndirected": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeForwardOther": "Blue — other forwards",
+  "@graphLegendEdgeForwardOther": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendEdgeForwardDirected": "Arrows run sender → recipient",
+  "@graphLegendEdgeForwardDirected": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendEdgeGenealogyEgo": "Gold — your invite branch",
+  "@graphLegendEdgeGenealogyEgo": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyTarget": "Green — their invite branch",
+  "@graphLegendEdgeGenealogyTarget": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyNeutral": "Blue — shared trunk",
+  "@graphLegendEdgeGenealogyNeutral": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendEdgeGenealogyDirected": "Arrows run inviter → invitee",
+  "@graphLegendEdgeGenealogyDirected": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendOtherTitle": "Other symbols",
+  "@graphLegendOtherTitle": {
+    "context": "GraphScreen"
+  },
+  "graphLegendSelf": "Primary ring — you",
+  "@graphLegendSelf": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHiddenNeighbors": "Count badge — more neighbors not yet loaded (tap to explore)",
+  "@graphLegendHiddenNeighbors": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHiddenChildren": "Count badge — more invitees not yet loaded",
+  "@graphLegendHiddenChildren": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendRequestNode": "Request image — a Request on the graph",
+  "@graphLegendRequestNode": {
+    "context": "GraphScreen"
+  },
+  "graphLegendRatingArcs": "Primary arcs — your rating toward them (not the eye badge)",
+  "@graphLegendRatingArcs": {
+    "context": "GraphScreen"
+  },
+  "graphLegendHelpOfferer": "Tertiary ring — offered help on this forward graph",
+  "@graphLegendHelpOfferer": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphLegendDeletedInvitee": "Person off — deleted invite member",
+  "@graphLegendDeletedInvitee": {
+    "context": "InviteGenealogyScreen"
+  },
+  "graphLegendForwardEligible": "Open eye means you can forward to this person (positive reverse score toward you)",
+  "@graphLegendForwardEligible": {
+    "context": "ForwardsGraphScreen"
+  },
   "forwardsGraphMenuTitle": "Track of forwards",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"

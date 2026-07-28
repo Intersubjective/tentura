@@ -22,10 +22,13 @@ const _viewer = Profile(
 
 class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   _StubGraphCubit({required this.genealogyMode})
-    : super(const GraphState(me: _viewer, focus: ''));
+    : super(const GraphState(me: _viewer, focus: '', isAnimated: false));
 
   @override
   final bool genealogyMode;
+
+  @override
+  final String? forwardsGraphBeaconId = null;
 
   @override
   final graphController =
