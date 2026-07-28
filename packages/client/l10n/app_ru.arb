@@ -3800,7 +3800,7 @@
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomSemanticParticipantJoined": "Вступил(а) в чат",
-  "beaconRoomMemberCount": "{count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "beaconRoomMemberCount": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
   "@beaconRoomMemberCount": {
     "placeholders": {
       "count": {
