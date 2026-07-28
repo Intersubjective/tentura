@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -676,23 +677,45 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> refreshYouResponsibility() => _refreshYouResponsibility();
 
-  Future<void> _refreshYouResponsibility() async {
-    if (isClosed) return;
+  /// One retry covers session-token refresh races on cold navigation.
+  Future<CoordinationResponsibility> _fetchResponsibilityOrRetry(
+    String beaconId,
+  ) async {
     try {
-      final beaconId = state.beacon.id;
-      final responsibility = await _coordinationItemCase.fetchResponsibility(
-        beaconId,
-      );
-      if (isClosed) return;
-      emit(
-        state.copyWith(
-          youResponsibility: responsibility.withNewCountsCleared(),
-        ),
-      );
-      await _coordinationItemCase.markItemsSeen(beaconId);
+      return await _coordinationItemCase.fetchResponsibility(beaconId);
+    } on Object catch (_) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      return _coordinationItemCase.fetchResponsibility(beaconId);
+    }
+  }
+
+  Future<CoordinationResponsibility?> _loadYouResponsibility(
+    String beaconId,
+  ) async {
+    try {
+      return (await _fetchResponsibilityOrRetry(beaconId))
+          .withNewCountsCleared();
     } on Object catch (_) {
       // YOU line is supplementary; do not fail the screen.
+      return null;
     }
+  }
+
+  Future<void> _markYouResponsibilitySeen(String beaconId) async {
+    try {
+      await _coordinationItemCase.markItemsSeen(beaconId);
+    } on Object catch (_) {
+      // Non-fatal watermark update.
+    }
+  }
+
+  Future<void> _refreshYouResponsibility() async {
+    if (isClosed) return;
+    final beaconId = state.beacon.id;
+    final responsibility = await _loadYouResponsibility(beaconId);
+    if (isClosed || responsibility == null) return;
+    emit(state.copyWith(youResponsibility: responsibility));
+    await _markYouResponsibilitySeen(beaconId);
   }
 
   Future<void> _refreshRoomActivityEvents(String beaconId) async {
@@ -797,6 +820,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
     }
     await _refreshBeaconRoomCue(state.beacon.id);
+    await _refreshYouResponsibility();
   }
 
   Future<void> _refreshFactCards(String beaconId) async {
@@ -857,6 +881,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
         _case.fetchRoomUnreadSnapshot(beaconId),
+        _loadYouResponsibility(beaconId),
       ]);
 
       final helpOffers =
@@ -893,6 +918,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final beaconRoomCue = results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final roomUnreadSnapshot = results[6]! as RoomUnreadSnapshot;
+      final youResponsibility = results[7] as CoordinationResponsibility?;
       _serverUnreadCount = roomUnreadSnapshot.count;
       _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
       final roomUnreadCount = _case.resolveRoomUnread(
@@ -985,6 +1011,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           showDraftEvaluationCta: showDraftEvaluationCta,
           reviewWindowInfo: reviewWindowInfo,
           roomUnreadCount: roomUnreadCount,
+          youResponsibility: youResponsibility,
           forwardsLoaded: wasForwardsLoaded,
           beaconContentLoaded: true,
           beaconContextLoaded: true,
@@ -996,7 +1023,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       }
-      unawaited(_refreshYouResponsibility());
+      if (youResponsibility != null) {
+        unawaited(_markYouResponsibilitySeen(beaconId));
+      }
     } catch (e) {
       if (isClosed) return;
       if (!state.beaconContentLoaded) {
