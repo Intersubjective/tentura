@@ -26,6 +26,8 @@ abstract final class TestIds {
 
   static const roomMessageInput = 'room.message.input';
   static const roomMessageSend = 'room.message.send';
+  /// Press-scale wrapper around a room message bubble (long-press grow).
+  static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
   static const beaconRoomOpen = 'beacon.room.open';

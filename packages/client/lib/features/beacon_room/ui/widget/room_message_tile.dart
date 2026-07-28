@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_capability_colors.dart';
@@ -29,6 +30,7 @@ import 'package:tentura/ui/widget/presence_avatar.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
@@ -1922,12 +1924,13 @@ class _ReactorAvatarStrip extends StatelessWidget {
 
 /// Pointer-adaptive interaction wrapper for a message bubble.
 ///
-/// Touch: long-press opens the action sheet, double-tap quick-reacts, a plain
-/// tap opens the linked item. Desktop/mouse/trackpad: secondary-tap (right-click
-/// / Mac ctrl-click / two-finger) opens the sheet and a hover toolbar exposes
-/// quick-react + more. Long-press / double-tap / tap-to-open are filtered to
-/// touch pointers so a mouse can't trigger them and a left click stays free for
-/// text selection.
+/// Touch: long-press grows the bubble ~4% during the hold and confirms with a
+/// haptic at recognition, then opens the action sheet; double-tap quick-reacts,
+/// a plain tap opens the linked item. Desktop/mouse/trackpad: secondary-tap
+/// (right-click / Mac ctrl-click / two-finger) opens the sheet and a hover
+/// toolbar exposes quick-react + more. Long-press / double-tap / tap-to-open are
+/// filtered to touch pointers so a mouse can't trigger them and a left click
+/// stays free for text selection.
 class _MessageBubbleInteraction extends StatefulWidget {
   const _MessageBubbleInteraction({
     required this.child,
@@ -1948,20 +1951,68 @@ class _MessageBubbleInteraction extends StatefulWidget {
       _MessageBubbleInteractionState();
 }
 
-class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction> {
+class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
+    with SingleTickerProviderStateMixin {
   static const _touchOnly = {PointerDeviceKind.touch};
   static const _touchOrStylus = {
     PointerDeviceKind.touch,
     PointerDeviceKind.stylus,
   };
 
+  /// Tops out just before [kLongPressTimeout] (500ms) so the peak is on screen
+  /// the frame the action sheet is requested.
+  static const _growDuration = Duration(milliseconds: 440);
+  static const _settleDuration = Duration(milliseconds: 120);
+
+  /// Nothing moves for the first ~110ms: onLongPressDown fires on every
+  /// touch-down, so plain taps and scroll starts must cancel before any
+  /// visible growth.
+  static const _growCurve = Interval(0.25, 1, curve: Curves.easeOutCubic);
+  static const _pressedScale = 1.04;
+
+  late final AnimationController _pressController = AnimationController(
+    vsync: this,
+    duration: _growDuration,
+    reverseDuration: _settleDuration,
+  );
+
+  late final Animation<double> _pressScale = _pressController.drive(
+    Tween<double>(begin: 1, end: _pressedScale)
+        .chain(CurveTween(curve: _growCurve)),
+  );
+
   bool _hovering = false;
+  bool _reduceMotion = false;
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  void _handlePressDown(LongPressDownDetails details) {
+    if (_reduceMotion) return;
+    _pressController.forward();
+  }
+
+  void _settlePress() {
+    if (_pressController.value != 0) _pressController.reverse();
+  }
+
+  /// Recognition point: confirm with haptic and let the bubble settle while the
+  /// sheet animates in. Actions stay on [onLongPress] so they fire exactly once.
+  void _handlePressStart(LongPressStartDetails details) {
+    unawaited(HapticFeedback.selectionClick());
+    _settlePress();
+  }
 
   @override
   Widget build(BuildContext context) {
     final onActions = widget.onActions;
     final onOpenItem = widget.onOpenItem;
     final onQuickReact = widget.onQuickReact;
+
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     Widget content = RawGestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1972,7 +2023,12 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction> {
                 () => LongPressGestureRecognizer(
                   supportedDevices: _touchOrStylus,
                 ),
-                (r) => r.onLongPress = onActions,
+                (r) => r
+                  ..onLongPressDown = _handlePressDown
+                  ..onLongPressCancel = _settlePress
+                  ..onLongPressStart = _handlePressStart
+                  ..onLongPress = onActions
+                  ..onLongPressEnd = ((_) => _settlePress()),
               ),
         if (onOpenItem != null)
           TapGestureRecognizer:
@@ -1987,7 +2043,18 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction> {
                 (r) => r.onDoubleTap = onQuickReact,
               ),
       },
-      child: widget.child,
+      child: AnimatedBuilder(
+        animation: _pressScale,
+        builder: (context, child) => Transform.scale(
+          key: TestIds.key(TestIds.roomMessageBubblePressScale),
+          scale: _pressScale.value,
+          alignment: widget.isMine
+              ? Alignment.centerRight
+              : Alignment.centerLeft,
+          child: child,
+        ),
+        child: widget.child,
+      ),
     );
 
     if (onActions != null) {
