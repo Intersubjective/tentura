@@ -28,8 +28,6 @@ import 'package:tentura/features/coordination_item/ui/widget/coordination_stalen
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
-import 'room_membership_strip.dart';
-import 'room_visibility_callout.dart';
 import 'room_file_attachment_open.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
@@ -40,7 +38,6 @@ class BeaconRoomBody extends StatefulWidget {
     this.beaconAuthorId = '',
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
-    this.onOpenPeopleTab,
   });
 
   final bool enableComposer;
@@ -54,8 +51,6 @@ class BeaconRoomBody extends StatefulWidget {
   /// Opens an item thread or scrolls to a plan anchor; host-owned when nested.
   final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
 
-  final VoidCallback? onOpenPeopleTab;
-
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
 }
@@ -63,20 +58,10 @@ class BeaconRoomBody extends StatefulWidget {
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   final _basicChatKey = GlobalKey<BasicChatBodyState>();
 
-  bool _visibilityCalloutDismissed = false;
-
   bool _suppressesRichMessageActions(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
       message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
       message.semanticMarker == BeaconRoomSemanticMarker.done;
-
-  static bool _viewerHasSentUserMessage(
-    List<RoomMessage> messages,
-    String viewerId,
-  ) =>
-      messages.any(
-        (m) => m.authorId == viewerId && m.semanticMarker == null,
-      );
 
   /// Non-empty text for [BeaconFactCard]; attachments use names or [L10n.beaconRoomPinFactAttachmentBodyFallback].
   String _pinFactTextForMessage(RoomMessage message, L10n l10n) {
@@ -219,45 +204,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
               );
-          final showVisibilityCallout =
-              widget.enableComposer &&
-              !isThreadMode &&
-              !_visibilityCalloutDismissed &&
-              !_viewerHasSentUserMessage(state.messages, myProfile.id);
           return BasicChatBody(
             key: _basicChatKey,
-            header: !isThreadMode
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      RoomMembershipStrip(
-                        participants: state.participants,
-                        beaconAuthorId: widget.beaconAuthorId,
-                        onOpenPeopleTab: widget.onOpenPeopleTab,
-                      ),
-                      if (showPinnedNow)
-                        _PinnedNowRow(
-                          state: state,
-                          onEdit: _roomCanCreatePromise(cubit)
-                              ? () => unawaited(
-                                  _showPlanUpdateSheet(context, cubit, l10n),
-                                )
-                              : null,
-                        ),
-                    ],
-                  )
-                : null,
-            composerBanner: showVisibilityCallout
-                ? RoomVisibilityCallout(
-                    onDismiss: () =>
-                        setState(() => _visibilityCalloutDismissed = true),
-                  )
-                : null,
-            emptyPlaceholder: showVisibilityCallout
-                ? RoomVisibilityCallout(
-                    onDismiss: () =>
-                        setState(() => _visibilityCalloutDismissed = true),
+            header: showPinnedNow
+                ? _PinnedNowRow(
+                    state: state,
+                    onEdit: _roomCanCreatePromise(cubit)
+                        ? () => unawaited(
+                            _showPlanUpdateSheet(context, cubit, l10n),
+                          )
+                        : null,
                   )
                 : null,
             messages: state.messages,

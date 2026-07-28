@@ -155,21 +155,19 @@ bool _authorLifecycleToggleEnabled(BeaconViewState state) {
 }
 
 BeaconPhaseStatusPresentation beaconViewRoomAppBarPhaseStatus(
-  L10n l10n,
-  int roomUnread,
-) {
-  final (line, tone) = beaconViewRoomAppBarStatus(l10n, roomUnread);
-  return BeaconPhaseStatusPresentation(slot1: line, slot1Tone: tone);
-}
-
-(String, TenturaTone) beaconViewRoomAppBarStatus(L10n l10n, int roomUnread) {
-  if (roomUnread > 0) {
-    return (
-      '${l10n.beaconRoomTitle} · ${l10n.beaconRoomUnreadDividerCount(roomUnread)}',
-      TenturaTone.info,
+  L10n l10n, {
+  required int memberCount,
+}) {
+  if (memberCount <= 0) {
+    return const BeaconPhaseStatusPresentation(
+      slot1: '',
+      slot1Tone: TenturaTone.neutral,
     );
   }
-  return (l10n.inboxCardRoomUnread(0), TenturaTone.neutral);
+  return BeaconPhaseStatusPresentation(
+    slot1: l10n.beaconRoomMemberCount(memberCount),
+    slot1Tone: TenturaTone.neutral,
+  );
 }
 
 String beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {

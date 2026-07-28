@@ -47,7 +47,6 @@ class BasicChatBody extends StatefulWidget {
     this.onOpenFileAttachment,
     this.onVotePoll,
     this.header,
-    this.composerBanner,
     this.emptyPlaceholder,
     this.imageRepository,
     this.enableComposerAttachments = true,
@@ -98,8 +97,6 @@ class BasicChatBody extends StatefulWidget {
   onSend;
 
   final Widget? header;
-
-  final Widget? composerBanner;
 
   final Widget? emptyPlaceholder;
 
@@ -479,7 +476,6 @@ class BasicChatBodyState extends State<BasicChatBody> {
                     ],
                   ),
           ),
-          if (widget.composerBanner != null) widget.composerBanner!,
           _buildComposerRow(context),
         ],
       ),

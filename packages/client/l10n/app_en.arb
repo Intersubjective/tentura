@@ -3711,25 +3711,14 @@
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
   "beaconRoomSemanticParticipantJoined": "Joined chat",
-  "beaconRoomSharedWithCount": "Shared with {count, plural, =1{1 person} other{{count} people}}",
-  "@beaconRoomSharedWithCount": {
+  "beaconRoomMemberCount": "{count, plural, =1{1 person} other{{count} people}}",
+  "@beaconRoomMemberCount": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "beaconRoomSharedWithCountAccessibility": "Shared with {count} people. Open people tab.",
-  "@beaconRoomSharedWithCountAccessibility": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconRoomVisibilityCalloutTitle": "This is a shared chat",
-  "beaconRoomVisibilityCalloutBody": "Everyone admitted can read your messages, including earlier chat history.",
-  "beaconRoomVisibilityCalloutDismiss": "Got it",
   "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} joined the chat because the author forwarded this request to them",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {

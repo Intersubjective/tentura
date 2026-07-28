@@ -12,6 +12,7 @@ import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/util/admitted_chat_members.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_title.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_discussion_pane.dart';
@@ -1141,7 +1142,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         : BlocProvider.value(
             value: roomCubit,
             child: BlocListener<RoomCubit, RoomState>(
-              listenWhen: (p, c) => p.unreadCount != c.unreadCount,
+              listenWhen: (p, c) =>
+                  p.unreadCount != c.unreadCount ||
+                  p.participants.length != c.participants.length,
               listener: (ctx, roomState) {
                 if (mounted) setState(() {});
               },
@@ -1150,7 +1153,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 beacon: state.beacon,
                 onCoordinationSaved: _refreshItemsTab,
                 onOpenCoordinationItem: _openItemDiscussion,
-                onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
               ),
             ),
           );
@@ -1298,9 +1300,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             state,
             useLiveRoomCubit: showLegacyRoomSurface || isSplit,
           );
+          final roomMemberCount = showLegacyRoomSurface
+              ? admittedChatMembers(
+                  participants: _roomCubit?.state.participants ?? const [],
+                  beaconAuthorId: state.beacon.author.id,
+                ).length
+              : 0;
           final statusSlots = beaconViewStatusSlots(l10n, state);
           final appBarPhaseStatus = showLegacyRoomSurface
-              ? beaconViewRoomAppBarPhaseStatus(l10n, roomUnread)
+              ? beaconViewRoomAppBarPhaseStatus(
+                  l10n,
+                  memberCount: roomMemberCount,
+                )
               : statusSlots.presentation;
 
           Widget body;

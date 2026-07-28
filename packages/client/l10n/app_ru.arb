@@ -3676,25 +3676,14 @@
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomSemanticParticipantJoined": "Вступил(а) в чат",
-  "beaconRoomSharedWithCount": "Общий чат · {count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
-  "@beaconRoomSharedWithCount": {
+  "beaconRoomMemberCount": "{count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "@beaconRoomMemberCount": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "beaconRoomSharedWithCountAccessibility": "Общий чат с {count} участниками. Открыть вкладку «Люди».",
-  "@beaconRoomSharedWithCountAccessibility": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconRoomVisibilityCalloutTitle": "Это общий чат",
-  "beaconRoomVisibilityCalloutBody": "Все допущенные участники видят ваши сообщения, включая более раннюю историю чата.",
-  "beaconRoomVisibilityCalloutDismiss": "Понятно",
   "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} вступил(а) в чат, потому что автор переслал этот запрос напрямую",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {
