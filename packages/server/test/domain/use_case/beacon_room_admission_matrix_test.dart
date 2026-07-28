@@ -780,6 +780,7 @@ void main() {
             beaconId: anyNamed('beaconId'),
             offerUserId: anyNamed('offerUserId'),
             authorUserId: anyNamed('authorUserId'),
+            admissionReason: anyNamed('admissionReason'),
           ),
         ).thenAnswer((_) async {});
         when(
@@ -861,6 +862,7 @@ void main() {
                 beaconId: _beaconId,
                 offerUserId: _helperId,
                 authorUserId: _authorId,
+                admissionReason: BeaconRoomAdmissionReason.autoAdmit,
               ),
             ).called(1);
             expect(
