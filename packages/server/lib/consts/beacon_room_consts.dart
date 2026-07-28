@@ -33,6 +33,9 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Inline poll message — body is empty; poll data is in `linkedPollingId`.
   static const poll = 8;
+
+  /// Participant admitted to the shared chat (`systemPayload` carries reason).
+  static const participantJoined = 9;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).
@@ -78,4 +81,11 @@ abstract final class RoomAccessBits {
   static const admitted = 3;
   static const muted = 4;
   static const left = 5;
+}
+
+/// Admission reason stored in chat join `systemPayload` / activity `diff`.
+abstract final class BeaconRoomAdmissionReason {
+  static const autoAdmit = 'autoAdmit';
+  static const accept = 'accept';
+  static const admit = 'admit';
 }

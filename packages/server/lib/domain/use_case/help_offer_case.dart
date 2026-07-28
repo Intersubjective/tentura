@@ -178,6 +178,7 @@ final class HelpOfferCase extends UseCaseBase {
           beaconId: beacon.id,
           offerUserId: helpOffererId,
           authorUserId: beacon.author.id,
+          admissionReason: BeaconRoomAdmissionReason.autoAdmit,
         );
         await _coordinationRepository.upsertResponse(
           beaconId: beacon.id,
@@ -197,6 +198,10 @@ final class HelpOfferCase extends UseCaseBase {
             beaconId: beacon.id,
             actorUserId: beacon.author.id,
             sourceEventKey: 'admission:${generateId('A')}',
+            bodyExcerpt:
+                "You were added to this request's shared chat because the "
+                'author forwarded this request to you. Everyone admitted can '
+                'read messages, including earlier history.',
           ),
         );
       },

@@ -3584,6 +3584,7 @@
   "helpOfferAdmissionDecline": "Отклонить",
   "helpOfferAdmissionRemove": "Убрать из чата",
   "helpOfferAdmittedLabel": "Допущен(а)",
+  "helpOfferCanReadChat": "Может читать этот чат",
   "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
   "helpOfferAdmittedAutomaticallyHint": "Вы переслали этот запрос напрямую",
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
@@ -3674,6 +3675,45 @@
   "beaconRoomSemanticDone": "Готово",
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
+  "beaconRoomSemanticParticipantJoined": "Вступил(а) в чат",
+  "beaconRoomSharedWithCount": "Общий чат · {count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "@beaconRoomSharedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomSharedWithCountAccessibility": "Общий чат с {count} участниками. Открыть вкладку «Люди».",
+  "@beaconRoomSharedWithCountAccessibility": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomVisibilityCalloutTitle": "Это общий чат",
+  "beaconRoomVisibilityCalloutBody": "Все допущенные участники видят ваши сообщения, включая более раннюю историю чата.",
+  "beaconRoomVisibilityCalloutDismiss": "Понятно",
+  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} вступил(а) в чат, потому что автор переслал этот запрос напрямую",
+  "@beaconRoomParticipantJoinedAutoAdmit": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantJoinedByActor": "{joinedName} допущен(а) в чат пользователем {actorName}",
+  "@beaconRoomParticipantJoinedByActor": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      },
+      "actorName": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
@@ -3779,6 +3819,7 @@
   "beaconActivityLifecycleReopened": "Снова открыто",
   "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
   "beaconActivityParticipantRemoved": "Участник убран из чата",
+  "beaconActivityParticipantJoined": "Участник вступил в чат",
   "beaconActivityCoordinationFallback": "Обновление чаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",

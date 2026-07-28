@@ -90,6 +90,7 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
       _beaconLifecycleLogIcon(lifecycleChangeReasonFromEvent(e)),
     BeaconActivityEventTypeBits.participantRemoved =>
       Icons.person_remove_outlined,
+    BeaconActivityEventTypeBits.participantJoined => Icons.person_add_alt_1,
     _ => Icons.hub_outlined,
   };
 }
@@ -220,6 +221,7 @@ Color beaconActivityLogIconColor(ThemeData theme, BeaconActivityEvent e) {
   return switch (e.type) {
     BeaconActivityEventTypeBits.blockerOpened => tt.danger,
     BeaconActivityEventTypeBits.participantRemoved => tt.danger,
+    BeaconActivityEventTypeBits.participantJoined => tt.good,
     BeaconActivityEventTypeBits.needInfoOpened => tt.warn,
     BeaconActivityEventTypeBits.doneMarked => tt.good,
     _ => tt.textMuted,
@@ -303,6 +305,8 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
       beaconLifecycleEventLabel(l10n, e),
     BeaconActivityEventTypeBits.participantRemoved =>
       l10n.beaconActivityParticipantRemoved,
+    BeaconActivityEventTypeBits.participantJoined =>
+      l10n.beaconActivityParticipantJoined,
     _ => l10n.beaconActivityCoordinationFallback,
   };
 }

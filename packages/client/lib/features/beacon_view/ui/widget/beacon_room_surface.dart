@@ -16,12 +16,14 @@ class BeaconRoomSurface extends StatelessWidget {
     super.key,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
+    this.onOpenPeopleTab,
   });
 
   final String beaconAuthorId;
   final Beacon beacon;
   final VoidCallback? onCoordinationSaved;
   final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
+  final VoidCallback? onOpenPeopleTab;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +37,7 @@ class BeaconRoomSurface extends StatelessWidget {
               beaconAuthorId: beaconAuthorId,
               onCoordinationSaved: onCoordinationSaved,
               onOpenCoordinationItem: onOpenCoordinationItem,
+              onOpenPeopleTab: onOpenPeopleTab,
             ),
           ),
         ],

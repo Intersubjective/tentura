@@ -60,7 +60,10 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.roomAccess => (
         'Chat access',
-        'You were admitted to the request chat',
+        excerpt.isNotEmpty
+            ? excerpt
+            : 'You were added to this request\'s shared chat. '
+                'Everyone admitted can read messages, including earlier history.',
       ),
       NotificationKind.commitmentDeclined => (
         'Offer declined',

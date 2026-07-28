@@ -322,6 +322,7 @@ void main() {
           beaconId: 'B1',
           offerUserId: 'U1',
           authorUserId: 'Uauth',
+          admissionReason: BeaconRoomAdmissionReason.autoAdmit,
         ),
       ).thenAnswer((_) => Future.value());
     }
@@ -346,6 +347,7 @@ void main() {
             beaconId: 'B1',
             offerUserId: 'U1',
             authorUserId: 'Uauth',
+            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
           ),
         ).called(1);
         expect(
@@ -420,6 +422,7 @@ void main() {
             beaconId: 'B1',
             offerUserId: 'U1',
             authorUserId: 'Uauth',
+            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
           ),
         ).thenAnswer((_) => Future.value());
         when(
@@ -438,6 +441,7 @@ void main() {
             beaconId: 'B1',
             offerUserId: 'U1',
             authorUserId: 'Uauth',
+            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
           ),
         ).called(1);
         verify(

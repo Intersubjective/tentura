@@ -7,6 +7,7 @@ abstract class BeaconRoomRepositoryPort {
     required String beaconId,
     required String participantUserId,
     required String actorUserId,
+    String admissionReason = 'admit',
   });
 
   Future<Map<String, String>> attachmentsJsonByMessageIds(
@@ -114,6 +115,7 @@ abstract class BeaconRoomRepositoryPort {
     required String beaconId,
     required String offerUserId,
     required String authorUserId,
+    String admissionReason = 'accept',
   });
 
   Future<bool> isBeaconAuthor({

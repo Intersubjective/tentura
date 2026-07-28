@@ -13,6 +13,7 @@ void main() {
       expect(BeaconRoomSemanticMarker.needInfo, 6);
       expect(BeaconRoomSemanticMarker.done, 7);
       expect(BeaconRoomSemanticMarker.poll, 8);
+      expect(BeaconRoomSemanticMarker.participantJoined, 9);
     });
   });
 

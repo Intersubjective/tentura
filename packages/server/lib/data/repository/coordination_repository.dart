@@ -3,16 +3,15 @@ import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
-import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import 'help_offer_admission_repository.dart';
@@ -29,6 +28,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     this._database,
     this._userProfileBatchLookup,
     this._voteUserFriendshipLookup,
+    this._beaconRoomRepository,
   );
 
   final TenturaDb _database;
@@ -36,6 +36,8 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   final UserProfileBatchLookup _userProfileBatchLookup;
 
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
+
+  final BeaconRoomRepositoryPort _beaconRoomRepository;
 
   @override
   Future<void> deleteForCommit({
@@ -94,40 +96,6 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         ),
       );
 
-  Future<void> _inviteOfferUserToBeaconRoomRaw({
-    required String beaconId,
-    required String offerUserId,
-    required String actorUserId,
-  }) async {
-    final existing = await _database.managers.beaconParticipants
-        .filter((r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId))
-        .getSingleOrNull();
-    if (existing == null) {
-      await _database.managers.beaconParticipants.create(
-        (o) => o(
-          createdAt: const Value.absent(),
-          updatedAt: const Value.absent(),
-          id: generateId('P'),
-          beaconId: beaconId,
-          userId: offerUserId,
-          role: BeaconParticipantRoleBits.helper,
-          status: const Value(BeaconParticipantStatusBits.committed),
-          roomAccess: const Value(RoomAccessBits.admitted),
-        ),
-      );
-      return;
-    }
-    await _database.managers.beaconParticipants
-        .filter((r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId))
-        .update(
-          (o) => o(
-            roomAccess: const Value(RoomAccessBits.admitted),
-            status: const Value(BeaconParticipantStatusBits.committed),
-            updatedAt: Value(PgDateTime(DateTime.timestamp())),
-          ),
-        );
-  }
-
   Future<void> _revokeOfferUserBeaconRoomAccessRaw({
     required String beaconId,
     required String offerUserId,
@@ -181,10 +149,11 @@ class CoordinationRepository implements CoordinationRepositoryPort {
       actorUserId: actorUserId,
       responseType: CoordinationResponseType.useful.smallintValue,
     );
-    await _inviteOfferUserToBeaconRoomRaw(
+    await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
       beaconId: beaconId,
       offerUserId: offerUserId,
-      actorUserId: actorUserId,
+      authorUserId: actorUserId,
+      admissionReason: BeaconRoomAdmissionReason.accept,
     );
     await insertHelpOfferAdmissionEvent(
       _database,

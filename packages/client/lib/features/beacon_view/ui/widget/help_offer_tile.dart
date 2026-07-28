@@ -342,7 +342,9 @@ class _AdmissionFooter extends StatelessWidget {
 
     return Text(
       isAdmitted
-          ? l10n.helpOfferAdmittedLabel
+          ? (admissionAction == HelpOfferAdmissionAction.autoAdmit
+                ? l10n.helpOfferAdmittedAutomaticallyLabel
+                : l10n.helpOfferCanReadChat)
           : l10n.helpOffersTabNoAuthorLabelYet,
       style: TenturaText.bodySmall(tt.textMuted),
     );
@@ -397,6 +399,12 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                   SizedBox(height: tt.tightGap),
                   Text(
                     l10n.helpOfferAdmittedAutomaticallyHint,
+                    style: TenturaText.bodySmall(tt.textFaint),
+                  ),
+                ] else ...[
+                  SizedBox(height: tt.tightGap),
+                  Text(
+                    l10n.helpOfferCanReadChat,
                     style: TenturaText.bodySmall(tt.textFaint),
                   ),
                 ],
@@ -539,7 +547,9 @@ class _CommitterAdmissionFooter extends StatelessWidget {
         l10n.helpOfferRemovedWithReason(reason!),
       _ =>
         isAdmitted
-            ? l10n.helpOfferAdmittedLabel
+            ? (admissionAction == HelpOfferAdmissionAction.autoAdmit
+                  ? l10n.helpOfferAdmittedAutomaticallyLabel
+                  : l10n.helpOfferCanReadChat)
             : l10n.helpOffersTabNoAuthorLabelYet,
     };
     final color = switch (admissionAction) {
@@ -547,6 +557,43 @@ class _CommitterAdmissionFooter extends StatelessWidget {
       HelpOfferAdmissionAction.remove => tt.danger,
       _ => tt.textMuted,
     };
+    if (isAdmitted && admissionAction == HelpOfferAdmissionAction.autoAdmit) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TenturaText.bodySmall(color),
+          ),
+          SizedBox(height: tt.tightGap),
+          Text(
+            l10n.helpOfferAdmittedAutomaticallyHint,
+            style: TenturaText.bodySmall(tt.textFaint),
+          ),
+          SizedBox(height: tt.tightGap),
+          Text(
+            l10n.helpOfferCanReadChat,
+            style: TenturaText.bodySmall(tt.textFaint),
+          ),
+        ],
+      );
+    }
+    if (isAdmitted) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TenturaText.bodySmall(color),
+          ),
+          SizedBox(height: tt.tightGap),
+          Text(
+            l10n.helpOfferCanReadChat,
+            style: TenturaText.bodySmall(tt.textFaint),
+          ),
+        ],
+      );
+    }
     return Text(
       text,
       style: TenturaText.bodySmall(color),

@@ -1459,12 +1459,14 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     required String? beaconId,
     required String? participantUserId,
     required String? actorUserId,
+    String? admissionReason = 'admit',
   }) =>
       (super.noSuchMethod(
             Invocation.method(#admitParticipant, [], {
               #beaconId: beaconId,
               #participantUserId: participantUserId,
               #actorUserId: actorUserId,
+              #admissionReason: admissionReason,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
@@ -1772,12 +1774,14 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     required String? beaconId,
     required String? offerUserId,
     required String? authorUserId,
+    String? admissionReason = 'accept',
   }) =>
       (super.noSuchMethod(
             Invocation.method(#inviteOfferUserToBeaconRoom, [], {
               #beaconId: beaconId,
               #offerUserId: offerUserId,
               #authorUserId: authorUserId,
+              #admissionReason: admissionReason,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

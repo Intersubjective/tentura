@@ -30,10 +30,11 @@ import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dar
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
@@ -133,6 +134,49 @@ class RoomMessageTile extends StatelessWidget {
     }
     final src = m.sourceMessageId;
     return src != null && src.trim().isNotEmpty;
+  }
+
+  static bool isParticipantJoinedNotification(RoomMessage m) =>
+      m.semanticMarker == BeaconRoomSemanticMarker.participantJoined;
+
+  static Map<String, String>? participantJoinedPayload(RoomMessage m) {
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final joinedUserId = decoded['joinedUserId'];
+      if (joinedUserId is! String || joinedUserId.trim().isEmpty) {
+        return null;
+      }
+      final reason = decoded['admissionReason'];
+      return {
+        'joinedUserId': joinedUserId.trim(),
+        'admissionReason': reason is String ? reason.trim() : '',
+      };
+    } on Object {
+      return null;
+    }
+  }
+
+  static String _participantDisplayName({
+    required List<BeaconParticipant> participants,
+    required String userId,
+    required Profile viewer,
+    required L10n l10n,
+  }) {
+    final row = participants.where((p) => p.userId == userId).firstOrNull;
+    if (row != null && row.userTitle.trim().isNotEmpty) {
+      return SelfUserHighlight.displayName(
+        l10n,
+        profileFromBeaconParticipant(row),
+        viewer.id,
+      );
+    }
+    if (userId == viewer.id) {
+      return l10n.labelYou;
+    }
+    return userId;
   }
 
   /// Centered coordination timeline row pointing at a source message.
@@ -256,6 +300,8 @@ class RoomMessageTile extends StatelessWidget {
     BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
     BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
     BeaconRoomSemanticMarker.poll => l10n.beaconRoomSemanticPoll,
+    BeaconRoomSemanticMarker.participantJoined =>
+      l10n.beaconRoomSemanticParticipantJoined,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
 
@@ -346,6 +392,60 @@ class RoomMessageTile extends StatelessWidget {
     final showCoordinationFooter =
         !hideCoordinationLifecycleFooter && showCoordinationItemFooter(message);
     final showMarkDone = showMarkDoneFooter(message);
+
+    if (isParticipantJoinedNotification(message)) {
+      final payload = participantJoinedPayload(message);
+      if (payload != null) {
+        final joinedId = payload['joinedUserId']!;
+        final reason = payload['admissionReason'] ?? '';
+        final joinedName = _participantDisplayName(
+          participants: participants,
+          userId: joinedId,
+          viewer: myProfile,
+          l10n: l10n,
+        );
+        final actorName = SelfUserHighlight.displayName(
+          l10n,
+          message.author,
+          myProfile.id,
+        );
+        final line = reason == 'autoAdmit'
+            ? l10n.beaconRoomParticipantJoinedAutoAdmit(joinedName)
+            : l10n.beaconRoomParticipantJoinedByActor(joinedName, actorName);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            topPad / 2,
+            tt.screenHPadding,
+            bottomPad / 2,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.person_add_alt_1_outlined,
+                size: 14,
+                color: scheme.onSurfaceVariant,
+              ),
+              SizedBox(width: tt.iconTextGap / 2),
+              Flexible(
+                child: Text(
+                  line,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
 
     if (isFactPinNotification(message)) {
       final srcId = message.sourceMessageId!;

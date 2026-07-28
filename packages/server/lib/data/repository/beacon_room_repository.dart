@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'beacon_room_participant_join_recorder.dart';
 import 'mappers/coordination_row_mappers.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
@@ -838,7 +839,15 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String participantUserId,
     required String actorUserId,
+    String admissionReason = BeaconRoomAdmissionReason.admit,
   }) => _db.withMutatingUser(actorUserId, () async {
+    final existing = await findParticipant(
+      beaconId: beaconId,
+      userId: participantUserId,
+    );
+    if (existing?.roomAccess == RoomAccessBits.admitted) {
+      return;
+    }
     await _db.managers.beaconParticipants
         .filter(
           (r) => r.beaconId.id(beaconId) & r.userId.id(participantUserId),
@@ -850,6 +859,13 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
+    await recordBeaconRoomParticipantJoined(
+      db: _db,
+      beaconId: beaconId,
+      joinedUserId: participantUserId,
+      actorUserId: actorUserId,
+      admissionReason: admissionReason,
+    );
   });
 
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
@@ -858,12 +874,16 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String offerUserId,
     required String authorUserId,
+    String admissionReason = BeaconRoomAdmissionReason.accept,
   }) async {
     await _db.withMutatingUser(authorUserId, () async {
       final existing = await findParticipant(
         beaconId: beaconId,
         userId: offerUserId,
       );
+      if (existing?.roomAccess == RoomAccessBits.admitted) {
+        return;
+      }
       if (existing == null) {
         await _db.managers.beaconParticipants.create(
           (o) => o(
@@ -890,6 +910,13 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
               ),
             );
       }
+      await recordBeaconRoomParticipantJoined(
+        db: _db,
+        beaconId: beaconId,
+        joinedUserId: offerUserId,
+        actorUserId: authorUserId,
+        admissionReason: admissionReason,
+      );
     });
   }
 

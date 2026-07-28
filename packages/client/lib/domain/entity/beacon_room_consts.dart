@@ -46,6 +46,9 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Inline poll message — body is empty; poll data arrives in `pollDataJson`.
   static const poll = 8;
+
+  /// Participant admitted to the shared chat.
+  static const participantJoined = 9;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

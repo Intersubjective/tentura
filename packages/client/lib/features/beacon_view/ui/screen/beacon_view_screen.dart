@@ -1150,6 +1150,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 beacon: state.beacon,
                 onCoordinationSaved: _refreshItemsTab,
                 onOpenCoordinationItem: _openItemDiscussion,
+                onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
               ),
             ),
           );

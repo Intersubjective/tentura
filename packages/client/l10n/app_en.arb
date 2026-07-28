@@ -3619,6 +3619,7 @@
   "helpOfferAdmissionDecline": "Decline",
   "helpOfferAdmissionRemove": "Remove from chat",
   "helpOfferAdmittedLabel": "Admitted",
+  "helpOfferCanReadChat": "Can read this chat",
   "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
   "helpOfferAdmittedAutomaticallyHint": "You forwarded this request to them directly",
   "helpOfferDeclineDialogTitle": "Decline this offer",
@@ -3709,6 +3710,45 @@
   "beaconRoomSemanticDone": "Done",
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
+  "beaconRoomSemanticParticipantJoined": "Joined chat",
+  "beaconRoomSharedWithCount": "Shared with {count, plural, =1{1 person} other{{count} people}}",
+  "@beaconRoomSharedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomSharedWithCountAccessibility": "Shared with {count} people. Open people tab.",
+  "@beaconRoomSharedWithCountAccessibility": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomVisibilityCalloutTitle": "This is a shared chat",
+  "beaconRoomVisibilityCalloutBody": "Everyone admitted can read your messages, including earlier chat history.",
+  "beaconRoomVisibilityCalloutDismiss": "Got it",
+  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} joined the chat because the author forwarded this request to them",
+  "@beaconRoomParticipantJoinedAutoAdmit": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantJoinedByActor": "{joinedName} was admitted to the chat by {actorName}",
+  "@beaconRoomParticipantJoinedByActor": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      },
+      "actorName": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomDateToday": "Today",
   "beaconRoomDateYesterday": "Yesterday",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
@@ -3829,6 +3869,7 @@
     "description": "Activity log: review window expired and beacon closed"
   },
   "beaconActivityParticipantRemoved": "Participant removed from chat",
+  "beaconActivityParticipantJoined": "Participant joined the chat",
   "beaconActivityCoordinationFallback": "Chat update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",
