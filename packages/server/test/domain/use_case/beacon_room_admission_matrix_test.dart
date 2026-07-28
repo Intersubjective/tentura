@@ -88,6 +88,7 @@ class _AdmitStubRoom extends Fake implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String participantUserId,
     required String actorUserId,
+    String admissionReason = 'admit',
   }) async {
     admittedParticipantId = participantUserId;
     admitActorId = actorUserId;
