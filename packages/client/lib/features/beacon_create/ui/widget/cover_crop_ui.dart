@@ -63,7 +63,7 @@ class BeaconCoverCropUi implements ImageCropUiPort {
   int _webSide() {
     final size = MediaQuery.sizeOf(_context);
     const horizontalPadding = 24.0;
-    const bottomChrome = 140.0;
+    const bottomChrome = 220.0;
     final top = MediaQuery.paddingOf(_context).top + kToolbarHeight;
     final bottom = MediaQuery.paddingOf(_context).bottom + bottomChrome;
     final byHeight = (size.height - top - bottom).floor();

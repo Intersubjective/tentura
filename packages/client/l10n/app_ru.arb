@@ -20,7 +20,7 @@
   "@labelDescription": {
     "context": "Utils"
   },
-  "labelUserHandle": "Хэндл",
+  "labelUserHandle": "Имя пользователя",
   "@labelUserHandle": {
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
@@ -44,6 +44,14 @@
   "userHandleHint": "3–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
   "@userHandleHint": {
     "context": "Utils"
+  },
+  "userHandleHelper": "Публичное имя для @упоминаний, например @alice (необязательно)",
+  "@userHandleHelper": {
+    "context": "ProfileEditScreen, AuthRegisterScreen"
+  },
+  "profileDescriptionHelper": "Кратко о вас — видно в профиле (необязательно)",
+  "@profileDescriptionHelper": {
+    "context": "ProfileEditScreen"
   },
   "userHandleInvalidFormat": "Только 3–30 символов: строчные буквы, цифры, подчёркивание",
   "@userHandleInvalidFormat": {
@@ -146,6 +154,10 @@
   "buttonCrop": "Обрезать",
   "@buttonCrop": {
     "context": "Utils"
+  },
+  "buttonSaveAvatar": "Сохранить",
+  "@buttonSaveAvatar": {
+    "context": "ProfileEditScreen"
   },
   "titleCropAvatar": "Обрезка фото профиля",
   "@titleCropAvatar": {

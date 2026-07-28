@@ -20,7 +20,7 @@
   "@labelDescription": {
     "context": "Utils"
   },
-  "labelUserHandle": "Handle",
+  "labelUserHandle": "Username",
   "@labelUserHandle": {
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
@@ -44,6 +44,14 @@
   "userHandleHint": "3–30 letters, numbers, or underscore (optional)",
   "@userHandleHint": {
     "context": "Utils"
+  },
+  "userHandleHelper": "Public name for @mentions, e.g. @alice (optional)",
+  "@userHandleHelper": {
+    "context": "ProfileEditScreen, AuthRegisterScreen"
+  },
+  "profileDescriptionHelper": "A short bio others see on your profile (optional)",
+  "@profileDescriptionHelper": {
+    "context": "ProfileEditScreen"
   },
   "userHandleInvalidFormat": "Use 3–30 characters: lowercase letters, numbers, underscore",
   "@userHandleInvalidFormat": {
@@ -146,6 +154,10 @@
   "buttonCrop": "Crop",
   "@buttonCrop": {
     "context": "Utils"
+  },
+  "buttonSaveAvatar": "Save avatar",
+  "@buttonSaveAvatar": {
+    "context": "ProfileEditScreen"
   },
   "titleCropAvatar": "Crop profile photo",
   "@titleCropAvatar": {

@@ -199,6 +199,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                     decoration: InputDecoration(
                       hintText: _l10n.userHandleHint,
                       labelText: _l10n.labelUserHandle,
+                      helperText: _l10n.userHandleHelper,
                     ),
                     maxLength: kUserHandleMaxLength,
                     keyboardType: TextInputType.text,

@@ -8,6 +8,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../message/profile_edit_messages.dart';
 import 'profile_edit_state.dart';
 
 export 'package:tentura/ui/bloc/state_base.dart';
@@ -80,6 +81,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
             status: const StateIsSuccess(),
           ),
         );
+        _effects.emit(const ShowMessage(ProfileAvatarReadyMessage()));
       } else {
         emit(state.copyWith(status: const StateIsSuccess()));
       }
@@ -128,6 +130,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
             status: const StateIsSuccess(),
           ),
         );
+        _effects.emit(const ShowMessage(ProfileAvatarReadyMessage()));
       } else {
         emit(state.copyWith(status: const StateIsSuccess()));
       }

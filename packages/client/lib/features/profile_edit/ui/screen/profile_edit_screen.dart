@@ -43,6 +43,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
     unawaited(cubit.save());
   }
 
+  Future<void> _requestClose(BuildContext context, {required bool isDirty}) {
+    return TenturaSheetDismissGuard.requestClose(
+      context,
+      isDirty: isDirty,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -59,195 +66,203 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       unawaited(cubit.cropCurrentImage(cropUiSettings));
     }
 
-    return Form(
-      key: _formKey,
-      child: Scaffold(
-        // Header
-        appBar: TenturaTopBar.of(
-          context,
-          title: Text(l10n.profileOverflowEdit),
-          leading: const AutoLeadingButton(),
-          actions: [
-            // Save Button
-            BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
-              selector: (state) => (state.hasChanges, state.isLoading),
-              builder: (_, state) {
-                final (hasChanges, isLoading) = state;
-                return TextButton(
-                  onPressed: hasChanges && !isLoading
-                      ? () => _save(cubit)
-                      : null,
-                  child: Text(l10n.buttonSave),
-                );
-              },
-            ),
-          ],
-          progress: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
-            selector: (state) => state.isLoading,
-            builder: TenturaTopBar.loadingBar,
-          ),
-        ),
-        resizeToAvoidBottomInset: false,
-
-        // Form
-        body: SafeArea(
-          child: TenturaContentColumn(
-            child: Column(
-              children: [
-                // Avatar
-                Center(
-                  child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
-                    buildWhen: (p, c) =>
-                        p.image != c.image ||
-                        p.willDropImage != c.willDropImage ||
-                        p.isLoading != c.isLoading,
+    return BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+      selector: (state) => state.hasChanges,
+      builder: (context, hasChanges) {
+        return PopScope(
+          canPop: !hasChanges,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            await _requestClose(context, isDirty: hasChanges);
+          },
+          child: Form(
+            key: _formKey,
+            child: Scaffold(
+              appBar: TenturaTopBar.of(
+                context,
+                title: Text(l10n.profileOverflowEdit),
+                leading: IconButton(
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () =>
+                      unawaited(_requestClose(context, isDirty: hasChanges)),
+                ),
+                actions: [
+                  BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
+                    selector: (state) => (state.hasChanges, state.isLoading),
                     builder: (_, state) {
-                      final avatarSize =
-                          tt.avatarSize *
-                          (kTenturaAvatarBigSize / kTenturaAvatarDefaultMedium);
-                      // Global [iconTheme] uses [ColorScheme.primary], same as
-                      // [secondaryContainer] on filled tonal buttons — icons would be
-                      // invisible without an explicit on-container foreground.
-                      final overlayIconStyle = IconButton.styleFrom(
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onSecondaryContainer,
-                        iconSize: tt.iconSize,
-                      );
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (state.hasNoImage && state.canDropImage)
-                            // Original Avatar
-                            SelfAwareAvatar.big(
-                              profile: cubit.state.original,
-                            )
-                          else
-                            SizedBox.square(
-                              dimension: avatarSize,
-                              child: ClipOval(
-                                child: state.hasNoImage || state.willDropImage
-                                    ? TenturaAvatar.avatarPlaceholder()
-                                    // New Avatar
-                                    : Image.memory(
-                                        state.image!.imageBytes!,
-                                        fit: BoxFit.cover,
-                                      ),
-                              ),
-                            ),
-
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: _ProfileAvatarActions(
-                              canRemove: state.canDropImage || state.hasImage,
-                              canCrop:
-                                  state.hasImage ||
-                                  (state.canDropImage &&
-                                      state.hasNoImage &&
-                                      cubit.state.original.hasAvatar),
-                              overlayIconStyle: overlayIconStyle,
-                              isLoading: state.isLoading,
-                              onRemove: cubit.clearImage,
-                              onCrop: cropAvatar,
-                              onUpload: uploadAvatar,
-                              removeTooltip: l10n.buttonRemove,
-                              cropTooltip: l10n.titleCropAvatar,
-                              uploadTooltip: l10n.titleUploadProfilePhoto,
-                            ),
-                          ),
-                        ],
+                      final (hasChanges, isLoading) = state;
+                      return TextButton(
+                        onPressed: hasChanges && !isLoading
+                            ? () => _save(cubit)
+                            : null,
+                        child: Text(l10n.buttonSave),
                       );
                     },
                   ),
+                ],
+                progress: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+                  selector: (state) => state.isLoading,
+                  builder: TenturaTopBar.loadingBar,
                 ),
+              ),
+              resizeToAvoidBottomInset: false,
+              body: SafeArea(
+                child: TenturaContentColumn(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          tt.screenHPadding,
+                          tt.sectionGap,
+                          tt.screenHPadding,
+                          tt.rowGap,
+                        ),
+                        child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
+                          buildWhen: (p, c) =>
+                              p.image != c.image ||
+                              p.willDropImage != c.willDropImage ||
+                              p.isLoading != c.isLoading,
+                          builder: (_, state) {
+                            final avatarSize =
+                                tt.avatarSize *
+                                (kTenturaAvatarBigSize /
+                                    kTenturaAvatarDefaultMedium);
+                            return Column(
+                              children: [
+                                if (state.hasNoImage && state.canDropImage)
+                                  SelfAwareAvatar.big(
+                                    profile: cubit.state.original,
+                                  )
+                                else
+                                  SizedBox.square(
+                                    dimension: avatarSize,
+                                    child: ClipOval(
+                                      child:
+                                          state.hasNoImage || state.willDropImage
+                                          ? TenturaAvatar.avatarPlaceholder()
+                                          : Image.memory(
+                                              state.image!.imageBytes!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                    ),
+                                  ),
+                                SizedBox(height: tt.rowGap),
+                                _ProfileAvatarActions(
+                                  canRemove:
+                                      state.canDropImage || state.hasImage,
+                                  canCrop:
+                                      state.hasImage ||
+                                      (state.canDropImage &&
+                                          state.hasNoImage &&
+                                          cubit.state.original.hasAvatar),
+                                  isLoading: state.isLoading,
+                                  onRemove: cubit.clearImage,
+                                  onCrop: cropAvatar,
+                                  onUpload: uploadAvatar,
+                                  uploadLabel: l10n.titleUploadProfilePhoto,
+                                  cropLabel: l10n.titleCropAvatar,
+                                  removeLabel: l10n.buttonRemove,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
 
-                // Username
-                Padding(
-                  padding: fieldPadding,
-                  child: TextFormField(
-                    autovalidateMode: AutovalidateMode.onUnfocus,
-                    decoration: InputDecoration(
-                      labelText: l10n.labelDisplayName,
-                      hintText: l10n.pleaseFillDisplayName,
-                    ),
-                    initialValue: cubit.state.displayName,
-                    maxLength: kTitleMaxLength,
-                    style: textTheme.headlineLarge,
-                    onChanged: cubit.setDisplayName,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                    validator: (text) => displayNameValidator(l10n, text),
-                  ),
-                ),
-
-                // Handle (optional)
-                Padding(
-                  padding: fieldPadding,
-                  child: TextFormField(
-                    autovalidateMode: AutovalidateMode.onUnfocus,
-                    decoration: InputDecoration(
-                      labelText: l10n.labelUserHandle,
-                      hintText: l10n.userHandleHint,
-                    ),
-                    initialValue: cubit.state.handle,
-                    maxLength: kUserHandleMaxLength,
-                    keyboardType: TextInputType.text,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
-                    ],
-                    style: textTheme.bodyLarge,
-                    onChanged: cubit.setHandle,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                    validator: (text) {
-                      final t = (text ?? '').trim().toLowerCase();
-                      if (t.isEmpty) return null;
-                      if (!isValidUserHandleFormat(t)) {
-                        return l10n.userHandleInvalidFormat;
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-
-                // User Description
-                Expanded(
-                  child: Padding(
-                    padding: fieldPadding,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final textStyle = textTheme.bodyMedium!;
-                        final painter = TextPainter(
-                          text: TextSpan(text: 'A', style: textStyle),
-                          maxLines: 1,
-                          textDirection: TextDirection.ltr,
-                        )..layout();
-                        return TextFormField(
-                          maxLines: constraints.maxHeight > 0
-                              ? (constraints.maxHeight / painter.height).floor()
-                              : 1,
-                          minLines: 1,
-                          maxLength: kDescriptionMaxLength,
-                          keyboardType: TextInputType.multiline,
-                          initialValue: cubit.state.description,
+                      Padding(
+                        padding: fieldPadding,
+                        child: TextFormField(
                           autovalidateMode: AutovalidateMode.onUnfocus,
                           decoration: InputDecoration(
-                            labelText: l10n.labelDescription,
-                            labelStyle: textTheme.bodyMedium,
+                            labelText: l10n.labelDisplayName,
+                            hintText: l10n.pleaseFillDisplayName,
                           ),
-                          style: textStyle,
-                          onChanged: cubit.setDescription,
+                          initialValue: cubit.state.displayName,
+                          maxLength: kTitleMaxLength,
+                          style: textTheme.headlineLarge,
+                          onChanged: cubit.setDisplayName,
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          validator: (text) => descriptionValidator(l10n, text),
-                        );
-                      },
-                    ),
+                          validator: (text) => displayNameValidator(l10n, text),
+                        ),
+                      ),
+
+                      Padding(
+                        padding: fieldPadding,
+                        child: TextFormField(
+                          autovalidateMode: AutovalidateMode.onUnfocus,
+                          decoration: InputDecoration(
+                            labelText: l10n.labelUserHandle,
+                            hintText: l10n.userHandleHint,
+                            helperText: l10n.userHandleHelper,
+                          ),
+                          initialValue: cubit.state.handle,
+                          maxLength: kUserHandleMaxLength,
+                          keyboardType: TextInputType.text,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp('[a-z0-9_]'),
+                            ),
+                          ],
+                          style: textTheme.bodyLarge,
+                          onChanged: cubit.setHandle,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          validator: (text) {
+                            final t = (text ?? '').trim().toLowerCase();
+                            if (t.isEmpty) return null;
+                            if (!isValidUserHandleFormat(t)) {
+                              return l10n.userHandleInvalidFormat;
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+
+                      Expanded(
+                        child: Padding(
+                          padding: fieldPadding,
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final textStyle = textTheme.bodyMedium!;
+                              final painter = TextPainter(
+                                text: TextSpan(text: 'A', style: textStyle),
+                                maxLines: 1,
+                                textDirection: TextDirection.ltr,
+                              )..layout();
+                              return TextFormField(
+                                maxLines: constraints.maxHeight > 0
+                                    ? (constraints.maxHeight / painter.height)
+                                          .floor()
+                                    : 1,
+                                minLines: 1,
+                                maxLength: kDescriptionMaxLength,
+                                keyboardType: TextInputType.multiline,
+                                initialValue: cubit.state.description,
+                                autovalidateMode: AutovalidateMode.onUnfocus,
+                                decoration: InputDecoration(
+                                  labelText: l10n.labelDescription,
+                                  labelStyle: textTheme.bodyMedium,
+                                  helperText: l10n.profileDescriptionHelper,
+                                ),
+                                style: textStyle,
+                                onChanged: cubit.setDescription,
+                                onTapOutside: (_) =>
+                                    FocusScope.of(context).unfocus(),
+                                validator: (text) =>
+                                    descriptionValidator(l10n, text),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -256,62 +271,50 @@ class _ProfileAvatarActions extends StatelessWidget {
   const _ProfileAvatarActions({
     required this.canRemove,
     required this.canCrop,
-    required this.overlayIconStyle,
     required this.isLoading,
     required this.onRemove,
     required this.onCrop,
     required this.onUpload,
-    required this.removeTooltip,
-    required this.cropTooltip,
-    required this.uploadTooltip,
+    required this.uploadLabel,
+    required this.cropLabel,
+    required this.removeLabel,
   });
 
   final bool canRemove;
   final bool canCrop;
-  final ButtonStyle overlayIconStyle;
   final bool isLoading;
   final VoidCallback onRemove;
   final VoidCallback onCrop;
   final VoidCallback onUpload;
-  final String removeTooltip;
-  final String cropTooltip;
-  final String uploadTooltip;
+  final String uploadLabel;
+  final String cropLabel;
+  final String removeLabel;
 
   @override
   Widget build(BuildContext context) {
-    if (!canRemove && !canCrop) {
-      return IconButton.filledTonal(
-        style: overlayIconStyle,
-        tooltip: uploadTooltip,
-        icon: const Icon(Icons.add_a_photo_outlined),
+    final tt = context.tt;
+    final children = <Widget>[
+      OutlinedButton(
         onPressed: isLoading ? null : onUpload,
-      );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (canRemove)
-          IconButton.filledTonal(
-            style: overlayIconStyle,
-            tooltip: removeTooltip,
-            icon: const Icon(Icons.highlight_remove_outlined),
-            onPressed: isLoading ? null : onRemove,
-          ),
-        if (canCrop)
-          IconButton.filledTonal(
-            style: overlayIconStyle,
-            tooltip: cropTooltip,
-            icon: const Icon(Icons.crop_outlined),
-            onPressed: isLoading ? null : onCrop,
-          ),
-        IconButton.filledTonal(
-          style: overlayIconStyle,
-          tooltip: uploadTooltip,
-          icon: const Icon(Icons.add_a_photo_outlined),
-          onPressed: isLoading ? null : onUpload,
+        child: Text(uploadLabel),
+      ),
+      if (canCrop)
+        OutlinedButton(
+          onPressed: isLoading ? null : onCrop,
+          child: Text(cropLabel),
         ),
-      ],
+      if (canRemove)
+        OutlinedButton(
+          onPressed: isLoading ? null : onRemove,
+          child: Text(removeLabel),
+        ),
+    ];
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: tt.tightGap,
+      runSpacing: tt.tightGap,
+      children: children,
     );
   }
 }
@@ -321,7 +324,7 @@ int _avatarCropperWebSide(BuildContext context) {
   final mq = MediaQuery.sizeOf(context);
   const padding = 24.0;
   final topChrome = MediaQuery.paddingOf(context).top + kToolbarHeight;
-  const bottomChrome = 140.0;
+  const bottomChrome = 220.0;
   final bottom = MediaQuery.paddingOf(context).bottom + bottomChrome;
   final maxByHeight = (mq.height - topChrome - bottom).floor();
   final maxByWidth = (mq.width - 2 * padding).floor();
@@ -361,7 +364,7 @@ List<PlatformUiSettings> _avatarCropUiSettings(
         rotateLeftTooltip: l10n.cropRotateLeftTooltip,
         rotateRightTooltip: l10n.cropRotateRightTooltip,
         cancelButton: l10n.buttonCancel,
-        cropButton: l10n.buttonCrop,
+        cropButton: l10n.buttonSaveAvatar,
       ),
     ),
   ];

@@ -50,26 +50,6 @@ class _CropperPageState extends State<CropperPage> {
                 icon: Icon(widget.themeData!.backIcon!),
               )
             : null,
-        actions: [
-          if (_processing)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Center(
-                child: SizedBox(
-                  width: 24.0,
-                  height: 24.0,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.0,
-                  ),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              onPressed: () => _doCrop(),
-              icon: Icon(widget.themeData?.doneIcon ?? Icons.done),
-            ),
-        ],
       ),
       body: Column(
         mainAxisSize: MainAxisSize.max,
@@ -101,8 +81,44 @@ class _CropperPageState extends State<CropperPage> {
               themeData: widget.themeData,
             ),
           ),
+          _footer(context),
         ],
       ),
+    );
+  }
+
+  Widget _footer(BuildContext context) {
+    if (_processing) {
+      return const Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: SizedBox(
+            width: 24.0,
+            height: 24.0,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.0,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return OverflowBar(
+      alignment: MainAxisAlignment.end,
+      spacing: 16.0,
+      children: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text(widget.translations.cancelButton),
+        ),
+        FilledButton(
+          onPressed: () => _doCrop(),
+          child: Text(widget.translations.cropButton),
+        ),
+      ],
     );
   }
 
