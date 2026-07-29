@@ -46,6 +46,29 @@ Future<_BadgeTestGraphCubit> _pumpGraphNode(
 }
 
 void main() {
+  testWidgets('focused node paints secondary selection ring', (tester) async {
+    await _pumpGraphNode(
+      tester,
+      const GraphNodeWidget(
+        nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
+        isFocused: true,
+      ),
+    );
+
+    expect(find.byKey(GraphNodeWidget.focusRingKey), findsOneWidget);
+  });
+
+  testWidgets('unfocused node has no selection ring', (tester) async {
+    await _pumpGraphNode(
+      tester,
+      const GraphNodeWidget(
+        nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
+      ),
+    );
+
+    expect(find.byKey(GraphNodeWidget.focusRingKey), findsNothing);
+  });
+
   testWidgets('genealogy user nodes pass rating chrome to TenturaAvatar', (
     tester,
   ) async {

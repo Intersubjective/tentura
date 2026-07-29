@@ -15,13 +15,18 @@ class GraphNodeWidget extends StatelessWidget {
     this.withRating = false,
     this.isSelf = false,
     this.isOrigin = false,
+    this.isFocused = false,
     this.onTap,
     super.key,
   });
 
+  /// [CustomPaint] key for the selection ring when [isFocused] is true.
+  static const focusRingKey = ValueKey<String>('graphNodeFocusRing');
+
   final bool withRating;
   final bool isSelf;
   final bool isOrigin;
+  final bool isFocused;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
@@ -68,9 +73,14 @@ class GraphNodeWidget extends StatelessWidget {
         ),
       ),
     };
-    final decorated = isOrigin && !isSelf
+    var decorated = isOrigin && !isSelf
         ? _OriginRing(size: nodeDetails.size, child: node)
         : node;
+    // Focus is outermost so selection stays visible; painter is inset so it
+    // does not coincide with self / origin / help-offerer rings.
+    if (isFocused) {
+      decorated = _FocusRing(size: nodeDetails.size, child: decorated);
+    }
     final widget = SizedBox.square(
       dimension: nodeDetails.size,
       child: Stack(
@@ -103,6 +113,63 @@ class GraphNodeWidget extends StatelessWidget {
             child: widget,
           );
   }
+}
+
+/// Selection ring for the node that owns [GraphState.focus] / the action panel.
+///
+/// Always inset so it remains readable under self halo, origin, or help-offerer
+/// rings that paint at the outer radius.
+class _FocusRing extends StatelessWidget {
+  const _FocusRing({required this.size, required this.child});
+
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.secondary;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: child),
+          IgnorePointer(
+            child: CustomPaint(
+              key: GraphNodeWidget.focusRingKey,
+              painter: _FocusRingPainter(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusRingPainter extends CustomPainter {
+  _FocusRingPainter({required this.color});
+
+  final Color color;
+
+  static const stroke = 3.0;
+  static const inset = 4.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.shortestSide / 2 - stroke / 2 - inset;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..isAntiAlias = true;
+    canvas.drawCircle(c, r, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusRingPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Distinct primary ring for the graph origin (ego / genealogy viewer).

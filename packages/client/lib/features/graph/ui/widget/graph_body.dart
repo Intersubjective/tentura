@@ -119,7 +119,7 @@ class GraphBodyState extends State<GraphBody>
       return Stack(
         fit: StackFit.expand,
         children: [
-          _buildGraphView(),
+          _buildGraphView(graphState),
           Positioned(
             top: 0,
             left: 0,
@@ -184,71 +184,75 @@ class GraphBodyState extends State<GraphBody>
     },
   );
 
-  Widget _buildGraphView() => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-    controller: _graphCubit.graphController,
-    canvasSize: widget.canvasSize,
-    minScale: widget.scaleRange.dx,
-    maxScale: widget.scaleRange.dy,
-    layoutAlgorithm: _layoutAlgorithm,
-    layoutTransitionDuration: const Duration(milliseconds: 350),
-    edgePainter: AnimatedHighlightedEdgePainter(
-      animation: CurvedAnimation(
-        parent: _animationController,
-        curve: const EaseInOutReynolds(),
-      ),
-      highlightRadius: 0.15,
-      isAnimated: _graphCubit.state.isAnimated,
-    ),
-    labelBuilder: widget.isLabeled
-        ? BottomLabelBuilder(
-            labelSize: widget.labelSize,
-            builder: (_, node) => switch (node) {
-              final UserNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              final GenealogyUserNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              final GenealogyDeletedNode node => Text(
-                key: ValueKey(node),
-                node.label,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.labelSmall(
-                  Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              _ => const SizedBox.shrink(),
-            },
-          )
-        : null,
-    nodeBuilder: (_, node) => GraphNodeWidget(
-      key: TestIds.key(TestIds.graphNode(node.id)),
-      nodeDetails: node,
-      withRating:
-          node is GenealogyUserNode ||
-          graphNodeShowsMeritRankRating(
-            nodeId: node.id,
-            viewerId: _graphCubit.state.me.id,
+  Widget _buildGraphView(GraphState graphState) =>
+      GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+        controller: _graphCubit.graphController,
+        canvasSize: widget.canvasSize,
+        minScale: widget.scaleRange.dx,
+        maxScale: widget.scaleRange.dy,
+        layoutAlgorithm: _layoutAlgorithm,
+        layoutTransitionDuration: const Duration(milliseconds: 350),
+        edgePainter: AnimatedHighlightedEdgePainter(
+          animation: CurvedAnimation(
+            parent: _animationController,
+            curve: const EaseInOutReynolds(),
           ),
-      isSelf:
-          node is GenealogyUserNode && node.id == _graphCubit.state.egoNodeId,
-      isOrigin: node.id == _graphCubit.originNodeId,
-      onTap: () => _onNodeTap(node),
-    ),
-  );
+          highlightRadius: 0.15,
+          isAnimated: _graphCubit.state.isAnimated,
+        ),
+        labelBuilder: widget.isLabeled
+            ? BottomLabelBuilder(
+                labelSize: widget.labelSize,
+                builder: (_, node) => switch (node) {
+                  final UserNode node => Text(
+                    key: ValueKey(node),
+                    node.label,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.labelSmall(
+                      Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  final GenealogyUserNode node => Text(
+                    key: ValueKey(node),
+                    node.label,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.labelSmall(
+                      Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  final GenealogyDeletedNode node => Text(
+                    key: ValueKey(node),
+                    node.label,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.labelSmall(
+                      Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
+              )
+            : null,
+        nodeBuilder: (_, node) => GraphNodeWidget(
+          key: TestIds.key(TestIds.graphNode(node.id)),
+          nodeDetails: node,
+          withRating:
+              node is GenealogyUserNode ||
+              graphNodeShowsMeritRankRating(
+                nodeId: node.id,
+                viewerId: _graphCubit.state.me.id,
+              ),
+          isSelf:
+              node is GenealogyUserNode &&
+              node.id == _graphCubit.state.egoNodeId,
+          isOrigin: node.id == _graphCubit.originNodeId,
+          isFocused:
+              graphState.focus.isNotEmpty && node.id == graphState.focus,
+          onTap: () => _onNodeTap(node),
+        ),
+      );
 }
 
 class _GraphNavigationControls extends StatelessWidget {
