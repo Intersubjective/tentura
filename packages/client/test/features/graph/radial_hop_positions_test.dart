@@ -151,4 +151,50 @@ void main() {
       expect(abc['b'], ab['b']);
     });
   });
+
+  group('localFanPositions', () {
+    test('single child continues straight along the branch', () {
+      final fan = localFanPositions(
+        parentPos: const Offset(100, 100),
+        direction: const Offset(0, 1),
+        childIds: const ['c'],
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      expect(fan['c']!.dx, closeTo(100, 0.01));
+      expect(fan['c']!.dy, closeTo(100 + ringGap, 0.01));
+    });
+
+    test('siblings stay within a compact fan ahead of the parent', () {
+      final fan = localFanPositions(
+        parentPos: const Offset(2000, 2000),
+        direction: const Offset(0, 1),
+        childIds: const ['c', 'd', 'e'],
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      for (final id in ['c', 'd', 'e']) {
+        final pos = fan[id]!;
+        expect((pos - const Offset(2000, 2000)).distance, closeTo(ringGap, 0.01));
+        expect(pos.dy, greaterThan(2000));
+      }
+      expect(
+        (fan['c']! - fan['e']!).distance,
+        lessThan(ringGap * 1.5),
+      );
+    });
+  });
+
+  group('branchUnitDirection', () {
+    test('prefers parent minus grandparent', () {
+      final dir = branchUnitDirection(
+        parentPos: const Offset(10, 30),
+        grandparentPos: const Offset(10, 10),
+      );
+      expect(dir.dx, closeTo(0, 1e-9));
+      expect(dir.dy, closeTo(1, 1e-9));
+    });
+  });
 }

@@ -32,14 +32,15 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
     required Set<EdgeBase> edges,
     required Size size,
   }) {
-    // Keep already-placed nodes where they are. Park brand-new nodes next to
-    // their (possibly pinned) BFS parent using the fresh layout's parent→child
-    // offset, so expand does not fling children across the canvas.
+    // Keep already-placed nodes. Park newcomers in a local fan around their
+    // real parent, continuing parent−grandparent so expand does not reuse
+    // global radial sectors (which fling siblings across the canvas).
     final hop = _computeHop(nodes: nodes, edges: edges, size: size);
     final placed = <String, Offset>{};
     final byId = <String, NodeBase>{
       for (final node in nodes) (node as NodeDetails).id: node,
     };
+    final fallback = size.center(Offset.zero);
 
     for (final node in nodes) {
       final kept = existingLayout.getPositionOrNull(node);
@@ -48,32 +49,55 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
       }
     }
 
-    final newcomers = nodes
-        .where((node) => !placed.containsKey((node as NodeDetails).id))
-        .toList()
+    final newcomersByParent = <String, List<String>>{};
+    final orphanIds = <String>[];
+    for (final node in nodes) {
+      final id = (node as NodeDetails).id;
+      if (placed.containsKey(id)) {
+        continue;
+      }
+      final parentId = hop.parent[id];
+      if (parentId == null) {
+        orphanIds.add(id);
+        continue;
+      }
+      newcomersByParent.putIfAbsent(parentId, () => []).add(id);
+    }
+
+    for (final id in orphanIds) {
+      placed[id] = hop.positions[id] ?? fallback;
+    }
+
+    final parentIds = newcomersByParent.keys.toList()
       ..sort((a, b) {
-        final da = hop.depth[(a as NodeDetails).id] ?? 0;
-        final db = hop.depth[(b as NodeDetails).id] ?? 0;
+        final da = hop.depth[a] ?? 0;
+        final db = hop.depth[b] ?? 0;
         return da.compareTo(db);
       });
 
-    final fallback = size.center(Offset.zero);
-    for (final node in newcomers) {
-      final id = (node as NodeDetails).id;
-      final freshPos = hop.positions[id] ?? fallback;
-      final parentId = hop.parent[id];
-      if (parentId != null) {
-        final parentPos = placed[parentId] ?? hop.positions[parentId];
-        final freshParent = hop.positions[parentId];
-        if (parentPos != null && freshParent != null) {
-          placed[id] = clampLayoutPosition(
-            parentPos + (freshPos - freshParent),
-            size,
-          );
-          continue;
-        }
-      }
-      placed[id] = freshPos;
+    final rootPos = placed[rootId] ?? hop.positions[rootId] ?? fallback;
+
+    for (final parentId in parentIds) {
+      final childIds = List<String>.from(newcomersByParent[parentId]!)..sort();
+      final parentPos =
+          placed[parentId] ?? hop.positions[parentId] ?? fallback;
+      final grandparentId = hop.parent[parentId];
+      final grandparentPos = grandparentId == null
+          ? null
+          : (placed[grandparentId] ?? hop.positions[grandparentId]);
+      final direction = branchUnitDirection(
+        parentPos: parentPos,
+        grandparentPos: grandparentPos,
+        rootPos: rootPos,
+      );
+      final fan = localFanPositions(
+        parentPos: parentPos,
+        direction: direction,
+        childIds: childIds,
+        canvasSize: size,
+        ringGap: ringGap,
+      );
+      placed.addAll(fan);
     }
 
     final builder = GraphLayoutBuilder(nodes: nodes);

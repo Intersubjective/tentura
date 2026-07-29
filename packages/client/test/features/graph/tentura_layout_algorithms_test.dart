@@ -7,7 +7,6 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 
 void main() {
@@ -16,21 +15,20 @@ void main() {
   final nodeA = UserNode(user: Profile(id: 'a'));
   final nodeB = UserNode(user: Profile(id: 'b'));
   final nodeC = UserNode(user: Profile(id: 'c'));
+  final nodeD = UserNode(user: Profile(id: 'd'));
+
+  NodeDetails nodeById(String id) => switch (id) {
+    'a' => nodeA,
+    'b' => nodeB,
+    'c' => nodeC,
+    'd' => nodeD,
+    _ => throw ArgumentError.value(id),
+  };
 
   EdgeDetails<NodeDetails> edge(String srcId, String dstId) {
-    final src = srcId == 'a'
-        ? nodeA
-        : srcId == 'b'
-        ? nodeB
-        : nodeC;
-    final dst = dstId == 'a'
-        ? nodeA
-        : dstId == 'b'
-        ? nodeB
-        : nodeC;
     return EdgeDetails(
-      source: src,
-      destination: dst,
+      source: nodeById(srcId),
+      destination: nodeById(dstId),
       color: Colors.blue,
     );
   }
@@ -109,22 +107,15 @@ void main() {
       expect(shrunk.getPosition(nodeB), initial.getPosition(nodeB));
     });
 
-    test('relayout parks new children next to a pinned parent', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+    test('relayout parks new children along the pinned branch direction', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
       final nodes = {nodeA, nodeB};
-      final edges = {edge('a', 'b')};
-
-      final initial = await layoutOnce(
-        algorithm,
-        nodes: nodes,
-        edges: edges,
-      );
-
-      // Nudge B away from its fresh seat so absolute placement would diverge.
-      final shiftedB = initial.getPosition(nodeB) + const Offset(120, 80);
+      // Place A→B going straight down so the fan must continue that heading.
+      const parentPos = Offset(250, 100);
+      const childPos = Offset(250, 200);
       final pinned = GraphLayoutBuilder(nodes: nodes)
-        ..setNodePosition(nodeA, initial.getPosition(nodeA))
-        ..setNodePosition(nodeB, shiftedB);
+        ..setNodePosition(nodeA, parentPos)
+        ..setNodePosition(nodeB, childPos);
       final existing = pinned.build();
 
       final grown = await algorithm
@@ -136,18 +127,44 @@ void main() {
           )
           .first;
 
-      expect(grown.getPosition(nodeB), shiftedB);
-      final fresh = await layoutOnce(
-        algorithm,
-        nodes: {nodeA, nodeB, nodeC},
-        edges: {edge('a', 'b'), edge('b', 'c')},
-      );
-      final expectedDelta =
-          fresh.getPosition(nodeC) - fresh.getPosition(nodeB);
-      expect(
-        grown.getPosition(nodeC),
-        clampLayoutPosition(shiftedB + expectedDelta, canvasSize),
-      );
+      expect(grown.getPosition(nodeB), childPos);
+      final c = grown.getPosition(nodeC);
+      // Single child continues straight down by ringGap.
+      expect(c.dx, closeTo(childPos.dx, 1));
+      expect(c.dy, closeTo(childPos.dy + 170, 1));
+    });
+
+    test('relayout fans multiple siblings locally around the parent', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      final nodes = {nodeA, nodeB};
+      final pinned = GraphLayoutBuilder(nodes: nodes)
+        ..setNodePosition(nodeA, const Offset(250, 100))
+        ..setNodePosition(nodeB, const Offset(250, 200));
+      final existing = pinned.build();
+
+      final grown = await algorithm
+          .relayout(
+            existingLayout: existing,
+            nodes: {nodeA, nodeB, nodeC, nodeD},
+            edges: {
+              edge('a', 'b'),
+              edge('b', 'c'),
+              edge('b', 'd'),
+            },
+            size: canvasSize,
+          )
+          .first;
+
+      final b = grown.getPosition(nodeB);
+      final c = grown.getPosition(nodeC);
+      final d = grown.getPosition(nodeD);
+      expect((c - b).distance, closeTo(170, 1));
+      expect((d - b).distance, closeTo(170, 1));
+      // Both stay below the parent (branch was downward).
+      expect(c.dy, greaterThan(b.dy));
+      expect(d.dy, greaterThan(b.dy));
+      // And near each other — not opposite sides of the canvas.
+      expect((c - d).distance, lessThan(200));
     });
 
     test('every input node has a position', () async {

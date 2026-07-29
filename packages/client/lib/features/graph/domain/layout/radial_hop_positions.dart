@@ -169,6 +169,70 @@ Offset clampLayoutPosition(Offset position, Size canvasSize) {
   );
 }
 
+/// Unit vector continuing the branch past [parentPos], preferring
+/// `parentPos - grandparentPos` so expand keeps the trail's direction.
+Offset branchUnitDirection({
+  required Offset parentPos,
+  Offset? grandparentPos,
+  Offset? rootPos,
+}) {
+  Offset? from(Offset? origin) {
+    if (origin == null) {
+      return null;
+    }
+    final delta = parentPos - origin;
+    if (delta.distanceSquared < 1e-6) {
+      return null;
+    }
+    return delta / delta.distance;
+  }
+
+  return from(grandparentPos) ??
+      from(rootPos) ??
+      const Offset(0, 1); // canvas "down" when everything coincides
+}
+
+/// Parks [childIds] (already sorted) in a compact fan around [parentPos]
+/// along [direction], at distance [ringGap]. Preserves branch heading instead
+/// of reusing global radial sectors (which fling siblings across the canvas).
+Map<String, Offset> localFanPositions({
+  required Offset parentPos,
+  required Offset direction,
+  required List<String> childIds,
+  required Size canvasSize,
+  double ringGap = 170,
+  double maxFanRadians = math.pi / 2,
+}) {
+  if (childIds.isEmpty) {
+    return {};
+  }
+
+  final unit = direction.distanceSquared < 1e-6
+      ? const Offset(0, 1)
+      : direction / direction.distance;
+  final baseAngle = math.atan2(unit.dy, unit.dx);
+  final n = childIds.length;
+  final positions = <String, Offset>{};
+
+  if (n == 1) {
+    positions[childIds.single] = clampLayoutPosition(
+      parentPos + unit * ringGap,
+      canvasSize,
+    );
+    return positions;
+  }
+
+  final span = math.min(maxFanRadians, (n - 1) * (math.pi / 6));
+  final start = baseAngle - span / 2;
+  final step = span / (n - 1);
+  for (var i = 0; i < n; i++) {
+    final angle = start + step * i;
+    final offset = Offset(math.cos(angle), math.sin(angle)) * ringGap;
+    positions[childIds[i]] = clampLayoutPosition(parentPos + offset, canvasSize);
+  }
+  return positions;
+}
+
 Map<String, List<String>> _buildUndirectedAdjacency(
   Set<String> nodeIds,
   Set<(String, String)> edges,
