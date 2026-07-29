@@ -76,18 +76,24 @@ class DebugErrorOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!kDebugMode) return child;
 
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Stack(
-        children: [
-          child,
-          AnimatedBuilder(
-            animation: DebugErrorStore.instance,
-            builder: (context, _) {
-              final errorText = DebugErrorStore.instance.lastError;
-              if (errorText == null) return const SizedBox.shrink();
+    // Do not mount a root [Stack] until an error must be shown. On Flutter web,
+    // pointer packets often arrive before the first layout; hit-testing an
+    // unlaid-out root Stack throws ("Cannot hit test a render box that has
+    // never been laid out"). Returning [child] alone keeps RenderView's child
+    // as the normal app tree until layout has already succeeded for a while.
+    return AnimatedBuilder(
+      animation: DebugErrorStore.instance,
+      builder: (context, _) {
+        final errorText = DebugErrorStore.instance.lastError;
+        if (errorText == null) return child;
 
-              return Positioned.fill(
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child,
+              Positioned.fill(
                 child: Material(
                   color: Colors.black.withValues(alpha: 0.88),
                   child: SafeArea(
@@ -97,11 +103,11 @@ class DebugErrorOverlay extends StatelessWidget {
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
