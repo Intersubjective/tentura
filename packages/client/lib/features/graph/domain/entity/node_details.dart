@@ -10,12 +10,7 @@ sealed class NodeDetails extends NodeBase {
   const NodeDetails({
     super.size = 40,
     super.pinned,
-    this.positionHint,
   });
-
-  final int? positionHint;
-
-  NodeDetails copyWithPositionHint(int? positionHint);
 
   @override
   NodeDetails copyWithPinned(bool isPinned);
@@ -38,8 +33,7 @@ sealed class NodeDetails extends NodeBase {
       label.hashCode ^
       score.hashCode ^
       userId.hashCode ^
-      hasImage.hashCode ^
-      positionHint.hashCode;
+      hasImage.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -50,8 +44,7 @@ sealed class NodeDetails extends NodeBase {
           label == other.label &&
           score == other.score &&
           userId == other.userId &&
-          hasImage == other.hasImage &&
-          positionHint == other.positionHint;
+          hasImage == other.hasImage;
 }
 
 final class UserNode extends NodeDetails {
@@ -59,7 +52,6 @@ final class UserNode extends NodeDetails {
     required this.user,
     super.pinned,
     super.size,
-    super.positionHint,
     this.isHelpOfferer = false,
   });
 
@@ -94,16 +86,6 @@ final class UserNode extends NodeDetails {
     size: size,
     user: user,
     pinned: isPinned,
-    positionHint: positionHint,
-    isHelpOfferer: isHelpOfferer,
-  );
-
-  @override
-  UserNode copyWithPositionHint(int? positionHint) => UserNode(
-    user: user,
-    size: size,
-    pinned: pinned,
-    positionHint: positionHint,
     isHelpOfferer: isHelpOfferer,
   );
 
@@ -111,7 +93,6 @@ final class UserNode extends NodeDetails {
     user: user,
     size: size,
     pinned: pinned,
-    positionHint: positionHint,
     isHelpOfferer: value,
   );
 
@@ -126,7 +107,6 @@ final class UserNode extends NodeDetails {
 final class BeaconNode extends NodeDetails {
   const BeaconNode({
     required this.beacon,
-    super.positionHint,
     super.pinned,
     super.size,
   });
@@ -155,15 +135,6 @@ final class BeaconNode extends NodeDetails {
   BeaconNode copyWithPinned(bool isPinned) => BeaconNode(
     beacon: beacon,
     pinned: isPinned,
-    positionHint: positionHint,
-    size: size,
-  );
-
-  @override
-  BeaconNode copyWithPositionHint(int? positionHint) => BeaconNode(
-    beacon: beacon,
-    pinned: pinned,
-    positionHint: positionHint,
     size: size,
   );
 }
@@ -176,7 +147,6 @@ final class GenealogyUserNode extends NodeDetails {
     required this.user,
     super.pinned,
     super.size,
-    super.positionHint,
   });
 
   final String nodeKey;
@@ -206,18 +176,7 @@ final class GenealogyUserNode extends NodeDetails {
     user: user,
     pinned: isPinned,
     size: size,
-    positionHint: positionHint,
   );
-
-  @override
-  GenealogyUserNode copyWithPositionHint(int? positionHint) =>
-      GenealogyUserNode(
-        nodeKey: nodeKey,
-        user: user,
-        pinned: pinned,
-        size: size,
-        positionHint: positionHint,
-      );
 }
 
 /// Anonymized endpoint after account deletion.
@@ -227,7 +186,6 @@ final class GenealogyDeletedNode extends NodeDetails {
     required this.label,
     super.pinned,
     super.size,
-    super.positionHint,
   });
 
   final String nodeKey;
@@ -255,16 +213,5 @@ final class GenealogyDeletedNode extends NodeDetails {
     label: label,
     pinned: isPinned,
     size: size,
-    positionHint: positionHint,
   );
-
-  @override
-  GenealogyDeletedNode copyWithPositionHint(int? positionHint) =>
-      GenealogyDeletedNode(
-        nodeKey: nodeKey,
-        label: label,
-        pinned: pinned,
-        size: size,
-        positionHint: positionHint,
-      );
 }

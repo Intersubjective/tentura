@@ -33,18 +33,6 @@ String deriveHelpOffererGraphFocus({
   required String helpOffererId,
 }) => viewerIsHelpOfferer ? authorId : helpOffererId;
 
-/// When a help offerer has no forward-path edges, pin them north of the ego
-/// node unless they already use the default hint (0).
-int isolatedHelpOffererPositionHint(
-  int? currentHint, {
-  int northHint = 4,
-}) {
-  if (currentHint == 0) {
-    return 0;
-  }
-  return northHint;
-}
-
 /// MeritRank rating arcs are shown on graph nodes except the viewer's ego node.
 bool graphNodeShowsMeritRankRating({
   required String nodeId,

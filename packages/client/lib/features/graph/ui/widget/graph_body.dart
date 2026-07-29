@@ -10,7 +10,6 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
 import '../utils/animated_highlighted_edge_painter.dart';
-import '../utils/initial_position_extractor.dart';
 import '../utils/ease_in_out_reynolds.dart';
 import '../bloc/graph_cubit.dart';
 import 'graph_legend_mode.dart';
@@ -25,7 +24,6 @@ class GraphBody extends StatefulWidget {
     this.animationDuration = const Duration(seconds: 2),
     this.canvasSize = const GraphCanvasSize.fixed(Size(4096, 4096)),
     this.layoutAlgorithm = const FruchtermanReingoldAlgorithm(
-      initialPositionExtractor: initialPositionExtractor,
       iterations: kIsWeb && !kIsWasm ? 300 : 500,
       optimalDistance: 100,
       showIterations: true,

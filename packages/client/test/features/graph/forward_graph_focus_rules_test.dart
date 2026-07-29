@@ -62,22 +62,6 @@ void main() {
     });
   });
 
-  group('isolatedHelpOffererPositionHint', () {
-    test('keeps default hint 0 unchanged', () {
-      expect(isolatedHelpOffererPositionHint(0), 0);
-    });
-
-    test('replaces null and non-zero hints with stable north placement', () {
-      expect(isolatedHelpOffererPositionHint(null), 4);
-      expect(isolatedHelpOffererPositionHint(2), 4);
-      expect(isolatedHelpOffererPositionHint(7), 4);
-    });
-
-    test('respects custom north hint constant', () {
-      expect(isolatedHelpOffererPositionHint(3, northHint: 5), 5);
-    });
-  });
-
   group('graphNodeShowsMeritRankRating', () {
     test('hides rating on viewer ego node', () {
       expect(

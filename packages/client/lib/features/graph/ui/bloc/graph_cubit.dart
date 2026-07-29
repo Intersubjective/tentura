@@ -71,7 +71,6 @@ class GraphCubit extends Cubit<GraphState> {
          user: me.copyWith(displayName: 'Me', score: 2),
          pinned: true,
          size: 80,
-         positionHint: 0,
        ),
        _graphSource = graphSourceRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
@@ -333,7 +332,6 @@ class GraphCubit extends Cubit<GraphState> {
       Set<EdgeDirected> edges;
       final source = _graphSource;
       var showNoHelpOffererPathMessage = false;
-      String? noPathHelpOffererId;
       var forwardsAuthorId = '';
       if (helpOffererFocusUserId != null &&
           forwardsGraphBeaconId != null &&
@@ -383,7 +381,6 @@ class GraphCubit extends Cubit<GraphState> {
           focus: derivedFocus,
         );
         showNoHelpOffererPathMessage = !hasHelpOffererEndpoint;
-        noPathHelpOffererId = !hasHelpOffererEndpoint ? helpOffererId : null;
       } else if (forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
         final payload = await source.fetchForwardsGraph(
@@ -473,9 +470,7 @@ class GraphCubit extends Cubit<GraphState> {
         final isFocus = state.focus.isNotEmpty && state.focus == e.dst;
         final node = e.node;
         if (node != null) {
-          _nodes[e.dst] = node
-              .copyWithPinned(isFocus)
-              .copyWithPositionHint(_nodes.length);
+          _nodes[e.dst] = node.copyWithPinned(isFocus);
         } else {
           final lazy = await _resolveNodeById(
             e.dst,
@@ -502,16 +497,7 @@ class GraphCubit extends Cubit<GraphState> {
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
         final lazy = await _resolveNodeById(state.focus, pinned: true);
         if (lazy != null) {
-          // When the focused help offerer has no path edges, we still want to show
-          // them as an isolated focus node. Give it a stable hint north of root.
-          if (noPathHelpOffererId != null &&
-              state.focus == noPathHelpOffererId) {
-            _nodes[state.focus] = lazy.copyWithPositionHint(
-              isolatedHelpOffererPositionHint(lazy.positionHint),
-            );
-          } else {
-            _nodes[state.focus] = lazy;
-          }
+          _nodes[state.focus] = lazy;
         }
       }
 
@@ -578,7 +564,6 @@ class GraphCubit extends Cubit<GraphState> {
       final profile = await _profileRepository.fetchById(id);
       return UserNode(
         user: profile,
-        positionHint: _nodes.length,
         pinned: pinned,
         isHelpOfferer: _helpOffererIds.contains(id),
       );
@@ -587,7 +572,6 @@ class GraphCubit extends Cubit<GraphState> {
       try {
         return BeaconNode(
           beacon: await _beaconRepository.fetchBeaconById(id),
-          positionHint: _nodes.length,
           pinned: pinned,
         );
       } on BeaconFetchException {
@@ -609,7 +593,6 @@ class GraphCubit extends Cubit<GraphState> {
             user: n.profile!,
             pinned: isEndpoint,
             size: isEndpoint ? 72 : 48,
-            positionHint: _nodes.length,
           );
         }
         return GenealogyDeletedNode(
@@ -617,7 +600,6 @@ class GraphCubit extends Cubit<GraphState> {
           label: genealogyAnonymousNodeLabel ?? '',
           pinned: isEndpoint,
           size: isEndpoint ? 72 : 48,
-          positionHint: _nodes.length,
         );
       });
     }
