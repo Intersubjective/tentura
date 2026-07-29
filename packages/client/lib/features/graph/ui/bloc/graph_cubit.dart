@@ -187,6 +187,25 @@ class GraphCubit extends Cubit<GraphState> {
     unawaited(Future.value(graphController.jumpToNode(node)));
   }
 
+  /// True when a tap should run one [expandNode] to nudge further exploration
+  /// (hidden neighbours remain, or this node has never been fetched as focus).
+  bool canExpandNode(String id) {
+    if (forwardsGraphBeaconId != null) {
+      return false;
+    }
+    final hidden = state.hiddenNeighborCounts[id] ?? 0;
+    if (hidden > 0) {
+      return true;
+    }
+    if (genealogyMode) {
+      return false;
+    }
+    if (id == _focusRootId) {
+      return false;
+    }
+    return !_fetchLimits.containsKey(id);
+  }
+
   /// Highlights [node] on the graph and updates the exploration trail.
   /// Never fetches — use [expandNode] to page in more neighbors.
   void selectNode(NodeDetails node) {
@@ -1006,10 +1025,23 @@ class GraphCubit extends Cubit<GraphState> {
           reveal(backward, backwardEdge);
         }
       }
+      // Spotlight the focus neighbourhood, but do not redraw chords from focus
+      // back to nodes already on the active trail (closure / ancestor links).
+      // The path loop above already keeps the spine; expand still reveals
+      // neighbours that are not currently on the canvas.
+      final alreadyOnCanvas = {
+        for (final node in graphController.nodes) node.id,
+      };
+      final trailIds = _focusPathIds.toSet();
       for (final entry in _allEdges.entries) {
-        if (entry.key.$1 == focusId || entry.key.$2 == focusId) {
-          reveal(entry.key, entry.value);
+        if (entry.key.$1 != focusId && entry.key.$2 != focusId) {
+          continue;
         }
+        final other = entry.key.$1 == focusId ? entry.key.$2 : entry.key.$1;
+        if (alreadyOnCanvas.contains(other) && trailIds.contains(other)) {
+          continue;
+        }
+        reveal(entry.key, entry.value);
       }
       for (final entry in _allEdges.entries) {
         if (alwaysVisibleNodeIds.contains(entry.key.$1) &&

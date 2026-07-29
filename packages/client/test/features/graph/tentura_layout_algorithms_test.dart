@@ -7,6 +7,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 
 void main() {
@@ -106,6 +107,47 @@ void main() {
 
       expect(shrunk.getPosition(nodeA), initial.getPosition(nodeA));
       expect(shrunk.getPosition(nodeB), initial.getPosition(nodeB));
+    });
+
+    test('relayout parks new children next to a pinned parent', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+      final nodes = {nodeA, nodeB};
+      final edges = {edge('a', 'b')};
+
+      final initial = await layoutOnce(
+        algorithm,
+        nodes: nodes,
+        edges: edges,
+      );
+
+      // Nudge B away from its fresh seat so absolute placement would diverge.
+      final shiftedB = initial.getPosition(nodeB) + const Offset(120, 80);
+      final pinned = GraphLayoutBuilder(nodes: nodes)
+        ..setNodePosition(nodeA, initial.getPosition(nodeA))
+        ..setNodePosition(nodeB, shiftedB);
+      final existing = pinned.build();
+
+      final grown = await algorithm
+          .relayout(
+            existingLayout: existing,
+            nodes: {nodeA, nodeB, nodeC},
+            edges: {edge('a', 'b'), edge('b', 'c')},
+            size: canvasSize,
+          )
+          .first;
+
+      expect(grown.getPosition(nodeB), shiftedB);
+      final fresh = await layoutOnce(
+        algorithm,
+        nodes: {nodeA, nodeB, nodeC},
+        edges: {edge('a', 'b'), edge('b', 'c')},
+      );
+      final expectedDelta =
+          fresh.getPosition(nodeC) - fresh.getPosition(nodeB);
+      expect(
+        grown.getPosition(nodeC),
+        clampLayoutPosition(shiftedB + expectedDelta, canvasSize),
+      );
     });
 
     test('every input node has a position', () async {

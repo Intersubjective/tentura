@@ -77,6 +77,9 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   Future<void> expandNode(NodeDetails node) async {}
 
   @override
+  bool canExpandNode(String id) => false;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
 }

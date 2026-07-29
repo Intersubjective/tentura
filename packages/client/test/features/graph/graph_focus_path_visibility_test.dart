@@ -150,6 +150,54 @@ NodeDetails _liveNode(GraphCubit cubit, String id) =>
     cubit.graphController.nodes.singleWhere((n) => n.id == id);
 
 void main() {
+  test('canExpandNode is true for unseen neighbours and false for ego', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub', dstTotal: 3)},
+        'Ub': {_e('Ub', 'Ue'), _e('Ub', 'Uf'), _e('Ub', 'Ug')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    expect(cubit.canExpandNode('Ume'), isFalse);
+    expect(cubit.canExpandNode('Ub'), isTrue);
+
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
+    await _settle();
+
+    // All declared neighbours are now visible — further taps only select.
+    expect(cubit.canExpandNode('Ub'), isFalse);
+
+    await cubit.close();
+  });
+
+  test(
+    'focus-incident chords back to the trail are not redrawn beyond the path',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        })
+        ..closureEdges = {_e('Ue', 'Ume')};
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+
+      expect(_edgePairs(cubit), {
+        ('Ume', 'Ub'),
+        ('Ub', 'Ue'),
+      });
+      expect(_edgePairs(cubit), isNot(contains(('Ue', 'Ume'))));
+
+      await cubit.close();
+    },
+  );
+
   test(
     'tap sequence A→B→E→back-to-B spotlights the ego→focus path '
     'and backtracking refetches nothing',

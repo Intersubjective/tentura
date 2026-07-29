@@ -5,6 +5,14 @@ import 'dart:ui' show Offset, Size;
 /// Fixed margin for clamping positions when node sizes are unknown.
 const double kLayoutClampMargin = 80;
 
+/// Result of a radial-hop pass: absolute seats plus the BFS parent map used to
+/// park newly revealed nodes next to an already-pinned parent.
+typedef RadialHopLayout = ({
+  Map<String, Offset> positions,
+  Map<String, String> parent,
+  Map<String, int> depth,
+});
+
 /// Deterministic ego-centric layout: concentric rings by BFS hop distance.
 ///
 /// Guarantees, all covered by tests:
@@ -17,7 +25,7 @@ const double kLayoutClampMargin = 80;
 ///  * angles are assigned once from sorted BFS sectors — there is no rotation
 ///    based on the active focus path, so selecting a node does not spin the
 ///    graph.
-Map<String, Offset> radialHopPositions({
+RadialHopLayout computeRadialHopLayout({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
   required String rootId,
@@ -25,7 +33,11 @@ Map<String, Offset> radialHopPositions({
   double ringGap = 170,
 }) {
   if (nodeIds.isEmpty) {
-    return {};
+    return (
+      positions: <String, Offset>{},
+      parent: <String, String>{},
+      depth: <String, int>{},
+    );
   }
 
   final adj = _buildUndirectedAdjacency(nodeIds, edges);
@@ -122,10 +134,39 @@ Map<String, Offset> radialHopPositions({
           math.sin(nodeAngle - math.pi / 2),
         ) *
         radius;
-    positions[id] = _clampPosition(centre + offset, canvasSize);
+    positions[id] = clampLayoutPosition(centre + offset, canvasSize);
   }
 
-  return positions;
+  return (positions: positions, parent: parent, depth: depth);
+}
+
+/// Convenience wrapper kept for call sites that only need absolute seats.
+Map<String, Offset> radialHopPositions({
+  required Set<String> nodeIds,
+  required Set<(String, String)> edges,
+  required String rootId,
+  required Size canvasSize,
+  double ringGap = 170,
+}) => computeRadialHopLayout(
+  nodeIds: nodeIds,
+  edges: edges,
+  rootId: rootId,
+  canvasSize: canvasSize,
+  ringGap: ringGap,
+).positions;
+
+/// Clamps a canvas position inside [canvasSize] with [kLayoutClampMargin].
+Offset clampLayoutPosition(Offset position, Size canvasSize) {
+  return Offset(
+    position.dx.clamp(
+      kLayoutClampMargin,
+      canvasSize.width - kLayoutClampMargin,
+    ),
+    position.dy.clamp(
+      kLayoutClampMargin,
+      canvasSize.height - kLayoutClampMargin,
+    ),
+  );
 }
 
 Map<String, List<String>> _buildUndirectedAdjacency(
@@ -151,17 +192,4 @@ Map<String, List<String>> _buildUndirectedAdjacency(
       ..addAll(deduped);
   }
   return adj;
-}
-
-Offset _clampPosition(Offset position, Size canvasSize) {
-  return Offset(
-    position.dx.clamp(
-      kLayoutClampMargin,
-      canvasSize.width - kLayoutClampMargin,
-    ),
-    position.dy.clamp(
-      kLayoutClampMargin,
-      canvasSize.height - kLayoutClampMargin,
-    ),
-  );
 }

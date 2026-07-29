@@ -79,7 +79,13 @@ class GraphBodyState extends State<GraphBody>
 
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
-  void _onNodeTap(NodeDetails node) => _graphCubit.selectNode(node);
+  void _onNodeTap(NodeDetails node) {
+    if (_graphCubit.canExpandNode(node.id)) {
+      unawaited(_graphCubit.expandNode(node));
+    } else {
+      _graphCubit.selectNode(node);
+    }
+  }
 
   void _openNodeDetails(NodeDetails node) {
     switch (node) {
