@@ -9,6 +9,7 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
 
 import '../gql/_g/graph_fetch.req.gql.dart';
+import '../gql/_g/graph_edges_between.req.gql.dart';
 import 'graph_source_repository.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -72,6 +73,40 @@ class GraphRepository extends RemoteRepository
       }
     }
     return result;
+  }
+
+  /// Structural closure: every trust edge whose **both** endpoints are in [nodeIds].
+  /// Complements [fetch], which only ever returns the neighbourhood of one focus.
+  @override
+  Future<Set<EdgeDirected>> fetchEdgesBetween({
+    required Set<String> nodeIds,
+    bool positiveOnly = true,
+  }) async {
+    if (nodeIds.length < 2) {
+      return const {};
+    }
+
+    final data = await requestDataOnlineOrThrow(
+      GGraphEdgesBetweenReq(
+        (b) => b
+          ..vars.node_ids.replace(nodeIds.toList(growable: false))
+          ..vars.positive_only = positiveOnly,
+      ),
+      label: _label,
+    );
+
+    return {
+      for (final e in data.graph_edges_between)
+        (
+          src: e.src!,
+          dst: e.dst!,
+          weight: e.dst_score!,
+          node: null,
+          branch: null,
+          srcTotalNeighborCount: e.src_total_neighbor_count,
+          dstTotalNeighborCount: e.dst_total_neighbor_count,
+        ),
+    };
   }
 
   static const _label = 'Graph';

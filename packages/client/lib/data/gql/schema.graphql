@@ -2487,6 +2487,11 @@ input graph_args {
   positive_only: Boolean
 }
 
+input graph_edges_between_args {
+  node_ids: [String!]
+  positive_only: Boolean
+}
+
 """
 columns and relationships of "graph_score"
 """
@@ -4274,6 +4279,31 @@ type query_root {
   ): [graph_score!]!
 
   """
+  execute function "graph_edges_between" which returns "graph_score"
+  """
+  graph_edges_between(
+    """
+    input parameters for function "graph_edges_between"
+    """
+    args: graph_edges_between_args!
+
+    """distinct select on columns"""
+    distinct_on: [graph_score_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [graph_score_order_by!]
+
+    """filter the rows returned"""
+    where: graph_score_bool_exp
+  ): [graph_score!]!
+
+  """
   fetch data from the table: "graph_score"
   """
   graph_score(
@@ -5187,6 +5217,31 @@ type subscription_root {
     input parameters for function "graph"
     """
     args: graph_args!
+
+    """distinct select on columns"""
+    distinct_on: [graph_score_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [graph_score_order_by!]
+
+    """filter the rows returned"""
+    where: graph_score_bool_exp
+  ): [graph_score!]!
+
+  """
+  execute function "graph_edges_between" which returns "graph_score"
+  """
+  graph_edges_between(
+    """
+    input parameters for function "graph_edges_between"
+    """
+    args: graph_edges_between_args!
 
     """distinct select on columns"""
     distinct_on: [graph_score_select_column!]

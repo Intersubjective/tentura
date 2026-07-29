@@ -195,6 +195,13 @@ class InviteGenealogyRepository extends RemoteRepository
     'node keys.',
   );
 
+  @override
+  Future<Set<EdgeDirected>> fetchEdgesBetween({
+    required Set<String> nodeIds,
+    bool positiveOnly = true,
+  }) async =>
+      const {};
+
   static DateTime? _parseDate(String? raw) {
     if (raw == null || raw.isEmpty) {
       return null;

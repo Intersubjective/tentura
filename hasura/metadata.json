@@ -1787,6 +1787,20 @@
                 "role": "user"
               }
             ]
+          },
+          {
+            "function": {
+              "name": "graph_edges_between",
+              "schema": "public"
+            },
+            "configuration": {
+              "custom_root_fields": {}
+            },
+            "permissions": [
+              {
+                "role": "user"
+              }
+            ]
           }
         ],
         "configuration": {

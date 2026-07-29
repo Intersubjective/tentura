@@ -115,4 +115,11 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     final payload = await fetchForwardsGraph(beaconId: beaconId);
     return payload.edges;
   }
+
+  @override
+  Future<Set<EdgeDirected>> fetchEdgesBetween({
+    required Set<String> nodeIds,
+    bool positiveOnly = true,
+  }) async =>
+      const {};
 }

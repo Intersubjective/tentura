@@ -14,4 +14,11 @@ abstract class GraphSourceRepository {
     int limit = 5,
     String? viewerUserId,
   });
+
+  /// Edges whose both endpoints are already known. Sources that have no notion
+  /// of a wider graph (forwards, genealogy) return nothing.
+  Future<Set<EdgeDirected>> fetchEdgesBetween({
+    required Set<String> nodeIds,
+    bool positiveOnly = true,
+  }) async => const {};
 }
