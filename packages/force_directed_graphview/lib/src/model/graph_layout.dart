@@ -74,4 +74,26 @@ class GraphLayout {
 
   /// Checks if position for node exists in the layout
   bool hasPosition(NodeBase node) => _nodePositions.containsKey(node);
+
+  /// Interpolates between two layouts.
+  ///
+  /// The key set of the result is the key set of [b] — nodes that exist only in
+  /// [a] have been removed from the graph and must not be rendered. A node that
+  /// exists only in [b] starts from [spawn] (when provided) so that a freshly
+  /// expanded node visually travels out of the node it was expanded from,
+  /// instead of appearing at its final position.
+  static GraphLayout lerp(
+    GraphLayout a,
+    GraphLayout b,
+    double t, {
+    Offset? Function(NodeBase node)? spawn,
+  }) {
+    final positions = <NodeBase, Offset>{};
+    for (final entry in b._nodePositions.entries) {
+      final from =
+          a._nodePositions[entry.key] ?? spawn?.call(entry.key) ?? entry.value;
+      positions[entry.key] = Offset.lerp(from, entry.value, t)!;
+    }
+    return GraphLayout._(Map.unmodifiable(positions));
+  }
 }

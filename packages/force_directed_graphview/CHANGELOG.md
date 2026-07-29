@@ -1,3 +1,15 @@
+## 0.6.2+tentura.1 (Tentura fork)
+
+- Add `GraphView.layoutTransitionDuration` / `layoutTransitionCurve`: the controller now
+  interpolates between the previous and the newly computed layout instead of applying
+  every solver iteration directly.
+- Add `GraphLayout.lerp`.
+- Add `GraphController.fitToRect` / `fitToNodes`.
+- Apply configuration changes at runtime via `didUpdateWidget` (the layout algorithm can
+  now be swapped after the first build).
+- `GraphController.clear()` resets the layout and re-centres on the next layout.
+- `FruchtermanReingoldAlgorithm` now has value equality.
+
 ## 0.6.2
 
 - Fix `GraphCanvasSizeProportional` error when new graph is mutated (by @PatrickStar125)

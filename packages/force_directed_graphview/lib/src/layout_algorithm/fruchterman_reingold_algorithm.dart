@@ -236,4 +236,27 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
       random.nextDouble() + canvasSize.height / 2,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FruchtermanReingoldAlgorithm &&
+          runtimeType == other.runtimeType &&
+          iterations == other.iterations &&
+          relayoutIterationsMultiplier == other.relayoutIterationsMultiplier &&
+          showIterations == other.showIterations &&
+          initialPositionExtractor == other.initialPositionExtractor &&
+          temperature == other.temperature &&
+          optimalDistance == other.optimalDistance;
+
+  @override
+  int get hashCode => Object.hash(
+        runtimeType,
+        iterations,
+        relayoutIterationsMultiplier,
+        showIterations,
+        initialPositionExtractor,
+        temperature,
+        optimalDistance,
+      );
 }

@@ -19,6 +19,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   Size? _currentSize;
   var _centered = false;
   var _relayoutGeneration = 0;
+  Ticker? _ticker;
+  GraphLayout? _transitionFrom;
+  GraphLayout? _transitionTarget;
+  Duration _transitionDuration = Duration.zero;
+  Curve _transitionCurve = Curves.easeOutCubic;
+  double _minScale = 0.5;
+  double _maxScale = 2;
+
+  /// Resolves where a node that is new to the layout should start its transition.
+  /// Set by the owner (e.g. "the node the user just expanded"). When the field
+  /// is null, or the callback returns null, the new node appears directly at
+  /// its final position.
+  Offset? Function(NodeBase node)? spawnPositionResolver;
 
   /// { @nodoc }
   Set<N> get nodes => Set.unmodifiable(_nodes);
@@ -143,6 +156,65 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       ..translate(-center.dx, -center.dy);
   }
 
+  /// Fits [rect] (in canvas coordinates) into the viewport.
+  void fitToRect(Rect rect, {double padding = 48}) {
+    final transformation = _transformationController;
+    final viewport = _actualViewport;
+    if (transformation == null || viewport == null) {
+      return;
+    }
+
+    final padded = rect.inflate(padding);
+    if (padded.width <= 0 || padded.height <= 0) {
+      return;
+    }
+
+    // `_actualViewport` is in canvas coordinates; multiplying by the current
+    // scale converts it back to on-screen pixels.
+    final currentScale = transformation.value.getMaxScaleOnAxis();
+    final viewportWidth = viewport.width * currentScale;
+    final viewportHeight = viewport.height * currentScale;
+
+    final scale = math
+        .min(viewportWidth / padded.width, viewportHeight / padded.height)
+        .clamp(_minScale, _maxScale)
+        .toDouble();
+
+    final center = padded.center;
+    transformation.value = Matrix4.identity()
+      ..translate(viewportWidth / 2, viewportHeight / 2)
+      ..scale(scale)
+      ..translate(-center.dx, -center.dy);
+  }
+
+  /// Fits every node of [nodes] that has a position into the viewport.
+  /// Nodes without a position (not laid out yet) are ignored.
+  void fitToNodes(Iterable<NodeBase> nodes, {double padding = 48}) {
+    final layout = _layout;
+    if (layout == null) {
+      return;
+    }
+
+    Rect? bounds;
+    for (final node in nodes) {
+      final position = layout.getPositionOrNull(node);
+      if (position == null) {
+        continue;
+      }
+      final nodeRect = Rect.fromCenter(
+        center: position,
+        width: node.size,
+        height: node.size,
+      );
+      bounds = bounds == null ? nodeRect : bounds.expandToInclude(nodeRect);
+    }
+
+    if (bounds == null) {
+      return;
+    }
+    fitToRect(bounds, padding: padding);
+  }
+
   /// { @nodoc }
   void replaceNode(N node, N newNode) {
     _replaceNode(node, newNode);
@@ -158,7 +230,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final currentSize = _currentSize;
     final layout = _layout;
 
-    if (currentAlgorithm == null || currentSize == null || layout == null) {
+    if (currentAlgorithm == null || currentSize == null) {
       return;
     }
 
@@ -166,20 +238,83 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final nodesSnapshot = Set<N>.of(_nodes);
     final edgesSnapshot = Set<E>.of(_edges);
 
-    final layoutStream = currentAlgorithm.relayout(
-      existingLayout: layout,
-      nodes: nodesSnapshot,
-      edges: edgesSnapshot,
-      size: currentSize,
-    );
+    final layoutStream = layout == null
+        ? currentAlgorithm.layout(
+            nodes: nodesSnapshot,
+            edges: edgesSnapshot,
+            size: currentSize,
+          )
+        : currentAlgorithm.relayout(
+            existingLayout: layout,
+            nodes: nodesSnapshot,
+            edges: edgesSnapshot,
+            size: currentSize,
+          );
 
     await for (final layout in layoutStream) {
       if (generation != _relayoutGeneration) {
         return;
       }
-      _layout = layout;
-      notifyListeners();
+      _publishLayout(layout);
     }
+  }
+
+  /// Single funnel through which every new layout reaches the renderer.
+  void _publishLayout(GraphLayout next) {
+    if (_transitionDuration == Duration.zero ||
+        _layout == null ||
+        _ticker == null) {
+      _layout = next;
+      notifyListeners();
+      return;
+    }
+
+    _transitionFrom = _layout;
+    _transitionTarget = next;
+    _ticker!
+      ..stop()
+      ..start();
+    notifyListeners();
+  }
+
+  void _onTransitionTick(Duration elapsed) {
+    final from = _transitionFrom;
+    final target = _transitionTarget;
+    if (from == null || target == null) {
+      _ticker?.stop();
+      return;
+    }
+
+    final total = _transitionDuration.inMicroseconds;
+    final t = total <= 0
+        ? 1.0
+        : (elapsed.inMicroseconds / total).clamp(0.0, 1.0).toDouble();
+
+    _layout = GraphLayout.lerp(
+      from,
+      target,
+      _transitionCurve.transform(t),
+      spawn: spawnPositionResolver,
+    );
+
+    if (t >= 1.0) {
+      _layout = target;
+      _transitionFrom = null;
+      _transitionTarget = null;
+      _ticker?.stop();
+    }
+    notifyListeners();
+  }
+
+  void _detachTicker() {
+    _ticker?.dispose();
+    _ticker = null;
+    final target = _transitionTarget;
+    if (target != null) {
+      _layout = target;
+    }
+    _transitionFrom = null;
+    _transitionTarget = null;
   }
 
   Future<void> _applyConfiguration({
@@ -187,7 +322,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     required GraphCanvasSize size,
     required LazyBuilding lazyBuilding,
     required TransformationController transformationController,
+    required TickerProvider vsync,
+    required Duration transitionDuration,
+    required Curve transitionCurve,
+    required double minScale,
+    required double maxScale,
   }) async {
+    _transitionDuration = transitionDuration;
+    _transitionCurve = transitionCurve;
+    _minScale = minScale;
+    _maxScale = maxScale;
+    _ticker?.dispose();
+    _ticker = vsync.createTicker(_onTransitionTick);
+
     _lazyBuilding = lazyBuilding;
     _transformationController = transformationController;
     _currentAlgorithm = algorithm;
@@ -206,13 +353,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       if (generation != _relayoutGeneration) {
         return;
       }
-      _layout = layout;
+      _publishLayout(layout);
 
       if (!_centered) {
         jumpToCenter();
         _centered = true;
       }
-      notifyListeners();
     }
   }
 
@@ -302,12 +448,26 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     notifyListeners();
   }
 
-  /// { @nodoc }
-  void clear() {
+  /// Removes every node and edge. When [recenter] is true the next layout
+  /// re-centres the viewport, as if the graph had just been created.
+  void clear({bool recenter = true}) {
     _nodes.clear();
     _edges.clear();
-    _layout = const GraphLayout.empty();
+    _layout = null;
+    _transitionFrom = null;
+    _transitionTarget = null;
+    _ticker?.stop();
+    if (recenter) {
+      _centered = false;
+    }
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.dispose();
+    _ticker = null;
+    super.dispose();
   }
 
   bool _hasNode(N node) => _nodes.contains(node);

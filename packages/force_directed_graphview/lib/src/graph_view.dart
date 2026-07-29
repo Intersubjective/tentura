@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/configuration.dart';
 import 'package:force_directed_graphview/src/util/extensions.dart';
@@ -32,6 +34,8 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
     this.builder,
     this.minScale = 0.5,
     this.maxScale = 2,
+    this.layoutTransitionDuration = Duration.zero,
+    this.layoutTransitionCurve = Curves.easeOutCubic,
     super.key,
   });
 
@@ -70,12 +74,25 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
   /// The maximum scale of the [InteractiveViewer] that wraps the graph.
   final double maxScale;
 
+  /// How long the graph takes to move from the previous layout to a newly
+  /// computed one. [Duration.zero] (the default) applies layouts instantly,
+  /// which reproduces the pre-transition behaviour.
+  ///
+  /// Only meaningful together with a layout algorithm that emits its **final**
+  /// layout once (e.g. `FruchtermanReingoldAlgorithm(showIterations: false)`).
+  /// An algorithm that streams intermediate iterations restarts the transition
+  /// on every emission and will look wrong.
+  final Duration layoutTransitionDuration;
+
+  /// Easing used for [layoutTransitionDuration].
+  final Curve layoutTransitionCurve;
+
   @override
   State<GraphView<N, E>> createState() => _GraphViewState<N, E>();
 }
 
 class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
-    extends State<GraphView<N, E>> {
+    extends State<GraphView<N, E>> with SingleTickerProviderStateMixin {
   final _transformationController = TransformationController();
 
   @override
@@ -84,13 +101,38 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
     _initController();
   }
 
+  @override
+  void didUpdateWidget(covariant GraphView<N, E> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller ||
+        widget.layoutAlgorithm != oldWidget.layoutAlgorithm ||
+        widget.canvasSize != oldWidget.canvasSize ||
+        widget.lazyBuilding != oldWidget.lazyBuilding ||
+        widget.layoutTransitionDuration != oldWidget.layoutTransitionDuration ||
+        widget.layoutTransitionCurve != oldWidget.layoutTransitionCurve) {
+      _initController();
+    }
+  }
+
   void _initController() {
     widget.controller._applyConfiguration(
       algorithm: widget.layoutAlgorithm,
       size: widget.canvasSize,
       lazyBuilding: widget.lazyBuilding,
       transformationController: _transformationController,
+      vsync: this,
+      transitionDuration: widget.layoutTransitionDuration,
+      transitionCurve: widget.layoutTransitionCurve,
+      minScale: widget.minScale,
+      maxScale: widget.maxScale,
     );
+  }
+
+  @override
+  void dispose() {
+    widget.controller._detachTicker();
+    _transformationController.dispose();
+    super.dispose();
   }
 
   @override

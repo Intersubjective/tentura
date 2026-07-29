@@ -824,7 +824,7 @@ packages:
       path: "packages/force_directed_graphview"
       relative: true
     source: path
-    version: "0.6.2"
+    version: "0.6.2+tentura.1"
   freezed:
     dependency: "direct dev"
     description:
