@@ -10,6 +10,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_content.dart';
+import 'package:tentura/features/graph/ui/widget/graph_legend_edge_swatch.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -41,7 +42,39 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   void jumpToEgo() {}
 
   @override
-  void togglePositiveOnly() {}
+  void togglePositiveOnly() {
+    if (forwardsGraphBeaconId != null || genealogyMode) {
+      return;
+    }
+    emit(state.copyWith(positiveOnly: !state.positiveOnly));
+  }
+
+  @override
+  bool get canPopFocus => false;
+
+  @override
+  void popFocus() {}
+
+  @override
+  void resetToEgo() {}
+
+  @override
+  void fitCurrentPath() {}
+
+  @override
+  List<String> get focusPath => const [];
+
+  @override
+  Set<String> get forwardsRootIds => const {};
+
+  @override
+  String get originNodeId => _viewer.id;
+
+  @override
+  void selectNode(NodeDetails node) {}
+
+  @override
+  Future<void> expandNode(NodeDetails node) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -82,16 +115,22 @@ Future<_StubGraphCubit> _pumpGraphBody(
 
 Future<void> _pumpLegendContent(
   WidgetTester tester,
-  GraphLegendMode mode,
-) async {
+  GraphLegendMode mode, {
+  GraphCubit? cubit,
+}) async {
+  final graphCubit = cubit ?? _StubGraphCubit();
+  addTearDown(graphCubit.close);
   await tester.pumpWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: GraphLegendContent(mode: mode),
+      home: BlocProvider<GraphCubit>.value(
+        value: graphCubit,
+        child: Scaffold(
+          body: SingleChildScrollView(
+            child: GraphLegendContent(mode: mode),
+          ),
         ),
       ),
     ),
@@ -119,26 +158,48 @@ void main() {
     expect(find.byIcon(Icons.map_outlined), findsNWidgets(2));
   });
 
+  testWidgets('trust legend negative row toggles positiveOnly', (tester) async {
+    final cubit = _StubGraphCubit();
+    await _pumpLegendContent(tester, GraphLegendMode.trust, cubit: cubit);
+
+    expect(find.byType(Switch), findsOneWidget);
+    expect(cubit.state.positiveOnly, isTrue);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.positiveOnly, isFalse);
+  });
+
   testWidgets('trust legend shows negative edge row', (tester) async {
     await _pumpLegendContent(tester, GraphLegendMode.trust);
 
     expect(find.textContaining('negative connection'), findsOneWidget);
-    expect(find.textContaining('neighborhood links'), findsOneWidget);
     expect(find.textContaining('more neighbors'), findsOneWidget);
     expect(find.textContaining('help on this forward'), findsNothing);
+  });
+
+  testWidgets('trust legend draws edge swatches', (tester) async {
+    await _pumpLegendContent(tester, GraphLegendMode.trust);
+
+    final swatches = tester.widgetList<GraphLegendEdgeSwatch>(
+      find.byType(GraphLegendEdgeSwatch),
+    );
+
+    expect(swatches, isNotEmpty);
   });
 
   testWidgets('forwards legend shows help offerer row', (tester) async {
     await _pumpLegendContent(tester, GraphLegendMode.forwards);
 
     expect(find.textContaining('help on this forward'), findsOneWidget);
-    expect(find.textContaining('sender'), findsOneWidget);
     expect(find.textContaining('more neighbors'), findsNothing);
     expect(find.textContaining('negative connection'), findsNothing);
   });
 
-  testWidgets('genealogy legend shows branch colors and hidden children',
-      (tester) async {
+  testWidgets('genealogy legend shows branch colors and hidden children', (
+    tester,
+  ) async {
     await _pumpLegendContent(tester, GraphLegendMode.genealogy);
 
     expect(find.textContaining('your invite branch'), findsOneWidget);
@@ -147,9 +208,12 @@ void main() {
     expect(find.textContaining('negative connection'), findsNothing);
   });
 
-  testWidgets('expanded layout shows legend in side rail', (tester) async {
+  testWidgets('expanded layout shows navigation and legend controls', (
+    tester,
+  ) async {
     await _pumpGraphBody(tester);
 
-    expect(find.byIcon(Icons.map_outlined), findsNWidgets(2));
+    expect(find.byTooltip('Show legend'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsOneWidget);
   });
 }

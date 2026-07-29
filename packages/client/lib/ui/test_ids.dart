@@ -84,5 +84,12 @@ abstract final class TestIds {
   static const evaluationTrustIntensityLot = 'evaluation.trust.intensity.lot';
   static String evaluationReasonChip(String slug) => 'evaluation.reason.$slug';
 
+  /// Trust graph node tap target, keyed by user id.
+  static String graphNode(String userId) => 'graph.node.$userId';
+
+  static const graphExpand = 'graph.expand';
+  static const graphBack = 'graph.back';
+  static const graphResetToEgo = 'graph.reset_to_ego';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

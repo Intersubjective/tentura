@@ -120,6 +120,5 @@ class ForwardsGraphRepository implements GraphSourceRepository {
   Future<Set<EdgeDirected>> fetchEdgesBetween({
     required Set<String> nodeIds,
     bool positiveOnly = true,
-  }) async =>
-      const {};
+  }) async => const {};
 }

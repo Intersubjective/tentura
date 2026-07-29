@@ -135,8 +135,7 @@ Map<String, Offset> layeredDagPositions({
   final maxRankValue = sortedRanks.last;
   final positions = <String, Offset>{};
   for (final id in nodeIds) {
-    final y =
-        canvasSize.height / 2 + (rank[id]! - maxRankValue / 2) * layerGap;
+    final y = canvasSize.height / 2 + (rank[id]! - maxRankValue / 2) * layerGap;
     positions[id] = _clampPosition(Offset(x[id]!, y), canvasSize);
   }
 
@@ -169,9 +168,11 @@ double _barycentreOfPredecessors(
   if (placed.isEmpty) {
     return double.infinity;
   }
-  return placed.map((predecessor) => layerOrder[predecessor]!.toDouble()).reduce(
-        (sum, value) => sum + value,
-      ) /
+  return placed
+          .map((predecessor) => layerOrder[predecessor]!.toDouble())
+          .reduce(
+            (sum, value) => sum + value,
+          ) /
       placed.length;
 }
 
@@ -186,15 +187,23 @@ double _barycentreOfSuccessors(
   if (placed.isEmpty) {
     return double.infinity;
   }
-  return placed.map((successor) => layerOrder[successor]!.toDouble()).reduce(
-        (sum, value) => sum + value,
-      ) /
+  return placed
+          .map((successor) => layerOrder[successor]!.toDouble())
+          .reduce(
+            (sum, value) => sum + value,
+          ) /
       placed.length;
 }
 
 Offset _clampPosition(Offset position, Size canvasSize) {
   return Offset(
-    position.dx.clamp(kLayoutClampMargin, canvasSize.width - kLayoutClampMargin),
-    position.dy.clamp(kLayoutClampMargin, canvasSize.height - kLayoutClampMargin),
+    position.dx.clamp(
+      kLayoutClampMargin,
+      canvasSize.width - kLayoutClampMargin,
+    ),
+    position.dy.clamp(
+      kLayoutClampMargin,
+      canvasSize.height - kLayoutClampMargin,
+    ),
   );
 }

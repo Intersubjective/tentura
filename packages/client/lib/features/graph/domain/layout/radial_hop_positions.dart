@@ -121,10 +121,12 @@ Map<String, Offset> radialHopPositions({
     }
     final nodeAngle = angle[id] ?? 0;
     final radius = depth[id]! * ringGap;
-    final offset = Offset(
-      math.cos(nodeAngle - math.pi / 2),
-      math.sin(nodeAngle - math.pi / 2),
-    ) * radius;
+    final offset =
+        Offset(
+          math.cos(nodeAngle - math.pi / 2),
+          math.sin(nodeAngle - math.pi / 2),
+        ) *
+        radius;
     positions[id] = _clampPosition(centre + offset, canvasSize);
   }
 
@@ -158,7 +160,13 @@ Map<String, List<String>> _buildUndirectedAdjacency(
 
 Offset _clampPosition(Offset position, Size canvasSize) {
   return Offset(
-    position.dx.clamp(kLayoutClampMargin, canvasSize.width - kLayoutClampMargin),
-    position.dy.clamp(kLayoutClampMargin, canvasSize.height - kLayoutClampMargin),
+    position.dx.clamp(
+      kLayoutClampMargin,
+      canvasSize.width - kLayoutClampMargin,
+    ),
+    position.dy.clamp(
+      kLayoutClampMargin,
+      canvasSize.height - kLayoutClampMargin,
+    ),
   );
 }

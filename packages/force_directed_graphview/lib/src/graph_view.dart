@@ -92,7 +92,7 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
 }
 
 class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
-    extends State<GraphView<N, E>> with SingleTickerProviderStateMixin {
+    extends State<GraphView<N, E>> with TickerProviderStateMixin {
   final _transformationController = TransformationController();
 
   @override

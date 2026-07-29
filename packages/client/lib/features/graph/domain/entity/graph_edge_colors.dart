@@ -20,9 +20,9 @@ final class GraphEdgeColors {
   final Color target;
 
   factory GraphEdgeColors.fromTokens(TenturaTokens tt) => GraphEdgeColors(
-        negative: tt.danger,
-        ego: tt.warn,
-        neutral: tt.info,
-        target: tt.good,
-      );
+    negative: tt.danger,
+    ego: tt.warn,
+    neutral: tt.info,
+    target: tt.good,
+  );
 }

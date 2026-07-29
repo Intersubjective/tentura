@@ -135,5 +135,33 @@ void main() {
       expect(withFocus['first']!.dx, closeTo(centre.dx, 1));
       expect(withoutFocus['first'], isNot(withFocus['first']));
     });
+
+    test('focus path positions stay fixed when an unrelated node is added', () {
+      const focusPath = ['root', 'first', 'second'];
+      final onPath = radialHopPositions(
+        nodeIds: {'root', 'first', 'second'},
+        edges: {('root', 'first'), ('first', 'second')},
+        rootId: 'root',
+        canvasSize: canvasSize,
+        focusPath: focusPath,
+        ringGap: ringGap,
+      );
+      final withUnrelated = radialHopPositions(
+        nodeIds: {'root', 'first', 'second', 'side'},
+        edges: {
+          ('root', 'first'),
+          ('first', 'second'),
+          ('root', 'side'),
+        },
+        rootId: 'root',
+        canvasSize: canvasSize,
+        focusPath: focusPath,
+        ringGap: ringGap,
+      );
+
+      for (final id in focusPath) {
+        expect(withUnrelated[id], onPath[id]);
+      }
+    });
   });
 }

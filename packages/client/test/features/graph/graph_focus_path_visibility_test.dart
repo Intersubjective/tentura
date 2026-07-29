@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -19,7 +20,11 @@ class _FakeGraphSource implements GraphSourceRepository {
   /// When set, overrides [pages] entirely.
   Set<EdgeDirected> Function(String? focus, String context)? onFetch;
 
+  /// Closure edges returned by [fetchEdgesBetween].
+  Set<EdgeDirected> closureEdges = const {};
+
   int calls = 0;
+  int closureCalls = 0;
   final callLog = <({String? focus, String context})>[];
 
   @override
@@ -38,6 +43,15 @@ class _FakeGraphSource implements GraphSourceRepository {
       return custom(focus, context);
     }
     return pages[focus] ?? const {};
+  }
+
+  @override
+  Future<Set<EdgeDirected>> fetchEdgesBetween({
+    required Set<String> nodeIds,
+    bool positiveOnly = true,
+  }) async {
+    closureCalls += 1;
+    return closureEdges;
   }
 }
 
@@ -106,6 +120,32 @@ Set<(String, String)> _edgePairs(GraphCubit cubit) => {
   for (final e in cubit.graphController.edges) (e.source.id, e.destination.id),
 };
 
+void _assertOneNodePerId(GraphCubit cubit) {
+  final ids = cubit.graphController.nodes.map((node) => node.id).toList();
+  expect(ids.toSet().length, ids.length);
+}
+
+Future<({Set<String> nodes, Set<(String, String)> edges})> _exploreAndReset(
+  GraphCubit cubit,
+  List<String> order,
+) async {
+  for (final id in order) {
+    cubit.selectNode(_liveNode(cubit, 'Ume'));
+    await _settle();
+    await _selectAndExpand(cubit, id);
+  }
+  cubit.resetToEgo();
+  await _settle();
+  return (nodes: _nodeIds(cubit), edges: _edgePairs(cubit));
+}
+
+Future<void> _selectAndExpand(GraphCubit cubit, String id) async {
+  cubit.selectNode(_liveNode(cubit, id));
+  await _settle();
+  cubit.expandNode(_liveNode(cubit, id));
+  await _settle();
+}
+
 NodeDetails _liveNode(GraphCubit cubit, String id) =>
     cubit.graphController.nodes.singleWhere((n) => n.id == id);
 
@@ -130,7 +170,7 @@ void main() {
         ('Ume', 'Ud'),
       });
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
       // C, D and their ego edges fade; A–B survives; B's fresh
@@ -143,7 +183,7 @@ void main() {
       });
       expect(source.calls, 2);
 
-      cubit.setFocus(_liveNode(cubit, 'Ue'));
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
       await _settle();
 
       // F is a sibling off the ego→E path now; G, H are E's fresh neighbors.
@@ -156,7 +196,7 @@ void main() {
       });
       expect(source.calls, 3);
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.selectNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
       // Backtrack: E and F re-revealed from cache, G and H hidden again,
@@ -183,18 +223,18 @@ void main() {
     final cubit = _cubit(source);
     await _settle();
 
-    cubit.setFocus(_liveNode(cubit, 'Ub'));
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
     await _settle();
 
     // C is spotlight-hidden while B has focus; refocusing ego re-reveals
     // ego's own neighborhood so C can be tapped again.
-    cubit.setFocus(_liveNode(cubit, 'Ume'));
+    cubit.selectNode(_liveNode(cubit, 'Ume'));
     await _settle();
     expect(_nodeIds(cubit), contains('Uc'));
 
-    cubit.setFocus(_liveNode(cubit, 'Uc'));
+    cubit.expandNode(_liveNode(cubit, 'Uc'));
     await _settle();
-    cubit.setFocus(_liveNode(cubit, 'Ue'));
+    cubit.expandNode(_liveNode(cubit, 'Ue'));
     await _settle();
 
     expect(_nodeIds(cubit), {'Ume', 'Ub', 'Uc', 'Ue'});
@@ -221,7 +261,7 @@ void main() {
       final cubit = _cubit(source);
       await _settle();
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
       expect(_nodeIds(cubit), {'Ume', 'Ub'});
@@ -230,6 +270,24 @@ void main() {
       await cubit.close();
     },
   );
+
+  test('reciprocal trust edges are marked isReciprocal', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {
+          _e('Ume', 'Ub'),
+          _e('Ub', 'Ume'),
+        },
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    final edges = cubit.graphController.edges.toList();
+    expect(edges, hasLength(1));
+    expect(edges.single.isReciprocal, isTrue);
+
+    await cubit.close();
+  });
 
   test(
     'focus reachable only via an incoming edge keeps a connected spine '
@@ -244,7 +302,7 @@ void main() {
 
       expect(_nodeIds(cubit), {'Ume', 'Ux'});
 
-      cubit.setFocus(_liveNode(cubit, 'Ux'));
+      cubit.selectNode(_liveNode(cubit, 'Ux'));
       await _settle();
 
       // No ego→X path exists; the X→ego edge must survive via the swap
@@ -265,7 +323,7 @@ void main() {
     final cubit = _cubit(source);
     await _settle();
 
-    cubit.setFocus(_liveNode(cubit, 'Ub'));
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
     await _settle();
 
     expect(_nodeIds(cubit), {'Ume', 'Ub', 'Ue'});
@@ -274,7 +332,7 @@ void main() {
       ('Ub', 'Ue'),
     });
 
-    cubit.setFocus(_liveNode(cubit, 'Ume'));
+    cubit.selectNode(_liveNode(cubit, 'Ume'));
     await _settle();
 
     expect(_nodeIds(cubit), {'Ume', 'Ub', 'Uc'});
@@ -297,9 +355,9 @@ void main() {
       final cubit = _cubit(source);
       await _settle();
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
-      cubit.setFocus(_liveNode(cubit, 'Ue'));
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
       await _settle();
 
       // B stays visible because it is on the ego→E path, so it keeps the
@@ -315,7 +373,7 @@ void main() {
   );
 
   test(
-    'previously focused nodes stay pinned after they reappear from cache',
+    'nodes off the active focus path are unpinned when focus moves away',
     () async {
       final source = _FakeGraphSource()
         ..pages.addAll({
@@ -324,23 +382,23 @@ void main() {
       final cubit = _cubit(source);
       await _settle();
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
-      cubit.setFocus(_liveNode(cubit, 'Ume'));
+      cubit.selectNode(_liveNode(cubit, 'Ume'));
       await _settle();
-      cubit.setFocus(_liveNode(cubit, 'Uc'));
+      cubit.selectNode(_liveNode(cubit, 'Uc'));
       await _settle();
 
       expect(_nodeIds(cubit), {'Ume', 'Uc'});
 
-      cubit.setFocus(_liveNode(cubit, 'Ume'));
+      cubit.selectNode(_liveNode(cubit, 'Ume'));
       await _settle();
 
       final pinnedIds = cubit.graphController.nodes
           .where((n) => n.pinned)
           .map((n) => n.id)
           .toSet();
-      expect(pinnedIds, containsAll({'Ume', 'Ub', 'Uc'}));
+      expect(pinnedIds, {'Ume'});
 
       await cubit.close();
     },
@@ -364,14 +422,14 @@ void main() {
 
       expect(cubit.state.hiddenNeighborCounts, {'Ub': 2});
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
       // E and F now visible: badge gone.
       expect(cubit.state.hiddenNeighborCounts, isEmpty);
       final callsAfterFocusB = source.calls;
 
-      cubit.setFocus(_liveNode(cubit, 'Ue'));
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
       await _settle();
 
       // F path-hidden again: B's badge rises back by 1, derived purely from
@@ -400,7 +458,7 @@ void main() {
       final cubit = _cubit(source);
       await _settle();
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
       await cubit.setContext('work');
@@ -415,7 +473,7 @@ void main() {
     },
   );
 
-  test('re-tapping the current focus still pages in more neighbors', () async {
+  test('expand on the current focus still pages in more neighbors', () async {
     final source = _FakeGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub')},
@@ -424,14 +482,14 @@ void main() {
     final cubit = _cubit(source);
     await _settle();
 
-    cubit.setFocus(_liveNode(cubit, 'Ub'));
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
     await _settle();
     expect(source.calls, 2);
 
-    cubit.setFocus(_liveNode(cubit, 'Ub'));
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
     await _settle();
 
-    // Same-node re-tap is the "load more" gesture: it must keep fetching.
+    // Same-node expand is the "load more" gesture: it must keep fetching.
     expect(source.calls, 3);
     expect(source.callLog.last.focus, 'Ub');
 
@@ -465,15 +523,254 @@ void main() {
 
       expect(cubit.state.hiddenNeighborCounts, {'Ub': 2});
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
       expect(cubit.state.hiddenNeighborCounts['Ub'], 1);
 
-      cubit.setFocus(_liveNode(cubit, 'Ub'));
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
       expect(cubit.state.hiddenNeighborCounts, isEmpty);
 
       await cubit.close();
+    },
+  );
+
+  test(
+    'closure query merges structural edges between already-known nodes',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        })
+        ..closureEdges = {_e('Ub', 'Uc')};
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(
+        _edgePairs(cubit),
+        containsAll({
+          ('Ume', 'Ub'),
+          ('Ub', 'Ue'),
+          ('Ub', 'Uc'),
+        }),
+      );
+      expect(source.closureCalls, greaterThan(0));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'togglePositiveOnly filters cached edges without refetching',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {
+            _e('Ume', 'Ub'),
+            _e('Ume', 'Uc', weight: -1),
+          },
+        });
+      final cubit = _cubit(source);
+      await _settle();
+      final edgesBefore = _edgePairs(cubit);
+      final callsBefore = source.calls;
+
+      cubit.togglePositiveOnly();
+      await _settle();
+      cubit.togglePositiveOnly();
+      await _settle();
+
+      expect(_edgePairs(cubit), edgesBefore);
+      expect(source.calls, callsBefore);
+
+      await cubit.close();
+    },
+  );
+
+  test('canPopFocus is false at start', () async {
+    final cubit = _cubit(_FakeGraphSource());
+    await _settle();
+    expect(cubit.canPopFocus, isFalse);
+    await cubit.close();
+  });
+
+  test(
+    'popFocus restores the previous visible edge set without refetching',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+      final callsAfterExpand = source.calls;
+
+      cubit.popFocus();
+      await _settle();
+
+      expect(cubit.state.focus, 'Ub');
+      expect(_edgePairs(cubit), {
+        ('Ume', 'Ub'),
+        ('Ub', 'Ue'),
+      });
+      expect(source.calls, callsAfterExpand);
+
+      cubit.popFocus();
+      await _settle();
+
+      expect(cubit.state.focus, isEmpty);
+      expect(
+        _edgePairs(cubit),
+        containsAll({
+          ('Ume', 'Ub'),
+          ('Ub', 'Ue'),
+        }),
+      );
+      expect(source.calls, callsAfterExpand);
+
+      cubit.selectNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+      expect(_edgePairs(cubit), {('Ub', 'Ue')});
+      expect(source.calls, callsAfterExpand);
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'resetToEgo clears the trail and does not refetch',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+      final callsAfterExpand = source.calls;
+
+      cubit.resetToEgo();
+      await _settle();
+
+      expect(cubit.state.focus, isEmpty);
+      expect(cubit.canPopFocus, isFalse);
+      expect(source.calls, callsAfterExpand);
+
+      await cubit.close();
+    },
+  );
+
+  test('one-way A→B shows B with a drawn edge when ego focuses A', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    expect(_nodeIds(cubit), {'Ume', 'Ub'});
+    expect(_edgePairs(cubit), {('Ume', 'Ub')});
+    expect(cubit.graphController.edges, hasLength(1));
+
+    await cubit.close();
+  });
+
+  test(
+    'transitive A→B→C shows the full chain after expanding A then B',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Uc')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Uc'));
+      await _settle();
+
+      expect(_nodeIds(cubit), containsAll({'Ume', 'Ub', 'Uc'}));
+      expect(
+        _edgePairs(cubit),
+        containsAll({
+          ('Ume', 'Ub'),
+          ('Ub', 'Uc'),
+        }),
+      );
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'cyclic A→B→C→A terminates with one layout position per node',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Uc')},
+          'Uc': {_e('Uc', 'Ume')},
+        })
+        ..closureEdges = {
+          _e('Ub', 'Uc'),
+          _e('Uc', 'Ume'),
+          _e('Ume', 'Ub'),
+        };
+      final cubit = _cubit(source);
+      await _settle();
+
+      await _selectAndExpand(cubit, 'Ub');
+      await _selectAndExpand(cubit, 'Uc');
+      await _selectAndExpand(cubit, 'Ume');
+
+      expect(_nodeIds(cubit), containsAll({'Ume', 'Ub', 'Uc'}));
+      _assertOneNodePerId(cubit);
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'order independence: expanding A→B→C matches A→C→B final visibility',
+    () async {
+      Future<({Set<String> nodes, Set<(String, String)> edges})> explore(
+        List<String> order,
+      ) async {
+        final source = _FakeGraphSource()
+          ..pages.addAll({
+            null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+            'Ub': {_e('Ub', 'Ud')},
+            'Uc': {_e('Uc', 'Ud')},
+          });
+        final cubit = _cubit(source);
+        await _settle();
+        final result = await _exploreAndReset(cubit, order);
+        await cubit.close();
+        return result;
+      }
+
+      final viaB = await explore(['Ub', 'Uc']);
+      final viaC = await explore(['Uc', 'Ub']);
+
+      expect(viaB.nodes, viaC.nodes);
+      expect(viaB.edges, viaC.edges);
     },
   );
 }

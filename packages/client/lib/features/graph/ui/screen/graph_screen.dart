@@ -46,33 +46,20 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: Text(l10n.graphView),
         actions: [
-          BlocBuilder<GraphCubit, GraphState>(
-            buildWhen: (previous, current) =>
-                previous.positiveOnly != current.positiveOnly,
-            builder: (context, state) => PopupMenuButton<void>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(
-                minWidth: tt.buttonHeight,
-                minHeight: tt.buttonHeight,
-              ),
-              itemBuilder: (_) => <PopupMenuEntry<void>>[
-                PopupMenuItem<void>(
-                  onTap: cubit.jumpToEgo,
-                  child: Text(l10n.goToEgo),
-                ),
-                //
-                const PopupMenuDivider(),
-                //
-                PopupMenuItem<void>(
-                  onTap: cubit.togglePositiveOnly,
-                  child: state.positiveOnly
-                      ? Text(l10n.showNegative)
-                      : Text(l10n.hideNegative),
-                ),
-              ],
+          PopupMenuButton<void>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints(
+              minWidth: tt.buttonHeight,
+              minHeight: tt.buttonHeight,
             ),
+            itemBuilder: (_) => <PopupMenuEntry<void>>[
+              PopupMenuItem<void>(
+                onTap: cubit.jumpToEgo,
+                child: Text(l10n.goToEgo),
+              ),
+            ],
           ),
         ],
       ),

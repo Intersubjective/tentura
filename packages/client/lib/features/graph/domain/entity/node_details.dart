@@ -101,7 +101,9 @@ final class UserNode extends NodeDetails {
 
   @override
   bool operator ==(Object other) =>
-      super == other && other is UserNode && other.isHelpOfferer == isHelpOfferer;
+      super == other &&
+      other is UserNode &&
+      other.isHelpOfferer == isHelpOfferer;
 }
 
 final class BeaconNode extends NodeDetails {

@@ -98,7 +98,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepository {
       throw UnimplementedError('${invocation.memberName}');
 }
 
-class _FakeGraphSourceRepository implements GraphSourceRepository {
+class _FakeGraphSourceRepository extends GraphSourceRepository {
   int calls = 0;
   Set<EdgeDirected> Function()? fetchResult;
 
@@ -314,9 +314,9 @@ void main() {
       (n) => n.id == 'Groot',
     );
 
-    cubit.setFocus(root);
+    cubit.expandNode(root);
     await _settleCubitFetch();
-    cubit.setFocus(root);
+    cubit.expandNode(root);
     await _settleCubitFetch();
 
     expect(repo.childrenCalls, hasLength(2));
@@ -418,7 +418,7 @@ void main() {
 
       expect(cubit.state.hiddenNeighborCounts, {'Groot': 2});
 
-      cubit.setFocus(root);
+      cubit.expandNode(root);
       await _settleCubitFetch();
 
       expect(cubit.state.hiddenNeighborCounts, {
@@ -426,7 +426,7 @@ void main() {
         'Gchild1': 1,
       });
 
-      cubit.setFocus(root);
+      cubit.expandNode(root);
       await _settleCubitFetch();
 
       expect(cubit.state.hiddenNeighborCounts, {'Gchild1': 1});
@@ -477,7 +477,7 @@ void main() {
         (n) => n.id == 'Groot',
       );
 
-      cubit.setFocus(root);
+      cubit.expandNode(root);
       await _settleCubitFetch();
 
       expect(
@@ -581,7 +581,7 @@ void main() {
       final target = cubit.graphController.nodes.singleWhere(
         (node) => node.id == 'Gtarget',
       );
-      cubit.setFocus(target);
+      cubit.expandNode(target);
       await _settleCubitFetch();
 
       expect(
@@ -646,9 +646,9 @@ void main() {
         (node) => node.id == 'Groot',
       );
 
-      cubit.setFocus(root);
+      cubit.expandNode(root);
       await _settleCubitFetch();
-      cubit.setFocus(root);
+      cubit.expandNode(root);
       await _settleCubitFetch();
 
       expect(
@@ -659,7 +659,7 @@ void main() {
       final child1 = cubit.graphController.nodes.singleWhere(
         (node) => node.id == 'Gchild1',
       );
-      cubit.setFocus(child1);
+      cubit.expandNode(child1);
       await _settleCubitFetch();
 
       expect(
@@ -817,7 +817,7 @@ void main() {
       final strangerNode = cubit.graphController.nodes.singleWhere(
         (n) => n.id == stranger.id,
       );
-      cubit.setFocus(strangerNode);
+      cubit.expandNode(strangerNode);
       await _settleCubitFetch();
 
       expect(cubit.state.hiddenNeighborCounts, {_viewer.id: 2});

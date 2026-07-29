@@ -954,6 +954,26 @@
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen"
   },
+  "graphBack": "Назад",
+  "@graphBack": {
+    "context": "GraphScreen"
+  },
+  "graphResetToEgo": "Вернуться к себе",
+  "@graphResetToEgo": {
+    "context": "GraphScreen"
+  },
+  "graphFitPath": "Показать путь целиком",
+  "@graphFitPath": {
+    "context": "GraphScreen"
+  },
+  "graphLegendToggleNegative": "Показывать отрицательные связи",
+  "@graphLegendToggleNegative": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeMutual": "Одна линия — взаимное доверие (подсветки идут в обе стороны)",
+  "@graphLegendEdgeMutual": {
+    "context": "GraphScreen"
+  },
   "forwardsGraphMenuTitle": "Граф пересылок",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"

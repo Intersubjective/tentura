@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -6,6 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 import '../../domain/entity/graph_edge_colors.dart';
+import '../bloc/graph_cubit.dart';
 import 'graph_legend_edge_swatch.dart';
 import 'graph_legend_mode.dart';
 
@@ -60,7 +62,6 @@ class GraphLegendContent extends StatelessWidget {
   List<Widget> _edgeRows(BuildContext context, GraphEdgeColors edgeColors) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final directed = mode != GraphLegendMode.trust;
 
     Widget row(String label, Color color, {double strokeWidth = 2}) {
       return Padding(
@@ -68,7 +69,6 @@ class GraphLegendContent extends StatelessWidget {
         child: _LegendRow(
           swatch: GraphLegendEdgeSwatch(
             color: color,
-            directed: directed,
             strokeWidth: strokeWidth,
           ),
           label: label,
@@ -80,43 +80,24 @@ class GraphLegendContent extends StatelessWidget {
       GraphLegendMode.trust => [
         row(l10n.graphLegendEdgeEgo, edgeColors.ego, strokeWidth: 3),
         row(l10n.graphLegendEdgeOther, edgeColors.neutral),
-        row(l10n.graphLegendEdgeNegative, edgeColors.negative),
-        Padding(
-          padding: EdgeInsets.only(top: tt.tightGap),
-          child: Text(
-            l10n.graphLegendEdgeUndirected,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+        _NegativeEdgeToggleRow(
+          label: l10n.graphLegendEdgeNegative,
+          color: edgeColors.negative,
         ),
+        row(l10n.graphLegendEdgeMutual, edgeColors.neutral),
       ],
       GraphLegendMode.forwards => [
         row(l10n.graphLegendEdgeEgo, edgeColors.ego, strokeWidth: 3),
         row(l10n.graphLegendEdgeForwardOther, edgeColors.neutral),
-        Padding(
-          padding: EdgeInsets.only(top: tt.tightGap),
-          child: Text(
-            l10n.graphLegendEdgeForwardDirected,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
       ],
       GraphLegendMode.genealogy => [
         row(l10n.graphLegendEdgeGenealogyEgo, edgeColors.ego, strokeWidth: 3),
-        row(l10n.graphLegendEdgeGenealogyTarget, edgeColors.target, strokeWidth: 3),
-        row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
-        Padding(
-          padding: EdgeInsets.only(top: tt.tightGap),
-          child: Text(
-            l10n.graphLegendEdgeGenealogyDirected,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+        row(
+          l10n.graphLegendEdgeGenealogyTarget,
+          edgeColors.target,
+          strokeWidth: 3,
         ),
+        row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
       ],
     };
   }
@@ -180,6 +161,80 @@ class GraphLegendContent extends StatelessWidget {
     }
 
     return rows;
+  }
+}
+
+class _NegativeEdgeToggleRow extends StatelessWidget {
+  const _NegativeEdgeToggleRow({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+
+    return BlocSelector<GraphCubit, GraphState, bool>(
+      selector: (state) => state.positiveOnly,
+      builder: (context, positiveOnly) {
+        final cubit = context.read<GraphCubit>();
+        final layerVisible = !positiveOnly;
+        void toggle() => cubit.togglePositiveOnly();
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: tt.tightGap),
+          child: Semantics(
+            label: l10n.graphLegendToggleNegative,
+            toggled: layerVisible,
+            child: InkWell(
+              onTap: toggle,
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: tt.avatarSize,
+                      child: Center(
+                        child: GraphLegendEdgeSwatch(
+                          color: layerVisible
+                              ? color
+                              : Color.alphaBlend(
+                                  scheme.surfaceContainerHigh.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  color,
+                                ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: tt.avatarTextGap),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: layerVisible ? null : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Switch(
+                      value: layerVisible,
+                      onChanged: (_) => toggle(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

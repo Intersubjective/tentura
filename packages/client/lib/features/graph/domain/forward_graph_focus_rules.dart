@@ -37,5 +37,4 @@ String deriveHelpOffererGraphFocus({
 bool graphNodeShowsMeritRankRating({
   required String nodeId,
   required String viewerId,
-}) =>
-    nodeId.isNotEmpty && nodeId != viewerId;
+}) => nodeId.isNotEmpty && nodeId != viewerId;

@@ -70,6 +70,15 @@ class AnimatedHighlightedEdgePainter
             ).storage,
           ),
       );
+      if (edge.isReciprocal) {
+        _paintReciprocalHighlight(
+          canvas,
+          src: dst,
+          dst: src,
+          edge: edge,
+          animationShifted: animationShifted,
+        );
+      }
     } else {
       canvas.drawLine(
         src,
@@ -90,6 +99,35 @@ class AnimatedHighlightedEdgePainter
         color: edge.color,
       );
     }
+  }
+
+  void _paintReciprocalHighlight(
+    Canvas canvas, {
+    required Offset src,
+    required Offset dst,
+    required EdgeDetails<NodeDetails> edge,
+    required double animationShifted,
+  }) {
+    final transparent = edge.color.withValues(alpha: 0);
+    canvas.drawLine(
+      src,
+      dst,
+      Paint()
+        ..strokeWidth = edge.strokeWidth
+        ..blendMode = BlendMode.plus
+        ..shader = ui.Gradient.linear(
+          src,
+          dst,
+          [transparent, _highlightFor(edge.color), transparent],
+          [0, highlightRadius, 2 * highlightRadius],
+          TileMode.clamp,
+          Matrix4.translationValues(
+            (dst.dx - src.dx) * animationShifted,
+            (dst.dy - src.dy) * animationShifted,
+            0,
+          ).storage,
+        ),
+    );
   }
 
   static void _paintArrowhead(

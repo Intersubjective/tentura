@@ -35,10 +35,34 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
 
   @override
+  bool get canPopFocus => false;
+
+  @override
+  String get originNodeId => _viewer.id;
+
+  @override
+  List<String> get focusPath => [_viewer.id];
+
+  @override
   void jumpToEgo() {}
 
   @override
+  void popFocus() {}
+
+  @override
+  void resetToEgo() {}
+
+  @override
+  void fitCurrentPath() {}
+
+  @override
   void togglePositiveOnly() {}
+
+  @override
+  void selectNode(NodeDetails node) {}
+
+  @override
+  Future<void> expandNode(NodeDetails node) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -79,7 +103,7 @@ void main() {
     (tester) async {
       await _pumpGraphBody(tester, genealogyMode: true);
 
-      expect(find.byIcon(Icons.center_focus_strong_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.home_outlined), findsOneWidget);
       expect(find.byIcon(Icons.filter_alt_outlined), findsNothing);
       expect(find.byIcon(Icons.filter_alt_off_outlined), findsNothing);
     },
@@ -90,8 +114,8 @@ void main() {
     (tester) async {
       await _pumpGraphBody(tester, genealogyMode: false);
 
-      expect(find.byIcon(Icons.center_focus_strong_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.filter_alt_off_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.home_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.filter_alt_off_outlined), findsNothing);
     },
   );
 

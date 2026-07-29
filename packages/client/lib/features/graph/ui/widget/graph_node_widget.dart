@@ -14,12 +14,14 @@ class GraphNodeWidget extends StatelessWidget {
     required this.nodeDetails,
     this.withRating = false,
     this.isSelf = false,
+    this.isOrigin = false,
     this.onTap,
     super.key,
   });
 
   final bool withRating;
   final bool isSelf;
+  final bool isOrigin;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
@@ -66,12 +68,15 @@ class GraphNodeWidget extends StatelessWidget {
         ),
       ),
     };
+    final decorated = isOrigin && !isSelf
+        ? _OriginRing(size: nodeDetails.size, child: node)
+        : node;
     final widget = SizedBox.square(
       dimension: nodeDetails.size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(child: node),
+          Positioned.fill(child: decorated),
           Positioned(
             top: 0,
             right: 0,
@@ -98,6 +103,57 @@ class GraphNodeWidget extends StatelessWidget {
             child: widget,
           );
   }
+}
+
+/// Distinct primary ring for the graph origin (ego / genealogy viewer).
+class _OriginRing extends StatelessWidget {
+  const _OriginRing({required this.size, required this.child});
+
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: child),
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _OriginRingPainter(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OriginRingPainter extends CustomPainter {
+  _OriginRingPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 3.0;
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.shortestSide / 2 - stroke / 2;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..isAntiAlias = true;
+    canvas.drawCircle(c, r, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _OriginRingPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Distinct accent ring for users who offered help for the focused beacon

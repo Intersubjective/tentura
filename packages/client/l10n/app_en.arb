@@ -954,6 +954,26 @@
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen"
   },
+  "graphBack": "Back",
+  "@graphBack": {
+    "context": "GraphScreen"
+  },
+  "graphResetToEgo": "Reset to me",
+  "@graphResetToEgo": {
+    "context": "GraphScreen"
+  },
+  "graphFitPath": "Fit current path",
+  "@graphFitPath": {
+    "context": "GraphScreen"
+  },
+  "graphLegendToggleNegative": "Show negative connections",
+  "@graphLegendToggleNegative": {
+    "context": "GraphScreen"
+  },
+  "graphLegendEdgeMutual": "One line — mutual trust (highlights flow both ways)",
+  "@graphLegendEdgeMutual": {
+    "context": "GraphScreen"
+  },
   "forwardsGraphMenuTitle": "Track of forwards",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"

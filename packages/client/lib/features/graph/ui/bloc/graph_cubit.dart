@@ -133,10 +133,12 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _focusPathIds = <String>[];
 
+  String _forwardsAuthorId = '';
+
   /// Every edge ever fetched this session, keyed by `(src, dst)` — the
   /// source of truth for focus-path visibility. Unlike `graphController`
   /// (which only holds what is currently rendered), nothing is ever removed
-  /// here except on full resets ([setContext] / [togglePositiveOnly]).
+  /// here except on full resets ([setContext]).
   final _allEdges = <(String, String), EdgeDirected>{};
 
   late final Map<String, NodeDetails> _nodes = genealogyMode
@@ -162,8 +164,19 @@ class GraphCubit extends Cubit<GraphState> {
     return super.close();
   }
 
-  ///
-  ///
+  /// True when there is somewhere to go back to.
+  bool get canPopFocus => _focusPathIds.length > 1;
+
+  /// Exploration trail from origin to the current focus (inclusive).
+  List<String> get focusPath => List.unmodifiable(_focusPathIds);
+
+  /// Layout root for forwards graphs; empty in other modes.
+  Set<String> get forwardsRootIds =>
+      _forwardsAuthorId.isEmpty ? const {} : {_forwardsAuthorId};
+
+  /// Origin node for focus-path visibility (ego in trust, viewer in genealogy).
+  String get originNodeId => _focusRootId;
+
   void jumpToEgo() {
     final node = genealogyMode ? _nodes[state.egoNodeId] : _egoNode;
     if (node == null) return;
@@ -174,28 +187,108 @@ class GraphCubit extends Cubit<GraphState> {
     unawaited(Future.value(graphController.jumpToNode(node)));
   }
 
-  ///
-  ///
-  void setFocus(NodeDetails node) {
-    var alreadyFetched = false;
+  /// Highlights [node] on the graph and updates the exploration trail.
+  /// Never fetches — use [expandNode] to page in more neighbors.
+  void selectNode(NodeDetails node) {
     if (genealogyMode) {
       _pinGenealogyParentChainNodes();
     }
+    if (state.focus == node.id) {
+      return;
+    }
+    emit(state.copyWith(focus: node.id));
+    _updateFocusPath(node.id);
+    if (_usesFocusPathVisibility) {
+      _syncFocusPathPins();
+      _recomputeVisibility();
+    }
+  }
+
+  /// Selects [node] when needed, then pages in the next neighbourhood window.
+  Future<void> expandNode(NodeDetails node) async {
     if (state.focus != node.id) {
-      emit(state.copyWith(focus: node.id));
-      _updateFocusPath(node.id);
-      _pinNode(node);
-      if (_usesFocusPathVisibility) {
-        _recomputeVisibility();
-        // Backtracking onto a node whose neighbors are already loaded is a
-        // pure visibility change — re-reveal instantly, no refetch. A repeat
-        // tap on the *current* focus still falls through to _fetch to page
-        // in more neighbors.
-        alreadyFetched = _fetchLimits.containsKey(node.id);
+      selectNode(node);
+    }
+    if (forwardsGraphBeaconId == null) {
+      await _fetch();
+    }
+  }
+
+  /// Steps one hop back along the exploration trail. Pure visibility change —
+  /// never refetches, because everything on the trail is already cached.
+  void popFocus() {
+    if (!canPopFocus) return;
+    _focusPathIds.removeLast();
+    final previous = _focusPathIds.last;
+    emit(state.copyWith(focus: previous == _focusRootId ? '' : previous));
+    _syncFocusPathPins();
+    _recomputeVisibility();
+    final node = _nodes[previous];
+    if (node != null &&
+        graphController.canLayout &&
+        graphController.layout.hasPosition(node)) {
+      unawaited(Future.value(graphController.jumpToNode(node)));
+    }
+  }
+
+  /// Returns to the origin without dropping the cache: clears the trail, unpins
+  /// every node except the root, recomputes visibility and re-centres.
+  void resetToEgo() {
+    _resetFocusPathRoot(_focusRootId);
+    _pinnedNodeIds
+      ..clear()
+      ..add(_focusRootId);
+    for (final entry in _nodes.entries) {
+      if (entry.value.pinned && entry.key != _focusRootId) {
+        _nodes[entry.key] = entry.value.copyWithPinned(false);
       }
     }
-    if (forwardsGraphBeaconId == null && !alreadyFetched) {
-      unawaited(_fetch());
+    emit(state.copyWith(focus: ''));
+    _syncFocusPathPins();
+    _recomputeVisibility();
+    jumpToEgo();
+  }
+
+  /// Fits the active path into the viewport. With a trail of one (only the
+  /// origin) it fits the origin together with all of its visible neighbours.
+  void fitCurrentPath() {
+    if (!graphController.canLayout) return;
+    var ids = _focusPathIds.toSet();
+    if (ids.length <= 1) {
+      for (final edge in graphController.edges) {
+        if (edge.source.id == _focusRootId) ids.add(edge.destination.id);
+        if (edge.destination.id == _focusRootId) ids.add(edge.source.id);
+      }
+    }
+    graphController.fitToNodes(
+      graphController.nodes.where((n) => ids.contains(n.id)),
+    );
+  }
+
+  @Deprecated('Use selectNode or expandNode')
+  void setFocus(NodeDetails node) => selectNode(node);
+
+  void _syncFocusPathPins() {
+    final pinIds = <String>{
+      _focusRootId,
+      ..._focusPathIds,
+      if (genealogyMode) ..._genealogyParentChainNodeIds,
+    };
+    _pinnedNodeIds
+      ..clear()
+      ..addAll(pinIds);
+    for (final entry in _nodes.entries) {
+      final shouldPin = pinIds.contains(entry.key);
+      if (entry.value.pinned == shouldPin) {
+        continue;
+      }
+      final updated = entry.value.copyWithPinned(shouldPin);
+      _nodes[entry.key] = updated;
+      final controllerNode = _controllerNodeById(entry.key);
+      if (controllerNode != null &&
+          graphController.nodes.contains(controllerNode)) {
+        graphController.replaceNode(controllerNode, updated);
+      }
     }
   }
 
@@ -303,22 +396,8 @@ class GraphCubit extends Cubit<GraphState> {
     if (forwardsGraphBeaconId != null || genealogyMode) {
       return;
     }
-    _totalNeighborCounts.clear();
-    emit(
-      state.copyWith(
-        positiveOnly: !state.positiveOnly,
-        focus: '',
-        hiddenNeighborCounts: const {},
-      ),
-    );
-    graphController.clear();
-    _fetchLimits.clear();
-    _addedEdgeEndpoints.clear();
-    _allEdges.clear();
-    _focusPathIds
-      ..clear()
-      ..add(_egoNode.id);
-    unawaited(_fetch());
+    emit(state.copyWith(positiveOnly: !state.positiveOnly));
+    _recomputeVisibility();
   }
 
   ///
@@ -342,6 +421,7 @@ class GraphCubit extends Cubit<GraphState> {
         );
         edges = payload.edges;
         _helpOffererIds = payload.helpOffererIds;
+        _forwardsAuthorId = payload.authorId;
         forwardsAuthorId = payload.authorId;
 
         // Focus rule for the three viewer-role cases (see plan):
@@ -388,6 +468,7 @@ class GraphCubit extends Cubit<GraphState> {
         );
         edges = payload.edges;
         _helpOffererIds = payload.helpOffererIds;
+        _forwardsAuthorId = payload.authorId;
         forwardsAuthorId = payload.authorId;
       } else if (genealogyMode && source is InviteGenealogyRepository) {
         List<EdgeDirected> rawEdges;
@@ -493,11 +574,40 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
 
-      // Add FocusNode in case there were no edges containing it
-      if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
-        final lazy = await _resolveNodeById(state.focus, pinned: true);
+      if (_usesFocusPathVisibility && !genealogyMode) {
+        try {
+          final closure = await _graphSource.fetchEdgesBetween(
+            nodeIds: _nodes.keys.toSet(),
+            positiveOnly: state.positiveOnly,
+          );
+          edges = {...edges, ...closure};
+        } catch (_) {
+          // Closure is best-effort; neighbourhood-only edges still render.
+        }
+      }
+
+      for (final e in edges) {
+        if (_nodes.containsKey(e.dst)) continue;
+        final isFocus = state.focus.isNotEmpty && state.focus == e.dst;
+        final node = e.node;
+        if (node != null) {
+          _nodes[e.dst] = node.copyWithPinned(isFocus);
+        } else {
+          final lazy = await _resolveNodeById(
+            e.dst,
+            pinned: isFocus,
+          );
+          if (lazy != null) {
+            _nodes[e.dst] = lazy;
+          }
+        }
+      }
+
+      for (final e in edges) {
+        if (_nodes.containsKey(e.src)) continue;
+        final lazy = await _resolveNodeById(e.src);
         if (lazy != null) {
-          _nodes[state.focus] = lazy;
+          _nodes[e.src] = lazy;
         }
       }
 
@@ -768,9 +878,6 @@ class GraphCubit extends Cubit<GraphState> {
     _captureEndpointTotals(edges);
     if (_usesFocusPathVisibility) {
       for (final e in edges) {
-        if (state.positiveOnly && e.weight < 0) {
-          continue;
-        }
         if (e.src == e.dst ||
             !_nodes.containsKey(e.src) ||
             !_nodes.containsKey(e.dst)) {
@@ -827,10 +934,12 @@ class GraphCubit extends Cubit<GraphState> {
         e.branch == GenealogyEdgeBranch.ego ||
         e.branch == GenealogyEdgeBranch.target;
     final touchesEgo = egoId.isNotEmpty && (src.id == egoId || dst.id == egoId);
+    final isTrustGraph = forwardsGraphBeaconId == null && !genealogyMode;
     return EdgeDetails<NodeDetails>(
       source: src,
       destination: dst,
       strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
+      isReciprocal: isTrustGraph && _allEdges.containsKey((dst.id, src.id)),
       color: switch (e.branch) {
         GenealogyEdgeBranch.ego => _edgeColors.ego,
         GenealogyEdgeBranch.target => _edgeColors.target,
@@ -845,18 +954,43 @@ class GraphCubit extends Cubit<GraphState> {
     );
   }
 
+  /// A mutual trust pair is visually an undirected relation. Keep its two
+  /// directed records for traversal and focus-path calculations, but render a
+  /// single, stable representative so its bidirectional animation stays on
+  /// one edge instead of creating overlapping/double-lane geometry.
+  bool _shouldRenderEdge((String, String) key) {
+    if (genealogyMode || forwardsGraphBeaconId != null) return true;
+    if (!_allEdges.containsKey((key.$2, key.$1))) return true;
+    return key.$1.compareTo(key.$2) <= 0;
+  }
+
   /// Focus-path spotlight: reconciles
   /// [graphController] against the user's current tap trail plus all edges
   /// incident to the current focus (the fresh neighbors a tap just revealed).
   /// Pure filter over [_allEdges] — hidden data stays cached, so backtracking
   /// re-reveals without a refetch.
   void _recomputeVisibility() {
+    graphController.spawnPositionResolver = (node) {
+      final focusNode = _nodes[state.focus];
+      if (focusNode == null || !graphController.canLayout) return null;
+      return graphController.layout.getPositionOrNull(focusNode);
+    };
+
     final focusId = state.focus;
     final rootId = _focusRootId;
     final alwaysVisibleNodeIds = _alwaysVisibleNodeIds;
     final visibleEdges = <(String, String), EdgeDirected>{};
+    final hideNegative = state.positiveOnly;
+
+    void reveal((String, String) key, EdgeDirected edge) {
+      if (hideNegative && edge.weight < 0) return;
+      visibleEdges[key] = edge;
+    }
+
     if (focusId.isEmpty) {
-      visibleEdges.addAll(_allEdges);
+      for (final entry in _allEdges.entries) {
+        reveal(entry.key, entry.value);
+      }
     } else {
       for (var i = 0; i < _focusPathIds.length - 1; i++) {
         final a = _focusPathIds[i];
@@ -865,22 +999,22 @@ class GraphCubit extends Cubit<GraphState> {
         final backward = (b, a);
         final forwardEdge = _allEdges[forward];
         if (forwardEdge != null) {
-          visibleEdges[forward] = forwardEdge;
+          reveal(forward, forwardEdge);
         }
         final backwardEdge = _allEdges[backward];
         if (backwardEdge != null) {
-          visibleEdges[backward] = backwardEdge;
+          reveal(backward, backwardEdge);
         }
       }
       for (final entry in _allEdges.entries) {
         if (entry.key.$1 == focusId || entry.key.$2 == focusId) {
-          visibleEdges[entry.key] = entry.value;
+          reveal(entry.key, entry.value);
         }
       }
       for (final entry in _allEdges.entries) {
         if (alwaysVisibleNodeIds.contains(entry.key.$1) &&
             alwaysVisibleNodeIds.contains(entry.key.$2)) {
-          visibleEdges[entry.key] = entry.value;
+          reveal(entry.key, entry.value);
         }
       }
     }
@@ -891,7 +1025,6 @@ class GraphCubit extends Cubit<GraphState> {
       if (focusId.isNotEmpty) focusId,
       for (final key in visibleEdges.keys) ...[key.$1, key.$2],
     };
-
     graphController.mutate((mutator) {
       for (final node in List.of(graphController.nodes)) {
         if (node.id != rootId && !visibleNodeIds.contains(node.id)) {
@@ -902,7 +1035,8 @@ class GraphCubit extends Cubit<GraphState> {
       // visible (e.g. two of ego's siblings linked to each other, neither
       // on-path nor focus-incident).
       for (final edge in List.of(graphController.edges)) {
-        if (!visibleEdges.containsKey((edge.source.id, edge.destination.id))) {
+        final key = (edge.source.id, edge.destination.id);
+        if (!visibleEdges.containsKey(key) || !_shouldRenderEdge(key)) {
           mutator.removeEdge(edge);
         }
       }
@@ -923,7 +1057,7 @@ class GraphCubit extends Cubit<GraphState> {
         for (final e in graphController.edges) (e.source.id, e.destination.id),
       };
       for (final entry in visibleEdges.entries) {
-        if (liveEdgeKeys.contains(entry.key)) {
+        if (!_shouldRenderEdge(entry.key) || liveEdgeKeys.contains(entry.key)) {
           continue;
         }
         final src = liveNodes[entry.key.$1];

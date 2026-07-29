@@ -9,17 +9,20 @@ final class EdgeDetails<N extends NodeBase> extends EdgeBase<N> {
     required super.destination,
     required this.color,
     this.strokeWidth = 2,
+    this.isReciprocal = false,
   });
 
   final Color color;
   final double strokeWidth;
+  final bool isReciprocal;
 
   @override
   int get hashCode =>
       source.hashCode ^
       destination.hashCode ^
       color.hashCode ^
-      strokeWidth.hashCode;
+      strokeWidth.hashCode ^
+      isReciprocal.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -29,7 +32,8 @@ final class EdgeDetails<N extends NodeBase> extends EdgeBase<N> {
           source == other.source &&
           destination == other.destination &&
           strokeWidth == other.strokeWidth &&
-          color == other.color;
+          color == other.color &&
+          isReciprocal == other.isReciprocal;
 
   @override
   EdgeDetails<N> replaceNode({
@@ -37,11 +41,12 @@ final class EdgeDetails<N extends NodeBase> extends EdgeBase<N> {
     N? destination,
     double? strokeWidth,
     Color? color,
-  }) =>
-      EdgeDetails(
-        source: source ?? this.source,
-        destination: destination ?? this.destination,
-        strokeWidth: strokeWidth ?? this.strokeWidth,
-        color: color ?? this.color,
-      );
+    bool? isReciprocal,
+  }) => EdgeDetails(
+    source: source ?? this.source,
+    destination: destination ?? this.destination,
+    strokeWidth: strokeWidth ?? this.strokeWidth,
+    color: color ?? this.color,
+    isReciprocal: isReciprocal ?? this.isReciprocal,
+  );
 }

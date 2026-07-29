@@ -12,6 +12,10 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 class IntegrationFixture {
@@ -289,8 +293,11 @@ Future<bool> tryPumpUntilVisible(
   Duration timeout = const Duration(seconds: 5),
 }) async {
   try {
-    await pumpUntil(tester, () => finder.evaluate().isNotEmpty,
-        timeout: timeout);
+    await pumpUntil(
+      tester,
+      () => finder.evaluate().isNotEmpty,
+      timeout: timeout,
+    );
     return true;
   } on TimeoutException {
     return false;
@@ -498,6 +505,161 @@ Future<void> reviewParticipant(
   await tapAndSettle(tester, saveButton);
   // The sheet pops only when the save round-trip succeeded.
   await pumpUntil(tester, () => saveButton.evaluate().isEmpty);
+}
+
+/// Bounded pumps for screens with repeating animations (e.g. the trust graph).
+Future<void> pumpBounded(
+  WidgetTester tester, {
+  int frames = 4,
+  Duration step = const Duration(milliseconds: 50),
+}) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(step);
+  }
+}
+
+String currentAppUrl() => GetIt.I<RootRouter>().currentUrl;
+
+Future<String> ensureQaUserId(WidgetTester tester, String email) async {
+  await loginAs(tester, email);
+  final userId = GetIt.I<AuthCubit>().state.currentAccountId;
+  await logout(tester);
+  return userId;
+}
+
+Future<void> userSubscribe(String objectUserId) async {
+  await _postGraphQl(
+    'mutation { userSubscribe(objectId: "$objectUserId") }',
+  );
+}
+
+Future<void> openConnectionsGraph(WidgetTester tester, String profileId) async {
+  await goToPath(tester, '$kPathGraph/$profileId');
+  await pumpUntilVisible(
+    tester,
+    find.byKey(TestIds.key(TestIds.graphResetToEgo)),
+  );
+  await pumpBounded(tester, frames: 12);
+}
+
+Future<void> waitForGraphReady(
+  WidgetTester tester, {
+  Duration timeout = const Duration(seconds: 45),
+}) async {
+  await pumpUntil(
+    tester,
+    () {
+      final cubit = readGraphCubit(tester);
+      return !cubit.state.isLoading;
+    },
+    timeout: timeout,
+  );
+  await pumpBounded(tester);
+}
+
+NodeDetails? graphNodeById(WidgetTester tester, String userId) {
+  for (final node in readGraphCubit(tester).graphController.nodes) {
+    if (node.id == userId) {
+      return node;
+    }
+  }
+  return null;
+}
+
+Future<NodeDetails> waitForGraphNeighbor(WidgetTester tester) async {
+  await pumpUntil(
+    tester,
+    () => find.byType(GraphNodeWidget).evaluate().length > 1,
+    timeout: const Duration(seconds: 45),
+  );
+  final meId = readGraphCubit(tester).state.me.id;
+  return tester
+      .widgetList<GraphNodeWidget>(find.byType(GraphNodeWidget))
+      .firstWhere(
+        (node) => node.nodeDetails.id != meId,
+      )
+      .nodeDetails;
+}
+
+Future<void> waitForGraphNode(
+  WidgetTester tester,
+  String userId, {
+  Duration timeout = const Duration(seconds: 45),
+}) async {
+  await pumpUntil(
+    tester,
+    () => graphNodeById(tester, userId) != null,
+    timeout: timeout,
+  );
+}
+
+Future<void> selectGraphNode(WidgetTester tester, String userId) async {
+  await waitForGraphNode(tester, userId);
+  final node = graphNodeById(tester, userId);
+  if (node == null) {
+    throw StateError('graph node $userId is not rendered');
+  }
+
+  final cubit = readGraphCubit(tester);
+  // Canvas transforms make widget geometry unsuitable for browser automation.
+  // The integration still uses the running app's cubit and visible controls.
+  cubit.selectNode(node);
+  await pumpBounded(tester);
+  debugPrint('[e2e] selectGraphNode($userId): focus=${cubit.state.focus}');
+}
+
+Future<String> selectGraphNeighbor(WidgetTester tester) async {
+  final helperLabel = find.textContaining('IT helper');
+  await pumpUntilVisible(
+    tester,
+    helperLabel,
+    timeout: const Duration(seconds: 45),
+  );
+  await tester.tap(helperLabel.first);
+  await pumpBounded(tester);
+  return readGraphCubit(tester).state.focus;
+}
+
+Future<void> expandFocusedGraphNode(WidgetTester tester) async {
+  final expand = find.byKey(TestIds.key(TestIds.graphExpand));
+  await pumpUntilVisible(tester, expand);
+  await tester.tap(expand);
+  await pumpBounded(tester, frames: 12);
+  debugPrint(
+    '[e2e] expandFocusedGraphNode: focus=${readGraphCubit(tester).state.focus}',
+  );
+}
+
+Future<void> tapGraphBack(WidgetTester tester) async {
+  await tapGraphControl(
+    tester,
+    find.byKey(TestIds.key(TestIds.graphBack)),
+  );
+}
+
+Future<void> tapGraphResetToEgo(WidgetTester tester) async {
+  await tapGraphControl(
+    tester,
+    find.byKey(TestIds.key(TestIds.graphResetToEgo)),
+  );
+}
+
+Future<void> tapGraphControl(WidgetTester tester, Finder finder) async {
+  await pumpUntilVisible(tester, finder);
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
+  await pumpBounded(tester);
+}
+
+GraphCubit readGraphCubit(WidgetTester tester) =>
+    tester.element(find.byType(GraphBody)).read<GraphCubit>();
+
+Future<Map<String, dynamic>> _postGraphQl(String query) async {
+  return _postJson(
+    '/api/v2/graphql',
+    {'query': query},
+    includeCredentials: true,
+  );
 }
 
 Future<Map<String, dynamic>> _postJson(
