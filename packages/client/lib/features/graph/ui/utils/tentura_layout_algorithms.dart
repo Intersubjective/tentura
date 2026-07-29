@@ -10,12 +10,10 @@ import '../../domain/layout/radial_hop_positions.dart';
 final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
   const RadialHopLayoutAlgorithm({
     required this.rootId,
-    this.focusPath = const [],
     this.ringGap = 170,
   });
 
   final String rootId;
-  final List<String> focusPath;
   final double ringGap;
 
   @override
@@ -34,7 +32,23 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
     required Set<EdgeBase> edges,
     required Size size,
   }) {
-    return layout(nodes: nodes, edges: edges, size: size);
+    // Keep every already-placed node where it is so focus/visibility changes
+    // never spin or shove the graph; only brand-new nodes get computed seats.
+    final fresh = _buildLayout(nodes: nodes, edges: edges, size: size);
+    final builder = GraphLayoutBuilder(nodes: nodes);
+    final fallback = size.center(Offset.zero);
+    for (final node in nodes) {
+      final kept = existingLayout.getPositionOrNull(node);
+      if (kept != null) {
+        builder.setNodePosition(node, kept);
+        continue;
+      }
+      builder.setNodePosition(
+        node,
+        fresh.getPositionOrNull(node) ?? fallback,
+      );
+    }
+    return Stream.value(builder.build());
   }
 
   GraphLayout _buildLayout({
@@ -61,7 +75,6 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
       edges: edgeIds,
       rootId: rootId,
       canvasSize: size,
-      focusPath: focusPath,
       ringGap: ringGap,
     );
 
@@ -78,16 +91,10 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
       other is RadialHopLayoutAlgorithm &&
           runtimeType == other.runtimeType &&
           rootId == other.rootId &&
-          ringGap == other.ringGap &&
-          const ListEquality<String>().equals(focusPath, other.focusPath);
+          ringGap == other.ringGap;
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    rootId,
-    ringGap,
-    const ListEquality<String>().hash(focusPath),
-  );
+  int get hashCode => Object.hash(runtimeType, rootId, ringGap);
 }
 
 final class LayeredDagLayoutAlgorithm implements GraphLayoutAlgorithm {

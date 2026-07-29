@@ -51,12 +51,10 @@ void main() {
     test('equal instances compare equal', () {
       const first = RadialHopLayoutAlgorithm(
         rootId: 'a',
-        focusPath: ['a', 'b'],
         ringGap: 170,
       );
       const second = RadialHopLayoutAlgorithm(
         rootId: 'a',
-        focusPath: ['a', 'b'],
         ringGap: 170,
       );
       const different = RadialHopLayoutAlgorithm(rootId: 'b');
@@ -85,6 +83,29 @@ void main() {
       for (final node in nodes) {
         expect(again.getPosition(node), initial.getPosition(node));
       }
+    });
+
+    test('relayout keeps existing nodes pinned when the set shrinks', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+      final nodes = {nodeA, nodeB, nodeC};
+      final edges = {edge('a', 'b'), edge('a', 'c')};
+
+      final initial = await layoutOnce(
+        algorithm,
+        nodes: nodes,
+        edges: edges,
+      );
+      final shrunk = await algorithm
+          .relayout(
+            existingLayout: initial,
+            nodes: {nodeA, nodeB},
+            edges: {edge('a', 'b')},
+            size: canvasSize,
+          )
+          .first;
+
+      expect(shrunk.getPosition(nodeA), initial.getPosition(nodeA));
+      expect(shrunk.getPosition(nodeB), initial.getPosition(nodeB));
     });
 
     test('every input node has a position', () async {

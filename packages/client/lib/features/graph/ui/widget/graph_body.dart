@@ -74,7 +74,6 @@ class GraphBodyState extends State<GraphBody>
     }
     return RadialHopLayoutAlgorithm(
       rootId: _graphCubit.state.me.id,
-      focusPath: _graphCubit.focusPath,
     );
   }
 

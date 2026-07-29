@@ -14,12 +14,14 @@ const double kLayoutClampMargin = 80;
 ///    projection of [edges], so cycles are handled without special cases;
 ///  * adding a node does not move any node that was already present, as long as
 ///    its hop distance and its BFS parent did not change.
+///  * angles are assigned once from sorted BFS sectors — there is no rotation
+///    based on the active focus path, so selecting a node does not spin the
+///    graph.
 Map<String, Offset> radialHopPositions({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
   required String rootId,
   required Size canvasSize,
-  List<String> focusPath = const [],
   double ringGap = 170,
 }) {
   if (nodeIds.isEmpty) {
@@ -102,13 +104,6 @@ Map<String, Offset> radialHopPositions({
 
   if (nodeIds.contains(rootId)) {
     assignSectors(rootId, 0, 2 * math.pi);
-  }
-
-  if (focusPath.length >= 2 && angle.containsKey(focusPath[1])) {
-    final rotation = -angle[focusPath[1]]!;
-    for (final id in angle.keys) {
-      angle[id] = angle[id]! + rotation;
-    }
   }
 
   final centre = canvasSize.center(Offset.zero);

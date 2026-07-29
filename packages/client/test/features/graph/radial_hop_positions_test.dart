@@ -113,55 +113,42 @@ void main() {
       expect(soloDistance, closeTo(ringGap, 0.01));
     });
 
-    test('focus path pins first hop upward', () {
-      final withoutFocus = radialHopPositions(
-        nodeIds: {'root', 'first', 'second'},
-        edges: {('root', 'first'), ('first', 'second')},
+    test('first-hop angle is fixed by sorted id, not rotated upward', () {
+      final positions = radialHopPositions(
+        nodeIds: {'root', 'alpha', 'zeta'},
+        edges: {('root', 'alpha'), ('root', 'zeta')},
         rootId: 'root',
         canvasSize: canvasSize,
-        ringGap: ringGap,
-      );
-      final withFocus = radialHopPositions(
-        nodeIds: {'root', 'first', 'second'},
-        edges: {('root', 'first'), ('first', 'second')},
-        rootId: 'root',
-        canvasSize: canvasSize,
-        focusPath: ['root', 'first', 'second'],
         ringGap: ringGap,
       );
 
-      final first = withFocus['first']!;
-      expect(first.dy, lessThan(centre.dy));
-      expect(withFocus['first']!.dx, closeTo(centre.dx, 1));
-      expect(withoutFocus['first'], isNot(withFocus['first']));
+      // Children sorted by id: alpha then zeta → alpha owns [0, π), mid = π/2.
+      // Angle 0 points up (-π/2 in coords), so π/2 is to the right of centre.
+      final alpha = positions['alpha']!;
+      expect(alpha.dx, greaterThan(centre.dx));
+      expect(alpha.dy, closeTo(centre.dy, 1));
     });
 
-    test('focus path positions stay fixed when an unrelated node is added', () {
-      const focusPath = ['root', 'first', 'second'];
-      final onPath = radialHopPositions(
-        nodeIds: {'root', 'first', 'second'},
-        edges: {('root', 'first'), ('first', 'second')},
-        rootId: 'root',
+    test('descendant stays put when an unrelated sibling branch is absent', () {
+      // Stability holds for the root; sibling insertion redistributes sectors
+      // (pinning across mutations is handled by RadialHopLayoutAlgorithm.relayout).
+      final ab = radialHopPositions(
+        nodeIds: {'a', 'b'},
+        edges: {('a', 'b')},
+        rootId: 'a',
         canvasSize: canvasSize,
-        focusPath: focusPath,
         ringGap: ringGap,
       );
-      final withUnrelated = radialHopPositions(
-        nodeIds: {'root', 'first', 'second', 'side'},
-        edges: {
-          ('root', 'first'),
-          ('first', 'second'),
-          ('root', 'side'),
-        },
-        rootId: 'root',
+      final abc = radialHopPositions(
+        nodeIds: {'a', 'b', 'c'},
+        edges: {('a', 'b'), ('b', 'c')},
+        rootId: 'a',
         canvasSize: canvasSize,
-        focusPath: focusPath,
         ringGap: ringGap,
       );
 
-      for (final id in focusPath) {
-        expect(withUnrelated[id], onPath[id]);
-      }
+      expect(abc['a'], ab['a']);
+      expect(abc['b'], ab['b']);
     });
   });
 }
