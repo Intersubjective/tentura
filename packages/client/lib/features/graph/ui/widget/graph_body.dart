@@ -78,9 +78,6 @@ class GraphBodyState extends State<GraphBody>
     );
   }
 
-  bool get _showEdgeDirection =>
-      _graphCubit.forwardsGraphBeaconId != null || _graphCubit.genealogyMode;
-
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
   void _onNodeTap(NodeDetails node) => _graphCubit.selectNode(node);
@@ -201,7 +198,6 @@ class GraphBodyState extends State<GraphBody>
       ),
       highlightRadius: 0.15,
       isAnimated: _graphCubit.state.isAnimated,
-      showDirection: _showEdgeDirection,
     ),
     labelBuilder: widget.isLabeled
         ? BottomLabelBuilder(

@@ -898,10 +898,6 @@
   "@graphLegendEdgeForwardOther": {
     "context": "ForwardsGraphScreen"
   },
-  "graphLegendEdgeForwardDirected": "Стрелки: отправитель → получатель",
-  "@graphLegendEdgeForwardDirected": {
-    "context": "ForwardsGraphScreen"
-  },
   "graphLegendEdgeGenealogyEgo": "Золотой — ваша ветка приглашений",
   "@graphLegendEdgeGenealogyEgo": {
     "context": "InviteGenealogyScreen"
@@ -912,10 +908,6 @@
   },
   "graphLegendEdgeGenealogyNeutral": "Синий — общий ствол",
   "@graphLegendEdgeGenealogyNeutral": {
-    "context": "InviteGenealogyScreen"
-  },
-  "graphLegendEdgeGenealogyDirected": "Стрелки: пригласивший → приглашённый",
-  "@graphLegendEdgeGenealogyDirected": {
     "context": "InviteGenealogyScreen"
   },
   "graphLegendOtherTitle": "Другие символы",
