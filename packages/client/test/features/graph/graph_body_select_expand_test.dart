@@ -130,22 +130,7 @@ Future<GraphCubit> _pumpGraphBody(
 }
 
 void main() {
-  testWidgets('one node tap selects focus without fetching', (tester) async {
-    final source = _WidgetTestGraphSource()
-      ..pages.addAll({
-        null: {_e('Ume', 'Ub')},
-      });
-    final cubit = await _pumpGraphBody(tester, source: source);
-    expect(source.calls, 1);
-
-    await tester.tap(find.byType(GraphNodeWidget).at(1));
-    await _settleGraph(tester);
-
-    expect(cubit.state.focus, isNotEmpty);
-    expect(source.calls, 1);
-  });
-
-  testWidgets('Expand performs exactly one fetch', (tester) async {
+  testWidgets('tap on unexpanded node expands once', (tester) async {
     final source = _WidgetTestGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub')},
@@ -156,15 +141,64 @@ void main() {
 
     await tester.tap(find.byType(GraphNodeWidget).at(1));
     await _settleGraph(tester);
-    expect(source.calls, 1);
 
-    await tester.tap(find.text('Expand'));
-    await _settleGraph(tester);
-
+    expect(cubit.state.focus, isNotEmpty);
     expect(source.calls, 2);
     expect(
       cubit.graphController.edges.map((e) => e.destination.id),
       contains('Ue'),
     );
+  });
+
+  testWidgets('tap on already expanded node selects without fetching', (
+    tester,
+  ) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = await _pumpGraphBody(tester, source: source);
+    expect(source.calls, 1);
+
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await _settleGraph(tester);
+    expect(source.calls, 2);
+
+    // Focus ego (cannot expand), then re-tap Ub — already fetched as focus.
+    await tester.tap(find.byType(GraphNodeWidget).at(0));
+    await _settleGraph(tester);
+    expect(source.calls, 2);
+
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await _settleGraph(tester);
+
+    expect(cubit.state.focus, 'Ub');
+    expect(source.calls, 2);
+  });
+
+  testWidgets('Expand button pages another fetch for current focus', (
+    tester,
+  ) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = await _pumpGraphBody(tester, source: source);
+    expect(source.calls, 1);
+
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await _settleGraph(tester);
+    expect(source.calls, 2);
+    expect(
+      cubit.graphController.edges.map((e) => e.destination.id),
+      contains('Ue'),
+    );
+
+    await tester.tap(find.text('Expand'));
+    await _settleGraph(tester);
+
+    expect(source.calls, 3);
   });
 }
