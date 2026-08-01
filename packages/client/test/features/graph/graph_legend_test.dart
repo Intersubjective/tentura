@@ -71,7 +71,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   String get originNodeId => _viewer.id;
 
   @override
-  void selectNode(NodeDetails node) {}
+  void selectNode(NodeDetails node, {bool ensureStructuralEdges = true}) {}
 
   @override
   Future<void> expandNode(NodeDetails node) async {}

@@ -89,6 +89,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) => throw UnsupportedError(
     'generic fetch must not be used in genealogy mode',
   );
