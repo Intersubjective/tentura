@@ -2467,6 +2467,12 @@ input edge_stream_cursor_value_input {
 scalar float8
 
 """
+Postgres `text[]` as exposed by Hasura for function arguments.
+Pass a Postgres array literal string, e.g. `{"Ua","Ub"}`.
+"""
+scalar _text
+
+"""
 Boolean expression to compare columns of type "float8". All fields are combined with logical 'AND'.
 """
 input float8_comparison_exp {
@@ -2488,7 +2494,7 @@ input graph_args {
 }
 
 input graph_edges_between_args {
-  node_ids: [String!]
+  node_ids: _text
   positive_only: Boolean
 }
 

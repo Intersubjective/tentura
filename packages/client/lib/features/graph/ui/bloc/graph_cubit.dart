@@ -220,7 +220,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// Highlights [node] on the graph and updates the exploration trail.
   /// Never pages neighbourhood — use [expandNode]. May request structural
   /// closure among the resulting visible set (trust graph only).
-  void selectNode(NodeDetails node) {
+  void selectNode(NodeDetails node, {bool ensureStructuralEdges = true}) {
     if (genealogyMode) {
       _pinGenealogyParentChainNodes();
     }
@@ -232,14 +232,18 @@ class GraphCubit extends Cubit<GraphState> {
     if (_usesFocusPathVisibility) {
       _syncFocusPathPins();
       _recomputeVisibility();
-      unawaited(_ensureVisibleStructuralEdges());
+      if (ensureStructuralEdges) {
+        unawaited(_ensureVisibleStructuralEdges());
+      }
     }
   }
 
   /// Selects [node] when needed, then pages in the next neighbourhood window.
   Future<void> expandNode(NodeDetails node) async {
     if (state.focus != node.id) {
-      selectNode(node);
+      // Skip select-time ensure: [_fetch] closes over the staged neighbourhood
+      // before the first paint of new nodes.
+      selectNode(node, ensureStructuralEdges: false);
     }
     if (forwardsGraphBeaconId == null) {
       await _fetch();
@@ -632,6 +636,9 @@ class GraphCubit extends Cubit<GraphState> {
         emit(state.copyWith(status: StateStatus.isSuccess));
         loadingOwned = false;
         _recomputeVisibility();
+        // Second pass over the actual on-screen set repairs a failed/empty
+        // first closure and matches the product invariant literally.
+        unawaited(_ensureVisibleStructuralEdges());
         return;
       }
 
@@ -1051,7 +1058,13 @@ class GraphCubit extends Cubit<GraphState> {
       return;
     }
     final cacheEpoch = _cacheEpoch;
-    final ids = _computeVisibleNodeIds();
+    // Prefer nodes actually on the canvas — that is the product invariant.
+    final ids = {
+      for (final node in graphController.nodes) node.id,
+    };
+    if (ids.length < 2) {
+      ids.addAll(_computeVisibleNodeIds());
+    }
     if (ids.length < 2) {
       return;
     }

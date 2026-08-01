@@ -53,6 +53,9 @@ targets:
             float8:
               name: double
 
+            _text:
+              name: String
+
             uuid:
               name: String
 
@@ -81,6 +84,9 @@ targets:
 
             float8:
               name: double
+
+            _text:
+              name: String
 
             uuid:
               name: String

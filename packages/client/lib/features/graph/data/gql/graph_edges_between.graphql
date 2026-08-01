@@ -1,4 +1,4 @@
-query GraphEdgesBetween($node_ids: [String!]!, $positive_only: Boolean = true) {
+query GraphEdgesBetween($node_ids: _text!, $positive_only: Boolean = true) {
   graph_edges_between(args: { node_ids: $node_ids, positive_only: $positive_only }) {
     src
     dst

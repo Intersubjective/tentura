@@ -30,4 +30,15 @@ void main() {
       );
     },
   );
+
+  test('pgTextArrayLiteral encodes Hasura _text Postgres array form', () {
+    expect(
+      GraphRepository.pgTextArrayLiteral(['Ua', 'Ub']),
+      '{"Ua","Ub"}',
+    );
+    expect(
+      GraphRepository.pgTextArrayLiteral([r'a"b', r'c\d']),
+      r'{"a\"b","c\\d"}',
+    );
+  });
 }

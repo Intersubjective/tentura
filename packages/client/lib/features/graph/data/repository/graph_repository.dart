@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 
 // import 'package:tentura/consts.dart';
 import 'package:tentura/data/model/beacon_model.dart';
@@ -89,7 +90,9 @@ class GraphRepository extends RemoteRepository
     final data = await requestDataOnlineOrThrow(
       GGraphEdgesBetweenReq(
         (b) => b
-          ..vars.node_ids.replace(nodeIds.toList(growable: false))
+          // Hasura exposes Postgres `text[]` as scalar `_text`; pass a PG array
+          // literal string. A GraphQL `[String!]` list is rejected at parse time.
+          ..vars.node_ids = pgTextArrayLiteral(nodeIds)
           ..vars.positive_only = positiveOnly,
       ),
       label: _label,
@@ -97,16 +100,27 @@ class GraphRepository extends RemoteRepository
 
     return {
       for (final e in data.graph_edges_between)
-        (
-          src: e.src!,
-          dst: e.dst!,
-          weight: e.dst_score!,
-          node: null,
-          branch: null,
-          srcTotalNeighborCount: e.src_total_neighbor_count,
-          dstTotalNeighborCount: e.dst_total_neighbor_count,
-        ),
+        if (e.src != null && e.dst != null && e.dst_score != null)
+          (
+            src: e.src!,
+            dst: e.dst!,
+            weight: e.dst_score!,
+            node: null,
+            branch: null,
+            srcTotalNeighborCount: e.src_total_neighbor_count,
+            dstTotalNeighborCount: e.dst_total_neighbor_count,
+          ),
     };
+  }
+
+  /// Encodes ids as a Postgres `text[]` literal for Hasura's `_text` scalar.
+  @visibleForTesting
+  static String pgTextArrayLiteral(Iterable<String> ids) {
+    final parts = ids.map((id) {
+      final escaped = id.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+      return '"$escaped"';
+    });
+    return '{${parts.join(',')}}';
   }
 
   static const _label = 'Graph';
