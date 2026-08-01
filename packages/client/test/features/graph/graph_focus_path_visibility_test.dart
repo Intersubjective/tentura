@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,9 +25,16 @@ class _FakeGraphSource implements GraphSourceRepository {
   /// Closure edges returned by [fetchEdgesBetween].
   Set<EdgeDirected> closureEdges = const {};
 
+  /// Optional per-call override; receives the requested [nodeIds].
+  Set<EdgeDirected> Function(Set<String> nodeIds)? onClosure;
+
+  /// Completer to hold the next [fetchEdgesBetween] until completed in a test.
+  Completer<void>? blockClosure;
+
   int calls = 0;
   int closureCalls = 0;
   final callLog = <({String? focus, String context})>[];
+  final closureLog = <Set<String>>[];
 
   @override
   Future<Set<EdgeDirected>> fetch({
@@ -51,7 +60,20 @@ class _FakeGraphSource implements GraphSourceRepository {
     bool positiveOnly = true,
   }) async {
     closureCalls += 1;
-    return closureEdges;
+    closureLog.add(Set<String>.from(nodeIds));
+    final gate = blockClosure;
+    if (gate != null) {
+      await gate.future;
+    }
+    final custom = onClosure;
+    if (custom != null) {
+      return custom(nodeIds);
+    }
+    // Real SQL only returns edges whose both ends are in [nodeIds].
+    return {
+      for (final e in closureEdges)
+        if (nodeIds.contains(e.src) && nodeIds.contains(e.dst)) e,
+    };
   }
 }
 
@@ -172,7 +194,8 @@ void main() {
   });
 
   test(
-    'focus-incident chords back to the trail are not redrawn beyond the path',
+    'new focus neighbours immediately show cached chords to already-visible '
+    'nodes (including trail ancestors)',
     () async {
       final source = _FakeGraphSource()
         ..pages.addAll({
@@ -191,8 +214,38 @@ void main() {
       expect(_edgePairs(cubit), {
         ('Ume', 'Ub'),
         ('Ub', 'Ue'),
+        ('Ue', 'Ume'),
       });
-      expect(_edgePairs(cubit), isNot(contains(('Ue', 'Ume'))));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'new neighbour draws all links to other already-visible focus neighbours',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {
+            _e('Ub', 'Ue'),
+            _e('Ub', 'Uf'),
+          },
+        })
+        ..closureEdges = {_e('Ue', 'Uf')};
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(_nodeIds(cubit), {'Ume', 'Ub', 'Ue', 'Uf'});
+      expect(_edgePairs(cubit), {
+        ('Ume', 'Ub'),
+        ('Ub', 'Ue'),
+        ('Ub', 'Uf'),
+        ('Ue', 'Uf'),
+      });
 
       await cubit.close();
     },
@@ -286,7 +339,10 @@ void main() {
     await _settle();
 
     expect(_nodeIds(cubit), {'Ume', 'Ub', 'Uc', 'Ue'});
+    // Ub is a focus-neighbour of Ue; Ume↔Ub is therefore a chord between two
+    // already-visible nodes and must be drawn immediately.
     expect(_edgePairs(cubit), {
+      ('Ume', 'Ub'),
       ('Ume', 'Uc'),
       ('Ub', 'Ue'),
       ('Uc', 'Ue'),
@@ -584,29 +640,32 @@ void main() {
   );
 
   test(
-    'closure query merges structural edges between already-known nodes',
+    'closure query is scoped to the visible set and draws chords among it',
     () async {
       final source = _FakeGraphSource()
         ..pages.addAll({
           null: {_e('Ume', 'Ub')},
           'Ub': {_e('Ub', 'Ue')},
         })
-        ..closureEdges = {_e('Ub', 'Uc')};
+        ..closureEdges = {_e('Ue', 'Ume'), _e('Ub', 'Uc')};
       final cubit = _cubit(source);
       await _settle();
 
       cubit.expandNode(_liveNode(cubit, 'Ub'));
       await _settle();
 
+      // Ub→Uc is not among the visible set {Ume, Ub, Ue}, so a real
+      // graph_edges_between would not return it; the fake mirrors that filter.
+      expect(_edgePairs(cubit), {
+        ('Ume', 'Ub'),
+        ('Ub', 'Ue'),
+        ('Ue', 'Ume'),
+      });
       expect(
-        _edgePairs(cubit),
-        containsAll({
-          ('Ume', 'Ub'),
-          ('Ub', 'Ue'),
-          ('Ub', 'Uc'),
-        }),
+        source.closureLog.last,
+        containsAll({'Ume', 'Ub', 'Ue'}),
       );
-      expect(source.closureCalls, greaterThan(0));
+      expect(source.closureLog.last, isNot(contains('Uc')));
 
       await cubit.close();
     },
@@ -688,7 +747,12 @@ void main() {
 
       cubit.selectNode(_liveNode(cubit, 'Ue'));
       await _settle();
-      expect(_edgePairs(cubit), {('Ub', 'Ue')});
+      // Ue brings Ub (its neighbour); Ume stays as trail/root — so the
+      // already-known Ume↔Ub chord is drawn between two visible nodes.
+      expect(_edgePairs(cubit), {
+        ('Ume', 'Ub'),
+        ('Ub', 'Ue'),
+      });
       expect(source.calls, callsAfterExpand);
 
       await cubit.close();
@@ -819,6 +883,114 @@ void main() {
 
       expect(viaB.nodes, viaC.nodes);
       expect(viaB.edges, viaC.edges);
+    },
+  );
+
+  test(
+    'staged neighbourhood is not painted until visible-set closure returns',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        })
+        ..closureEdges = {_e('Ue', 'Ume')};
+      final cubit = _cubit(source);
+      await _settle();
+
+      final gate = Completer<void>();
+      source.blockClosure = gate;
+      final expandDone = cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(_nodeIds(cubit), isNot(contains('Ue')));
+      cubit.resetToEgo();
+      expect(_nodeIds(cubit), isNot(contains('Ue')));
+
+      gate.complete();
+      await expandDone;
+      await _settle();
+
+      expect(_nodeIds(cubit), containsAll({'Ume', 'Ub', 'Ue'}));
+      expect(_edgePairs(cubit), contains(('Ue', 'Ume')));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'setContext discards in-flight closure merges from the old cache epoch',
+    () async {
+      final source = _FakeGraphSource()
+        ..closureEdges = {_e('Ue', 'Ume')}
+        ..onFetch = (focus, context) => context == 'work'
+            ? {_e('Ume', 'Ud')}
+            : switch (focus) {
+                null => {_e('Ume', 'Ub')},
+                'Ub' => {_e('Ub', 'Ue')},
+                _ => const {},
+              };
+      final cubit = _cubit(source);
+      await _settle();
+
+      final gate = Completer<void>();
+      source.blockClosure = gate;
+      final expandDone = cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      // Must not await setContext before releasing the gate — the new fetch
+      // also waits on the same closure block.
+      final contextDone = cubit.setContext('work');
+      gate.complete();
+      await expandDone;
+      await contextDone;
+      await _settle();
+
+      expect(_nodeIds(cubit), {'Ume', 'Ud'});
+      expect(_edgePairs(cubit), {('Ume', 'Ud')});
+      expect(_edgePairs(cubit), isNot(contains(('Ue', 'Ume'))));
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'select during in-flight fetch does not prevent the fetch from painting',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+          'Ub': {_e('Ub', 'Ue')},
+        })
+        ..closureEdges = {_e('Ue', 'Ume')};
+      final cubit = _cubit(source);
+      await _settle();
+      final ub = _liveNode(cubit, 'Ub');
+      final uc = _liveNode(cubit, 'Uc');
+
+      final gate = Completer<void>();
+      source.blockClosure = gate;
+      final expandDone = cubit.expandNode(ub);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      // Must not bump fetch/cache epochs — only changes focus/path.
+      cubit.selectNode(uc);
+      gate.complete();
+      await expandDone;
+      await _settle();
+
+      // Fetch still merged Ub's neighbourhood despite the mid-flight select;
+      // re-focus Ub to surface Ue from the cache.
+      cubit.selectNode(ub);
+      await _settle();
+
+      expect(_nodeIds(cubit), contains('Ue'));
+      expect(_edgePairs(cubit), contains(('Ub', 'Ue')));
+
+      await cubit.close();
     },
   );
 }
