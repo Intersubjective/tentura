@@ -133,13 +133,35 @@ class GraphBodyState extends State<GraphBody>
           ),
           Positioned(
             top: 0,
+            left: 0,
             right: 0,
             child: SafeArea(
-              left: false,
               bottom: false,
-              child: _GraphNavigationControls(
-                legendExpanded: _legendExpanded,
-                onToggleLegend: _toggleLegend,
+              child: BlocSelector<GraphCubit, GraphState, String>(
+                selector: (state) => state.focus,
+                builder: (context, focusId) {
+                  NodeDetails? focusedNode;
+                  if (focusId.isNotEmpty) {
+                    for (final node in _graphCubit.graphController.nodes) {
+                      if (node.id == focusId) {
+                        focusedNode = node;
+                        break;
+                      }
+                    }
+                  }
+                  return _GraphTopControls(
+                    legendExpanded: _legendExpanded,
+                    onToggleLegend: _toggleLegend,
+                    focusedNode: focusedNode,
+                    showExpand: _graphCubit.forwardsGraphBeaconId == null,
+                    onExpand: focusedNode == null
+                        ? null
+                        : () => _graphCubit.expandNode(focusedNode!),
+                    onOpenDetails: focusedNode == null
+                        ? null
+                        : () => _openNodeDetails(focusedNode!),
+                  );
+                },
               ),
             ),
           ),
@@ -158,31 +180,6 @@ class GraphBodyState extends State<GraphBody>
                 ),
               ),
             ),
-          ),
-          BlocSelector<GraphCubit, GraphState, String>(
-            selector: (state) => state.focus,
-            builder: (context, focusId) {
-              if (focusId.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              NodeDetails? focusedNode;
-              for (final node in _graphCubit.graphController.nodes) {
-                if (node.id == focusId) {
-                  focusedNode = node;
-                  break;
-                }
-              }
-              if (focusedNode == null) {
-                return const SizedBox.shrink();
-              }
-              final node = focusedNode;
-              return _GraphNodeActionPanel(
-                node: node,
-                showExpand: _graphCubit.forwardsGraphBeaconId == null,
-                onExpand: () => _graphCubit.expandNode(node),
-                onOpenDetails: () => _openNodeDetails(node),
-              );
-            },
           ),
         ],
       );
@@ -258,6 +255,97 @@ class GraphBodyState extends State<GraphBody>
           onTap: () => _onNodeTap(node),
         ),
       );
+}
+
+/// Top overlays for nav + focused-node actions.
+///
+/// On compact widths the action panel sits below the nav bar so the two
+/// elevated surfaces never collide (phone / narrow web).
+class _GraphTopControls extends StatelessWidget {
+  const _GraphTopControls({
+    required this.legendExpanded,
+    required this.onToggleLegend,
+    required this.focusedNode,
+    required this.showExpand,
+    required this.onExpand,
+    required this.onOpenDetails,
+  });
+
+  final bool legendExpanded;
+  final VoidCallback onToggleLegend;
+  final NodeDetails? focusedNode;
+  final bool showExpand;
+  final VoidCallback? onExpand;
+  final VoidCallback? onOpenDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final nav = _GraphNavigationControls(
+      legendExpanded: legendExpanded,
+      onToggleLegend: onToggleLegend,
+    );
+    final node = focusedNode;
+    final actions = node == null || onExpand == null || onOpenDetails == null
+        ? null
+        : _GraphNodeActionPanel(
+            node: node,
+            showExpand: showExpand,
+            onExpand: onExpand!,
+            onOpenDetails: onOpenDetails!,
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact =
+            windowClassForWidth(constraints.maxWidth) == WindowClass.compact;
+
+        if (actions == null) {
+          return Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: EdgeInsets.all(tt.rowGap),
+              child: nav,
+            ),
+          );
+        }
+
+        if (isCompact) {
+          // Stack vertically: a single row of Expand/Profile + four icons
+          // overflows typical phone widths (especially with RU labels).
+          return Padding(
+            padding: EdgeInsets.all(tt.rowGap),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(alignment: Alignment.topRight, child: nav),
+                SizedBox(height: tt.tightGap),
+                Align(alignment: Alignment.topCenter, child: actions),
+              ],
+            ),
+          );
+        }
+
+        return Padding(
+          padding: EdgeInsets.all(tt.rowGap),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: actions,
+                ),
+              ),
+              SizedBox(width: tt.iconTextGap),
+              nav,
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _GraphNavigationControls extends StatelessWidget {
@@ -350,41 +438,30 @@ class _GraphNodeActionPanel extends StatelessWidget {
       GenealogyDeletedNode() => false,
     };
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
-        bottom: false,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Material(
-            elevation: 2,
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: tt.iconTextGap,
-                vertical: tt.rowGap / 2,
+    return Material(
+      elevation: 2,
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(tt.cardRadius),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.iconTextGap,
+          vertical: tt.rowGap / 2,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showExpand)
+              TextButton(
+                key: TestIds.key(TestIds.graphExpand),
+                onPressed: onExpand,
+                child: Text(l10n.inboxProvenanceExpand),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showExpand)
-                    TextButton(
-                      key: TestIds.key(TestIds.graphExpand),
-                      onPressed: onExpand,
-                      child: Text(l10n.inboxProvenanceExpand),
-                    ),
-                  if (canOpenDetails)
-                    TextButton(
-                      onPressed: onOpenDetails,
-                      child: Text(l10n.profile),
-                    ),
-                ],
+            if (canOpenDetails)
+              TextButton(
+                onPressed: onOpenDetails,
+                child: Text(l10n.profile),
               ),
-            ),
-          ),
+          ],
         ),
       ),
     );

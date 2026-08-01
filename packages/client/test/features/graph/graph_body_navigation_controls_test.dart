@@ -10,16 +10,21 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _WidgetTestGraphSource extends GraphSourceRepository {
+  final pages = <String?, Set<EdgeDirected>>{};
+
   @override
   Future<Set<EdgeDirected>> fetch({
     bool positiveOnly = true,
@@ -28,7 +33,7 @@ class _WidgetTestGraphSource extends GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
-  }) async => const {};
+  }) async => pages[focus] ?? const {};
 }
 
 const _edgeColors = GraphEdgeColors(
@@ -64,6 +69,18 @@ class _FakeProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
+EdgeDirected _e(String src, String dst) => (
+  src: src,
+  dst: dst,
+  weight: 1.0,
+  node: UserNode(
+    user: Profile(id: dst, displayName: dst),
+  ),
+  branch: null,
+  srcTotalNeighborCount: null,
+  dstTotalNeighborCount: null,
+);
+
 Future<void> _settleGraph(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
@@ -73,13 +90,14 @@ Future<void> _settleGraph(WidgetTester tester) async {
 Future<GraphCubit> _pumpGraphBody(
   WidgetTester tester, {
   Size size = const Size(400, 800),
+  _WidgetTestGraphSource? source,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   final cubit = GraphCubit(
     me: _me,
-    graphSourceRepository: _WidgetTestGraphSource(),
+    graphSourceRepository: source ?? _WidgetTestGraphSource(),
     edgeColors: _edgeColors,
     beaconRepository: _FakeBeaconRepository(),
     profileRepository: _FakeProfileRepository(),
@@ -130,4 +148,41 @@ void main() {
     expect(cubit.state.focus, isEmpty);
     expect(cubit.canPopFocus, isFalse);
   });
+
+  testWidgets(
+    'compact focus keeps action panel below nav without overlap',
+    (tester) async {
+      final source = _WidgetTestGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      await _pumpGraphBody(
+        tester,
+        size: const Size(360, 800),
+        source: source,
+      );
+
+      await tester.tap(find.byType(GraphNodeWidget).at(1));
+      await _settleGraph(tester);
+
+      final expand = find.byKey(TestIds.key(TestIds.graphExpand));
+      final fit = find.byTooltip('Fit current path');
+      expect(expand, findsOneWidget);
+      expect(fit, findsOneWidget);
+
+      final expandBox = tester.getRect(expand);
+      final fitBox = tester.getRect(fit);
+      expect(
+        expandBox.overlaps(fitBox),
+        isFalse,
+        reason: 'Expand and Fit must not overlap on compact width',
+      );
+      expect(
+        expandBox.top,
+        greaterThanOrEqualTo(fitBox.bottom),
+        reason: 'Action panel stacks below nav on compact',
+      );
+    },
+  );
 }
