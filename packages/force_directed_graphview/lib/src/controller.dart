@@ -11,6 +11,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   // Region of canvas that is building its nodes now
   Rect? _effectiveViewport;
   Rect? _actualViewport;
+  Size? _viewportPixelSize;
   GraphLayoutAlgorithm? _currentAlgorithm;
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
@@ -147,20 +148,29 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return;
     }
 
+    final currentScale = controller.value.getMaxScaleOnAxis();
+    final desiredScale =
+        (currentScale * factor).clamp(_boundaryMinScale(), _maxScale);
+    final effectiveFactor = desiredScale / currentScale;
+    if (effectiveFactor == 1.0) {
+      return;
+    }
+
     final oldMatrix = controller.value.clone();
     final center = viewport.center;
 
     controller.value = oldMatrix
       ..translate(center.dx, center.dy)
-      ..scale(factor)
+      ..scale(effectiveFactor)
       ..translate(-center.dx, -center.dy);
+    _syncActualViewportFromPixelSize();
   }
 
   /// Fits [rect] (in canvas coordinates) into the viewport.
   void fitToRect(Rect rect, {double padding = 48}) {
     final transformation = _transformationController;
-    final viewport = _actualViewport;
-    if (transformation == null || viewport == null) {
+    final pixel = _viewportPixelSize;
+    if (transformation == null || pixel == null) {
       return;
     }
 
@@ -169,15 +179,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return;
     }
 
-    // `_actualViewport` is in canvas coordinates; multiplying by the current
-    // scale converts it back to on-screen pixels.
-    final currentScale = transformation.value.getMaxScaleOnAxis();
-    final viewportWidth = viewport.width * currentScale;
-    final viewportHeight = viewport.height * currentScale;
+    final viewportWidth = pixel.width;
+    final viewportHeight = pixel.height;
 
     final scale = math
         .min(viewportWidth / padded.width, viewportHeight / padded.height)
-        .clamp(_minScale, _maxScale)
+        .clamp(_boundaryMinScale(), _maxScale)
         .toDouble();
 
     final center = padded.center;
@@ -185,6 +192,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       ..translate(viewportWidth / 2, viewportHeight / 2)
       ..scale(scale)
       ..translate(-center.dx, -center.dy);
+    _syncActualViewportFromPixelSize();
   }
 
   /// Fits every node of [nodes] that has a position into the viewport.
@@ -306,6 +314,48 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     notifyListeners();
   }
 
+  /// Minimum scale [InteractiveViewer] allows with [EdgeInsets.zero] margins.
+  double _boundaryMinScale() {
+    final pixel = _viewportPixelSize;
+    final size = _currentSize;
+    if (pixel == null ||
+        size == null ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return _minScale;
+    }
+    final floor = math.max(pixel.width / size.width, pixel.height / size.height);
+    return math.max(_minScale, floor);
+  }
+
+  void _syncActualViewportFromPixelSize() {
+    final pixel = _viewportPixelSize;
+    final transformation = _transformationController;
+    if (pixel == null || transformation == null) {
+      return;
+    }
+    final scale = transformation.value.getMaxScaleOnAxis();
+    if (scale == 0) {
+      return;
+    }
+    final matrix = transformation.value.clone()..invert();
+    final topLeft = MatrixUtils.transformPoint(matrix, Offset.zero);
+    final bottomRight = MatrixUtils.transformPoint(
+      matrix,
+      Offset(pixel.width, pixel.height),
+    );
+    _actualViewport = Rect.fromPoints(topLeft, bottomRight);
+  }
+
+  @visibleForTesting
+  double get currentScale {
+    final transformation = _transformationController;
+    if (transformation == null) {
+      throw StateError('GraphController is not attached to a GraphView');
+    }
+    return transformation.value.getMaxScaleOnAxis();
+  }
+
   void _detachTicker() {
     _ticker?.dispose();
     _ticker = null;
@@ -363,8 +413,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   void _updateViewport(Quad viewport) {
-    _actualViewport = viewport.toRect();
-    final actualViewport = _actualViewport = viewport.toRect();
+    final rect = viewport.toRect();
+    _actualViewport = rect;
+    final scale = _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;
+    _viewportPixelSize = Size(rect.width * scale, rect.height * scale);
+    final actualViewport = rect;
     final newEffectiveViewport = switch (_lazyBuilding) {
       LazyBuildingViewport(scale: final scale) => actualViewport.scale(scale),
       LazyBuildingNone() || null => Rect.largest,
