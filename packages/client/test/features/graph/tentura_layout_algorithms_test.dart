@@ -16,12 +16,16 @@ void main() {
   final nodeB = UserNode(user: Profile(id: 'b'));
   final nodeC = UserNode(user: Profile(id: 'c'));
   final nodeD = UserNode(user: Profile(id: 'd'));
+  final nodeE = UserNode(user: Profile(id: 'e'));
+  final nodeF = UserNode(user: Profile(id: 'f'));
 
   NodeDetails nodeById(String id) => switch (id) {
     'a' => nodeA,
     'b' => nodeB,
     'c' => nodeC,
     'd' => nodeD,
+    'e' => nodeE,
+    'f' => nodeF,
     _ => throw ArgumentError.value(id),
   };
 
@@ -165,6 +169,63 @@ void main() {
       expect(d.dy, greaterThan(b.dy));
       // And near each other — not opposite sides of the canvas.
       expect((c - d).distance, lessThan(200));
+    });
+
+    test('repeated expand re-fans all siblings without overlap', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      final pinned = GraphLayoutBuilder(nodes: {nodeA, nodeB})
+        ..setNodePosition(nodeA, const Offset(250, 100))
+        ..setNodePosition(nodeB, const Offset(250, 200));
+      final existing = pinned.build();
+
+      final firstBatch = await algorithm
+          .relayout(
+            existingLayout: existing,
+            nodes: {nodeA, nodeB, nodeC, nodeD},
+            edges: {
+              edge('a', 'b'),
+              edge('b', 'c'),
+              edge('b', 'd'),
+            },
+            size: canvasSize,
+          )
+          .first;
+
+      final secondBatch = await algorithm
+          .relayout(
+            existingLayout: firstBatch,
+            nodes: {nodeA, nodeB, nodeC, nodeD, nodeE, nodeF},
+            edges: {
+              edge('a', 'b'),
+              edge('b', 'c'),
+              edge('b', 'd'),
+              edge('b', 'e'),
+              edge('b', 'f'),
+            },
+            size: canvasSize,
+          )
+          .first;
+
+      final b = secondBatch.getPosition(nodeB);
+      final positions = [
+        secondBatch.getPosition(nodeC),
+        secondBatch.getPosition(nodeD),
+        secondBatch.getPosition(nodeE),
+        secondBatch.getPosition(nodeF),
+      ];
+
+      for (final pos in positions) {
+        expect((pos - b).distance, closeTo(170, 1));
+      }
+      for (var i = 0; i < positions.length; i++) {
+        for (var j = i + 1; j < positions.length; j++) {
+          expect(
+            (positions[i] - positions[j]).distance,
+            greaterThan(20),
+            reason: 'siblings must not overlap after incremental expand',
+          );
+        }
+      }
     });
 
     test('every input node has a position', () async {

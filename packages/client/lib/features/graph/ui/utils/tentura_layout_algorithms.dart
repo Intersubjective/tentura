@@ -78,7 +78,10 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
     final rootPos = placed[rootId] ?? hop.positions[rootId] ?? fallback;
 
     for (final parentId in parentIds) {
-      final childIds = List<String>.from(newcomersByParent[parentId]!)..sort();
+      final childIds = byId.keys
+          .where((id) => hop.parent[id] == parentId)
+          .toList()
+        ..sort();
       final parentPos =
           placed[parentId] ?? hop.positions[parentId] ?? fallback;
       final grandparentId = hop.parent[parentId];
