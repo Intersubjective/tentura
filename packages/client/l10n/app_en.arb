@@ -858,15 +858,15 @@
   "@graphLegendBadgesTitle": {
     "context": "GraphScreen"
   },
-  "graphLegendMutual": "Mutual trust — you each marked trust",
+  "graphLegendMutual": "Mutual trust — you both set “trust” toward each other",
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — positive reverse score toward you; same gate as forward eligibility",
+  "graphLegendEyeOpen": "Open eye — this user can see you and forward requests to you",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeClosed": "Closed eye — no positive reverse score (includes one-way out and none)",
+  "graphLegendEyeClosed": "Closed eye — you and this user cannot see each other and cannot forward requests to each other",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },

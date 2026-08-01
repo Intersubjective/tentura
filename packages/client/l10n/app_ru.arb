@@ -858,15 +858,15 @@
   "@graphLegendBadgesTitle": {
     "context": "GraphScreen"
   },
-  "graphLegendMutual": "Взаимное доверие — вы оба отметили доверие",
+  "graphLegendMutual": "Взаимное доверие — вы оба выставили «доверяю» друг другу",
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Открытый глаз — положительный обратный балл к вам; тот же порог, что для пересылки",
+  "graphLegendEyeOpen": "Открытый глаз — этот пользователь может вас видеть и пересылать вам запросы",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeClosed": "Закрытый глаз — нет положительного обратного балла (включая одностороннее «я доверяю» и «нет связи»)",
+  "graphLegendEyeClosed": "Закрытый глаз — вы и этот пользователь не видите друг друга и не можете пересылать друг другу запросы",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
