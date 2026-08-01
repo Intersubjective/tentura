@@ -42,10 +42,10 @@ Avatars, graph nodes, and People lists reuse the same contact-badge chrome. Thre
 |--------|----------------|
 | **Text label** (profile / People) | Vote-based reciprocity: mutual, one-way out, one-way in, none |
 | **Two linked dots** | Vote mutual trust (`isMutualFriend`) |
-| **Open / closed eye** | MeritRank reverse score toward you (`rScore > 0`); same gate as forward eligibility — **not** the same as the text label or graph reachability |
+| **Open / closed eye** | Bidirectional MeritRank (`score > 0` and `rScore > 0`, `isMutuallyVisible`); same gate as forward reachability — **not** the same as the text label or graph reachability |
 | **Primary rating arcs** | Your rating toward them (`score`); separate from the eye |
 
-The closed eye merges **one-way out** and **none**; use the text label when you need that distinction.
+The closed eye merges **one-way out**, **one-way in**, and **none**; use the text label when you need that distinction.
 
 ### Graph edge colors (mode-dependent)
 

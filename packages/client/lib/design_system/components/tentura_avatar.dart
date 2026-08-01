@@ -190,7 +190,7 @@ class TenturaAvatar extends StatelessWidget {
               ? _AvatarBadgePainter(
                   color: scheme.primary,
                   badgeFill: scheme.surface,
-                  isSeeingMe: profile.isSeeingMe,
+                  isMutuallyVisible: profile.isMutuallyVisible,
                   isMutualFriend: profile.isMutualFriend,
                 )
               : null,
@@ -489,13 +489,13 @@ class _AvatarBadgePainter extends CustomPainter {
   _AvatarBadgePainter({
     required this.color,
     required this.badgeFill,
-    required this.isSeeingMe,
+    required this.isMutuallyVisible,
     required this.isMutualFriend,
   });
 
   final Color color;
   final Color badgeFill;
-  final bool? isSeeingMe;
+  final bool? isMutuallyVisible;
   final bool isMutualFriend;
 
   @override
@@ -503,7 +503,7 @@ class _AvatarBadgePainter extends CustomPainter {
     if (isMutualFriend) {
       _paintMutualContactBadge(canvas, size, color, badgeFill);
     } else {
-      final eye = _eyeGlyph(isSeeingMe);
+      final eye = _eyeGlyph(isMutuallyVisible);
       if (eye != null) {
         _paintBottomRightIconGlyph(canvas, size, color, eye);
       }
@@ -577,17 +577,17 @@ class _AvatarBadgePainter extends CustomPainter {
     );
   }
 
-  static IconData? _eyeGlyph(bool? isSeeingMe) {
-    if (isSeeingMe == null) {
+  static IconData? _eyeGlyph(bool? isMutuallyVisible) {
+    if (isMutuallyVisible == null) {
       return null;
     }
-    return isSeeingMe ? TenturaIcons.eyeOpen : TenturaIcons.eyeClosed;
+    return isMutuallyVisible ? TenturaIcons.eyeOpen : TenturaIcons.eyeClosed;
   }
 
   @override
   bool shouldRepaint(covariant _AvatarBadgePainter oldDelegate) =>
       oldDelegate.color != color ||
       oldDelegate.badgeFill != badgeFill ||
-      oldDelegate.isSeeingMe != isSeeingMe ||
+      oldDelegate.isMutuallyVisible != isMutuallyVisible ||
       oldDelegate.isMutualFriend != isMutualFriend;
 }

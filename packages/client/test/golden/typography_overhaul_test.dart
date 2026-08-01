@@ -360,6 +360,7 @@ class _ForwardRecipientGoldenBody extends StatelessWidget {
               profile: Profile(
                 id: 'u1',
                 displayName: 'Dmitrii long display name for ellipsis',
+                score: 1,
                 rScore: 1,
               ),
             ),

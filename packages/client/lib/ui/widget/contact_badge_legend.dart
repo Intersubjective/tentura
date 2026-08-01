@@ -27,6 +27,7 @@ class ContactBadgeLegend extends StatelessWidget {
   static const _eyeOpenProfile = Profile(
     id: 'legend-seeing',
     displayName: 'O',
+    score: 1,
     rScore: 1,
   );
 

@@ -29,6 +29,22 @@ void main() {
     expect(const Profile(id: 'closed', score: 50).isSeeingMe, isFalse);
   });
 
+  test('isMutuallyVisible requires both score directions', () {
+    expect(
+      const Profile(id: 'mutual', score: 1, rScore: 1).isMutuallyVisible,
+      isTrue,
+    );
+    expect(
+      const Profile(id: 'in-only', rScore: 1).isMutuallyVisible,
+      isFalse,
+    );
+    expect(
+      const Profile(id: 'out-only', score: 50).isMutuallyVisible,
+      isFalse,
+    );
+    expect(const Profile(id: 'none').isMutuallyVisible, isFalse);
+  });
+
   testWidgets('contact badge legend lists mutual and eye rows', (tester) async {
     await pumpLegend(tester);
 

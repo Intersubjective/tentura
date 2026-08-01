@@ -870,7 +870,7 @@
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
-  "graphLegendNoteTextLabels": "В профиле и списке людей также есть текстовые метки (взаимное, исходящее, входящее, нет) для состояний, которые закрытый глаз объединяет.",
+  "graphLegendNoteTextLabels": "В профиле и списке людей также есть текстовые метки (взаимное, исходящее, входящее, нет). Закрытый глаз объединяет исходящее, входящее и «нет».",
   "@graphLegendNoteTextLabels": {
     "context": "ProfileViewScreen"
   },
@@ -942,7 +942,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Открытый глаз означает, что вы можете переслать этому человеку (положительный обратный балл к вам)",
+  "graphLegendForwardEligible": "Открытый глаз означает, что вы и этот человек видите друг друга и можете пересылать друг другу запросы (положительный MeritRank в обе стороны)",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen"
   },

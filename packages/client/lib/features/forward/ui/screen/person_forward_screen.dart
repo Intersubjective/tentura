@@ -103,7 +103,7 @@ class _PersonForwardBody extends StatelessWidget {
         tt.sectionGap,
       ),
       children: [
-        if (!person.isSeeingMe) ...[
+        if (!person.isMutuallyVisible) ...[
           _UnreachableBanner(personName: person.shownName, personId: person.id),
           SizedBox(height: tt.sectionGap),
         ],
@@ -172,7 +172,7 @@ class _PersonForwardRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final enabled = row.isEligible && (state.person?.isSeeingMe ?? false);
+    final enabled = row.isEligible && (state.person?.isMutuallyVisible ?? false);
     final alreadySent = row.block == PersonForwardBlock.alreadySent;
     final muted = !enabled;
     final subtitle = _rowSubtitle(l10n, row);
@@ -318,7 +318,7 @@ class _NewRequestButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final person = context.select<PersonForwardCubit, bool>(
-      (c) => c.state.person?.isSeeingMe ?? false,
+      (c) => c.state.person?.isMutuallyVisible ?? false,
     );
     return TextButton.icon(
       onPressed: person

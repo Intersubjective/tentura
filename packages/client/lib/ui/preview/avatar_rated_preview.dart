@@ -26,7 +26,7 @@ Widget sampleTenturaAvatarBig() => const TenturaAvatar.big(
   theme: previewThemeData,
 )
 Widget sampleTenturaAvatarMediumEyeOpen() => const TenturaAvatar.medium(
-  profile: Profile(id: '1', displayName: 'Alex Rivera', rScore: 1),
+  profile: Profile(id: '1', displayName: 'Alex Rivera', score: 1, rScore: 1),
   withContactBadge: true,
 );
 

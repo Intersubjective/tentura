@@ -156,7 +156,7 @@ final class ForwardCase extends UseCaseBase {
     final lineageSuggestions = <ForwardCandidate>[];
     for (final s in lineage.suggestions) {
       final profile = profileById[s.userId];
-      if (profile == null || !profile.isSeeingMe) continue;
+      if (profile == null || !profile.isMutuallyVisible) continue;
       lineageSuggestions.add(
         ForwardCandidate(
           profile: profile,

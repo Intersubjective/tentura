@@ -197,7 +197,7 @@ void main() {
     final harness = await _buildHarness(
       involvement: _involvement(_beacon()),
       candidates: const [
-        Profile(id: 'U-target', displayName: 'Target', rScore: 1),
+        Profile(id: 'U-target', displayName: 'Target', score: 1, rScore: 1),
       ],
     );
     addTearDown(() => _disposeHarness(harness));
@@ -226,7 +226,7 @@ void main() {
     final harness = await _buildHarness(
       involvement: _involvement(_beacon()),
       candidates: const [
-        Profile(id: 'U-target', displayName: 'Target', rScore: 1),
+        Profile(id: 'U-target', displayName: 'Target', score: 1, rScore: 1),
       ],
     );
     addTearDown(() => _disposeHarness(harness));

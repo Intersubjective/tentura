@@ -26,5 +26,5 @@ abstract class PersonForwardState extends StateBase with _$PersonForwardState {
       : rows.where((r) => r.beacon.id == selectedBeaconId).firstOrNull;
 
   bool get canSend =>
-      person?.isSeeingMe == true && (selectedRow?.isEligible ?? false);
+      person?.isMutuallyVisible == true && (selectedRow?.isEligible ?? false);
 }

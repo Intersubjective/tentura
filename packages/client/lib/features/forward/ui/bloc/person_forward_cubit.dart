@@ -115,7 +115,7 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
     final person = state.person;
     final row = state.selectedRow;
     if (case_ == null || person == null || row == null) return;
-    if (!person.isSeeingMe || !row.isEligible) return;
+    if (!person.isMutuallyVisible || !row.isEligible) return;
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

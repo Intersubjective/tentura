@@ -126,6 +126,7 @@ _buildHarness({
   Profile person = const Profile(
     id: 'U-target',
     displayName: 'Target',
+    score: 1,
     rScore: 1,
   ),
   List<Beacon> beacons = const [],

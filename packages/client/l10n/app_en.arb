@@ -870,7 +870,7 @@
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
-  "graphLegendNoteTextLabels": "Profile and People lists also show text labels (mutual, one-way out, one-way in, none) for states the closed eye merges.",
+  "graphLegendNoteTextLabels": "Profile and People lists also show text labels (mutual, one-way out, one-way in, none). The closed eye merges one-way out, one-way in, and none.",
   "@graphLegendNoteTextLabels": {
     "context": "ProfileViewScreen"
   },
@@ -942,7 +942,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Open eye means you can forward to this person (positive reverse score toward you)",
+  "graphLegendForwardEligible": "Open eye means you and this person can see each other and forward requests to each other (positive MeritRank both ways)",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen"
   },

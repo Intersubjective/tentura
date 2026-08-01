@@ -11,7 +11,8 @@
 | **Vote-mutual friend** | Both voted for each other: `vote_user.amount > 0` in both directions — used for profile labels and mutual-trust bridge queries; does **not** grant beacon read access |
 | **One-way friend** | You voted for them (`myVote > 0`, `isFriend` in UI) — does **not** grant read access |
 | **MR bidirectional** | MeritRank scores both ways (`src_score > 0` AND `dst_score > 0`) — controls **who appears in the forward picker**, not read access |
-| **MR one-way ("sees me")** | They have positive MR toward you (`rScore > 0`, `isSeeingMe`) — per-recipient **reachability** gate in the picker |
+| **MR one-way ("sees me")** | They have positive MR toward you (`rScore > 0`, `isSeeingMe`) — used for one-way-in text labels only |
+| **MR bidirectional visibility** | MeritRank both ways (`score > 0` AND `rScore > 0`, `isMutuallyVisible`) — open eye badge and per-recipient **reachability** gate in the picker |
 | **Indirect / bridge friend** | You share a mutual friend with someone but are not vote-mutual with them — **no** content access |
 | **Forward recipient** | Active (non-cancelled) `beacon_forward_edge` with `recipient_id = you` |
 | **Forward sender only** | Active edge with `sender_id = you`, no other access path — **not** a read path |
@@ -97,7 +98,7 @@ The **recipient picker** shows users from `rating(where: { src_score > 0, dst_sc
 
 Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 
-- `isReachable` = `profile.isSeeingMe` (`rScore > 0`, i.e. they score you positively)
+- `isReachable` = `profile.isMutuallyVisible` (`score > 0` AND `rScore > 0`, i.e. MeritRank both ways)
 - Excluded: already a forward recipient by you, author, help offerer, declined, withdrawn
 
 | Relationship to recipient R | In picker? | Selectable? |

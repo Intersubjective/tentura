@@ -52,7 +52,12 @@ abstract class Profile with _$Profile implements Likable, Scorable {
 
   bool get isNotFriend => !isFriend;
 
+  /// They have positive MeritRank toward the viewer (one-way).
   bool get isSeeingMe => rScore > 0;
+
+  /// Bidirectional MeritRank: both score each other positively.
+  /// Drives the open/closed eye badge and forward reachability.
+  bool get isMutuallyVisible => score > 0 && rScore > 0;
 
   bool get needEdit => id.isNotEmpty && displayName.isEmpty;
 
