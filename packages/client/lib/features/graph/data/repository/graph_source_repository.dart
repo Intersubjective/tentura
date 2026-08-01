@@ -13,6 +13,7 @@ abstract class GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   });
 
   /// Edges whose both endpoints are already known. Sources that have no notion

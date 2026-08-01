@@ -110,6 +110,7 @@ class _FakeGraphSourceRepository extends GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) async {
     calls += 1;
     return fetchResult?.call() ??

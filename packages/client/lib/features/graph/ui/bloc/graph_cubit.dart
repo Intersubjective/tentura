@@ -122,6 +122,18 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _fetchLimits = <String, int>{};
 
+  /// Neighbor ids already present in [_allEdges] for [focus] (or ego when empty).
+  Set<String> _knownNeighborIdsForFocus(String focus) {
+    final anchor = focus.isEmpty ? _egoNode.id : focus;
+    return {
+      for (final entry in _allEdges.entries)
+        if (entry.key.$1 == anchor)
+          entry.key.$2
+        else if (entry.key.$2 == anchor)
+          entry.key.$1,
+    };
+  }
+
   final _genealogyChildrenCursors = <String, (DateTime, String)>{};
 
   final _genealogyParentChainNodeIds = <String>{};
@@ -590,17 +602,16 @@ class GraphCubit extends Cubit<GraphState> {
       } else {
         // Trust graph: stage neighbourhood outside [_allEdges] until visible-set
         // closure returns so sync recomputes cannot paint unclosed new nodes.
-        final nextLimit =
-            (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize;
+        final excludeNeighborIds = _knownNeighborIdsForFocus(fetchFocus);
         final star = await _graphSource.fetch(
           positiveOnly: state.positiveOnly,
           context: state.context,
           focus: fetchFocus.isEmpty ? null : fetchFocus,
-          limit: nextLimit,
+          limit: kFetchWindowSize,
           viewerUserId: state.me.id,
+          excludeNeighborIds: excludeNeighborIds,
         );
         if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
-        _fetchLimits[limitKey] = nextLimit;
 
         await _resolveEdgeEndpoints(star);
         if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
@@ -633,6 +644,9 @@ class GraphCubit extends Cubit<GraphState> {
 
         _mergeEdgesIntoCache(star);
         _mergeEdgesIntoCache(closure);
+        if (limitKey.isNotEmpty) {
+          _fetchLimits[limitKey] = 1;
+        }
         emit(state.copyWith(status: StateStatus.isSuccess));
         loadingOwned = false;
         _recomputeVisibility();

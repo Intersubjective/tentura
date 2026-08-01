@@ -188,6 +188,7 @@ class InviteGenealogyRepository extends RemoteRepository
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) => throw UnsupportedError(
     'InviteGenealogyRepository only supports fetchGenealogyBootstrap/fetchChildren '
     'via GraphCubit(genealogyMode: true); the generic '

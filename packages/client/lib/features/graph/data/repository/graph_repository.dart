@@ -9,7 +9,10 @@ import 'package:tentura/data/repository/remote_repository.dart';
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
 
+import '../gql/_g/graph_fetch.data.gql.dart';
 import '../gql/_g/graph_fetch.req.gql.dart';
+import '../gql/_g/graph_fetch_with_exclude.data.gql.dart';
+import '../gql/_g/graph_fetch_with_exclude.req.gql.dart';
 import '../gql/_g/graph_edges_between.req.gql.dart';
 import 'graph_source_repository.dart';
 
@@ -29,14 +32,33 @@ class GraphRepository extends RemoteRepository
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) async {
+    final focusVal = focus ?? '';
+    final useExclude =
+        focusVal.isNotEmpty && excludeNeighborIds.isNotEmpty;
+    if (useExclude) {
+      final data = await requestDataOnlineOrThrow(
+        GGraphFetchWithExcludeReq(
+          (b) => b
+            ..vars.focus = focusVal
+            ..vars.exclude_ids.replace(excludeNeighborIds.toList())
+            ..vars.limit = limit
+            ..vars.offset = offset
+            ..vars.context = context
+            ..vars.positive_only = positiveOnly,
+        ),
+        label: _label,
+      );
+      return _edgesFromGraphFetchWithExclude(data);
+    }
     final data = await requestDataOnlineOrThrow(
       GGraphFetchReq(
         (b) => b
           // ..context = const Context().withEntry(
           //   HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
           // )
-          ..vars.focus = focus ?? ''
+          ..vars.focus = focusVal
           ..vars.limit = limit
           ..vars.offset = offset
           ..vars.context = context
@@ -44,36 +66,87 @@ class GraphRepository extends RemoteRepository
       ),
       label: _label,
     );
+    return _edgesFromGraphFetch(data);
+  }
+
+  Set<EdgeDirected> _edgesFromGraphFetch(GGraphFetchData data) {
     final beacon = data.beacon_by_pk;
     final result = <EdgeDirected>{};
     for (final e in data.graph) {
-      final weight = e.dst_score!;
-      final user = e.user;
-      if (user == null) {
-        if (beacon != null && e.dst == beacon.id) {
-          result.add((
-            src: e.src!,
-            dst: e.dst!,
-            weight: weight,
-            node: BeaconNode(beacon: (beacon as BeaconModel).toEntity()),
-            branch: null,
-            srcTotalNeighborCount: e.src_total_neighbor_count,
-            dstTotalNeighborCount: e.dst_total_neighbor_count,
-          ));
-        }
-      } else {
-        result.add((
-          src: e.src!,
-          dst: e.dst!,
-          weight: weight,
-          node: UserNode(user: (user as UserModel).toEntity()),
-          branch: null,
-          srcTotalNeighborCount: e.src_total_neighbor_count,
-          dstTotalNeighborCount: e.dst_total_neighbor_count,
-        ));
-      }
+      _addGraphEdgeRow(
+        result: result,
+        src: e.src,
+        dst: e.dst,
+        dstScore: e.dst_score,
+        user: e.user,
+        beaconId: beacon?.id,
+        beaconModel: beacon,
+        srcTotalNeighborCount: e.src_total_neighbor_count,
+        dstTotalNeighborCount: e.dst_total_neighbor_count,
+      );
     }
     return result;
+  }
+
+  Set<EdgeDirected> _edgesFromGraphFetchWithExclude(
+    GGraphFetchWithExcludeData data,
+  ) {
+    final beacon = data.beacon_by_pk;
+    final result = <EdgeDirected>{};
+    for (final e in data.graph) {
+      _addGraphEdgeRow(
+        result: result,
+        src: e.src,
+        dst: e.dst,
+        dstScore: e.dst_score,
+        user: e.user,
+        beaconId: beacon?.id,
+        beaconModel: beacon,
+        srcTotalNeighborCount: e.src_total_neighbor_count,
+        dstTotalNeighborCount: e.dst_total_neighbor_count,
+      );
+    }
+    return result;
+  }
+
+  void _addGraphEdgeRow({
+    required Set<EdgeDirected> result,
+    required String? src,
+    required String? dst,
+    required double? dstScore,
+    required dynamic user,
+    required String? beaconId,
+    required dynamic beaconModel,
+    required int? srcTotalNeighborCount,
+    required int? dstTotalNeighborCount,
+  }) {
+    final weight = dstScore;
+    if (src == null || dst == null || weight == null) {
+      return;
+    }
+    if (user == null) {
+      if (beaconModel != null && dst == beaconId) {
+        result.add((
+          src: src,
+          dst: dst,
+          weight: weight,
+          node: BeaconNode(beacon: (beaconModel as BeaconModel).toEntity()),
+          branch: null,
+          srcTotalNeighborCount: srcTotalNeighborCount,
+          dstTotalNeighborCount: dstTotalNeighborCount,
+        ));
+      }
+      return;
+    }
+    result.add((
+      src: src,
+      dst: dst,
+      weight: weight,
+      node: UserNode(user: (user as UserModel).toEntity()),
+      branch: null,
+      srcTotalNeighborCount: srcTotalNeighborCount,
+      dstTotalNeighborCount: dstTotalNeighborCount,
+    ));
   }
 
   /// Structural closure: every trust edge whose **both** endpoints are in [nodeIds].

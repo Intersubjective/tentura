@@ -33,6 +33,7 @@ class _WidgetTestGraphSource extends GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) async => pages[focus] ?? const {};
 }
 

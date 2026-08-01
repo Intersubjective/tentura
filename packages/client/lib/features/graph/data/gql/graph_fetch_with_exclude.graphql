@@ -1,0 +1,51 @@
+# import '/data/gql/beacon_model.graphql'
+# import '/data/gql/user_model.graphql'
+
+query GraphFetchWithExclude(
+    $focus: String!,
+    $exclude_ids: [String!]!,
+    $context: String,
+    $positive_only: Boolean = true,
+    $offset: Int = 0,
+    $limit: Int = 10
+  ) {
+  graph(
+    args: {
+      focus: $focus,
+      context: $context,
+      positive_only: $positive_only
+      },
+    order_by: {dst_score: desc},
+    offset: $offset,
+    limit: $limit,
+    where: {
+      _or: [
+        {
+          _and: [
+            {src: {_eq: $focus}},
+            {dst: {_nin: $exclude_ids}}
+          ]
+        },
+        {
+          _and: [
+            {dst: {_eq: $focus}},
+            {src: {_nin: $exclude_ids}}
+          ]
+        }
+      ]
+    }
+  ) {
+    src
+    dst
+    src_score
+    dst_score
+    src_total_neighbor_count
+    dst_total_neighbor_count
+    user {
+      ...UserModel
+    }
+  }
+  beacon_by_pk(id: $focus) {
+    ...BeaconModel
+  }
+}

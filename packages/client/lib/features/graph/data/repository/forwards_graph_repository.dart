@@ -107,6 +107,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) async {
     final beaconId = focus;
     if (beaconId == null || beaconId.isEmpty) {

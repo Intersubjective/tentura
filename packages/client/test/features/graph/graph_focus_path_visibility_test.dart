@@ -33,8 +33,38 @@ class _FakeGraphSource implements GraphSourceRepository {
 
   int calls = 0;
   int closureCalls = 0;
-  final callLog = <({String? focus, String context})>[];
+  final callLog = <({String? focus, String context, Set<String> exclude})>[];
   final closureLog = <Set<String>>[];
+
+  static Set<EdgeDirected> _filterExcluded(
+    String? focus,
+    Set<EdgeDirected> edges,
+    Set<String> excludeNeighborIds,
+  ) {
+    if (excludeNeighborIds.isEmpty || focus == null || focus.isEmpty) {
+      return edges;
+    }
+    return {
+      for (final e in edges)
+        if (!_isExcludedNeighbor(e, focus, excludeNeighborIds)) e,
+    };
+  }
+
+  static bool _isExcludedNeighbor(
+    EdgeDirected e,
+    String focus,
+    Set<String> exclude,
+  ) {
+    final other = e.src == focus
+        ? e.dst
+        : e.dst == focus
+        ? e.src
+        : null;
+    if (other == null) {
+      return false;
+    }
+    return exclude.contains(other);
+  }
 
   @override
   Future<Set<EdgeDirected>> fetch({
@@ -44,14 +74,19 @@ class _FakeGraphSource implements GraphSourceRepository {
     int offset = 0,
     int limit = 5,
     String? viewerUserId,
+    Set<String> excludeNeighborIds = const {},
   }) async {
     calls += 1;
-    callLog.add((focus: focus, context: context));
+    callLog.add((
+      focus: focus,
+      context: context,
+      exclude: Set<String>.from(excludeNeighborIds),
+    ));
     final custom = onFetch;
-    if (custom != null) {
-      return custom(focus, context);
-    }
-    return pages[focus] ?? const {};
+    final raw = custom != null
+        ? custom(focus, context)
+        : pages[focus] ?? const {};
+    return _filterExcluded(focus, raw, excludeNeighborIds);
   }
 
   @override
@@ -572,6 +607,45 @@ void main() {
       // old context's edges leaked into _allEdges they would resurface here.
       expect(_nodeIds(cubit), {'Ume', 'Ud'});
       expect(_edgePairs(cubit), {('Ume', 'Ud')});
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'first expand on a chord node excludes already-known neighbors',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub', dstTotal: 2)},
+          'Ub': {
+            _e('Ub', 'Uc', srcTotal: 3, dstTotal: 2),
+            _e('Ub', 'Ud', srcTotal: 3, dstTotal: 1),
+          },
+          'Uc': {
+            _e('Uc', 'Ue', srcTotal: 3, dstTotal: 1),
+            _e('Uc', 'Uf', srcTotal: 3, dstTotal: 1),
+          },
+        })
+        ..closureEdges = {_e('Uc', 'Ud')};
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(_nodeIds(cubit), containsAll({'Ume', 'Ub', 'Uc', 'Ud'}));
+
+      final callsBeforeExpandC = source.calls;
+      cubit.expandNode(_liveNode(cubit, 'Uc'));
+      await _settle();
+
+      expect(source.calls, callsBeforeExpandC + 1);
+      expect(
+        source.callLog.last.exclude,
+        containsAll({'Ub', 'Ud'}),
+      );
+      expect(_nodeIds(cubit), containsAll({'Ue', 'Uf'}));
 
       await cubit.close();
     },
