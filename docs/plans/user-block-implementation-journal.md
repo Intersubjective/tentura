@@ -41,7 +41,7 @@ Phase 1 — schema:
 Phase 2 — server data & domain:
 - [x] S3 — UserBlockRepositoryPort + repository — deps: S2
 - [x] S4 — UserBlockCase + cleanup orchestration — deps: S3
-- [ ] S5 — V2 GraphQL API — deps: S4
+- [x] S5 — V2 GraphQL API — deps: S4
 
 Phase 3 — enforcement:
 - [ ] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
@@ -226,3 +226,33 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   **Verification:** `dart test test/domain/use_case/user_block_case_test.dart` → 9
   passed; `dart test -x pg` → 1110 passed; `dart analyze` exit 0; domain→repository
   import rg empty.
+- 2026-08-02 (S5 in progress): V2 GraphQL API — mutations + queries per §6.8.
+- 2026-08-02 (S5 complete): V2 GraphQL API for user blocking.
+  **Writes via `UserBlockCase`:** `userBlock`, `userUnblock`, `userBlockPromote`
+  (`mutation_user_block.dart`); added thin `promoteToDirect` delegate on the case
+  (metadata-only, no cleanup — mirrors `unblock` UoW wrapping).
+  **Reads via resolver + ports (not use case):** `myBlocks`, `blockInherited`,
+  `blockPreview` (`query_user_block.dart`) inject `UserBlockRepositoryPort` +
+  `UserProfileBatchLookup` directly — matches `query_forward_reasons.dart` /
+  `query_coordination_item.dart` precedent for single-repo reads; enrichment
+  (intent → blocked `UserPublic` profile) stays in the API layer because it is
+  GraphQL-shape assembly, not domain orchestration.
+  **Argument naming:** `objectId` for the blocked user (matches
+  `mutation_user_vote.dart`; contacts use `subjectUserId` for a different
+  semantic). `cascadeMode` optional, defaults to `0` at resolver via
+  `InputFieldInt.fromArgs(args) ?? 0`.
+  **`BlockIntent` enrichment:** `listIntents` supplies
+  `cascadeMode`/`cascadeStatus`/`materializedCount`; resolver batch-fetches
+  profiles via `userPublicRecordsByIds`; `inheritedCount` =
+  `materializedCount`, `cascadePending` = status ∈ {0,1}, `cascadeCapped` =
+  status == 3. Intents whose blocked user row is missing are omitted.
+  **`blockInherited`:** `listInherited` + `userPublicToGqlMap` (reuses
+  `gqlTypeUserPublic`, not a new type).
+  **New GraphQL types:** `BlockIntent`, `BlockPreview` in `custom_types.dart`.
+  **Security:** all resolvers use `getCredentials(args).sub` only — no blocker
+  id argument exists; tests pass a spoof `blockerId` arg and assert the
+  repository/case still receives JWT `sub`.
+  **Verification:** `dart test test/api/controllers/graphql/user_block_graphql_test.dart`
+  → 10 passed; `dart test -x pg` → 1120 passed; `dart analyze` exit 0;
+  `rg … packages/server/lib/domain` empty.
+  **Commits:** (see S5 exit summary).
