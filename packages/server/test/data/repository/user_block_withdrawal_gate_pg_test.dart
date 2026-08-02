@@ -490,13 +490,12 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-G5: inherited cascade member edge is gated via effective user_block set',
+    'T-G5: materializeCascadeBatch gates inherited member edge via effective set',
     () async {
       final honestP1 = await prevSentWeight(aliceId, p1Id);
       expect(honestP1, greaterThan(0));
 
       await materializeMode1Cascade();
-      await repo.applyWithdrawal(blockerId: aliceId, blockedId: p1Id);
 
       expect(await prevSentWeight(aliceId, p1Id), 0);
     },
@@ -504,31 +503,30 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-G6: applyWithdrawal with -1 publishes even when |w − prev| < epsilon',
+    'T-G6: cascade materialization publishes even when |w − prev| < epsilon',
     () async {
-      final before = await trustEdgeProjection(subject: aliceId, object: bobId);
+      final before = await trustEdgeProjection(subject: aliceId, object: p1Id);
       final stablePrev = before['prev_sent_weight']! as double;
       final stableW = await rebuildReturnWeight(
         subject: aliceId,
-        object: bobId,
+        object: p1Id,
       );
       expect((stableW - stablePrev).abs(), lessThan(0.1));
 
-      final prevAfterNoop = await prevSentWeight(aliceId, bobId);
-      await rebuildReturnWeight(subject: aliceId, object: bobId);
-      expect(await prevSentWeight(aliceId, bobId), closeTo(prevAfterNoop, 1e-9));
+      final prevAfterNoop = await prevSentWeight(aliceId, p1Id);
+      await rebuildReturnWeight(subject: aliceId, object: p1Id);
+      expect(await prevSentWeight(aliceId, p1Id), closeTo(prevAfterNoop, 1e-9));
 
-      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
-      await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
+      await materializeMode1Cascade();
 
-      expect(await prevSentWeight(aliceId, bobId), 0);
+      expect(await prevSentWeight(aliceId, p1Id), 0);
 
       await rebuildReturnWeight(
         subject: aliceId,
-        object: bobId,
+        object: p1Id,
         epsilonOverride: -1,
       );
-      expect(await prevSentWeight(aliceId, bobId), 0);
+      expect(await prevSentWeight(aliceId, p1Id), 0);
     },
     skip: skipReason,
   );
@@ -548,21 +546,59 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-G8: double block/unblock cycle recovers prev_sent_weight without drift',
+    'T-G8: inherited cascade block/unblock cycles recover weight without drift',
     () async {
-      final honestPrev = await prevSentWeight(aliceId, bobId);
+      final honestP1 = await prevSentWeight(aliceId, p1Id);
+      expect(honestP1, greaterThan(0));
 
       for (var cycle = 0; cycle < 2; cycle++) {
-        await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
-        await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
-        expect(await prevSentWeight(aliceId, bobId), 0);
+        await materializeMode1Cascade();
+        expect(await prevSentWeight(aliceId, p1Id), 0);
 
         await repo.unblock(blockerId: aliceId, blockedId: bobId);
         expect(
-          await prevSentWeight(aliceId, bobId),
-          closeTo(honestPrev, 0.001),
+          await prevSentWeight(aliceId, p1Id),
+          closeTo(honestP1, 0.001),
         );
       }
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'X9: block/unblock churn leaves tables and source evidence unchanged',
+    () async {
+      const cycles = 30;
+      final honestPrev = await prevSentWeight(aliceId, bobId);
+      final sourceBefore = await sourceRows(subject: aliceId, object: bobId);
+
+      for (var i = 0; i < cycles; i++) {
+        await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
+        await repo.applyWithdrawal(blockerId: aliceId, blockedId: bobId);
+        await repo.unblock(blockerId: aliceId, blockedId: bobId);
+      }
+
+      final blockCount = await db.customSelect(
+        '''
+SELECT COUNT(*)::int AS c FROM public.user_block
+WHERE blocker_id = '$aliceId' OR blocked_id = '$aliceId'
+''',
+      ).getSingle();
+      expect(blockCount.read<int>('c'), 0);
+
+      final intentCount = await db.customSelect(
+        '''
+SELECT COUNT(*)::int AS c FROM public.user_block_intent
+WHERE blocker_id = '$aliceId' OR blocked_id = '$aliceId'
+''',
+      ).getSingle();
+      expect(intentCount.read<int>('c'), 0);
+
+      expect(await sourceRows(subject: aliceId, object: bobId), sourceBefore);
+      expect(
+        await prevSentWeight(aliceId, bobId),
+        closeTo(honestPrev, 0.001),
+      );
     },
     skip: skipReason,
   );

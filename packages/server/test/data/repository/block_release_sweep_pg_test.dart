@@ -414,7 +414,6 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   test(
     'T-F5: released pair republishes honest trust weight via trust_rebuild',
     () async {
-      await materializeMode1Cascade();
       final honestRow = await db.customSelect(
         '''
 SELECT prev_sent_weight
@@ -425,12 +424,16 @@ WHERE subject = '$aliceId' AND object = '$p1Id'
       final honestWeight = honestRow.read<double>('prev_sent_weight');
       expect(honestWeight, greaterThan(0));
 
-      await db.customStatement(
-        '''
-UPDATE public.user_trust_edge
-SET prev_sent_weight = 0
+      await materializeMode1Cascade();
+      expect(
+        await db.customSelect(
+          '''
+SELECT prev_sent_weight
+FROM public.user_trust_edge
 WHERE subject = '$aliceId' AND object = '$p1Id'
 ''',
+        ).map((r) => r.read<double>('prev_sent_weight')).getSingle(),
+        0,
       );
 
       await insertMutualVote(p1Id, veraId);

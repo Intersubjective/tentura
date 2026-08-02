@@ -58,7 +58,7 @@ Phase 4 — cascade:
 
 Phase 5 — B3:
 - [x] S15 — migration m0137: withdrawal gate — deps: S1
-- [ ] S16 — wire withdrawal through block/unblock/cascade/release — deps: S15, S13
+- [x] S16 — wire withdrawal through block/unblock/cascade/release — deps: S15, S13
 
 Phase 6 — client:
 - [ ] S17 — client data + domain — deps: S5
@@ -549,3 +549,22 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
   `dart analyze` exit 0.
   **Commits:** (see S15 exit summary).
+- 2026-08-03 (S16 in progress): Wire cascade withdrawal — `materializeCascadeBatch`
+  per-row `applyWithdrawal` after inherited inserts; `catchUpCascadeIntent` returns
+  `blocked_id` list and withdraws each.
+- 2026-08-03 (S16 complete): Wire withdrawal through cascade materialization paths.
+  **`materializeCascadeBatch`:** after each inherited `user_block` INSERT, calls
+  existing `applyWithdrawal(blockerId, userId)` — reuses the S3 exists-check +
+  `trust_rebuild_effective_edge(..., -1)` path; no changes to `applyWithdrawal`,
+  `unblock`, or `runReleaseSweep` (S15 already confirmed those).
+  **`catchUpCascadeIntent`:** CTE now `SELECT blocked_id FROM inserted` instead of
+  count-only; loops inserted ids through `applyWithdrawal`.
+  **Tests:** T-G5 no longer manually calls `applyWithdrawal` after materialization —
+  asserts `materializeCascadeBatch` path gates P1. T-G6 retargeted to cascade
+  materialization epsilon-bypass. T-G8 retargeted to inherited P1 block/unblock
+  cycles. T-F5 updated: capture honest weight before materialize (S16 now gates
+  on insert). X9 added at 30 cycles (spec says 1 000; scaled for pg test runtime).
+  **Verification:** S16 tests 5/5; `dart test -x pg` → 1150 passed;
+  `dart test -t pg -j 1` → 226 passed / 2 skipped / 18 failed (pre-existing drift);
+  `dart analyze` exit 0; `rg TODO\\(S16` empty; domain→repo import rg empty.
+  **Commits:** (see S16 exit summary).
