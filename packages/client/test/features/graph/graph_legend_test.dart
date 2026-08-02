@@ -80,6 +80,18 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   bool canExpandNode(String id) => false;
 
   @override
+  bool canPageMore(String id) => false;
+
+  @override
+  bool isCurrentFocus(String id) => false;
+
+  @override
+  void handleNodeTap(NodeDetails node) {}
+
+  @override
+  bool hasEverFocused(String id) => false;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
 }

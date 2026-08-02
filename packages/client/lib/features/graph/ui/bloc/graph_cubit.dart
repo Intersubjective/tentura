@@ -86,6 +86,9 @@ class GraphCubit extends Cubit<GraphState> {
        ) {
     _pinnedNodeIds.add(_egoNode.id);
     _focusPathIds.add(_egoNode.id);
+    if (!genealogyMode) {
+      _everFocusedIds.add(_egoNode.id);
+    }
     unawaited(_fetch());
   }
 
@@ -145,6 +148,10 @@ class GraphCubit extends Cubit<GraphState> {
   final _pinnedNodeIds = <String>{};
 
   final _focusPathIds = <String>[];
+
+  /// Nodes that have been focus at least once this session (plus seeded
+  /// genealogy parent-chain). Used to distinguish explore vs rollback taps.
+  final _everFocusedIds = <String>{};
 
   String _forwardsAuthorId = '';
 
@@ -210,9 +217,17 @@ class GraphCubit extends Cubit<GraphState> {
     unawaited(Future.value(graphController.jumpToNode(node)));
   }
 
-  /// True when a tap should run one [expandNode] to nudge further exploration
-  /// (hidden neighbours remain, or this node has never been fetched as focus).
-  bool canExpandNode(String id) {
+  /// True when [id] owns the active spotlight (including trust overview).
+  bool isCurrentFocus(String id) {
+    if (state.focus == id) {
+      return true;
+    }
+    return _isTrustGraph && state.focus.isEmpty && id == _focusRootId;
+  }
+
+  /// True when the current focus can page in another neighbourhood window.
+  /// Only meaningful for [isCurrentFocus] nodes and the Expand control.
+  bool canPageMore(String id) {
     if (forwardsGraphBeaconId != null) {
       return false;
     }
@@ -220,14 +235,19 @@ class GraphCubit extends Cubit<GraphState> {
     if (hidden > 0) {
       return true;
     }
-    if (genealogyMode) {
-      return false;
-    }
-    if (id == _focusRootId) {
+    if (genealogyMode || id == _focusRootId) {
       return false;
     }
     return !_fetchLimits.containsKey(id);
   }
+
+  /// Whether [id] has been focused before (rollback taps select only).
+  @visibleForTesting
+  bool hasEverFocused(String id) => _everFocusedIds.contains(id);
+
+  /// @deprecated Use [isCurrentFocus], [canPageMore], and [handleNodeTap].
+  @Deprecated('Use isCurrentFocus, canPageMore, and handleNodeTap')
+  bool canExpandNode(String id) => canPageMore(id);
 
   /// Highlights [node] on the graph and updates the exploration trail.
   /// Never pages neighbourhood — use [expandNode]. May request structural
@@ -239,6 +259,7 @@ class GraphCubit extends Cubit<GraphState> {
     if (state.focus == node.id) {
       return;
     }
+    _everFocusedIds.add(node.id);
     emit(state.copyWith(focus: node.id));
     _updateFocusPath(node.id);
     if (_usesFocusPathVisibility) {
@@ -252,14 +273,39 @@ class GraphCubit extends Cubit<GraphState> {
 
   /// Selects [node] when needed, then pages in the next neighbourhood window.
   Future<void> expandNode(NodeDetails node) async {
-    if (state.focus != node.id) {
+    final trustOverviewPaging =
+        _isTrustGraph &&
+        state.focus.isEmpty &&
+        node.id == _focusRootId;
+    if (!trustOverviewPaging && state.focus != node.id) {
       // Skip select-time ensure: [_fetch] closes over the staged neighbourhood
       // before the first paint of new nodes.
       selectNode(node, ensureStructuralEdges: false);
+    } else {
+      _everFocusedIds.add(node.id);
     }
     if (forwardsGraphBeaconId == null) {
       await _fetch();
     }
+  }
+
+  /// Routes a node tap by explore / rollback intent (trust + genealogy).
+  void handleNodeTap(NodeDetails node) {
+    if (forwardsGraphBeaconId != null) {
+      selectNode(node);
+      return;
+    }
+    if (isCurrentFocus(node.id)) {
+      if (canPageMore(node.id)) {
+        unawaited(expandNode(node));
+      }
+      return;
+    }
+    if (_everFocusedIds.contains(node.id)) {
+      selectNode(node);
+      return;
+    }
+    unawaited(expandNode(node));
   }
 
   /// Steps one hop back along the exploration trail. Does not page
@@ -417,6 +463,12 @@ class GraphCubit extends Cubit<GraphState> {
       ..add(rootId);
   }
 
+  void _seedGenealogyEverFocused() {
+    _everFocusedIds
+      ..addAll(_genealogyParentChainNodeIds)
+      ..add(_focusRootId);
+  }
+
   ///
   ///
   Future<void> setContext(String? context) {
@@ -437,6 +489,9 @@ class GraphCubit extends Cubit<GraphState> {
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
+    _everFocusedIds
+      ..clear()
+      ..add(_egoNode.id);
     _focusPathIds
       ..clear()
       ..add(_egoNode.id);
@@ -549,6 +604,7 @@ class GraphCubit extends Cubit<GraphState> {
           _genealogyParentChainNodeIds.addAll(
             graph.nodes.map((node) => node.nodeKey),
           );
+          _seedGenealogyEverFocused();
           _preloadGenealogyNodes(graph.nodes);
           await _fetchGenealogyChildCounts(
             source,
