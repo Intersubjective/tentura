@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/entity/invite_accepted_notification_intent
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -29,7 +30,8 @@ final class InvitationCase extends UseCaseBase {
     this._friendshipLookup,
     this._contactRepository,
     this._guard,
-    this._forwardEdgeRepository, {
+    this._forwardEdgeRepository,
+    this._userBlockRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -50,6 +52,8 @@ final class InvitationCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+
+  final UserBlockRepositoryPort _userBlockRepository;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -237,6 +241,12 @@ final class InvitationCase extends UseCaseBase {
     if (invitation == null) {
       throw IdNotFoundException(id: invitationId);
     }
+    if (await _userBlockRepository.isBlockedPair(
+      a: userId,
+      b: invitation.issuer.id,
+    )) {
+      throw IdNotFoundException(id: invitationId);
+    }
     return _acceptAndRecord(
       invitation: invitation,
       userId: userId,
@@ -255,6 +265,12 @@ final class InvitationCase extends UseCaseBase {
   }) async {
     final invitation = await _invitationRepository.getById(invitationId: code);
     if (invitation == null) {
+      throw IdNotFoundException(id: code);
+    }
+    if (await _userBlockRepository.isBlockedPair(
+      a: userId,
+      b: invitation.issuer.id,
+    )) {
       throw IdNotFoundException(id: code);
     }
     if (invitation.issuer.id == userId) {

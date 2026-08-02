@@ -8,10 +8,12 @@ import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'fake_beacon_access_guard.dart';
+import 'fake_user_block_repository.dart';
 import 'test_attention_harness.dart';
 
 InvitationCase buildTestInvitationCase({
@@ -22,6 +24,7 @@ InvitationCase buildTestInvitationCase({
   required UserContactRepositoryPort contactRepo,
   ForwardEdgeRepositoryPort? forwardEdgeRepo,
   FakeBeaconAccessGuard? guard,
+  UserBlockRepositoryPort? userBlockRepository,
   TestAttentionHarness? attention,
   Env? env,
   Logger? logger,
@@ -35,6 +38,7 @@ InvitationCase buildTestInvitationCase({
     contactRepo,
     guard ?? FakeBeaconAccessGuard(),
     _NoopForwardEdgeRepositoryPort(forwardEdgeRepo),
+    userBlockRepository ?? FakeUserBlockRepository(),
     attentionIntents: attentionHarness.intents,
     attention: attentionHarness.transactional,
     env: env ?? Env(environment: Environment.test),

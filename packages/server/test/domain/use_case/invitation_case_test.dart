@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/fake_user_block_repository.dart';
 import '../../support/test_attention_harness.dart';
 
 void main() {
@@ -24,6 +25,7 @@ void main() {
   late MockVoteUserFriendshipLookupPort friendshipLookup;
   late MockUserContactRepositoryPort contactRepo;
   late FakeBeaconAccessGuard guard;
+  late FakeUserBlockRepository userBlocks;
   late TestAttentionHarness attention;
   late InvitationCase case_;
 
@@ -68,6 +70,7 @@ void main() {
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
     guard = FakeBeaconAccessGuard();
+    userBlocks = FakeUserBlockRepository();
     attention = TestAttentionHarness();
     case_ = buildTestInvitationCase(
       invitationRepo: invitationRepo,
@@ -76,6 +79,7 @@ void main() {
       friendshipLookup: friendshipLookup,
       contactRepo: contactRepo,
       guard: guard,
+      userBlockRepository: userBlocks,
       attention: attention,
       env: Env(environment: Environment.test),
       logger: Logger('InvitationCaseTest'),
@@ -341,6 +345,33 @@ void main() {
             ),
       );
     });
+
+    test('blocked issuer -> IdNotFoundException (A blocked B)', () async {
+      stubGetById(invitation());
+      userBlocks.blockPair(issuerId, 'Ustranger');
+
+      await expectLater(
+        case_.accept(invitationId: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+      verifyNever(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+          bindFriendship: anyNamed('bindFriendship'),
+        ),
+      );
+    });
+
+    test('blocked issuer -> IdNotFoundException (B blocked A)', () async {
+      stubGetById(invitation());
+      userBlocks.blockPair('Ustranger', issuerId);
+
+      await expectLater(
+        case_.accept(invitationId: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+    });
   });
 
   group('InvitationCase.acceptAsExisting', () {
@@ -375,6 +406,26 @@ void main() {
           invitationId: anyNamed('invitationId'),
           userId: anyNamed('userId'),
         ),
+      );
+    });
+
+    test('blocked issuer -> IdNotFoundException (A blocked B)', () async {
+      stubGetById(invitation());
+      userBlocks.blockPair(issuerId, 'Ustranger');
+
+      await expectLater(
+        case_.acceptAsExisting(code: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+    });
+
+    test('blocked issuer -> IdNotFoundException (B blocked A)', () async {
+      stubGetById(invitation());
+      userBlocks.blockPair('Ustranger', issuerId);
+
+      await expectLater(
+        case_.acceptAsExisting(code: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
       );
     });
 
