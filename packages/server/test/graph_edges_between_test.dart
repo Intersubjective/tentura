@@ -170,13 +170,16 @@ Future<List<_GraphEdgeRow>> _queryEdgesBetween(
   TenturaDb db,
   List<String> nodeIds, {
   bool positiveOnly = true,
+  String? viewerId,
 }) async {
   final arrayLiteral =
       'ARRAY[${nodeIds.map((id) => "'$id'").join(', ')}]::text[]';
+  final sessionViewer = viewerId ?? nodeIds.first;
+  final sessionJson = '{"x-hasura-user-id": "$sessionViewer"}';
   final rows = await db.customSelect(
     '''
 SELECT src, dst, dst_score
-FROM public.graph_edges_between($arrayLiteral, $positiveOnly)
+FROM public.graph_edges_between($arrayLiteral, $positiveOnly, '$sessionJson'::json)
 ORDER BY src, dst
 ''',
   ).get();
@@ -272,6 +275,7 @@ FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public'
   AND p.proname = 'graph_edges_between'
+  AND p.pronargs = 3
 LIMIT 1
 ''',
   ).getSingleOrNull();
