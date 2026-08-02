@@ -22,6 +22,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/test_attention_harness.dart';
+import '../../support/fake_user_block_repository.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -40,6 +41,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   bool isAuthor = false;
   bool isSteward = false;
+  String? authorUserId;
   BeaconParticipantRecord? participant;
   BeaconRoomMessageRecord? messageById;
   BeaconRoomMessageRecord? replyMessage;
@@ -67,6 +69,9 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String userId,
   }) async => participant;
+
+  @override
+  Future<String?> beaconAuthorUserId(String beaconId) async => authorUserId;
 
   @override
   Future<int> countRecentMessagesByAuthor({
@@ -145,6 +150,7 @@ void main() {
   late _StubItems items;
   late _StubRoom room;
   late BeaconRoomCase sut;
+  late FakeUserBlockRepository userBlocks;
   late TestAttentionHarness attention;
 
   setUp(() {
@@ -163,6 +169,7 @@ void main() {
         createdAt: DateTime.utc(2026),
       );
     attention = TestAttentionHarness();
+    userBlocks = FakeUserBlockRepository();
     sut = BeaconRoomCase(
       room,
       items,
@@ -171,6 +178,7 @@ void main() {
       _FakeRemoteStorage(),
       _FakePolling(),
       _FakeUploadQuota(),
+      userBlocks,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(
@@ -600,6 +608,33 @@ void main() {
         );
       },
     );
+  });
+
+  group('createMessage — blocked sender vs beacon author (E5)', () {
+    const authorId = 'Uauthor000001';
+
+    setUp(() {
+      room.authorUserId = authorId;
+    });
+
+    test('rejects when sender blocked author', () async {
+      userBlocks.blockPair(_userId, authorId);
+
+      await expectLater(
+        sut.createMessage(beaconId: _beaconId, userId: _userId, body: 'hi'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(room.insertedBody, isNull);
+    });
+
+    test('rejects when author blocked sender', () async {
+      userBlocks.blockPair(authorId, _userId);
+
+      await expectLater(
+        sut.createMessage(beaconId: _beaconId, userId: _userId, body: 'hi'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+    });
   });
 }
 

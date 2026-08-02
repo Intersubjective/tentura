@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 import '../../support/coordination_item_record_fixtures.dart';
+import '../../support/fake_user_block_repository.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? itemById;
@@ -49,6 +50,9 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     required String beaconId,
     required String userId,
   }) async => null;
+
+  @override
+  Future<String?> beaconAuthorUserId(String beaconId) async => null;
 
   @override
   Future<List<Map<String, Object?>>> listMessagesEnriched({
@@ -122,6 +126,7 @@ void main() {
       FakeRemoteStorage(),
       FakePollingRepository(),
       FakeUploadQuota(),
+      FakeUserBlockRepository(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomCasePlanThreadTest'),
     );
@@ -186,6 +191,7 @@ void main() {
         FakeRemoteStorage(),
         FakePollingRepository(),
         FakeUploadQuota(),
+        FakeUserBlockRepository(),
         env: Env(environment: Environment.test, roomMessageMaxPerUser: 5),
         logger: Logger('BeaconRoomCaseRateLimitTest'),
       );

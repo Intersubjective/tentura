@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/fake_user_block_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -298,6 +299,7 @@ void main() {
       coordinationRepo,
       roomRepo,
       evalRepo,
+      FakeUserBlockRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
@@ -325,6 +327,7 @@ void main() {
         coordinationRepo,
         roomRepo,
         evalRepo,
+        FakeUserBlockRepository(),
         attentionIntents: attention.intents,
         attention: attention.transactional,
         guard: FakeBeaconAccessGuard(),

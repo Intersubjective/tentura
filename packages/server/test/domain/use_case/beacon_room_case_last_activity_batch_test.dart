@@ -16,6 +16,8 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_user_block_repository.dart';
+
 class _FakeItems extends Fake implements CoordinationItemRepositoryPort {}
 
 class _BatchStubRoom extends Fake implements BeaconRoomRepositoryPort {
@@ -61,6 +63,7 @@ void main() {
       FakeRemoteStorage(),
       FakePollingRepository(),
       FakeUploadQuota(),
+      FakeUserBlockRepository(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomCaseBatchTest'),
     );

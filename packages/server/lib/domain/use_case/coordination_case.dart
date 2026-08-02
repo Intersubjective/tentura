@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -27,7 +28,8 @@ final class CoordinationCase extends UseCaseBase {
     this._helpOfferRepository,
     this._coordinationRepository,
     this._beaconRoomRepository,
-    this._evaluationRepository, {
+    this._evaluationRepository,
+    this._userBlockRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required BeaconAccessGuard guard,
@@ -42,6 +44,7 @@ final class CoordinationCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final EvaluationRepositoryPort _evaluationRepository;
+  final UserBlockRepositoryPort _userBlockRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
@@ -116,6 +119,14 @@ final class CoordinationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: actorUserId,
     );
+    if (await _userBlockRepository.isBlockedPair(
+      a: actorUserId,
+      b: offerUserId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Cannot admit a blocked user',
+      );
+    }
     if (!beacon.status.isOpenFamily) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,

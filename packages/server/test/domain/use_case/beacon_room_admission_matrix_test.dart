@@ -33,6 +33,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/test_attention_harness.dart';
+import '../../support/fake_user_block_repository.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 const _beaconId = 'Bbbbbbbbbbbbb';
@@ -131,6 +132,7 @@ void main() {
           _MinimalRemoteStorage(),
           _MinimalPolling(),
           _MinimalUploadQuota(),
+          FakeUserBlockRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),
@@ -155,6 +157,7 @@ void main() {
               _MinimalRemoteStorage(),
               _MinimalPolling(),
               _MinimalUploadQuota(),
+              FakeUserBlockRepository(),
               attentionIntents: attention.intents,
               attention: attention.transactional,
               env: Env(environment: Environment.test),
@@ -189,6 +192,7 @@ void main() {
           _MinimalRemoteStorage(),
           _MinimalPolling(),
           _MinimalUploadQuota(),
+          FakeUserBlockRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),
@@ -231,6 +235,7 @@ void main() {
           coordinationRepo,
           roomRepo,
           _MinimalEvaluationRepo(),
+          FakeUserBlockRepository(),
           guard: FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
@@ -374,6 +379,7 @@ void main() {
       late MockBeaconRoomRepositoryPort roomRepo;
       late TestAttentionHarness attention;
       late CoordinationCase sut;
+      late FakeUserBlockRepository userBlocks;
 
       BeaconParticipantRecord participant({required int roomAccess}) =>
           testBeaconParticipant(
@@ -398,12 +404,14 @@ void main() {
         attention = TestAttentionHarness(
           onContextLoaded: onAttentionContextLoaded,
         );
+        userBlocks = FakeUserBlockRepository();
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
           coordinationRepo,
           roomRepo,
           _MinimalEvaluationRepo(),
+          userBlocks,
           attentionIntents: attention.intents,
           attention: attention.transactional,
           guard: guard ?? FakeBeaconAccessGuard(),
@@ -530,6 +538,41 @@ void main() {
             offerUserId: anyNamed('offerUserId'),
             actorUserId: anyNamed('actorUserId'),
           ),
+        );
+      });
+
+      test('rejects admission when author blocked helper', () async {
+        stubOpenActiveOffer();
+        userBlocks.blockPair(_authorId, _helperId);
+
+        await expectLater(
+          sut.acceptHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        verifyNever(
+          coordinationRepo.acceptHelpOffer(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            actorUserId: anyNamed('actorUserId'),
+          ),
+        );
+      });
+
+      test('rejects admission when helper blocked author', () async {
+        stubOpenActiveOffer();
+        userBlocks.blockPair(_helperId, _authorId);
+
+        await expectLater(
+          sut.acceptHelpOffer(
+            beaconId: _beaconId,
+            offerUserId: _helperId,
+            actorUserId: _authorId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
         );
       });
 

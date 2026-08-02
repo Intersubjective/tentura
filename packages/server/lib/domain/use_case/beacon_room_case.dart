@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
@@ -44,7 +45,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._tasksRepository,
     this._remoteStorage,
     this._pollingRepository,
-    this._uploadQuota, {
+    this._uploadQuota,
+    this._userBlockRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -71,6 +73,8 @@ final class BeaconRoomCase extends UseCaseBase {
   final PollingRepositoryPort _pollingRepository;
 
   final UploadQuotaRepositoryPort _uploadQuota;
+
+  final UserBlockRepositoryPort _userBlockRepository;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -113,6 +117,19 @@ final class BeaconRoomCase extends UseCaseBase {
       return false;
     }
     return _isItemParticipant(item, userId);
+  }
+
+  Future<void> _rejectIfBlockedFromBeaconAuthor({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final authorId = await _room.beaconAuthorUserId(beaconId);
+    if (authorId == null || authorId.isEmpty) return;
+    if (await _userBlockRepository.isBlockedPair(a: userId, b: authorId)) {
+      throw const UnauthorizedException(
+        description: 'Blocked user cannot send room messages',
+      );
+    }
   }
 
   Future<bool> _canMutateMessage({
@@ -188,6 +205,10 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
       threadItem = item;
+      await _rejectIfBlockedFromBeaconAuthor(
+        beaconId: beaconId,
+        userId: userId,
+      );
     } else {
       final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
       if (!allowed) {
@@ -195,6 +216,10 @@ final class BeaconRoomCase extends UseCaseBase {
           description: 'Room access required',
         );
       }
+      await _rejectIfBlockedFromBeaconAuthor(
+        beaconId: beaconId,
+        userId: userId,
+      );
     }
     BeaconRoomMessageRecord? repliedMessage;
     if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
