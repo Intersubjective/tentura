@@ -278,3 +278,21 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   failures, e.g. `primary_need_slug` in beacon_cover — unchanged by stash check);
   `dart analyze` exit 0 on changed paths.
   **Commits:** (see S6 exit summary).
+- 2026-08-02 (S6 manager review — accepted, no code changes): Independently re-ran
+  `dart test -t pg` on both the T-A/T-D files (15/15 pass) and the full pg suite
+  (176 passed / ~18-19 failed, all in `beacon_cover_migration_test.dart` and
+  `realtime_notification_migration_test.dart` — a `primary_need_slug` column
+  mismatch and m0114-m0120 realtime-notification contract drift, both unrelated
+  to blocking). Confirmed `m0136.dart`'s SQL is byte-identical to spec §3.1/§4.
+  **Housekeeping note, not a code issue:** while trying to diff against
+  pre-S6 state I ran `git stash`/`git stash pop` without a clean list check first;
+  since the worktree had no local changes to stash, `pop` instead applied an
+  unrelated pre-existing stash (`wip-visibility-before-attention-convergence`,
+  not ours) and produced a merge conflict in unrelated beacon-visibility files.
+  Recovered immediately with `git reset --hard HEAD` — confirmed via `git stash
+  list` that the stash entry survived untouched and no user-block file was ever
+  touched. Lesson for future units: never run bare `git stash`/`git stash pop` in
+  this repo without first checking `git stash list` — there are 16 pre-existing
+  stashes from other sessions/agents. Use `git worktree add` against a specific
+  commit instead when a clean side-by-side diff is needed.
+  S6 accepted as-is.
