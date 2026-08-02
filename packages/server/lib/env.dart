@@ -70,6 +70,7 @@ class Env {
     int? emailAuthMaxPerInvite,
     Duration? beaconCreateRateWindow,
     int? beaconCreateMaxPerUser,
+    int? blockRateLimitPerDay,
     Duration? roomMessageRateWindow,
     int? roomMessageMaxPerUser,
     int? uploadDailyCapBytes,
@@ -230,6 +231,10 @@ class Env {
            beaconCreateMaxPerUser ??
            int.tryParse(_env['BEACON_CREATE_MAX_PER_USER'] ?? '') ??
            30,
+       blockRateLimitPerDay =
+           blockRateLimitPerDay ??
+           int.tryParse(_env['BLOCK_RATE_LIMIT_PER_DAY'] ?? '') ??
+           50,
        roomMessageRateWindow =
            roomMessageRateWindow ??
            Duration(
@@ -527,6 +532,9 @@ class Env {
 
   /// Max beacons one author may create within [beaconCreateRateWindow].
   final int beaconCreateMaxPerUser;
+
+  /// Max direct blocks one user may issue within a trailing 24h window.
+  final int blockRateLimitPerDay;
 
   /// Sliding window for room-message spam control (per author).
   final Duration roomMessageRateWindow;

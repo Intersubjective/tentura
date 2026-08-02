@@ -156,6 +156,29 @@ SELECT EXISTS (
   });
 
   @override
+  Future<int> countRecentByBlocker({
+    required String blockerId,
+    required Duration window,
+  }) async {
+    final since = DateTime.timestamp().subtract(window);
+    final row = await _db
+        .customSelect(
+          r'''
+SELECT COUNT(*)::int AS c
+FROM public.user_block_intent
+WHERE blocker_id = $1 AND updated_at >= $2
+''',
+          variables: [
+            Variable<String>(blockerId),
+            Variable(TypedValue(Type.timestampTz, since)),
+          ],
+          readsFrom: {},
+        )
+        .getSingle();
+    return row.read<int>('c');
+  }
+
+  @override
   Future<void> promoteToDirect({
     required String blockerId,
     required String blockedId,

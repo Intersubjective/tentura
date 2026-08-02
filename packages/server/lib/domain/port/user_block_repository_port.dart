@@ -9,6 +9,13 @@ abstract class UserBlockRepositoryPort {
 
   Future<void> unblock({required String blockerId, required String blockedId});
 
+  /// Count intent rows updated by [blockerId] within the trailing [window]
+  /// (spam-control rate limiting; `updated_at` advances on every block action).
+  Future<int> countRecentByBlocker({
+    required String blockerId,
+    required Duration window,
+  });
+
   /// Promote an inherited row to a direct block (§6.3 escape hatch).
   Future<void> promoteToDirect({
     required String blockerId,
