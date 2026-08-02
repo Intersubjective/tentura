@@ -1,14 +1,19 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/user_block/user_block_withdraw_reason.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '_use_case_base.dart';
 
@@ -23,10 +28,15 @@ final class UserBlockCase extends UseCaseBase {
     this._forwardEdges,
     this._contacts,
     this._users,
-    this._beacons, {
+    this._beacons,
+    this._coordination,
+    this._inbox, {
+    AttentionIntentCase? attentionIntents,
+    AttentionDispatchPort? attentionDispatch,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attentionDispatch = attentionDispatch;
 
   final MutatingUnitOfWorkPort _unitOfWork;
   final UserBlockRepositoryPort _blocks;
@@ -35,6 +45,10 @@ final class UserBlockCase extends UseCaseBase {
   final UserContactRepositoryPort _contacts;
   final UserRepositoryPort _users;
   final BeaconRepositoryPort _beacons;
+  final CoordinationRepositoryPort _coordination;
+  final InboxRepositoryPort _inbox;
+  final AttentionIntentCase? _attentionIntents;
+  final AttentionDispatchPort? _attentionDispatch;
 
   Future<void> block({
     required String blockerId,
@@ -131,11 +145,40 @@ final class UserBlockCase extends UseCaseBase {
         cache: authorByBeacon,
       );
       if (authorId != beaconAuthorId) continue;
+      final beaconId = offer.beaconId;
+      await _coordination.deleteForCommit(
+        beaconId: beaconId,
+        userId: offererId,
+      );
       await _helpOffers.withdraw(
-        beaconId: offer.beaconId,
+        beaconId: beaconId,
         userId: offererId,
         withdrawReason: kBlockWithdrawReason,
       );
+      final beaconAfter = await _beacons.getBeaconById(beaconId: beaconId);
+      if (beaconAfter.status.isOpenFamily) {
+        await _inbox.upsertWatchingForSender(
+          senderId: offererId,
+          beaconId: beaconId,
+          touchForwardOrdering: false,
+        );
+        final intents = _attentionIntents;
+        final dispatch = _attentionDispatch;
+        if (intents != null && dispatch != null) {
+          await dispatch.record(
+            await intents.helpWithdrawn(
+              beaconId: beaconId,
+              withdrawerUserId: offererId,
+              sourceEventKey: 'help_withdrawn:${generateId('A')}',
+            ),
+          );
+        }
+      } else {
+        await _inbox.applyTombstoneAfterWithdraw(
+          userId: offererId,
+          beaconId: beaconId,
+        );
+      }
     }
   }
 
@@ -174,6 +217,10 @@ final class UserBlockCase extends UseCaseBase {
     for (final edge in inbound) {
       if (edge.senderId != senderId || edge.cancelledAt != null) continue;
       await _forwardEdges.cancel(edge.id, senderId);
+      await _inbox.markForwardCancelledForRecipient(
+        beaconId: edge.beaconId,
+        recipientId: edge.recipientId,
+      );
     }
   }
 
