@@ -54,7 +54,7 @@ Phase 3 — enforcement:
 Phase 4 — cascade:
 - [x] S12 — block_cascade_candidates verification (test-only) — deps: S1
 - [x] S13 — cascade materialization job — deps: S12, S5
-- [ ] S14 — release sweep — deps: S13
+- [x] S14 — release sweep — deps: S13
 
 Phase 5 — B3:
 - [ ] S15 — migration m0137: withdrawal gate — deps: S1
@@ -477,3 +477,54 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `dart test -t pg` → 207 passed / 2 skipped / 19 failed (pre-existing drift);
   `dart analyze` no new errors; domain→repo import rg empty.
   **Commits:** (see S13 exit summary).
+- 2026-08-03 (S14 in progress): Release sweep — env knob, cursor-based
+  `runReleaseSweep`, `BlockReleaseSweepCase`, task-worker wiring, pg tests.
+- 2026-08-03 (S14 complete): Release sweep (§6.7 release half).
+  **Env:** `blockReleaseSweepInterval` (default 6h, `BLOCK_RELEASE_SWEEP_INTERVAL`
+  via `_parseEnvDuration` supporting `6h`/`30m`; no existing compact parser in
+  repo — trust sweep uses `*_HOURS` ints instead).
+  **`runReleaseSweep` return shape:** `BlockReleaseSweepBatch` record on port —
+  `deletedCount`, `lastExaminedCandidate` (`BlockReleaseSweepCursor` triple),
+  `reachedTail`. Repository selects the candidate batch first (with
+  `block_cascade_unattached` per row), deletes releasable subset via parallel
+  `unnest`, then runs existing `trust_rebuild_effective_edge` loop unchanged.
+  **`BlockReleaseSweepCase`:** sibling to `BlockCascadeCase` (not shared
+  `runDue`); instance `_cursor` resets on `reachedTail`; batch size =
+  `trustSweepBatchSize`, time budget = `trustSweepTimeBudget` (reused knobs).
+  **`TaskWorkerCase`:** throttle on `env.blockReleaseSweepInterval` (hours),
+  separate from 1-minute cascade materialization throttle.
+  **Tests:** `block_release_sweep_pg_test.dart` (T-F1…T-F7, X10, cursor);
+  `block_release_sweep_case_test.dart` (driver cursor loop). T-F5 seeds honest
+  weight via `trust_apply_source_evidence` + rebuild (raw `prev_sent_weight`
+  insert alone yields `_w=0` on rebuild). X10 blocks V before first sweep so
+  Carol is not released while still attached.
+  **Verification:** new pg file 9/9; `dart test -x pg` → 1150 passed;
+  `dart test -t pg` → 217 passed / 2 skipped / 18 failed (pre-existing drift);
+  `dart analyze` exit 0; domain→repo import rg empty.
+  **Commits:** (see S14 exit summary).
+- 2026-08-03 (S14 in progress): Release sweep — env knob, cursor-based
+  `runReleaseSweep`, `BlockReleaseSweepCase`, task-worker wiring, pg tests.
+- 2026-08-03 (S14 complete): Release sweep (§6.7 release half).
+  **Env:** `blockReleaseSweepInterval` (default 6h, `BLOCK_RELEASE_SWEEP_INTERVAL`
+  via `_parseEnvDuration` supporting `6h`/`30m`; no existing compact parser in
+  repo — trust sweep uses `*_HOURS` ints instead).
+  **`runReleaseSweep` return shape:** `BlockReleaseSweepBatch` record on port —
+  `deletedCount`, `lastExaminedCandidate` (`BlockReleaseSweepCursor` triple),
+  `reachedTail`. Repository selects the candidate batch first (with
+  `block_cascade_unattached` per row), deletes releasable subset via parallel
+  `unnest`, then runs existing `trust_rebuild_effective_edge` loop unchanged.
+  **`BlockReleaseSweepCase`:** sibling to `BlockCascadeCase` (not shared
+  `runDue`); instance `_cursor` resets on `reachedTail`; batch size =
+  `trustSweepTimeBudget` / `trustSweepBatchSize` (reused knobs, documented in
+  journal not env).
+  **`TaskWorkerCase`:** throttle on `env.blockReleaseSweepInterval` (hours),
+  separate from 1-minute cascade materialization throttle.
+  **Tests:** `block_release_sweep_pg_test.dart` (T-F1…T-F7, X10, cursor);
+  `block_release_sweep_case_test.dart` (driver cursor loop). T-F5 seeds honest
+  weight via `trust_apply_source_evidence` + rebuild (raw `prev_sent_weight`
+  insert alone yields `_w=0` on rebuild). X10 blocks V before first sweep so
+  Carol is not released while still attached.
+  **Verification:** new pg file 9/9; `dart test -x pg` → 1150 passed;
+  `dart test -t pg` → 217 passed / 2 skipped / 18 failed (pre-existing drift);
+  `dart analyze` exit 0; domain→repo import rg empty.
+  **Commits:** (see S14 exit summary).
