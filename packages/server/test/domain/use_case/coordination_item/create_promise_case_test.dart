@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
+import '../../../support/fake_user_block_repository.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -79,6 +80,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 void main() {
   late _StubBeacons beacons;
   late _StubItems items;
+  late FakeUserBlockRepository userBlocks;
   late CreatePromiseCase sut;
 
   const creatorId = 'Ucreator00001';
@@ -89,9 +91,12 @@ void main() {
     final attention = TestAttentionHarness();
     beacons = _StubBeacons(_openBeacon(beaconId));
     items = _StubItems();
+    userBlocks = FakeUserBlockRepository();
     sut = CreatePromiseCase(
       beacons,
-      items,      attentionIntents: attention.intents,
+      items,
+      userBlocks,
+      attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
@@ -165,6 +170,35 @@ void main() {
       throwsA(isA<BeaconCreateException>()),
     );
     expect(items.lastKind, null);
+  });
+
+  test('rejects blocked target (A blocked B)', () async {
+    userBlocks.blockPair(creatorId, targetId);
+    await expectLater(
+      () => sut.call(
+        userId: creatorId,
+        beaconId: beaconId,
+        title: 't',
+        targetPersonId: targetId,
+        body: 'b',
+      ),
+      throwsA(isA<UnauthorizedException>()),
+    );
+    expect(items.lastKind, null);
+  });
+
+  test('rejects blocked target (B blocked A)', () async {
+    userBlocks.blockPair(targetId, creatorId);
+    await expectLater(
+      () => sut.call(
+        userId: creatorId,
+        beaconId: beaconId,
+        title: 't',
+        targetPersonId: targetId,
+        body: 'b',
+      ),
+      throwsA(isA<UnauthorizedException>()),
+    );
   });
 }
 

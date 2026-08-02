@@ -4,18 +4,21 @@ import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 
 import '../_use_case_base.dart';
 
 @Singleton(order: 2)
 final class RedirectAskCase extends UseCaseBase {
   RedirectAskCase(
-    this._itemRepository, {
+    this._itemRepository,
+    this._userBlockRepository, {
     required super.env,
     required super.logger,
   });
 
   final CoordinationItemRepositoryPort _itemRepository;
+  final UserBlockRepositoryPort _userBlockRepository;
 
   Future<CoordinationItemRecord> call({
     required String userId,
@@ -41,6 +44,11 @@ final class RedirectAskCase extends UseCaseBase {
     if (target == userId) {
       throw const BeaconCreateException(
         description: 'Ask cannot target yourself',
+      );
+    }
+    if (await _userBlockRepository.isBlockedPair(a: userId, b: target)) {
+      throw const UnauthorizedException(
+        description: 'Cannot assign coordination item to a blocked user',
       );
     }
     return _itemRepository.redirectTarget(

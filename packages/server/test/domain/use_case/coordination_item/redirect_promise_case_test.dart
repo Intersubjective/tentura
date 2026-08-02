@@ -1,4 +1,5 @@
 import 'package:logging/logging.dart';
+import '../../../support/fake_user_block_repository.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
@@ -32,6 +33,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 
 void main() {
   late _StubItems items;
+  late FakeUserBlockRepository userBlocks;
   late RedirectPromiseCase sut;
 
   const itemId = 'Piiiiiiiiiiii';
@@ -41,6 +43,7 @@ void main() {
 
   setUp(() {
     items = _StubItems();
+    userBlocks = FakeUserBlockRepository();
     items.item = _samplePromise(
       id: itemId,
       creatorId: creatorId,
@@ -48,6 +51,7 @@ void main() {
     );
     sut = RedirectPromiseCase(
       items,
+      userBlocks,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -136,6 +140,31 @@ void main() {
       throwsA(isA<BeaconCreateException>()),
     );
     expect(items.lastNewTarget, null);
+  });
+
+  test('rejects blocked new target (A blocked B)', () async {
+    userBlocks.blockPair(creatorId, newTargetId);
+    await expectLater(
+      () => sut.call(
+        userId: creatorId,
+        itemId: itemId,
+        newTargetPersonId: newTargetId,
+      ),
+      throwsA(isA<UnauthorizedException>()),
+    );
+    expect(items.lastNewTarget, null);
+  });
+
+  test('rejects blocked new target (B blocked A)', () async {
+    userBlocks.blockPair(newTargetId, creatorId);
+    await expectLater(
+      () => sut.call(
+        userId: creatorId,
+        itemId: itemId,
+        newTargetPersonId: newTargetId,
+      ),
+      throwsA(isA<UnauthorizedException>()),
+    );
   });
 }
 

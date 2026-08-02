@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import '../../../support/fake_user_block_repository.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -528,7 +529,9 @@ void main() {
       final attention = TestAttentionHarness();
       sut = MarkAskCase(
         beacons,
-        items,        attentionIntents: attention.intents,
+        items,
+        FakeUserBlockRepository(),
+        attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
@@ -984,6 +987,7 @@ void main() {
       items.nextReturn = items.item!.copyWith(targetPersonId: newTargetId);
       sut = RedirectAskCase(
         items,
+        FakeUserBlockRepository(),
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );

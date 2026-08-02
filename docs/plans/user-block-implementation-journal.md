@@ -47,7 +47,7 @@ Phase 3 — enforcement:
 - [x] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
 - [x] S7 — migration m0136 part 2: graph, mutual friends, computed fields — deps: S6
 - [x] S8 — Hasura metadata — deps: S7
-- [ ] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
+- [x] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
 - [ ] S10 — attention recipient filtering (E8) — deps: S4
 - [ ] S11 — genealogy placeholder (E13) — deps: S4
 
@@ -350,3 +350,35 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
   `dart analyze` exit 0.
   **Commits:** (see S8 exit summary).
+- 2026-08-03 (S9 in progress): server-side write guards — E2,E4,E5,E6,E7,E14.
+- 2026-08-03 (S9 complete): server-side write guards (§12 Phase 3).
+  **E2 Forward:** `ForwardCase.forward` filters `recipientIds` via
+  `hiddenPeerIds(viewerId: senderId, …)` after the self-filter; blocked
+  recipients are silently dropped (empty list allowed — no whole-request throw).
+  **E4 Help offer:** already covered by S6 — `offerHelp` calls
+  `canReadContent` which hits `beacon_can_read_content` → `block_hides(author,
+  offerer)`. No new guard code; added `BlockAwareBeaconAccessGuard` unit tests
+  proving both directions reject with `UnauthorizedException`.
+  **E5 Room message + admission:** new `isBlockedPair` in
+  `BeaconRoomCase.createMessage` (sender vs beacon author via
+  `beaconAuthorUserId`) and `CoordinationCase._prepareAdmissionAction` (actor
+  vs offer user).
+  **E6 Contact set:** `ContactCase.set` rejects blocked pairs with honest
+  `UnauthorizedException`.
+  **E7 Invitation accept:** `accept` / `acceptAsExisting` reject blocked
+  issuer↔acceptor pairs with `IdNotFoundException` (404-shaped per spec).
+  **E14 Coordination item assignment:** interpreted as actions that set or
+  redirect `targetPersonId` to another person — guarded
+  `CreatePromiseCase`, `MarkAskCase`, `RedirectPromiseCase`,
+  `RedirectAskCase`. Draft publish/update paths (`publish_draft_*`,
+  `update_draft_*`) left unchanged (target can be set at publish time via
+  `PublishDraftPromiseCase` — open follow-up if product wants those guarded
+  too).
+  **Test harness:** `FakeUserBlockRepository`, `BlockAwareBeaconAccessGuard`;
+  existing `BeaconRoomCase` test stubs gained `beaconAuthorUserId` where
+  `createMessage` is exercised.
+  **Verification:** `dart test -x pg` → 1138 passed; `dart test -t pg` → 180
+  passed / 2 skipped / 19 failed (pre-existing `beacon_cover_migration_test` +
+  `realtime_notification_migration_test` drift); `dart analyze` exit 0;
+  `rg … packages/server/lib/domain` empty.
+  **Commits:** (see S9 exit summary).

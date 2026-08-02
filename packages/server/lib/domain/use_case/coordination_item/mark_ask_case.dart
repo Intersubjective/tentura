@@ -6,6 +6,7 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
@@ -15,7 +16,8 @@ import '../_use_case_base.dart';
 final class MarkAskCase extends UseCaseBase {
   MarkAskCase(
     this._beaconRepository,
-    this._itemRepository, {
+    this._itemRepository,
+    this._userBlockRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -25,6 +27,7 @@ final class MarkAskCase extends UseCaseBase {
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
+  final UserBlockRepositoryPort _userBlockRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
 
@@ -50,6 +53,11 @@ final class MarkAskCase extends UseCaseBase {
     if (target == userId) {
       throw const BeaconCreateException(
         description: 'Ask cannot target yourself',
+      );
+    }
+    if (await _userBlockRepository.isBlockedPair(a: userId, b: target)) {
+      throw const UnauthorizedException(
+        description: 'Cannot assign coordination item to a blocked user',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
