@@ -5,6 +5,15 @@ import 'dart:ui' show Offset, Size;
 /// Fixed margin for clamping positions when node sizes are unknown.
 const double kLayoutClampMargin = 80;
 
+/// Padding added to the largest child diameter when deriving [minChord].
+const double kFanSizePadding = 24;
+
+/// Soft cap on local-fan radius as a multiple of [ringGap].
+const double kFanRadiusMultiplier = 3;
+
+/// Default forward-cone width for local fan (120°).
+const double kDefaultMaxFanRadians = 2 * math.pi / 3;
+
 /// Result of a radial-hop pass: absolute seats plus the BFS parent map used to
 /// park newly revealed nodes next to an already-pinned parent.
 typedef RadialHopLayout = ({
@@ -192,16 +201,98 @@ Offset branchUnitDirection({
       const Offset(0, 1); // canvas "down" when everything coincides
 }
 
+/// Amenity chord matching the legacy 30° step at [ringGap].
+double amenityChordForRingGap(double ringGap) =>
+    2 * ringGap * math.sin(math.pi / 12);
+
+/// Angular step that keeps adjacent centres at least [minChord] apart on a
+/// circle of radius [radius].
+double preferredFanStep(double radius, double minChord) {
+  if (radius < 1e-9) {
+    return math.pi;
+  }
+  final ratio = (minChord / (2 * radius)).clamp(0.0, 1.0);
+  return 2 * math.asin(ratio);
+}
+
+/// Solves radius so equal steps over [span] keep chord ≥ [minChord].
+double radiusForFanSpan({
+  required double span,
+  required int childCount,
+  required double minChord,
+  required double ringGap,
+  required double rMax,
+}) {
+  if (childCount < 2) {
+    return ringGap;
+  }
+  final halfStep = span / (2 * (childCount - 1));
+  if (halfStep < 1e-9) {
+    return rMax;
+  }
+  final sinHalf = math.sin(halfStep);
+  final solved = sinHalf < 1e-9
+      ? minChord / halfStep
+      : minChord / (2 * sinHalf);
+  return solved.clamp(ringGap, rMax);
+}
+
+/// Geometry for a local fan: equal angular steps, compactness first.
+({double span, double radius, double step}) computeLocalFanGeometry({
+  required int childCount,
+  required double ringGap,
+  required double minChord,
+  double maxFanRadians = kDefaultMaxFanRadians,
+  double? rMax,
+}) {
+  if (childCount < 2) {
+    return (span: 0, radius: ringGap, step: 0);
+  }
+
+  final effectiveRMax = rMax ?? ringGap * kFanRadiusMultiplier;
+
+  final effectiveMaxSpan = maxFanRadians < 1e-6 ? 1e-6 : maxFanRadians;
+  final preferredAtRing = preferredFanStep(ringGap, minChord);
+  final naturalSpan = (childCount - 1) * preferredAtRing;
+
+  if (naturalSpan <= effectiveMaxSpan) {
+    return (
+      span: naturalSpan,
+      radius: ringGap,
+      step: preferredAtRing,
+    );
+  }
+
+  final span = effectiveMaxSpan;
+  final radius = radiusForFanSpan(
+    span: span,
+    childCount: childCount,
+    minChord: minChord,
+    ringGap: ringGap,
+    rMax: effectiveRMax,
+  );
+  return (
+    span: span,
+    radius: radius,
+    step: span / (childCount - 1),
+  );
+}
+
 /// Parks [childIds] (already sorted) in a compact fan around [parentPos]
 /// along [direction], at distance [ringGap]. Preserves branch heading instead
 /// of reusing global radial sectors (which fling siblings across the canvas).
+///
+/// Packing uses [minChord] (default: [amenityChordForRingGap]) and expands the
+/// forward cone up to [maxFanRadians] before growing radius (capped at [rMax]).
 Map<String, Offset> localFanPositions({
   required Offset parentPos,
   required Offset direction,
   required List<String> childIds,
   required Size canvasSize,
   double ringGap = 170,
-  double maxFanRadians = math.pi / 2,
+  double maxFanRadians = kDefaultMaxFanRadians,
+  double? minChord,
+  double? rMax,
 }) {
   if (childIds.isEmpty) {
     return {};
@@ -213,6 +304,8 @@ Map<String, Offset> localFanPositions({
   final baseAngle = math.atan2(unit.dy, unit.dx);
   final n = childIds.length;
   final positions = <String, Offset>{};
+  final effectiveMinChord = minChord ?? amenityChordForRingGap(ringGap);
+  final effectiveRMax = rMax ?? ringGap * kFanRadiusMultiplier;
 
   if (n == 1) {
     positions[childIds.single] = clampLayoutPosition(
@@ -222,12 +315,17 @@ Map<String, Offset> localFanPositions({
     return positions;
   }
 
-  final span = math.min(maxFanRadians, (n - 1) * (math.pi / 6));
-  final start = baseAngle - span / 2;
-  final step = span / (n - 1);
+  final geometry = computeLocalFanGeometry(
+    childCount: n,
+    ringGap: ringGap,
+    minChord: effectiveMinChord,
+    maxFanRadians: maxFanRadians,
+    rMax: effectiveRMax,
+  );
+  final start = baseAngle - geometry.span / 2;
   for (var i = 0; i < n; i++) {
-    final angle = start + step * i;
-    final offset = Offset(math.cos(angle), math.sin(angle)) * ringGap;
+    final angle = start + geometry.step * i;
+    final offset = Offset(math.cos(angle), math.sin(angle)) * geometry.radius;
     positions[childIds[i]] = clampLayoutPosition(parentPos + offset, canvasSize);
   }
   return positions;

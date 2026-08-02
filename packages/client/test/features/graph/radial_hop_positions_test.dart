@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -153,10 +154,24 @@ void main() {
   });
 
   group('localFanPositions', () {
+    const parentPos = Offset(2000, 2000);
+    const direction = Offset(0, 1);
+    const defaultMinChord = 88.0; // amenity at ringGap=170
+
+    double chordBetween(Offset a, Offset b) => (a - b).distance;
+
+    double angularSpan(List<Offset> positions, Offset centre) {
+      final angles = positions
+          .map((p) => math.atan2(p.dy - centre.dy, p.dx - centre.dx))
+          .toList()
+        ..sort();
+      return angles.last - angles.first;
+    }
+
     test('single child continues straight along the branch', () {
       final fan = localFanPositions(
         parentPos: const Offset(100, 100),
-        direction: const Offset(0, 1),
+        direction: direction,
         childIds: const ['c'],
         canvasSize: canvasSize,
         ringGap: ringGap,
@@ -166,24 +181,129 @@ void main() {
       expect(fan['c']!.dy, closeTo(100 + ringGap, 0.01));
     });
 
-    test('siblings stay within a compact fan ahead of the parent', () {
+    test('three siblings stay compact at ringGap (regression)', () {
       final fan = localFanPositions(
-        parentPos: const Offset(2000, 2000),
-        direction: const Offset(0, 1),
+        parentPos: parentPos,
+        direction: direction,
         childIds: const ['c', 'd', 'e'],
         canvasSize: canvasSize,
         ringGap: ringGap,
       );
 
-      for (final id in ['c', 'd', 'e']) {
-        final pos = fan[id]!;
-        expect((pos - const Offset(2000, 2000)).distance, closeTo(ringGap, 0.01));
-        expect(pos.dy, greaterThan(2000));
+      final positions = ['c', 'd', 'e'].map((id) => fan[id]!).toList();
+      for (final pos in positions) {
+        expect((pos - parentPos).distance, closeTo(ringGap, 0.01));
+        expect(pos.dy, greaterThan(parentPos.dy));
+      }
+      expect(angularSpan(positions, parentPos), closeTo(math.pi / 3, 0.02));
+      expect(
+        chordBetween(positions[0], positions[1]),
+        closeTo(defaultMinChord, 2),
+      );
+      expect(
+        chordBetween(positions[1], positions[2]),
+        closeTo(defaultMinChord, 2),
+      );
+    });
+
+    test('five siblings expand sector to 120° at ringGap', () {
+      final ids = List.generate(5, (i) => 'c$i');
+      final fan = localFanPositions(
+        parentPos: parentPos,
+        direction: direction,
+        childIds: ids,
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      final positions = ids.map((id) => fan[id]!).toList();
+      for (final pos in positions) {
+        expect((pos - parentPos).distance, closeTo(ringGap, 0.01));
       }
       expect(
-        (fan['c']! - fan['e']!).distance,
-        lessThan(ringGap * 1.5),
+        angularSpan(positions, parentPos),
+        closeTo(kDefaultMaxFanRadians, 0.02),
       );
+      for (var i = 0; i < positions.length - 1; i++) {
+        expect(
+          chordBetween(positions[i], positions[i + 1]),
+          closeTo(defaultMinChord, 2),
+        );
+      }
+    });
+
+    test('seven siblings grow radius while keeping chord and forward projection',
+        () {
+      final ids = List.generate(7, (i) => 'c$i');
+      final fan = localFanPositions(
+        parentPos: parentPos,
+        direction: direction,
+        childIds: ids,
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      final positions = ids.map((id) => fan[id]!).toList();
+      final radii = positions.map((p) => (p - parentPos).distance).toList();
+      expect(radii.every((r) => r > ringGap + 1), isTrue);
+      expect(radii.every((r) => (r - radii.first).abs() < 0.01), isTrue);
+      expect(
+        angularSpan(positions, parentPos),
+        closeTo(kDefaultMaxFanRadians, 0.02),
+      );
+      for (var i = 0; i < positions.length - 1; i++) {
+        expect(
+          chordBetween(positions[i], positions[i + 1]),
+          closeTo(defaultMinChord, 2),
+        );
+        final delta = positions[i] - parentPos;
+        expect(delta.dx * direction.dx + delta.dy * direction.dy, greaterThan(0));
+      }
+    });
+
+    test('large child count respects rMax and densifies gracefully', () {
+      final ids = List.generate(25, (i) => 'c$i');
+      final fan = localFanPositions(
+        parentPos: parentPos,
+        direction: direction,
+        childIds: ids,
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      final positions = ids.map((id) => fan[id]!).toList();
+      final radius = (positions.first - parentPos).distance;
+      expect(radius, closeTo(ringGap * kFanRadiusMultiplier, 1));
+      for (var i = 0; i < positions.length - 1; i++) {
+        expect(chordBetween(positions[i], positions[i + 1]), greaterThan(0));
+      }
+    });
+
+    test('minChord at least 2*ringGap clamps asin and uses radial mode', () {
+      final geometry = computeLocalFanGeometry(
+        childCount: 3,
+        ringGap: ringGap,
+        minChord: ringGap * 2.5,
+      );
+      expect(geometry.span, closeTo(kDefaultMaxFanRadians, 0.02));
+      expect(geometry.radius, greaterThan(ringGap));
+    });
+
+    test('parent near canvas edge still yields finite clamped positions', () {
+      final fan = localFanPositions(
+        parentPos: const Offset(90, 90),
+        direction: direction,
+        childIds: List.generate(7, (i) => 'c$i'),
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      for (final pos in fan.values) {
+        expect(pos.dx.isFinite, isTrue);
+        expect(pos.dy.isFinite, isTrue);
+        expect(pos.dx, greaterThanOrEqualTo(kLayoutClampMargin));
+        expect(pos.dy, greaterThanOrEqualTo(kLayoutClampMargin));
+      }
     });
   });
 

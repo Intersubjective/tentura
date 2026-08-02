@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
 import 'package:collection/collection.dart';
@@ -82,6 +83,14 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
           .where((id) => hop.parent[id] == parentId)
           .toList()
         ..sort();
+
+      if (parentId == rootId) {
+        for (final childId in childIds) {
+          placed[childId] = hop.positions[childId] ?? fallback;
+        }
+        continue;
+      }
+
       final parentPos =
           placed[parentId] ?? hop.positions[parentId] ?? fallback;
       final grandparentId = hop.parent[parentId];
@@ -93,12 +102,21 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
         grandparentPos: grandparentPos,
         rootPos: rootPos,
       );
+      final maxChildSize = childIds
+          .map((id) => (byId[id]! as NodeDetails).size)
+          .fold(0.0, math.max);
+      final minChord = math.max(
+        amenityChordForRingGap(ringGap),
+        maxChildSize + kFanSizePadding,
+      );
       final fan = localFanPositions(
         parentPos: parentPos,
         direction: direction,
         childIds: childIds,
         canvasSize: size,
         ringGap: ringGap,
+        minChord: minChord,
+        rMax: ringGap * kFanRadiusMultiplier,
       );
       placed.addAll(fan);
     }

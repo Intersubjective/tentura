@@ -228,6 +228,43 @@ void main() {
       }
     });
 
+    test('relayout places root children from global hop sectors', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      const largeCanvas = Size(4096, 4096);
+      final nodes = {nodeA, nodeB, nodeC, nodeD};
+      final edges = {
+        edge('a', 'b'),
+        edge('a', 'c'),
+        edge('a', 'd'),
+      };
+      final cold = await algorithm
+          .layout(nodes: nodes, edges: edges, size: largeCanvas)
+          .first;
+
+      final pinned = GraphLayoutBuilder(nodes: {nodeA, nodeB})
+        ..setNodePosition(nodeA, cold.getPosition(nodeA))
+        ..setNodePosition(nodeB, cold.getPosition(nodeB));
+      final existing = pinned.build();
+
+      final grown = await algorithm
+          .relayout(
+            existingLayout: existing,
+            nodes: nodes,
+            edges: edges,
+            size: largeCanvas,
+          )
+          .first;
+
+      expect(grown.getPosition(nodeC), cold.getPosition(nodeC));
+      expect(grown.getPosition(nodeD), cold.getPosition(nodeD));
+      final centre = largeCanvas.center(Offset.zero);
+      final c = grown.getPosition(nodeC);
+      final d = grown.getPosition(nodeD);
+      expect((c - centre).distance, closeTo(170, 1));
+      expect((d - centre).distance, closeTo(170, 1));
+      expect(c.dy == centre.dy || d.dy == centre.dy, isFalse);
+    });
+
     test('every input node has a position', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
       final nodes = {nodeA, nodeB};
