@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/user_contact_entity.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 
 import '../exception.dart';
 import '_use_case_base.dart';
@@ -11,12 +12,14 @@ import '_use_case_base.dart';
 @Injectable(order: 2)
 final class ContactCase extends UseCaseBase {
   ContactCase(
-    this._contactRepository, {
+    this._contactRepository,
+    this._userBlockRepository, {
     required super.env,
     required super.logger,
   });
 
   final UserContactRepositoryPort _contactRepository;
+  final UserBlockRepositoryPort _userBlockRepository;
 
   /// Validates and trims a contact / invite addressee name.
   static String normalizeName(String name) {
@@ -38,6 +41,14 @@ final class ContactCase extends UseCaseBase {
   }) async {
     if (viewerId == subjectId) {
       throw const IdWrongException(description: 'Cannot rename yourself');
+    }
+    if (await _userBlockRepository.isBlockedPair(
+      a: viewerId,
+      b: subjectId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Cannot set contact name for a blocked user',
+      );
     }
     await _contactRepository.upsert(
       viewerId: viewerId,

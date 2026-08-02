@@ -8,15 +8,19 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/contact_case.dart';
 
 import 'contact_case_mocks.mocks.dart';
+import '../../support/fake_user_block_repository.dart';
 
 void main() {
   late MockUserContactRepositoryPort contactRepo;
+  late FakeUserBlockRepository userBlocks;
   late ContactCase case_;
 
   setUp(() {
     contactRepo = MockUserContactRepositoryPort();
+    userBlocks = FakeUserBlockRepository();
     case_ = ContactCase(
       contactRepo,
+      userBlocks,
       env: Env(environment: Environment.test),
       logger: Logger('ContactCaseTest'),
     );
@@ -60,6 +64,37 @@ void main() {
           subjectId: anyNamed('subjectId'),
           contactName: anyNamed('contactName'),
         ),
+      );
+    });
+
+    test('rejects blocked subject (A blocked B)', () async {
+      userBlocks.blockPair('Ualice', 'Ubob');
+      await expectLater(
+        case_.set(
+          viewerId: 'Ualice',
+          subjectId: 'Ubob',
+          contactName: 'Bob2000',
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      verifyNever(
+        contactRepo.upsert(
+          viewerId: anyNamed('viewerId'),
+          subjectId: anyNamed('subjectId'),
+          contactName: anyNamed('contactName'),
+        ),
+      );
+    });
+
+    test('rejects blocked subject (B blocked A)', () async {
+      userBlocks.blockPair('Ubob', 'Ualice');
+      await expectLater(
+        case_.set(
+          viewerId: 'Ualice',
+          subjectId: 'Ubob',
+          contactName: 'Bob2000',
+        ),
+        throwsA(isA<UnauthorizedException>()),
       );
     });
 
