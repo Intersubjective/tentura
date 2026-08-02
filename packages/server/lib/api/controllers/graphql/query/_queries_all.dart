@@ -19,6 +19,7 @@ import 'query_mutual_friends.dart';
 import 'query_coordination_item.dart';
 import 'query_lineage_suggestions.dart';
 import 'query_notification_preferences.dart';
+import 'query_user_block.dart';
 import 'query_version.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
@@ -41,5 +42,6 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryMutualFriends().all,
   ...QueryLineageSuggestions().all,
   ...QueryNotificationPreferences().all,
+  ...QueryUserBlock().all,
   queryVersion,
 ];

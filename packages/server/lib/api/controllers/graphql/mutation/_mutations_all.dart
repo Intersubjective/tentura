@@ -20,6 +20,7 @@ import 'mutation_polling.dart';
 import 'mutation_coordination_item.dart';
 import 'mutation_debug.dart';
 import 'mutation_user.dart';
+import 'mutation_user_block.dart';
 import 'mutation_user_vote.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
@@ -40,6 +41,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationPolling().all,
   ...MutationCoordinationItem().all,
   ...MutationUser().all,
+  ...MutationUserBlock().all,
   ...MutationUserVote().all,
   ...MutationFcm().all,
   ...MutationDebug().all,

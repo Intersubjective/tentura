@@ -26,6 +26,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeUserPresence,
   gqlTypeUserPublic,
   gqlTypeUserContact,
+  gqlTypeBlockIntent,
+  gqlTypeBlockPreview,
   gqlTypeBeaconCloseReviewResult,
   gqlTypeBeaconExtendReviewResult,
   gqlTypeEvaluationParticipant,
@@ -538,6 +540,25 @@ final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
     field('subjectId', graphQLString.nonNullable()),
     field('contactName', graphQLString.nonNullable()),
     field('updatedAt', graphQLString.nonNullable()),
+  ]);
+
+/// Direct block intent row for `myBlocks` (blocked profile + cascade metadata).
+final gqlTypeBlockIntent = GraphQLObjectType('BlockIntent', null)
+  ..fields.addAll([
+    field('blocked', gqlTypeUserPublic.nonNullable()),
+    field('cascadeMode', graphQLInt.nonNullable()),
+    field('inheritedCount', graphQLInt.nonNullable()),
+    field('cascadeCapped', graphQLBoolean.nonNullable()),
+    field('cascadePending', graphQLBoolean.nonNullable()),
+  ]);
+
+/// Pre-block impact preview for `blockPreview`.
+final gqlTypeBlockPreview = GraphQLObjectType('BlockPreview', null)
+  ..fields.addAll([
+    field('cascadeCandidateCount', graphQLInt.nonNullable()),
+    field('cascadeCapped', graphQLBoolean.nonNullable()),
+    field('openCommitmentCount', graphQLInt.nonNullable()),
+    field('willWithdrawEdge', graphQLBoolean.nonNullable()),
   ]);
 
 /// `beaconClose` result.
