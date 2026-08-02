@@ -26,6 +26,20 @@ String? _nonEmptyEnv(String? value) {
   return trimmed;
 }
 
+/// Parses compact durations from env (`6h`, `30m`). Returns null when unset/invalid.
+Duration? _parseEnvDuration(String? raw) {
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) return null;
+  final match = RegExp(r'^(\d+)(h|m)$').firstMatch(value);
+  if (match != null) {
+    final amount = int.parse(match.group(1)!);
+    return match.group(2) == 'h'
+        ? Duration(hours: amount)
+        : Duration(minutes: amount);
+  }
+  return null;
+}
+
 /// Baked minimum client semver; bump when shipping breaking client changes.
 const kDefaultMinClientVersion = '5.0.0';
 
@@ -74,6 +88,7 @@ class Env {
     int? blockCascadeMaxDepth,
     int? blockCascadeMaxRows,
     int? blockCascadeBatchSize,
+    Duration? blockReleaseSweepInterval,
     Duration? roomMessageRateWindow,
     int? roomMessageMaxPerUser,
     int? uploadDailyCapBytes,
@@ -250,6 +265,10 @@ class Env {
            blockCascadeBatchSize ??
            int.tryParse(_env['BLOCK_CASCADE_BATCH_SIZE'] ?? '') ??
            500,
+       blockReleaseSweepInterval =
+           blockReleaseSweepInterval ??
+           _parseEnvDuration(_env['BLOCK_RELEASE_SWEEP_INTERVAL']) ??
+           const Duration(hours: 6),
        roomMessageRateWindow =
            roomMessageRateWindow ??
            Duration(
@@ -559,6 +578,9 @@ class Env {
 
   /// Rows inserted per `materializeCascadeBatch` call during cascade materialization.
   final int blockCascadeBatchSize;
+
+  /// Minimum interval between release-sweep passes (§6.7 probation drain).
+  final Duration blockReleaseSweepInterval;
 
   /// Sliding window for room-message spam control (per author).
   final Duration roomMessageRateWindow;

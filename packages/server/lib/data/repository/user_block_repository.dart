@@ -609,11 +609,25 @@ SELECT COUNT(*)::int AS c FROM inserted
   }
 
   @override
-  Future<int> runReleaseSweep({required int limit}) async {
-    if (limit <= 0) return 0;
+  Future<BlockReleaseSweepBatch> runReleaseSweep({
+    required int limit,
+    BlockReleaseSweepCursor? afterCursor,
+  }) async {
+    if (limit <= 0) {
+      return (
+        deletedCount: 0,
+        lastExaminedCandidate: null,
+        reachedTail: true,
+      );
+    }
 
-    final deleted = await _db.customSelect(
-      r'''
+    final cursorBlocker = afterCursor?.blockerId ?? '';
+    final cursorBlocked = afterCursor?.blockedId ?? '';
+    final cursorOrigin = afterCursor?.originId ?? '';
+
+    return _db.transaction(() async {
+      final candidates = await _db.customSelect(
+        r'''
 WITH candidates AS (
   SELECT ub.blocker_id, ub.blocked_id, ub.origin_id
   FROM public.user_block ub
@@ -624,64 +638,121 @@ WITH candidates AS (
     AND (ub.blocker_id, ub.blocked_id, ub.origin_id) > ($1, $2, $3)
   ORDER BY ub.blocker_id, ub.blocked_id, ub.origin_id
   LIMIT $4
-),
-releasable AS (
-  SELECT *
-  FROM candidates c
-  WHERE NOT public.block_cascade_unattached(
-    c.blocker_id, c.origin_id, c.blocked_id
-  )
 )
+SELECT
+  c.blocker_id,
+  c.blocked_id,
+  c.origin_id,
+  public.block_cascade_unattached(
+    c.blocker_id, c.origin_id, c.blocked_id
+  ) AS unattached
+FROM candidates c
+''',
+        variables: [
+          Variable<String>(cursorBlocker),
+          Variable<String>(cursorBlocked),
+          Variable<String>(cursorOrigin),
+          Variable(TypedValue(Type.integer, limit)),
+        ],
+        readsFrom: {_db.userBlocks},
+      ).get();
+
+      if (candidates.isEmpty) {
+        return (
+          deletedCount: 0,
+          lastExaminedCandidate: null,
+          reachedTail: true,
+        );
+      }
+
+      final lastRow = candidates.last;
+      final lastExaminedCandidate = (
+        blockerId: lastRow.read<String>('blocker_id'),
+        blockedId: lastRow.read<String>('blocked_id'),
+        originId: lastRow.read<String>('origin_id'),
+      );
+      final reachedTail = candidates.length < limit;
+
+      final releasable = candidates
+          .where((row) => !row.read<bool>('unattached'))
+          .toList(growable: false);
+      if (releasable.isEmpty) {
+        return (
+          deletedCount: 0,
+          lastExaminedCandidate: lastExaminedCandidate,
+          reachedTail: reachedTail,
+        );
+      }
+
+      final deleted = await _db.customSelect(
+        r'''
 DELETE FROM public.user_block ub
-USING releasable r
+USING (
+  SELECT *
+  FROM unnest($1::text[], $2::text[], $3::text[])
+    AS t(blocker_id, blocked_id, origin_id)
+) r
 WHERE ub.blocker_id = r.blocker_id
   AND ub.blocked_id = r.blocked_id
   AND ub.origin_id = r.origin_id
 RETURNING ub.blocker_id, ub.blocked_id
 ''',
-      variables: [
-        const Variable<String>(''),
-        const Variable<String>(''),
-        const Variable<String>(''),
-        Variable(TypedValue(Type.integer, limit)),
-      ],
-      readsFrom: {_db.userBlocks},
-    ).get();
+        variables: [
+          Variable<List<String>>(
+            releasable.map((r) => r.read<String>('blocker_id')).toList(),
+            PgTypes.textArray,
+          ),
+          Variable<List<String>>(
+            releasable.map((r) => r.read<String>('blocked_id')).toList(),
+            PgTypes.textArray,
+          ),
+          Variable<List<String>>(
+            releasable.map((r) => r.read<String>('origin_id')).toList(),
+            PgTypes.textArray,
+          ),
+        ],
+        readsFrom: {_db.userBlocks},
+      ).get();
 
-    for (final row in deleted) {
-      final blockerId = row.read<String>('blocker_id');
-      final blockedId = row.read<String>('blocked_id');
-      final hasEdge = await _db
-          .customSelect(
-            r'''
+      for (final row in deleted) {
+        final blockerId = row.read<String>('blocker_id');
+        final blockedId = row.read<String>('blocked_id');
+        final hasEdge = await _db
+            .customSelect(
+              r'''
 SELECT EXISTS (
   SELECT 1
   FROM public.user_trust_edge
   WHERE subject = $1 AND object = $2
 ) AS ok
 ''',
-            variables: [
-              Variable<String>(blockerId),
-              Variable<String>(blockedId),
-            ],
-            readsFrom: {},
-          )
-          .map((r) => r.read<bool>('ok'))
-          .getSingle();
-      if (!hasEdge) continue;
+              variables: [
+                Variable<String>(blockerId),
+                Variable<String>(blockedId),
+              ],
+              readsFrom: {},
+            )
+            .map((r) => r.read<bool>('ok'))
+            .getSingle();
+        if (!hasEdge) continue;
 
-      await _db.customSelect(
-        r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
-        variables: [
-          Variable<String>(blockerId),
-          Variable<String>(blockedId),
-          const Variable<double>(-1),
-        ],
-        readsFrom: {},
-      ).getSingle();
-    }
+        await _db.customSelect(
+          r'SELECT trust_rebuild_effective_edge($1, $2, $3)',
+          variables: [
+            Variable<String>(blockerId),
+            Variable<String>(blockedId),
+            const Variable<double>(-1),
+          ],
+          readsFrom: {},
+        ).getSingle();
+      }
 
-    return deleted.length;
+      return (
+        deletedCount: deleted.length,
+        lastExaminedCandidate: lastExaminedCandidate,
+        reachedTail: reachedTail,
+      );
+    });
   }
 
   Future<bool> _isDepthCapped({

@@ -1,5 +1,22 @@
 import 'package:tentura_server/domain/entity/user_block_entity.dart';
 
+/// Cursor tuple for resumable release sweeps (§6.7): last-examined candidate
+/// `(blocker_id, blocked_id, origin_id)`; `null` / empty ids mean table start.
+typedef BlockReleaseSweepCursor = ({
+  String blockerId,
+  String blockedId,
+  String originId,
+});
+
+/// One bounded release-sweep batch. [lastExaminedCandidate] is the last row from
+/// the candidates CTE (examined, not necessarily deleted). [reachedTail] is true
+/// when fewer than `limit` candidates were returned.
+typedef BlockReleaseSweepBatch = ({
+  int deletedCount,
+  BlockReleaseSweepCursor? lastExaminedCandidate,
+  bool reachedTail,
+});
+
 abstract class UserBlockRepositoryPort {
   Future<void> block({
     required String blockerId,
@@ -65,5 +82,8 @@ abstract class UserBlockRepositoryPort {
     required String blockedId,
   });
 
-  Future<int> runReleaseSweep({required int limit});
+  Future<BlockReleaseSweepBatch> runReleaseSweep({
+    required int limit,
+    BlockReleaseSweepCursor? afterCursor,
+  });
 }
