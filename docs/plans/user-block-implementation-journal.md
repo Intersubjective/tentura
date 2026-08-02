@@ -122,4 +122,4 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   (2 info lints on `UserBlockIntentEntity` required-after-optional — matches spec
   §6.2 field order); server boot 25s OK; Drift `SELECT * FROM user_block` /
   `user_block_intent` round-trip OK (0 rows); `\d` column names match Drift mapping.
-  **Commits:** `c456ef80` (Drift tables), pending entity commit.
+  **Commits:** `c456ef80` (Drift tables), `6d31b70c` (entities + journal).
