@@ -40,7 +40,7 @@ Phase 1 — schema:
 
 Phase 2 — server data & domain:
 - [x] S3 — UserBlockRepositoryPort + repository — deps: S2
-- [ ] S4 — UserBlockCase + cleanup orchestration — deps: S3
+- [x] S4 — UserBlockCase + cleanup orchestration — deps: S3
 - [ ] S5 — V2 GraphQL API — deps: S4
 
 Phase 3 — enforcement:
@@ -174,3 +174,33 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `combinators_ordering` info my edit touched.
   S3 accepted. Unit boundary note for S13/S14 workers: the two partially-implemented
   cascade methods noted above are unchanged by this review pass — still their job.
+- 2026-08-02 (S4 in progress): `UserBlockCase` + cleanup orchestration + rate-limit
+  env knob. Adding `countRecentByBlocker` to the port (not in spec §6.3 listing,
+  mirrors S3's `applyWithdrawal` addition).
+- 2026-08-02 (S4 complete): `UserBlockCase` + `_cleanupDirectPair` + unit tests.
+  **Port addition:** `countRecentByBlocker({blockerId, window})` on
+  `UserBlockRepositoryPort` — counts `user_block_intent` rows with
+  `updated_at >= now() - window` (re-blocks bump `updated_at` via
+  `ON CONFLICT DO UPDATE`).
+  **Env:** `blockRateLimitPerDay` (default 50, `BLOCK_RATE_LIMIT_PER_DAY`);
+  trailing window hardcoded to 24h in the use case (spec names only the per-day cap).
+  **`getById` / `IdNotFoundException`:** live `UserRepository.getById` uses Drift
+  `.getSingle()` and throws `StateError` when missing — not `IdNotFoundException`
+  (that behavior exists only on the test mock). `UserBlockCase._requireUserExists`
+  catches `StateError` and rethrows `IdNotFoundException` so unknown-id rejection
+  is predictable for API/tests.
+  **Help-offer pair correlation:** `fetchByUserId(offerer)` for each direction,
+  resolve beacon author via `BeaconRepositoryPort.getBeaconById` (cached per
+  cleanup pass), withdraw active offers where `offerer ≠ author` and author is the
+  other party. Bypasses `HelpOfferCase` validation; `kBlockWithdrawReason = 'blocked'`
+  in `domain/user_block/user_block_withdraw_reason.dart` (not added to interactive
+  `kAllowedWithdrawReasonKeys` — system-initiated only).
+  **Forward-edge pair correlation:** `fetchByRecipientId` per direction, filter
+  `senderId` + `cancelledAt == null`, call `cancel(edgeId, senderId)` — no new port
+  method needed.
+  **Direct-block-only cleanup:** `_cleanupDirectPair` called only from `block()`;
+  comment in source — cascade rows must never trigger cleanup.
+  **Verification:** `dart test -x pg` → 1107 passed; `dart analyze` exit 0;
+  `rg … packages/server/lib/domain` empty.
+  **Commits:** `5f1432b5` (env + countRecentByBlocker), `8d575b0a` (UserBlockCase),
+  `904a0eab` (unit tests + journal).
