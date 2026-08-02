@@ -326,7 +326,7 @@ final class InvitationCase extends UseCaseBase {
       if (accepted) {
         final accepter = await _userRepository.getById(userId);
         await transaction.record(
-          _attentionIntents!.inviteAccepted(
+          await _attentionIntents!.inviteAccepted(
             notification: InviteAcceptedNotificationIntent(
               inviterUserId: invitation.issuer.id,
               accepterUserId: userId,

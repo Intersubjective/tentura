@@ -166,7 +166,7 @@ final class CredentialAuthCase extends UseCaseBase {
           );
           if (invitation != null) {
             await transaction.record(
-              _attentionIntents!.inviteAccepted(
+              await _attentionIntents!.inviteAccepted(
                 notification: InviteAcceptedNotificationIntent(
                   inviterUserId: invitation.issuer.id,
                   accepterUserId: user.id,

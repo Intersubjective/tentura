@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/notification/beacon_notification_recipient
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 /// Builds the immutable, recipient-specific snapshot recorded by an attention
@@ -22,11 +23,13 @@ class AttentionIntentCase {
     this._context,
     this._users,
     this._accessGuard,
+    this._userBlocks,
   );
 
   final BeaconRoomNotificationContextPort _context;
   final UserRepositoryPort _users;
   final BeaconAccessGuard _accessGuard;
+  final UserBlockRepositoryPort _userBlocks;
 
   static const _resolver = BeaconNotificationRecipientResolver();
   static const _copyBuilder = BeaconNotificationCopyBuilder();
@@ -348,9 +351,16 @@ class AttentionIntentCase {
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
+    final candidateIds = recipientUserIds
+        .where((id) => id.isNotEmpty && id != actorUserId)
+        .toList();
+    final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
+      viewerId: actorUserId,
+      peerIds: candidateIds,
+    );
     final recipients = <AttentionRecipientSnapshot>[];
-    for (final recipientId in recipientUserIds) {
-      if (recipientId.isEmpty || recipientId == actorUserId) continue;
+    for (final recipientId in candidateIds) {
+      if (hiddenPeerIds.contains(recipientId)) continue;
       recipients.add(
         AttentionRecipientSnapshot(
           recipientId: recipientId,
@@ -441,6 +451,16 @@ class AttentionIntentCase {
       AttentionRecipientReason.inboxStanceHolder,
     );
 
+    if (actorUserId != null) {
+      final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
+        viewerId: actorUserId!,
+        peerIds: reasonsByRecipient.keys,
+      );
+      for (final hiddenId in hiddenPeerIds) {
+        reasonsByRecipient.remove(hiddenId);
+      }
+    }
+
     final recipients = <AttentionRecipientSnapshot>[];
     for (final entry in reasonsByRecipient.entries) {
       final watcherOnly =
@@ -494,6 +514,10 @@ class AttentionIntentCase {
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
+    final blocked = await _userBlocks.isBlockedPair(
+      a: actorUserId,
+      b: counterpartUserId,
+    );
     return AttentionDispatchIntent(
       eventType: AttentionEventType.mutualConnectionFormed,
       sourceEventKey: sourceEventKey,
@@ -506,16 +530,18 @@ class AttentionIntentCase {
           : 'You and $actorName are now connected.',
       actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
-      recipients: [
-        AttentionRecipientSnapshot(
-          recipientId: counterpartUserId,
-          reasons: const {AttentionRecipientReason.reciprocalCounterpart},
-          role: AttentionRecipientRoleFacts(
-            targetEntityId: actorUserId,
-            actorUserId: actorUserId,
-          ),
-        ),
-      ],
+      recipients: blocked
+          ? const []
+          : [
+              AttentionRecipientSnapshot(
+                recipientId: counterpartUserId,
+                reasons: const {AttentionRecipientReason.reciprocalCounterpart},
+                role: AttentionRecipientRoleFacts(
+                  targetEntityId: actorUserId,
+                  actorUserId: actorUserId,
+                ),
+              ),
+            ],
       targetEntityId: actorUserId,
     );
   }
@@ -531,10 +557,17 @@ class AttentionIntentCase {
     final context = resolveContext
         ? await _context.loadContextForBeacon(notification.beaconId)
         : const BeaconNotificationContext();
-    final recipients = _resolver.resolveRecipients(
+    final resolvedRecipients = _resolver.resolveRecipients(
       intent: notification,
       ctx: context,
     );
+    final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
+      viewerId: notification.actorUserId,
+      peerIds: resolvedRecipients.map((recipient) => recipient.userId),
+    );
+    final recipients = resolvedRecipients
+        .where((recipient) => !hiddenPeerIds.contains(recipient.userId))
+        .toList();
     final actor = await _users.getById(notification.actorUserId);
     final copy = _copyBuilder.build(
       intent: notification,
@@ -578,14 +611,18 @@ class AttentionIntentCase {
     );
   }
 
-  AttentionDispatchIntent inviteAccepted({
+  Future<AttentionDispatchIntent> inviteAccepted({
     required InviteAcceptedNotificationIntent notification,
     required String sourceEventKey,
-  }) {
+  }) async {
     final accepterName = notification.accepterDisplayName.trim();
     final title = accepterName.isEmpty
         ? 'Invitation accepted'
         : '$accepterName joined via your invitation';
+    final blocked = await _userBlocks.isBlockedPair(
+      a: notification.accepterUserId,
+      b: notification.inviterUserId,
+    );
     return AttentionDispatchIntent(
       eventType: AttentionEventType.inviteAccepted,
       sourceEventKey: sourceEventKey,
@@ -596,16 +633,18 @@ class AttentionIntentCase {
       body: 'You are now connected on Tentura.',
       actionUrl: notification.actionUrl,
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
-      recipients: [
-        AttentionRecipientSnapshot(
-          recipientId: notification.inviterUserId,
-          reasons: const {AttentionRecipientReason.inviter},
-          role: AttentionRecipientRoleFacts(
-            targetEntityId: notification.accepterUserId,
-            actorUserId: notification.accepterUserId,
-          ),
-        ),
-      ],
+      recipients: blocked
+          ? const []
+          : [
+              AttentionRecipientSnapshot(
+                recipientId: notification.inviterUserId,
+                reasons: const {AttentionRecipientReason.inviter},
+                role: AttentionRecipientRoleFacts(
+                  targetEntityId: notification.accepterUserId,
+                  actorUserId: notification.accepterUserId,
+                ),
+              ),
+            ],
       targetEntityId: notification.accepterUserId,
     );
   }
