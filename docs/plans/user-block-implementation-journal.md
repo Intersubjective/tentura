@@ -61,7 +61,7 @@ Phase 5 — B3:
 - [x] S16 — wire withdrawal through block/unblock/cascade/release — deps: S15, S13
 
 Phase 6 — client:
-- [ ] S17 — client data + domain — deps: S5
+- [x] S17 — client data + domain — deps: S5
 - [ ] S18 — cubit + state — deps: S17
 - [ ] S19 — block sheet — deps: S18
 - [ ] S20 — blocked list screen — deps: S18
@@ -568,3 +568,28 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `dart test -t pg -j 1` → 226 passed / 2 skipped / 18 failed (pre-existing drift);
   `dart analyze` exit 0; `rg TODO\\(S16` empty; domain→repo import rg empty.
   **Commits:** (see S16 exit summary).
+- 2026-08-03 (S17 in progress): Client data + domain — Freezed entities, six V2
+  GraphQL ops, `BlockRepository` + `BlockCase`, C1 test.
+- 2026-08-03 (S17 complete): Client data + domain for user blocking (§8.1/§8.2).
+  **Entities:** `BlockIntent` (`blocked: Profile`, cascade metadata defaults per
+  spec §8.1) + `BlockPreview` in `features/block/domain/entity/user_block.dart`.
+  **GraphQL:** six `.graphql` files under `features/block/data/gql/` matching
+  §6.8 field/arg names (`objectId`, `cascadeMode`, `originId`); `myBlocks` /
+  `blockInherited` select `UserPublicModel` fragment on `v2_user`.
+  **Schema:** added `BlockIntent`, `BlockPreview` types + query/mutation fields
+  to `schema.graphql` (no discrepancy vs live server — confirmed `objectId` in
+  `mutation_user_block.dart` / `query_user_block.dart`).
+  **V2 routing:** registered `UserBlock`, `UserUnblock`, `UserBlockPromote`,
+  `MyBlocks`, `BlockInherited`, `BlockPreview` in `_tenturaDirectOperationNames`.
+  **`BlockRepository`:** `@lazySingleton`; maps Ferry → domain entities via
+  `UserPublicModel.toEntity()`; `Stream<RepositoryEvent<BlockIntent>> changes`
+  emits `Create`/`Delete` after successful `block()`/`unblock()` (self-notify
+  pattern per beacon repository — cross-screen wiring is S22).
+  **`BlockCase`:** `@singleton` thin delegate over repository (no invalidation
+  port yet — S22).
+  **Verification:** `dart run build_runner build -d` clean; `flutter analyze
+  --no-fatal-warnings --no-fatal-infos` exit 0; `check-custom-lints.sh
+  packages/client` OK (112, down from baseline 113); `flutter test
+  test/features/block/` → 1/1; full `flutter test --dart-define=ENV=test` →
+  1554 passed / 14 skipped.
+  **Commits:** (see S17 exit summary).
