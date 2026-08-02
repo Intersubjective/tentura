@@ -39,7 +39,7 @@ Phase 1 — schema:
 - [x] S2 — Drift tables + entities — deps: S1
 
 Phase 2 — server data & domain:
-- [ ] S3 — UserBlockRepositoryPort + repository — deps: S2
+- [x] S3 — UserBlockRepositoryPort + repository — deps: S2
 - [ ] S4 — UserBlockCase + cleanup orchestration — deps: S3
 - [ ] S5 — V2 GraphQL API — deps: S4
 
@@ -123,3 +123,30 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   §6.2 field order); server boot 25s OK; Drift `SELECT * FROM user_block` /
   `user_block_intent` round-trip OK (0 rows); `\d` column names match Drift mapping.
   **Commits:** `c456ef80` (Drift tables), `6d31b70c` (entities + journal).
+- 2026-08-02 (S3 in progress): Implementing `UserBlockRepositoryPort` +
+  `UserBlockRepository` + pg tests T-A1…T-A8. Will add `applyWithdrawal` to the
+  port (spec §6.4; not in §6.3 interface list but required by S4).
+- 2026-08-02 (S3 complete): `UserBlockRepositoryPort` + `UserBlockRepository`.
+  **Port addition:** `applyWithdrawal` added to the port (spec §6.4 names it as a
+  separate method for S4; omitted from §6.3 sample interface).
+  **Method coverage:**
+  - **Fully implemented:** `block`, `unblock`, `promoteToDirect`, `listIntents`,
+    `listInherited`, `preview`, `isBlockedPair`, `hiddenPeerIds`, `applyWithdrawal`,
+    `claimPendingCascades`.
+  - **Partially implemented (S13/S14 finish orchestration):**
+    - `materializeCascadeBatch` — single-transaction batch insert from
+      `block_cascade_candidates`, status/cap updates; **missing** catch-up pass
+      (§6.7 step 5), mid-run intent-abort guard (step 7), and per-batch withdrawal
+      after inherited inserts (step 6 — deferred to S16 with m0137 gate).
+    - `runReleaseSweep` — one bounded DELETE batch SQL from §6.7 with empty cursor;
+      **missing** cursor persistence across worker passes (S14 owns sweep driver).
+  **Cascade depth/row caps:** hardcoded `_cascadeMaxDepth=6`, `_cascadeMaxRows=5000`
+  (S13 will wire `Env` knobs).
+  **T-A5 behavior:** repository does not guard self-block; Postgres
+  `user_block__no_self` CHECK rejects the transaction (test asserts `throwsA`).
+  **T-A3/T-A4 beacon assertions:** skipped when m0136 `beacon_can_read_content`
+  block clause absent (not yet applied on dev DB).
+  **Verification:** `dart test -t pg test/data/repository/user_block_repository_pg_test.dart`
+  → 7 passed, 2 skipped (m0136); `dart analyze` exit 0 on changed paths;
+  `rg … packages/server/lib/domain` empty.
+  **Commits:** `423be926` (port + repo), `54be9336` (pg tests), `49123b75` (journal).
