@@ -9,8 +9,10 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
@@ -97,17 +99,102 @@ final class _FakeUsers extends Fake implements UserRepositoryPort {
 }
 
 final class _FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
+  final Map<String, List<HelpOfferEntity>> offersByUserId;
+
+  _FakeHelpOffers([this.offersByUserId = const {}]);
+
+  final withdrawCalls = <({String beaconId, String userId, String reason})>[];
+
   @override
-  Future<List<HelpOfferEntity>> fetchByUserId(String userId) async => [];
+  Future<List<HelpOfferEntity>> fetchByUserId(String userId) async =>
+      offersByUserId[userId] ?? [];
+
+  @override
+  Future<void> withdraw({
+    required String beaconId,
+    required String userId,
+    String message = '',
+    required String withdrawReason,
+  }) async {
+    withdrawCalls.add(
+      (beaconId: beaconId, userId: userId, reason: withdrawReason),
+    );
+  }
 }
 
 final class _FakeForwardEdges extends Fake implements ForwardEdgeRepositoryPort {
+  final Map<String, List<ForwardEdgeEntity>> edgesByRecipientId;
+
+  _FakeForwardEdges([this.edgesByRecipientId = const {}]);
+
+  final cancelCalls = <({String edgeId, String senderId})>[];
+
   @override
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
   }) async =>
-      [];
+      edgesByRecipientId[recipientId] ?? [];
+
+  @override
+  Future<void> cancel(String edgeId, String senderId) async {
+    cancelCalls.add((edgeId: edgeId, senderId: senderId));
+  }
+}
+
+final class _RecordingCoordination extends Fake
+    implements CoordinationRepositoryPort {
+  final deleteForCommitCalls = <({String beaconId, String userId})>[];
+
+  @override
+  Future<void> deleteForCommit({
+    required String beaconId,
+    required String userId,
+  }) async {
+    deleteForCommitCalls.add((beaconId: beaconId, userId: userId));
+  }
+}
+
+final class _RecordingInbox extends Fake implements InboxRepositoryPort {
+  final upsertWatchingCalls =
+      <({String senderId, String beaconId, bool touchForwardOrdering})>[];
+  final tombstoneCalls = <({String userId, String beaconId})>[];
+  final markForwardCancelledCalls =
+      <({String beaconId, String recipientId})>[];
+
+  @override
+  Future<void> upsertWatchingForSender({
+    required String senderId,
+    required String beaconId,
+    String? context,
+    bool touchForwardOrdering = true,
+  }) async {
+    upsertWatchingCalls.add(
+      (
+        senderId: senderId,
+        beaconId: beaconId,
+        touchForwardOrdering: touchForwardOrdering,
+      ),
+    );
+  }
+
+  @override
+  Future<void> applyTombstoneAfterWithdraw({
+    required String userId,
+    required String beaconId,
+  }) async {
+    tombstoneCalls.add((userId: userId, beaconId: beaconId));
+  }
+
+  @override
+  Future<void> markForwardCancelledForRecipient({
+    required String beaconId,
+    required String recipientId,
+  }) async {
+    markForwardCancelledCalls.add(
+      (beaconId: beaconId, recipientId: recipientId),
+    );
+  }
 }
 
 final class _FailingContacts extends Fake implements UserContactRepositoryPort {
@@ -130,6 +217,14 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
 }
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
+  _FakeBeacons({
+    this.authorIdByBeaconId = const {},
+    this.statusByBeaconId = const {},
+  });
+
+  final Map<String, String> authorIdByBeaconId;
+  final Map<String, BeaconStatus> statusByBeaconId;
+
   @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
@@ -138,10 +233,10 @@ final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
       BeaconEntity(
         id: beaconId,
         title: 't',
-        author: const UserEntity(id: 'unused'),
+        author: UserEntity(id: authorIdByBeaconId[beaconId] ?? 'unused'),
         createdAt: DateTime.utc(2026),
         updatedAt: DateTime.utc(2026),
-        status: BeaconStatus.open,
+        status: statusByBeaconId[beaconId] ?? BeaconStatus.open,
       );
 }
 
@@ -153,6 +248,8 @@ UserBlockCase _buildCase({
   ForwardEdgeRepositoryPort? forwardEdges,
   UserContactRepositoryPort? contacts,
   BeaconRepositoryPort? beacons,
+  CoordinationRepositoryPort? coordination,
+  InboxRepositoryPort? inbox,
   int blockRateLimitPerDay = 50,
 }) =>
     UserBlockCase(
@@ -163,6 +260,8 @@ UserBlockCase _buildCase({
       contacts ?? _FakeContacts(),
       users,
       beacons ?? _FakeBeacons(),
+      coordination ?? _RecordingCoordination(),
+      inbox ?? _RecordingInbox(),
       env: Env(
         environment: Environment.test,
         blockRateLimitPerDay: blockRateLimitPerDay,
@@ -278,4 +377,151 @@ void main() {
   test('withdraw reason constant is the block feature value', () {
     expect(kBlockWithdrawReason, 'blocked');
   });
+
+  test(
+    'help-offer cleanup deletes coordination, withdraws, and upserts watching on open beacon',
+    () async {
+      const beaconId = 'B-open';
+      final helpOffers = _FakeHelpOffers({
+        blockerId: [
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: blockerId,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            status: 0,
+          ),
+        ],
+      });
+      final coordination = _RecordingCoordination();
+      final inbox = _RecordingInbox();
+      final case_ = _buildCase(
+        blocks: _FakeBlocks(),
+        users: _FakeUsers({blockerId, blockedId}),
+        helpOffers: helpOffers,
+        coordination: coordination,
+        inbox: inbox,
+        beacons: _FakeBeacons(
+          authorIdByBeaconId: {beaconId: blockedId},
+          statusByBeaconId: {beaconId: BeaconStatus.open},
+        ),
+      );
+
+      await case_.block(
+        blockerId: blockerId,
+        blockedId: blockedId,
+        cascadeMode: 0,
+      );
+
+      expect(coordination.deleteForCommitCalls, [
+        (beaconId: beaconId, userId: blockerId),
+      ]);
+      expect(helpOffers.withdrawCalls, [
+        (
+          beaconId: beaconId,
+          userId: blockerId,
+          reason: kBlockWithdrawReason,
+        ),
+      ]);
+      expect(inbox.upsertWatchingCalls, [
+        (
+          senderId: blockerId,
+          beaconId: beaconId,
+          touchForwardOrdering: false,
+        ),
+      ]);
+      expect(inbox.tombstoneCalls, isEmpty);
+    },
+  );
+
+  test(
+    'help-offer cleanup applies inbox tombstone when beacon is not open-family',
+    () async {
+      const beaconId = 'B-closed';
+      final helpOffers = _FakeHelpOffers({
+        blockedId: [
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: blockedId,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            status: 0,
+          ),
+        ],
+      });
+      final coordination = _RecordingCoordination();
+      final inbox = _RecordingInbox();
+      final case_ = _buildCase(
+        blocks: _FakeBlocks(),
+        users: _FakeUsers({blockerId, blockedId}),
+        helpOffers: helpOffers,
+        coordination: coordination,
+        inbox: inbox,
+        beacons: _FakeBeacons(
+          authorIdByBeaconId: {beaconId: blockerId},
+          statusByBeaconId: {beaconId: BeaconStatus.closed},
+        ),
+      );
+
+      await case_.block(
+        blockerId: blockerId,
+        blockedId: blockedId,
+        cascadeMode: 0,
+      );
+
+      expect(coordination.deleteForCommitCalls, [
+        (beaconId: beaconId, userId: blockedId),
+      ]);
+      expect(helpOffers.withdrawCalls, [
+        (
+          beaconId: beaconId,
+          userId: blockedId,
+          reason: kBlockWithdrawReason,
+        ),
+      ]);
+      expect(inbox.tombstoneCalls, [
+        (userId: blockedId, beaconId: beaconId),
+      ]);
+      expect(inbox.upsertWatchingCalls, isEmpty);
+    },
+  );
+
+  test(
+    'forward-edge cleanup cancels edge and marks recipient inbox',
+    () async {
+      const edgeId = 'F-edge';
+      const beaconId = 'B-fwd';
+      final forwardEdges = _FakeForwardEdges({
+        blockedId: [
+          ForwardEdgeEntity(
+            id: edgeId,
+            beaconId: beaconId,
+            senderId: blockerId,
+            recipientId: blockedId,
+            createdAt: DateTime.utc(2026),
+          ),
+        ],
+      });
+      final inbox = _RecordingInbox();
+      final case_ = _buildCase(
+        blocks: _FakeBlocks(),
+        users: _FakeUsers({blockerId, blockedId}),
+        forwardEdges: forwardEdges,
+        inbox: inbox,
+      );
+
+      await case_.block(
+        blockerId: blockerId,
+        blockedId: blockedId,
+        cascadeMode: 0,
+      );
+
+      expect(forwardEdges.cancelCalls, [
+        (edgeId: edgeId, senderId: blockerId),
+      ]);
+      expect(inbox.markForwardCancelledCalls, [
+        (beaconId: beaconId, recipientId: blockedId),
+      ]);
+    },
+  );
 }

@@ -204,3 +204,25 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `rg … packages/server/lib/domain` empty.
   **Commits:** `5f1432b5` (env + countRecentByBlocker), `8d575b0a` (UserBlockCase),
   `904a0eab` (unit tests + journal).
+- 2026-08-02 (S4 remediation — §6.6 bookkeeping gap): Manager review found
+  `UserBlockCase._withdrawOffersByOfferer` and `_cancelEdgesFromSenderToRecipient`
+  called repository ports directly without the coordination/inbox side effects that
+  `HelpOfferCase.withdraw` and `ForwardCase.cancelForward` perform after the column
+  update. **Fix:** inject `CoordinationRepositoryPort` + `InboxRepositoryPort`; in
+  help-offer withdrawal mirror `HelpOfferCase.withdraw` ordering
+  (`deleteForCommit` → `withdraw` → post-withdraw beacon fetch →
+  `upsertWatchingForSender` or `applyTombstoneAfterWithdraw`); in forward cancel add
+  `markForwardCancelledForRecipient` after each `cancel`. Voluntary-cancel guards from
+  `ForwardCase.cancelForward` intentionally **not** applied (block is forced cleanup).
+  **Attention intent judgment:** `TransactionalAttentionCase.runAction` cannot nest
+  inside `UserBlockCase`'s existing `MutatingUnitOfWorkPort.run` — nested
+  `withMutatingUser` would throw actor mismatch (`blockerId` vs offerer
+  `withdrawerUserId`). Wired `helpWithdrawn` via optional `AttentionIntentCase` +
+  `AttentionDispatchPort.record` inside the caller-owned UoW (same pattern the port
+  documents); no transaction restructure, rollback test unchanged.
+  **Tests:** extended fakes to return matching active help offers / forward edges;
+  three new tests assert coordination/inbox/withdraw and forward/inbox call sequences
+  (open + closed beacon branches for help offers).
+  **Verification:** `dart test test/domain/use_case/user_block_case_test.dart` → 9
+  passed; `dart test -x pg` → 1110 passed; `dart analyze` exit 0; domain→repository
+  import rg empty.
