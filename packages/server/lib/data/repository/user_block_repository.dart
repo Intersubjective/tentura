@@ -502,7 +502,7 @@ ON CONFLICT DO NOTHING
 ''',
           [blockerId, userId, blockedId],
         );
-        // TODO(S16): trust_rebuild_effective_edge for each newly inserted inherited row.
+        await applyWithdrawal(blockerId: blockerId, blockedId: userId);
       }
 
       final done = batch.length == pending.length;
@@ -566,7 +566,7 @@ WHERE blocker_id = $1 AND blocked_id = $2
     final snapshotAt = intent?.cascadeSnapshotAt?.dateTime;
     if (snapshotAt == null) return 0;
 
-    final row = await _db
+    final inserted = await _db
         .customSelect(
           r'''
 WITH inserted AS (
@@ -594,7 +594,7 @@ WITH inserted AS (
   ON CONFLICT DO NOTHING
   RETURNING blocked_id
 )
-SELECT COUNT(*)::int AS c FROM inserted
+SELECT blocked_id FROM inserted
 ''',
           variables: [
             Variable<String>(blockerId),
@@ -603,9 +603,13 @@ SELECT COUNT(*)::int AS c FROM inserted
           ],
           readsFrom: {_db.userBlocks, _db.inviteGenealogy},
         )
-        .getSingle();
-  // TODO(S16): trust_rebuild_effective_edge for each catch-up insert.
-    return row.read<int>('c');
+        .map((row) => row.read<String>('blocked_id'))
+        .get();
+
+    for (final userId in inserted) {
+      await applyWithdrawal(blockerId: blockerId, blockedId: userId);
+    }
+    return inserted.length;
   }
 
   @override
