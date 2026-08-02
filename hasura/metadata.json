@@ -1,5 +1,5 @@
 {
-  "resource_version": 53,
+  "resource_version": 54,
   "metadata": {
     "version": 3,
     "sources": [
@@ -930,6 +930,17 @@
                   "session_argument": "hasura_session",
                   "table_argument": "user_row"
                 }
+              },
+              {
+                "name": "hidden_for_viewer",
+                "definition": {
+                  "function": {
+                    "name": "user_hidden_for_viewer",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_row"
+                }
               }
             ],
             "select_permissions": [
@@ -948,9 +959,14 @@
                   ],
                   "computed_fields": [
                     "my_vote",
-                    "is_mutual_friend"
+                    "is_mutual_friend",
+                    "hidden_for_viewer"
                   ],
-                  "filter": {},
+                  "filter": {
+                    "hidden_for_viewer": {
+                      "_eq": false
+                    }
+                  },
                   "limit": 10
                 }
               }
@@ -969,6 +985,19 @@
                 }
               }
             ],
+            "computed_fields": [
+              {
+                "name": "hidden_for_viewer",
+                "definition": {
+                  "function": {
+                    "name": "user_presence_hidden_for_viewer",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_presence_row"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -978,7 +1007,14 @@
                     "status",
                     "user_id"
                   ],
-                  "filter": {}
+                  "computed_fields": [
+                    "hidden_for_viewer"
+                  ],
+                  "filter": {
+                    "hidden_for_viewer": {
+                      "_eq": false
+                    }
+                  }
                 },
                 "comment": ""
               }
@@ -1794,7 +1830,8 @@
               "schema": "public"
             },
             "configuration": {
-              "custom_root_fields": {}
+              "custom_root_fields": {},
+              "session_argument": "hasura_session"
             },
             "permissions": [
               {
