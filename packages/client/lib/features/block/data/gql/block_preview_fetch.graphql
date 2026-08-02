@@ -1,0 +1,8 @@
+query BlockPreview($objectId: String!, $cascadeMode: Int) {
+  blockPreview(objectId: $objectId, cascadeMode: $cascadeMode) {
+    cascadeCandidateCount
+    cascadeCapped
+    openCommitmentCount
+    willWithdrawEdge
+  }
+}

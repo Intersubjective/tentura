@@ -1,0 +1,7 @@
+# import '/data/gql/user_public_model.graphql'
+
+query BlockInherited($originId: String!) {
+  blockInherited(originId: $originId) {
+    ...UserPublicModel
+  }
+}

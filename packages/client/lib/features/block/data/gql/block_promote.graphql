@@ -1,0 +1,3 @@
+mutation UserBlockPromote($objectId: String!) {
+  userBlockPromote(objectId: $objectId)
+}

@@ -1,0 +1,3 @@
+mutation UserBlock($objectId: String!, $cascadeMode: Int) {
+  userBlock(objectId: $objectId, cascadeMode: $cascadeMode)
+}

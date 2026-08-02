@@ -1,0 +1,13 @@
+# import '/data/gql/user_public_model.graphql'
+
+query MyBlocks {
+  myBlocks {
+    cascadeMode
+    inheritedCount
+    cascadeCapped
+    cascadePending
+    blocked {
+      ...UserPublicModel
+    }
+  }
+}

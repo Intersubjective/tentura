@@ -3091,6 +3091,9 @@ type mutation_root {
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
+  userBlock(cascadeMode: Int, objectId: String!): Boolean!
+  userBlockPromote(objectId: String!): Boolean!
+  userUnblock(objectId: String!): Boolean!
   createDraftAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createDraftBlocker(beaconId: String!, body: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createDraftPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
@@ -4404,6 +4407,9 @@ type query_root {
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
   mutualFriends(id: String!): [v2_user!]
+  myBlocks: [BlockIntent!]!
+  blockInherited(originId: String!): [v2_user!]!
+  blockPreview(cascadeMode: Int, objectId: String!): BlockPreview!
 
   """
   fetch data from the table: "mutual_score"
@@ -6792,6 +6798,21 @@ type v2_User {
 type v2_user_presence {
   last_seen_at: String!
   status: Int!
+}
+
+type BlockIntent {
+  blocked: v2_user!
+  cascadeCapped: Boolean!
+  cascadeMode: Int!
+  cascadePending: Boolean!
+  inheritedCount: Int!
+}
+
+type BlockPreview {
+  cascadeCandidateCount: Int!
+  cascadeCapped: Boolean!
+  openCommitmentCount: Int!
+  willWithdrawEdge: Boolean!
 }
 
 type v2_UserContact {

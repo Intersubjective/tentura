@@ -1,0 +1,3 @@
+mutation UserUnblock($objectId: String!) {
+  userUnblock(objectId: $objectId)
+}
