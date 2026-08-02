@@ -49,7 +49,7 @@ Phase 3 — enforcement:
 - [x] S8 — Hasura metadata — deps: S7
 - [x] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
 - [x] S10 — attention recipient filtering (E8) — deps: S4
-- [ ] S11 — genealogy placeholder (E13) — deps: S4
+- [x] S11 — genealogy placeholder (E13) — deps: S4
 
 Phase 4 — cascade:
 - [ ] S12 — block_cascade_candidates verification (test-only) — deps: S1
@@ -406,27 +406,23 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   2 skipped / 19 failed (pre-existing drift); `dart analyze` exit 0; domain→repo
   import rg empty.
   **Commits:** (see S10 exit summary).
-- 2026-08-03 (S10 in progress): attention recipient filtering (E8) —
-  `AttentionIntentCase` + T-H E8 tests.
-- 2026-08-03 (S10 complete): attention recipient filtering (E8).
-  **`UserBlockRepositoryPort` injection:** fourth constructor param on
-  `AttentionIntentCase`; Injectable codegen picks it up automatically.
-  **Four assembly points filtered before snapshot construction:**
-  - `fromBeaconNotification` — batched `hiddenPeerIds(actor, candidates)` after
-    resolver, covers all 12 beacon-notification hub callers.
-  - `_directedRoomMessage` — batched `hiddenPeerIds` on directed chat targets.
-  - `requestStatusChanged` — batched `hiddenPeerIds` on `reasonsByRecipient`
-    keys when `actorUserId != null`; skipped when null.
-  - `mutualConnectionFormed` / `inviteAccepted` — `isBlockedPair`; empty
-    `recipients` when blocked (defensive; S9 guards make most paths unreachable).
-  **`inviteAccepted` now async** so it can await `isBlockedPair`; callers in
-  `invitation_case`, `auth_case`, `credential_auth_case` updated to `await`.
-  **Tests:** `attention_intent_case_test.dart` — one group per assembly point,
-  both block directions per group; `reviewOpened` exercises the shared hub (not
-  `coordinationChanged`, which reads admitted ids from beacon context, not the
-  intent). `TestAttentionHarness` accepts optional `FakeUserBlockRepository`.
-  **Verification:** `dart test test/domain/attention/attention_intent_case_test.dart`
-  → 30 passed; `dart test -x pg` → 1148 passed; `dart test -t pg` → 180 passed /
-  2 skipped / 19 failed (pre-existing drift); `dart analyze` exit 0; domain→repo
-  import rg empty.
-  **Commits:** (see S10 exit summary).
+- 2026-08-03 (S11 in progress): genealogy placeholder (E13) — `_buildNodes`
+  viewer-aware anonymization via `hiddenPeerIds`, `fetchChildren` viewerId
+  threading, `fetchLineageBetween` target-fallback block check.
+- 2026-08-03 (S11 complete): genealogy placeholder (E13).
+  **`InviteGenealogyRepository`:** injects `UserBlockRepositoryPort`; `_buildNodes`
+  takes `viewerId`, batches `hiddenPeerIds` over `liveUserIds.values`, drops blocked
+  ids from `userIdByNodeKey` so nodes fall through to existing `user: null` path
+  (no `deletedAt` for alive blocked users). `_loadSingleUserNode` accepts optional
+  `viewerId` for `fetchLineageBetween` lone-target fallback.
+  **`fetchChildren` viewer threading:** `viewerId` added port → repository →
+  `InviteGenealogyCase` → `query_invite_genealogy.dart` (`jwt.sub`). `fetchChildCounts`
+  unchanged (count-only, no identity).
+  **Tests:** `invite_genealogy_block_pg_test.dart` — fetchLineage / fetchChildren /
+  fetchLineageBetween (chain + lone fallback), both block directions; structural
+  edge-list assertions that descendants stay connected.
+  **Verification:** new pg file 6/6; `dart test -x pg` → 1148 passed; full
+  `dart test -t pg` → 186 passed / 2 skipped / 18 failed (pre-existing
+  `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
+  `dart analyze` exit 0; domain→repo import rg empty.
+  **Commits:** (see S11 exit summary).

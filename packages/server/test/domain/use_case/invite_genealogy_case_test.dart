@@ -11,6 +11,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   String? lastUserId;
   String? lastBetweenViewerId;
   String? lastBetweenTargetId;
+  String? lastChildrenViewerId;
   String? lastChildrenNodeKey;
   DateTime? lastChildrenAfterCreatedAt;
   String? lastChildrenAfterNodeKey;
@@ -55,11 +56,13 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
 
   @override
   Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String viewerId,
     required String nodeKey,
     required int limit,
     DateTime? afterCreatedAt,
     String? afterNodeKey,
   }) async {
+    lastChildrenViewerId = viewerId;
     lastChildrenNodeKey = nodeKey;
     lastChildrenAfterCreatedAt = afterCreatedAt;
     lastChildrenAfterNodeKey = afterNodeKey;
@@ -111,12 +114,14 @@ void main() {
   test('fetchChildren delegates node key, cursor and limit', () async {
     final afterCreatedAt = DateTime.utc(2026, 2);
     final result = await case_.fetchChildren(
+      viewerId: viewerId,
       nodeKey: 'Gnode',
       afterCreatedAt: afterCreatedAt,
       afterNodeKey: 'Gafter',
       limit: 10,
     );
     expect(result.edges, isEmpty);
+    expect(repo.lastChildrenViewerId, viewerId);
     expect(repo.lastChildrenNodeKey, 'Gnode');
     expect(repo.lastChildrenAfterCreatedAt, afterCreatedAt);
     expect(repo.lastChildrenAfterNodeKey, 'Gafter');

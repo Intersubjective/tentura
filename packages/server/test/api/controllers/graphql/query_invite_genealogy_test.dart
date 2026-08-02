@@ -44,6 +44,7 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
 
   @override
   Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String viewerId,
     required String nodeKey,
     required int limit,
     DateTime? afterCreatedAt,

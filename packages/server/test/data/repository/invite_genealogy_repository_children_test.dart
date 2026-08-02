@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
+import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
@@ -51,7 +52,7 @@ Future<void> main() async {
     setUpAll(() async {
       env = _testEnv();
       db = TenturaDb(env);
-      repo = InviteGenealogyRepository(env, db);
+      repo = InviteGenealogyRepository(env, db, UserBlockRepository(db));
 
       Future<void> user(String id, DateTime createdAt) async {
         final ts = createdAt.toUtc().toIso8601String();
@@ -121,7 +122,7 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
           [
             for (var i = 0; i < childIds.length; i++)
               (
-                nodeKey: keyOf(childIds[i]),
+              nodeKey: keyOf(childIds[i]),
                 createdAt: createdAtForIndex(i),
               ),
           ]..sort((a, b) {
@@ -130,6 +131,7 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
           });
 
       final first = await repo.fetchChildren(
+        viewerId: parentId,
         nodeKey: keyOf(parentId),
         limit: 2,
       );
@@ -140,6 +142,7 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
 
       final lastFirst = first.edges.last;
       final second = await repo.fetchChildren(
+        viewerId: parentId,
         nodeKey: keyOf(parentId),
         afterCreatedAt: lastFirst.descendantUserCreatedAt,
         afterNodeKey: lastFirst.descendantNodeKey,
@@ -172,6 +175,7 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
   test('fetchChildren clamps oversized limits', () async {
     if (skipReason != false) return;
     final page = await repo.fetchChildren(
+      viewerId: parentId,
       nodeKey: keyOf(parentId),
       limit: 1000,
     );
@@ -183,6 +187,7 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
     () async {
       if (skipReason != false) return;
       final page = await repo.fetchChildren(
+        viewerId: loneId,
         nodeKey: keyOf(loneId),
         limit: 10,
       );
@@ -198,10 +203,12 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
       if (skipReason != false) return;
 
       final first = await repo.fetchChildren(
+        viewerId: parentId,
         nodeKey: keyOf(parentId),
         limit: 2,
       );
       final second = await repo.fetchChildren(
+        viewerId: parentId,
         nodeKey: keyOf(parentId),
         afterCreatedAt: first.edges.last.descendantUserCreatedAt,
         afterNodeKey: first.edges.last.descendantNodeKey,
@@ -233,10 +240,15 @@ ON CONFLICT (descendant_node_key) DO UPDATE SET
       final parentKey = keyOf(parentId);
       final before = await repo.fetchChildCounts(nodeKeys: [parentKey]);
 
-      final first = await repo.fetchChildren(nodeKey: parentKey, limit: 2);
+      final first = await repo.fetchChildren(
+        viewerId: parentId,
+        nodeKey: parentKey,
+        limit: 2,
+      );
       final afterPage1 = await repo.fetchChildCounts(nodeKeys: [parentKey]);
 
       await repo.fetchChildren(
+        viewerId: parentId,
         nodeKey: parentKey,
         afterCreatedAt: first.edges.last.descendantUserCreatedAt,
         afterNodeKey: first.edges.last.descendantNodeKey,

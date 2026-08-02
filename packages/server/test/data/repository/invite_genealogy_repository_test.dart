@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
+import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
@@ -40,7 +41,7 @@ Future<void> main() async {
     setUpAll(() async {
       env = _testEnv();
       db = TenturaDb(env);
-      repo = InviteGenealogyRepository(env, db);
+      repo = InviteGenealogyRepository(env, db, UserBlockRepository(db));
     });
 
     tearDownAll(() async {
@@ -109,6 +110,7 @@ ON CONFLICT (id) DO NOTHING
       expect(lineage.nodes.map((n) => n.user?.id), [ancestorId]);
 
       final children = await repo.fetchChildren(
+        viewerId: ancestorId,
         nodeKey: InviteGenealogyNodeKey.derive(userId: ancestorId, env: env),
         limit: 10,
       );
@@ -211,6 +213,7 @@ ON CONFLICT (id) DO NOTHING
       );
 
       final children = await repo.fetchChildren(
+        viewerId: ancestorId,
         nodeKey: ancestorNodeKey,
         limit: 10,
       );
