@@ -36,7 +36,7 @@ design doc's "B3 ships inside v1" is about product framing, not implementation o
 
 Phase 1 — schema:
 - [x] S1 — migration m0135 (tables + predicates) — no deps
-- [ ] S2 — Drift tables + entities — deps: S1
+- [x] S2 — Drift tables + entities — deps: S1
 
 Phase 2 — server data & domain:
 - [ ] S3 — UserBlockRepositoryPort + repository — deps: S2
@@ -107,3 +107,19 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   empty table only); server boot (`dart run bin/tentura.dart`, 25s) passed migrate + DI +
   worker start; `dart analyze` on changed migration files — info-only
   `unnecessary_raw_strings` on `r'''` SQL blocks (matches house style in m0133/m0134).
+- 2026-08-02 (S2 in progress): Added Drift `UserBlocks` / `UserBlockIntents` and
+  `UserBlockEntity` / `UserBlockIntentEntity` / `BlockPreviewEntity`. See final
+  checkpoint below.
+- 2026-08-02 (S2 complete): Drift tables + Freezed entities for user blocking.
+  **Spec deviations (live repo wins):** §6.1 sample uses `dateTime()` getters;
+  implemented `late final` + `customType(PgTypes.timestampWithTimezone)` like
+  `MeritrankEdgeTombstones` / `AccountCredentials`. `TimestampsFields` used only
+  on `UserBlockIntents` (has `updated_at`); `UserBlocks` declares `createdAt`
+  alone (no `updated_at` in m0135). Added `Users` FK references + `withoutRowId`
+  per house style (`UserContacts`, `VoteUsers`). `cascade_mode`/`cascade_status`
+  mapped as Drift `integer()` (Postgres `smallint` — same pattern as `Beacons.status`).
+  **Verification:** `dart run build_runner build -d` clean; `dart analyze` exit 0
+  (2 info lints on `UserBlockIntentEntity` required-after-optional — matches spec
+  §6.2 field order); server boot 25s OK; Drift `SELECT * FROM user_block` /
+  `user_block_intent` round-trip OK (0 rows); `\d` column names match Drift mapping.
+  **Commits:** `c456ef80` (Drift tables), pending entity commit.
