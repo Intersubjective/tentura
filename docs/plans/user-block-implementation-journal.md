@@ -45,7 +45,7 @@ Phase 2 — server data & domain:
 
 Phase 3 — enforcement:
 - [x] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
-- [ ] S7 — migration m0136 part 2: graph, mutual friends, computed fields — deps: S6
+- [x] S7 — migration m0136 part 2: graph, mutual friends, computed fields — deps: S6
 - [ ] S8 — Hasura metadata — deps: S7
 - [ ] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
 - [ ] S10 — attention recipient filtering (E8) — deps: S4
@@ -296,3 +296,27 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   stashes from other sessions/agents. Use `git worktree add` against a specific
   commit instead when a clean side-by-side diff is needed.
   S6 accepted as-is.
+- 2026-08-02 (S7 in progress): m0136 part 2 — graph, `graph_edges_between`,
+  `mutual_friends`, presence/user computed-field SQL. **Migration strategy:** extend
+  `m0136.dart` in place (spec §12 S6/S7 both name the same file; branch-local, already
+  applied on dev — append new statements per migrant append-once-applied convention).
+- 2026-08-02 (S7 complete): m0136 part 2 — graph readers, mutual friends, computed
+  fields (SQL only; Hasura registration is S8).
+  **Migration file strategy:** extended `m0136.dart` in place (spec §12 S6/S7 both name
+  the same file; branch-local, not merged). Dev DB already had `schema_version = 0136`
+  from S6, so `run_migrations_once.dart` is a no-op for the new statements — applied
+  part 2 manually via `docker exec postgres psql` (CREATE OR REPLACE / DROP). Fresh
+  installs replay the full m0136 in one pass.
+  **SQL changes:** `graph()` wraps `mr_graph` with `block_hides` on both endpoints;
+  `graph_edges_between` gains `hasura_session json` (DROP 2-arg overload first);
+  `mutual_friends` final SELECT filters `block_hides(alice, bob)` and per-row
+  `block_hides(alice, u.id)`; added `user_presence_hidden_for_viewer` and
+  `user_hidden_for_viewer`.
+  **`graph_edges_between_test.dart`:** all queries pass
+  `'{"x-hasura-user-id": "<viewer>"}'::json`; probe requires `pronargs = 3`.
+  **New pg tests:** `user_block_graph_enforcement_pg_test.dart` — graph(),
+  graph_edges_between(), mutual_friends() block filtering (T-H E9/E10 scope).
+  **Verification:** manual SQL apply OK; `dart test -t pg` on changed files → 9/9;
+  full `dart test -t pg` → 181 passed / 18 failed (same pre-existing
+  `beacon_cover_migration_test` + `realtime_notification_migration_test` drift as S6);
+  `dart analyze` exit 0.
