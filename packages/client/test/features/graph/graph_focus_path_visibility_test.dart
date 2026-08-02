@@ -207,7 +207,7 @@ NodeDetails _liveNode(GraphCubit cubit, String id) =>
     cubit.graphController.nodes.singleWhere((n) => n.id == id);
 
 void main() {
-  test('canExpandNode is true for unseen neighbours and false for ego', () async {
+  test('canPageMore reflects paging state for the current focus', () async {
     final source = _FakeGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub', dstTotal: 3)},
@@ -216,17 +216,102 @@ void main() {
     final cubit = _cubit(source);
     await _settle();
 
-    expect(cubit.canExpandNode('Ume'), isFalse);
-    expect(cubit.canExpandNode('Ub'), isTrue);
+    expect(cubit.isCurrentFocus('Ume'), isTrue);
+    expect(cubit.canPageMore('Ume'), isFalse);
 
-    cubit.expandNode(_liveNode(cubit, 'Ub'));
+    cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
     await _settle();
 
-    // All declared neighbours are now visible — further taps only select.
-    expect(cubit.canExpandNode('Ub'), isFalse);
+    expect(cubit.isCurrentFocus('Ub'), isTrue);
+    expect(cubit.canPageMore('Ub'), isFalse);
 
     await cubit.close();
   });
+
+  test(
+    'rollback tap on ancestor with hidden badge does not fetch',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub'), _e('Ume', 'Uc')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+      expect(source.calls, 1);
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+      expect(source.calls, 3);
+      expect(cubit.hasEverFocused('Ume'), isTrue);
+
+      cubit.handleNodeTap(_liveNode(cubit, 'Ume'));
+      await _settle();
+
+      expect(source.calls, 3);
+      expect(cubit.state.focus, 'Ume');
+      expect(_nodeIds(cubit), containsAll(['Ume', 'Ub', 'Uc']));
+      await cubit.close();
+    },
+  );
+
+  test(
+    'resetToEgo keeps everFocused so rollback taps do not refetch',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      final callsAfterExplore = source.calls;
+
+      cubit.resetToEgo();
+      await _settle();
+      expect(cubit.state.focus, isEmpty);
+
+      cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(source.calls, callsAfterExplore);
+      expect(cubit.state.focus, 'Ub');
+      await cubit.close();
+    },
+  );
+
+  test(
+    'setContext clears everFocused so a cached node can explore again',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.resetToEgo();
+      await _settle();
+
+      await cubit.setContext('work');
+      await _settle();
+      expect(source.calls, 3);
+
+      cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
+      await _settle();
+
+      expect(source.calls, 4);
+      await cubit.close();
+    },
+  );
 
   test(
     'new focus neighbours immediately show cached chords to already-visible '

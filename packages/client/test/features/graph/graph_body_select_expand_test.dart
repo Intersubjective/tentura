@@ -25,6 +25,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 class _WidgetTestGraphSource extends GraphSourceRepository {
   final pages = <String?, Set<EdgeDirected>>{};
   int calls = 0;
+  int ubFetches = 0;
 
   @override
   Future<Set<EdgeDirected>> fetch({
@@ -37,6 +38,18 @@ class _WidgetTestGraphSource extends GraphSourceRepository {
     Set<String> excludeNeighborIds = const {},
   }) async {
     calls += 1;
+    if (focus == 'Ub') {
+      ubFetches += 1;
+      if (ubFetches == 1) {
+        return {
+          _e('Ub', 'Ue', srcTotal: 3),
+        };
+      }
+      return {
+        _e('Ub', 'Ue', srcTotal: 3),
+        _e('Ub', 'Uf', srcTotal: 3),
+      };
+    }
     return pages[focus] ?? const {};
   }
 }
@@ -74,7 +87,12 @@ class _FakeProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
-EdgeDirected _e(String src, String dst) => (
+EdgeDirected _e(
+  String src,
+  String dst, {
+  int? srcTotal,
+  int? dstTotal,
+}) => (
   src: src,
   dst: dst,
   weight: 1.0,
@@ -82,8 +100,8 @@ EdgeDirected _e(String src, String dst) => (
     user: Profile(id: dst, displayName: dst),
   ),
   branch: null,
-  srcTotalNeighborCount: null,
-  dstTotalNeighborCount: null,
+  srcTotalNeighborCount: srcTotal,
+  dstTotalNeighborCount: dstTotal,
 );
 
 Future<void> _settleGraph(WidgetTester tester) async {
@@ -184,7 +202,6 @@ void main() {
     final source = _WidgetTestGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub')},
-        'Ub': {_e('Ub', 'Ue')},
       });
     final cubit = await _pumpGraphBody(tester, source: source);
     expect(source.calls, 1);
@@ -192,14 +209,15 @@ void main() {
     await tester.tap(find.byType(GraphNodeWidget).at(1));
     await _settleGraph(tester);
     expect(source.calls, 2);
-    expect(
-      cubit.graphController.edges.map((e) => e.destination.id),
-      contains('Ue'),
-    );
+    expect(cubit.state.hiddenNeighborCounts['Ub'], greaterThan(0));
 
     await tester.tap(find.text('Expand'));
     await _settleGraph(tester);
 
     expect(source.calls, 3);
+    expect(
+      cubit.graphController.edges.map((e) => e.destination.id),
+      contains('Uf'),
+    );
   });
 }

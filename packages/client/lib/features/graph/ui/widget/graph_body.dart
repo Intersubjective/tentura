@@ -80,11 +80,7 @@ class GraphBodyState extends State<GraphBody>
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
   void _onNodeTap(NodeDetails node) {
-    if (_graphCubit.canExpandNode(node.id)) {
-      unawaited(_graphCubit.expandNode(node));
-    } else {
-      _graphCubit.selectNode(node);
-    }
+    _graphCubit.handleNodeTap(node);
   }
 
   void _openNodeDetails(NodeDetails node) {
@@ -149,14 +145,16 @@ class GraphBodyState extends State<GraphBody>
                       }
                     }
                   }
+                  final focused = focusedNode;
                   return _GraphTopControls(
                     legendExpanded: _legendExpanded,
                     onToggleLegend: _toggleLegend,
-                    focusedNode: focusedNode,
+                    focusedNode: focused,
                     showExpand: _graphCubit.forwardsGraphBeaconId == null,
-                    onExpand: focusedNode == null
+                    onExpand: focused == null ||
+                            !_graphCubit.canPageMore(focused.id)
                         ? null
-                        : () => _graphCubit.expandNode(focusedNode!),
+                        : () => _graphCubit.expandNode(focused),
                     onOpenDetails: focusedNode == null
                         ? null
                         : () => _openNodeDetails(focusedNode!),

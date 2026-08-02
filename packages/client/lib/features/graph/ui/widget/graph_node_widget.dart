@@ -93,7 +93,10 @@ class GraphNodeWidget extends StatelessWidget {
             child: BlocSelector<GraphCubit, GraphState, int?>(
               selector: (state) => state.hiddenNeighborCounts[nodeDetails.id],
               builder: (context, count) {
-                if (count == null || count <= 0) {
+                final cubit = context.read<GraphCubit>();
+                if (!cubit.isCurrentFocus(nodeDetails.id) ||
+                    count == null ||
+                    count <= 0) {
                   return const SizedBox.shrink();
                 }
                 return TenturaCountBadge(
