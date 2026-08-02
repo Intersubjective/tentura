@@ -65,6 +65,17 @@ ON CONFLICT (id) DO NOTHING
 ''',
   );
 
+  Future<void> insertCrossReadForwardEdges() => db.customStatement(
+    '''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at
+) VALUES
+  ('Fblkalice001', '$bobBeaconId', '$bobId', '$aliceId', now()),
+  ('Fblkbob00001', '$aliceBeaconId', '$aliceId', '$bobId', now())
+ON CONFLICT (id) DO NOTHING
+''',
+  );
+
   Future<bool> blockHides(String a, String b) => db
       .customSelect(
         r'SELECT public.block_hides($1, $2) AS hidden',
@@ -86,6 +97,7 @@ ON CONFLICT (id) DO NOTHING
     await insertUser(bobId, 2);
     await insertBeacon(id: aliceBeaconId, authorId: aliceId);
     await insertBeacon(id: bobBeaconId, authorId: bobId);
+    await insertCrossReadForwardEdges();
   }
 
   Future<void> cleanup() async {
@@ -97,6 +109,10 @@ ON CONFLICT (id) DO NOTHING
     await db.customStatement(
       'DELETE FROM public.user_block_intent WHERE blocker_id IN ($userList) '
       'OR blocked_id IN ($userList)',
+    );
+    await db.customStatement(
+      "DELETE FROM public.beacon_forward_edge WHERE id IN "
+      "('Fblkalice001', 'Fblkbob00001')",
     );
     await db.customStatement(
       "DELETE FROM public.beacon WHERE id IN ('$aliceBeaconId', '$bobBeaconId')",

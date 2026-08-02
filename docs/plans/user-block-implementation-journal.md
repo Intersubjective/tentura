@@ -44,7 +44,7 @@ Phase 2 — server data & domain:
 - [x] S5 — V2 GraphQL API — deps: S4
 
 Phase 3 — enforcement:
-- [ ] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
+- [x] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
 - [ ] S7 — migration m0136 part 2: graph, mutual friends, computed fields — deps: S6
 - [ ] S8 — Hasura metadata — deps: S7
 - [ ] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
@@ -256,3 +256,25 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   → 10 passed; `dart test -x pg` → 1120 passed; `dart analyze` exit 0;
   `rg … packages/server/lib/domain` empty.
   **Commits:** (see S5 exit summary).
+- 2026-08-02 (S6 in progress): m0136 part 1 — `beacon_can_read_content` block
+  clause + `user_block_inherit_on_invite` trigger on `invite_genealogy`.
+- 2026-08-02 (S6 complete): m0136 part 1 landed — beacon visibility wall +
+  signup inheritance trigger.
+  **Live m0124 match:** confirmed `beacon_can_read_content` body matches spec §3.1
+  aside from formatting; added `block_hides` as first `WHEN` only.
+  **`beacon_can_read_involvement`:** unchanged — delegates to
+  `beacon_can_read_content` (verified in m0124).
+  **T-D test ids:** canonical §9.1 ids use a `d` infix (`Ublkdalice001`, …) and
+  `pk-$id` public keys so pg tests can run parallel with
+  `user_block_repository_pg_test.dart` (same Postgres, overlapping §9.1 A/B).
+  **T-D materialization:** tests insert expected cascade rows directly —
+  `materializeCascadeBatch` still passes `cascade_mode` as bigint to
+  `block_cascade_candidates` (pre-existing Drift mismatch; S13 owns the worker).
+  **T-A4b fix:** seeded reciprocal forward edges in `seedPair()` so cross-read
+  assertions match m0124 involvement rules (open beacons are not world-readable).
+  **Verification:** migration applied via `run_migrations_once.dart`; T-A3/T-A4b
+  now run (not skipped) and pass; T-D1…T-D6 pass;
+  `dart test -t pg` → 176 passed / 19 failed (pre-existing migration-contract
+  failures, e.g. `primary_need_slug` in beacon_cover — unchanged by stash check);
+  `dart analyze` exit 0 on changed paths.
+  **Commits:** (see S6 exit summary).
