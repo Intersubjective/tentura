@@ -20,9 +20,11 @@ import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
-import '../../support/test_attention_harness.dart';
+import '../../support/block_aware_beacon_access_guard.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/fake_user_block_repository.dart';
+import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 void main() {
@@ -519,5 +521,64 @@ void main() {
         expect(attention.recorded, isEmpty);
       },
     );
+  });
+
+  group('offerHelp — blocked author/offerer pair (E4, covered by S6 canReadContent)',
+      () {
+    late FakeUserBlockRepository blocks;
+
+    setUp(() {
+      blocks = FakeUserBlockRepository();
+      case_ = HelpOfferCase(
+        helpOfferRepo,
+        beaconRepo,
+        coordinationRepo,
+        inboxRepo,
+        capabilityCase,
+        roomRepo,
+        forwardEdgeRepo,
+        admissionRepo,
+        BlockAwareBeaconAccessGuard(
+          blocks: blocks,
+          beaconRepo: beaconRepo,
+        ),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: Env(environment: Environment.test),
+        logger: Logger('HelpOfferCaseBlockTest'),
+      );
+    });
+
+    test('rejects when author blocked offerer', () async {
+      stubBeacon(
+        beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+      );
+      blocks.blockPair('Uauth', 'Uofferer');
+
+      await expectLater(
+        case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      verifyNever(
+        helpOfferRepo.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          message: anyNamed('message'),
+          helpTypes: anyNamed('helpTypes'),
+        ),
+      );
+    });
+
+    test('rejects when offerer blocked author', () async {
+      stubBeacon(
+        beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+      );
+      blocks.blockPair('Uofferer', 'Uauth');
+
+      await expectLater(
+        case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+    });
   });
 }
