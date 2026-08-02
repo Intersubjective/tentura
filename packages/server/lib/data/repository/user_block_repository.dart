@@ -1,6 +1,6 @@
-import 'package:drift/drift.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show TypedValue, Type;
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/user_block_entity.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
@@ -242,14 +242,12 @@ SELECT EXISTS (
     final openCommitmentCount = await _db
         .customSelect(
           r'''
-SELECT COUNT(DISTINCT bp1.beacon_id)::int AS c
-FROM public.beacon_participant bp1
-JOIN public.beacon_participant bp2
-  ON bp1.beacon_id = bp2.beacon_id
-WHERE bp1.user_id = $1
-  AND bp2.user_id = $2
-  AND bp1.room_access = 3
-  AND bp2.room_access = 3
+SELECT COUNT(DISTINCT bc.beacon_id)::int AS c
+FROM public.beacon_commitment bc
+JOIN public.beacon b ON b.id = bc.beacon_id
+WHERE bc.status = 0
+  AND ((b.user_id = $1 AND bc.user_id = $2)
+    OR (b.user_id = $2 AND bc.user_id = $1))
 ''',
           variables: [
             Variable<String>(blockerId),
@@ -330,7 +328,7 @@ WHERE public.block_hides($1, peer)
 ''',
           variables: [
             Variable<String>(viewerId),
-            Variable<List<String>>(peers),
+            Variable<List<String>>(peers, PgTypes.textArray),
           ],
           readsFrom: {},
         )

@@ -150,3 +150,27 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   → 7 passed, 2 skipped (m0136); `dart analyze` exit 0 on changed paths;
   `rg … packages/server/lib/domain` empty.
   **Commits:** `423be926` (port + repo), `54be9336` (pg tests), `49123b75` (journal).
+- 2026-08-02 (S3 manager review — two defects fixed before accepting the unit):
+  1. **`preview()`'s `openCommitmentCount` was semantically wrong.** The worker's query
+     checked `beacon_participant.room_access = 3` for both users on a shared beacon —
+     that's "both are admitted room participants," not "an open commitment exists," and
+     it never touched `beacon_commitment` at all. Design §6.5/spec §7.4 define "open
+     commitment" via `public.beacon_commitment.status = 0` (confirmed against m0024's own
+     trigger logic, which checks `bc.status = 0` to mean an active commitment) between the
+     beacon's author (`beacon.user_id`) and the committer (`beacon_commitment.user_id`).
+     Rewrote the query to `JOIN beacon_commitment bc ON beacon` filtered on `bc.status = 0`
+     and `(author,committer) = (blocker,blocked) OR (blocked,blocker)`.
+  2. **`hiddenPeerIds` threw at runtime.** `Variable<List<String>>(peers)` without an
+     explicit Postgres type crashes `drift_postgres` (`Unsupported type: ... _GrowableList`)
+     — confirmed by direct ad-hoc reproduction against the real DB, then fixed by passing
+     `PgTypes.textArray` as the second constructor arg, matching the existing precedent in
+     `invite_genealogy_repository.dart:193`. Neither T-A test nor any other S3 test
+     exercised this method, so the pg suite stayed green throughout — this is a reminder
+     that "tests pass" only covers what the tests call.
+  Both fixes verified: re-ran `dart test -t pg user_block_repository_pg_test.dart` (still
+  7 passed/2 skipped) and a direct ad-hoc query against real Postgres for `hiddenPeerIds`
+  (confirmed the crash pre-fix, confirmed clean 0-row result post-fix). `dart analyze`
+  clean of new issues after also tidying the unused `drift/drift.dart` import and
+  `combinators_ordering` info my edit touched.
+  S3 accepted. Unit boundary note for S13/S14 workers: the two partially-implemented
+  cascade methods noted above are unchanged by this review pass — still their job.
