@@ -57,7 +57,7 @@ Phase 4 — cascade:
 - [x] S14 — release sweep — deps: S13
 
 Phase 5 — B3:
-- [ ] S15 — migration m0137: withdrawal gate — deps: S1
+- [x] S15 — migration m0137: withdrawal gate — deps: S1
 - [ ] S16 — wire withdrawal through block/unblock/cascade/release — deps: S15, S13
 
 Phase 6 — client:
@@ -528,3 +528,24 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `dart test -t pg` → 217 passed / 2 skipped / 18 failed (pre-existing drift);
   `dart analyze` exit 0; domain→repo import rg empty.
   **Commits:** (see S14 exit summary).
+- 2026-08-03 (S15 in progress): migration m0137 — B3 withdrawal gate on
+  `trust_rebuild_effective_edge` publish step; T-G1…T-G8 pg tests.
+- 2026-08-03 (S15 complete): migration m0137 — B3 withdrawal gate.
+  **`trust_rebuild_effective_edge`:** copied m0122 body verbatim through the
+  `user_trust_edge` upsert; added `_target` CASE on `user_block`
+  `(blocker_id, blocked_id)`; publish compares `_target` vs `_prev`; `RETURN _w`
+  unchanged. `trust_rebuild_effective_batch` untouched (delegates per pair).
+  **MeritRank zero-weight sanity:** `docker ps` shows `meritrank` healthy;
+  `SELECT mr_put_edge('A','B',0,'',0)` succeeds (returns weight-0 tuple);
+  `mr_edgelist()` shows no row for that pair afterward — zero-weight edge
+  appears inert (not pathological). No dedicated read API besides `mr_edgelist`.
+  **Tests:** `user_block_withdrawal_gate_pg_test.dart` — T-G1…T-G8 on canonical
+  §9.1 fixture (`g` infix). Uses `applyWithdrawal` / `unblock` repository paths
+  (already pass `-1` from S3) — gate behavior confirmed end-to-end without S16
+  wiring changes. `s_*` comparisons use `closeTo` tolerance for sub-microsecond
+  decay drift on rebuild.
+  **Verification:** new pg file 8/8; `dart test -x pg` → 1150 passed;
+  `dart test -t pg` → 225 passed / 2 skipped / 18 failed (pre-existing
+  `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
+  `dart analyze` exit 0.
+  **Commits:** (see S15 exit summary).
