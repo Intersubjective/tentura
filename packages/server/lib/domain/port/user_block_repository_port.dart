@@ -58,5 +58,12 @@ abstract class UserBlockRepositoryPort {
     required int limit,
   });
 
+  /// Backfill inherited rows for signups that landed after [cascade_snapshot_at]
+  /// but before their inviter was materialized (§6.7 step 5).
+  Future<int> catchUpCascadeIntent({
+    required String blockerId,
+    required String blockedId,
+  });
+
   Future<int> runReleaseSweep({required int limit});
 }

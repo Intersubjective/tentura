@@ -71,6 +71,9 @@ class Env {
     Duration? beaconCreateRateWindow,
     int? beaconCreateMaxPerUser,
     int? blockRateLimitPerDay,
+    int? blockCascadeMaxDepth,
+    int? blockCascadeMaxRows,
+    int? blockCascadeBatchSize,
     Duration? roomMessageRateWindow,
     int? roomMessageMaxPerUser,
     int? uploadDailyCapBytes,
@@ -235,6 +238,18 @@ class Env {
            blockRateLimitPerDay ??
            int.tryParse(_env['BLOCK_RATE_LIMIT_PER_DAY'] ?? '') ??
            50,
+       blockCascadeMaxDepth =
+           blockCascadeMaxDepth ??
+           int.tryParse(_env['BLOCK_CASCADE_MAX_DEPTH'] ?? '') ??
+           6,
+       blockCascadeMaxRows =
+           blockCascadeMaxRows ??
+           int.tryParse(_env['BLOCK_CASCADE_MAX_ROWS'] ?? '') ??
+           5000,
+       blockCascadeBatchSize =
+           blockCascadeBatchSize ??
+           int.tryParse(_env['BLOCK_CASCADE_BATCH_SIZE'] ?? '') ??
+           500,
        roomMessageRateWindow =
            roomMessageRateWindow ??
            Duration(
@@ -535,6 +550,15 @@ class Env {
 
   /// Max direct blocks one user may issue within a trailing 24h window.
   final int blockRateLimitPerDay;
+
+  /// Max invite-tree depth for cascade candidate queries (`block_cascade_candidates`).
+  final int blockCascadeMaxDepth;
+
+  /// Max inherited rows materialized per cascade intent before `cascade_status = 3`.
+  final int blockCascadeMaxRows;
+
+  /// Rows inserted per `materializeCascadeBatch` call during cascade materialization.
+  final int blockCascadeBatchSize;
 
   /// Sliding window for room-message spam control (per author).
   final Duration roomMessageRateWindow;
