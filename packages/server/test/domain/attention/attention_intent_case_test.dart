@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/invite_accepted_notification_intent
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
+import '../../support/fake_user_block_repository.dart';
 
 void main() {
   const actor = 'actor';
@@ -344,5 +345,191 @@ void main() {
 
     expect(intent.actorUserId, isNull);
     expect(intent.body, contains('Request moved'));
+  });
+
+  group('E8 attention recipient block filtering', () {
+    const unrelated = 'member';
+
+    Future<Set<String>> recipientIds(AttentionDispatchIntent intent) async =>
+        intent.recipients.map((recipient) => recipient.recipientId).toSet();
+
+    group('fromBeaconNotification hub', () {
+      Future<AttentionDispatchIntent> buildIntent(
+        TestAttentionHarness harness,
+      ) => harness.intents.reviewOpened(
+        beaconId: beacon,
+        beaconTitle: 'Request title',
+        recipientUserIds: {target, unrelated},
+        actorUserId: actor,
+        sourceEventKey: eventKey,
+      );
+
+      test('excludes candidate when actor blocked them', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(actor, target);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+
+      test('excludes candidate when they blocked actor', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(target, actor);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+    });
+
+    group('_directedRoomMessage', () {
+      Future<AttentionDispatchIntent> buildIntent(
+        TestAttentionHarness harness,
+      ) => harness.intents.roomMessagePosted(
+        beaconId: beacon,
+        messageId: 'message',
+        actorUserId: actor,
+        recipientUserIds: {target, unrelated},
+        excerpt: 'Directed message',
+        threadItemId: item,
+        sourceEventKey: eventKey,
+      );
+
+      test('excludes candidate when actor blocked them', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(actor, target);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+
+      test('excludes candidate when they blocked actor', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(target, actor);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+    });
+
+    group('requestStatusChanged', () {
+      final blockContext = const BeaconNotificationContext(
+        admittedUserIds: {unrelated, target},
+        usersWithActiveCoordination: {target},
+      );
+
+      Future<AttentionDispatchIntent> buildIntent(
+        TestAttentionHarness harness,
+      ) => harness.intents.requestStatusChanged(
+        beaconId: beacon,
+        fromStatus: 'open',
+        toStatus: 'closed',
+        actorUserId: actor,
+        sourceEventKey: eventKey,
+      );
+
+      test('excludes candidate when actor blocked them', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(actor, target);
+        final harness = TestAttentionHarness(
+          context: blockContext,
+          userBlocks: blocks,
+        );
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+
+      test('excludes candidate when they blocked actor', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(target, actor);
+        final harness = TestAttentionHarness(
+          context: blockContext,
+          userBlocks: blocks,
+        );
+
+        final intent = await buildIntent(harness);
+
+        expect(await recipientIds(intent), isNot(contains(target)));
+        expect(await recipientIds(intent), contains(unrelated));
+      });
+    });
+
+    group('mutualConnectionFormed', () {
+      test('excludes counterpart when actor blocked them', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(actor, target);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await harness.intents.mutualConnectionFormed(
+          actorUserId: actor,
+          counterpartUserId: target,
+          sourceEventKey: eventKey,
+        );
+
+        expect(intent.recipients, isEmpty);
+      });
+
+      test('excludes counterpart when they blocked actor', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(target, actor);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await harness.intents.mutualConnectionFormed(
+          actorUserId: actor,
+          counterpartUserId: target,
+          sourceEventKey: eventKey,
+        );
+
+        expect(intent.recipients, isEmpty);
+      });
+    });
+
+    group('inviteAccepted', () {
+      Future<AttentionDispatchIntent> buildIntent(
+        TestAttentionHarness harness,
+      ) => harness.intents.inviteAccepted(
+        notification: const InviteAcceptedNotificationIntent(
+          inviterUserId: author,
+          accepterUserId: actor,
+          accepterDisplayName: 'Actor',
+          actionUrl: '/#/shared/view?id=$actor',
+        ),
+        sourceEventKey: eventKey,
+      );
+
+      test('excludes inviter when accepter blocked them', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(actor, author);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(intent.recipients, isEmpty);
+      });
+
+      test('excludes inviter when they blocked accepter', () async {
+        final blocks = FakeUserBlockRepository();
+        blocks.blockPair(author, actor);
+        final harness = TestAttentionHarness(userBlocks: blocks);
+
+        final intent = await buildIntent(harness);
+
+        expect(intent.recipients, isEmpty);
+      });
+    });
   });
 }

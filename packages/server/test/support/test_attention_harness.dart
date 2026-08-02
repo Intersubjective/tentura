@@ -12,16 +12,20 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
+import 'fake_user_block_repository.dart';
+
 final class TestAttentionHarness {
   TestAttentionHarness({
     BeaconNotificationContext context = const BeaconNotificationContext(),
     bool canReadBeaconContent = true,
     void Function()? onContextLoaded,
+    FakeUserBlockRepository? userBlocks,
   }) : _dispatch = _RecordingDispatch(),
        intents = AttentionIntentCase(
          _Context(context, onContextLoaded),
          _Users(),
          _Access(allowed: canReadBeaconContent),
+         userBlocks ?? FakeUserBlockRepository(),
        ) {
     transactional = TransactionalAttentionCase(
       _UnitOfWork(),
