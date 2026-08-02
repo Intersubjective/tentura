@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -19,10 +20,15 @@ import '../mapper/user_mapper.dart';
   order: 1,
 )
 class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
-  InviteGenealogyRepository(this._env, this._database);
+  InviteGenealogyRepository(
+    this._env,
+    this._database,
+    this._userBlockRepository,
+  );
 
   final Env _env;
   final TenturaDb _database;
+  final UserBlockRepositoryPort _userBlockRepository;
 
   static const _maxChildrenPageSize = 50;
 
@@ -89,6 +95,7 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
     final nodes = await _buildNodes(
       edgeRows: edgeRows,
       seedNodeKeys: {viewerNodeKey},
+      viewerId: userId,
     );
     return InviteGenealogyGraphEntity(
       viewerNodeKey: viewerNodeKey,
@@ -99,6 +106,7 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
 
   @override
   Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String viewerId,
     required String nodeKey,
     required int limit,
     DateTime? afterCreatedAt,
@@ -170,7 +178,11 @@ LIMIT $2
           createdAt: row.createdAt,
         ),
     ];
-    final nodes = await _buildNodes(edgeRows: edgeRows, seedNodeKeys: const {});
+    final nodes = await _buildNodes(
+      edgeRows: edgeRows,
+      seedNodeKeys: const {},
+      viewerId: viewerId,
+    );
     return InviteGenealogyChildrenPageEntity(nodes: nodes, edges: edges);
   }
 
@@ -252,6 +264,7 @@ GROUP BY ancestor_node_key
     final nodes = await _buildNodes(
       edgeRows: edgeRows,
       seedNodeKeys: const {},
+      viewerId: viewerId,
     );
 
     // Seed users (no ancestor edge) are absent from the edge-derived nodes;
@@ -260,12 +273,20 @@ GROUP BY ancestor_node_key
     final extraNodes = <InviteGenealogyNodeEntity>[];
     if (!builtKeys.contains(viewerNodeKey)) {
       extraNodes.add(
-        await _loadSingleUserNode(userId: viewerId, nodeKey: viewerNodeKey),
+        await _loadSingleUserNode(
+          userId: viewerId,
+          nodeKey: viewerNodeKey,
+          viewerId: viewerId,
+        ),
       );
     }
     if (targetNodeKey != viewerNodeKey && !builtKeys.contains(targetNodeKey)) {
       extraNodes.add(
-        await _loadSingleUserNode(userId: targetId, nodeKey: targetNodeKey),
+        await _loadSingleUserNode(
+          userId: targetId,
+          nodeKey: targetNodeKey,
+          viewerId: viewerId,
+        ),
       );
     }
 
@@ -299,7 +320,24 @@ GROUP BY ancestor_node_key
   Future<InviteGenealogyNodeEntity> _loadSingleUserNode({
     required String userId,
     required String nodeKey,
+    String? viewerId,
   }) async {
+    if (viewerId != null && viewerId != userId) {
+      final hidden = await _userBlockRepository.hiddenPeerIds(
+        viewerId: viewerId,
+        peerIds: [userId],
+      );
+      if (hidden.contains(userId)) {
+        final userRow = await _database.managers.users
+            .filter((e) => e.id(userId))
+            .getSingleOrNull();
+        return InviteGenealogyNodeEntity(
+          nodeKey: nodeKey,
+          user: null,
+          userCreatedAt: userRow?.createdAt.dateTime,
+        );
+      }
+    }
     final userRow = await _database.managers.users
         .filter((e) => e.id(userId))
         .getSingleOrNull();
@@ -383,6 +421,7 @@ SELECT * FROM ancestors
   Future<List<InviteGenealogyNodeEntity>> _buildNodes({
     required List<_EdgeRow> edgeRows,
     required Set<String> seedNodeKeys,
+    required String viewerId,
   }) async {
     final nodeKeys = <String>{...seedNodeKeys};
     for (final row in edgeRows) {
@@ -418,7 +457,14 @@ SELECT * FROM ancestors
     }
 
     final usersById = await _loadUsersById(liveUserIds.values.toSet());
-    final userIdByNodeKey = liveUserIds;
+    final hiddenPeerIds = await _userBlockRepository.hiddenPeerIds(
+      viewerId: viewerId,
+      peerIds: liveUserIds.values,
+    );
+    final userIdByNodeKey = {
+      for (final entry in liveUserIds.entries)
+        if (!hiddenPeerIds.contains(entry.value)) entry.key: entry.value,
+    };
 
     return [
       for (final nodeKey in nodeKeys)

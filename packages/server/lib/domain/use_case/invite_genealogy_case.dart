@@ -28,11 +28,13 @@ final class InviteGenealogyCase extends UseCaseBase {
   );
 
   Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String viewerId,
     required String nodeKey,
     required int limit,
     DateTime? afterCreatedAt,
     String? afterNodeKey,
   }) => _repository.fetchChildren(
+    viewerId: viewerId,
     nodeKey: nodeKey,
     limit: limit,
     afterCreatedAt: afterCreatedAt,

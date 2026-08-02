@@ -138,6 +138,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
       }
 
       final page = await _inviteGenealogyCase.fetchChildren(
+        viewerId: jwt.sub,
         nodeKey: nodeKey,
         afterCreatedAt: afterCreatedAt,
         afterNodeKey: afterNodeKey,
