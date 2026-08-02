@@ -24,6 +24,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _WidgetTestGraphSource extends GraphSourceRepository {
   final pages = <String?, Set<EdgeDirected>>{};
+  int ubFetches = 0;
 
   @override
   Future<Set<EdgeDirected>> fetch({
@@ -34,7 +35,15 @@ class _WidgetTestGraphSource extends GraphSourceRepository {
     int limit = 5,
     String? viewerUserId,
     Set<String> excludeNeighborIds = const {},
-  }) async => pages[focus] ?? const {};
+  }) async {
+    if (focus == 'Ub') {
+      ubFetches += 1;
+      if (ubFetches == 1) {
+        return {_e('Ub', 'Ue', srcTotal: 3)};
+      }
+    }
+    return pages[focus] ?? const {};
+  }
 }
 
 const _edgeColors = GraphEdgeColors(
@@ -70,7 +79,11 @@ class _FakeProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
-EdgeDirected _e(String src, String dst) => (
+EdgeDirected _e(
+  String src,
+  String dst, {
+  int? srcTotal,
+}) => (
   src: src,
   dst: dst,
   weight: 1.0,
@@ -78,7 +91,7 @@ EdgeDirected _e(String src, String dst) => (
     user: Profile(id: dst, displayName: dst),
   ),
   branch: null,
-  srcTotalNeighborCount: null,
+  srcTotalNeighborCount: srcTotal,
   dstTotalNeighborCount: null,
 );
 
@@ -156,7 +169,6 @@ void main() {
       final source = _WidgetTestGraphSource()
         ..pages.addAll({
           null: {_e('Ume', 'Ub')},
-          'Ub': {_e('Ub', 'Ue')},
         });
       await _pumpGraphBody(
         tester,
