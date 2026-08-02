@@ -91,6 +91,19 @@ final class UserBlockCase extends UseCaseBase {
         ),
       );
 
+  /// Promote an inherited block to a direct block (metadata only; no cleanup).
+  Future<void> promoteToDirect({
+    required String blockerId,
+    required String blockedId,
+  }) =>
+      _unitOfWork.run(
+        actorUserId: blockerId,
+        action: () => _blocks.promoteToDirect(
+          blockerId: blockerId,
+          blockedId: blockedId,
+        ),
+      );
+
   Future<void> _requireUserExists(String userId) async {
     try {
       await _users.getById(userId);
