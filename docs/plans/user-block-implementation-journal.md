@@ -52,7 +52,7 @@ Phase 3 — enforcement:
 - [x] S11 — genealogy placeholder (E13) — deps: S4
 
 Phase 4 — cascade:
-- [ ] S12 — block_cascade_candidates verification (test-only) — deps: S1
+- [x] S12 — block_cascade_candidates verification (test-only) — deps: S1
 - [ ] S13 — cascade materialization job — deps: S12, S5
 - [ ] S14 — release sweep — deps: S13
 
@@ -426,3 +426,28 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
   `dart analyze` exit 0; domain→repo import rg empty.
   **Commits:** (see S11 exit summary).
+- 2026-08-03 (S12 in progress): `block_cascade_candidates` pg verification —
+  spec §9.3 T-B, §9.4 T-C, §11 X2/X3/X4/X11.
+- 2026-08-03 (S12 complete): `block_cascade_candidates` pg verification (test-only).
+  **File:** `block_cascade_candidates_pg_test.dart` — canonical §9.1 fixture with
+  `c` infix (`Ublkc*`) for parallel-safe runs; seeds `vote_user` mutual pairs and
+  `user_trust_edge` published rows per spec (A→B, A→P1, B→A only).
+  **SQL casts:** `block_cascade_candidates` args need explicit
+  `$3::smallint, $4::integer, $5::integer` — Drift binds Dart `int` as bigint and
+  Postgres rejects the overload without casts (same function signature as
+  `UserBlockRepository.preview()` but that path was not exercised in S3 pg tests).
+  **Adaptations / deferrals:**
+  - T-B1: asserts SQL function returns `{P1,P2,P3}` only — root B is the
+    `_root` argument, not a candidate row (effective set `{B,P1,P2,P3}` is S13
+    materialization).
+  - T-B2: adapted to `block_cascade_unattached` per-candidate truth table (origin_id
+    semantics are S13).
+  - T-B8/T-B9: deferred to S13 (`cascade_status`, batch idempotency).
+  - T-C4: deferred to S14 (release sweep never touches mode-2 rows).
+  - X11: extended fixture with second root B2 + descendant X; A blocks B2;
+    asserts X stays unattached (cascade-eligible) when only voucher is blocked.
+  **Verification:** new file 14/14; full `dart test -t pg` → 200 passed / 2 skipped /
+  18 failed (pre-existing `beacon_cover_migration_test` +
+  `realtime_notification_migration_test` drift); `dart analyze` on new file — no
+  errors (info-only style hints).
+  **Commits:** (see S12 exit summary).
