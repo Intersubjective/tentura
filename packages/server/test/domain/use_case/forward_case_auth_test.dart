@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/fake_user_block_repository.dart';
 import 'forward_case_mocks.mocks.dart';
 
 void main() {
@@ -21,6 +22,7 @@ void main() {
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
   late FakeBeaconAccessGuard guard;
+  late FakeUserBlockRepository userBlocks;
   late CapabilityCase capabilityCase;
   late ForwardCase case_;
 
@@ -34,6 +36,7 @@ void main() {
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
     guard = FakeBeaconAccessGuard();
+    userBlocks = FakeUserBlockRepository();
 
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -47,6 +50,7 @@ void main() {
       inboxRepo,
       capabilityCase,
       beaconRepo,
+      userBlocks,
       guard,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCaseAuthTest'),

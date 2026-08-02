@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/forward_attribution_repository_port.d
 
 import 'forward_case_mocks.mocks.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/fake_user_block_repository.dart';
 import '../../support/test_attention_harness.dart';
 
 ForwardEdgeEntity _forwardEdge({
@@ -57,6 +58,7 @@ void main() {
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
   late FakeBeaconAccessGuard guard;
+  late FakeUserBlockRepository userBlocks;
   late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
   late ForwardCase case_;
@@ -71,6 +73,7 @@ void main() {
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
     guard = FakeBeaconAccessGuard();
+    userBlocks = FakeUserBlockRepository();
     attention = TestAttentionHarness();
 
     capabilityCase = CapabilityCase(
@@ -85,6 +88,7 @@ void main() {
       inboxRepo,
       capabilityCase,
       beaconRepo,
+      userBlocks,
       guard,
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -712,6 +716,56 @@ void main() {
           onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
         ),
       );
+    });
+  });
+
+  group('forward — blocked recipients (E2)', () {
+    test('drops recipient when sender blocked them', () async {
+      userBlocks.blockPair('U1', 'Rblocked');
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rblocked', 'Rok'],
+      );
+
+      final captured = verify(
+        forwardEdgeRepo.createBatch(
+          beaconId: 'B1',
+          senderId: 'U1',
+          recipientIds: captureAnyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).captured.single as List<String>;
+      expect(captured, ['Rok']);
+    });
+
+    test('drops recipient when they blocked sender', () async {
+      userBlocks.blockPair('Rblocked', 'U1');
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rblocked'],
+      );
+
+      final captured = verify(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: captureAnyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).captured.single as List<String>;
+      expect(captured, isEmpty);
     });
   });
 

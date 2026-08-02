@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/forward_attribution_repository_port.d
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -25,6 +26,7 @@ final class ForwardCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRepository,
+    this._userBlockRepository,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
@@ -41,6 +43,7 @@ final class ForwardCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final UserBlockRepositoryPort _userBlockRepository;
   final BeaconAccessGuard _guard;
 
   /// Cancel a forward edge (soft-delete).
@@ -144,10 +147,17 @@ final class ForwardCase extends UseCaseBase {
       }
     }
 
-    final recipients = recipientIds.where((id) => id != senderId).toList();
-    if (recipients.isEmpty) {
+    final nonSelfRecipients =
+        recipientIds.where((id) => id != senderId).toList();
+    if (nonSelfRecipients.isEmpty) {
       throw ArgumentError('recipientIds must not contain only the sender');
     }
+    final hidden = await _userBlockRepository.hiddenPeerIds(
+      viewerId: senderId,
+      peerIds: nonSelfRecipients,
+    );
+    final recipients =
+        nonSelfRecipients.where((id) => !hidden.contains(id)).toList();
 
     if (!await _guard.canReadContent(
       beaconId: beaconId,
