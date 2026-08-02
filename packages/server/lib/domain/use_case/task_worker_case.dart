@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
+import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -38,6 +39,7 @@ final class TaskWorkerCase extends UseCaseBase {
     AttentionChannelDeliveryCase attentionChannelDelivery,
     TrustMaintenancePort trustMaintenance,
     BlockCascadeCase blockCascade,
+    BlockReleaseSweepCase blockReleaseSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -50,6 +52,7 @@ final class TaskWorkerCase extends UseCaseBase {
       attentionChannelDelivery: attentionChannelDelivery,
       trustMaintenance: trustMaintenance,
       blockCascade: blockCascade,
+      blockReleaseSweep: blockReleaseSweep,
       env: env,
       logger: logger,
     ),
@@ -66,6 +69,7 @@ final class TaskWorkerCase extends UseCaseBase {
     AttentionChannelDeliveryCase? attentionChannelDelivery,
     TrustMaintenancePort? trustMaintenance,
     BlockCascadeCase? blockCascade,
+    BlockReleaseSweepCase? blockReleaseSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -73,7 +77,8 @@ final class TaskWorkerCase extends UseCaseBase {
        _attentionExpirySweep = attentionExpirySweep,
        _attentionChannelDelivery = attentionChannelDelivery,
        _trustMaintenance = trustMaintenance,
-       _blockCascade = blockCascade;
+       _blockCascade = blockCascade,
+       _blockReleaseSweep = blockReleaseSweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -89,6 +94,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
   final TrustMaintenancePort? _trustMaintenance;
   final BlockCascadeCase? _blockCascade;
+  final BlockReleaseSweepCase? _blockReleaseSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -103,6 +109,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBlockCascadeSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastBlockReleaseSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastImageGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastStageExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -145,6 +152,15 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastBlockCascadeSweep = now;
       await _blockCascade?.runDue(now: now);
+    },
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastBlockReleaseSweep) <
+          env.blockReleaseSweepInterval) {
+        return;
+      }
+      _lastBlockReleaseSweep = now;
+      await _blockReleaseSweep?.runDue(now: now);
     },
     // Calculate Image Hash
     () async {
