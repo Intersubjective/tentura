@@ -41,7 +41,7 @@ Future<void> main() async {
     setUpAll(() async {
       env = _testEnv();
       db = TenturaDb(env);
-      repo = InviteGenealogyRepository(env, db, UserBlockRepository(db));
+      repo = InviteGenealogyRepository(env, db, UserBlockRepository(env, db));
     });
 
     tearDownAll(() async {

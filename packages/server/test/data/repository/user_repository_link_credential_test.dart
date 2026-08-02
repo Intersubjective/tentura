@@ -43,7 +43,7 @@ Future<void> main() async {
         env,
         db,
         const TrustEvidenceRepositoryMock(),
-        InviteGenealogyRepository(env, db, UserBlockRepository(db)),
+        InviteGenealogyRepository(env, db, UserBlockRepository(env, db)),
       );
     });
 

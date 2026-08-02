@@ -86,7 +86,7 @@ Future<void> main() async {
     setUpAll(() async {
       env = _testEnv();
       db = TenturaDb(env);
-      blockRepo = UserBlockRepository(db);
+      blockRepo = UserBlockRepository(env, db);
       repo = InviteGenealogyRepository(env, db, blockRepo);
 
       Future<void> user(String id, DateTime createdAt) async {

@@ -53,7 +53,7 @@ Phase 3 — enforcement:
 
 Phase 4 — cascade:
 - [x] S12 — block_cascade_candidates verification (test-only) — deps: S1
-- [ ] S13 — cascade materialization job — deps: S12, S5
+- [x] S13 — cascade materialization job — deps: S12, S5
 - [ ] S14 — release sweep — deps: S13
 
 Phase 5 — B3:
@@ -451,3 +451,29 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `realtime_notification_migration_test` drift); `dart analyze` on new file — no
   errors (info-only style hints).
   **Commits:** (see S12 exit summary).
+- 2026-08-03 (S13 in progress): Cascade materialization job — env knobs, catch-up
+  pass, `BlockCascadeCase`, task-worker wiring.
+- 2026-08-03 (S13 complete): Cascade materialization job (§6.7 materialization half).
+  **Env:** `blockCascadeMaxDepth` (6), `blockCascadeMaxRows` (5000),
+  `blockCascadeBatchSize` (500) — `.env.example` lines added.
+  **`UserBlockRepository`:** injects `Env`; explicit `::smallint/::integer` casts on
+  `block_cascade_candidates` calls (Drift bigint bind mismatch, same as S12 pg tests).
+  **`catchUpCascadeIntent`:** mirrors `user_block_inherit_on_invite` for
+  `invite_genealogy.created_at > cascade_snapshot_at`; wired inside
+  `materializeCascadeBatch` before finalize; `::timestamptz` cast on snapshot bind
+  (architecture inventory test).
+  **Depth cap:** `_isDepthCapped` compares candidate counts at `maxDepth` vs
+  `maxDepth+1`; sets `cascade_status = 3` per spec T-C2 (not only row cap).
+  **`claimPendingCascades`:** Drift managers + in-memory sort (fixes customSelect
+  `created_at` read crash).
+  **`BlockCascadeCase`:** `@Singleton(order: 2)`; claims 10 intents/sweep;
+  time budget = `env.trustSweepTimeBudget`; `// TODO(S16):` at withdrawal points.
+  **`TaskWorkerCase`:** 1-minute throttle, optional `blockCascade` param + factory
+  wiring.
+  **Tests:** `block_cascade_job_pg_test.dart` (T-B8, T-B9, T-C2, T-C3, X5, X6, X8);
+  `block_cascade_case_test.dart` (driver loop). T-C2 status `3` confirmed per §9.4
+  table (depth cap = capped, same as row cap).
+  **Verification:** new pg file 7/7; `dart test -x pg` → 1149 passed;
+  `dart test -t pg` → 207 passed / 2 skipped / 19 failed (pre-existing drift);
+  `dart analyze` no new errors; domain→repo import rg empty.
+  **Commits:** (see S13 exit summary).

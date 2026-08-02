@@ -125,7 +125,7 @@ ON CONFLICT (id) DO NOTHING
   if (skipReason == false) {
     setUpAll(() async {
       db = TenturaDb(_testEnv());
-      repo = UserBlockRepository(db);
+      repo = UserBlockRepository(_testEnv(), db);
     });
 
     tearDown(() => cleanup());

@@ -282,7 +282,7 @@ WHERE blocker_id = '$blockerId'
     setUpAll(() async {
       env = _testEnv();
       db = TenturaDb(env);
-      repo = UserBlockRepository(db);
+      repo = UserBlockRepository(env, db);
     });
 
     tearDown(() => cleanup());
