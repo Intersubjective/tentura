@@ -46,7 +46,7 @@ Phase 2 — server data & domain:
 Phase 3 — enforcement:
 - [x] S6 — migration m0136 part 1: beacon wall + trigger — deps: S1
 - [x] S7 — migration m0136 part 2: graph, mutual friends, computed fields — deps: S6
-- [ ] S8 — Hasura metadata — deps: S7
+- [x] S8 — Hasura metadata — deps: S7
 - [ ] S9 — server-side write guards (E2,E4,E5,E6,E7,E14) — deps: S4
 - [ ] S10 — attention recipient filtering (E8) — deps: S4
 - [ ] S11 — genealogy placeholder (E13) — deps: S4
@@ -320,3 +320,33 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   full `dart test -t pg` → 181 passed / 18 failed (same pre-existing
   `beacon_cover_migration_test` + `realtime_notification_migration_test` drift as S6);
   `dart analyze` exit 0.
+- 2026-08-03 (S8 in progress): Hasura metadata — `hidden_for_viewer` computed fields on
+  `user` / `user_presence`, permission filters, `graph_edges_between` session_argument.
+- 2026-08-03 (S8 complete): Hasura metadata for block visibility enforcement.
+  **`user` table:** added `hidden_for_viewer` computed field
+  (`user_hidden_for_viewer`, `session_argument: hasura_session`,
+  `table_argument: user_row`); added to `select_permissions[0].permission.computed_fields`;
+  filter `{"hidden_for_viewer": {"_eq": false}}` (left `limit: 10` and all other fields
+  untouched).
+  **`user_presence` table:** new `computed_fields` array with `hidden_for_viewer`
+  (`user_presence_hidden_for_viewer`, `table_argument: user_presence_row`); added
+  `computed_fields` key to select permission; same filter.
+  **`graph_edges_between` function:** added `"session_argument": "hasura_session"` to
+  `configuration`, matching `graph`.
+  **Client `.graphql` investigation:** post-apply introspection shows
+  `graph_edges_between_args` still exposes only `node_ids` and `positive_only` (same
+  top-level args as `graph`: `args`, `distinct_on`, `limit`, `offset`, `order_by`,
+  `where`). Hasura auto-injects `hasura_session` from JWT — **no client `.graphql` or
+  codegen changes needed.**
+  **E11/E12 testing approach:** no Hasura HTTP permission-filter integration harness
+  exists in this repo (grep found no precedent for `is_mutual_friend` filter tests).
+  Added `user_block_visibility_pg_test.dart` — pg-tagged SQL tests asserting
+  `user_hidden_for_viewer` / `user_presence_hidden_for_viewer` omit blocked peers in
+  both directions (mirrors Hasura `hidden_for_viewer: {_eq: false}` filter semantics).
+  **Verification:** `./scripts/hasura_apply_metadata.sh` → `is_consistent: true`;
+  introspection confirms `user.hidden_for_viewer`, `user_presence.hidden_for_viewer`;
+  `dart test -t pg test/data/repository/user_block_visibility_pg_test.dart` → 2/2;
+  full `dart test -t pg` → 180 passed / 2 skipped / 19 failed (pre-existing
+  `beacon_cover_migration_test` + `realtime_notification_migration_test` drift);
+  `dart analyze` exit 0.
+  **Commits:** (see S8 exit summary).
