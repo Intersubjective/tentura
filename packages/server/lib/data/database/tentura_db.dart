@@ -60,6 +60,8 @@ import 'table/pollings.dart';
 import 'table/polling_acts.dart';
 import 'table/polling_variants.dart';
 import 'table/person_capability_events.dart';
+import 'table/user_block_intents.dart';
+import 'table/user_blocks.dart';
 import 'table/user_contacts.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
@@ -120,6 +122,8 @@ part 'tentura_db.g.dart';
     PollingVariants,
     TrustEvidenceEvents,
     Users,
+    UserBlockIntents,
+    UserBlocks,
     UserContacts,
     UserPresence,
     UserTrustEdges,
