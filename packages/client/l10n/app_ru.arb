@@ -4503,4 +4503,45 @@
   ,"@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
   }
+  ,"blockedUsersTitle": "Заблокированные"
+  ,"@blockedUsersTitle": {
+    "description": "App bar title for the blocked-users list screen."
+  }
+  ,"blockedUsersEmpty": "Вы никого не блокировали."
+  ,"@blockedUsersEmpty": {
+    "description": "Empty state on the blocked-users list screen."
+  }
+  ,"blockedHiddenViaInvites": "Ещё скрыто {count} через их приглашения"
+  ,"@blockedHiddenViaInvites": {
+    "description": "Subtitle on a direct block row when cascade materialization has hidden additional people.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"blockedInheritedPending": "Ещё скрываем людей…"
+  ,"@blockedInheritedPending": {
+    "description": "Shown while cascade materialization is still running for a block."
+  }
+  ,"blockUnhideOne": "Показать"
+  ,"@blockUnhideOne": {
+    "description": "Action on an inherited block row; releases the entire cascade under this origin."
+  }
+  ,"blockPromoteToDirect": "Заблокировать напрямую"
+  ,"@blockPromoteToDirect": {
+    "description": "Promote an inherited block to a direct block for that person only."
+  }
+  ,"blockUnhideOriginTitle": "Показать всех, скрытых этой блокировкой?"
+  ,"@blockUnhideOriginTitle": {
+    "description": "Confirmation title when unhiding from an inherited row."
+  }
+  ,"blockUnhideOriginWarning": "Это покажет всех, кого скрыла эта блокировка, а не только этого человека."
+  ,"@blockUnhideOriginWarning": {
+    "description": "Confirmation body when unhiding from an inherited row."
+  }
+  ,"unblockUserMenuItem": "Разблокировать"
+  ,"@unblockUserMenuItem": {
+    "description": "Unblock action label on profile menu and blocked-users list."
+  }
 }

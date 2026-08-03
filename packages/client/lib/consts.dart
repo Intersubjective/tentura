@@ -39,6 +39,7 @@ const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathUpdates = '/home/updates';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
+const kPathBlockedUsers = '/settings/blocked';
 const kPathDebugSettings = '/settings/debug';
 const kPathMyWork = '/home/work';
 const kPathNetwork = '/home/network';

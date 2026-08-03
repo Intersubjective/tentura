@@ -220,6 +220,17 @@ class RootRouter extends RootStackRouter {
     ),
 
     AutoRoute(
+      page: BlockedUsersRoute.page,
+      path: kPathBlockedUsers,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
+    AutoRoute(
       page: DebugSettingsRoute.page,
       path: kPathDebugSettings,
       guards: [

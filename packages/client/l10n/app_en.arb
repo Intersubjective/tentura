@@ -4710,4 +4710,45 @@
   ,"@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
   }
+  ,"blockedUsersTitle": "Blocked users"
+  ,"@blockedUsersTitle": {
+    "description": "App bar title for the blocked-users list screen."
+  }
+  ,"blockedUsersEmpty": "You have not blocked anyone."
+  ,"@blockedUsersEmpty": {
+    "description": "Empty state on the blocked-users list screen."
+  }
+  ,"blockedHiddenViaInvites": "Also hiding {count} via their invites"
+  ,"@blockedHiddenViaInvites": {
+    "description": "Subtitle on a direct block row when cascade materialization has hidden additional people.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"blockedInheritedPending": "Still hiding people…"
+  ,"@blockedInheritedPending": {
+    "description": "Shown while cascade materialization is still running for a block."
+  }
+  ,"blockUnhideOne": "Unhide"
+  ,"@blockUnhideOne": {
+    "description": "Action on an inherited block row; releases the entire cascade under this origin."
+  }
+  ,"blockPromoteToDirect": "Block directly"
+  ,"@blockPromoteToDirect": {
+    "description": "Promote an inherited block to a direct block for that person only."
+  }
+  ,"blockUnhideOriginTitle": "Unhide everyone hidden by this block?"
+  ,"@blockUnhideOriginTitle": {
+    "description": "Confirmation title when unhiding from an inherited row."
+  }
+  ,"blockUnhideOriginWarning": "This will un-hide everyone hidden because of this block, not only this person."
+  ,"@blockUnhideOriginWarning": {
+    "description": "Confirmation body when unhiding from an inherited row."
+  }
+  ,"unblockUserMenuItem": "Unblock"
+  ,"@unblockUserMenuItem": {
+    "description": "Unblock action label on profile menu and blocked-users list."
+  }
 }
