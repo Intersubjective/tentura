@@ -21,16 +21,8 @@ class _BadgeTestGraphCubit extends Cubit<GraphState> implements GraphCubit {
     emit(state.copyWith(hiddenNeighborCounts: counts));
   }
 
-  void setFocusId(String focus) {
-    emit(state.copyWith(focus: focus));
-  }
-
   @override
   String get originNodeId => 'Gviewer';
-
-  @override
-  bool isCurrentFocus(String id) =>
-      state.focus == id || (state.focus.isEmpty && id == 'Gviewer');
 
   @override
   bool canPageMore(String id) => false;
@@ -126,7 +118,6 @@ void main() {
         nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
       ),
     );
-    cubit.setFocusId('Gviewer');
 
     expect(find.byType(TenturaCountBadge), findsNothing);
 
@@ -172,7 +163,6 @@ void main() {
           nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
         ),
       );
-      cubit.setFocusId('Gviewer');
 
       final avatarElement = tester.element(find.byType(TenturaAvatar));
 
