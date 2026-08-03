@@ -140,7 +140,7 @@ CREATE INDEX user_block_origin_idx  ON public.user_block (blocker_id, origin_id)
 CREATE TABLE public.user_block_intent (
   blocker_id     text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
   blocked_id     text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
-  cascade_mode   smallint NOT NULL DEFAULT 0,   -- 0 none | 1 unattached | 2 all
+  cascade_mode   smallint NOT NULL DEFAULT 0,   -- 0 none | 1 unattached (standing-aware)
   cascade_status smallint NOT NULL DEFAULT 0,   -- 0 pending | 1 running | 2 done | 3 capped
   cascade_cursor text,
   materialized_count integer NOT NULL DEFAULT 0,
@@ -274,15 +274,18 @@ sock puppets whose *only* connection to the network is the blocked account. So s
 cascade by **standing, not by descent alone**:
 
 ```
-cascade_mode 1 (default, recommended):
+cascade_mode 1 (depth- and size-capped, the only cascade option):
   descendants of the blocked root who have no independent standing —
   a *probationary* block, released automatically once they earn it (§6.3).
-
-cascade_mode 2 (opt-in, depth- and size-capped):
-  all descendants, permanently, until the block is lifted.
 ```
 
-Mode 1 hits exactly the sock-puppet burst and leaves the integrated ex-invitee alone.
+This hits exactly the sock-puppet burst and leaves the integrated ex-invitee alone. An
+earlier draft also offered an opt-in "everyone in the invite branch, permanently"
+mode (cascade_mode 2). It was removed before it shipped to users: a choice between
+"only people without standing" and "the whole branch regardless of standing" just
+re-introduces the descent-alone problem this section opened with, as an opt-in escape
+hatch. There is no product need it serves that the promotion escape hatch (§6.3) does
+not already cover for a specific person.
 
 **"Independent standing" is blocker-relative, and that is what makes it cheap.** The
 naive definition — "every positive inbound edge originates inside the blocked subtree" —
@@ -404,7 +407,7 @@ Evaluating that CTE inside a permission filter is not survivable. The cascade se
 materialization the block is partially applied — acceptable, and the direct block (the
 part the user actually cares about) lands synchronously.
 
-**New signups inherit for free — in both modes.** This is the part that actually stops
+**New signups inherit for free.** This is the part that actually stops
 an ongoing sock-puppet stream: the blocked account keeps inviting *after* the block, and
 those accounts are the threat. Because `invite_genealogy` stores only direct parent
 edges, one AFTER INSERT trigger gives transitive correctness by induction — if the
@@ -422,12 +425,10 @@ WHERE ub.blocked_id = NEW.ancestor_user_id
 ON CONFLICT DO NOTHING;
 ```
 
-**The trigger needs no mode branch and no standing predicate.** An
+**The trigger needs no standing predicate.** An
 `invite_genealogy` row is only ever written at signup, so at trigger time the descendant
 is brand new and has no trust edges — `block_cascade_unattached` is unconditionally
-`true` for it. Mode 1 and mode 2 therefore inherit identically; they differ only in
-(a) the initial backfill of the *pre-existing* subtree (§6.1) and (b) whether the
-probationary release sweep runs (§6.3). One indexed scan on `user_block_reverse_idx`
+`true` for it. One indexed scan on `user_block_reverse_idx`
 per signup.
 
 **The propagation frontier gates itself.** If Bob is blocked, Bob invites Carol (who
@@ -465,7 +466,6 @@ Notes:
   `trust_rebuild_effective_edge(blocker_id, blocked_id, -1)` so the honest weight returns.
   One call per released row; skip it when the pair has no `user_trust_edge` row, which is
   the common case.
-- **Mode 2 never releases** — "I want this whole branch gone" is explicit intent.
 - **Promotion escape hatch.** If the blocker looks at an inherited entry and decides they
   want that person gone on their own merits, the UI writes a *direct* row
   (`origin_id = blocked_id`). Direct rows are outside the sweep's `WHERE`, so they are
@@ -835,10 +835,10 @@ B3 rides along because it is one `CASE` expression and because a block that leav
 positive published edge standing is incoherent. The only shared state it touches is the
 blocker's own outgoing endorsement, bounded by what they had already given.
 
-**v2 — B2 (cascade), mode 1 only.**
+**v2 — B2 (cascade), standing-aware only.**
 Task-worker materialization, inheritance trigger (§6.2), release sweep (§6.3), genealogy
-placeholder rendering, size/depth caps. Mode 2 ("all descendants") stays behind a cap and
-is not the default.
+placeholder rendering, size/depth caps. There is only cascade_mode 1 — no unconditional
+"whole branch regardless of standing" mode (see §6.1).
 
 **B3 (withdrawal) ships inside v1, not as a later phase.**
 One `CASE` in `trust_rebuild_effective_edge` plus the epsilon-bypass rebuild on

@@ -235,11 +235,14 @@ When A blocks R and A is herself a descendant of R, the candidate set contains A
 everyone A invited**. Two guards handle it, and both are needed:
 
 - `_candidate = _blocker → false` in `block_cascade_unattached` makes the blocker
-  permanently *attached*. In mode 1 the guarded descent therefore stops at the blocker and
-  never enters her subtree.
-- `s.uid IS DISTINCT FROM _blocker` in the recursive step does the same thing structurally,
-  which is what covers **mode 2** — mode 2 skips the predicate entirely, so without this
-  clause the descent would walk straight through A into everyone she invited.
+  permanently *attached*. The guarded descent therefore stops at the blocker and never
+  enters her subtree.
+- `s.uid IS DISTINCT FROM _blocker` in the recursive step does the same thing
+  structurally, as defense-in-depth: it stops the descent one step earlier, without
+  relying on `block_cascade_unattached` being called at all. (An earlier draft had a
+  second cascade mode that skipped the predicate entirely — see design §6.1 — which is
+  why this guard exists independently of the predicate; it was removed in m0138, but the
+  guard is still correct and cheap to keep.)
 
 `s.uid <> _blocker` in the outer `SELECT` is the last line of defence: without it the
 insert violates `user_block__no_self` and aborts the whole batch.
@@ -833,11 +836,12 @@ Content, top to bottom:
 1. Title `Text(l10n.blockUserTitle(profile.shownName))`, `textTheme.titleMedium`.
 2. Body `l10n.blockUserExplainer`, `textTheme.bodyMedium` — states that they will no
    longer see each other and cannot contact each other.
-3. `SwitchListTile` — "Also hide people they invited" (`cascadeMode > 0`). Default **off**.
-   Subtitle names the effect in plain language, not the mode number.
-4. Nested, only when (3) is on: a `RadioListTile` pair for mode 1 (recommended) / mode 2,
-   with mode 2's subtitle warning that it hides the entire branch regardless of standing.
-5. **Withdrawal notice — information, not a control.** When
+3. `SwitchListTile` — "Also hide people they invited" (on → `cascadeMode: 1`, off →
+   `cascadeMode: 0`). Default **off**. Subtitle names the effect in plain language
+   (standing-aware, probationary), not a mode number. No nested choice: there is only
+   one cascade mode (design §6.1); an earlier draft's "everyone in their invite branch,
+   regardless of standing" mode was removed before shipping to users.
+4. **Withdrawal notice — information, not a control.** When
    `preview.willWithdrawEdge` is true, render a non-interactive row: an
    `Icons.info_outline` icon plus `l10n.blockWithdrawNotice`, stating that blocking also
    stops vouching for this person in the trust graph and that unblocking restores it.
@@ -847,18 +851,19 @@ Content, top to bottom:
    unconditional (§1); presenting it as optional would be a lie about what the button
    does. Omit the row entirely when `willWithdrawEdge` is false — with no edge to
    withdraw, the statement would be false.
-6. Impact block, populated from `blockPreview`: `l10n.blockPreviewCascade(n)` and, when
+5. Impact block, populated from `blockPreview`: `l10n.blockPreviewCascade(n)` and, when
    `openCommitmentCount > 0`, a warning row using `colorScheme.error` /
    `tt.danger` with `Icons.warning_amber_outlined`.
-7. Actions row: `TextButton` cancel + `FilledButton` confirm styled with
+6. Actions row: `TextButton` cancel + `FilledButton` confirm styled with
    `ButtonStyle(backgroundColor: WidgetStatePropertyAll(colorScheme.error), foregroundColor: WidgetStatePropertyAll(colorScheme.onError))`.
 
 Spacing from `context.tt` (`screenHPadding`, `rowGap`, `sectionGap`) only. The preview
-fetch is debounced and re-issued when (3)/(4) change — the candidate count depends on the
-mode. Item (5) does not re-fetch: whether an edge exists is independent of the cascade.
+fetch is debounced and re-issued when (3) changes — the candidate count depends on
+whether the cascade is on. Item (4) does not re-fetch: whether an edge exists is
+independent of the cascade.
 
-**The sheet therefore contains exactly one checkbox** — the cascade switch in (3), with
-its mode radios nested underneath. Everything else is text, a warning, or the action row.
+**The sheet therefore contains exactly one checkbox** — the cascade switch in (3).
+Everything else is text, a warning, or the action row.
 
 ### 8.4 UI — blocked list screen
 
@@ -985,14 +990,16 @@ adding a trust edge grants standing — it does not.
 | T-B8 | `user_block_intent.cascade_status` ends at `2` (done); `materialized_count` = 3 |
 | T-B9 | the candidate query is order-independent: running materialization in two batches yields the same set as one batch |
 
-### 9.4 Group T-C — cascade mode 2
+### 9.4 Group T-C — cascade_mode 2 removal (m0138)
+
+Cascade mode 2 ("all descendants, standing ignored, never released") was removed from
+the design before shipping to users — see design §6.1. Only `cascade_mode 0` (none) and
+`1` (standing-aware, probationary) remain.
 
 | # | Assertion |
 |---|---|
-| T-C1 | effective set = `{B, C, D, P1, P2, P3, E}` — the whole subtree, standing ignored |
-| T-C2 | with `BLOCK_CASCADE_MAX_DEPTH = 1`, only `{B, C, P1, P2, E}` (depth-1 invitees); `cascade_status = 3` |
-| T-C3 | with `BLOCK_CASCADE_MAX_ROWS = 2`, exactly 2 inherited rows land and `cascade_status = 3` |
-| T-C4 | mode 2 rows are **never** released by the sweep, even when the member later earns standing |
+| T-C1 | `cascade_mode = 2` is rejected by the `user_block_intent_cascade_mode_check` CHECK constraint |
+| T-C2 | `block_cascade_candidates` always applies the standing filter (`block_cascade_unattached`) — there is no mode value that bypasses it |
 
 ### 9.5 Group T-D — inheritance at signup
 
@@ -1022,7 +1029,6 @@ adding a trust edge grants standing — it does not.
 | T-F1 | P1 is inherited-blocked | P1↔V becomes mutual (V is A-trusted) | sweep deletes `(A,P1,B)`; P1 visible again |
 | T-F2 | B is directly blocked | B somehow becomes A-trusted | sweep **never** deletes the root row (`blocked_id <> origin_id` guard) |
 | T-F3 | P2 promoted to direct | P2 earns standing | the direct row survives; only the inherited row (if any) goes |
-| T-F4 | mode 2 cascade | member earns standing | nothing released |
 | T-F5 | A→P1 edge was gated to 0 | P1 released | `trust_rebuild_effective_edge` republishes `+0.20`; `prev_sent_weight` = 0.20 |
 | T-F6 | P1 released | P5 signs up invited by P1 | **no** inherited row — the frontier moved |
 | T-F7 | P1↔P2 mutual only | sweep runs | neither released |

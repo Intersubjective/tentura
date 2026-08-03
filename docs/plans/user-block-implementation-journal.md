@@ -832,3 +832,60 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `user_block_adversarial_pg_test.dart`, and `env.dart`; `git diff --check`
   clean.
   **Commits:** (see S24 exit summary).
+
+- 2026-08-03 (post-ship scope change, all 24 units already complete): user
+  decision — remove `cascade_mode 2` ("everyone in the invite branch,
+  standing ignored, never released") from the design entirely, not just hide
+  it in the block sheet's UI. Confirmed with the user which scope was wanted
+  (client-only vs. full server removal); answer was full removal including
+  server.
+  **`m0138`** (new migration): tightens `user_block_intent.cascade_mode`
+  CHECK from `IN (0,1,2)` to `IN (0,1)` (defensive `UPDATE ... SET
+  cascade_mode = 1 WHERE cascade_mode = 2` first; live dev DB had 0 such
+  rows). Simplifies `block_cascade_candidates` by dropping the `_mode = 2`
+  unconditional-descent bypass in both the recursive CTE step and the outer
+  filter — the function signature is unchanged (no call-site or Hasura
+  changes needed), it just no longer has a second behavior for any `_mode`
+  value.
+  **Server tests:** removed the three pg tests that specifically exercised
+  mode-2 semantics — T-C1–T-C3 in `block_cascade_candidates_pg_test.dart`
+  (whole-subtree descent), T-C2–T-C3 in `block_cascade_job_pg_test.dart`
+  (depth/row caps under mode 2), T-F4 in `block_release_sweep_pg_test.dart`
+  ("mode 2 never releases" — this was true only because the sweep's `WHERE`
+  already filtered to `cascade_mode = 1`; nothing else to test once mode 2
+  can't exist). Replaced the candidates-file trio with two tests: a
+  CHECK-constraint rejection test for `cascade_mode = 2`, and a confirmation
+  that `block_cascade_candidates` always applies the standing filter. X8 in
+  the job test (max-rows cap under a large cascade) now uses `cascadeMode: 1`
+  instead of 2 — its hub fixture has no vouching relationships, so the
+  candidate set and cap behavior are identical either way; this was verified,
+  not assumed, before making the change.
+  **Client:** `block_user_sheet.dart` — removed both `RadioListTile`s and the
+  `_cascadeMode` state field; `_effectiveCascadeMode` now returns `1` whenever
+  the switch is on, `0` otherwise. Removed the four now-orphaned l10n keys
+  (`blockCascadeModeSybil(Subtitle)`, `blockCascadeModeAll(Subtitle)`) from
+  both `app_en.arb` and `app_ru.arb` — the switch's existing subtitle already
+  described the standing-aware behavior correctly, so no new copy was needed.
+  Updated `block_user_sheet_test.dart` (dropped the radio-key assertions) and
+  the incidental `cascadeMode: 2` in `block_case_test.dart` (pass-through
+  test, not mode-2-specific, changed to 1).
+  **Docs:** updated `user-block-design.md` §6.1 (mode 2 framing removed, note
+  added explaining why it was dropped instead of shipped), §6.2 ("in both
+  modes" wording), §6.3 ("mode 2 never releases" bullet removed), §11 (v2
+  scope line). Updated `user-block-implementation-spec.md` §2.5 (reframed the
+  `s.uid IS DISTINCT FROM _blocker` guard as defense-in-depth rather than
+  "what covers mode 2"), §8.3 (UI spec — removed the `RadioListTile` item,
+  renumbered the list), §9.4 (T-C group repurposed to describe the m0138
+  removal and its two replacement tests), §9.7 (dropped the T-F4 row).
+  Updated `docs/features/user-block.md`'s migrations table with an `m0138`
+  row — its product/engineering prose already only ever described the
+  standing-aware behavior, so no other changes were needed there.
+  **Verification:** `dart test -t pg -j 1` → 229 passed / 2 skipped / 18
+  failed (same pre-existing baseline, net -4 tests from the removals/merge
+  above); `dart test -x pg` → 1150 passed; `dart analyze` → 0 errors;
+  domain→repo import rg empty; client `flutter analyze` clean in
+  `lib/features/block`; `flutter test test/features/block/` → all passed;
+  `check-custom-lints.sh packages/client` → 112 (baseline 113, unchanged from
+  before this change).
+  **Commits:** `494efab1` (server: migration + tests), `6a2ea11e` (client: UI
+  + l10n + tests), docs commit to follow.

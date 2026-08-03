@@ -66,6 +66,7 @@ Cascade materialization is throttled (~1 minute) in `TaskWorkerCase`; release sw
 | **`m0135`** | `user_block`, `user_block_intent`, `block_hides`, `block_cascade_unattached`, `block_cascade_candidates` |
 | **`m0136`** | `beacon_can_read_content` wall, `graph` / `graph_edges_between` / `mutual_friends` filters, `user_hidden_for_viewer`, `user_presence_hidden_for_viewer`, `user_block_inherit_on_invite` trigger |
 | **`m0137`** | Withdrawal gate inside `trust_rebuild_effective_edge` |
+| **`m0138`** | Removes cascade_mode 2 ("everyone in the invite branch, standing ignored, never released") from the design; tightens the `cascade_mode` CHECK to `(0,1)` and drops the unconditional-descent branch from `block_cascade_candidates`. Only mode 1 (standing-aware, probationary) remains — see design §6.1. |
 
 Deeper design and test matrix: [`../plans/user-block-design.md`](../plans/user-block-design.md), [`../plans/user-block-implementation-spec.md`](../plans/user-block-implementation-spec.md).
 
