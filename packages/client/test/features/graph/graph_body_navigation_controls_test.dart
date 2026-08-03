@@ -165,7 +165,7 @@ void main() {
   });
 
   testWidgets(
-    'compact focus keeps action panel below nav without overlap',
+    'compact focus keeps expand and nav on one toolbar row',
     (tester) async {
       final source = _WidgetTestGraphSource()
         ..pages.addAll({
@@ -193,10 +193,38 @@ void main() {
         reason: 'Expand and Fit must not overlap on compact width',
       );
       expect(
-        expandBox.top,
-        greaterThanOrEqualTo(fitBox.bottom),
-        reason: 'Action panel stacks below nav on compact',
+        expandBox.right,
+        lessThanOrEqualTo(fitBox.left),
+        reason: 'Expand sits left of Fit in the same toolbar row',
       );
+      final expandCenterY = expandBox.center.dy;
+      final fitCenterY = fitBox.center.dy;
+      expect(
+        (expandCenterY - fitCenterY).abs(),
+        lessThan(8),
+        reason: 'Expand and Fit share the same toolbar row',
+      );
+    },
+  );
+
+  testWidgets(
+    'narrow width toolbar does not overflow after focus with expand',
+    (tester) async {
+      final source = _WidgetTestGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+        });
+      await _pumpGraphBody(
+        tester,
+        size: const Size(320, 800),
+        source: source,
+      );
+
+      await tester.tap(find.byType(GraphNodeWidget).at(1));
+      await _settleGraph(tester);
+
+      expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -220,7 +248,8 @@ void main() {
 
       expect(cubit.state.focus, 'Uc');
       expect(cubit.canPageMore('Uc'), isFalse);
-      expect(find.text('Profile'), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.graphOpenDetails)), findsOneWidget);
+      expect(find.byTooltip('Profile'), findsOneWidget);
       expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
     },
   );

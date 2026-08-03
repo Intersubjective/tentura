@@ -88,6 +88,7 @@ abstract final class TestIds {
   static String graphNode(String userId) => 'graph.node.$userId';
 
   static const graphExpand = 'graph.expand';
+  static const graphOpenDetails = 'graph.open_details';
   static const graphBack = 'graph.back';
   static const graphResetToEgo = 'graph.reset_to_ego';
 

@@ -149,7 +149,7 @@ class GraphBodyState extends State<GraphBody>
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: _GraphTopControls(
+              child: _GraphToolbar(
                 legendExpanded: _legendExpanded,
                 onToggleLegend: _toggleLegend,
                 focusedNode: focused,
@@ -254,12 +254,9 @@ class GraphBodyState extends State<GraphBody>
       );
 }
 
-/// Top overlays for nav + focused-node actions.
-///
-/// On compact widths the action panel sits below the nav bar so the two
-/// elevated surfaces never collide (phone / narrow web).
-class _GraphTopControls extends StatelessWidget {
-  const _GraphTopControls({
+/// Single top-right toolbar: focus actions (when set) + graph navigation.
+class _GraphToolbar extends StatelessWidget {
+  const _GraphToolbar({
     required this.legendExpanded,
     required this.onToggleLegend,
     required this.focusedNode,
@@ -277,195 +274,110 @@ class _GraphTopControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = context.tt;
-    final nav = _GraphNavigationControls(
-      legendExpanded: legendExpanded,
-      onToggleLegend: onToggleLegend,
-    );
-    final node = focusedNode;
-    // Keep Profile (and optional Expand) while a non-ego node is focused.
-    // Expand may be null after the neighbourhood is fully paged — that must
-    // not hide the whole panel.
-    final actions = node == null || onOpenDetails == null
-        ? null
-        : _GraphNodeActionPanel(
-            node: node,
-            showExpand: showExpand && onExpand != null,
-            onExpand: onExpand,
-            onOpenDetails: onOpenDetails!,
-          );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact =
-            windowClassForWidth(constraints.maxWidth) == WindowClass.compact;
-
-        if (actions == null) {
-          return Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: EdgeInsets.all(tt.rowGap),
-              child: nav,
-            ),
-          );
-        }
-
-        if (isCompact) {
-          // Stack vertically: a single row of Expand/Profile + four icons
-          // overflows typical phone widths (especially with RU labels).
-          return Padding(
-            padding: EdgeInsets.all(tt.rowGap),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(alignment: Alignment.topRight, child: nav),
-                SizedBox(height: tt.tightGap),
-                Align(alignment: Alignment.topCenter, child: actions),
-              ],
-            ),
-          );
-        }
-
-        return Padding(
-          padding: EdgeInsets.all(tt.rowGap),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: actions,
-                ),
-              ),
-              SizedBox(width: tt.iconTextGap),
-              nav,
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _GraphNavigationControls extends StatelessWidget {
-  const _GraphNavigationControls({
-    required this.legendExpanded,
-    required this.onToggleLegend,
-  });
-
-  final bool legendExpanded;
-  final VoidCallback onToggleLegend;
-
-  @override
-  Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final cubit = context.read<GraphCubit>();
+    final node = focusedNode;
 
-    return Material(
-      color: scheme.surfaceContainerHigh,
-      elevation: 2,
-      borderRadius: BorderRadius.circular(tt.cardRadius),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.tightGap / 2,
-          vertical: tt.tightGap / 2,
+    final contextActions = <Widget>[];
+    if (node != null && onOpenDetails != null) {
+      if (showExpand && onExpand != null) {
+        contextActions.add(
+          IconButton(
+            key: TestIds.key(TestIds.graphExpand),
+            tooltip: l10n.inboxProvenanceExpand,
+            onPressed: onExpand,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        );
+      }
+      final openDetails = switch (node) {
+        UserNode() || GenealogyUserNode() => (
+          tooltip: l10n.profile,
+          icon: Icons.person_outline,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            BlocBuilder<GraphCubit, GraphState>(
-              builder: (context, _) => IconButton(
-                key: TestIds.key(TestIds.graphBack),
-                tooltip: l10n.graphBack,
-                onPressed: cubit.canPopFocus ? cubit.popFocus : null,
-                icon: const Icon(Icons.arrow_back),
-              ),
-            ),
-            IconButton(
-              key: TestIds.key(TestIds.graphResetToEgo),
-              tooltip: l10n.graphResetToEgo,
-              onPressed: cubit.resetToEgo,
-              icon: const Icon(Icons.home_outlined),
-            ),
-            IconButton(
-              tooltip: l10n.graphFitPath,
-              onPressed: () {
-                if (cubit.graphController.canLayout) {
-                  cubit.fitCurrentPath();
-                }
-              },
-              icon: const Icon(Icons.fit_screen_outlined),
-            ),
-            IconButton(
-              tooltip: legendExpanded
-                  ? l10n.graphLegendClose
-                  : l10n.graphLegendOpen,
-              onPressed: onToggleLegend,
-              icon: Icon(
-                legendExpanded ? Icons.map : Icons.map_outlined,
-              ),
-            ),
-          ],
+        BeaconNode() => (
+          tooltip: l10n.openBeacon,
+          icon: Icons.flag_outlined,
         ),
-      ),
-    );
-  }
-}
-
-class _GraphNodeActionPanel extends StatelessWidget {
-  const _GraphNodeActionPanel({
-    required this.node,
-    required this.showExpand,
-    required this.onExpand,
-    required this.onOpenDetails,
-  });
-
-  final NodeDetails node;
-  final bool showExpand;
-  final VoidCallback? onExpand;
-  final VoidCallback onOpenDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
-    final canOpenDetails = switch (node) {
-      UserNode() || GenealogyUserNode() || BeaconNode() => true,
-      GenealogyDeletedNode() => false,
-    };
-
-    if (!showExpand && !canOpenDetails) {
-      return const SizedBox.shrink();
+        GenealogyDeletedNode() => null,
+      };
+      if (openDetails != null) {
+        contextActions.add(
+          IconButton(
+            key: TestIds.key(TestIds.graphOpenDetails),
+            tooltip: openDetails.tooltip,
+            onPressed: onOpenDetails,
+            icon: Icon(openDetails.icon),
+          ),
+        );
+      }
     }
 
-    return Material(
-      elevation: 2,
-      color: scheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(tt.cardRadius),
+    final showDivider = contextActions.isNotEmpty;
+
+    return Align(
+      alignment: Alignment.topRight,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.iconTextGap,
-          vertical: tt.rowGap / 2,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (showExpand)
-              TextButton(
-                key: TestIds.key(TestIds.graphExpand),
-                onPressed: onExpand,
-                child: Text(l10n.inboxProvenanceExpand),
-              ),
-            if (canOpenDetails)
-              TextButton(
-                onPressed: onOpenDetails,
-                child: Text(l10n.profile),
-              ),
-          ],
+        padding: EdgeInsets.all(tt.rowGap),
+        child: Material(
+          color: scheme.surfaceContainerHigh,
+          elevation: 2,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.tightGap / 2,
+              vertical: tt.tightGap / 2,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...contextActions,
+                if (showDivider)
+                  SizedBox(
+                    height: tt.buttonHeight,
+                    child: VerticalDivider(
+                      width: tt.tightGap,
+                      thickness: 1,
+                      color: scheme.outlineVariant,
+                    ),
+                  ),
+                BlocBuilder<GraphCubit, GraphState>(
+                  builder: (context, _) => IconButton(
+                    key: TestIds.key(TestIds.graphBack),
+                    tooltip: l10n.graphBack,
+                    onPressed: cubit.canPopFocus ? cubit.popFocus : null,
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                ),
+                IconButton(
+                  key: TestIds.key(TestIds.graphResetToEgo),
+                  tooltip: l10n.graphResetToEgo,
+                  onPressed: cubit.resetToEgo,
+                  icon: const Icon(Icons.home_outlined),
+                ),
+                IconButton(
+                  tooltip: l10n.graphFitPath,
+                  onPressed: () {
+                    if (cubit.graphController.canLayout) {
+                      cubit.fitCurrentPath();
+                    }
+                  },
+                  icon: const Icon(Icons.fit_screen_outlined),
+                ),
+                IconButton(
+                  tooltip: legendExpanded
+                      ? l10n.graphLegendClose
+                      : l10n.graphLegendOpen,
+                  onPressed: onToggleLegend,
+                  icon: Icon(
+                    legendExpanded ? Icons.map : Icons.map_outlined,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

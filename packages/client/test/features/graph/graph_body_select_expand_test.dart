@@ -19,6 +19,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -211,7 +212,7 @@ void main() {
     expect(source.calls, 2);
     expect(cubit.state.hiddenNeighborCounts['Ub'], greaterThan(0));
 
-    await tester.tap(find.text('Expand'));
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphExpand)));
     await _settleGraph(tester);
 
     expect(source.calls, 3);
@@ -237,8 +238,9 @@ void main() {
 
       expect(cubit.state.focus, 'Uc');
       expect(cubit.canPageMore('Uc'), isFalse);
-      expect(find.text('Profile'), findsOneWidget);
-      expect(find.text('Expand'), findsNothing);
+      expect(find.byKey(TestIds.key(TestIds.graphOpenDetails)), findsOneWidget);
+      expect(find.byTooltip('Profile'), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
     },
   );
 }
