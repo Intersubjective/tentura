@@ -593,3 +593,22 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   test/features/block/` → 1/1; full `flutter test --dart-define=ENV=test` →
   1554 passed / 14 skipped.
   **Commits:** (see S17 exit summary).
+- 2026-08-03 (manager decision before S18 — "Unhide" respec'd, not a new server
+  unit): spec §8.4 describes an inherited-row "Unhide" action that releases just
+  that one row while leaving the rest of the origin's cascade intact. **No such
+  server capability exists or will be built for this pass** —
+  `UserBlockRepositoryPort`/the `userUnblock` mutation are keyed by ORIGIN
+  (`unblock(blockerId, blockedId)` deletes every `user_block` row with
+  `origin_id = blockedId`), and adding a single-row-release mutation was
+  explicitly declined by the user rather than treated as an implementation gap
+  to silently patch. **Decision:** "Unhide" on an inherited row now calls the
+  SAME action as the top-level "Unblock" — `BlockCase.unblock(objectId:
+  originId)` — releasing the whole cascade under that origin, not just the
+  tapped person. This is deliberate, correct behavior for v1, not a shortcut.
+  S18's cubit must expose this as a distinctly-named method (e.g.
+  `unhideOrigin(originId)`) so the call site can never be confused with
+  single-row release; S20's screen must make the blast radius explicit in the
+  confirmation UI copy (e.g. "this also un-hides everyone else hidden through
+  this block"). "Block directly" (promote) remains the only way to
+  independently, permanently keep ONE inherited person blocked regardless of
+  what later happens to the rest of the origin's cascade.
