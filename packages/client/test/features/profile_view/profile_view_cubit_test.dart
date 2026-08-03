@@ -21,7 +21,6 @@ import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 
 import '../block/support/controllable_block_case.dart';
-import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
