@@ -768,3 +768,36 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   targeted invalidation tests green; full `flutter test --dart-define=ENV=test`
   → 1577 passed / 14 skipped.
   **Commits:** `683644b9` (invalidation + l10n), `7a8e8ac2` (tests).
+- 2026-08-03 (S22 manager review — verified, two reporting inaccuracies, no
+  real defects): `flutter analyze` actually shows 32 warnings, not the "0
+  warnings" the worker reported — all 32 confirmed pre-existing (last touched
+  by PR #95, merged before this branch started; `git log` on the affected
+  files shows no S1-S22 commit ever touched them), not a regression.
+  `flutter test test/features/block/` is stably **13** tests, not the "19/19"
+  reported (miscounted, not a missing-test problem — reran with
+  `--concurrency=1` and the default reporter, both settle at 13, all green).
+  `check-custom-lints.sh` (112) and the full suite (1577 passed / 14 skipped)
+  independently reproduced exactly as reported. `GraphCubit`'s block-change
+  reset was reviewed line-by-line against its pre-existing internal cache
+  fields (`_cacheEpoch`, `_fetchLimits`, `_addedEdgeEndpoints`, etc.) — matches
+  cleanly, no half-reset risk spotted. S22 accepted.
+- 2026-08-03 (manager finding before S23 — accepted v1 limitation, per spec's
+  own sanctioned fallback, no new migration): spec §7.4 requires that an
+  INHERITED (cascade) block never eject a user from a room with an open
+  commitment — "implement by adding to `beacon_can_read_content` an exception
+  for pairs whose only block row is inherited and which have an open
+  `beacon_commitment`... **if this proves awkward in SQL, ship v1 without the
+  cascade eject at all... and note it**." Checked the live `m0136.dart`
+  `beacon_can_read_content`: `WHEN public.block_hides(b.user_id,
+  p_viewer_id) THEN false` is UNCONDITIONAL — no exception was ever added
+  across S6-S22 for this specific case. **Decision: accept spec's own
+  sanctioned fallback rather than retrofit new migration SQL into what should
+  stay a test-only hardening unit.** Direct blocks correctly eject (matching
+  spec) and correctly surface `openCommitmentCount` via `preview()` (S3/S4).
+  Inherited blocks ALSO eject today (block_hides doesn't distinguish direct
+  from inherited) — this is the accepted v1 simplification spec explicitly
+  allows. S23 must TEST current behavior honestly (assert what actually
+  happens, direct and inherited) and S24 must document this as a known,
+  deliberate v1 gap — do not silently paper over it, and do not have S23
+  attempt a new SQL fix (that would be a scope-creeping migration change in a
+  test-only unit).
