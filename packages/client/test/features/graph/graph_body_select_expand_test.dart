@@ -220,4 +220,25 @@ void main() {
       contains('Uf'),
     );
   });
+
+  testWidgets(
+    'Profile stays on focus after first expand when nothing left to page',
+    (tester) async {
+      // Use Uc — Ub is stubbed as a partial window elsewhere in this file.
+      final source = _WidgetTestGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Uc', dstTotal: 1)},
+          'Uc': {_e('Uc', 'Ue')},
+        });
+      final cubit = await _pumpGraphBody(tester, source: source);
+
+      await tester.tap(find.byType(GraphNodeWidget).at(1));
+      await _settleGraph(tester);
+
+      expect(cubit.state.focus, 'Uc');
+      expect(cubit.canPageMore('Uc'), isFalse);
+      expect(find.text('Profile'), findsOneWidget);
+      expect(find.text('Expand'), findsNothing);
+    },
+  );
 }

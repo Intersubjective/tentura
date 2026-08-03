@@ -157,10 +157,11 @@ void main() {
   testWidgets('legend control expands and collapses', (tester) async {
     await _pumpGraphBody(tester);
 
-    expect(find.byIcon(Icons.map_outlined), findsNWidgets(2));
+    // Legend toggle lives only in the top nav (no bottom-left FAB).
+    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
     expect(find.text('Legend'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.map_outlined).first);
+    await tester.tap(find.byIcon(Icons.map_outlined));
     await tester.pumpAndSettle();
 
     expect(find.text('Legend'), findsOneWidget);
@@ -170,7 +171,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Legend'), findsNothing);
-    expect(find.byIcon(Icons.map_outlined), findsNWidgets(2));
+    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
   });
 
   testWidgets('trust legend negative row toggles positiveOnly', (tester) async {

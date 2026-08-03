@@ -115,8 +115,24 @@ class GraphBodyState extends State<GraphBody>
     buildWhen: (previous, current) =>
         previous.isLoading != current.isLoading ||
         previous.focus != current.focus ||
-        previous.positiveOnly != current.positiveOnly,
+        previous.positiveOnly != current.positiveOnly ||
+        previous.hiddenNeighborCounts != current.hiddenNeighborCounts,
     builder: (context, graphState) {
+      NodeDetails? focusedNode;
+      final focusId = graphState.focus;
+      if (focusId.isNotEmpty) {
+        for (final node in _graphCubit.graphController.nodes) {
+          if (node.id == focusId) {
+            focusedNode = node;
+            break;
+          }
+        }
+      }
+      final focused = focusedNode;
+      final canExpand = focused != null &&
+          _graphCubit.forwardsGraphBeaconId == null &&
+          _graphCubit.canPageMore(focused.id);
+
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -133,52 +149,35 @@ class GraphBodyState extends State<GraphBody>
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: BlocSelector<GraphCubit, GraphState, String>(
-                selector: (state) => state.focus,
-                builder: (context, focusId) {
-                  NodeDetails? focusedNode;
-                  if (focusId.isNotEmpty) {
-                    for (final node in _graphCubit.graphController.nodes) {
-                      if (node.id == focusId) {
-                        focusedNode = node;
-                        break;
-                      }
-                    }
-                  }
-                  final focused = focusedNode;
-                  return _GraphTopControls(
-                    legendExpanded: _legendExpanded,
-                    onToggleLegend: _toggleLegend,
-                    focusedNode: focused,
-                    showExpand: _graphCubit.forwardsGraphBeaconId == null,
-                    onExpand: focused == null ||
-                            !_graphCubit.canPageMore(focused.id)
-                        ? null
-                        : () => _graphCubit.expandNode(focused),
-                    onOpenDetails: focusedNode == null
-                        ? null
-                        : () => _openNodeDetails(focusedNode!),
-                  );
-                },
+              child: _GraphTopControls(
+                legendExpanded: _legendExpanded,
+                onToggleLegend: _toggleLegend,
+                focusedNode: focused,
+                showExpand: canExpand,
+                onExpand: canExpand ? () => _graphCubit.expandNode(focused) : null,
+                onOpenDetails: focused == null
+                    ? null
+                    : () => _openNodeDetails(focused),
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              right: false,
-              child: Padding(
-                padding: EdgeInsets.all(context.tt.rowGap),
-                child: GraphLegendPanel(
-                  mode: _legendMode,
-                  expanded: _legendExpanded,
-                  onToggle: _toggleLegend,
+          if (_legendExpanded)
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                right: false,
+                child: Padding(
+                  padding: EdgeInsets.all(context.tt.rowGap),
+                  child: GraphLegendPanel(
+                    mode: _legendMode,
+                    expanded: true,
+                    onToggle: _toggleLegend,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       );
     },
@@ -284,12 +283,15 @@ class _GraphTopControls extends StatelessWidget {
       onToggleLegend: onToggleLegend,
     );
     final node = focusedNode;
-    final actions = node == null || onExpand == null || onOpenDetails == null
+    // Keep Profile (and optional Expand) while a non-ego node is focused.
+    // Expand may be null after the neighbourhood is fully paged — that must
+    // not hide the whole panel.
+    final actions = node == null || onOpenDetails == null
         ? null
         : _GraphNodeActionPanel(
             node: node,
-            showExpand: showExpand,
-            onExpand: onExpand!,
+            showExpand: showExpand && onExpand != null,
+            onExpand: onExpand,
             onOpenDetails: onOpenDetails!,
           );
 
@@ -423,7 +425,7 @@ class _GraphNodeActionPanel extends StatelessWidget {
 
   final NodeDetails node;
   final bool showExpand;
-  final VoidCallback onExpand;
+  final VoidCallback? onExpand;
   final VoidCallback onOpenDetails;
 
   @override
@@ -435,6 +437,10 @@ class _GraphNodeActionPanel extends StatelessWidget {
       UserNode() || GenealogyUserNode() || BeaconNode() => true,
       GenealogyDeletedNode() => false,
     };
+
+    if (!showExpand && !canOpenDetails) {
+      return const SizedBox.shrink();
+    }
 
     return Material(
       elevation: 2,

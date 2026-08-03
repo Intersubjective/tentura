@@ -83,6 +83,7 @@ EdgeDirected _e(
   String src,
   String dst, {
   int? srcTotal,
+  int? dstTotal,
 }) => (
   src: src,
   dst: dst,
@@ -92,7 +93,7 @@ EdgeDirected _e(
   ),
   branch: null,
   srcTotalNeighborCount: srcTotal,
-  dstTotalNeighborCount: null,
+  dstTotalNeighborCount: dstTotal,
 );
 
 Future<void> _settleGraph(WidgetTester tester) async {
@@ -196,6 +197,31 @@ void main() {
         greaterThanOrEqualTo(fitBox.bottom),
         reason: 'Action panel stacks below nav on compact',
       );
+    },
+  );
+
+  testWidgets(
+    'focused node keeps Profile after neighbourhood is fully paged',
+    (tester) async {
+      // Use Uc (not Ub): this file's stub pages Ub as a partial window.
+      final source = _WidgetTestGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Uc', dstTotal: 1)},
+          'Uc': {_e('Uc', 'Ue')},
+        });
+      final cubit = await _pumpGraphBody(
+        tester,
+        size: const Size(900, 600),
+        source: source,
+      );
+
+      await tester.tap(find.byType(GraphNodeWidget).at(1));
+      await _settleGraph(tester);
+
+      expect(cubit.state.focus, 'Uc');
+      expect(cubit.canPageMore('Uc'), isFalse);
+      expect(find.text('Profile'), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
     },
   );
 }
