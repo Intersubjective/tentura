@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 kind: journal
 ---
 # User blocking — implementation journal
@@ -70,7 +70,7 @@ Phase 6 — client:
 
 Phase 7 — hardening:
 - [x] S23 — adversarial suite — deps: S16, S14
-- [ ] S24 — docs + release note — deps: S23
+- [x] S24 — docs + release note — deps: S23
 
 **Execution order chosen** (respects deps, one unit at a time): S1, S2, S3, S4, S5, S6, S7,
 S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24.
@@ -821,3 +821,14 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `dart test -t pg -j 1` → 233 passed / 2 skipped / 18 failed (pre-existing
   drift, +7 from new file); `dart analyze` exit 0; domain→repo import rg empty.
   **Commits:** (see S23 exit summary).
+- 2026-08-03 (S24 complete): Docs + release note (documentation-only).
+  **`docs/features/user-block.md`:** product framing (B1/B2/B3), engineering
+  (two-table model, `block_hides` wiring across m0135–m0137), cascade/release
+  jobs, env config table, known limitations (X1, X15, X16, §7.4 open-commitment
+  gap), `graph_edges_between` visibility semantics.
+  **`docs/relationship-states.md`:** one "Blocking (separate from trust)"
+  section with link to the feature doc.
+  **Verification:** claims cross-checked against `m0136.dart`,
+  `user_block_adversarial_pg_test.dart`, and `env.dart`; `git diff --check`
+  clean.
+  **Commits:** (see S24 exit summary).

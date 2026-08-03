@@ -56,3 +56,7 @@ The closed eye merges **one-way out**, **one-way in**, and **none**; use the tex
 **Invite genealogy** (arrows inviter → invitee): gold your branch; green their branch; blue shared trunk. Count badge = unloaded invitees.
 
 Open the in-graph **Legend** control on any graph screen for the full list.
+
+## Blocking (separate from trust)
+
+A person may be **hidden by a block**: from the blocker's perspective, a blocked person disappears from feeds, the trust graph, search, invite genealogy, and mutual-friends views. This is independent of and layered on top of the trust-relation states above. See [`features/user-block.md`](features/user-block.md) for full detail.
