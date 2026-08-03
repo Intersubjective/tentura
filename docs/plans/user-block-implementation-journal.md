@@ -64,7 +64,7 @@ Phase 6 — client:
 - [x] S17 — client data + domain — deps: S5
 - [x] S18 — cubit + state — deps: S17
 - [x] S19 — block sheet — deps: S18
-- [ ] S20 — blocked list screen — deps: S18
+- [x] S20 — blocked list screen — deps: S18
 - [ ] S21 — profile entry point + blocked-profile rendering — deps: S19
 - [ ] S22 — l10n + cache invalidation — deps: S19, S20, S21
 
@@ -651,3 +651,25 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `check-custom-lints.sh packages/client` OK (112, unchanged baseline);
   `flutter test test/features/block/` → 8/8 (C3, C4, C5 widget tests).
   **Commits:** (see S19 exit summary).
+- 2026-08-03 (S20 in progress): Blocked list screen per §8.4 — `BlockedUserTile`,
+  `BlockedUsersScreen`, settings entry, route registration, l10n, C6/C7 tests.
+- 2026-08-03 (S20 complete): Blocked list screen (`blocked_users_screen.dart`).
+  **Components:** `TenturaAvatar`, `TenturaTextAction`, `TenturaConfirmDialog`,
+  `TenturaContentColumn` all exist as spec names — used as-is (no discrepancy).
+  **Unhide blast radius:** inherited-row "Unhide" shows `TenturaConfirmDialog` with
+  `blockUnhideOriginTitle` / `blockUnhideOriginWarning` before calling
+  `cubit.unhideOrigin(originId)` (manager decision — full cascade release).
+  **Expand toggle:** screen collapses when tapping an already-expanded direct row
+  (`collapseInherited`); cubit has no toggle helper.
+  **C6 test harness:** pumps `@visibleForTesting` `BlockedUsersBody` (not full
+  screen) because `AutoLeadingButton` requires an `AutoRouter` ancestor; layout
+  assertions target the same `TenturaContentColumn` + `ListView` tree as production.
+  Set `cascadePending: false` on fixture intents — default `true` keeps
+  `LinearProgressIndicator` animating and breaks `pumpAndSettle`.
+  **Version:** client `5.6.19` → `5.6.20` (+ `web/index.html` cache buster) —
+  separate patch bump from S19 because this unit adds a new screen + settings entry.
+  **Verification:** `flutter gen-l10n` + `build_runner` clean;
+  `flutter analyze --no-fatal-warnings --no-fatal-infos` exit 0;
+  `check-custom-lints.sh packages/client` OK (112, unchanged baseline);
+  `flutter test test/features/block/` → 12/12 (C6 responsive + C7 goldens).
+  **Commits:** (see S20 exit summary).
