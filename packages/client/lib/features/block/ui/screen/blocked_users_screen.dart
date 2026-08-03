@@ -138,9 +138,9 @@ class _BlockedListEntry extends StatelessWidget {
           ),
         if (isExpanded) ...[
           if (state.expandedLoading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+            Padding(
+              padding: EdgeInsets.all(context.tt.rowGap),
+              child: const Center(child: CircularProgressIndicator()),
             )
           else
             for (final profile in state.expandedInherited)

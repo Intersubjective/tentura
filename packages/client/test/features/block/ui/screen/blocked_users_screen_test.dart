@@ -7,7 +7,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/ui/bloc/blocked_users_cubit.dart';
 import 'package:tentura/features/block/ui/screen/blocked_users_screen.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../../../ui/effect/fake_ui_effect_port.dart';
