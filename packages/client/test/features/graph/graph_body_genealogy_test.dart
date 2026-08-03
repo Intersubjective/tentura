@@ -44,7 +44,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   List<String> get focusPath => [_viewer.id];
 
   @override
-  void jumpToEgo() {}
+  void jumpToEgo({bool resetScale = false}) {}
 
   @override
   void popFocus() {}

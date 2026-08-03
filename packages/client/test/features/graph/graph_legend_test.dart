@@ -39,7 +39,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
 
   @override
-  void jumpToEgo() {}
+  void jumpToEgo({bool resetScale = false}) {}
 
   @override
   void togglePositiveOnly() {

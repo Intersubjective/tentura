@@ -98,8 +98,10 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     jumpToPosition(canvasSize.center(Offset.zero));
   }
 
-  /// Instantly jumps to the given position on canvas
-  void jumpToPosition(Offset position) {
+  /// Instantly jumps to the given position on canvas.
+  ///
+  /// When [resetScale] is true, zoom is restored to 1.0 (the default).
+  void jumpToPosition(Offset position, {bool resetScale = false}) {
     final controller = _transformationController;
     final layout = _layout;
     final viewport = _actualViewport;
@@ -108,7 +110,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     }
 
     final oldMatrix = controller.value.clone();
-    final matrixScale = oldMatrix.getMaxScaleOnAxis();
+    final matrixScale =
+        resetScale ? 1.0 : oldMatrix.getMaxScaleOnAxis();
     final matrixOffset =
         -Offset(oldMatrix.storage[12], oldMatrix.storage[13]) / matrixScale;
     final center = viewport.center;
@@ -123,7 +126,9 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   /// Instantly jumps to the given node placing it in the center of the screen.
-  FutureOr<void> jumpToNode(N node) async {
+  ///
+  /// When [resetScale] is true, zoom is restored to 1.0 (the default).
+  FutureOr<void> jumpToNode(N node, {bool resetScale = false}) async {
     if (!_hasNode(node)) {
       throw ArgumentError.value(node, 'node', 'Node is not in the graph');
     }
@@ -135,7 +140,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
         throw StateError('Graph is not laid out yet');
       }
     }
-    jumpToPosition(_layout!.getPosition(node));
+    jumpToPosition(_layout!.getPosition(node), resetScale: resetScale);
   }
 
   /// Instantly zoom in by a given factor.

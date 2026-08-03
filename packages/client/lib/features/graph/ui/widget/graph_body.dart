@@ -435,15 +435,6 @@ class _GraphToolbar extends StatelessWidget {
                   icon: const Icon(Icons.home_outlined),
                 ),
                 IconButton(
-                  tooltip: l10n.graphFitPath,
-                  onPressed: () {
-                    if (cubit.graphController.canLayout) {
-                      cubit.fitCurrentPath();
-                    }
-                  },
-                  icon: const Icon(Icons.fit_screen_outlined),
-                ),
-                IconButton(
                   tooltip: legendExpanded
                       ? l10n.graphLegendClose
                       : l10n.graphLegendOpen,

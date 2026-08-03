@@ -144,14 +144,14 @@ Future<GraphCubit> _pumpGraphBody(
 }
 
 void main() {
-  testWidgets('compact layout exposes reset, fit, and legend controls', (
+  testWidgets('compact layout exposes reset and legend controls', (
     tester,
   ) async {
     await _pumpGraphBody(tester);
 
     expect(find.byTooltip('Back'), findsNothing);
+    expect(find.byTooltip('Fit current path'), findsNothing);
     expect(find.byTooltip('Reset to me'), findsOneWidget);
-    expect(find.byTooltip('Fit current path'), findsOneWidget);
     expect(find.byTooltip('Show legend'), findsOneWidget);
   });
 
@@ -189,28 +189,28 @@ void main() {
       await _settleGraph(tester);
 
       final expand = find.byKey(TestIds.key(TestIds.graphExpand));
-      final fit = find.byTooltip('Fit current path');
+      final home = find.byTooltip('Reset to me');
       expect(expand, findsOneWidget);
-      expect(fit, findsOneWidget);
+      expect(home, findsOneWidget);
 
       final expandBox = tester.getRect(expand);
-      final fitBox = tester.getRect(fit);
+      final homeBox = tester.getRect(home);
       expect(
-        expandBox.overlaps(fitBox),
+        expandBox.overlaps(homeBox),
         isFalse,
-        reason: 'Expand and Fit must not overlap on compact width',
+        reason: 'Expand and Home must not overlap on compact width',
       );
       expect(
         expandBox.right,
-        lessThanOrEqualTo(fitBox.left),
-        reason: 'Expand sits left of Fit in the same toolbar row',
+        lessThanOrEqualTo(homeBox.left),
+        reason: 'Expand sits left of Home in the same toolbar row',
       );
       final expandCenterY = expandBox.center.dy;
-      final fitCenterY = fitBox.center.dy;
+      final homeCenterY = homeBox.center.dy;
       expect(
-        (expandCenterY - fitCenterY).abs(),
+        (expandCenterY - homeCenterY).abs(),
         lessThan(8),
-        reason: 'Expand and Fit share the same toolbar row',
+        reason: 'Expand and Home share the same toolbar row',
       );
     },
   );

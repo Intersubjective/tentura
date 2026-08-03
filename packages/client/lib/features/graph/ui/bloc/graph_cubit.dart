@@ -261,14 +261,16 @@ class GraphCubit extends Cubit<GraphState> {
   /// Origin node for focus-path visibility (ego in trust, viewer in genealogy).
   String get originNodeId => _focusRootId;
 
-  void jumpToEgo() {
+  void jumpToEgo({bool resetScale = false}) {
     final node = genealogyMode ? _nodes[state.egoNodeId] : _egoNode;
     if (node == null) return;
     if (!graphController.canLayout ||
         !graphController.layout.hasPosition(node)) {
       return;
     }
-    unawaited(Future.value(graphController.jumpToNode(node)));
+    unawaited(
+      Future.value(graphController.jumpToNode(node, resetScale: resetScale)),
+    );
   }
 
   /// True when [id] owns the active spotlight (including trust overview).
@@ -393,7 +395,7 @@ class GraphCubit extends Cubit<GraphState> {
     _syncFocusPathPins();
     _recomputeVisibility();
     unawaited(_ensureVisibleStructuralEdges());
-    jumpToEgo();
+    jumpToEgo(resetScale: true);
   }
 
   /// Fits the active path into the viewport. With a trail of one (only the
