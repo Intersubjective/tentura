@@ -63,7 +63,7 @@ Phase 5 — B3:
 Phase 6 — client:
 - [x] S17 — client data + domain — deps: S5
 - [x] S18 — cubit + state — deps: S17
-- [ ] S19 — block sheet — deps: S18
+- [x] S19 — block sheet — deps: S18
 - [ ] S20 — blocked list screen — deps: S18
 - [ ] S21 — profile entry point + blocked-profile rendering — deps: S19
 - [ ] S22 — l10n + cache invalidation — deps: S19, S20, S21
@@ -632,3 +632,22 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `check-custom-lints.sh packages/client` OK; `flutter test test/features/block/`
   → 3/3; full `flutter test --dart-define=ENV=test` → 1556 passed / 14 skipped.
   **Commits:** (see S18 exit summary).
+- 2026-08-03 (S19 in progress): Block sheet per §8.3 — `showBlockUserSheet` +
+  `BlockUserSheetBody` with debounced preview fetch, cascade switch + mode
+  radios, informational withdrawal row, impact preview, destructive confirm.
+- 2026-08-03 (S19 complete): Block user sheet (`block_user_sheet.dart`).
+  **Entry point:** `showBlockUserSheet(context, profile, {blockCase?})` — S21
+  wires from profile menu with one call. `BlockUserSheetBody` exposed for
+  widget tests.
+  **Behavior:** cascade `SwitchListTile` OFF by default; ON reveals mode-1/2
+  `RadioListTile` pair (default mode 1). Preview debounced 300ms on cascade
+  changes; `willWithdrawEdge` row is plain `Row`+icon (never tappable). Confirm
+  uses `colorScheme.error`/`onError` `FilledButton` → `BlockCase.block`.
+  **Profile name:** `profile.shownName` (not `displayName`) per entity API.
+  **l10n:** 11 keys only (§8.7 sheet subset) in `app_en.arb` + `app_ru.arb`.
+  **Version:** client `5.6.18` → `5.6.19` (+ `web/index.html` cache buster).
+  **Verification:** `flutter gen-l10n` + `build_runner` clean;
+  `flutter analyze --no-fatal-warnings --no-fatal-infos` exit 0;
+  `check-custom-lints.sh packages/client` OK (112, unchanged baseline);
+  `flutter test test/features/block/` → 8/8 (C3, C4, C5 widget tests).
+  **Commits:** (see S19 exit summary).
