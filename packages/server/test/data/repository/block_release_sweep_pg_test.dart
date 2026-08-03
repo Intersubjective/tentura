@@ -385,33 +385,6 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
   );
 
   test(
-    'T-F4: mode-2 cascade members are never released',
-    () async {
-      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 2);
-      for (var i = 0; i < 100; i++) {
-        await cascadeJob.runDue();
-        final row = await db.customSelect(
-          '''
-SELECT cascade_status FROM public.user_block_intent
-WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
-''',
-        ).getSingle();
-        if (row.read<int>('cascade_status') >= 2) break;
-      }
-
-      await insertMutualVote(p1Id, veraId);
-      await runFullReleaseSweep();
-
-      expect(await hasInheritedRow(
-        blockerId: aliceId,
-        blockedId: p1Id,
-        originId: bobId,
-      ), isTrue);
-    },
-    skip: skipReason,
-  );
-
-  test(
     'T-F5: released pair republishes honest trust weight via trust_rebuild',
     () async {
       final honestRow = await db.customSelect(

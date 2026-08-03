@@ -14,8 +14,8 @@ import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/env.dart';
 
-/// Cascade materialization job — spec §9.3 T-B8/T-B9, §9.4 T-C2/T-C3,
-/// §11 X5/X6/X8.
+/// Cascade materialization job — spec §9.3 T-B8/T-B9, §11 X5/X6/X8.
+/// (cascade_mode 2 was removed in m0138 — only mode 0/1 remain.)
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
@@ -372,41 +372,6 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'
   );
 
   test(
-    'T-C2: mode-2 max_depth=1 caps at depth-1 descendants',
-    () async {
-      bindHarness(_testEnv(blockCascadeMaxDepth: 1));
-      await seedCanonicalFixture();
-      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 2);
-      await runUntilComplete();
-
-      final intent = await intentRow(blockerId: aliceId, blockedId: bobId);
-      expect(intent.status, 3);
-      expect(
-        await blockedIdsForAlice(),
-        {bobId, carolId, p1Id, p2Id, erinId},
-      );
-      expect((await blockedIdsForAlice()).intersection({daveId, p3Id}), isEmpty);
-    },
-    skip: skipReason,
-  );
-
-  test(
-    'T-C3: mode-2 max_rows=2 caps inherited rows at 2',
-    () async {
-      bindHarness(_testEnv(blockCascadeMaxRows: 2));
-      await seedCanonicalFixture();
-      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 2);
-      await runUntilComplete();
-
-      final intent = await intentRow(blockerId: aliceId, blockedId: bobId);
-      expect(intent.status, 3);
-      expect(intent.materializedCount, 2);
-      expect((await inheritedIdsForAlice(originId: bobId)).length, 2);
-    },
-    skip: skipReason,
-  );
-
-  test(
     'X5: catch-up pass blocks signup that landed after snapshot',
     () async {
       bindHarness(_testEnv(blockCascadeBatchSize: 1));
@@ -495,7 +460,7 @@ WHERE blocker_id = '$aliceId'
         _testEnv(blockCascadeMaxRows: 5, blockCascadeBatchSize: 2),
       );
       await seedHubFixture();
-      await repo.block(blockerId: aliceId, blockedId: hubId, cascadeMode: 2);
+      await repo.block(blockerId: aliceId, blockedId: hubId, cascadeMode: 1);
       await runUntilHubComplete();
 
       final intent = await intentRow(blockerId: aliceId, blockedId: hubId);

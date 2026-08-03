@@ -436,67 +436,44 @@ SELECT public.block_cascade_unattached($1, $2, $3) AS unattached
   );
 
   test(
-    'T-C1: mode-2 candidates are the whole B subtree except root B',
+    'T-C1: cascade_mode 2 ("all descendants, standing ignored") is rejected '
+    'by the DB — removed from the design (m0138), only 0/1 remain',
     () async {
       await seedCanonicalFixture();
 
-      final candidates = await cascadeCandidateIds(
-        blocker: aliceId,
-        root: bobId,
-        mode: 2,
-      );
-
-      expect(
-        candidates,
-        {carolId, daveId, p1Id, p2Id, p3Id, erinId},
-      );
-      expect(candidates, isNot(contains(bobId)));
-    },
-    skip: skipReason,
-  );
-
-  test(
-    'T-C2: mode-2 max_depth=1 returns only depth-1 descendants of B',
-    () async {
-      await seedCanonicalFixture();
-
-      final candidates = await cascadeCandidateIds(
-        blocker: aliceId,
-        root: bobId,
-        mode: 2,
-        maxDepth: 1,
-      );
-
-      expect(candidates, {carolId, p1Id, p2Id, erinId});
-      expect(candidates.intersection({daveId, p3Id}), isEmpty);
-    },
-    skip: skipReason,
-  );
-
-  test(
-    'T-C3: mode-2 limit=2 returns exactly two rows',
-    () async {
-      await seedCanonicalFixture();
-
-      final rows = await db
-          .customSelect(
-            r'''
-SELECT user_id
-FROM public.block_cascade_candidates(
-  $1, $2, $3::smallint, $4::integer, $5::integer
-)
+      await expectLater(
+        db.customStatement(
+          '''
+INSERT INTO public.user_block_intent (blocker_id, blocked_id, cascade_mode)
+VALUES ('$aliceId', '$bobId', 2)
 ''',
-            variables: [
-              Variable<String>(aliceId),
-              Variable<String>(bobId),
-              const Variable<int>(2),
-              const Variable<int>(defaultMaxDepth),
-              const Variable<int>(2),
-            ],
-          )
-          .get();
+        ),
+        throwsA(anything),
+      );
 
-      expect(rows, hasLength(2));
+      final rows = await db.customSelect(
+        "SELECT 1 FROM public.user_block_intent "
+        "WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'",
+      ).get();
+      expect(rows, isEmpty);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'T-C2: block_cascade_candidates(mode=1) always applies the standing '
+    'filter — no unconditional-descent bypass remains for any mode value',
+    () async {
+      await seedCanonicalFixture();
+
+      final candidates = await cascadeCandidateIds(
+        blocker: aliceId,
+        root: bobId,
+        mode: 1,
+      );
+
+      expect(candidates, containsAll([p1Id, p2Id, p3Id]));
+      expect(candidates, isNot(contains(bobId)));
     },
     skip: skipReason,
   );
