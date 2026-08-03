@@ -767,4 +767,4 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   (baseline 113, improved); `flutter test test/features/block/` → 19/19;
   targeted invalidation tests green; full `flutter test --dart-define=ENV=test`
   → 1577 passed / 14 skipped.
-  **Commits:** (see S22 exit summary).
+  **Commits:** `683644b9` (invalidation + l10n), `7a8e8ac2` (tests).
