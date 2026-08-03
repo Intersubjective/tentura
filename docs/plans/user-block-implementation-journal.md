@@ -69,7 +69,7 @@ Phase 6 — client:
 - [x] S22 — l10n + cache invalidation — deps: S19, S20, S21
 
 Phase 7 — hardening:
-- [ ] S23 — adversarial suite — deps: S16, S14
+- [x] S23 — adversarial suite — deps: S16, S14
 - [ ] S24 — docs + release note — deps: S23
 
 **Execution order chosen** (respects deps, one unit at a time): S1, S2, S3, S4, S5, S6, S7,
@@ -801,3 +801,23 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   deliberate v1 gap — do not silently paper over it, and do not have S23
   attempt a new SQL fix (that would be a scope-creeping migration change in a
   test-only unit).
+- 2026-08-03 (S23 in progress): adversarial pg suite — spec §11 X1, X7, X12,
+  X13, X15, X16.
+- 2026-08-03 (S23 complete): adversarial pg suite (test-only hardening).
+  **File:** `user_block_adversarial_pg_test.dart` — X1 (invite laundering gap),
+  X7 (concurrent opposite `block()`), X12 (origin user DELETE CASCADE),
+  X13 direct + inherited open-commitment eject (inherited pins actual v1
+  behavior per manager finding), X15 (identity-scoped re-register), X16
+  (steward blindness). X9 not duplicated — confirmed covered by
+  `user_block_withdrawal_gate_pg_test.dart` (30 cycles; asserts zero
+  `user_block`/`user_block_intent` rows, unchanged `user_trust_source_edge`,
+  `prev_sent_weight` drift-free).
+  **Preview table fix:** `preview()` queried renamed `beacon_commitment` table
+  (m0063 → `beacon_help_offer`); one-line repository fix required for X13
+  `openCommitmentCount` against live Postgres.
+  **Fixture note:** Carol is cascade-attached (vera voucher) in canonical §9.1;
+  X12/X13 inherited use P1 (materialized descendant) instead.
+  **Verification:** adversarial file 7/7; `dart test -x pg` → 1150 passed;
+  `dart test -t pg -j 1` → 233 passed / 2 skipped / 18 failed (pre-existing
+  drift, +7 from new file); `dart analyze` exit 0; domain→repo import rg empty.
+  **Commits:** (see S23 exit summary).
