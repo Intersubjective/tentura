@@ -103,6 +103,7 @@ RadialHopLayout computeRadialHopLayout({
   }
 
   final angle = <String, double>{};
+  final minChord = amenityChordForRingGap(ringGap);
 
   void assignSectors(String id, double start, double end) {
     angle[id] = (start + end) / 2;
@@ -114,10 +115,23 @@ RadialHopLayout computeRadialHopLayout({
     if (totalSubtree == 0) {
       return;
     }
-    var current = start;
     final span = end - start;
+    // Every child gets a floor share wide enough to keep its ring chord at
+    // [minChord]; only the surplus is handed out by subtree size. BFS attaches
+    // a shared frontier to whichever sibling it dequeues first, so raw
+    // subtree-proportional sectors let one arbitrary sibling eat the circle and
+    // squeeze the rest into a few overlapping degrees. When the floors do not
+    // fit, `guaranteed` collapses to an equal split and the surplus is zero.
+    final childRadius = (depth[id]! + 1) * ringGap;
+    final guaranteed = math.min(
+      preferredFanStep(childRadius, minChord),
+      span / childList.length,
+    );
+    final surplus = span - guaranteed * childList.length;
+    var current = start;
     for (final child in childList) {
-      final childSpan = span * subtreeSize[child]! / totalSubtree;
+      final childSpan =
+          guaranteed + surplus * subtreeSize[child]! / totalSubtree;
       assignSectors(child, current, current + childSpan);
       current += childSpan;
     }

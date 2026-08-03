@@ -130,6 +130,96 @@ void main() {
       expect(alpha.dy, closeTo(centre.dy, 1));
     });
 
+    test('first-hop neighbours span the ring when one sibling owns the frontier',
+        () {
+      // BFS attaches a shared second-hop frontier to whichever first-hop
+      // sibling it dequeues first. Pure subtree-proportional sectors let that
+      // sibling eat the circle and squeeze the other 19 into a few degrees —
+      // the "20 ego neighbours stuck in one wedge" report.
+      final nodeIds = <String>{'ego'};
+      final edges = <(String, String)>{};
+      final neighbours = [
+        for (var i = 0; i < 20; i++) 'n${i.toString().padLeft(2, '0')}',
+      ];
+      for (final id in neighbours) {
+        nodeIds.add(id);
+        edges.add(('ego', id));
+      }
+      for (var j = 0; j < 60; j++) {
+        nodeIds.add('f$j');
+        for (final id in neighbours) {
+          edges.add((id, 'f$j'));
+        }
+      }
+
+      final positions = radialHopPositions(
+        nodeIds: nodeIds,
+        edges: edges,
+        rootId: 'ego',
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      final angles = neighbours.map((id) {
+        final delta = positions[id]! - centre;
+        final degrees = math.atan2(delta.dy, delta.dx) * 180 / math.pi;
+        return degrees < 0 ? degrees + 360 : degrees;
+      }).toList()
+        ..sort();
+
+      var largestGap = 0.0;
+      var smallestGap = 360.0;
+      for (var i = 0; i < angles.length; i++) {
+        final next = i == angles.length - 1 ? angles.first + 360 : angles[i + 1];
+        largestGap = math.max(largestGap, next - angles[i]);
+        smallestGap = math.min(smallestGap, next - angles[i]);
+      }
+
+      // Twenty equal-ranking neighbours share the ring evenly (360/20 = 18°)
+      // instead of packing into a wedge.
+      expect(smallestGap, greaterThan(15));
+      expect(360 - largestGap, greaterThan(300));
+    });
+
+    test('a bushy branch still claims a wider sector than its leaf siblings',
+        () {
+      final nodeIds = <String>{'ego', 'bushy', 'leaf1', 'leaf2'};
+      final edges = <(String, String)>{
+        ('ego', 'bushy'),
+        ('ego', 'leaf1'),
+        ('ego', 'leaf2'),
+      };
+      for (var i = 0; i < 40; i++) {
+        nodeIds.add('sub$i');
+        edges.add(('bushy', 'sub$i'));
+      }
+
+      final positions = radialHopPositions(
+        nodeIds: nodeIds,
+        edges: edges,
+        rootId: 'ego',
+        canvasSize: canvasSize,
+        ringGap: ringGap,
+      );
+
+      double angleOf(String id) {
+        final delta = positions[id]! - centre;
+        final degrees = math.atan2(delta.dy, delta.dx) * 180 / math.pi;
+        return degrees < 0 ? degrees + 360 : degrees;
+      }
+
+      double separation(String a, String b) {
+        final diff = (angleOf(a) - angleOf(b)).abs();
+        return diff > 180 ? 360 - diff : diff;
+      }
+
+      // The two leaves sit in adjacent narrow sectors; the bushy branch is
+      // pushed far away because its own sector is wide.
+      expect(separation('leaf1', 'leaf2'), lessThan(45));
+      expect(separation('bushy', 'leaf1'), greaterThan(100));
+      expect(separation('bushy', 'leaf2'), greaterThan(100));
+    });
+
     test('descendant stays put when an unrelated sibling branch is absent', () {
       // Stability holds for the root; sibling insertion redistributes sectors
       // (pinning across mutations is handled by RadialHopLayoutAlgorithm.relayout).
