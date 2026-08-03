@@ -268,7 +268,7 @@ SELECT EXISTS (
         .customSelect(
           r'''
 SELECT COUNT(DISTINCT bc.beacon_id)::int AS c
-FROM public.beacon_commitment bc
+FROM public.beacon_help_offer bc
 JOIN public.beacon b ON b.id = bc.beacon_id
 WHERE bc.status = 0
   AND ((b.user_id = $1 AND bc.user_id = $2)
