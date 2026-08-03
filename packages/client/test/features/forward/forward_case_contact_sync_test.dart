@@ -18,6 +18,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
+import '../block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 
 class _FakeForwardRepository implements ForwardRepository {
@@ -127,6 +128,7 @@ void main() {
         _FakeBeaconFactCardRepository(),
         _FakeProfileRepository(),
         contactsCase,
+        noopBlockCase(),
         env: const Env(),
         logger: Logger('test'),
       );

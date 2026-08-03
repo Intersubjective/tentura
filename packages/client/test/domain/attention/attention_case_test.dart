@@ -10,9 +10,11 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../features/block/support/controllable_block_case.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -107,6 +109,7 @@ void main() {
     late _Repository repository;
     late _Accounts accounts;
     late TestRealtimeSyncPort realtimePort;
+    late RealtimeSyncCase realtimeCase;
     late AttentionCase attention;
 
     setUp(() {
@@ -114,10 +117,12 @@ void main() {
       accounts = _Accounts();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
+      realtimeCase = realtime.case_;
       attention = AttentionCase(
         repository,
         accounts,
-        realtime.case_,
+        realtimeCase,
+        noopBlockCase(),
         Logger('attention-case-test'),
       );
     });
@@ -188,6 +193,41 @@ void main() {
       second.complete(_feed(unread: 2));
       await _settle();
       expect(attention.snapshot.summary.unreadTotal, 2);
+    });
+
+    test('block change refreshes the feed head', () async {
+      final blockRepository = _Repository();
+      final blockAccounts = _Accounts();
+      final blockCase = ControllableBlockCase();
+      final blockAttention = AttentionCase(
+        blockRepository,
+        blockAccounts,
+        realtimeCase,
+        blockCase,
+        Logger('attention-case-block-test'),
+      );
+      addTearDown(blockAttention.dispose);
+      addTearDown(blockAccounts.dispose);
+      addTearDown(blockCase.dispose);
+
+      final first = Completer<AttentionFeed>();
+      final second = Completer<AttentionFeed>();
+      blockRepository.pendingFetches.addAll([first, second]);
+      blockAccounts.emit('account-a');
+      await _settle();
+      expect(blockRepository.fetchCalls, 1);
+
+      blockCase.emitBlock();
+      await _settle();
+      expect(blockRepository.fetchCalls, 1);
+
+      first.complete(_feed());
+      await _settle();
+      expect(blockRepository.fetchCalls, 2);
+
+      second.complete(_feed());
+      await _settle();
+      expect(blockRepository.fetchCalls, 2);
     });
 
     test('account changes reset state and drop stale responses', () async {
@@ -371,6 +411,7 @@ void main() {
           secondRepository,
           secondAccounts,
           secondRealtime.case_,
+          noopBlockCase(),
           Logger('attention-case-second-client-test'),
         );
         addTearDown(secondAttention.dispose);

@@ -22,6 +22,7 @@ import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/test_realtime_sync.dart';
+import '../block/support/controllable_block_case.dart';
 
 /// Simulates route pop disposing the cubit when [NavigateBack] fires.
 class _NavigateBackClosesCubitPort extends FakeUiEffectPort {
@@ -118,6 +119,7 @@ Future<
     ContactsCase contactsCase,
     FakeContactsRepository contactsRepo,
     ContactNameStore store,
+    ControllableBlockCase blockCase,
   })
 >
 _buildForwardCaseHarness() async {
@@ -138,12 +140,14 @@ _buildForwardCaseHarness() async {
       Profile(id: 'u-bob', displayName: 'Robert', rScore: 1, score: 1),
     ],
   );
+  final blockCase = ControllableBlockCase();
   final forwardCase = ForwardCase(
     forwardRepo,
     authLocal,
     _FakeBeaconFactCardRepository(),
     _FakeProfileRepository(),
     contactsCase,
+    blockCase,
     env: const Env(),
     logger: Logger('test'),
   );
@@ -158,6 +162,7 @@ _buildForwardCaseHarness() async {
     contactsCase: contactsCase,
     contactsRepo: contactsRepo,
     store: store,
+    blockCase: blockCase,
   );
 }
 
@@ -280,5 +285,33 @@ void main() {
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
       },
     );
+
+    test('blockChanges reloads candidates', () async {
+      final harness = await _buildForwardCaseHarness();
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.blockCase.dispose();
+        if (GetIt.I.isRegistered<ContactNameStore>()) {
+          await GetIt.I.unregister<ContactNameStore>();
+        }
+        await harness.store.dispose();
+      });
+
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        forwardCase: harness.forwardCase,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+      expect(harness.forwardRepo.fetchForwardCandidatesCalls, 1);
+
+      harness.blockCase.emitBlock();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.forwardRepo.fetchForwardCandidatesCalls, 2);
+    });
   });
 }

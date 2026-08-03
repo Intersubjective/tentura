@@ -20,6 +20,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
+import '../block/support/controllable_block_case.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/test_realtime_sync.dart';
 
@@ -164,6 +165,7 @@ _buildHarness({
     _FakeBeaconFactCardRepository(),
     _ProfileRepo(profiles),
     contactsCase,
+    noopBlockCase(),
     env: const Env(),
     logger: Logger('test'),
   );

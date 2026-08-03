@@ -21,6 +21,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
@@ -30,6 +31,7 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../block/support/controllable_block_case.dart';
 
 void main() {
   late FakeInboxRepository repo;
@@ -291,6 +293,34 @@ void main() {
       await cubit.close();
     });
 
+    test('block change silently refreshes the authoritative list', () async {
+      final blockCase = ControllableBlockCase();
+      final blockInboxCase = buildTestInboxCase(
+        repo,
+        beaconRoom,
+        forwardRepository: forwardRepo,
+        realtimeSyncCase: realtimeSyncCase,
+        blockCase: blockCase,
+      );
+      repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: blockInboxCase,
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.stream.firstWhere((state) => state.isSuccess);
+      expect(repo.fetchCallCount, 1);
+      repo.fetchResult = [_item(status: InboxItemStatus.rejected)];
+
+      blockCase.emitBlock();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.items.single.status, InboxItemStatus.rejected);
+      expect(cubit.state.pendingMovedNudge, isNull);
+      await cubit.close();
+      await blockCase.dispose();
+    });
+
     test('stale fetch completion cannot replace a newer snapshot', () async {
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
       final cubit = InboxCubit(
@@ -338,12 +368,14 @@ InboxCase buildTestInboxCase(
   ForwardRepository? forwardRepository,
   RealtimeSyncCase? realtimeSyncCase,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
+  BlockCase? blockCase,
 }) => InboxCase(
   repo,
   beaconRoom,
   forwardRepository ?? _FakeForwardRepository(),
   realtimeSyncCase ?? RealtimeSyncCase(_TestRealtimeSyncPort()),
   bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
+  blockCase ?? noopBlockCase(),
   env: const Env(),
   logger: Logger('test'),
 );

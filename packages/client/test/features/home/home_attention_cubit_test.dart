@@ -12,6 +12,7 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../block/support/controllable_block_case.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -82,6 +83,7 @@ void main() {
       repository,
       accounts,
       sync.case_,
+      noopBlockCase(),
       Logger('home-attention-test'),
     );
     home = HomeAttentionCubit(

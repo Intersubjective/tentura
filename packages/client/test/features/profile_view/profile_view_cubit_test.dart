@@ -20,6 +20,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 
+import '../block/support/controllable_block_case.dart';
 import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
 
 import '../../support/test_realtime_sync.dart';
@@ -114,6 +115,17 @@ void main() {
       expect(harness.profiles.fetchCalls, greaterThan(afterContact));
     });
 
+    test('block change silently refetches the open profile', () async {
+      harness.start();
+      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+      final afterBootstrap = harness.profiles.fetchCalls;
+
+      harness.blockCase.emitBlock();
+      await harness.waitFor(
+        () => harness.profiles.fetchCalls > afterBootstrap,
+      );
+    });
+
     test('stale completion cannot replace a newer snapshot', () async {
       harness.start();
       await harness.waitFor(() => harness.profiles.fetchCalls == 1);
@@ -196,6 +208,7 @@ final class _ProfileViewHarness {
       capabilities,
       contactsCase,
       realtimeCase,
+      blockCase,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -208,7 +221,7 @@ final class _ProfileViewHarness {
   final likes = _FakeLikeRepository();
   final capabilities = _FakeCapabilityRepository();
   final effects = FakeUiEffectPort();
-  final blockCase = FakeBlockCase();
+  final blockCase = ControllableBlockCase();
 
   late final AuthCase authCase;
   late final TestRealtimeSyncPort realtimePort;
@@ -251,6 +264,7 @@ final class _ProfileViewHarness {
     await likes.dispose();
     await capabilities.dispose();
     await authLocal.dispose();
+    await blockCase.dispose();
   }
 }
 

@@ -16,10 +16,12 @@ import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../../support/test_realtime_sync.dart';
+import '../block/support/controllable_block_case.dart';
+
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../../support/test_realtime_sync.dart';
 
 class _PreselectForwardRepository implements ForwardRepository {
   _PreselectForwardRepository({
@@ -146,6 +148,7 @@ _buildHarness({
     _FakeBeaconFactCardRepository(),
     _PreselectProfileRepository(profiles),
     contactsCase,
+    noopBlockCase(),
     env: const Env(),
     logger: Logger('test'),
   );

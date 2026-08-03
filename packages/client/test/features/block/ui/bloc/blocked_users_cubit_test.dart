@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/block/ui/bloc/blocked_users_cubit.dart';
@@ -49,6 +50,9 @@ class FakeBlockCase implements BlockCase {
   List<BlockIntent> fetchMyBlocksResult = const [];
   Object? fetchMyBlocksError;
   final unblockCalls = <String>[];
+
+  @override
+  Stream<RepositoryEvent<BlockIntent>> get changes => const Stream.empty();
 
   @override
   Future<List<BlockIntent>> fetchMyBlocks() {

@@ -311,6 +311,7 @@ class _BlockedProfileHarness {
       capabilities,
       contactsCase,
       realtimeCase,
+      blockCase,
       env: const Env(),
       logger: Logger('test'),
     );
