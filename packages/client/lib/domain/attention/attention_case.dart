@@ -8,6 +8,8 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
+
 import 'attention_ack_store.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
@@ -22,6 +24,7 @@ final class AttentionCase {
     this._repository,
     this._account,
     this._realtime,
+    this._blockCase,
     this._logger,
   ) {
     _start();
@@ -30,6 +33,7 @@ final class AttentionCase {
   final AttentionRepositoryPort _repository;
   final AttentionAccountPort _account;
   final RealtimeSyncCase _realtime;
+  final BlockCase _blockCase;
   final Logger _logger;
   final AttentionAckStore _acks = AttentionAckStore();
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
@@ -40,6 +44,7 @@ final class AttentionCase {
   StreamSubscription<String>? _accountSub;
   StreamSubscription<RealtimeEntityChange>? _notificationSub;
   StreamSubscription<RealtimeCatchUp>? _catchUpSub;
+  StreamSubscription<dynamic>? _blockSub;
   String _accountId = '';
   int _accountGeneration = 0;
   bool _headRefreshInFlight = false;
@@ -59,6 +64,7 @@ final class AttentionCase {
         .changesFor(const {RealtimeEntityKind.notification})
         .listen((_) => _requestHeadRefresh());
     _catchUpSub = _realtime.catchUps.listen((_) => _requestHeadRefresh());
+    _blockSub = _blockCase.changes.listen((_) => _requestHeadRefresh());
   }
 
   void _onAccountChanged(String accountId) {
@@ -241,6 +247,7 @@ final class AttentionCase {
     await _accountSub?.cancel();
     await _notificationSub?.cancel();
     await _catchUpSub?.cancel();
+    await _blockSub?.cancel();
     await _snapshot.close();
   }
 }

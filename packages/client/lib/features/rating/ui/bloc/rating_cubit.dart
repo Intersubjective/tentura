@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -19,16 +20,35 @@ class RatingCubit extends Cubit<RatingState> {
   RatingCubit({
     String initialContext = '',
     RatingRepository? repository,
+    BlockCase? blockCase,
     UiEffectPort? effects,
   }) : _repository = repository ?? GetIt.I<RatingRepository>(),
+       _blockCase = blockCase,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(const RatingState()) {
+    final block = _blockCase ?? (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
+    if (block != null) {
+      _blockChanges = block.changes.listen(
+        (_) => unawaited(fetch()),
+        cancelOnError: false,
+      );
+    }
     unawaited(fetch(initialContext));
   }
 
   final RatingRepository _repository;
 
+  final BlockCase? _blockCase;
+
   final UiEffectPort _effects;
+
+  StreamSubscription<dynamic>? _blockChanges;
+
+  @override
+  Future<void> close() async {
+    await _blockChanges?.cancel();
+    return super.close();
+  }
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));

@@ -66,7 +66,7 @@ Phase 6 — client:
 - [x] S19 — block sheet — deps: S18
 - [x] S20 — blocked list screen — deps: S18
 - [x] S21 — profile entry point + blocked-profile rendering — deps: S19
-- [ ] S22 — l10n + cache invalidation — deps: S19, S20, S21
+- [x] S22 — l10n + cache invalidation — deps: S19, S20, S21
 
 Phase 7 — hardening:
 - [ ] S23 — adversarial suite — deps: S16, S14
@@ -735,3 +735,36 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `flutter test test/features/profile_view/` → 14/14;
   `flutter test test/features/block/` → 16/16.
   **Commits:** (see S21 exit summary).
+- 2026-08-03 (S22 in progress): l10n sweep + cache invalidation per §8.5/§8.7.
+- 2026-08-03 (S22 complete): l10n + cross-screen cache invalidation.
+  **l10n sweep:** all block UI already routed through `l10n.*` (S17–S21); added
+  spec §8.7 keys still missing: `blockErrorRateLimited`, `errorBlockedByUser`
+  (en + ru). No hardcoded user-facing strings found in `features/block/**`,
+  `profile_view_app_bar.dart`, `blocked_profile_view_body.dart`, or settings
+  blocked-users entry.
+  **Invalidation wiring** (`BlockCase.changes` → existing refresh hooks):
+  - **Feed:** `AttentionCase` listens → `_requestHeadRefresh()` (drives
+    `UpdatesFeedCubit` via `feedPages`).
+  - **Graph + genealogy:** `GraphCubit` listens → cache reset + `_fetch()`
+    (skips forwards-graph mode; covers trust graph + `genealogyMode`).
+  - **Profile (cached elsewhere):** `ProfileViewCase.projectionChanges` merges
+    block stream (open `ProfileViewCubit` silent refetch). S21 already handles
+    the actively-blocked profile fallback — no extra `ProfileCubit` wiring
+    (own-profile only).
+  - **Search:** `ForwardCase.blockChanges` → `ForwardCubit` reloads candidates
+    (recipient search overlay). `RatingCubit` also listens (trust-rating user
+    list screen).
+  - **Inbox:** `InboxCase.localMutations` merges block stream → `InboxCubit`
+    silent `fetch()`.
+  **Doc staleness confirmed:** `beacon-cross-screen-invalidation-refactor.md`
+  InboxCubit stream list was outdated — live code already had
+  `deskRelevantChanges` + `catchUps`; block wiring piggybacks `localMutations`
+  (same pattern as `BookkeepingRefreshSignal`).
+  **Version:** client `5.6.21` → `5.6.22` (+ `web/index.html` cache buster).
+  **Verification:** `flutter gen-l10n` + `build_runner` clean;
+  `flutter analyze --no-fatal-warnings --no-fatal-infos` → 708 info issues, 0
+  warnings/errors; `check-custom-lints.sh packages/client` → total **112**
+  (baseline 113, improved); `flutter test test/features/block/` → 19/19;
+  targeted invalidation tests green; full `flutter test --dart-define=ENV=test`
+  → 1577 passed / 14 skipped.
+  **Commits:** (see S22 exit summary).

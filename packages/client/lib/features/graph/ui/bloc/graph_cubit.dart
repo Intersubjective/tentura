@@ -8,6 +8,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -15,6 +16,8 @@ import 'package:tentura/ui/message/common_messages.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -58,6 +61,7 @@ class GraphCubit extends Cubit<GraphState> {
     this.genealogyAnonymousNodeLabel,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
+    BlockCase? blockCase,
     UiEffectPort? effects,
   }) : assert(
          !genealogyMode || forwardsGraphBeaconId == null,
@@ -89,6 +93,14 @@ class GraphCubit extends Cubit<GraphState> {
     if (!genealogyMode) {
       _everFocusedIds.add(_egoNode.id);
     }
+    final block = blockCase ??
+        (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
+    if (block != null) {
+      _blockChanges = block.changes.listen(
+        _onBlockVisibilityChanged,
+        cancelOnError: false,
+      );
+    }
     unawaited(_fetch());
   }
 
@@ -111,6 +123,8 @@ class GraphCubit extends Cubit<GraphState> {
   final UiEffectPort _effects;
 
   final GraphEdgeColors _edgeColors;
+
+  StreamSubscription<RepositoryEvent<BlockIntent>>? _blockChanges;
 
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
@@ -189,9 +203,49 @@ class GraphCubit extends Cubit<GraphState> {
       genealogyMode ? _genealogyParentChainNodeIds : const <String>{};
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
+    await _blockChanges?.cancel();
     graphController.dispose();
     return super.close();
+  }
+
+  void _onBlockVisibilityChanged(RepositoryEvent<BlockIntent> _) {
+    if (forwardsGraphBeaconId != null) {
+      return;
+    }
+    _cacheEpoch++;
+    _fetchEpoch++;
+    graphController.clear();
+    _fetchLimits.clear();
+    _addedEdgeEndpoints.clear();
+    _allEdges.clear();
+    if (genealogyMode) {
+      _genealogyChildrenCursors.clear();
+      _genealogyParentChainNodeIds.clear();
+      _nodes.clear();
+      _everFocusedIds.clear();
+      _focusPathIds.clear();
+      emit(
+        state.copyWith(
+          focus: '',
+          hiddenNeighborCounts: const {},
+          egoNodeId: '',
+          genealogyTargetNodeKey: '',
+        ),
+      );
+    } else {
+      _nodes
+        ..clear()
+        ..[_egoNode.id] = _egoNode;
+      _everFocusedIds
+        ..clear()
+        ..add(_egoNode.id);
+      _focusPathIds
+        ..clear()
+        ..add(_egoNode.id);
+      emit(state.copyWith(focus: '', hiddenNeighborCounts: const {}));
+    }
+    unawaited(_fetch());
   }
 
   /// True when there is somewhere to go back to.

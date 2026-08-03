@@ -4755,4 +4755,12 @@
   ,"@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."
   }
+  ,"blockErrorRateLimited": "You have blocked too many people recently. Try again later."
+  ,"@blockErrorRateLimited": {
+    "description": "Shown when the server rejects a block for rate limiting."
+  }
+  ,"errorBlockedByUser": "This person is not available."
+  ,"@errorBlockedByUser": {
+    "description": "Generic error when an action is rejected because of a block."
+  }
 }

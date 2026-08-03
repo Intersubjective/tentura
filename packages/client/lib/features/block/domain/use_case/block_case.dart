@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 
 import '../../data/repository/block_repository.dart';
 import '../entity/user_block.dart';
@@ -10,6 +11,8 @@ class BlockCase {
   BlockCase(this._repository);
 
   final BlockRepository _repository;
+
+  Stream<RepositoryEvent<BlockIntent>> get changes => _repository.changes;
 
   Future<void> block({
     required String objectId,

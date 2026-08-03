@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
@@ -22,7 +23,8 @@ final class InboxCase extends UseCaseBase {
     this._beaconRoomCase,
     this._forwardRepository,
     this._realtimeSyncCase,
-    this._bookkeepingRefreshSignal, {
+    this._bookkeepingRefreshSignal,
+    this._blockCase, {
     required super.env,
     required super.logger,
   });
@@ -34,12 +36,14 @@ final class InboxCase extends UseCaseBase {
   final RealtimeSyncCase _realtimeSyncCase;
 
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
+  final BlockCase _blockCase;
 
   /// Inbox list refresh after local writes or session read-watermark changes.
   Stream<void> get localMutations => MergeStream<void>([
     _repository.localMutations,
     _beaconRoomCase.readWatermarkChanges.map((_) {}),
     _bookkeepingRefreshSignal.stream,
+    _blockCase.changes.map((_) {}),
   ]);
 
   Stream<HelpOfferEvent> get helpOfferChanges =>

@@ -10,6 +10,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forward_repository.dart';
@@ -26,7 +27,8 @@ final class ForwardCase extends UseCaseBase {
     this._authLocalRepository,
     this._factCards,
     this._profileRepository,
-    this._contactsCase, {
+    this._contactsCase,
+    this._blockCase, {
     required super.env,
     required super.logger,
   });
@@ -41,11 +43,16 @@ final class ForwardCase extends UseCaseBase {
 
   final ContactsCase _contactsCase;
 
+  final BlockCase _blockCase;
+
   /// Emits beacon ids when a forward edge changes (debounced WS invalidation).
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
   /// Emits when the viewer's contact-name map changes.
   Stream<void> get contactChanges => _contactsCase.changes;
+
+  /// Emits when the viewer blocks or unblocks someone (recipient lists refresh).
+  Stream<void> get blockChanges => _blockCase.changes.map((_) {});
 
   static ForwardCandidate applyContactOverlay(ForwardCandidate candidate) {
     final profile = profileWithContactOverlay(candidate.profile);

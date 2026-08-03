@@ -58,6 +58,8 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   StreamSubscription<void>? _contactChangesSub;
 
+  StreamSubscription<void>? _blockChangesSub;
+
   void _subscribeLiveUpdates() {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
@@ -82,6 +84,11 @@ class ForwardCubit extends Cubit<ForwardState> {
           ),
         ),
       );
+    });
+    _blockChangesSub = forwardCase.blockChanges.listen((_) {
+      if (!isClosed) {
+        unawaited(_loadCandidates(forceReload: true));
+      }
     });
   }
 
@@ -191,6 +198,7 @@ class ForwardCubit extends Cubit<ForwardState> {
   Future<void> close() async {
     await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
+    await _blockChangesSub?.cancel();
     return super.close();
   }
 
