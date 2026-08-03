@@ -64,9 +64,11 @@ class GraphBodyState extends State<GraphBody>
 
   GraphLayoutAlgorithm get _layoutAlgorithm {
     if (_graphCubit.genealogyMode) {
-      return LayeredDagLayoutAlgorithm(
-        rootIds: {_graphCubit.state.egoNodeId},
-      );
+      // Genealogy edges run ancestor -> descendant, so the viewer is a leaf,
+      // not a root. Leave [rootIds] empty and let the layout rank from the
+      // in-degree-zero nodes (the topmost ancestors); seeding it with the ego
+      // node reaches nothing and drops every ancestor into one flat row.
+      return const LayeredDagLayoutAlgorithm(rootIds: {});
     }
     if (_graphCubit.forwardsGraphBeaconId != null) {
       return LayeredDagLayoutAlgorithm(

@@ -94,6 +94,30 @@ void main() {
       }
     });
 
+    test('genealogy ancestor chain ranks top-down without explicit roots', () {
+      // Genealogy edges run ancestor -> descendant, so the viewer ("ego") is a
+      // leaf. Passing no roots must rank from the topmost ancestor instead of
+      // flattening the whole chain into one row.
+      final positions = layeredDagPositions(
+        nodeIds: {'root', 'a', 'b', 'ego'},
+        edges: {('root', 'a'), ('a', 'b'), ('b', 'ego')},
+        rootIds: const {},
+        canvasSize: canvasSize,
+        layerGap: layerGap,
+        columnGap: columnGap,
+      );
+
+      final ys = ['root', 'a', 'b', 'ego']
+          .map((id) => positions[id]!.dy)
+          .toList();
+      expect(ys.toSet().length, 4);
+      for (var i = 1; i < ys.length; i++) {
+        expect(ys[i - 1], lessThan(ys[i]));
+      }
+      final xs = positions.values.map((offset) => offset.dx).toSet();
+      expect(xs.length, 1);
+    });
+
     test('cycle safety', () {
       final positions = layeredDagPositions(
         nodeIds: {'a', 'b', 'c'},
