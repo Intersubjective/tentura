@@ -230,6 +230,6 @@ void main() {
     await _pumpGraphBody(tester);
 
     expect(find.byTooltip('Show legend'), findsOneWidget);
-    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
   });
 }

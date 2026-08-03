@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -129,9 +130,7 @@ class GraphBodyState extends State<GraphBody>
         }
       }
       final focused = focusedNode;
-      final canExpand = focused != null &&
-          _graphCubit.forwardsGraphBeaconId == null &&
-          _graphCubit.canPageMore(focused.id);
+      final controller = _graphCubit.graphController;
 
       return Stack(
         fit: StackFit.expand,
@@ -149,12 +148,14 @@ class GraphBodyState extends State<GraphBody>
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: _GraphToolbar(
+              child: _GraphToolbarHost(
+                graphState: graphState,
+                controller: controller,
+                graphCubit: _graphCubit,
+                focusedNode: focused,
                 legendExpanded: _legendExpanded,
                 onToggleLegend: _toggleLegend,
-                focusedNode: focused,
-                showExpand: canExpand,
-                onExpand: canExpand ? () => _graphCubit.expandNode(focused) : null,
+                onExpandNode: _graphCubit.expandNode,
                 onOpenDetails: focused == null
                     ? null
                     : () => _openNodeDetails(focused),
@@ -254,6 +255,90 @@ class GraphBodyState extends State<GraphBody>
       );
 }
 
+/// Listens to [GraphController] layout settling without rebuilding during build.
+class _GraphToolbarHost extends StatefulWidget {
+  const _GraphToolbarHost({
+    required this.graphState,
+    required this.controller,
+    required this.graphCubit,
+    required this.focusedNode,
+    required this.legendExpanded,
+    required this.onToggleLegend,
+    required this.onExpandNode,
+    required this.onOpenDetails,
+  });
+
+  final GraphState graphState;
+  final GraphController<NodeDetails, EdgeDetails<NodeDetails>> controller;
+  final GraphCubit graphCubit;
+  final NodeDetails? focusedNode;
+  final bool legendExpanded;
+  final VoidCallback onToggleLegend;
+  final Future<void> Function(NodeDetails node) onExpandNode;
+  final VoidCallback? onOpenDetails;
+
+  @override
+  State<_GraphToolbarHost> createState() => _GraphToolbarHostState();
+}
+
+class _GraphToolbarHostState extends State<_GraphToolbarHost> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _GraphToolbarHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onControllerChanged);
+      widget.controller.addListener(_onControllerChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (!mounted) {
+      return;
+    }
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      setState(() {});
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final focused = widget.focusedNode;
+    final canExpand = focused != null &&
+        !widget.graphState.isLoading &&
+        widget.controller.canLayout &&
+        !widget.controller.isLayoutSettling &&
+        widget.graphCubit.canPageMore(focused.id);
+    return _GraphToolbar(
+      legendExpanded: widget.legendExpanded,
+      onToggleLegend: widget.onToggleLegend,
+      focusedNode: focused,
+      showExpand: canExpand,
+      onExpand: canExpand ? () => widget.onExpandNode(focused) : null,
+      onOpenDetails: widget.onOpenDetails,
+    );
+  }
+}
+
 /// Single top-right toolbar: focus actions (when set) + graph navigation.
 class _GraphToolbar extends StatelessWidget {
   const _GraphToolbar({
@@ -288,7 +373,7 @@ class _GraphToolbar extends StatelessWidget {
             key: TestIds.key(TestIds.graphExpand),
             tooltip: l10n.inboxProvenanceExpand,
             onPressed: onExpand,
-            icon: const Icon(Icons.add_circle_outline),
+            icon: const Icon(Icons.hub_outlined),
           ),
         );
       }
@@ -343,14 +428,6 @@ class _GraphToolbar extends StatelessWidget {
                       color: scheme.outlineVariant,
                     ),
                   ),
-                BlocBuilder<GraphCubit, GraphState>(
-                  builder: (context, _) => IconButton(
-                    key: TestIds.key(TestIds.graphBack),
-                    tooltip: l10n.graphBack,
-                    onPressed: cubit.canPopFocus ? cubit.popFocus : null,
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                ),
                 IconButton(
                   key: TestIds.key(TestIds.graphResetToEgo),
                   tooltip: l10n.graphResetToEgo,

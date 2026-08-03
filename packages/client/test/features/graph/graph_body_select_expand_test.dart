@@ -109,6 +109,8 @@ Future<void> _settleGraph(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
   await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump();
 }
 
 Future<GraphCubit> _pumpGraphBody(

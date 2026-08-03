@@ -29,11 +29,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
+    expect(controller.isLayoutSettling, isTrue);
+    expect(controller.isLayoutTransitioning, isTrue);
+
     // Mid-transition the graph must be laid out and must not have snapped.
     expect(controller.canLayout, isTrue);
     expect(controller.layout.hasPosition(a), isTrue);
 
     await tester.pumpAndSettle();
+    expect(controller.isLayoutSettling, isFalse);
+    expect(controller.isLayoutTransitioning, isFalse);
     expect(controller.layout.hasPosition(b), isTrue);
     expect(first, isNotNull);
 

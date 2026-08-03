@@ -20,6 +20,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   Size? _currentSize;
   var _centered = false;
   var _relayoutGeneration = 0;
+  var _relayoutInFlight = false;
   Ticker? _ticker;
   GraphLayout? _transitionFrom;
   GraphLayout? _transitionTarget;
@@ -52,6 +53,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Checks whether the graph is laid out and the size is available.
   bool get canLayout => _layout != null && _currentSize != null;
+
+  /// True while a layout interpolation tween is running.
+  bool get isLayoutTransitioning =>
+      _transitionFrom != null && _transitionTarget != null;
+
+  /// True while relayout is in flight or a layout transition is animating.
+  bool get isLayoutSettling => _relayoutInFlight || isLayoutTransitioning;
 
   /// Updates the graph using [GraphMutator]. Initiates relayout.
   void mutate(void Function(GraphMutator<N, E> mutator) callback) {
@@ -243,6 +251,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     }
 
     final generation = ++_relayoutGeneration;
+    _relayoutInFlight = true;
+    notifyListeners();
     final nodesSnapshot = Set<N>.of(_nodes);
     final edgesSnapshot = Set<E>.of(_edges);
 
@@ -259,11 +269,18 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
             size: currentSize,
           );
 
-    await for (final layout in layoutStream) {
-      if (generation != _relayoutGeneration) {
-        return;
+    try {
+      await for (final layout in layoutStream) {
+        if (generation != _relayoutGeneration) {
+          return;
+        }
+        _publishLayout(layout);
       }
-      _publishLayout(layout);
+    } finally {
+      if (generation == _relayoutGeneration) {
+        _relayoutInFlight = false;
+        notifyListeners();
+      }
     }
   }
 

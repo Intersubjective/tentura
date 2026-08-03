@@ -100,6 +100,8 @@ Future<void> _settleGraph(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
   await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump();
 }
 
 Future<GraphCubit> _pumpGraphBody(
@@ -142,26 +144,32 @@ Future<GraphCubit> _pumpGraphBody(
 }
 
 void main() {
-  testWidgets('compact layout exposes back, reset, fit, and legend controls', (
+  testWidgets('compact layout exposes reset, fit, and legend controls', (
     tester,
   ) async {
     await _pumpGraphBody(tester);
 
-    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
     expect(find.byTooltip('Reset to me'), findsOneWidget);
     expect(find.byTooltip('Fit current path'), findsOneWidget);
     expect(find.byTooltip('Show legend'), findsOneWidget);
   });
 
-  testWidgets('back with empty trail is a no-op', (tester) async {
-    final cubit = await _pumpGraphBody(tester);
-    expect(cubit.canPopFocus, isFalse);
+  testWidgets('expand is hidden while fetch is in flight', (tester) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+      });
+    await _pumpGraphBody(
+      tester,
+      size: const Size(360, 800),
+      source: source,
+    );
 
-    await tester.tap(find.byTooltip('Back'));
-    await _settleGraph(tester);
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await tester.pump();
 
-    expect(cubit.state.focus, isEmpty);
-    expect(cubit.canPopFocus, isFalse);
+    expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
   });
 
   testWidgets(

@@ -620,6 +620,18 @@ Future<String> selectGraphNeighbor(WidgetTester tester) async {
   return readGraphCubit(tester).state.focus;
 }
 
+Future<void> expandEgoNeighbourhood(WidgetTester tester) async {
+  final cubit = readGraphCubit(tester);
+  final ego = cubit.graphController.nodes.singleWhere(
+    (node) => node.id == cubit.state.me.id,
+  );
+  await cubit.expandNode(ego);
+  await pumpBounded(tester, frames: 12);
+  debugPrint(
+    '[e2e] expandEgoNeighbourhood: focus=${readGraphCubit(tester).state.focus}',
+  );
+}
+
 Future<void> expandFocusedGraphNode(WidgetTester tester) async {
   final expand = find.byKey(TestIds.key(TestIds.graphExpand));
   await pumpUntilVisible(tester, expand);
@@ -631,10 +643,8 @@ Future<void> expandFocusedGraphNode(WidgetTester tester) async {
 }
 
 Future<void> tapGraphBack(WidgetTester tester) async {
-  await tapGraphControl(
-    tester,
-    find.byKey(TestIds.key(TestIds.graphBack)),
-  );
+  readGraphCubit(tester).popFocus();
+  await pumpBounded(tester);
 }
 
 Future<void> tapGraphResetToEgo(WidgetTester tester) async {

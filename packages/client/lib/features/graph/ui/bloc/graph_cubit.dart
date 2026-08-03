@@ -285,14 +285,7 @@ class GraphCubit extends Cubit<GraphState> {
     if (forwardsGraphBeaconId != null) {
       return false;
     }
-    final hidden = state.hiddenNeighborCounts[id] ?? 0;
-    if (hidden > 0) {
-      return true;
-    }
-    if (genealogyMode || id == _focusRootId) {
-      return false;
-    }
-    return !_fetchLimits.containsKey(id);
+    return (state.hiddenNeighborCounts[id] ?? 0) > 0;
   }
 
   /// Whether [id] has been focused before (rollback taps select only).
@@ -331,6 +324,9 @@ class GraphCubit extends Cubit<GraphState> {
         _isTrustGraph &&
         state.focus.isEmpty &&
         node.id == _focusRootId;
+    if (forwardsGraphBeaconId == null) {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
     if (!trustOverviewPaging && state.focus != node.id) {
       // Skip select-time ensure: [_fetch] closes over the staged neighbourhood
       // before the first paint of new nodes.

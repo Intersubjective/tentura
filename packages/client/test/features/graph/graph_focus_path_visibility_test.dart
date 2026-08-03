@@ -228,6 +228,26 @@ void main() {
     await cubit.close();
   });
 
+  test('canPageMore is true only when hidden neighbor count is positive', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue', srcTotal: 3)},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    expect(cubit.canPageMore('Ub'), isFalse);
+
+    cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
+    await _settle();
+
+    expect(cubit.isCurrentFocus('Ub'), isTrue);
+    expect(cubit.canPageMore('Ub'), isTrue);
+
+    await cubit.close();
+  });
+
   test(
     'rollback tap on ancestor with hidden badge does not fetch',
     () async {

@@ -23,8 +23,8 @@ void main() {
       final urlBefore = currentAppUrl();
       await openConnectionsGraph(tester, fixture.authorUserId);
 
-      // Hop 1: expand the ego neighbourhood (graph opens focused on self).
-      await expandFocusedGraphNode(tester);
+      // Hop 1: expand the ego neighbourhood (overview paging via cubit).
+      await expandEgoNeighbourhood(tester);
       expect(readGraphCubit(tester).canPopFocus, isFalse);
 
       // Hop 2: focus helper and expand their neighbourhood.
