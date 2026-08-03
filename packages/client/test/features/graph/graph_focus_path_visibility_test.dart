@@ -306,6 +306,61 @@ void main() {
   );
 
   test(
+    'teleport select rebuilds focus path through cached edges after resetToEgo',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.expandNode(_liveNode(cubit, 'Ue'));
+      await _settle();
+
+      cubit.resetToEgo();
+      await _settle();
+
+      cubit.handleNodeTap(_liveNode(cubit, 'Ue'));
+      await _settle();
+
+      expect(cubit.state.focus, 'Ue');
+      expect(cubit.focusPath, ['Ume', 'Ub', 'Ue']);
+      expect(
+        _edgePairs(cubit),
+        containsAll({('Ume', 'Ub'), ('Ub', 'Ue')}),
+      );
+
+      await cubit.close();
+    },
+  );
+
+  test(
+    'adjacent hop appends to focus path even when a shorter chord exists',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub'), _e('Ume', 'Ue')},
+          'Ub': {_e('Ub', 'Ue')},
+        });
+      final cubit = _cubit(source);
+      await _settle();
+
+      cubit.expandNode(_liveNode(cubit, 'Ub'));
+      await _settle();
+      cubit.handleNodeTap(_liveNode(cubit, 'Ue'));
+      await _settle();
+
+      expect(cubit.focusPath, ['Ume', 'Ub', 'Ue']);
+
+      await cubit.close();
+    },
+  );
+
+  test(
     'setContext clears everFocused so a cached node can explore again',
     () async {
       final source = _FakeGraphSource()

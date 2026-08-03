@@ -503,7 +503,70 @@ class GraphCubit extends Cubit<GraphState> {
       _focusPathIds.removeRange(existingIndex + 1, _focusPathIds.length);
       return;
     }
+    final tip = _focusPathIds.last;
+    if (_areAdjacentInAllEdges(tip, focusId)) {
+      _focusPathIds.add(focusId);
+      return;
+    }
+    final rebuilt = _shortestPathInAllEdges(egoId, focusId);
+    if (rebuilt != null) {
+      _focusPathIds
+        ..clear()
+        ..addAll(rebuilt);
+      return;
+    }
     _focusPathIds.add(focusId);
+  }
+
+  bool _areAdjacentInAllEdges(String a, String b) {
+    if (a == b) {
+      return true;
+    }
+    return _allEdges.containsKey((a, b)) || _allEdges.containsKey((b, a));
+  }
+
+  /// Shortest undirected path between [from] and [to] over [_allEdges], or null.
+  List<String>? _shortestPathInAllEdges(String from, String to) {
+    if (from == to) {
+      return [from];
+    }
+    final adjacency = <String, Set<String>>{};
+    for (final key in _allEdges.keys) {
+      adjacency.putIfAbsent(key.$1, () => {}).add(key.$2);
+      adjacency.putIfAbsent(key.$2, () => {}).add(key.$1);
+    }
+    if (!adjacency.containsKey(from) || !adjacency.containsKey(to)) {
+      return null;
+    }
+    final queue = <String>[from];
+    final previous = <String, String?>{from: null};
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      if (current == to) {
+        break;
+      }
+      for (final neighbor in adjacency[current] ?? const <String>{}) {
+        if (previous.containsKey(neighbor)) {
+          continue;
+        }
+        previous[neighbor] = current;
+        queue.add(neighbor);
+      }
+    }
+    if (!previous.containsKey(to)) {
+      return null;
+    }
+    final path = <String>[];
+    var walk = to;
+    while (true) {
+      path.add(walk);
+      final parent = previous[walk];
+      if (parent == null) {
+        break;
+      }
+      walk = parent;
+    }
+    return path.reversed.toList();
   }
 
   void _resetFocusPathRoot(String rootId) {

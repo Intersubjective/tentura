@@ -44,11 +44,17 @@ void main() {
       await expandFocusedGraphNode(tester);
       expect(readGraphCubit(tester).canPopFocus, isTrue);
 
+      final beforeHome = readGraphCubit(tester);
+      final focusBefore = beforeHome.state.focus;
+      final pathBefore = beforeHome.focusPath.length;
+      expect(focusBefore, isNotEmpty);
+      expect(pathBefore, greaterThan(1));
+
       await tapGraphResetToEgo(tester);
-      final afterReset = readGraphCubit(tester);
-      expect(afterReset.state.focus, isEmpty);
-      expect(afterReset.canPopFocus, isFalse);
-      expect(afterReset.focusPath.length, 1);
+      final afterHome = readGraphCubit(tester);
+      expect(afterHome.state.focus, focusBefore);
+      expect(afterHome.focusPath.length, pathBefore);
+      expect(afterHome.canPopFocus, isTrue);
       expect(currentAppUrl(), urlBefore);
     },
   );

@@ -431,7 +431,7 @@ class _GraphToolbar extends StatelessWidget {
                 IconButton(
                   key: TestIds.key(TestIds.graphResetToEgo),
                   tooltip: l10n.graphResetToEgo,
-                  onPressed: cubit.resetToEgo,
+                  onPressed: () => cubit.jumpToEgo(resetScale: true),
                   icon: const Icon(Icons.home_outlined),
                 ),
                 IconButton(

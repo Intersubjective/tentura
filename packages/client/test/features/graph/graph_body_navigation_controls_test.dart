@@ -172,6 +172,33 @@ void main() {
     expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
   });
 
+  testWidgets('home recenters without clearing focus trail', (tester) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = await _pumpGraphBody(
+      tester,
+      size: const Size(360, 800),
+      source: source,
+    );
+
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await _settleGraph(tester);
+
+    final focusBefore = cubit.state.focus;
+    final pathLenBefore = cubit.focusPath.length;
+    expect(focusBefore, isNotEmpty);
+    expect(pathLenBefore, greaterThan(1));
+
+    await tester.tap(find.byTooltip('Reset to me'));
+    await _settleGraph(tester);
+
+    expect(cubit.state.focus, focusBefore);
+    expect(cubit.focusPath.length, pathLenBefore);
+  });
+
   testWidgets(
     'compact focus keeps expand and nav on one toolbar row',
     (tester) async {
