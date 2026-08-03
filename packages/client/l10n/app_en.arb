@@ -4652,4 +4652,62 @@
   ,"notificationSettingsInAppCoordinationDesc": "Show routine Chat and coordination updates."
   ,"notificationSettingsInAppRequestProgress": "Request progress"
   ,"notificationSettingsInAppRequestProgressDesc": "Show routine Request status updates."
+  ,"blockUserTitle": "Block {name}?"
+  ,"@blockUserTitle": {
+    "description": "Title on the block confirmation sheet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+  ,"blockUserExplainer": "You will no longer see each other's content, and neither of you will be able to contact the other."
+  ,"@blockUserExplainer": {
+    "description": "Body copy on the block confirmation sheet."
+  }
+  ,"blockCascadeToggle": "Also hide people they invited"
+  ,"@blockCascadeToggle": {
+    "description": "Cascade switch title on the block sheet."
+  }
+  ,"blockCascadeToggleSubtitle": "Extends the block to people in their invite network who lack independent standing."
+  ,"@blockCascadeToggleSubtitle": {
+    "description": "Cascade switch subtitle on the block sheet."
+  }
+  ,"blockCascadeModeSybil": "Only people without standing (recommended)"
+  ,"@blockCascadeModeSybil": {
+    "description": "Sybil-scoped cascade mode radio title."
+  }
+  ,"blockCascadeModeSybilSubtitle": "Hides invite descendants who do not have their own trust relationships."
+  ,"@blockCascadeModeSybilSubtitle": {
+    "description": "Sybil-scoped cascade mode radio subtitle."
+  }
+  ,"blockCascadeModeAll": "Everyone in their invite branch"
+  ,"@blockCascadeModeAll": {
+    "description": "All-descendants cascade mode radio title."
+  }
+  ,"blockCascadeModeAllSubtitle": "Hides the entire branch, even people you trust independently."
+  ,"@blockCascadeModeAllSubtitle": {
+    "description": "All-descendants cascade mode radio subtitle."
+  }
+  ,"blockWithdrawNotice": "Blocking also stops your vouch for this person in the trust graph. Unblocking restores it."
+  ,"@blockWithdrawNotice": {
+    "description": "Informational notice when blocking will withdraw a published trust edge."
+  }
+  ,"blockPreviewCascade": "{count, plural, =0{No additional people would be hidden} =1{1 additional person would be hidden} other{{count} additional people would be hidden}}"
+  ,"@blockPreviewCascade": {
+    "description": "Impact preview for cascade candidate count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"blockPreviewOpenCommitments": "You have open commitments with this person that blocking does not cancel."
+  ,"@blockPreviewOpenCommitments": {
+    "description": "Warning when block preview reports open commitments."
+  }
+  ,"blockConfirmButton": "Block"
+  ,"@blockConfirmButton": {
+    "description": "Destructive confirm action on the block sheet."
+  }
 }

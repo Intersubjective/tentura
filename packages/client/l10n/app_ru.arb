@@ -4445,4 +4445,62 @@
   ,"notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления Чата и координации."
   ,"notificationSettingsInAppRequestProgress": "Ход запроса"
   ,"notificationSettingsInAppRequestProgressDesc": "Показывать обычные обновления статуса запроса."
+  ,"blockUserTitle": "Заблокировать {name}?"
+  ,"@blockUserTitle": {
+    "description": "Title on the block confirmation sheet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+  ,"blockUserExplainer": "Вы больше не будете видеть контент друг друга и не сможете связаться друг с другом."
+  ,"@blockUserExplainer": {
+    "description": "Body copy on the block confirmation sheet."
+  }
+  ,"blockCascadeToggle": "Также скрыть приглашённых ими людей"
+  ,"@blockCascadeToggle": {
+    "description": "Cascade switch title on the block sheet."
+  }
+  ,"blockCascadeToggleSubtitle": "Расширяет блок на людей из их сети приглашений без самостоятельного статуса."
+  ,"@blockCascadeToggleSubtitle": {
+    "description": "Cascade switch subtitle on the block sheet."
+  }
+  ,"blockCascadeModeSybil": "Только люди без статуса (рекомендуется)"
+  ,"@blockCascadeModeSybil": {
+    "description": "Sybil-scoped cascade mode radio title."
+  }
+  ,"blockCascadeModeSybilSubtitle": "Скрывает потомков по приглашениям без собственных доверительных связей."
+  ,"@blockCascadeModeSybilSubtitle": {
+    "description": "Sybil-scoped cascade mode radio subtitle."
+  }
+  ,"blockCascadeModeAll": "Все в их ветке приглашений"
+  ,"@blockCascadeModeAll": {
+    "description": "All-descendants cascade mode radio title."
+  }
+  ,"blockCascadeModeAllSubtitle": "Скрывает всю ветку, даже людей, которым вы доверяете отдельно."
+  ,"@blockCascadeModeAllSubtitle": {
+    "description": "All-descendants cascade mode radio subtitle."
+  }
+  ,"blockWithdrawNotice": "Блокировка также прекращает ваше поручительство за этого человека в графе доверия. Разблокировка восстанавливает его."
+  ,"@blockWithdrawNotice": {
+    "description": "Informational notice when blocking will withdraw a published trust edge."
+  }
+  ,"blockPreviewCascade": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт ещё {count} человек} few{Будут скрыты ещё {count} человека} many{Будут скрыты ещё {count} человек} other{Будут скрыты ещё {count} человек}}"
+  ,"@blockPreviewCascade": {
+    "description": "Impact preview for cascade candidate count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"blockPreviewOpenCommitments": "У вас есть открытые обязательства с этим человеком, которые блокировка не отменяет."
+  ,"@blockPreviewOpenCommitments": {
+    "description": "Warning when block preview reports open commitments."
+  }
+  ,"blockConfirmButton": "Заблокировать"
+  ,"@blockConfirmButton": {
+    "description": "Destructive confirm action on the block sheet."
+  }
 }
