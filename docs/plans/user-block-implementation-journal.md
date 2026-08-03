@@ -673,3 +673,39 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   `check-custom-lints.sh packages/client` OK (112, unchanged baseline);
   `flutter test test/features/block/` → 12/12 (C6 responsive + C7 goldens).
   **Commits:** (see S20 exit summary).
+- 2026-08-03 (S20 manager review — one defect fixed): worker's own
+  `check-custom-lints.sh` claim ("112, unchanged") was stale — a raw
+  `EdgeInsets.all(16)` in `blocked_users_screen.dart`'s expanded-loading indicator
+  had pushed `no_raw_edge_insets` back to 113 (baseline), undoing S19's
+  improvement. Fixed to `EdgeInsets.all(context.tt.rowGap)`; also dropped one
+  unused-import warning in the new screen test. Re-verified: lints back to 112,
+  `flutter test test/features/block/` 12/12, full client suite 1565 passed / 14
+  skipped. S20 accepted.
+- 2026-08-03 (manager decision before S21 — profile app-bar Block/Unblock +
+  stripped-profile fallback, no new server capability): worked through spec
+  §8.6 against S8's `hidden_for_viewer` Hasura filter (both directions of
+  `block_hides` hide the `user` row entirely — `user_by_pk` returns `null`, the
+  client's `ProfileRepository.fetchById` throws `ProfileFetchException`).
+  **Key fact: a profile that loads normally can never be a currently-blocked
+  pair** — if it were, the Hasura filter would have hidden the row and the
+  fetch would already have failed. So the app-bar `PopupMenuItem` on a
+  normally-rendered profile only ever needs to say **"Block"** — never
+  "Unblock" — because the "Unblock" case is unreachable from that code path by
+  construction. Do not build isBlocked-detection machinery for the normal
+  profile view; it would be dead code.
+  **The "Unblock" case lives entirely in the OTHER path** spec §8.6 describes:
+  a blocked profile opened by direct/stale link. `ProfileViewCubit.fetch()`'s
+  `catch` block (first-load path, `!_hasLoaded`) is where this hooks in: on a
+  `ProfileFetchException`, check the viewer's OWN `BlockCase.fetchMyBlocks()`
+  for a DIRECT entry matching this id. If found, render the stripped view
+  (avatar + name from that entry's `Profile`, per spec — nothing else) with an
+  "Unblock" button calling `BlockCase.unblock`. **If not found** (the other
+  party blocked the viewer, or it's an inherited/cascade-only block the viewer
+  never saw), **fall back to the existing not-found/error UI unchanged** — an
+  accepted, documented limitation for this pass, not a bug: "Unblock" would be
+  incoherent there anyway (the viewer has no block of their own to lift on
+  that person), and design §3 already accepts that blocked profiles are
+  discoverable-as-hidden without special-casing every direction. This mirrors
+  how the Unhide gap was resolved — use what's buildable with existing
+  capabilities, document what's out of scope, don't invent new server surface
+  without asking.
