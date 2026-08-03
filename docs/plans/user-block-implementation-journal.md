@@ -65,7 +65,7 @@ Phase 6 — client:
 - [x] S18 — cubit + state — deps: S17
 - [x] S19 — block sheet — deps: S18
 - [x] S20 — blocked list screen — deps: S18
-- [ ] S21 — profile entry point + blocked-profile rendering — deps: S19
+- [x] S21 — profile entry point + blocked-profile rendering — deps: S19
 - [ ] S22 — l10n + cache invalidation — deps: S19, S20, S21
 
 Phase 7 — hardening:
@@ -709,3 +709,29 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   how the Unhide gap was resolved — use what's buildable with existing
   capabilities, document what's out of scope, don't invent new server surface
   without asking.
+- 2026-08-03 (S21 in progress): Profile entry point + blocked-profile rendering
+  per manager decision — app-bar "Block" only (never "Unblock" on normal load);
+  stripped fallback on `ProfileFetchException` when id is in viewer's direct blocks.
+- 2026-08-03 (S21 complete): Profile block entry point + stripped blocked-profile
+  view.
+  **App bar:** `profileViewPopupMenuEntries` (testable) adds `blockUserMenuItem`
+  between friend-removal and complaint; guarded `profile.id != viewerId`; always
+  "Block" label (no isBlocked toggle — manager decision). Blocked fallback hides
+  share + menu actions.
+  **Cubit:** `ProfileViewCubit` injects `BlockCase`; on first-load
+  `ProfileFetchException`, checks `fetchMyBlocks()` for direct match →
+  `blockedProfile` state (no `loadError`, no `ShowError`); else unchanged error
+  path. `unblockBlockedProfile()` calls `unblock` then retries `fetch()`.
+  **UI:** `BlockedProfileViewBody` — avatar + `shownName` + Unblock button
+  (design tokens only). `ProfileViewScreen` branches on `isBlockedFallback`.
+  **l10n:** `blockUserMenuItem` added to `app_en.arb` + `app_ru.arb`.
+  **Version:** client `5.6.20` → `5.6.21` (+ `web/index.html` cache buster).
+  **Tests:** cubit fallback + regression (no block → loadError/ShowError);
+  `BlockedProfileViewBody` widget tests; menu item presence/absence + sheet open
+  via `profileViewPopupMenuEntries`. Extended `FakeBlockCase.unblockCalls`.
+  **Verification:** `flutter gen-l10n` + `build_runner` clean;
+  `flutter analyze --no-fatal-warnings --no-fatal-infos` exit 0;
+  `check-custom-lints.sh packages/client` OK (112, baseline 113);
+  `flutter test test/features/profile_view/` → 14/14;
+  `flutter test test/features/block/` → 16/16.
+  **Commits:** (see S21 exit summary).

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
@@ -11,9 +12,60 @@ import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/block/ui/sheet/block_user_sheet.dart';
 
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/rename_contact_dialog.dart';
+
+@visibleForTesting
+List<PopupMenuEntry<void>> profileViewPopupMenuEntries({
+  required BuildContext context,
+  required ProfileViewState state,
+  required String viewerId,
+  required L10n l10n,
+  required ProfileViewCubit profileViewCubit,
+  required ScreenCubit screenCubit,
+}) {
+  final profile = state.profile;
+  return <PopupMenuEntry<void>>[
+    if (profile.id != viewerId)
+      PopupMenuItem<void>(
+        onTap: () => unawaited(
+          RenameContactDialog.show(
+            context,
+            profile: profile,
+          ).then((changed) {
+            if (changed ?? false) {
+              unawaited(profileViewCubit.fetch());
+            }
+          }),
+        ),
+        child: Text(l10n.renameContactMenuItem),
+      ),
+    if (profile.isFriend)
+      PopupMenuItem<void>(
+        onTap: () => unawaited(
+          FriendRemoveDialog.show(
+            context,
+            profile: profile,
+            onRemove: profileViewCubit.removeFriend,
+          ),
+        ),
+        child: Text(l10n.removeFromMyField),
+      ),
+    if (profile.id != viewerId)
+      PopupMenuItem<void>(
+        onTap: () => unawaited(
+          showBlockUserSheet(context, profile),
+        ),
+        child: Text(l10n.blockUserMenuItem),
+      ),
+    PopupMenuItem<void>(
+      onTap: () => screenCubit.showComplaint(profile.id),
+      child: Text(l10n.buttonComplaint),
+    ),
+  ];
+}
 
 PreferredSizeWidget buildProfileViewAppBar(BuildContext context) {
   final l10n = L10n.of(context)!;
@@ -25,50 +77,45 @@ PreferredSizeWidget buildProfileViewAppBar(BuildContext context) {
     leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
     title: BlocBuilder<ProfileViewCubit, ProfileViewState>(
       bloc: profileViewCubit,
-      buildWhen: (previous, current) => previous.profile != current.profile,
-      builder: (context, state) => ProfileAppBarTitle(profile: state.profile),
+      buildWhen: (previous, current) =>
+          previous.profile != current.profile ||
+          previous.blockedProfile != current.blockedProfile,
+      builder: (context, state) => ProfileAppBarTitle(
+        profile: state.blockedProfile ?? state.profile,
+      ),
     ),
     actions: [
-      BlocSelector<ProfileViewCubit, ProfileViewState, String>(
+      BlocSelector<ProfileViewCubit, ProfileViewState, bool>(
         bloc: profileViewCubit,
-        selector: (state) => state.profile.id,
-        builder: (context, profileId) => ShareCodeIconButton.id(profileId),
+        selector: (state) => state.isBlockedFallback,
+        builder: (context, isBlockedFallback) {
+          if (isBlockedFallback) {
+            return const SizedBox.shrink();
+          }
+          return BlocSelector<ProfileViewCubit, ProfileViewState, String>(
+            bloc: profileViewCubit,
+            selector: (state) => state.profile.id,
+            builder: (context, profileId) => ShareCodeIconButton.id(profileId),
+          );
+        },
       ),
-      PopupMenuButton<void>(
-        itemBuilder: (menuContext) {
-          final state = context.read<ProfileViewCubit>().state;
-          final profile = state.profile;
-          return <PopupMenuEntry<void>>[
-            if (profile.id != GetIt.I<ProfileCubit>().state.profile.id)
-              PopupMenuItem<void>(
-                onTap: () => unawaited(
-                  RenameContactDialog.show(
-                    context,
-                    profile: profile,
-                  ).then((changed) {
-                    if (changed ?? false) {
-                      unawaited(profileViewCubit.fetch());
-                    }
-                  }),
-                ),
-                child: Text(l10n.renameContactMenuItem),
-              ),
-            if (profile.isFriend)
-              PopupMenuItem<void>(
-                onTap: () => unawaited(
-                  FriendRemoveDialog.show(
-                    context,
-                    profile: profile,
-                    onRemove: profileViewCubit.removeFriend,
-                  ),
-                ),
-                child: Text(l10n.removeFromMyField),
-              ),
-            PopupMenuItem<void>(
-              onTap: () => screenCubit.showComplaint(profile.id),
-              child: Text(l10n.buttonComplaint),
+      BlocSelector<ProfileViewCubit, ProfileViewState, bool>(
+        bloc: profileViewCubit,
+        selector: (state) => state.isBlockedFallback,
+        builder: (context, isBlockedFallback) {
+          if (isBlockedFallback) {
+            return const SizedBox.shrink();
+          }
+          return PopupMenuButton<void>(
+            itemBuilder: (menuContext) => profileViewPopupMenuEntries(
+              context: context,
+              state: context.read<ProfileViewCubit>().state,
+              viewerId: GetIt.I<ProfileCubit>().state.profile.id,
+              l10n: l10n,
+              profileViewCubit: profileViewCubit,
+              screenCubit: screenCubit,
             ),
-          ];
+          );
         },
       ),
     ],

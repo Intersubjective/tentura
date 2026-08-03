@@ -11,9 +11,12 @@ abstract class ProfileViewState extends StateBase with _$ProfileViewState {
     @Default(StateIsSuccess()) StateStatus status,
     @Default(PersonCapabilityCues.empty) PersonCapabilityCues cues,
     Object? loadError,
+    Profile? blockedProfile,
   }) = _ProfileViewState;
 
   const ProfileViewState._();
 
   bool get hasError => loadError != null;
+
+  bool get isBlockedFallback => blockedProfile != null;
 }

@@ -4747,6 +4747,10 @@
   ,"@blockUnhideOriginWarning": {
     "description": "Confirmation body when unhiding from an inherited row."
   }
+  ,"blockUserMenuItem": "Block"
+  ,"@blockUserMenuItem": {
+    "description": "Block action label on another user's profile menu."
+  }
   ,"unblockUserMenuItem": "Unblock"
   ,"@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."

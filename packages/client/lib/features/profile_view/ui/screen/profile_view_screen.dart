@@ -9,6 +9,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/profile_shared_beacons_cubit.dart';
 import '../bloc/profile_view_cubit.dart';
+import '../widget/blocked_profile_view_body.dart';
 import '../widget/profile_shared_beacons_sliver.dart';
 import '../widget/profile_view_app_bar.dart';
 import '../widget/profile_view_body.dart';
@@ -43,25 +44,45 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: buildProfileViewAppBar(context),
-    body: TenturaContentColumn(
-      child: RefreshIndicator.adaptive(
-        onRefresh: () => Future.wait([
-          context.read<ProfileViewCubit>().fetch(),
-          context.read<ProfileSharedBeaconsCubit>().fetch(),
-        ]),
-        child: CustomScrollView(
-          slivers: [
-            // Body
-            SliverPadding(
-              padding: context.tt.cardPadding,
-              sliver: ProfileViewBody(),
+    body: BlocBuilder<ProfileViewCubit, ProfileViewState>(
+      buildWhen: (previous, current) =>
+          previous.blockedProfile != current.blockedProfile,
+      builder: (context, state) {
+        if (state.isBlockedFallback) {
+          return TenturaContentColumn(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: context.tt.cardPadding,
+                  sliver: BlockedProfileViewBody(
+                    profile: state.blockedProfile!,
+                  ),
+                ),
+              ],
             ),
+          );
+        }
+        return TenturaContentColumn(
+          child: RefreshIndicator.adaptive(
+            onRefresh: () => Future.wait([
+              context.read<ProfileViewCubit>().fetch(),
+              context.read<ProfileSharedBeaconsCubit>().fetch(),
+            ]),
+            child: CustomScrollView(
+              slivers: [
+                // Body
+                SliverPadding(
+                  padding: context.tt.cardPadding,
+                  sliver: ProfileViewBody(),
+                ),
 
-            // Shared beacons (forwarded + co-help-offered)
-            ProfileSharedBeaconsSliver(),
-          ],
-        ),
-      ),
+                // Shared beacons (forwarded + co-help-offered)
+                ProfileSharedBeaconsSliver(),
+              ],
+            ),
+          ),
+        );
+      },
     ),
   );
 }

@@ -1,8 +1,12 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
+import 'package:tentura/features/profile/domain/exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -19,9 +23,11 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   ProfileViewCubit({
     required String id,
     ProfileViewCase? profileViewCase,
+    BlockCase? blockCase,
     UiEffectPort? effects,
   }) : _profileId = id,
        _case = profileViewCase ?? GetIt.I<ProfileViewCase>(),
+       _blockCase = blockCase ?? GetIt.I<BlockCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(switch (id) {
          _ when id.startsWith('U') => ProfileViewState(
@@ -42,8 +48,35 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
     unawaited(fetch());
   }
 
+  @visibleForTesting
+  ProfileViewCubit.test({
+    required String id,
+    required ProfileViewCase profileViewCase,
+    required BlockCase blockCase,
+    required UiEffectPort effects,
+    bool autoFetch = true,
+  }) : _profileId = id,
+       _case = profileViewCase,
+       _blockCase = blockCase,
+       _effects = effects,
+       super(switch (id) {
+         _ when id.startsWith('U') => ProfileViewState(
+           profile: Profile(id: id),
+         ),
+         _ => ProfileViewState(loadError: 'Wrong id: $id'),
+       }) {
+    if (state.loadError != null) {
+      _effects.emit(ShowError(state.loadError!));
+      return;
+    }
+    if (autoFetch) {
+      unawaited(fetch());
+    }
+  }
+
   final String _profileId;
   final ProfileViewCase _case;
+  final BlockCase _blockCase;
   final UiEffectPort _effects;
   StreamSubscription<void>? _projectionSub;
   Timer? _refreshTimer;
@@ -87,11 +120,57 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
     } catch (e) {
       if (isClosed || sequence != _fetchSequence) return;
       if (!_hasLoaded) {
+        final blockedProfile = await _blockedProfileForFetchFailure(e);
+        if (isClosed || sequence != _fetchSequence) return;
+        if (blockedProfile != null) {
+          emit(
+            ProfileViewState(
+              profile: blockedProfile,
+              blockedProfile: blockedProfile,
+              status: const StateIsSuccess(),
+            ),
+          );
+          return;
+        }
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       } else {
         emit(state.copyWith(status: const StateIsSuccess()));
       }
       if (showError) _effects.emit(ShowError(e));
+    }
+  }
+
+  Future<Profile?> _blockedProfileForFetchFailure(Object error) async {
+    if (error is! ProfileFetchException) return null;
+    try {
+      final blocks = await _blockCase.fetchMyBlocks();
+      for (final intent in blocks) {
+        if (intent.blocked.id == _profileId) {
+          return intent.blocked;
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  Future<void> unblockBlockedProfile() async {
+    final blocked = state.blockedProfile;
+    if (blocked == null) return;
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _blockCase.unblock(objectId: blocked.id);
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          blockedProfile: null,
+          status: const StateIsSuccess(),
+        ),
+      );
+      await fetch(showLoading: true, showError: true);
+    } catch (e) {
+      _showSnackError(e);
     }
   }
 
