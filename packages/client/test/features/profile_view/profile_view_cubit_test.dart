@@ -17,8 +17,12 @@ import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
+import 'package:tentura/features/profile/domain/exception.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
+
+import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -206,6 +210,7 @@ final class _ProfileViewHarness {
   final likes = _FakeLikeRepository();
   final capabilities = _FakeCapabilityRepository();
   final effects = FakeUiEffectPort();
+  final blockCase = FakeBlockCase();
 
   late final AuthCase authCase;
   late final TestRealtimeSyncPort realtimePort;
@@ -220,6 +225,7 @@ final class _ProfileViewHarness {
     _cubit = ProfileViewCubit(
       id: 'U-target',
       profileViewCase: case_,
+      blockCase: blockCase,
       effects: effects,
     );
   }

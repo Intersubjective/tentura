@@ -48,6 +48,7 @@ void main() {
 class FakeBlockCase implements BlockCase {
   List<BlockIntent> fetchMyBlocksResult = const [];
   Object? fetchMyBlocksError;
+  final unblockCalls = <String>[];
 
   @override
   Future<List<BlockIntent>> fetchMyBlocks() {
@@ -56,6 +57,11 @@ class FakeBlockCase implements BlockCase {
       return Future.error(error);
     }
     return Future.value(fetchMyBlocksResult);
+  }
+
+  @override
+  Future<void> unblock({required String objectId}) async {
+    unblockCalls.add(objectId);
   }
 
   @override
