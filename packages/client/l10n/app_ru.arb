@@ -4466,22 +4466,6 @@
   ,"@blockCascadeToggleSubtitle": {
     "description": "Cascade switch subtitle on the block sheet."
   }
-  ,"blockCascadeModeSybil": "Только люди без статуса (рекомендуется)"
-  ,"@blockCascadeModeSybil": {
-    "description": "Sybil-scoped cascade mode radio title."
-  }
-  ,"blockCascadeModeSybilSubtitle": "Скрывает потомков по приглашениям без собственных доверительных связей."
-  ,"@blockCascadeModeSybilSubtitle": {
-    "description": "Sybil-scoped cascade mode radio subtitle."
-  }
-  ,"blockCascadeModeAll": "Все в их ветке приглашений"
-  ,"@blockCascadeModeAll": {
-    "description": "All-descendants cascade mode radio title."
-  }
-  ,"blockCascadeModeAllSubtitle": "Скрывает всю ветку, даже людей, которым вы доверяете отдельно."
-  ,"@blockCascadeModeAllSubtitle": {
-    "description": "All-descendants cascade mode radio subtitle."
-  }
   ,"blockWithdrawNotice": "Блокировка также прекращает ваше поручительство за этого человека в графе доверия. Разблокировка восстанавливает его."
   ,"@blockWithdrawNotice": {
     "description": "Informational notice when blocking will withdraw a published trust edge."

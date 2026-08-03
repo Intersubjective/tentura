@@ -10,7 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 void main() {
   group('BlockUserSheetBody C3', () {
-    testWidgets('cascade switch off by default; on reveals radios and re-fetches', (
+    testWidgets('cascade switch off by default; on always sends mode 1 and re-fetches', (
       tester,
     ) async {
       final fakeCase = FakeBlockCase()
@@ -24,7 +24,6 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       final switchFinder = find.byKey(const Key('block_cascade_switch'));
       expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
-      expect(find.byKey(const Key('block_cascade_mode_sybil')), findsNothing);
       expect(fakeCase.previewCalls, [0]);
 
       await tester.tap(switchFinder);
@@ -33,8 +32,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.widget<SwitchListTile>(switchFinder).value, isTrue);
-      expect(find.byKey(const Key('block_cascade_mode_sybil')), findsOneWidget);
-      expect(find.byKey(const Key('block_cascade_mode_all')), findsOneWidget);
       expect(fakeCase.previewCalls, [0, 1]);
       expect(
         find.text(l10n.blockPreviewCascade(3)),

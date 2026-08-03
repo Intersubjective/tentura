@@ -4673,22 +4673,6 @@
   ,"@blockCascadeToggleSubtitle": {
     "description": "Cascade switch subtitle on the block sheet."
   }
-  ,"blockCascadeModeSybil": "Only people without standing (recommended)"
-  ,"@blockCascadeModeSybil": {
-    "description": "Sybil-scoped cascade mode radio title."
-  }
-  ,"blockCascadeModeSybilSubtitle": "Hides invite descendants who do not have their own trust relationships."
-  ,"@blockCascadeModeSybilSubtitle": {
-    "description": "Sybil-scoped cascade mode radio subtitle."
-  }
-  ,"blockCascadeModeAll": "Everyone in their invite branch"
-  ,"@blockCascadeModeAll": {
-    "description": "All-descendants cascade mode radio title."
-  }
-  ,"blockCascadeModeAllSubtitle": "Hides the entire branch, even people you trust independently."
-  ,"@blockCascadeModeAllSubtitle": {
-    "description": "All-descendants cascade mode radio subtitle."
-  }
   ,"blockWithdrawNotice": "Blocking also stops your vouch for this person in the trust graph. Unblocking restores it."
   ,"@blockWithdrawNotice": {
     "description": "Informational notice when blocking will withdraw a published trust edge."

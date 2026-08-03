@@ -9,7 +9,7 @@ import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Confirmation sheet for blocking another user (cascade options + impact preview).
+/// Confirmation sheet for blocking another user (cascade toggle + impact preview).
 Future<void> showBlockUserSheet(
   BuildContext context,
   Profile profile, {
@@ -47,7 +47,6 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
   static const _previewDebounce = Duration(milliseconds: 300);
 
   bool _cascadeEnabled = false;
-  int _cascadeMode = 1;
   BlockPreview? _preview;
   bool _previewLoading = true;
   bool _blocking = false;
@@ -65,7 +64,7 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
     super.dispose();
   }
 
-  int get _effectiveCascadeMode => _cascadeEnabled ? _cascadeMode : 0;
+  int get _effectiveCascadeMode => _cascadeEnabled ? 1 : 0;
 
   void _schedulePreviewFetch() {
     _previewDebounceTimer?.cancel();
@@ -109,18 +108,7 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
   }
 
   void _onCascadeToggled(bool enabled) {
-    setState(() {
-      _cascadeEnabled = enabled;
-      if (enabled) {
-        _cascadeMode = 1;
-      }
-    });
-    _schedulePreviewFetch();
-  }
-
-  void _onCascadeModeChanged(int? mode) {
-    if (mode == null || mode == _cascadeMode) return;
-    setState(() => _cascadeMode = mode);
+    setState(() => _cascadeEnabled = enabled);
     _schedulePreviewFetch();
   }
 
@@ -162,26 +150,6 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
               value: _cascadeEnabled,
               onChanged: _blocking ? null : _onCascadeToggled,
             ),
-            if (_cascadeEnabled) ...[
-              RadioListTile<int>(
-                key: const Key('block_cascade_mode_sybil'),
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.blockCascadeModeSybil),
-                subtitle: Text(l10n.blockCascadeModeSybilSubtitle),
-                value: 1,
-                groupValue: _cascadeMode,
-                onChanged: _blocking ? null : _onCascadeModeChanged,
-              ),
-              RadioListTile<int>(
-                key: const Key('block_cascade_mode_all'),
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.blockCascadeModeAll),
-                subtitle: Text(l10n.blockCascadeModeAllSubtitle),
-                value: 2,
-                groupValue: _cascadeMode,
-                onChanged: _blocking ? null : _onCascadeModeChanged,
-              ),
-            ],
             if (preview?.willWithdrawEdge ?? false) ...[
               SizedBox(height: tt.sectionGap),
               _WithdrawalNotice(

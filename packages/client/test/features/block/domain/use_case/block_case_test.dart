@@ -23,11 +23,11 @@ void main() {
       final events = <RepositoryEvent<BlockIntent>>[];
       final sub = repository.changes.listen(events.add);
 
-      await case_.block(objectId: 'user-blocked', cascadeMode: 2);
+      await case_.block(objectId: 'user-blocked', cascadeMode: 1);
 
       expect(
         repository.lastBlock,
-        (objectId: 'user-blocked', cascadeMode: 2),
+        (objectId: 'user-blocked', cascadeMode: 1),
       );
       await Future<void>.delayed(Duration.zero);
       expect(events, hasLength(1));
