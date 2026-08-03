@@ -62,7 +62,7 @@ Phase 5 — B3:
 
 Phase 6 — client:
 - [x] S17 — client data + domain — deps: S5
-- [ ] S18 — cubit + state — deps: S17
+- [x] S18 — cubit + state — deps: S17
 - [ ] S19 — block sheet — deps: S18
 - [ ] S20 — blocked list screen — deps: S18
 - [ ] S21 — profile entry point + blocked-profile rendering — deps: S19
@@ -612,3 +612,23 @@ rg "package:tentura_server/data/repository" packages/server/lib/domain   # must 
   this block"). "Block directly" (promote) remains the only way to
   independently, permanently keep ONE inherited person blocked regardless of
   what later happens to the rest of the origin's cascade.
+- 2026-08-03 (S18 in progress): `BlockedUsersCubit` + `BlockedUsersState` per §8.4 /
+  C2 — `@injectable` screen-scoped cubit (DI registers `factory`, matching
+  `AcceptInviteCubit` / `DebugSettingsCubit`, not global `@lazySingleton`).
+- 2026-08-03 (S18 complete): Client cubit + state for blocked-users list.
+  **`BlockedUsersState`:** `blocks`, `status`, `expandedOriginId`,
+  `expandedInherited`, `expandedLoading` — Freezed + `StateBase`.
+  **`BlockedUsersCubit`:** injects `BlockCase` + `UiEffectPort`; `fetch()` mirrors
+  `FavoritesCubit` (loading → success; catch → `ShowError` + success status).
+  Mutations (`unblock`, `unhideOrigin`, `promoteToDirect`) re-fetch the list
+  **without** the list-level loading indicator (avoids flicker; keeps prior rows
+  visible if reload fails). `unhideOrigin(originId)` is a separate method from
+  `unblock(objectId)` but both call `BlockCase.unblock` — names document blast
+  radius per manager decision above. `expandInherited` / `collapseInherited`
+  for §8.4 accordion; inherited fetch errors collapse expansion + `ShowError`.
+  **`BlockedUsersCubit.test`:** `@visibleForTesting` constructor for unit tests.
+  **Verification:** `dart run build_runner build -d` clean;
+  `flutter analyze --no-fatal-warnings --no-fatal-infos` exit 0;
+  `check-custom-lints.sh packages/client` OK; `flutter test test/features/block/`
+  → 3/3; full `flutter test --dart-define=ENV=test` → 1556 passed / 14 skipped.
+  **Commits:** (see S18 exit summary).
