@@ -1039,10 +1039,14 @@ void main() {
   group('RedirectAskCase', () {
     late _StubItems items;
     late RedirectAskCase sut;
+    late TestAttentionHarness attention;
 
     const newTargetId = 'Unewtarget001';
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -1050,10 +1054,16 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
-      items.nextReturn = items.item!.copyWith(targetPersonId: newTargetId);
+      final redirectedAt = DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456);
+      items.nextReturn = items.item!.copyWith(
+        targetPersonId: newTargetId,
+        updatedAt: redirectedAt,
+      );
       sut = RedirectAskCase(
         items,
         FakeUserBlockRepository(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -1067,6 +1077,40 @@ void main() {
       );
       expect(out.targetPersonId, newTargetId);
       expect(items.lastRedirectTarget, newTargetId);
+    });
+
+    test('records redirected_to and redirected_from events', () async {
+      await sut.call(
+        userId: ownerId,
+        itemId: itemId,
+        newTargetPersonId: newTargetId,
+      );
+
+      expect(attention.recorded, hasLength(2));
+      final redirectedTo = attention.recorded.singleWhere(
+        (intent) => intent.eventType == AttentionEventType.commitmentRedirected,
+      );
+      final redirectedFrom = attention.recorded.singleWhere(
+        (intent) => intent.eventType == AttentionEventType.commitmentCancelled,
+      );
+      expect(
+        redirectedTo.sourceEventKey,
+        'coordination_item:$itemId:redirected_to:'
+        '${DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        redirectedFrom.sourceEventKey,
+        'coordination_item:$itemId:redirected_from:'
+        '${DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        redirectedTo.recipients.map((recipient) => recipient.recipientId),
+        contains(newTargetId),
+      );
+      expect(
+        redirectedFrom.recipients.map((recipient) => recipient.recipientId),
+        contains(targetId),
+      );
     });
 
     test('not found rejected', () async {

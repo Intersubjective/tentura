@@ -5,6 +5,8 @@ import 'package:test/test.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -12,6 +14,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/redirect_promis
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? item;
@@ -27,7 +30,10 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     required String newTargetPersonId,
   }) async {
     lastNewTarget = newTargetPersonId;
-    return item!.copyWith(targetPersonId: newTargetPersonId);
+    return item!.copyWith(
+      targetPersonId: newTargetPersonId,
+      updatedAt: DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456),
+    );
   }
 }
 
@@ -35,6 +41,7 @@ void main() {
   late _StubItems items;
   late FakeUserBlockRepository userBlocks;
   late RedirectPromiseCase sut;
+  late TestAttentionHarness attention;
 
   const itemId = 'Piiiiiiiiiiii';
   const creatorId = 'Ucreator00001';
@@ -42,6 +49,9 @@ void main() {
   const newTargetId = 'Unewtarget001';
 
   setUp(() {
+    attention = TestAttentionHarness(
+      context: BeaconNotificationContext(beaconAuthorId: creatorId),
+    );
     items = _StubItems();
     userBlocks = FakeUserBlockRepository();
     items.item = _samplePromise(
@@ -52,6 +62,8 @@ void main() {
     sut = RedirectPromiseCase(
       items,
       userBlocks,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -65,6 +77,23 @@ void main() {
     );
     expect(result.targetPersonId, newTargetId);
     expect(items.lastNewTarget, newTargetId);
+  });
+
+  test('records redirected_to and redirected_from events', () async {
+    await sut.call(
+      userId: creatorId,
+      itemId: itemId,
+      newTargetPersonId: newTargetId,
+    );
+
+    expect(attention.recorded, hasLength(2));
+    expect(
+      attention.recorded.map((intent) => intent.eventType).toSet(),
+      {
+        AttentionEventType.commitmentRedirected,
+        AttentionEventType.commitmentCancelled,
+      },
+    );
   });
 
   test('rejects when not found', () async {

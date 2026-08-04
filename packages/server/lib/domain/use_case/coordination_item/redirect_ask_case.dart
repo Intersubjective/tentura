@@ -5,6 +5,8 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../_use_case_base.dart';
 
@@ -13,12 +15,17 @@ final class RedirectAskCase extends UseCaseBase {
   RedirectAskCase(
     this._itemRepository,
     this._userBlockRepository, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final CoordinationItemRepositoryPort _itemRepository;
   final UserBlockRepositoryPort _userBlockRepository;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
 
   Future<CoordinationItemRecord> call({
     required String userId,
@@ -51,10 +58,47 @@ final class RedirectAskCase extends UseCaseBase {
         description: 'Cannot assign coordination item to a blocked user',
       );
     }
-    return _itemRepository.redirectTarget(
-      id: itemId,
-      actorId: userId,
-      newTargetPersonId: target,
+    final previousTarget = item.targetPersonId;
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final updated = await _itemRepository.redirectTarget(
+          id: itemId,
+          actorId: userId,
+          newTargetPersonId: target,
+        );
+        await transaction.record(
+          await _attentionIntents!.commitmentChanged(
+            beaconId: updated.beaconId,
+            actorUserId: userId,
+            transition: 'redirected_to',
+            excerpt: updated.title,
+            targetPersonId: updated.targetPersonId,
+            coordinationItemId: updated.id,
+            sourceEventKey: _sourceKey(updated, 'redirected_to'),
+          ),
+        );
+        if (previousTarget != null &&
+            previousTarget.isNotEmpty &&
+            previousTarget != updated.targetPersonId) {
+          await transaction.record(
+            await _attentionIntents!.commitmentChanged(
+              beaconId: updated.beaconId,
+              actorUserId: userId,
+              transition: 'redirected_from',
+              excerpt: updated.title,
+              targetPersonId: previousTarget,
+              coordinationItemId: updated.id,
+              sourceEventKey: _sourceKey(updated, 'redirected_from'),
+            ),
+          );
+        }
+        return updated;
+      },
     );
   }
+
+  String _sourceKey(CoordinationItemRecord item, String transition) =>
+      'coordination_item:${item.id}:$transition:'
+      '${item.updatedAt.toUtc().microsecondsSinceEpoch}';
 }
