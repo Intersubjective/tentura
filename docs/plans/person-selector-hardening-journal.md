@@ -46,7 +46,7 @@ is self-contained).
 |---|------|--------|
 | 1 | Canonical, never-raw-id display helper | complete |
 | 2 | Explicit candidate-load state for `ForwardCubit`/`ForwardState` | complete |
-| 3 | Fix Recipients-tab open race + gate routing banner | pending |
+| 3 | Fix Recipients-tab open race + gate routing banner | complete |
 | 4 | Explicit participants-load state for Promise/beacon-room picker | pending |
 | 5 | Tests | pending |
 | 6 | Integration and close-out | pending |
@@ -165,3 +165,40 @@ unchanged from Unit 1's improvement).
 Unit 3 (`recipients_tab.dart` / `beacon_create_screen.dart`) should gate
 `l10n.beaconRoutingBanner` on `candidatesLoad` being `Ready` or `Empty`
 (i.e. not `Loading`/`Error`), matching the picker's own gating logic.
+
+### Unit 3 — Recipients-tab race + routing banner (2026-08-04)
+
+**Part A (done):** `BeaconRecipientsTab` wraps `l10n.beaconRoutingBanner` in
+`BlocSelector<ForwardCubit, ForwardState, bool>` — shown only when
+`candidatesLoad is ForwardCandidatesReady || ForwardCandidatesEmpty`.
+Loading/Error render nothing in the banner slot (picker handles its own
+spinner/error panel). Client `5.6.31`.
+
+**Part B reachability (not reproduced — no code fix needed):** Empirical
+widget/cubit tests via `_RecipientsTabGateProbe` (mirrors
+`BeaconCreateScreen`'s draft-load guard + `_buildRecipientsTab` blocked-tab
+branch) with `DelayedFakeBeaconWritePort` + `BeaconCreateCubit(
+draftBeaconIdToLoad: …)`. Observed: while fetch is in flight the top-level
+guard (`widget.draftId.isNotEmpty && state.draftId == null && state.isLoading`)
+shows a spinner and never builds `BeaconRecipientsBlockedTab`; after async
+resolve, `draftId` and loaded `title` arrive in the same emit so
+`publishBlocker` is null and the probe reaches `recipients-ready`. Matches
+the manager's static re-trace — the My Work → Send entry point is already
+covered by the existing guard. Regression tests kept in
+`beacon_create_recipients_open_test.dart`. Full `BeaconCreateScreen` widget
+pump was abandoned (needs `AutoRouter`); gate probe is sufficient per plan
+fallback wording.
+
+**Note:** `BeaconRecipientsBlockedTab` only renders when `state.draftId` is
+still null (new-draft / pre-ensure path), not after a server draft id is
+loaded — even if title were empty on the server.
+
+**Commits:**
+- `ee323bf0` — Gate recipients routing banner on forward candidatesLoad state
+- `8b3650ce` — Add Unit 3 recipients-tab regression tests
+
+**Tests:** `timeout 120 flutter test test/features/beacon_create/` — 89 passed;
+`timeout 180 flutter test test/features/forward/` — 73 passed;
+`./scripts/check-custom-lints.sh packages/client` — 112 (baseline 113).
+
+**For Unit 4:** no new API from Unit 3 beyond the banner gating pattern.
