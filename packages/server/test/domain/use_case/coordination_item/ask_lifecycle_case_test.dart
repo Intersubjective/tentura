@@ -714,8 +714,12 @@ void main() {
   group('CancelAskCase', () {
     late _StubItems items;
     late CancelAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -723,11 +727,16 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final cancelledAt = DateTime.utc(2024, 6, 6, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusCancelled,
+        acceptedById: targetId,
+        updatedAt: cancelledAt,
       );
       sut = CancelAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -736,6 +745,23 @@ void main() {
     test('cancels open ask', () async {
       await sut.call(userId: ownerId, itemId: itemId);
       expect(items.lastStatusUpdate, coordinationItemStatusCancelled);
+    });
+
+    test('records commitmentCancelled for target and acceptor', () async {
+      await sut.call(userId: ownerId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentCancelled);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:cancelled:'
+        '${DateTime.utc(2024, 6, 6, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId).toSet(),
+        {targetId},
+      );
     });
 
     test('cancels accepted ask', () async {
