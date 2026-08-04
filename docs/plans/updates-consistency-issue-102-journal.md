@@ -17,9 +17,10 @@ contains the live-code diagnosis, the decisions that must not be re-litigated in
 definitions in §5, and the boundaries in §7).
 
 **Root cause established before execution:** the realtime transport (#73) and the attention
-feed/badge stack (#80) are intact. The defect is **missing producers** — 25 of 35 coordination-item
-use cases never build an `AttentionDispatchIntent`, including `accept_ask_case.dart`, which is the
-exact reported scenario. Secondary defects: no atomic mutation+receipt transaction on those cases,
+feed/badge stack (#80) are intact. The defect is **missing producers** — 24 of 34 coordination-item
+`*_case.dart` files never build an `AttentionDispatchIntent`, including `accept_ask_case.dart`,
+which is the exact reported scenario. U1 refined this against the live tree: 10 of those 24 are
+legitimately silent (9 draft-lifecycle + 1 query-only), leaving **14 real gaps** — 7 in U2, 7 in U3. Secondary defects: no atomic mutation+receipt transaction on those cases,
 unguarded empty-copy rendering in `_UpdatesCard`, and no creation-to-render latency instrumentation.
 
 ---
@@ -53,7 +54,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 
 | Unit | Scope | Status | Verdict |
 |---|---|---|---|
-| U1 | Event coverage contract + guard test (no behavior change) | complete | pass |
+| U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | pending | — |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | pending | — |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
@@ -143,3 +144,27 @@ REMAINING: none for U1; U2 should flip `#102-U2` gap rows to emitting producers.
 ### 2026-08-05 — overseer — plan and journal initialized
 
 Branch created, plan committed, unit manifest above is the authoritative order. Launching U1.
+
+### 2026-08-05 — overseer — U1 manager review: ACCEPTED
+
+Independently verified rather than accepting the worker's report:
+
+- `dart analyze` in `packages/server`: **0 errors** (exit 2 is pre-existing warnings/info only).
+- `dart test --exclude-tags pg`: **1151 passed**.
+- `dart test test/architecture/updates_event_coverage_test.dart`: passes.
+- **Guard bite re-proved by the overseer**, not just the worker: added
+  `coordination_item/zz_overseer_probe_case.dart`, the coverage test went **red**; removed it, green
+  again. Worktree left clean.
+- Contract cross-checked against an independent classification made before the worker ran: 34 of 34
+  `*_case.dart` files covered exactly once, 45 producers, 7 `#102-U2` gaps + 7 `#102-U3` gaps, 10
+  emitting coordination cases. Matches exactly.
+- The two pre-existing `updates_event_contract_test.dart` files were only widened (new top-level key,
+  schema version bump) — no assertion was weakened or deleted.
+- Pre-existing untracked files all still present and unstaged. Nothing pushed.
+
+Overseer corrections applied on top: plan §1 and this journal's root-cause paragraph said
+"35 cases / 25 silent"; the live tree has **34** `*_case.dart` files (the 35th,
+`coordination_room_access.dart`, is an access helper). Corrected in both documents. The worker had
+independently caught and fixed the related "13 vs 7" gap-count error in 40c4e790.
+
+Releasing U2.

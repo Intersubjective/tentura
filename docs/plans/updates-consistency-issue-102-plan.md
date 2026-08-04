@@ -21,8 +21,13 @@ feed/badge stack from #80 are both intact and correctly wired:
 - `UpdatesNavbarItem` and `MyWorkNavbarItem` both derive from `AttentionCase` — a single source.
 - `MyWorkCase.deskRelevantChanges` already includes `BeaconRoomEntityType.coordinationItem`.
 
-**The actual defect is missing producers.** Of 35 coordination-item use cases, only 10 build an
-`AttentionDispatchIntent`. Every acceptance/commitment/closure transition is silent:
+**The actual defect is missing producers.** Of 34 coordination-item `*_case.dart` files, only 10
+build an `AttentionDispatchIntent`. Of the 24 silent ones, 10 are legitimately silent (9 draft
+lifecycle cases + the query-only `coordination_responsibility_case`) and **14 are real gaps**.
+Every acceptance/commitment/closure transition is silent:
+
+> Count corrected during U1 against the live tree: this section originally said "35 cases", which
+> mistakenly counted `coordination_room_access.dart` — an access helper, not a use case.
 
 | Use case (`packages/server/lib/domain/use_case/coordination_item/`) | Emits attention? | Who loses the event |
 |---|---|---|
