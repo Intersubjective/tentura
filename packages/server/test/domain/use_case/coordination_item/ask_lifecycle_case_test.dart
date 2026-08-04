@@ -1,6 +1,9 @@
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import '../../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -917,8 +920,12 @@ void main() {
   group('AcceptAskCase', () {
     late _StubItems items;
     late AcceptAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -926,11 +933,15 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final acceptedAt = DateTime.utc(2024, 6, 1, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusAccepted,
+        updatedAt: acceptedAt,
       );
       sut = AcceptAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -940,6 +951,24 @@ void main() {
       final out = await sut.call(userId: targetId, itemId: itemId);
       expect(out.status, coordinationItemStatusAccepted);
       expect(items.lastAcceptedById, targetId);
+    });
+
+    test('records commitmentAccepted for ask creator', () async {
+      await sut.call(userId: targetId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentAccepted);
+      expect(intent.kind, NotificationKind.commitmentAccepted);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:accepted:'
+        '${DateTime.utc(2024, 6, 1, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(ownerId),
+      );
     });
 
     test('not found rejected', () async {
