@@ -190,6 +190,61 @@ class BeaconNotificationRecipientResolver {
         if (target != null && target.isNotEmpty) {
           add(target, NotificationRecipientReason.targetOfAsk, intent.priority);
         }
+
+      case NotificationKind.commitmentAccepted:
+      case NotificationKind.commitmentResolved:
+        final primary = intent.targetPersonId;
+        if (primary != null && primary.isNotEmpty) {
+          add(
+            primary,
+            primary == ctx.beaconAuthorId
+                ? NotificationRecipientReason.authorOfBeacon
+                : NotificationRecipientReason.affectedParticipant,
+            intent.priority,
+          );
+        }
+        final author = ctx.beaconAuthorId;
+        if (author.isNotEmpty && author != primary) {
+          add(
+            author,
+            NotificationRecipientReason.authorOfBeacon,
+            intent.priority,
+          );
+        }
+
+      case NotificationKind.commitmentCancelled:
+        final cancelledTarget = intent.targetPersonId;
+        if (cancelledTarget != null && cancelledTarget.isNotEmpty) {
+          add(
+            cancelledTarget,
+            NotificationRecipientReason.affectedParticipant,
+            intent.priority,
+          );
+        }
+        for (final uid in intent.admittedUserIds) {
+          add(
+            uid,
+            NotificationRecipientReason.affectedParticipant,
+            intent.priority,
+          );
+        }
+        for (final uid in intent.moderatorUserIds) {
+          add(
+            uid,
+            NotificationRecipientReason.affectedParticipant,
+            intent.priority,
+          );
+        }
+
+      case NotificationKind.commitmentRedirected:
+        final redirectedTarget = intent.targetPersonId;
+        if (redirectedTarget != null && redirectedTarget.isNotEmpty) {
+          add(
+            redirectedTarget,
+            NotificationRecipientReason.targetOfAsk,
+            NotificationPriority.high,
+          );
+        }
     }
 
     return out.values.toList();

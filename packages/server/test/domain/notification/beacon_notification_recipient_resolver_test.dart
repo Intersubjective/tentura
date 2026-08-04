@@ -165,4 +165,89 @@ void main() {
       NotificationRecipientReason.activeParticipant,
     });
   });
+
+  test('commitmentAccepted notifies creator and distinct beacon author', () {
+    final recipients = resolver.resolveRecipients(
+      intent: intent(
+        kind: NotificationKind.commitmentAccepted,
+        actorUserId: 'target',
+        targetPersonId: 'creator',
+      ),
+      ctx: ctx(beaconAuthorId: 'author'),
+    );
+
+    expect(recipients.map((r) => r.userId).toSet(), {'creator', 'author'});
+    expect(recipients, isNotEmpty);
+    expect(
+      recipients.singleWhere((r) => r.userId == 'creator').reasons,
+      {NotificationRecipientReason.affectedParticipant},
+    );
+    expect(
+      recipients.singleWhere((r) => r.userId == 'author').reasons,
+      {NotificationRecipientReason.authorOfBeacon},
+    );
+  });
+
+  test('commitmentResolved notifies creator when they are beacon author', () {
+    final recipients = resolver.resolveRecipients(
+      intent: intent(
+        kind: NotificationKind.commitmentResolved,
+        actorUserId: 'target',
+        targetPersonId: 'author',
+      ),
+      ctx: ctx(beaconAuthorId: 'author'),
+    );
+
+    expect(recipients, hasLength(1));
+    expect(recipients.single.userId, 'author');
+    expect(recipients.single.reasons, {
+      NotificationRecipientReason.authorOfBeacon,
+    });
+  });
+
+  test('commitmentCancelled notifies target, acceptor, and creator', () {
+    final recipients = resolver.resolveRecipients(
+      intent: intent(
+        kind: NotificationKind.commitmentCancelled,
+        actorUserId: 'creator',
+        targetPersonId: 'target',
+        admittedUserIds: const ['acceptor'],
+        moderatorUserIds: const ['other-creator'],
+      ),
+      ctx: ctx(),
+    );
+
+    expect(
+      recipients.map((r) => r.userId).toSet(),
+      {'target', 'acceptor', 'other-creator'},
+    );
+    expect(recipients, isNotEmpty);
+    expect(
+      recipients.every(
+        (r) => r.reasons.contains(
+          NotificationRecipientReason.affectedParticipant,
+        ),
+      ),
+      isTrue,
+    );
+  });
+
+  test('commitmentRedirected notifies new target at high priority', () {
+    final recipients = resolver.resolveRecipients(
+      intent: intent(
+        kind: NotificationKind.commitmentRedirected,
+        actorUserId: 'actor',
+        targetPersonId: 'new-target',
+        priority: NotificationPriority.normal,
+      ),
+      ctx: ctx(),
+    );
+
+    expect(recipients, hasLength(1));
+    expect(recipients.single.userId, 'new-target');
+    expect(recipients.single.priority, NotificationPriority.high);
+    expect(recipients.single.reasons, {
+      NotificationRecipientReason.targetOfAsk,
+    });
+  });
 }
