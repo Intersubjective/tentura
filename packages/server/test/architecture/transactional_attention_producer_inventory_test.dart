@@ -99,6 +99,34 @@ void main() {
       'runAction(',
       '.commitmentChanged(',
     ],
+    'coordination_item/create_resolution_case.dart': [
+      'runAction(',
+      '.needsMe(',
+    ],
+    'coordination_item/accept_resolution_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/reject_resolution_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/cancel_blocker_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/add_plan_step_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
+    'coordination_item/resolve_plan_step_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
+    'coordination_item/update_coordination_item_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
   };
 
   const legacyMethods = <String>[

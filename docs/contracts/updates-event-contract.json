@@ -142,14 +142,18 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_resolution_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "resolution_creator_and_target_owner",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/add_plan_step_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/plan_step_case_test.dart"
     },
     {
@@ -162,8 +166,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/cancel_blocker_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "affected_participants",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
     },
     {
@@ -207,8 +213,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/create_resolution_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "needsMe",
+      "recipientCategory": "target_item_owner_or_beacon_author",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
     },
     {
@@ -287,8 +295,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/reject_resolution_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "resolution_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
     },
     {
@@ -317,8 +327,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_plan_step_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/plan_step_case_test.dart"
     },
     {
@@ -331,8 +343,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/update_coordination_item_case.dart",
-      "silent": true,
-      "gap": "#102-U3",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/update_coordination_item_case_test.dart"
     },
     {
