@@ -53,7 +53,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 
 | Unit | Scope | Status | Verdict |
 |---|---|---|---|
-| U1 | Event coverage contract + guard test (no behavior change) | pending | — |
+| U1 | Event coverage contract + guard test (no behavior change) | in progress | — |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | pending | — |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | pending | — |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
@@ -97,6 +97,21 @@ and always reports them clean. Use `scripts/check-custom-lints.sh`.
 ## Checkpoints
 
 <!-- Append below. Newest last. Each worker: STATUS / COMMITS / TESTS / FILES / FINDINGS / REMAINING -->
+
+### 2026-08-05 — U1 worker — Step A (contract schema v2 + producers seed)
+
+Extended `docs/contracts/updates-event-contract.json` to `schemaVersion: 2` with a `producers`
+array (45 entries: 34 `coordination_item/*_case.dart` plus 11 beacon/room/evaluation/forward/
+invitation/auth producers). `eventTypes` unchanged. Silent gaps tagged `#102-U2` (13 cases) and
+`#102-U3` (7 cases); draft and query-only cases use `silentReason`. Updated server and client
+`updates_event_contract_test.dart` to accept schema v2 and the new top-level key.
+
+FINDING: `coordination_case.dart`, `beacon_room_case.dart`, `help_offer_case.dart`, and
+`evaluation_case.dart` each emit multiple `AttentionEventType` values across methods; the one-row-
+per-file `producers` shape records the primary event from `eventTypes` only (same limitation as the
+existing `eventTypes.producer` pipe notation).
+
+TESTS: `cd packages/server && dart test test/architecture/updates_event_contract_test.dart` — pass.
 
 ### 2026-08-05 — overseer — plan and journal initialized
 

@@ -7,6 +7,7 @@ const _topLevelKeys = {
   'schemaVersion',
   'pendingProducerEventTypes',
   'eventTypes',
+  'producers',
 };
 
 const _entryKeys = {
@@ -124,7 +125,7 @@ void main() {
     );
 
     expect(contract.keys.toSet(), _topLevelKeys);
-    expect(contract['schemaVersion'], 1);
+    expect(contract['schemaVersion'], 2);
 
     final pending = (contract['pendingProducerEventTypes'] as List)
         .cast<String>();
