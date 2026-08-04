@@ -233,4 +233,143 @@ void main() {
       expect(sendPressed, isFalse);
     },
   );
+
+  testWidgets(
+    'ForwardRecipientPicker shows a spinner while candidatesLoad is loading',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        const ForwardState(
+          beaconId: 'draft-1',
+          candidatesLoad: ForwardCandidatesLoading(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      // Deliberately bounded pumps, not pumpAndSettle: the adaptive spinner
+      // animates indefinitely and would never let pumpAndSettle return.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('No reachable contacts'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'ForwardRecipientPicker shows an error panel with retry on candidatesLoad error',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          candidatesLoad: ForwardCandidatesError(Exception('network down')),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load"), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('No reachable contacts'), findsNothing);
+
+      // Tapping retry must not throw even though this harness has no
+      // backing ForwardCase to actually reload from.
+      await tester.tap(find.text('Try again'));
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
+    'ForwardRecipientPicker shows the empty-contacts message only once '
+    'candidatesLoad is genuinely empty',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        const ForwardState(
+          beaconId: 'draft-1',
+          candidatesLoad: ForwardCandidatesEmpty(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No reachable contacts'), findsOneWidget);
+      expect(find.text("Couldn't load"), findsNothing);
+    },
+  );
 }
