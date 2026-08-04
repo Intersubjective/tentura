@@ -400,3 +400,25 @@ verified on branch `person-selector-hardening` (16 commits ahead of the
 `main` HEAD this branch was cut from,
 `560d037bfd2286bf6c757400290c24aac3d1b16c`). Not pushed, no PR opened —
 commits are local per the overseer skill's default contract.
+
+### Post-close-out addition — real end-to-end wiring test (2026-08-05)
+
+User asked how Bug #2's fix was actually known to work: Unit 5's composer
+test proved the sheet reacts to *a* stream; Unit 4's cubit test proved
+`roomParticipantsLoaded` timing; nothing proved the real
+`items_tab.dart`/`beacon_view_app_bar_overflow.dart`/`beacon_room_body.dart`
+call sites actually thread a real cubit's `.stream` into the sheet
+correctly. Added
+`test/features/beacon_view/promise_composer_live_wiring_test.dart`: real
+`BeaconViewCubit`, real `ItemsTab`, a real tap on the Promise CTA
+(`TestIds.coordinationPromiseCreate`), asserts the already-open sheet
+starts in its loading state and updates to a working target picker once
+the cubit's real (Completer-gated, not real-time-delayed —
+`testWidgets`'s controlled clock froze the first, `enrichmentDelay`-based
+version for 90s straight, see the file's `_DelayedRoomRepository` doc
+comment) participants fetch resolves, then selects and submits, asserting
+the fake `CoordinationItemCase.createPromise` receives the right target
+id. 3/3 stable runs, full `beacon_view` suite (188 tests) and full repo
+suite green, lints unchanged (112/113).
+
+**Commit:** `614331b2` — Add end-to-end test for the real Promise composer live-binding wiring
