@@ -6,6 +6,8 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -18,6 +20,7 @@ import 'package:tentura_server/env.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -95,10 +98,12 @@ void main() {
   late _StubBeacons beacons;
   late _StubItems items;
   late _StubRoom room;
+  late TestAttentionHarness attention;
   late UpdateCoordinationItemCase sut;
 
   const creatorId = 'Ucreator00001';
   const otherId = 'Uother0000001';
+  const beaconAuthorId = 'Uauthor000001';
   const beaconId = 'Bbbbbbbbbbbbb';
   const itemId = 'Iiiiiiiiiiiii';
 
@@ -106,6 +111,9 @@ void main() {
     beacons = _StubBeacons(_openBeacon(beaconId));
     items = _StubItems();
     room = _StubRoom();
+    attention = TestAttentionHarness(
+      context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+    );
     items.item = _sampleBlocker(
       id: itemId,
       beaconId: beaconId,
@@ -116,6 +124,8 @@ void main() {
       beacons,
       items,
       room,
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -190,6 +200,43 @@ void main() {
       throwsA(isA<BeaconCreateException>()),
     );
     expect(items.calls, isEmpty);
+  });
+
+  test('records coordinationChanged when title or body changes', () async {
+    final updatedAt = DateTime.utc(2024, 11, 1, 12, 0, 0, 123, 456);
+    items.nextReturn = items.item!.copyWith(
+      title: 'Updated title',
+      updatedAt: updatedAt,
+    );
+
+    await sut.call(
+      userId: creatorId,
+      itemId: itemId,
+      title: 'Updated title',
+      body: 'Body',
+    );
+
+    expect(attention.recorded, hasLength(1));
+    final intent = attention.recorded.single;
+    expect(intent.eventType, AttentionEventType.coordinationChanged);
+    expect(
+      intent.sourceEventKey,
+      'coordination_item:$itemId:item_updated:'
+      '${updatedAt.microsecondsSinceEpoch}',
+    );
+    expect(intent.recipients, isNotEmpty);
+  });
+
+  test('no-op edit does not record attention', () async {
+    await sut.call(
+      userId: creatorId,
+      itemId: itemId,
+      title: 'Blocker',
+      body: '',
+    );
+
+    expect(attention.recorded, isEmpty);
+    expect(items.calls, hasLength(1));
   });
 }
 
