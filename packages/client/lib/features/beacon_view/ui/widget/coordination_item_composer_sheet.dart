@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -13,11 +15,18 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'coordination_target_candidates.dart';
 
+typedef CoordinationParticipantsSnapshot = ({
+  List<BeaconParticipant> participants,
+  bool loaded,
+});
+
 Future<void> showCoordinationItemComposerSheet(
   BuildContext context, {
   required CoordinationItemKind kind,
   required String beaconId,
   required List<BeaconParticipant> participants,
+  required bool participantsLoaded,
+  required Stream<CoordinationParticipantsSnapshot> participantsUpdates,
   required String beaconAuthorId,
   required String myUserId,
   required bool isAuthorOrSteward,
@@ -44,6 +53,8 @@ Future<void> showCoordinationItemComposerSheet(
       kind: kind,
       beaconId: beaconId,
       participants: participants,
+      participantsLoaded: participantsLoaded,
+      participantsUpdates: participantsUpdates,
       beaconAuthorId: beaconAuthorId,
       myUserId: myUserId,
       isAuthorOrSteward: isAuthorOrSteward,
@@ -104,6 +115,8 @@ class _CoordinationItemComposerBody extends StatefulWidget {
     required this.kind,
     required this.beaconId,
     required this.participants,
+    required this.participantsLoaded,
+    required this.participantsUpdates,
     required this.beaconAuthorId,
     required this.myUserId,
     required this.isAuthorOrSteward,
@@ -117,6 +130,8 @@ class _CoordinationItemComposerBody extends StatefulWidget {
   final CoordinationItemKind kind;
   final String beaconId;
   final List<BeaconParticipant> participants;
+  final bool participantsLoaded;
+  final Stream<CoordinationParticipantsSnapshot> participantsUpdates;
   final String beaconAuthorId;
   final String myUserId;
   final bool isAuthorOrSteward;
@@ -140,6 +155,9 @@ class _CoordinationItemComposerBodyState
   String? _selectedTargetId;
   late int _selectedStaleDays;
   bool _submitting = false;
+  late List<BeaconParticipant> _participants;
+  late bool _participantsLoaded;
+  StreamSubscription<CoordinationParticipantsSnapshot>? _participantsSub;
 
   String? get _linkedMessageId => widget.seed?.linkedMessageId;
 
@@ -149,21 +167,26 @@ class _CoordinationItemComposerBodyState
       widget.kind == CoordinationItemKind.ask ||
       widget.kind == CoordinationItemKind.promise;
 
+  bool get _needsTargetPicker =>
+      widget.kind == CoordinationItemKind.ask ||
+      widget.kind == CoordinationItemKind.promise ||
+      widget.kind == CoordinationItemKind.blocker;
+
   List<String> get _askTargetIds => askTargetUserIds(
     beaconAuthorId: widget.beaconAuthorId,
-    participants: widget.participants,
+    participants: _participants,
     myUserId: widget.myUserId,
   );
 
   List<BeaconParticipant> get _promiseTargets => promiseTargetParticipants(
-    participants: widget.participants,
+    participants: _participants,
     myUserId: widget.myUserId,
     isAuthorOrSteward: widget.isAuthorOrSteward,
   );
 
   List<BeaconParticipant> get _blockerTargets =>
       participantsForCoordinationTargetPicker(
-        participants: widget.participants,
+        participants: _participants,
         myUserId: widget.myUserId,
         isAuthorOrSteward: widget.isAuthorOrSteward,
       );
@@ -191,6 +214,9 @@ class _CoordinationItemComposerBodyState
   @override
   void initState() {
     super.initState();
+    _participants = widget.participants;
+    _participantsLoaded = widget.participantsLoaded;
+    _participantsSub = widget.participantsUpdates.listen(_onParticipantsUpdated);
     final seed = widget.seed;
     _initialTitle = (seed?.initialTitle ?? '').trim();
     _initialBody = (seed?.initialBody ?? '').trim();
@@ -209,6 +235,18 @@ class _CoordinationItemComposerBodyState
     );
   }
 
+  void _onParticipantsUpdated(CoordinationParticipantsSnapshot snapshot) {
+    if (!mounted) return;
+    setState(() {
+      _participants = snapshot.participants;
+      _participantsLoaded = snapshot.loaded;
+      if (_selectedTargetId != null && !_isValidTarget(_selectedTargetId!)) {
+        _selectedTargetId = null;
+      }
+      _selectedTargetId ??= _singleLegalTargetId;
+    });
+  }
+
   bool _isValidTarget(String userId) => switch (widget.kind) {
     CoordinationItemKind.ask => _askTargetIds.contains(userId),
     CoordinationItemKind.promise => _promiseTargets.any(
@@ -222,6 +260,7 @@ class _CoordinationItemComposerBodyState
 
   @override
   void dispose() {
+    unawaited(_participantsSub?.cancel());
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
@@ -450,7 +489,7 @@ class _CoordinationItemComposerBodyState
                   enabled: !_submitting,
                 ),
               ],
-              if (_hasLegalTargets) ...[
+              if (_needsTargetPicker) ...[
                 SizedBox(height: tt.rowGap),
                 Text(
                   coordinationTargetPickerLabel(l10n, widget.kind),
@@ -464,20 +503,37 @@ class _CoordinationItemComposerBodyState
                   ),
                 ),
                 SizedBox(height: tt.rowGap),
-                _TargetPicker(
-                  kind: widget.kind,
-                  askTargetIds: _askTargetIds,
-                  participantTargets:
-                      widget.kind == CoordinationItemKind.promise
-                      ? _promiseTargets
-                      : _blockerTargets,
-                  participants: widget.participants,
-                  myUserId: widget.myUserId,
-                  selectedId: _selectedTargetId,
-                  submitting: _submitting,
-                  l10n: l10n,
-                  onSelected: (id) => setState(() => _selectedTargetId = id),
-                ),
+                if (!_participantsLoaded)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (!_hasLegalTargets)
+                  Text(
+                    _noTargetsMessage(l10n),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  )
+                else
+                  _TargetPicker(
+                    kind: widget.kind,
+                    askTargetIds: _askTargetIds,
+                    participantTargets:
+                        widget.kind == CoordinationItemKind.promise
+                        ? _promiseTargets
+                        : _blockerTargets,
+                    participants: _participants,
+                    myUserId: widget.myUserId,
+                    selectedId: _selectedTargetId,
+                    submitting: _submitting,
+                    l10n: l10n,
+                    onSelected: (id) => setState(() => _selectedTargetId = id),
+                  ),
               ],
               SizedBox(height: tt.rowGap),
               CoordinationStalenessPicker(
@@ -532,6 +588,11 @@ class _CoordinationItemComposerBodyState
         CoordinationItemKind.blocker => l10n.coordinationPublishBlocker,
         _ => l10n.buttonPublish,
       };
+
+  String _noTargetsMessage(L10n l10n) => switch (widget.kind) {
+    CoordinationItemKind.promise => l10n.coordinationCreatePromiseNoTargets,
+    _ => l10n.coordinationComposerNoTargetWillSaveDraft,
+  };
 }
 
 class _TargetPicker extends StatelessWidget {

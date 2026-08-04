@@ -319,6 +319,7 @@ bool canShowCreatePromise(BeaconViewState state) {
 VoidCallback? beaconViewRoomCreatePromiseAction({
   required BuildContext context,
   required BeaconViewState state,
+  required BeaconViewCubit beaconViewCubit,
   required String beaconId,
   required VoidCallback onSaved,
   required bool inRoomSurface,
@@ -330,6 +331,13 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
           kind: CoordinationItemKind.promise,
           beaconId: beaconId,
           participants: state.roomParticipants,
+          participantsLoaded: state.roomParticipantsLoaded,
+          participantsUpdates: beaconViewCubit.stream.map(
+            (s) => (
+              participants: s.roomParticipants,
+              loaded: s.roomParticipantsLoaded,
+            ),
+          ),
           beaconAuthorId: state.beacon.author.id,
           myUserId: state.myProfile.id,
           isAuthorOrSteward: state.isAuthorOrSteward,
@@ -393,6 +401,7 @@ Widget beaconViewAppBarOverflow({
   final onCreatePromise = beaconViewRoomCreatePromiseAction(
     context: context,
     state: state,
+    beaconViewCubit: cubit,
     beaconId: beaconId,
     onSaved: onItemsTabRefresh,
     inRoomSurface: inRoomSurface,

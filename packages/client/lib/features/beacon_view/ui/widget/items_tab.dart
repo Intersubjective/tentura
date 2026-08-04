@@ -16,6 +16,7 @@ import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
+import '../bloc/beacon_view_cubit.dart';
 import '../bloc/beacon_view_state.dart';
 import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
@@ -52,12 +53,20 @@ void _openCoordinationComposer(
   required CoordinationItemKind kind,
   CoordinationItem? existingDraft,
 }) {
+  final beaconViewCubit = context.read<BeaconViewCubit>();
   unawaited(
     showCoordinationItemComposerSheet(
       context,
       kind: kind,
       beaconId: state.beacon.id,
       participants: state.roomParticipants,
+      participantsLoaded: state.roomParticipantsLoaded,
+      participantsUpdates: beaconViewCubit.stream.map(
+        (s) => (
+          participants: s.roomParticipants,
+          loaded: s.roomParticipantsLoaded,
+        ),
+      ),
       beaconAuthorId: state.beacon.author.id,
       myUserId: state.myProfile.id,
       isAuthorOrSteward: state.isAuthorOrSteward,

@@ -855,6 +855,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         kind: kind,
         beaconId: cubit.state.beaconId,
         participants: cubit.state.participants,
+        participantsLoaded: cubit.state.participantsLoaded,
+        participantsUpdates: cubit.stream.map(
+          (s) => (
+            participants: s.participants,
+            loaded: s.participantsLoaded,
+          ),
+        ),
         beaconAuthorId: widget.beaconAuthorId,
         myUserId: myUserId,
         isAuthorOrSteward: _isAuthorOrSteward(cubit),
