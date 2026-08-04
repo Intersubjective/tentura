@@ -269,6 +269,69 @@ class AttentionIntentCase {
     sourceEventKey: sourceEventKey,
   );
 
+  Future<AttentionDispatchIntent> commitmentChanged({
+    required String beaconId,
+    required String actorUserId,
+    required String transition,
+    required String excerpt,
+    required String sourceEventKey,
+    String? targetPersonId,
+    String? coordinationItemId,
+    String? acceptedById,
+    String? creatorId,
+  }) {
+    final (NotificationKind kind, AttentionEventType eventType, NotificationPriority priority) =
+        switch (transition) {
+          'accepted' => (
+            NotificationKind.commitmentAccepted,
+            AttentionEventType.commitmentAccepted,
+            NotificationPriority.normal,
+          ),
+          'resolved' => (
+            NotificationKind.commitmentResolved,
+            AttentionEventType.commitmentResolved,
+            NotificationPriority.normal,
+          ),
+          'cancelled' || 'redirected_from' => (
+            NotificationKind.commitmentCancelled,
+            AttentionEventType.commitmentCancelled,
+            NotificationPriority.normal,
+          ),
+          'redirected_to' => (
+            NotificationKind.commitmentRedirected,
+            AttentionEventType.commitmentRedirected,
+            NotificationPriority.high,
+          ),
+          _ => throw ArgumentError.value(transition, 'transition'),
+        };
+    final extraCreator =
+        creatorId != null &&
+            creatorId.isNotEmpty &&
+            creatorId != actorUserId
+        ? [creatorId]
+        : const <String>[];
+    final extraAccepted =
+        acceptedById != null && acceptedById.isNotEmpty
+        ? [acceptedById]
+        : const <String>[];
+    return fromBeaconNotification(
+      notification: BeaconNotificationIntent(
+        kind: kind,
+        priority: priority,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+        bodyExcerpt: notificationExcerpt(excerpt),
+        targetPersonId: targetPersonId,
+        coordinationItemId: coordinationItemId,
+        admittedUserIds: extraAccepted,
+        moderatorUserIds: extraCreator,
+      ),
+      eventType: eventType,
+      sourceEventKey: sourceEventKey,
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+    );
+  }
+
   Future<AttentionDispatchIntent> reviewOpened({
     required String beaconId,
     required String beaconTitle,

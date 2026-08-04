@@ -6,6 +6,8 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -530,6 +532,48 @@ void main() {
 
         expect(intent.recipients, isEmpty);
       });
+    });
+  });
+
+  group('commitmentChanged', () {
+    test('accepted uses none collapse key and commitmentAccepted kind', () async {
+      final intent = await harness.intents.commitmentChanged(
+        beaconId: beacon,
+        actorUserId: target,
+        transition: 'accepted',
+        excerpt: 'Need help',
+        targetPersonId: author,
+        coordinationItemId: item,
+        sourceEventKey: eventKey,
+      );
+
+      expect(intent.eventType, AttentionEventType.commitmentAccepted);
+      expect(intent.kind, NotificationKind.commitmentAccepted);
+      expect(intent.collapseKey, AttentionCollapseKey.none(eventKey));
+      expect(
+        intent.recipients.map((r) => r.recipientId),
+        contains(author),
+      );
+    });
+
+    test('redirected_to uses commitmentRedirected at high priority', () async {
+      final intent = await harness.intents.commitmentChanged(
+        beaconId: beacon,
+        actorUserId: actor,
+        transition: 'redirected_to',
+        excerpt: 'Need help',
+        targetPersonId: target,
+        coordinationItemId: item,
+        sourceEventKey: eventKey,
+      );
+
+      expect(intent.eventType, AttentionEventType.commitmentRedirected);
+      expect(intent.kind, NotificationKind.commitmentRedirected);
+      expect(intent.priority, NotificationPriority.high);
+      expect(
+        intent.recipients.map((r) => r.recipientId),
+        contains(target),
+      );
     });
   });
 }
