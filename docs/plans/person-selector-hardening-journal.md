@@ -48,7 +48,7 @@ is self-contained).
 | 2 | Explicit candidate-load state for `ForwardCubit`/`ForwardState` | complete |
 | 3 | Fix Recipients-tab open race + gate routing banner | complete |
 | 4 | Explicit participants-load state for Promise/beacon-room picker | complete |
-| 5 | Tests | pending |
+| 5 | Tests | complete |
 | 6 | Integration and close-out | pending |
 
 Full unit descriptions, root-cause evidence, and acceptance criteria are in
@@ -264,3 +264,60 @@ beacon-view-specific; room's issue was only the static snapshot at sheet open.
 - `cc49cecb` — Bind coordination composer to live participant streams and load states
 
 **REMAINING:** Unit 5 widget/cubit tests for composer load states (deferred to Unit 5 per plan); `canCoordinateInBeaconRoom` CTA gating during load not changed (composer handles loading inline instead).
+
+### Unit 5 — promise target helper tests (2026-08-04)
+
+**Changed:** Extended `coordination_target_candidates_test.dart` with
+`promiseTargetParticipants` (author/steward vs non-author filtering, self
+exclusion) and `hasPublishedPromiseTargets` (empty vs legal target).
+
+**Commit:** `695240b5` — Add unit tests for promise target participant helpers
+
+**Tests:** `timeout 120 flutter test test/features/beacon_view/coordination_target_candidates_test.dart` — 17 passed.
+
+### Unit 5 — coordination composer sheet widget tests (2026-08-04)
+
+**Changed:** New `coordination_item_composer_sheet_test.dart` driving real
+`showCoordinationItemComposerSheet` via MaterialApp harness + open button.
+Reuses `FakeCoordinationItemCaseForRoom` (extended locally as
+`TrackingPromiseCoordinationItemCase` for `createPromise` capture). Bounded
+`pump()` only while `CircularProgressIndicator` is on screen (never
+`pumpAndSettle` during loading).
+
+**Coverage:**
+- Not-yet-loaded → inline spinner (`strokeWidth: 2`), no dropdown/empty copy
+- Loaded with target → dropdown, auto-selected single target, publish submits correct `targetPersonId`
+- Loaded empty promise → `coordinationCreatePromiseNoTargets`
+- Loaded empty ask → `coordinationComposerNoTargetWillSaveDraft` (no spinner/dropdown)
+- Delayed stream snapshot → spinner transitions to dropdown with participant name without reopening sheet
+
+**Commit:** `e9a595ae` — Add widget tests for coordination item composer sheet
+
+**Tests:** `timeout 180 flutter test test/features/beacon_view/` — 187 passed;
+`./scripts/check-custom-lints.sh packages/client` — 112 (baseline 113).
+
+### Unit 5 — final (2026-08-04)
+
+**STATUS:** complete
+
+**COMMITS:**
+- `695240b5` — Add unit tests for promise target participant helpers
+- `e9a595ae` — Add widget tests for coordination item composer sheet
+
+**TESTS:**
+- `timeout 120 flutter test test/features/beacon_view/coordination_target_candidates_test.dart` — 17 passed
+- `timeout 180 flutter test test/features/beacon_view/` — 187 passed
+- `./scripts/check-custom-lints.sh packages/client` — ok (112, baseline 113)
+
+**FILES:**
+- `packages/client/test/features/beacon_view/coordination_target_candidates_test.dart`
+- `packages/client/test/features/beacon_view/coordination_item_composer_sheet_test.dart`
+- `docs/plans/person-selector-hardening-journal.md`
+
+**FINDINGS:** No production bugs surfaced. Ask empty state shows
+`coordinationComposerNoTargetWillSaveDraft` twice (inline no-targets area +
+bottom draft banner) — expected per current layout. Blocker empty-state copy
+not separately tested (same `_noTargetsMessage` branch as ask; promise has
+distinct copy and was the plan's primary focus).
+
+**REMAINING:** none for Unit 5 scope. Unit 6 integration close-out still pending.
