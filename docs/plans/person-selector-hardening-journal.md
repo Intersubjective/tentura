@@ -44,7 +44,7 @@ is self-contained).
 
 | # | Unit | Status |
 |---|------|--------|
-| 1 | Canonical, never-raw-id display helper | pending |
+| 1 | Canonical, never-raw-id display helper | complete |
 | 2 | Explicit candidate-load state for `ForwardCubit`/`ForwardState` | pending |
 | 3 | Fix Recipients-tab open race + gate routing banner | pending |
 | 4 | Explicit participants-load state for Promise/beacon-room picker | pending |
@@ -71,6 +71,21 @@ starting any unit.
 None yet.
 
 ## Checkpoints
+
+### Unit 1 — Canonical display helper (2026-08-04)
+
+**Changed:** `Profile.displayLabel`, `BeaconParticipant` extension `displayLabel`,
+`l10n.unknownPerson` (en/ru), call sites in `coordination_target_candidates.dart`,
+`recipients_tab.dart`, `coordination_participant_lookup.dart` (+ `participantDisplayLabel`,
+handle on participant→Profile mapping). Client `5.6.29`.
+
+**Decision:** `BeaconParticipant.displayLabel` is an extension, not a class method —
+freezed generates `implements BeaconParticipant` (not `extends`), so custom methods
+on the abstract class are not inherited by `_BeaconParticipant`.
+
+**Tests:** `flutter test test/features/beacon_view/coordination_target_candidates_test.dart`
+— 11 passed; `./scripts/check-custom-lints.sh packages/client` — ok;
+`bash scripts/check-user-facing-terminology.sh` — ok.
 
 (Workers: append below, most recent last. Include unit #, what changed,
 commits, test results, and any decision you made that a later unit or the
