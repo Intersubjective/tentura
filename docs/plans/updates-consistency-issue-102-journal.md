@@ -102,7 +102,7 @@ and always reports them clean. Use `scripts/check-custom-lints.sh`.
 
 Extended `docs/contracts/updates-event-contract.json` to `schemaVersion: 2` with a `producers`
 array (45 entries: 34 `coordination_item/*_case.dart` plus 11 beacon/room/evaluation/forward/
-invitation/auth producers). `eventTypes` unchanged. Silent gaps tagged `#102-U2` (13 cases) and
+invitation/auth producers). `eventTypes` unchanged. Silent gaps tagged `#102-U2` (7 cases) and
 `#102-U3` (7 cases); draft and query-only cases use `silentReason`. Updated server and client
 `updates_event_contract_test.dart` to accept schema v2 and the new top-level key.
 
