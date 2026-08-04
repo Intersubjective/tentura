@@ -86,15 +86,10 @@ String coordinationTargetLabel({
       break;
     }
   }
-  final title = match?.userTitle.trim() ?? '';
-  if (title.isNotEmpty) {
-    return title;
+  if (match != null) {
+    return match.displayLabel(l10n.unknownPerson);
   }
-  final handle = match?.handle.trim() ?? '';
-  if (handle.isNotEmpty) {
-    return '@$handle';
-  }
-  return userId.length <= 16 ? userId : '${userId.substring(0, 14)}…';
+  return l10n.unknownPerson;
 }
 
 String coordinationTargetPickerLabel(L10n l10n, CoordinationItemKind kind) {

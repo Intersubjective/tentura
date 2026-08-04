@@ -61,6 +61,11 @@
   "@labelMe": {
     "context": "Utils"
   },
+  "unknownPerson": "Unknown person",
+  "@unknownPerson": {
+    "context": "Utils",
+    "description": "Fallback label when a person's name and handle are unavailable"
+  },
   "labelYou": "You",
   "@labelYou": {
     "context": "Utils",

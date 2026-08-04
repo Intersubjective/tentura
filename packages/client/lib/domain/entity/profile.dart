@@ -46,6 +46,16 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   /// the user's self-chosen display name otherwise.
   String get shownName => contactName.isNotEmpty ? contactName : displayName;
 
+  /// User-facing label: [shownName] → @handle → [unknownPersonLabel].
+  /// Never returns [id].
+  String displayLabel(String unknownPersonLabel) {
+    final name = shownName.trim();
+    if (name.isNotEmpty) return name;
+    final h = handle.trim();
+    if (h.isNotEmpty) return '@$h';
+    return unknownPersonLabel;
+  }
+
   bool get isEmpty => id.isEmpty;
 
   bool get isFriend => myVote > 0;

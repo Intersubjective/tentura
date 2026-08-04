@@ -33,3 +33,15 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     String? helpType,
   }) = _BeaconParticipant;
 }
+
+extension BeaconParticipantDisplay on BeaconParticipant {
+  /// User-facing label: [userTitle] → @handle → [unknownPersonLabel].
+  /// Never returns [userId] or [id].
+  String displayLabel(String unknownPersonLabel) {
+    final title = userTitle.trim();
+    if (title.isNotEmpty) return title;
+    final h = handle.trim();
+    if (h.isNotEmpty) return '@$h';
+    return unknownPersonLabel;
+  }
+}

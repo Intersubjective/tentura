@@ -29,6 +29,7 @@ Profile profileForParticipant(
       return Profile(
         id: p.userId,
         displayName: p.userTitle,
+        handle: p.handle,
         image: p.userHasPicture && p.userImageId.isNotEmpty
             ? ImageEntity(
                 id: p.userImageId,
@@ -41,8 +42,22 @@ Profile profileForParticipant(
       );
     }
   }
+  // Id-only profile for avatar/identity; use [Profile.displayLabel] for UI text.
   return Profile(id: userId);
 }
+
+/// Display label for a participant lookup; never returns [userId] as text.
+String participantDisplayLabel(
+  List<BeaconParticipant> participants,
+  String userId,
+  String unknownPersonLabel, {
+  Profile? viewerProfile,
+}) =>
+    profileForParticipant(
+      participants,
+      userId,
+      viewerProfile: viewerProfile,
+    ).displayLabel(unknownPersonLabel);
 
 Profile profileForBeaconParticipant(
   BeaconParticipant participant, {

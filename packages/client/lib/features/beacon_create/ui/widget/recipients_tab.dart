@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
@@ -51,7 +52,7 @@ class BeaconRecipientsTab extends StatelessWidget {
           ),
         ),
         SizedBox(height: tt.rowGap),
-        BlocSelector<ForwardCubit, ForwardState, (Set<String>, String?)>(
+        BlocSelector<ForwardCubit, ForwardState, (Set<String>, Profile?)>(
           selector: (state) {
             final dropped = state.droppedPreselectedIds;
             if (dropped.isEmpty) return (const <String>{}, null);
@@ -60,11 +61,14 @@ class BeaconRecipientsTab extends StatelessWidget {
               for (final c in [...state.candidates, ...state.lineageSuggestions])
                 c.id: c,
             };
-            return (dropped, byId[id]?.profile.shownName);
+            return (dropped, byId[id]?.profile);
           },
           builder: (context, rec) {
-            final (droppedIds, droppedName) = rec;
+            final (droppedIds, droppedProfile) = rec;
             if (droppedIds.isEmpty) return const SizedBox.shrink();
+            final droppedLabel = droppedProfile != null
+                ? droppedProfile.displayLabel(l10n.unknownPerson)
+                : l10n.unknownPerson;
             return Padding(
               padding: EdgeInsets.only(bottom: tt.rowGap),
               child: Material(
@@ -83,9 +87,7 @@ class BeaconRecipientsTab extends StatelessWidget {
                       SizedBox(width: tt.tightGap * 2),
                       Expanded(
                         child: Text(
-                          l10n.beaconRecipientsPreselectDropped(
-                            droppedName ?? droppedIds.first,
-                          ),
+                          l10n.beaconRecipientsPreselectDropped(droppedLabel),
                           style: TenturaText.bodySmall(
                             scheme.onSurfaceVariant,
                           ),
