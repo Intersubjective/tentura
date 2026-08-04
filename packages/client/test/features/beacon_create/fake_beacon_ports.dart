@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
@@ -34,6 +35,22 @@ class SetMediaCall {
   final String? coverImageId;
   final String? coverThumbImageId;
   final BeaconCoverSource coverSource;
+}
+
+/// Defers [fetchBeaconById] until [release] completes (for async-load races).
+class DelayedFakeBeaconWritePort extends FakeBeaconWritePort {
+  DelayedFakeBeaconWritePort({
+    required this.release,
+    super.beacon,
+  });
+
+  final Completer<void> release;
+
+  @override
+  Future<Beacon> fetchBeaconById(String id) async {
+    await release.future;
+    return super.fetchBeaconById(id);
+  }
 }
 
 class FakeBeaconWritePort implements BeaconWritePort {
