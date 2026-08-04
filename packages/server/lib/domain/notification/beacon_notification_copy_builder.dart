@@ -111,6 +111,22 @@ class BeaconNotificationCopyBuilder {
         'Invitation accepted',
         '$actor accepted your invitation',
       ),
+      NotificationKind.commitmentAccepted => (
+        '$actor accepted your ask',
+        excerpt.isNotEmpty ? excerpt : 'Your ask was accepted',
+      ),
+      NotificationKind.commitmentResolved => (
+        '$actor resolved the commitment',
+        excerpt.isNotEmpty ? excerpt : 'A commitment was resolved',
+      ),
+      NotificationKind.commitmentCancelled => (
+        '$actor cancelled the commitment',
+        excerpt.isNotEmpty ? excerpt : 'A commitment was cancelled',
+      ),
+      NotificationKind.commitmentRedirected => (
+        '$actor reassigned this to you',
+        excerpt.isNotEmpty ? excerpt : 'You have a new assignment',
+      ),
     };
 
     return BeaconNotificationCopy(
@@ -172,7 +188,11 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.blockerOpened ||
       NotificationKind.blockerResolved ||
       NotificationKind.roomActivityLowPriority ||
-      NotificationKind.roomMention =>
+      NotificationKind.roomMention ||
+      NotificationKind.commitmentAccepted ||
+      NotificationKind.commitmentResolved ||
+      NotificationKind.commitmentCancelled ||
+      NotificationKind.commitmentRedirected =>
         '/#$kPathAppLinkView?id=$id&dest=room$itemParam',
     };
   }

@@ -24,6 +24,10 @@ enum AttentionEventType {
   promiseWithdrawn,
   coordinationChanged,
   staleReminder,
+  commitmentAccepted,
+  commitmentResolved,
+  commitmentCancelled,
+  commitmentRedirected,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {

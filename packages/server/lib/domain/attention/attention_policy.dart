@@ -80,7 +80,11 @@ class AttentionPolicy {
     AttentionEventType.inviteAccepted ||
     AttentionEventType.blockerResolved ||
     AttentionEventType.promiseMade ||
-    AttentionEventType.promiseWithdrawn => AttentionSuppressionClass.standard,
+    AttentionEventType.promiseWithdrawn ||
+    AttentionEventType.commitmentAccepted ||
+    AttentionEventType.commitmentResolved ||
+    AttentionEventType.commitmentCancelled => AttentionSuppressionClass.standard,
+    AttentionEventType.commitmentRedirected => AttentionSuppressionClass.mandatory,
   };
 
   bool _isActiveRequestParticipant(AttentionRecipientReason reason) =>
@@ -102,6 +106,9 @@ class AttentionPolicy {
     AttentionEventType.staleReminder => NotificationCategory.asksOfMe,
     AttentionEventType.reviewOpened ||
     AttentionEventType.blockerResolved => NotificationCategory.unblocksMe,
+    AttentionEventType.commitmentAccepted ||
+    AttentionEventType.commitmentResolved => NotificationCategory.unblocksMe,
+    AttentionEventType.commitmentRedirected => NotificationCategory.asksOfMe,
     AttentionEventType.mutualConnectionFormed ||
     AttentionEventType.inviteAccepted => NotificationCategory.connections,
     AttentionEventType.relayReceived ||
@@ -110,7 +117,8 @@ class AttentionPolicy {
     AttentionEventType.blockerOpened ||
     AttentionEventType.promiseMade ||
     AttentionEventType.promiseWithdrawn ||
-    AttentionEventType.coordinationChanged => NotificationCategory.coordination,
+    AttentionEventType.coordinationChanged ||
+    AttentionEventType.commitmentCancelled => NotificationCategory.coordination,
   };
 
   AttentionAccessPolicy _accessPolicy(
@@ -135,7 +143,11 @@ class AttentionPolicy {
     AttentionEventType.promiseMade ||
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.coordinationChanged ||
-    AttentionEventType.staleReminder => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.staleReminder ||
+    AttentionEventType.commitmentAccepted ||
+    AttentionEventType.commitmentResolved ||
+    AttentionEventType.commitmentCancelled ||
+    AttentionEventType.commitmentRedirected => AttentionAccessPolicy.beaconContent,
   };
 
   AttentionDestination _destination(
@@ -168,7 +180,11 @@ class AttentionPolicy {
       AttentionEventType.promiseMade ||
       AttentionEventType.promiseWithdrawn ||
       AttentionEventType.coordinationChanged ||
-      AttentionEventType.staleReminder => AttentionDestination(
+      AttentionEventType.staleReminder ||
+      AttentionEventType.commitmentAccepted ||
+      AttentionEventType.commitmentResolved ||
+      AttentionEventType.commitmentCancelled ||
+      AttentionEventType.commitmentRedirected => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoom,
         targetEntityId: role.coordinationItemId,
       ),
@@ -192,6 +208,8 @@ class AttentionPolicy {
       switch (eventType) {
         AttentionEventType.coordinationChanged =>
           AttentionPreferenceClass.coordinationChurn,
+        AttentionEventType.commitmentCancelled =>
+          AttentionPreferenceClass.coordinationChurn,
         AttentionEventType.requestStatusChanged =>
           AttentionPreferenceClass.requestProgress,
         _ => null,
@@ -210,6 +228,8 @@ class AttentionPolicy {
     AttentionEventType.blockerOpened =>
       reasons.contains(AttentionRecipientReason.affectedParticipant) ||
           reasons.contains(AttentionRecipientReason.targetOfAsk),
+    AttentionEventType.commitmentRedirected =>
+      reasons.contains(AttentionRecipientReason.targetOfAsk),
     _ => false,
   };
 
@@ -249,6 +269,10 @@ class AttentionPolicy {
     AttentionEventType.promiseWithdrawn => 'promise_withdrawn',
     AttentionEventType.coordinationChanged => 'coordination_changed',
     AttentionEventType.staleReminder => 'stale_reminder',
+    AttentionEventType.commitmentAccepted => 'commitment_accepted',
+    AttentionEventType.commitmentResolved => 'commitment_resolved',
+    AttentionEventType.commitmentCancelled => 'commitment_cancelled',
+    AttentionEventType.commitmentRedirected => 'commitment_redirected',
   };
 
   Map<String, Object?> _presentationPayload(
