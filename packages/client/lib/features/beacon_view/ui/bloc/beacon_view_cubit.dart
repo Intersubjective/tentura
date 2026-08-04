@@ -734,7 +734,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> _refreshRoomParticipants(String beaconId) async {
     final participants = await _case.fetchRoomParticipants(beaconId);
-    if (!isClosed) emit(state.copyWith(roomParticipants: participants));
+    if (!isClosed && beaconId == state.beacon.id) {
+      emit(state.copyWith(roomParticipants: participants));
+    }
   }
 
   Future<void> _refreshHelpOffers(String beaconId) async {
