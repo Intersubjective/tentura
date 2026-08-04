@@ -49,7 +49,7 @@ is self-contained).
 | 3 | Fix Recipients-tab open race + gate routing banner | complete |
 | 4 | Explicit participants-load state for Promise/beacon-room picker | complete |
 | 5 | Tests | complete |
-| 6 | Integration and close-out | pending |
+| 6 | Integration and close-out | complete |
 
 Full unit descriptions, root-cause evidence, and acceptance criteria are in
 `docs/plans/person-selector-hardening-plan.md` — read it in full before
@@ -321,3 +321,82 @@ not separately tested (same `_noTargetsMessage` branch as ask; promise has
 distinct copy and was the plan's primary focus).
 
 **REMAINING:** none for Unit 5 scope. Unit 6 integration close-out still pending.
+
+### Unit 6 — Integration and close-out (2026-08-04)
+
+Manager pass (no Cursor worker — pure review/verification).
+
+**Acceptance criteria (plan §2) mapped to landed work:**
+
+- Mutually exclusive loading/empty/error/ready states: `ForwardCandidatesLoad`
+  (Unit 2, full 4-variant) for the request Recipients selector;
+  `roomParticipantsLoaded`/`participantsLoaded` bools (Unit 4) for the
+  Promise/Ask/Blocker picker — a full Error variant was judged unnecessary
+  there since participant-fetch failure is already absorbed by the outer
+  page-load try/catch and `fetchRoomParticipants` degrading to `[]`
+  (documented decision in the Unit 4 checkpoint above).
+- Empty-state warning only after a genuine successful empty result: Unit 2
+  (`noReachableContacts` gated on `ForwardCandidatesEmpty`), Unit 3 (routing
+  banner gated on `Ready`/`Empty`), Unit 4 (composer no-targets copy gated
+  on `participantsLoaded`).
+- Promise selector never silently absent: Unit 4 (spinner/empty-copy/dropdown
+  three-way render replacing the old all-or-nothing `_hasLegalTargets` gate).
+- Person labels never a raw id: Unit 1 (`Profile.displayLabel` /
+  `BeaconParticipant.displayLabel`, applied at every known fallback site).
+- Stale data cannot clobber a valid selector with an error: Unit 2
+  (background-reload failure leaves `candidatesLoad` untouched), Unit 4
+  (`_refreshRoomParticipants` staleness guard).
+- No error/false-empty flash opening a populated selector: Unit 3 (banner
+  gating + `beacon_create_recipients_open_test.dart` regression test proving
+  the My Work → Send path never renders `BeaconRecipientsBlockedTab`, even
+  mid-fetch).
+- Genuinely empty selector shows stable explanatory copy, not an error:
+  Unit 2 + Unit 4, as above.
+- Eligible Promise recipient can be selected and saved: Unit 5's
+  `coordination_item_composer_sheet_test.dart` (`promise picker renders and
+  submits selected target id` — asserts the created promise's
+  `targetPersonId`).
+- No UUID/internal id ever rendered as a person's name: Unit 1, verified via
+  the fallback-chain tests and a direct grep for raw-id string
+  interpolation at the known call sites.
+- Retry available without losing draft data: Unit 2 (`retryLoadCandidates` +
+  `ScreenLoadErrorPanel` retry button; selections/notes/filter live in
+  untouched state fields).
+- Widget/integration test matrix (loading→ready, loading→empty,
+  loading→error→retry, Promise selection, delayed identity resolution): all
+  five present, split across Units 2 and 5.
+
+Every bullet in the plan's §2 is accounted for by a specific commit and a
+specific test. No gaps found.
+
+**Final verification (run independently by the manager, not just
+worker-reported):**
+- `cd packages/client && flutter test` — full suite, all green (last run:
+  1600+ tests passed, pre-existing skips only, 0 failures).
+- `./scripts/check-custom-lints.sh packages/client` — 112 issues (baseline
+  113 at branch start) — the branch net-improved the lint baseline, no new
+  issues introduced by any unit.
+- `bash scripts/check-user-facing-terminology.sh` — ok.
+- `git status --porcelain=v1 -uall` — worktree clean; the pre-existing
+  untracked files listed at the top of this journal are untouched.
+- `git log --oneline main..person-selector-hardening` — 16 commits, all
+  focused, all with passing verification behind them at commit time.
+
+**Deferred:** a manual click-through sanity pass via the `local-debug`
+skill (spinning up the full docker-compose stack + client dev server) was
+not run — the plan marked it optional ("if time allows"), and every
+acceptance criterion already has direct automated coverage that was
+independently re-run and verified by the manager after each unit, not
+just accepted from worker self-reports. If a manual pass is wanted before
+merging, that's a follow-up, not a plan gap.
+
+**Not done, out of scope by design:** issue #97 (invite/"Name" field
+wording) — explicitly excluded in this plan's §3 Non-goals; the underlying
+`Profile.contactName`/`displayName`/`handle` fields this plan's Unit 1
+built on were left as-is.
+
+**STATUS: plan complete.** All 6 units landed, reviewed, and independently
+verified on branch `person-selector-hardening` (16 commits ahead of the
+`main` HEAD this branch was cut from,
+`560d037bfd2286bf6c757400290c24aac3d1b16c`). Not pushed, no PR opened —
+commits are local per the overseer skill's default contract.
