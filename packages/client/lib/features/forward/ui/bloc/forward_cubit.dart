@@ -99,6 +99,17 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
+  bool _isInitialCandidatesLoad(ForwardCandidatesLoad load) =>
+      load is ForwardCandidatesLoading || load is ForwardCandidatesError;
+
+  ForwardCandidatesLoad _candidatesLoadFor({
+    required List<ForwardCandidate> candidates,
+    required List<ForwardCandidate> lineageSuggestions,
+  }) =>
+      candidates.isEmpty && lineageSuggestions.isEmpty
+      ? const ForwardCandidatesEmpty()
+      : const ForwardCandidatesReady();
+
   void _emitNavigateBack({Object? result}) {
     _effects.emit(NavigateBack(result: result));
     if (!isClosed) {
@@ -111,12 +122,23 @@ class ForwardCubit extends Cubit<ForwardState> {
   Future<void> reloadCandidates({bool forceReload = true}) =>
       _loadCandidates(forceReload: forceReload);
 
+  /// Retry after [ForwardCandidatesError] without clearing draft selections.
+  Future<void> retryLoadCandidates() => reloadCandidates();
+
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null || isClosed) {
       return;
     }
-    emit(state.copyWith(status: StateStatus.isLoading));
+    final isInitialLoad = _isInitialCandidatesLoad(state.candidatesLoad);
+    emit(
+      state.copyWith(
+        status: StateStatus.isLoading,
+        candidatesLoad: isInitialLoad
+            ? const ForwardCandidatesLoading()
+            : state.candidatesLoad,
+      ),
+    );
     try {
       final myId = await forwardCase.getCurrentAccountId();
       if (isClosed) {
@@ -186,11 +208,26 @@ class ForwardCubit extends Cubit<ForwardState> {
           droppedPreselectedIds: droppedPreselected,
           note: load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
+          candidatesLoad: _candidatesLoadFor(
+            candidates: load.candidates,
+            lineageSuggestions: load.lineageSuggestions,
+          ),
           status: const StateIsSuccess(),
         ),
       );
     } catch (e) {
-      _emitSnackError(e);
+      if (isInitialLoad) {
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              candidatesLoad: ForwardCandidatesError(e),
+              status: const StateIsSuccess(),
+            ),
+          );
+        }
+      } else {
+        _emitSnackError(e);
+      }
     }
   }
 

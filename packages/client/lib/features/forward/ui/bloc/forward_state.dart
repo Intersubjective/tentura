@@ -10,6 +10,32 @@ part 'forward_state.freezed.dart';
 
 enum ForwardFilter { all, bestNext, unseen, alreadyInvolved }
 
+/// Mutually exclusive load lifecycle for forward candidate lists.
+///
+/// Separate from [StateStatus] on [ForwardState], which tracks send/edit/cancel
+/// actions only.
+sealed class ForwardCandidatesLoad {
+  const ForwardCandidatesLoad();
+}
+
+class ForwardCandidatesLoading extends ForwardCandidatesLoad {
+  const ForwardCandidatesLoading();
+}
+
+class ForwardCandidatesReady extends ForwardCandidatesLoad {
+  const ForwardCandidatesReady();
+}
+
+class ForwardCandidatesEmpty extends ForwardCandidatesLoad {
+  const ForwardCandidatesEmpty();
+}
+
+class ForwardCandidatesError extends ForwardCandidatesLoad {
+  const ForwardCandidatesError(this.error);
+
+  final Object error;
+}
+
 /// Result of the most recent forward call in the embedded create flow.
 @immutable
 class ForwardDeliveryOutcome {
@@ -78,6 +104,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
     @Default(StateIsSuccess()) StateStatus status,
+    @Default(ForwardCandidatesLoading()) ForwardCandidatesLoad candidatesLoad,
     String? editingRecipientId,
     @Default('') String editNote,
     @Default(<String>[]) List<String> editReasons,

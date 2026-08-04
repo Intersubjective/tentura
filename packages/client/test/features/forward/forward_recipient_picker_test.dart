@@ -93,6 +93,7 @@ void main() {
           ),
         ],
         selectedIds: {'u1'},
+        candidatesLoad: const ForwardCandidatesReady(),
       ),
     );
 
@@ -141,6 +142,7 @@ void main() {
             ),
           ],
           selectedIds: {'u1'},
+          candidatesLoad: const ForwardCandidatesReady(),
         ),
       );
       var sendPressed = false;
@@ -195,6 +197,7 @@ void main() {
             ),
           ],
           selectedIds: {'u1'},
+          candidatesLoad: const ForwardCandidatesReady(),
         ),
       );
       var sendPressed = false;

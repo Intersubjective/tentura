@@ -154,6 +154,7 @@ ForwardCubit _forwardCubitWithBeacon({
         ),
       ],
       selectedIds: selectedIds,
+      candidatesLoad: const ForwardCandidatesReady(),
     ),
   );
 
@@ -206,6 +207,7 @@ void main() {
         beaconId: 'b1',
         beacon: beacon,
         candidates: candidates,
+        candidatesLoad: const ForwardCandidatesReady(),
       ),
     );
 
@@ -258,6 +260,7 @@ void main() {
       ForwardState(
         beaconId: 'b1',
         beacon: beacon,
+        candidatesLoad: const ForwardCandidatesEmpty(),
       ),
     );
 
@@ -326,6 +329,7 @@ void main() {
         recipientReasons: {
           'u0': ['transport'],
         },
+        candidatesLoad: const ForwardCandidatesReady(),
       ),
     );
 
@@ -376,7 +380,9 @@ void main() {
     );
     addTearDown(cubit.close);
 
-    cubit.emit(const ForwardState());
+    cubit.emit(
+      const ForwardState(candidatesLoad: ForwardCandidatesEmpty()),
+    );
 
     await tester.pumpWidget(
       MaterialApp(

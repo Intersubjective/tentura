@@ -16,6 +16,7 @@ import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialo
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
@@ -327,10 +328,23 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         },
         child: BlocBuilder<ForwardCubit, ForwardState>(
           builder: (_, state) {
-            if (state.isLoading && state.candidates.isEmpty) {
-              return const Center(
-                child: CircularProgressIndicator.adaptive(),
-              );
+            switch (state.candidatesLoad) {
+              case ForwardCandidatesLoading():
+                return const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              case ForwardCandidatesError(:final error):
+                final details = describeScreenLoadError(
+                  error: error,
+                  l10n: l10n,
+                );
+                return ScreenLoadErrorPanel(
+                  details: details,
+                  onRetry: () => unawaited(cubit.retryLoadCandidates()),
+                );
+              case ForwardCandidatesEmpty():
+              case ForwardCandidatesReady():
+                break;
             }
 
             final beacon = state.beacon;
@@ -345,6 +359,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 state.activeFilter == ForwardFilter.alreadyInvolved
                 ? visible.isEmpty
                 : visible.isEmpty && lineage.isEmpty;
+
+            final showGenuineEmptyMessage =
+                state.candidatesLoad is ForwardCandidatesEmpty && listIsEmpty;
 
             _syncRecipientNoteControllers(state);
             _prunePersonalizedNoteEditors(state);
@@ -451,7 +468,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                       horizontal: tt.screenHPadding,
                                     ),
                                     child: Text(
-                                      state.candidates.isEmpty
+                                      showGenuineEmptyMessage
                                           ? l10n.noReachableContacts
                                           : l10n.labelNothingHere,
                                       textAlign: TextAlign.center,
