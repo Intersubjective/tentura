@@ -461,6 +461,7 @@ class RoomCubit extends Cubit<RoomState> {
           state.copyWith(
             messages: messages,
             participants: participants,
+            participantsLoaded: true,
             factCards: factCards,
             roomState: roomState,
             openCoordinationBlocker: openCoordinationBlocker,

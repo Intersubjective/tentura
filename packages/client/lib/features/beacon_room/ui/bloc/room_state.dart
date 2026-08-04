@@ -20,6 +20,9 @@ abstract class RoomState extends StateBase with _$RoomState {
     @Default('') String myUserId,
     @Default(<RoomMessage>[]) List<RoomMessage> messages,
     @Default(<BeaconParticipant>[]) List<BeaconParticipant> participants,
+
+    /// True after [participants] has been populated at least once this session.
+    @Default(false) bool participantsLoaded,
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
     BeaconRoomState? roomState,
     CoordinationItem? openCoordinationBlocker,

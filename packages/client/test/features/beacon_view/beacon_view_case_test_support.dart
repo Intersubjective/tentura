@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -328,6 +329,14 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
 }
 
 class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
+  FakeBeaconViewRoomRepository({
+    this.enrichmentDelay = Duration.zero,
+    this.participants = const [],
+  });
+
+  Duration enrichmentDelay;
+  List<BeaconParticipant> participants;
+
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
 
@@ -341,6 +350,12 @@ class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
 
   void emitRoomInvalidation(BeaconRoomInvalidation invalidation) {
     _roomInvalidations.add(invalidation);
+  }
+
+  @override
+  Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
+    await Future<void>.delayed(enrichmentDelay);
+    return participants;
   }
 
   @override

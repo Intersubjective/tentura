@@ -227,6 +227,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// From V2 room APIs when the viewer has room access (else empty / null).
     @Default([]) List<BeaconParticipant> roomParticipants,
+
+    /// True after [roomParticipants] has been populated at least once this load.
+    @Default(false) bool roomParticipantsLoaded,
     BeaconRoomState? beaconRoomCue,
     CoordinationItem? openCoordinationBlocker,
 

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -95,6 +96,55 @@ void main() {
       expect(cubit.state.beaconUnavailable, isFalse);
       expect(cubit.state.beacon.id, beaconId);
       expect(cubit.state.beacon.title, 'Mutual friend beacon');
+    });
+
+    test('roomParticipantsLoaded stays false until enrichment completes', () async {
+      final roomRepo = FakeBeaconViewRoomRepository(
+        enrichmentDelay: const Duration(milliseconds: 500),
+        participants: [
+          BeaconParticipant(
+            id: 'P1',
+            beaconId: beaconId,
+            userId: 'Uhelper',
+            role: BeaconParticipantRoleBits.helper,
+            status: 0,
+            roomAccess: RoomAccessBits.admitted,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            handle: '@helper',
+          ),
+        ],
+      );
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon();
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: beaconRepo,
+        roomRepo: roomRepo,
+      );
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: case_,
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.beaconContentLoaded,
+      );
+
+      expect(cubit.state.roomParticipantsLoaded, isFalse);
+      expect(cubit.state.roomParticipants, isEmpty);
+
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.beaconContextLoaded,
+      );
+
+      expect(cubit.state.roomParticipantsLoaded, isTrue);
+      expect(cubit.state.roomParticipants, hasLength(1));
     });
 
     test('room admission waits for beacon context enrichment', () async {

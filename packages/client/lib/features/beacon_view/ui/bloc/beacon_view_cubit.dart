@@ -735,7 +735,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> _refreshRoomParticipants(String beaconId) async {
     final participants = await _case.fetchRoomParticipants(beaconId);
     if (!isClosed && beaconId == state.beacon.id) {
-      emit(state.copyWith(roomParticipants: participants));
+      emit(
+        state.copyWith(
+          roomParticipants: participants,
+          roomParticipantsLoaded: true,
+        ),
+      );
     }
   }
 
@@ -1007,6 +1012,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
           factCards: factCards,
           roomParticipants: roomParticipants,
+          roomParticipantsLoaded: true,
           beaconRoomCue: beaconRoomCue,
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
