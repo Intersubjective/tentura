@@ -55,7 +55,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | Unit | Scope | Status | Verdict |
 |---|---|---|---|
 | U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
-| U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | pending | — |
+| U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | — |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | pending | — |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
 | U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
@@ -98,6 +98,61 @@ and always reports them clean. Use `scripts/check-custom-lints.sh`.
 ## Checkpoints
 
 <!-- Append below. Newest last. Each worker: STATUS / COMMITS / TESTS / FILES / FINDINGS / REMAINING -->
+
+### 2026-08-05 — U2 worker — Step 1 (event types + policy)
+
+COMMITS: 0b24a35b feat(#102-U2): add commitment event types, kinds, and attention policy
+TESTS: `dart analyze` — 0 errors (1871 pre-existing info/warnings)
+
+### 2026-08-05 — U2 worker — Step 2 (recipient resolver)
+
+COMMITS: d6ff8c30 feat(#102-U2): resolve commitment notification recipients
+TESTS: `dart test test/domain/notification/beacon_notification_recipient_resolver_test.dart` — 11 passed
+
+### 2026-08-05 — U2 worker — Step 3 (intent builder)
+
+COMMITS: 5262111a feat(#102-U2): add commitmentChanged attention intent builder
+TESTS: `dart test test/domain/attention/attention_intent_case_test.dart --name commitmentChanged` — 2 passed
+
+### 2026-08-05 — U2 worker — Step 4 (accept cases)
+
+COMMITS: 72e7539a feat(#102-U2): emit commitmentAccepted on ask/promise accept
+
+### 2026-08-05 — U2 worker — Step 5 (resolve cases)
+
+COMMITS: 27adc35c feat(#102-U2): emit commitmentResolved on ask/promise resolve
+
+### 2026-08-05 — U2 worker — Step 6 (redirect cases)
+
+COMMITS: db7d487d feat(#102-U2): emit redirect commitment events for ask/promise
+
+### 2026-08-05 — U2 worker — Step 7 (cancel case)
+
+COMMITS: 54e219e6 feat(#102-U2): emit commitmentCancelled on ask cancel
+
+### 2026-08-05 — U2 worker — Step 8 (contract + pg tests)
+
+COMMITS: 08286c2a test(#102-U2): contract coverage and commitment attention pg tests
+TESTS:
+- `dart run build_runner build -d` — OK
+- `dart analyze` — 0 errors
+- `dart test --exclude-tags pg` — 1165 passed (baseline 1151 + 14 new)
+- `dart test --tags pg test/domain/use_case/coordination_item/commitment_attention_pg_test.dart` — 2 passed (local Postgres reachable)
+- `bash scripts/check-custom-lints.sh packages/server` — OK (baseline 0)
+- `dart test test/architecture/updates_event_coverage_test.dart` — pass
+
+FINDING: Verified m0121 `attention_occurrence.event_type` and m0096 `notification_outbox.kind` are unconstrained `text` — no migration required, matching plan §4.
+FINDING: `commitmentCancelled` policy table lists `coordinationChurn` preference class, but `AttentionPolicy` only persists `inAppPreferenceClass` when suppression is `noisy`; with `standard` suppression the field stays null (existing policy behavior, not changed).
+FINDING: Cancel recipient extras (`acceptedById`, creator when actor ≠ creator) pass through `BeaconNotificationIntent.admittedUserIds` / `moderatorUserIds` to avoid extending the freezed intent shape.
+
+### 2026-08-05 — U2 worker — final
+
+STATUS: complete
+COMMITS: 0b24a35b, d6ff8c30, 5262111a, 72e7539a, 27adc35c, db7d487d, 54e219e6, 08286c2a (subjects per step checkpoints above)
+TESTS: see Step 8 checkpoint
+FILES: packages/server/lib/domain/attention/attention_models.dart, attention_policy.dart, packages/server/lib/domain/entity/notification_kind.dart, notification_category.dart, packages/server/lib/domain/notification/beacon_notification_recipient_resolver.dart, beacon_notification_copy_builder.dart, packages/server/lib/domain/use_case/attention_intent_case.dart, packages/server/lib/domain/use_case/coordination_item/{accept_ask,accept_promise,resolve_ask,resolve_promise,redirect_ask,redirect_promise,cancel_ask}_case.dart, docs/contracts/updates-event-contract.json, packages/server/test/domain/notification/beacon_notification_recipient_resolver_test.dart, packages/server/test/domain/attention/attention_intent_case_test.dart, packages/server/test/domain/use_case/coordination_item/{ask_lifecycle_case,accept_promise_case,resolve_promise_case,redirect_promise_case,commitment_attention_pg}_test.dart, packages/server/test/architecture/transactional_attention_producer_inventory_test.dart, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: see step checkpoints; repository matches plan on schema (no migration). Redirect emits two events (`redirected_to` + `redirected_from`) in one transaction.
+REMAINING: none for U2; U3 still has 7 `#102-U3` gap rows; U4 needs copy for the four new kinds.
 
 ### 2026-08-05 — U1 worker — Step A (contract schema v2 + producers seed)
 
