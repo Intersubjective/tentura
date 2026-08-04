@@ -223,3 +223,57 @@ Overseer corrections applied on top: plan §1 and this journal's root-cause para
 independently caught and fixed the related "13 vs 7" gap-count error in 40c4e790.
 
 Releasing U2.
+
+### 2026-08-05 — overseer — U2 manager review: ACCEPTED
+
+Verified independently, not from the worker's report.
+
+**Correctness of the core fix.** The failure mode this unit had to avoid is a receipt that is created
+but addressed to nobody: `beacon_notification_recipient_resolver.dart` dispatches on
+`NotificationKind` with a `switch` *statement*, so Dart does not enforce exhaustiveness, and its
+`add()` helper silently drops the actor (`if (userId.isEmpty || userId == actor) return;`). For an
+accept, the item's assignee **is** the actor. Confirmed all four new kinds have explicit resolver
+cases with tests asserting non-empty recipient sets, and that every wired case notifies the
+counterpart rather than the actor:
+- accept_ask / accept_promise → `targetPersonId: updated.creatorId` (correct; the creator is the
+  author sitting on My Work in the #102 report)
+- resolve_ask / resolve_promise → `_counterpart()`: actor==creator ? targetPersonId : creatorId
+- redirect_ask / redirect_promise → two records, `redirected_to` (new target, high priority) and
+  `redirected_from` (previous target, guarded on existence and difference), distinct source keys
+- cancel_ask → target + acceptor + creator
+
+All seven wrap their mutation in `TransactionalAttentionCase.runAction` and derive `sourceEventKey`
+from the **post-mutation** record's `updatedAt`, which is what makes replay idempotency work.
+Policy table matches the prescription in all seven exhaustive switches plus `categoryOf`.
+
+**Verification run by the overseer:**
+- `dart analyze` — **0 errors**
+- `dart test --exclude-tags pg` — **1165 passed** (was 1151 at U1; +14 new)
+- `dart test --tags pg test/domain/use_case/coordination_item/commitment_attention_pg_test.dart` —
+  **2 passed and genuinely ran** (the file carries `skip: skipReason`; confirmed not skipped)
+- `bash scripts/check-custom-lints.sh packages/server` — total 0 (baseline 0)
+- Contract: 7 `#102-U2` rows flipped to emitting producers; 7 `#102-U3` gaps remain, as expected.
+
+**PRE-EXISTING FAILURES — not caused by this branch, blocking for U8.** The full `--tags pg` suite
+reports **18 failures** in `test/data/database/realtime_notification_migration_test.dart` and
+`test/data/database/beacon_cover_migration_test.dart`, e.g.
+`Severity.error 42703: column "source_event_key" of relation "notification_outbox" does not exist`.
+Proven pre-existing: checked out `main` (7323a389) in this worktree and reproduced **the same 18
+failures with the same error**. The branch touches no migration, SQL, trigger, or realtime code
+(`git diff --name-only main..HEAD` confirms). A fresh git worktree cannot be used as a baseline here
+— generated files are gitignored, so an un-codegen'd worktree fails ~154 tests for unrelated reasons.
+
+**Consequence for U8:** the plan's definition of done says "relevant tests green". A fully green
+`--tags pg` suite is NOT achievable on this branch because it is not achievable on `main`. U8 must
+gate on "no NEW pg failures versus main" (18 known, in those two files) and must not attempt to fix
+them inside #102 — they belong to a separate issue.
+
+**Minor findings deferred, not blocking:**
+1. `commitmentChanged` ferries `acceptedById`/`creatorId` through the `admittedUserIds` /
+   `moderatorUserIds` intent fields. Works and matches the resolver, but the field names now lie
+   about their contents. Worth a rename or a comment — candidate for a cleanup pass, not a
+   remediation cycle.
+2. Copy for `commitmentAccepted` reads "$actor accepted your ask", but the same kind fires from
+   `accept_promise_case`, where "ask" is the wrong noun. **Assigned to U4**, which owns copy.
+
+Releasing U3.
