@@ -113,6 +113,33 @@ existing `eventTypes.producer` pipe notation).
 
 TESTS: `cd packages/server && dart test test/architecture/updates_event_contract_test.dart` — pass.
 
+### 2026-08-05 — U1 worker — Step B (coverage guard test)
+
+Added `packages/server/test/architecture/updates_event_coverage_test.dart`: enumerates
+`coordination_item/*_case.dart`, asserts one `producers` row per file, validates non-silent
+`eventType` members and `coveringTest` paths, and requires `silentReason` or `gap` on silent rows.
+
+Scratch verification: temporary `zz_scratch_case.dart` made the guard fail with the undeclared-file
+message; removed before commit.
+
+COMMITS: ca95bbf2 test(#102-U1): guard coordination-item attention producer coverage
+
+TESTS:
+- `dart test test/architecture/updates_event_coverage_test.dart` — pass (after scratch removed)
+- `dart test --exclude-tags pg` — 1151 passed
+- `dart test test/architecture/` — 16 passed
+- `bash scripts/check-custom-lints.sh packages/server` — pass (baseline 0)
+- `dart analyze` — 1869 pre-existing warnings/info, 0 errors (exit code 2 from warning count)
+
+### 2026-08-05 — U1 worker — final
+
+STATUS: complete
+COMMITS: d851e0d7 docs(#102-U1): seed updates event producer contract at schema v2; ca95bbf2 test(#102-U1): guard coordination-item attention producer coverage
+TESTS: see Step B checkpoint
+FILES: docs/contracts/updates-event-contract.json, packages/server/test/architecture/updates_event_coverage_test.dart, packages/server/test/architecture/updates_event_contract_test.dart, packages/client/test/architecture/updates_event_contract_test.dart, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: Plan counted 35 coordination-item use cases; live tree has 34 `*_case.dart` files plus `coordination_room_access.dart` (helper, not a case). Multi-event use-case files (`coordination_case`, `beacon_room_case`, `help_offer_case`, `evaluation_case`, auth/invite paths) are one producer row per file with the primary `eventTypes` event. `coordination_responsibility_case.dart` is query-only — silent with `silentReason`, not a mutation gap.
+REMAINING: none for U1; U2 should flip `#102-U2` gap rows to emitting producers.
+
 ### 2026-08-05 — overseer — plan and journal initialized
 
 Branch created, plan committed, unit manifest above is the authoritative order. Launching U1.
