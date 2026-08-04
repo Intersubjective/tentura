@@ -47,7 +47,7 @@ is self-contained).
 | 1 | Canonical, never-raw-id display helper | complete |
 | 2 | Explicit candidate-load state for `ForwardCubit`/`ForwardState` | complete |
 | 3 | Fix Recipients-tab open race + gate routing banner | complete |
-| 4 | Explicit participants-load state for Promise/beacon-room picker | pending |
+| 4 | Explicit participants-load state for Promise/beacon-room picker | complete |
 | 5 | Tests | pending |
 | 6 | Integration and close-out | pending |
 
@@ -202,3 +202,65 @@ loaded — even if title were empty on the server.
 `./scripts/check-custom-lints.sh packages/client` — 112 (baseline 113).
 
 **For Unit 4:** no new API from Unit 3 beyond the banner gating pattern.
+
+### Unit 4 — Step 1: staleness guard (2026-08-04)
+
+**Changed:** `_refreshRoomParticipants` in `beacon_view_cubit.dart` now checks
+`beaconId == state.beacon.id` before emitting (matching `_refreshRoomUnread` /
+`_refreshHelpOffers`).
+
+**Commit:** `3cae4387` — Guard beacon view room-participant refresh against stale beacon id
+
+**Tests:** `timeout 180 flutter test test/features/beacon_view/` — 175 passed
+
+### Unit 4 — Step 2: participants-loaded flags (2026-08-04)
+
+**Changed:** `BeaconViewState.roomParticipantsLoaded` (`@Default(false)`, set
+`true` in phase-2 enrichment emit and WS `_refreshRoomParticipants`);
+`RoomState.participantsLoaded` (`@Default(false)`, set `true` in
+`RoomCubit._fetchFullSnapshot` — room loads participants in the same atomic
+emit as messages, no separate two-phase gap like beacon view).
+
+**Decision:** bool is sufficient — participant fetch failures are swallowed by
+`BeaconViewCase.fetchRoomParticipants` (returns `[]`) and by the outer
+`_fetchBeaconByIdWithTimeline` try/catch; no per-field Error variant needed.
+
+**Commit:** `154ea6dd` — Add explicit participants-loaded flags to beacon view and room cubits
+
+**Tests:** new `roomParticipantsLoaded stays false until enrichment completes`
+in `beacon_view_initial_load_test.dart`; extended
+`FakeBeaconViewRoomRepository` with `fetchParticipants` + `enrichmentDelay`.
+
+### Unit 4 — Steps 3–4: live composer + three-way picker (2026-08-04)
+
+**Changed:** `showCoordinationItemComposerSheet` takes `participantsLoaded` +
+`Stream<CoordinationParticipantsSnapshot>`; `_CoordinationItemComposerBody`
+subscribes in `initState`, cancels in `dispose`, reads live `_participants` /
+`_participantsLoaded`. Call sites: `items_tab.dart` (`BeaconViewCubit.stream`),
+`beacon_view_app_bar_overflow.dart` (passes `beaconViewCubit`), `beacon_room_body.dart`
+(`RoomCubit.stream`). Target picker: loading → inline spinner; loaded empty →
+`coordinationCreatePromiseNoTargets` (promise) or
+`coordinationComposerNoTargetWillSaveDraft` (ask/blocker); loaded with targets →
+dropdown via `coordinationTargetLabel` (Unit 1). Client `5.6.32`.
+
+**RoomCubit finding:** unlike `BeaconViewCubit`'s two-phase load, `RoomCubit`
+fetches participants inside `_fetchFullSnapshot` in one emit alongside messages
+— `participantsLoaded` still added for composer parity but the gap bug was
+beacon-view-specific; room's issue was only the static snapshot at sheet open.
+
+**Commit:** `cc49cecb` — Bind coordination composer to live participant streams and load states
+
+**Tests:** `timeout 180 flutter test test/features/beacon_view/` — 176 passed;
+`timeout 180 flutter test test/features/beacon_room/` — 123 passed (6 skipped);
+`./scripts/check-custom-lints.sh packages/client` — 112 (baseline 113).
+
+### Unit 4 — final (2026-08-04)
+
+**STATUS:** complete
+
+**COMMITS:**
+- `3cae4387` — Guard beacon view room-participant refresh against stale beacon id
+- `154ea6dd` — Add explicit participants-loaded flags to beacon view and room cubits
+- `cc49cecb` — Bind coordination composer to live participant streams and load states
+
+**REMAINING:** Unit 5 widget/cubit tests for composer load states (deferred to Unit 5 per plan); `canCoordinateInBeaconRoom` CTA gating during load not changed (composer handles loading inline instead).
