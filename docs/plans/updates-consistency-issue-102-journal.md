@@ -53,7 +53,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 
 | Unit | Scope | Status | Verdict |
 |---|---|---|---|
-| U1 | Event coverage contract + guard test (no behavior change) | in progress | — |
+| U1 | Event coverage contract + guard test (no behavior change) | complete | pass |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | pending | — |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | pending | — |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
