@@ -126,14 +126,18 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_ask_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
-      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+      "eventType": "commitmentAccepted",
+      "recipientCategory": "item_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/commitment_attention_pg_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_promise_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentAccepted",
+      "recipientCategory": "item_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/accept_promise_case_test.dart"
     },
     {
@@ -150,8 +154,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/cancel_ask_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "affected_participants",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
     },
     {
@@ -265,14 +271,18 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/redirect_ask_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentRedirected",
+      "recipientCategory": "new_target_and_previous_target",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/redirect_promise_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentRedirected",
+      "recipientCategory": "new_target_and_previous_target",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/redirect_promise_case_test.dart"
     },
     {
@@ -291,8 +301,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_ask_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "counterpart_participant",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
     },
     {
@@ -311,8 +323,10 @@
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_promise_case.dart",
-      "silent": true,
-      "gap": "#102-U2",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "counterpart_participant",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolve_promise_case_test.dart"
     },
     {

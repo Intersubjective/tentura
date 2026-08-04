@@ -71,6 +71,34 @@ void main() {
       'runAction(',
       '.staleReminder(',
     ],
+    'coordination_item/accept_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/accept_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/resolve_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/resolve_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/redirect_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/redirect_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/cancel_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
   };
 
   const legacyMethods = <String>[
