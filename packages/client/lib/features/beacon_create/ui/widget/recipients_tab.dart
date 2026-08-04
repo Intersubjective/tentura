@@ -27,31 +27,44 @@ class BeaconRecipientsTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Material(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          child: Padding(
-            padding: EdgeInsets.all(tt.cardPadding.top),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        BlocSelector<ForwardCubit, ForwardState, bool>(
+          selector: (state) =>
+              state.candidatesLoad is ForwardCandidatesReady ||
+              state.candidatesLoad is ForwardCandidatesEmpty,
+          builder: (context, showBanner) {
+            if (!showBanner) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.send_outlined,
-                  size: tt.iconSize,
-                  color: scheme.onSurfaceVariant,
-                ),
-                SizedBox(width: tt.tightGap * 2),
-                Expanded(
-                  child: Text(
-                    l10n.beaconRoutingBanner,
-                    style: TenturaText.body(scheme.onSurfaceVariant),
+                Material(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(tt.cardRadius),
+                  child: Padding(
+                    padding: EdgeInsets.all(tt.cardPadding.top),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.send_outlined,
+                          size: tt.iconSize,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        SizedBox(width: tt.tightGap * 2),
+                        Expanded(
+                          child: Text(
+                            l10n.beaconRoutingBanner,
+                            style: TenturaText.body(scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+                SizedBox(height: tt.rowGap),
               ],
-            ),
-          ),
+            );
+          },
         ),
-        SizedBox(height: tt.rowGap),
         BlocSelector<ForwardCubit, ForwardState, (Set<String>, Profile?)>(
           selector: (state) {
             final dropped = state.droppedPreselectedIds;
