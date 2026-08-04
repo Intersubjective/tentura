@@ -56,7 +56,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 |---|---|---|---|
 | U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
-| U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | pending | — |
+| U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | — |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
 | U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
@@ -277,3 +277,43 @@ them inside #102 — they belong to a separate issue.
    `accept_promise_case`, where "ask" is the wrong noun. **Assigned to U4**, which owns copy.
 
 Releasing U3.
+
+### 2026-08-05 — U3 worker — Step 1 (resolution cases + transaction fix)
+
+COMMITS: fe8eaacf feat(#102-U3): emit attention on resolution create/accept/reject
+TESTS: `dart test test/domain/use_case/coordination_item/resolution_case_test.dart` — 17 passed
+
+### 2026-08-05 — U3 worker — Step 2 (cancel_blocker)
+
+COMMITS: e6ff282b feat(#102-U3): emit commitmentCancelled on blocker cancel
+TESTS: `dart test test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart --name CancelBlockerCase` — pass
+
+### 2026-08-05 — U3 worker — Step 3 (plan step cases)
+
+COMMITS: b5936468 feat(#102-U3): emit coordinationChanged on plan step add/resolve
+TESTS: `dart test test/domain/use_case/coordination_item/plan_step_case_test.dart` — pass
+
+### 2026-08-05 — U3 worker — Step 4 (update_coordination_item + no-op guard)
+
+COMMITS: 4ffc209b feat(#102-U3): emit coordinationChanged on published item edit
+TESTS: no-op edit test confirms zero `attention.recorded` entries
+
+### 2026-08-05 — U3 worker — Step 5 (contract + inventory)
+
+COMMITS: 08fbecc0 test(#102-U3): flip U3 contract rows and register attention producers
+TESTS: `jq '[.producers[]|select(.gap!=null)]|length' docs/contracts/updates-event-contract.json` → 0
+
+### 2026-08-05 — U3 worker — final
+
+STATUS: complete
+COMMITS: fe8eaacf, e6ff282b, b5936468, 4ffc209b, 08fbecc0 (subjects per step checkpoints above)
+TESTS:
+- `dart run build_runner build -d` — OK
+- `dart analyze` — 0 errors
+- `dart test --exclude-tags pg` — 1174 passed (+9 vs U2 baseline 1165)
+- `dart test --tags pg` — 18 failures (same pre-existing set in `realtime_notification_migration_test.dart` and `beacon_cover_migration_test.dart`)
+- `bash scripts/check-custom-lints.sh packages/server` — total 0
+- `jq '[.producers[]|select(.gap!=null)]|length' docs/contracts/updates-event-contract.json` — 0
+FILES: packages/server/lib/domain/use_case/coordination_item/{create_resolution,accept_resolution,reject_resolution,cancel_blocker,add_plan_step,resolve_plan_step,update_coordination_item}_case.dart, packages/server/test/domain/use_case/coordination_item/{resolution_case,blocker_lifecycle,plan_step,update_coordination_item_case}_test.dart, packages/server/test/architecture/transactional_attention_producer_inventory_test.dart, docs/contracts/updates-event-contract.json, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: `accept_resolution_case` passes `creatorId` for the target item owner through `commitmentChanged` → `moderatorUserIds`, but `commitmentResolved` resolver only notifies `targetPersonId` plus beacon author — distinct target-item owners who are neither resolution creator nor beacon author are not delivered a receipt without a resolver extension (deferred; U3 boundary forbids new resolver members). Plan §3 no-op guard mentioned `target_person_id` other than actor; live implementation matches user prompt: emit only when trimmed title/body differ from stored values (recorded in journal, not plan prose).
+REMAINING: none for U3; U4 copy for existing kinds still pending.
