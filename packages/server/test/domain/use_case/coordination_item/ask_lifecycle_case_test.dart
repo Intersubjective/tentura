@@ -609,8 +609,12 @@ void main() {
   group('ResolveAskCase', () {
     late _StubItems items;
     late ResolveAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -618,11 +622,15 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final resolvedAt = DateTime.utc(2024, 6, 3, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusResolved,
+        updatedAt: resolvedAt,
       );
       sut = ResolveAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -631,6 +639,35 @@ void main() {
     test('resolves open ask', () async {
       await sut.call(userId: ownerId, itemId: itemId);
       expect(items.lastStatusUpdate, coordinationItemStatusResolved);
+    });
+
+    test('records commitmentResolved for counterpart when creator resolves', () async {
+      await sut.call(userId: ownerId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentResolved);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:resolved:'
+        '${DateTime.utc(2024, 6, 3, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(targetId),
+      );
+    });
+
+    test('records commitmentResolved for creator when target resolves', () async {
+      items.item = items.item!.copyWith(status: coordinationItemStatusAccepted);
+      await sut.call(userId: targetId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      expect(
+        attention.recorded.single.recipients
+            .map((recipient) => recipient.recipientId),
+        contains(ownerId),
+      );
     });
 
     test('resolves accepted ask', () async {
