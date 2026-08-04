@@ -10,6 +10,8 @@ BeaconParticipant _participant({
   required String userId,
   String userTitle = '',
   String handle = '',
+  int status = BeaconParticipantStatusBits.committed,
+  int roomAccess = RoomAccessBits.admitted,
 }) {
   final t = DateTime.utc(2025, 1, 2);
   return BeaconParticipant(
@@ -17,8 +19,8 @@ BeaconParticipant _participant({
     beaconId: 'B1',
     userId: userId,
     role: BeaconParticipantRoleBits.helper,
-    status: BeaconParticipantStatusBits.committed,
-    roomAccess: RoomAccessBits.admitted,
+    status: status,
+    roomAccess: roomAccess,
     userTitle: userTitle,
     handle: handle,
     createdAt: t,
@@ -161,6 +163,104 @@ void main() {
 
       final bare = _participant(userId: rawUuid);
       expect(bare.displayLabel(l10n.unknownPerson), l10n.unknownPerson);
+    });
+  });
+
+  group('promiseTargetParticipants', () {
+    test('author/steward includes admitted, candidate, and offered participants', () {
+      final admitted = _participant(userId: 'Uadmitted01', userTitle: 'Admitted');
+      final candidate = _participant(
+        userId: 'Ucandidate1',
+        userTitle: 'Candidate',
+        status: BeaconParticipantStatusBits.candidate,
+        roomAccess: RoomAccessBits.none,
+      );
+      final offered = _participant(
+        userId: 'Uoffered001',
+        userTitle: 'Offered',
+        status: BeaconParticipantStatusBits.offeredHelp,
+        roomAccess: RoomAccessBits.none,
+      );
+      final watching = _participant(
+        userId: 'Uwatching01',
+        userTitle: 'Watching',
+        status: BeaconParticipantStatusBits.watching,
+        roomAccess: RoomAccessBits.none,
+      );
+
+      final targets = promiseTargetParticipants(
+        participants: [admitted, candidate, offered, watching],
+        myUserId: myUserId,
+        isAuthorOrSteward: true,
+      );
+
+      expect(targets.map((p) => p.userId), ['Uadmitted01', 'Ucandidate1', 'Uoffered001']);
+    });
+
+    test('non-author sees only admitted participants', () {
+      final admitted = _participant(userId: otherId, userTitle: 'Admitted');
+      final candidate = _participant(
+        userId: 'Ucandidate1',
+        status: BeaconParticipantStatusBits.candidate,
+        roomAccess: RoomAccessBits.none,
+      );
+
+      final targets = promiseTargetParticipants(
+        participants: [admitted, candidate],
+        myUserId: myUserId,
+        isAuthorOrSteward: false,
+      );
+
+      expect(targets.map((p) => p.userId), [otherId]);
+    });
+
+    test('always excludes self', () {
+      final self = _participant(userId: myUserId, userTitle: 'Me');
+      final other = _participant(userId: otherId, userTitle: 'Other');
+
+      final targets = promiseTargetParticipants(
+        participants: [self, other],
+        myUserId: myUserId,
+        isAuthorOrSteward: true,
+      );
+
+      expect(targets.map((p) => p.userId), [otherId]);
+      expect(targets, isNot(contains(self)));
+    });
+  });
+
+  group('hasPublishedPromiseTargets', () {
+    test('false for an empty participant list', () {
+      expect(
+        hasPublishedPromiseTargets(
+          participants: const [],
+          myUserId: myUserId,
+          isAuthorOrSteward: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('true once a legal promise target exists', () {
+      expect(
+        hasPublishedPromiseTargets(
+          participants: [_participant(userId: otherId)],
+          myUserId: myUserId,
+          isAuthorOrSteward: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false when only self would qualify', () {
+      expect(
+        hasPublishedPromiseTargets(
+          participants: [_participant(userId: myUserId)],
+          myUserId: myUserId,
+          isAuthorOrSteward: true,
+        ),
+        isFalse,
+      );
     });
   });
 }
