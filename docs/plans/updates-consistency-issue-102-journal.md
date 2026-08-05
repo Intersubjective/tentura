@@ -770,3 +770,56 @@ TESTS:
 FILES: packages/client/lib/features/my_work/{ui/bloc/my_work_cubit,domain/use_case/my_work_case}.dart, packages/client/lib/domain/attention/{attention_case,qa_attention_latency_probe*}.dart, packages/client/test_driver/realtime_multiclient_web_test.dart, packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json, docs/plans/updates-consistency-issue-102-journal.md
 FINDINGS: scenario 3a flake was primarily product stale-subtitle + refresh concurrency; harness `+1` substring masked `+2` states; QA latency needs DOM bridge not Logger on web.
 REMAINING: none for U6 remediation
+
+### 2026-08-05 — overseer — U6 remediation review: ACCEPTED (with a documented caveat)
+
+**The "flaky test" was a real product bug — the remediation is the most valuable outcome of U6.**
+Root cause of the scenario-3a non-convergence, per the remediation worker and confirmed in the diff:
+
+- `160c5562` — **My Work room subtitle was never cleared when unread hints reached zero**, so a
+  stale `+N` persisted on the card. A badge asserting unread that is not unread is exactly the
+  class of defect #80 and #102 exist to remove.
+- `feec5fce` — **My Work desk refresh did not converge on room invalidations.**
+- `12714aad` — the harness assertion was additionally a false negative: it substring-matched `+1`
+  while the real state was `+2`. Now asserts an unread **delta** rather than a substring.
+
+Instructing the worker not to paper over the flake with a longer timeout was what produced these
+fixes rather than hiding them.
+
+Defect 3 closed: `qa_head_refresh_latency_ms` is now captured (p95 **223 ms**, 5 samples), so U5's
+QA-gated instrumentation is genuinely exercised instead of sitting unused.
+Defect 2 closed: `proof.json` regenerated at `5835f427`; the only commits after it are docs and the
+proof itself, so it is valid for the current production tree.
+Side effect: `my_work_102_delivery_ms` p95 improved from **931 ms → 590 ms**.
+
+Overseer fix applied directly: the worker bumped `packages/client/pubspec.yaml` to 5.6.36 (required
+by the versioning invariant) but left `packages/client/web/index.html`'s `flutter_bootstrap.js?v=`
+at 5.6.35 and uncommitted. Those track 1:1 in every prior commit; synced and committed.
+
+**Verified by the overseer at final HEAD:** server `dart analyze` 0 errors; `--exclude-tags pg`
+**1184**; `--tags pg` **18, zero beyond baseline**; client `flutter test` **1636**; client lints
+**112** (baseline 113); server lints 0; terminology ok; scope confined to
+`packages/client` + `scripts` + `docs`.
+
+**CAVEAT — the 5-consecutive-run gate is not reliably reproducible on this host, for reasons that
+predate #102.** The worker recorded 5/5 with both negative proofs at `5835f427`. The overseer could
+not independently reproduce a clean 5/5: two long gate runs were killed by the session harness
+before finishing, and of the completed independent runs some failed. **Every overseer-observed
+failure was in a pre-existing scenario, never in the #102 scenarios:**
+
+- `realtime_multiclient_web_test.dart:259` — `chat_delivery_ms`, 5 s budget, after the deliberate
+  offline/online + snackbar sequence;
+- `realtime_multiclient_web_test.dart:485` — the budget assertion loop, driven by
+  **`inbox_delivery_ms`**, which measures **1450–1487 ms against a 1500 ms budget** in *passing*
+  runs. The remediation worker independently saw 1502–1547 ms. That scenario is one host hiccup away
+  from red at all times.
+
+By contrast `my_work_102_delivery_ms` (the #102 scenario) measured 433–931 ms against the same
+1500 ms budget across every completed run, and `attention_reconnect_catch_up_ms` 211–304 ms against
+3000 ms — both with wide margin.
+
+**Recommended follow-up, outside #102:** either raise/re-baseline the `inbox_delivery_ms` budget
+with evidence, or investigate why inbox delivery sits at ~97% of its budget. As it stands the
+release gate is measuring host noise as much as regressions, which will erode trust in it.
+
+Releasing U7.
