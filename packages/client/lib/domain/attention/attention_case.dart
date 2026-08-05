@@ -19,6 +19,7 @@ import 'entity/attention_receipt.dart';
 import 'entity/attention_summary.dart';
 import 'port/attention_account_port.dart';
 import 'port/attention_repository_port.dart';
+import 'qa_attention_latency_probe.dart';
 
 /// QA-only measurement of receipt commit to head-snapshot emission latency.
 final class AttentionHeadRefreshLatency {
@@ -292,6 +293,9 @@ final class AttentionCase {
     );
     _lastQaHeadRefreshLatency = sample;
     _qaLatencySamples?.add(sample);
+    QaAttentionLatencyProbe.publishHeadRefreshLatencyMs(
+      sample.latency.inMilliseconds,
+    );
     _logger.info(
       '[AttentionCase] attention_event=head_refresh_latency '
       'latency_ms=${sample.latency.inMilliseconds} '
