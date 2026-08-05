@@ -16,6 +16,7 @@ final class QueryEvaluation extends GqlNodeBase {
     evaluationDraftParticipants,
     evaluationDrafts,
     reviewWindowStatus,
+    reviewWindowStatuses,
     evaluationSummary,
   ];
 
@@ -72,6 +73,24 @@ final class QueryEvaluation extends GqlNodeBase {
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
           ).then(reviewWindowStatusToGqlMap);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get reviewWindowStatuses =>
+      GraphQLObjectField(
+        'reviewWindowStatuses',
+        GraphQLListType(gqlTypeReviewWindowStatus.nonNullable()),
+        arguments: [InputFieldBeaconIds.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase
+              .reviewWindowStatuses(
+                beaconIds: InputFieldBeaconIds.fromArgs(args),
+                userId: jwt.sub,
+              )
+              .then(
+                (rows) => rows.map(reviewWindowStatusToGqlMap).toList(),
+              );
         },
       );
 

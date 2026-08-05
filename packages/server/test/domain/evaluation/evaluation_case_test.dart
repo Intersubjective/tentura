@@ -217,6 +217,29 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   }
 
   @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async =>
+      lockedBeacon;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _MutableTransactionStubBeaconRepo implements BeaconRepositoryPort {
+  _MutableTransactionStubBeaconRepo(this._beacon);
+
+  final BeaconEntity Function() _beacon;
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) => fn(_beacon());
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -1834,6 +1857,137 @@ void main() {
         );
       },
     );
+  });
+
+  group('reviewWindowStatuses', () {
+    test('empty list returns empty', () async {
+      final rows = await evaluationCase.reviewWindowStatuses(
+        beaconIds: const [],
+        userId: userId,
+      );
+      expect(rows, isEmpty);
+    });
+
+    test('returns canCloseNow for accessible reviewOpen beacon', () async {
+      final localEvalRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow()
+        ..reviewStatusesResult = {userId: 2, 'helper1': 3}
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'helper1',
+            role: 1,
+            contributionSummary: 'helper',
+            causalHint: 'h',
+          ),
+        ];
+      final localCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          BeaconEntity(
+            id: beaconId,
+            title: 't',
+            author: UserEntity(id: userId),
+            createdAt: DateTime.timestamp(),
+            updatedAt: DateTime.timestamp(),
+            status: BeaconStatus.reviewOpen,
+          ),
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: localEvalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+      final rows = await localCase.reviewWindowStatuses(
+        beaconIds: [beaconId],
+        userId: userId,
+      );
+      expect(rows, hasLength(1));
+      expect(rows.single.beaconId, beaconId);
+      expect(rows.single.canCloseNow, isTrue);
+    });
+  });
+
+  group('closeNow idempotency', () {
+    test('second closeNow throws after window already finalized', () async {
+      var beacon = BeaconEntity(
+        id: beaconId,
+        title: 't',
+        author: UserEntity(id: userId),
+        createdAt: DateTime.timestamp(),
+        updatedAt: DateTime.timestamp(),
+        status: BeaconStatus.reviewOpen,
+      );
+      final beaconRepo = _MutableTransactionStubBeaconRepo(() => beacon);
+      final localEvalRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow()
+        ..reviewStatusesResult = {userId: 2, 'helper1': 3}
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'helper1',
+            role: 1,
+            contributionSummary: 'helper',
+            causalHint: 'h',
+          ),
+        ];
+      final localReviewFinalization = _FakeReviewFinalization();
+      final localCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: localEvalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        reviewFinalization: localReviewFinalization,
+      );
+
+      await localCase.closeNow(beaconId: beaconId, userId: userId);
+      expect(localReviewFinalization.closeAndFinalizeCalls, hasLength(1));
+      beacon = beacon.copyWith(status: BeaconStatus.closed);
+
+      await expectLater(
+        () => localCase.closeNow(beaconId: beaconId, userId: userId),
+        throwsA(isA<EvaluationException>()),
+      );
+      expect(localReviewFinalization.closeAndFinalizeCalls, hasLength(1));
+    });
   });
 }
 

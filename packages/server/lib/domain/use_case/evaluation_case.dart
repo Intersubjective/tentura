@@ -836,6 +836,24 @@ final class EvaluationCase extends UseCaseBase {
     return true;
   }
 
+  Future<List<ReviewWindowStatusResult>> reviewWindowStatuses({
+    required List<String> beaconIds,
+    required String userId,
+  }) async {
+    if (beaconIds.isEmpty) return const [];
+    final results = <ReviewWindowStatusResult>[];
+    for (final beaconId in beaconIds) {
+      try {
+        results.add(
+          await reviewWindowStatus(beaconId: beaconId, userId: userId),
+        );
+      } on EvaluationException {
+        continue;
+      }
+    }
+    return results;
+  }
+
   Future<ReviewWindowStatusResult> reviewWindowStatus({
     required String beaconId,
     required String userId,
