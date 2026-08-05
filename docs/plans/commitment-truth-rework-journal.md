@@ -66,7 +66,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       l10n, tests)
 - [x] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
 - [x] U13 — P6: "Enough help" Forward-primary + backup offers (D2 A+B)
-- [ ] U14 — P7: My Work offer-response-state row (D3)
+- [x] U14 — P7: My Work offer-response-state row (D3)
 - [ ] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
       patch, l10n, tests
 - [ ] U16 — P9: issue #108 — diagnose-first, Delete explanation, Close-now
@@ -966,3 +966,54 @@ Confirmed both `hasUnreviewed` (server) and `unansweredHelpOffersCount`
 (client) now filter on `offerKind == 0`, keeping backup offers out of the
 "awaiting author response" signal on both sides consistently. Proceeding to
 U14 (P7 — My Work offer-response-state row).
+
+### 2026-08-05 — U14 P7 My Work offer-response-state row (worker)
+
+**Done:** Implemented plan §9 P7.1–P7.4 in full.
+
+- **P7.1:** `stake_state` added to `my_work_fetch.graphql` (both operations);
+  threaded through `MyWorkHelpOfferedRow` → repository mappers →
+  `MyWorkCardViewModel.stakeState`; new pure function
+  `derive_offer_response_state.dart` with mandatory branch priority
+  (`released` → `exited` → `softened` → `acknowledged` → closed-without-response
+  → declined → awaitingAuthor). Client `schema.graphql` updated with
+  `beacon_help_offer.stake_state` (was missing despite Hasura P1.1 exposure).
+- **P7.2:** `MyWorkOfferResponseRow` widget (icon + `TenturaStatusText`, tones
+  via `TenturaTone`); embedded in `_HelpOfferedActiveCard` and
+  `_FinishedHelpOfferedCard` (covers active/finished/archived help-offered
+  kinds). Removed dead `MyWorkStatusLineData.slot1ResponseType` /
+  `slot1CoordinationStatus`.
+- **P7.3:** Seven new l10n keys (EN+RU); deleted superseded
+  `myWorkStatusHelpOfferWithResponse`. Client bumped `5.6.41` → `5.6.42`.
+- **P7.4:** Unit tests for all 7 states + regression cases (released/exited
+  beat stale `useful`); widget tests for each state's copy.
+
+**Tests run (all passed):**
+- `cd packages/client && flutter gen-l10n`
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1675 passed, 14 skipped (+18 new)
+- `cd packages/tentura_lints && dart test` → 18/18
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline held)
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `bash scripts/check-user-facing-terminology.sh` → ok
+- `cd packages/server && dart test -x pg` → 1260/1260
+
+**Commits (4, not pushed):**
+- `f0f7e932` feat(commitment): P7.1 — stake_state threading and derive offer response state
+- `47897e16` feat(commitment): P7.2 — My Work offer response row UI and card wiring
+- `3c8e5e2f` feat(commitment): P7.3 — l10n for My Work offer response states
+- `5b18202b` test(commitment): P7.4 — offer response state unit and widget tests
+
+**Decisions:** `viewerAwaitingAuthorHelpOfferReview` in HUD metadata left
+unchanged — it gates YOU-row obligation, not the new participation-status
+line; switching it was out of P7 scope. Acknowledging author responses use
+`CoordinationResponseType.allowsInviteToRoom` (`useful` / `needCoordination`).
+Help-offered archived cards share `_FinishedHelpOfferedCard` with finished
+(2 widget insertion points, 3 card kinds).
+
+**Remaining:** U15 (P8 rest) — client gate wiring, close-sheet patch, l10n, tests.
+
+### 2026-08-05 — U14 final
+
+P7 acceptance verified green on `feat/commitment-truth-rework`. Journal
+checklist U14 marked complete. Proceeding to U15 (P8 rest).
