@@ -883,3 +883,24 @@ unchanged (informational only).
 
 P5 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
 U12 marked complete. Proceeding to U13 (P6).
+
+### 2026-08-05 — U12 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1253/1253
+green), both custom-lint gates (0/0, 112/112), terminology check (ok), and
+full client `flutter test` (1656 passed, 14 skipped). Confirmed
+`_autoAdmitIfTrusted` and its call site are fully removed from
+`HelpOfferCase`, along with all four now-unused constructor dependencies
+(`CoordinationRepositoryPort`, `ForwardEdgeRepositoryPort`,
+`HelpOfferAdmissionRepositoryPort`, `BeaconRoomRepositoryPort`) — clean diff,
+nothing left dangling. Confirmed `HelpOfferAdmissionAction.autoAdmit`/
+`BeaconRoomAdmissionReason.autoAdmit` were not touched (historical rows still
+deserialize). Verified `isDirectAuthorForward`'s population in
+`CoordinationRepository.helpOffersWithCoordination` is a single batch query
+over the beacon's forward edges plus an O(1) set lookup per row — not N+1.
+Confirmed `ForwardEdgeRepositoryPort.isDirectAuthorForward` was the same
+method the OLD auto-admit path used (now repurposed as an informational
+signal only, no access/response side effects) — resolves what initially
+looked like a surprising claim in the worker's decision note about
+`user_bookkeeping_case` already calling it. Proceeding to U13 (P6 — "Enough
+help" Forward-primary + backup offers).
