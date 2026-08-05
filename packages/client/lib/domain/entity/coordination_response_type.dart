@@ -10,6 +10,13 @@ enum CoordinationResponseType {
 
   final int smallintValue;
 
+  /// Room invite is only valid alongside an acknowledging author response.
+  bool get allowsInviteToRoom =>
+      this == useful || this == needCoordination;
+
+  static bool allowsInviteToRoomForResponseType(int responseType) =>
+      tryFromInt(responseType)?.allowsInviteToRoom ?? false;
+
   static CoordinationResponseType? tryFromInt(int? v) {
     if (v == null) return null;
     return switch (v) {

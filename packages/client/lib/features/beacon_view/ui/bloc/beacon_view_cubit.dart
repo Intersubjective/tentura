@@ -391,6 +391,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required bool inviteToRoom,
     required bool removeFromRoom,
   }) async {
+    final effectiveInviteToRoom =
+        inviteToRoom &&
+        CoordinationResponseType.allowsInviteToRoomForResponseType(
+          responseType,
+        );
     final response = coordinationResponseFromSmallint(responseType);
     final optimisticOffers = [
       for (final c in state.helpOffers)
@@ -399,7 +404,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             coordinationResponse: response,
             roomAccess: patchedHelpOfferRoomAccess(
               current: c.roomAccess,
-              inviteToRoom: inviteToRoom,
+              inviteToRoom: effectiveInviteToRoom,
               removeFromRoom: removeFromRoom,
             ),
           )
@@ -409,7 +414,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     final optimisticParticipants = applyCoordinationRoomParticipantPatch(
       participants: state.roomParticipants,
       offerUserId: offerUserId,
-      inviteToRoom: inviteToRoom,
+      inviteToRoom: effectiveInviteToRoom,
       removeFromRoom: removeFromRoom,
     );
     emit(
@@ -423,7 +428,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         beaconId: state.beacon.id,
         offerUserId: offerUserId,
         responseType: responseType,
-        inviteToRoom: inviteToRoom,
+        inviteToRoom: effectiveInviteToRoom,
         removeFromRoom: removeFromRoom,
       );
       unawaited(_fetchBeaconByIdWithTimeline());

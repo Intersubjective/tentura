@@ -35,4 +35,42 @@ void main() {
       expect(CoordinationResponseType.tryFromInt(99), isNull);
     });
   });
+
+  group('allowsInviteToRoom', () {
+    test('only acknowledging responses allow room invite', () {
+      expect(CoordinationResponseType.useful.allowsInviteToRoom, isTrue);
+      expect(
+        CoordinationResponseType.needCoordination.allowsInviteToRoom,
+        isTrue,
+      );
+      expect(CoordinationResponseType.overlapping.allowsInviteToRoom, isFalse);
+      expect(
+        CoordinationResponseType.needDifferentSkill.allowsInviteToRoom,
+        isFalse,
+      );
+      expect(
+        CoordinationResponseType.notSuitable.allowsInviteToRoom,
+        isFalse,
+      );
+    });
+
+    test('allowsInviteToRoomForResponseType mirrors per-type rule', () {
+      expect(
+        CoordinationResponseType.allowsInviteToRoomForResponseType(0),
+        isTrue,
+      );
+      expect(
+        CoordinationResponseType.allowsInviteToRoomForResponseType(3),
+        isTrue,
+      );
+      expect(
+        CoordinationResponseType.allowsInviteToRoomForResponseType(4),
+        isFalse,
+      );
+      expect(
+        CoordinationResponseType.allowsInviteToRoomForResponseType(99),
+        isFalse,
+      );
+    });
+  });
 }
