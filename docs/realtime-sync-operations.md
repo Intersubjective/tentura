@@ -45,11 +45,14 @@ recipient IDs or payload content.
 | `realtime_event=reconnect_scheduled` | `delay_ms`, `attempt` | listener backoff |
 | `realtime_event=reconnected` | `sequence` | listener recovered |
 | `realtime_event=listener_recovered` | `sequence`, `sessions`, `isolate` | isolate-local catch-up broadcast |
+| `attention_event=receipt_created` | `event_type`, `recipients`, `occurrence_at` | one attention occurrence was persisted |
+| `attention_event=head_refresh_latency` | `latency_ms`, `receipt_created_at` | QA-only client head refresh measurement |
 
 Local log queries:
 
 ```bash
 rg 'realtime_event=' /tmp/tentura-api.log
+rg 'attention_event=' /tmp/tentura-api.log
 rg 'realtime_event=(listener_error|reconnect_failed|payload_failure)' /tmp/tentura-api.log
 rg 'realtime_event=fanout.*frames=0' /tmp/tentura-api.log
 rg 'realtime_event=fanout.*kind=(relationship|profile)' /tmp/tentura-api.log
@@ -77,7 +80,8 @@ Alert when any of these holds for five minutes:
 - listener recovery does not follow an error/closure within 30 seconds;
 - malformed/payload failures exceed 1% of fanout envelopes;
 - connected convergence p95 exceeds 1.5 seconds or reconnect convergence p95
-  exceeds 3 seconds;
+  exceeds 3 seconds (receipt commit → Updates card visible; see Updates delivery
+  budget);
 - duplicate stable IDs/effects appear in the multi-client test;
 - PostgreSQL notification queue usage reaches 0.25 (warning) or 0.50 (critical).
 
@@ -139,6 +143,27 @@ The client half of the budget, at most one in-flight attention refresh plus one 
 rerun per open client, is implemented and measured with the `AttentionCase` in T-08.
 Do not treat the PG-only result as client convergence proof.
 
+## Updates delivery budget
+
+This is the same budget as connected/reconnect convergence above — one target,
+not a second one. Measure **receipt commit → Updates card visible** (creation to
+render), including the attention receipt leg after the `entity_changes` hint.
+
+| Path | p95 target | Measurement |
+|---|---|---|
+| Connected convergence | ≤ 1.5 s | `attention_event=head_refresh_latency` in QA builds (`QA_INTEGRATION_TEST_MODE=true`); multiclient `proof.json` in release |
+| Reconnect catch-up | ≤ 3 s | same, after forced miss + reconnect in the multiclient runner |
+
+Server-side receipt creation logs `attention_event=receipt_created` with
+`event_type`, `recipients` (count only), and `occurrence_at`. Realtime logs and
+attention telemetry contain counts and timestamps only — never recipient IDs,
+titles, bodies, or excerpts.
+
+When refresh fails, the Updates feed keeps existing items visible and shows a
+non-blocking retry banner. A sustained WebSocket outage is covered separately by
+the live-updates-paused banner (`RealtimeStatusPresenter`); do not duplicate that
+for disconnects.
+
 ## Incident triage
 
 1. Confirm the HTTP mutation committed and identify its canonical wire kind in
@@ -150,5 +175,10 @@ Do not treat the PG-only result as client convergence proof.
    mutations; Hasura mutations without `actor_user_id` remain echoed.
 4. Check listener recovery markers and `pg_notification_queue_usage()`.
 5. Confirm the client authenticated a new connection epoch and emitted catch-up.
-6. Verify the affected Cubit kept its existing snapshot and did not discard a
+6. For Updates: check `attention_event=receipt_created` on the API worker, then
+   `attention_event=head_refresh_latency` (QA) or multiclient timing artifacts;
+   confirm connected p95 ≤ 1.5 s and reconnect catch-up p95 ≤ 3 s.
+7. Verify the affected Cubit kept its existing snapshot and did not discard a
    newer generation for a stale response.
+8. If the feed is stale but the socket is healthy, check for a refresh failure
+   banner (HTTP/GraphQL fetch error), not the live-updates-paused banner.
