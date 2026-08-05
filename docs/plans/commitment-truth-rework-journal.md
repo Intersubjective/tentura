@@ -46,7 +46,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       `formerCommitter` role added everywhere it's exhaustively matched
 - [x] U04 — P3.4: review-composition graph builder rewritten on commitment
       events
-- [ ] U05 — P3.5+P3.6+P3.7: Close review-window trigger, `unansweredAtClose`
+- [x] U05 — P3.5+P3.6+P3.7: Close review-window trigger, `unansweredAtClose`
       write, `_canCloseNow` former-committer exclusion, reopen limit
 - [ ] U06 — P3.8+P3.9+P3.10: withdraw forbidden in Wrapping up, response
       downgrade forbidden after acknowledgement, room-admission-requires-
@@ -257,8 +257,44 @@ from `BeaconCase` constructor (only used by old gates). Added
 `test/support/noop_commitment_query_case.dart` for other BeaconCase tests.
 Cancel error description updated to plan wording (“ever had a committer”).
 
-**Remaining:** U05 (P3.5+P3.6+P3.7) — Close review-window trigger, close-now,
-reopen limit.
+**Remaining:** U06 (P3.8+P3.9+P3.10) — withdraw forbidden in Wrapping up, response
+downgrade forbidden, room-admission invariant.
+
+### 2026-08-05 — U05 P3.5+P3.6+P3.7 close, closeNow, reopen limit (worker)
+
+**Done:** Implemented plan §5 P3.5–P3.7 only.
+
+- **P3.5:** `beaconClose` sets `requiresReviewWindow` from
+  `CommitmentQueryCase.everHadCommitter`; before status transition records
+  `unansweredAtClose` for active `offerKind == 0` offers without
+  `everAcknowledged` (author actor, `reason = null`). Injected
+  `CommitmentQueryCase`, `CommitmentRepositoryPort`, `HelpOfferRepositoryPort`
+  into `EvaluationCase`.
+- **P3.6:** Verified `_canCloseNow` still filters only roles 0 and 1 (roles 2
+  and 3 skipped via `continue`). Added regression: former committer incomplete
+  review does not block `closeNow`; current committer incomplete still blocks.
+- **P3.7:** `BeaconRepositoryPort.reviewReopenCount` /
+  `incrementReviewReopenCount` backed by `beacon.review_reopen_count`; 
+  `reopenFromReview` throws `beaconNotClosable` / `Reopen limit reached` when
+  count ≥ `kMaxReviewReopens` (1), increments after successful reopen in the
+  same transaction.
+
+**Tests run (all passed):**
+- `cd packages/server && dart run build_runner build -d`
+- `cd packages/server && dart test -x pg` → 1230/1230 green (+9 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+
+**Commits (3, not pushed):**
+- `f86f35e5` feat(commitment): P3.5 — everHadCommitter close gate and unansweredAtClose events
+- `5366aa1e` test(commitment): P3.6 — former committer does not block closeNow
+- `a208b4c8` feat(commitment): P3.7 — review reopen count limit on BeaconRepository
+
+**Decisions:** `unansweredAtClose` detection uses `!everAcknowledged(eventsForPair)`
+  on active normal offers (aligned with display “no author response” idiom).
+  `fetchByBeaconId` already returns only active rows (`status == 0`).
+
+**Remaining:** U06 (P3.8–P3.10).
 
 ### 2026-08-05 — U04 P3.4 review-composition graph builder (worker)
 
