@@ -2412,17 +2412,33 @@
   "@myWorkStatusHelpOfferedPersonal": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
-  "@myWorkStatusHelpOfferWithResponse": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "helpOffer": {
-        "type": "String"
-      },
-      "response": {
-        "type": "String"
-      }
-    }
+  "myWorkOfferAwaitingAuthor": "Waiting for the author's reply",
+  "@myWorkOfferAwaitingAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferAccepted": "Author accepted your offer",
+  "@myWorkOfferAccepted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferDeclined": "Author declined your offer",
+  "@myWorkOfferDeclined": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferSoftened": "Author changed their reply",
+  "@myWorkOfferSoftened": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferParticipationEnded": "Author ended your participation",
+  "@myWorkOfferParticipationEnded": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferExited": "You left this work",
+  "@myWorkOfferExited": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferClosedWithoutResponse": "Author closed the request without replying to your offer",
+  "@myWorkOfferClosedWithoutResponse": {
+    "context": "MyWorkScreen"
   },
   "facepileSemantics": "{visible, plural, one{1 person shown} other{{visible} people shown}}{more, plural, =0{} other{, {more} more}}",
   "@facepileSemantics": {

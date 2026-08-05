@@ -2412,17 +2412,33 @@
   "@myWorkStatusHelpOfferedPersonal": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
-  "@myWorkStatusHelpOfferWithResponse": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "helpOffer": {
-        "type": "String"
-      },
-      "response": {
-        "type": "String"
-      }
-    }
+  "myWorkOfferAwaitingAuthor": "Ждёт ответа автора",
+  "@myWorkOfferAwaitingAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferAccepted": "Автор принял ваше предложение",
+  "@myWorkOfferAccepted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferDeclined": "Автор отклонил ваше предложение",
+  "@myWorkOfferDeclined": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferSoftened": "Автор изменил свой ответ",
+  "@myWorkOfferSoftened": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferParticipationEnded": "Автор завершил ваше участие",
+  "@myWorkOfferParticipationEnded": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferExited": "Вы вышли из этой работы",
+  "@myWorkOfferExited": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOfferClosedWithoutResponse": "Автор закрыл запрос, не ответив на ваше предложение",
+  "@myWorkOfferClosedWithoutResponse": {
+    "context": "MyWorkScreen"
   },
   "facepileSemantics": "{visible, plural, one{Показан 1 человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
   "@facepileSemantics": {
