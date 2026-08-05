@@ -38,7 +38,7 @@ P1+P2+P3(+P3.11)+P8.1 the "core", P4–P10 separate follow-on PRs in real
 deployment. We still commit once per phase (plan §0.5 format:
 `feat(commitment): P<N> — <description>`, or `P<N>.<M>` for split units).
 
-- [ ] U01 — P1: foundation (migration m0139, Drift tables/entities, pure
+- [x] U01 — P1: foundation (migration m0139, Drift tables/entities, pure
       predicates, port+repository, query case, P1 tests)
 - [ ] U02 — P2: record facts at all write points (help_offer_case,
       coordination_case, user_block_case, remove `deleteForCommit`, P2 tests)
@@ -109,6 +109,63 @@ not the plan prose); server 0.
 (none yet)
 
 ## Checkpoints
+
+### 2026-08-05 — U01 P1 foundation (worker)
+
+**Done:** Implemented plan §3 (P1.1–P1.6) in full.
+
+- **P1.1:** `m0139.dart` — 13 migration steps in plan order (table, indexes,
+  `offer_kind`/`stake_state`/`review_reopen_count`, backfills 8a→11a, stake_state
+  projection UPDATE). Registered in `_migrations.dart`.
+- **P1.2:** `BeaconCommitmentEvents` Drift table; `offerKind`/`stakeState` on
+  `BeaconHelpOffers`; `reviewReopenCount` on `Beacons`; `HelpOfferEntity` +
+  `_toEntity` mapping; `tentura_db.dart` registration; `build_runner` clean.
+- **P1.3:** `CommitmentEventKind`, `CommitmentEvent`, `commitment_consts.dart`,
+  `commitment_state.dart` (self-sorting pure predicates).
+- **P1.4:** `CommitmentRepositoryPort` + `CommitmentRepository` (`customInsert`
+  without `seq`, transactional `stake_state` projection update).
+- **P1.5:** `CommitmentQueryCase` — 4 methods only; no `hasMaterialRoomWork`.
+- **P1.6:** `commitment_state_test.dart` — all 14 numbered scenarios green.
+
+**Files touched (committed):**
+- `packages/server/lib/data/database/migration/m0139.dart`, `_migrations.dart`
+- `packages/server/lib/data/database/table/beacon_commitment_events.dart`,
+  `beacon_help_offers.dart`, `beacons.dart`, `tentura_db.dart`
+- `packages/server/lib/domain/entity/help_offer_entity.dart`
+- `packages/server/lib/data/repository/help_offer_repository.dart`,
+  `commitment_repository.dart`
+- `packages/server/lib/consts/commitment_consts.dart`
+- `packages/server/lib/domain/commitment/*`
+- `packages/server/lib/domain/port/commitment_repository_port.dart`
+- `packages/server/lib/domain/use_case/commitment_query_case.dart`
+- `packages/server/test/domain/commitment/commitment_state_test.dart`
+- `hasura/metadata.json`
+
+**Tests run (all passed):**
+- `cd packages/server && dart run build_runner build -d`
+- `cd packages/server && dart test test/domain/commitment/commitment_state_test.dart` → 16 tests
+- `cd packages/server && dart test -x pg` → full non-pg suite green
+- `cd packages/tentura_lints && dart test` → 18 tests
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+
+**DB / Hasura:**
+- Local Postgres (docker `postgres`) reachable. First `run_migrations_once` run
+  recorded `0139` in `schema_version` without creating objects (pre-existing
+  orphan version row); deleted row and re-ran — migration applied cleanly
+  (`beacon_commitment_event` table + new columns verified via `docker exec psql`).
+- `./scripts/hasura_apply_metadata.sh` → OK after migration (first attempt failed
+  because columns did not yet exist).
+
+**Commits (4, not pushed):**
+- `1164b9bf` feat(commitment): P1.1+P1.2 — migration m0139, Drift tables, Hasura columns
+- `1c6e6d66` feat(commitment): P1.3 — commitment event types and pure state predicates
+- `0d190939` feat(commitment): P1.4+P1.5 — CommitmentRepository and CommitmentQueryCase
+- `95e28dd1` feat(commitment): P1.6 — commitment_state unit tests (14 scenarios)
+
+**Decisions:** Grouped P1.1+P1.2 in one commit (schema lands together per plan
+guidance). No product behavior wired yet — P2+ will call `CommitmentRepository.record`.
+
+**Remaining:** U02 (P2) — record facts at all write points.
 
 (workers append dated entries here before exit; orchestrator appends review
 verdicts)
