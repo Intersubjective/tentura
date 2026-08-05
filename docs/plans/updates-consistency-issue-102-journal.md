@@ -60,7 +60,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
 | U6 | Multi-client My Work regression + reconnect dedup | complete | **accepted after remediation** |
-| U7 | Cross-surface consistency verification | pending | — |
+| U7 | Cross-surface consistency verification | in progress | — |
 | U8 | Integration and close-out | pending | — |
 
 Scope decision (user, 2026-08-05): **full scope U1–U8**, U3 included.
@@ -823,3 +823,75 @@ with evidence, or investigate why inbox delivery sits at ~97% of its budget. As 
 release gate is measuring host noise as much as regressions, which will erode trust in it.
 
 Releasing U7.
+
+### 2026-08-05 — U7 worker — Step 1 (surface trace evidence + subscription guards)
+
+Traced all four #102 surfaces to their event/state sources. **No production refactor** — surfaces already converge on `RealtimeSyncCase` + `AttentionCase` (Updates/My Work dots) with room invalidation fan-out for desk/detail.
+
+#### Updates
+
+| Aspect | Evidence |
+|---|---|
+| Streams | `AttentionCase._start()` → `changesFor({notification})` L94-96, `catchUps` L97, `BlockCase.changes` L98 (`attention_case.dart`) |
+| Feed projection | `UpdatesFeedCubit` → `_attention.feedPages.listen` L21 (`updates_feed_cubit.dart`) |
+| Unread badge | `UpdatesNavbarItem` → `AttentionCase.unreadSummary` L14-18 (`updates_navbar_item.dart`) — **not** a local counter |
+| Reconnect | `catchUps` → `_requestHeadRefresh` → repository fetch → `feedPages` emission (`attention_case.dart:97,198-224`) |
+
+#### My Work
+
+| Aspect | Evidence |
+|---|---|
+| Streams | `MyWorkCubit` subscribes: `beaconChanges` L24-27, `helpOfferChanges` L28-30, `forwardChanges` L32-34, `readWatermarkChanges` L36-38, `deskRelevantInvalidations` L40-43, `bookkeepingRefresh` L44-46, `catchUps` L48-51 (`my_work_cubit.dart`) |
+| Desk invalidations | `MyWorkCase.deskRelevantInvalidations` → `BeaconRoomCase.deskRelevantInvalidations` L75-76; allow-list includes `coordinationItem` (`beacon_room_case.dart:55-64`) |
+| Nav/card dot | `MyWorkNavbarItem` → `HomeAttentionCubit.hasMyWorkDot` L14-15; cubit intersects `AttentionCase.unreadForBeacons` with loaded desk ids L149 (`home_attention_cubit.dart`) |
+| Room `+N` subtitle | Local: `MyWorkCase._applyRoomInboxSubtitles` L203-238 via `BeaconRoomCase.resolveUnread` — cleared when unread resolves to 0 (U6 fix) |
+| Reconnect | `catchUps` debounced 100ms → `fetch(showLoading: false)` (`my_work_cubit.dart:113-121`) |
+
+#### Request detail (`beacon_view`)
+
+| Aspect | Evidence |
+|---|---|
+| Streams | `BeaconViewCubit`: `forwardChanges` L56-58, `helpOfferChanges` L60-62, `beaconChanges` L64-70, `beaconRoomInvalidations` L72-74, `readWatermarkChanges` L76-78, `catchUps` L80-82, `peopleChanges` L84-87 (`beacon_view_cubit.dart`) |
+| `peopleChanges` | `BeaconViewCase` → `changesFor({relationship, profile})` L78-81 (`beacon_view_case.dart`) |
+| Unread / people badges | **Local** derived state: `roomUnreadCount` via `_emitResolvedRoomUnread` L167-175; `unansweredHelpOffersCount` in `beacon_view_state.dart`; `youResponsibility` via `CoordinationItemCase` L692-718 — **not** `AttentionCase` |
+| `coordination_item` targeted fetch | `_fetchForEntityTypes` handles `coordinationItem` → activity + room cue + YOU responsibility L661-665 (`beacon_view_cubit.dart`) |
+| Reconnect | `catchUps` → `_requestFullRefresh` L80-82,146-153 |
+
+#### People (request people tab + global contact names)
+
+| Aspect | Evidence |
+|---|---|
+| Request people tab | Renders `BeaconViewState` from `BeaconViewCubit` — participant/help-offer invalidations refresh via same streams as request detail; tab badge from `unansweredHelpOffersCount` (`beacon_operational_scroll_view.dart:177-184`) |
+| Global contact names | `ContactsCase` → `changesFor({contact})` L28-30 + `catchUps` L31-34 (`contacts_case.dart`) — orthogonal overlay; beacon people re-render on beacon refetch |
+
+**Cross-surface acceptance path (#102):** server emits `coordination_item` entity change (desk/detail) **and** `notification` (Updates). Client: room invalidation → My Work + beacon_view targeted fetch; notification hint → `AttentionCase` head refresh → Updates feed + `HomeAttentionCubit` markers.
+
+GUARDS: `packages/client/test/architecture/cross_surface_subscription_test.dart` (6 tests).
+
+COMMITS: (pending step 1 commit)
+
+### 2026-08-05 — U7 worker — Step 2 (contract `impacts` guard)
+
+Added `packages/client/test/architecture/realtime_entity_contract_impacts_test.dart`: every impact label in `realtime-entity-contract.json` maps to ≥1 existing client subscriber file; `coordination_item` + `notification` impacts explicitly cover the four #102 surfaces. Registered both new architecture tests in contract `contractTests`.
+
+All 33 impact labels have subscribers — **no contract/client drift found**.
+
+COMMITS: (pending step 2 commit)
+
+### 2026-08-05 — U7 worker — Step 3 (defect hunt + cross-surface accept guard)
+
+**Defect hunt (no production fixes — findings only):**
+
+| Pattern | Finding | Decision |
+|---|---|---|
+| Stale count never cleared | U6 already fixed My Work `roomInboxSubtitle`; regression guarded in `my_work_case_load_desk_test.dart` | No new fix |
+| `switch` on enum, delivery path | `BeaconNotificationRecipientResolver` switch covers all `NotificationKind` members — Dart exhaustiveness enforced at compile time; per-kind behavioral tests in `beacon_notification_recipient_resolver_test.dart` | No fix; compile-time + behavioral coverage sufficient |
+| Allow-list without test | `query_attention` allow-list guarded in U4 remediation | Already covered |
+| `InvalidationService._onMessage` | `switch (message['type'])` on **String** wire field — unknown types silently dropped (`invalidation_service.dart:140-145`); no test | **Finding:** transport-layer, pre-#102; out of U7 fix scope |
+| Desk vs beacon_view entity mapping | `BeaconRoomCase._deskRelevantEntityTypes` includes `roomReaction`/`roomPoll`; `BeaconViewCubit._fetchForEntityTypes` has no branches for them (`beacon_view_cubit.dart:647-665`) | **Finding:** targeted invalidation gap; full catch-up still converges; not #102 acceptance path |
+| Local badge bypass | Request detail/People use local counters (room unread, help offers, YOU responsibility) by design — not attention receipts | **Expected** — journal evidence, not a defect |
+
+**Guard:** `packages/client/test/features/updates/cross_surface_coordination_accept_test.dart` — `commitmentAccepted` notification refreshes `AttentionCase`; `coordination_item` room invalidation refreshes My Work desk + beacon_view YOU responsibility.
+
+COMMITS: (pending step 3 commit)
+
