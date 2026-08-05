@@ -56,7 +56,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 |---|---|---|---|
 | U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
-| U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | — |
+| U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
 | U4 | Copy completeness + no-empty-card invariant | pending | — |
 | U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
@@ -317,3 +317,44 @@ TESTS:
 FILES: packages/server/lib/domain/use_case/coordination_item/{create_resolution,accept_resolution,reject_resolution,cancel_blocker,add_plan_step,resolve_plan_step,update_coordination_item}_case.dart, packages/server/test/domain/use_case/coordination_item/{resolution_case,blocker_lifecycle,plan_step,update_coordination_item_case}_test.dart, packages/server/test/architecture/transactional_attention_producer_inventory_test.dart, docs/contracts/updates-event-contract.json, docs/plans/updates-consistency-issue-102-journal.md
 FINDINGS: `accept_resolution_case` passes `creatorId` for the target item owner through `commitmentChanged` → `moderatorUserIds`, but `commitmentResolved` resolver only notifies `targetPersonId` plus beacon author — distinct target-item owners who are neither resolution creator nor beacon author are not delivered a receipt without a resolver extension (deferred; U3 boundary forbids new resolver members). Plan §3 no-op guard mentioned `target_person_id` other than actor; live implementation matches user prompt: emit only when trimmed title/body differ from stored values (recorded in journal, not plan prose).
 REMAINING: none for U3; U4 copy for existing kinds still pending.
+
+### 2026-08-05 — overseer — U3 manager review: ACCEPTED
+
+Verified independently:
+
+- `dart analyze` — **0 errors**
+- `dart test --exclude-tags pg` — **1174 passed** (1165 at U2; +9 new)
+- `dart test --tags pg` — **231 passed, 2 skipped, 18 failed**: exactly the 18 pre-existing failures
+  documented in the U2 review, unchanged. **No new pg failures.**
+- `bash scripts/check-custom-lints.sh packages/server` — total 0 (baseline 0)
+- Contract: `jq '[.producers[]|select(.gap!=null)]|length'` → **0**. The only remaining silent
+  coordination cases are the 9 draft-lifecycle cases and the query-only
+  `coordination_responsibility_case`, each with a `silentReason`. Producer coverage is complete.
+
+Both unit-specific requirements confirmed by reading the code, not the report:
+1. `accept_resolution_case.dart` — both `updateStatus` calls (target item and resolution) now run
+   inside the single `runAction` transaction alongside `transaction.record(...)`. The partial-
+   resolution window is closed.
+2. `update_coordination_item_case.dart` — computes `contentChanged` from the trimmed title/body
+   against the stored values and gates the record on it, so a no-op edit creates no receipt.
+
+Design decision honored: U3 added **no** new `AttentionEventType`/`NotificationKind` members,
+reusing `needsMe`, `commitmentResolved`, `commitmentCancelled` and `coordinationChanged`. The
+deliberate collapse-key asymmetry (per-transition for commitment/needsMe, per-beacon family for
+coordinationChanged) was preserved rather than "unified".
+
+Carried forward from the U2 review, still open:
+- `commitmentChanged` overloads `admittedUserIds`/`moderatorUserIds` to carry
+  `acceptedById`/`creatorId` — naming smell, cleanup candidate, not a defect.
+- U2 worker's finding: `AttentionPolicy` only persists `inAppPreferenceClass` when suppression is
+  `noisy`, so the `coordinationChurn` class prescribed for `commitmentCancelled` (suppression
+  `standard`) is inert. Not a bug — cancels stay always-visible, consistent with #80's "safety and
+  obligation events remain visible". No action.
+
+New finding for U4 (in addition to the "accepted your ask" noun bug):
+- `_UpdatesCard._shortAge` is a private, hardcoded-English duplicate of the existing localized
+  `packages/client/lib/ui/utils/relative_time.dart#compactRelativeTimeAgo`. Russian users currently
+  see English ages ("5m", "2d") in the Updates feed. U4 must reuse the shared helper rather than add
+  a third time-formatting variant.
+
+Releasing U4.
