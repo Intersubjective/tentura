@@ -106,6 +106,12 @@ not the plan prose); server 0.
 
 ## Unresolved decisions / blockers
 
+- **U16 (P9) resolved, 2026-08-06.** See the closing checkpoint below for the
+  full account. The environment-kill issue that follows was the initial
+  blocker; it was worked around by the orchestrator taking over direct
+  implementation/debugging after two dedicated cursor-agent attempts at the
+  remaining e2e fix, per the overseer skill's own escalation guidance.
+
 - **U16 (P9) blocked by environment issue, 2026-08-05 21:46 CEST.** Two
   consecutive `cursor-agent` worker launches for U16 were externally killed
   (`status: killed`) well before their 5400s budget — first after ~254s,
@@ -721,6 +727,160 @@ after the new migration landed on this branch.
 
 **Remaining:** U10 CORE VERIFY matrix items beyond these two pg migration tests
 (if any still open), plus `kDefaultMinClientVersion` bump.
+
+### 2026-08-06 — U16 P9 issue #108 close-to-archive (orchestrator, taken over directly)
+
+**Context:** three cursor-agent attempts at this unit hit an environment issue
+(background worker process externally terminated, with no clear cause —
+plain background bash tasks were confirmed unaffected via a diagnostic
+sleep). The third attempt survived ~34 minutes and produced a large,
+carefully-implemented, fully-passing (unit/lint level) diff covering P9.2 and
+P9.3 before being cut off mid-way through debugging the e2e test. A fourth,
+narrowly-scoped attempt to just fix the e2e test also got interrupted (its
+underlying `cursor-agent` process detached from the harness's monitoring and
+ran unmonitored for 45+ minutes with zero additional progress — killed and
+cleaned up). Per the overseer skill's own guidance ("if the same defect
+survives two well-scoped Cursor attempts, take over diagnosis yourself"), the
+orchestrator committed the verified-solid uncommitted implementation directly
+(4 commits: server batch query, client data/domain wiring, UI wiring, l10n)
+and then root-caused and fixed the e2e test personally by running the actual
+local stack.
+
+**§11.2 (Delete no longer silent) — implemented, verified:**
+`BeaconDeleteDialog` gained an optional `onArchive` action reusing the
+existing `archiveBeacon` flow, sourced from the server `canDelete` field
+where available; `runBeaconDeleteWithRetry` (new
+`beacon_delete_ui.dart`) replaces silent delete failures with a retry
+snackbar; the three duplicated delete-dialog call sites were consolidated
+into one helper (`_confirmAndDeleteMyWorkBeacon`).
+
+**§11.3 (Close-now CTA) — implemented, verified:** new batch
+`reviewWindowStatuses` V2 query (server, reuses the existing single-beacon
+`reviewWindowStatus` per id); `MyWorkCase.loadReviewWindows` (client, scoped
+to `authored` + `reviewOpen` cards, empty-list short-circuit) sets
+`showCloseNowCta`; wired into `MyWorkCubit` after `loadDeskInit` with a
+fetch-sequence staleness guard; My Work's authored-active card renders the
+CTA. §11.3 point 6 (beacon-view HUD close-now action) was confirmed
+verify-only — already correct, untouched.
+
+**§11.1 diagnosis — now genuinely end-to-end verified** (not just inferred),
+via the actual passing e2e run against the live local stack plus direct
+Postgres/API inspection during debugging:
+1. Create→offer→accept→close→review-window-open: **ok** (`beacon.status`
+   transitions 0→8(enoughHelp)→5(reviewOpen) recorded in
+   `beacon_activity_event`, confirmed via direct SQL).
+2. Both required reviewers (author role 0, committer role 1) skip →
+   `beacon_review_status.status = 3` for both: **ok**.
+3. Author taps the new My Work Close-now CTA → `beaconCloseNow` fires,
+   `EvaluationCase.closeNow`'s `_canCloseNow` check passes, beacon transitions
+   to `closed` (6) with reason `authorCloseNow`: **ok** — confirmed this is
+   reachable and correct end to end, which no prior unit-test coverage could
+   verify (it depends on live `_canCloseNow` evaluation against real review
+   statuses).
+4. Screen/My-Work reflect `closed` without a manual reload: **ok** — the
+   `fetch(showLoading: false)` call after `beaconCloseNow` in the CTA's
+   `onPressed` handler correctly refreshes state; the e2e test observes
+   "Closed" text appear without any test-driven reload.
+5. Second-session consistency: **not independently re-verified this round**
+   (would require a second concurrent browser session; the e2e test's
+   sequential logout/login-as-different-users flow exercises server-side
+   consistency implicitly — every login re-fetches from the server, and the
+   closed status was correctly visible to the author's fresh session).
+6. `Delete` on an ever-had-committer closed beacon → blocked with explanation
+   + working archive action: **ok**, exercised directly by the e2e test's
+   final assertions (`find.text('Cannot delete')`, `find.text('Archive')`).
+7. SQL checks from the plan (`beacon.status`/`status_changed_at`,
+   `beacon_review_window`) were run directly against a live beacon during
+   debugging and matched expectations exactly (see the manual debugging trail
+   below).
+
+**§11.4/§11.5:** not needed beyond what the interrupted worker already added
+(re-entrant-tap guards + `finally`-based loading-state clearing on
+delete/close/closeNow in `beacon_view_cubit.dart`). No idempotency or
+"review closed" derivation defect was found — `EvaluationCase.closeNow`/
+`beaconClose` already run inside `runInBeaconStateTransaction` (row-locked),
+and `derive_my_work_cards.dart`'s existing `authoredFinished`/
+`showArchiveAffordance` derivation was never the problem (confirmed via the
+debugging trail below — the actual defect was entirely in test-finder
+robustness, not production derivation logic).
+
+**§11.6 e2e test — the actual debugging trail** (recorded in full since it is
+the evidentiary basis for accepting this unit and is genuinely instructive):
+started the local dev server manually (bypassing the all-in-one script's
+auto-teardown) plus chromedriver, then ran `flutter drive` directly against
+`request_lifecycle_closed_to_archive_test.dart` so server/DB state could be
+inspected after each failure instead of being torn down.
+- Run 1: failed with "Timed out waiting for condition... hud=[closeNow]" —
+  initially misread as the new CTA never appearing; actually a stale
+  beacon-view HUD action key still matched in the widget tree, unrelated to
+  the real failure point.
+  down (`_MyWorkFilterMenu` — the toolbar filter button — is conditionally
+  hidden depending on `useExpandedPane`/master-detail selection state and is
+  not reliably present once the Active list is empty).
+- Run 2 (same beacon, fresh manual restart): failed with "hud=[] ... No
+  active work yet ... Archived (1)". Directly queried Postgres
+  (`beacon`, `beacon_review_window`, `beacon_review_status`,
+  `beacon_activity_event`, `beacon_archived`) for the exact beacon this run
+  created and confirmed: `closeNow` HAD fired correctly (reason
+  `authorCloseNow` in the activity log) and the beacon WAS archived
+  (`beacon_archived` row, 1s after close) — meaning the test had actually
+  progressed much further than the error suggested; both Close and Archive
+  succeeded via the new implementation. Traced `_MyWorkFilterMenu`'s
+  placement in `my_work_screen.dart`: it lives in the AppBar `title`/`row`
+  slots, `useExpandedPane`-conditional and (for the expanded/master-detail
+  layout) gated by `_showList`, i.e. hidden once a card is selected in some
+  layouts. Traced `MyWorkEmptyBody` (rendered for the empty-Active-list state
+  reached right after archiving the only item) and found it has its own
+  `onShowArchived` callback wired to a `TenturaTextAction` reading "Archived
+  ({count})" — a more reliable, layout-independent path to the same
+  `setFilter(archived)` action.
+- Fix 1: rewrote the test to tap the empty-state body's "Archived (N)"
+  shortcut instead of the toolbar filter menu + "Archived" menu item.
+- Run 3: new failure, `StateError: Bad state: Too many elements` inside
+  `tapAndSettle`'s `ensureVisible` call — the `find.textContaining('Archived
+  (')` finder matched more than one widget.
+- Fix 2: added `.first` to that finder (matches this test suite's own
+  documented convention in `e2e_test_helpers.dart` for exactly this reason).
+- Run 4: same "Too many elements" error, same line — a different, still-
+  ambiguous finder further down. Added `.first` defensively to every
+  previously-bare `find.text(...)`/`find.byKey(...)` finder used in a tap
+  throughout the test file (`'Close request'`, `'Archive'`, `'Skip for
+  now'`, `TestIds.beaconOverflowMenu`, `'Delete Request'`) — plausible source
+  for the overflow-menu key specifically: a master+detail layout can render
+  list and detail panes with overlapping static test keys simultaneously.
+- Run 5: **`result {"result":"true","failureDetails":[]}` — all tests
+  passed.** Re-confirmed via the standard
+  `./scripts/run_client_integration_web_local.sh` runner (not just the raw
+  manual `flutter drive` invocation) — also passed cleanly.
+- Root cause, summarized: the production implementation (P9.2/P9.3, Close-now
+  CTA, archive, delete-block-with-explanation) was correct from the first run
+  that reached it; every e2e failure was a test-finder robustness issue
+  (wrong/hidden widget targeted, or an under-specified finder matching more
+  than one widget), not a product defect. This is a legitimate, if slow,
+  outcome for a *first* e2e test of a newly-built flow — no shortcuts were
+  taken to get it green (no assertions weakened, no product behavior
+  changed to match the test).
+
+**Full verify matrix, independently re-run after the e2e fix:**
+`dart test -x pg` → 1263/1263; `check-custom-lints.sh` server → 0/0, client →
+111/111 (baseline held); `flutter test` → 1682 passed, 14 skipped;
+`tentura_lints dart test` → 18/18; `check-user-facing-terminology.sh` → ok;
+e2e integration test → pass (both direct `flutter drive` and via the
+standard runner script).
+
+**Commits (6, not pushed):** `513c8b6d` (server batch query), `32790aa1`
+(client data/domain wiring), `119250ac` (client UI wiring), `967a68dc`
+(l10n), `b1d2f1a7` (e2e test, passing). Plus the earlier `11682ba5`
+(kDefaultMinClientVersion, part of U10) and the two migration-rollback
+commits from U10's own remediation are unrelated prior work on this branch,
+not part of this unit's count.
+
+**Process cleanup:** all manually-started server/chromedriver processes from
+this debugging session were stopped; ports 2080/4444 confirmed clear;
+pre-existing docker infra (postgres/hasura/meritrank/minio) untouched
+throughout; `git status` clean except this branch's own commits.
+
+**Remaining:** U17 (P10) — docs, final verify, version bump confirmation.
 
 ### 2026-08-05 — U10 review (orchestrator) — CORE RELEASE BOUNDARY COMPLETE
 
