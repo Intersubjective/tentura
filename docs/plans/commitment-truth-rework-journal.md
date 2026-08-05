@@ -299,41 +299,6 @@ visibility via P3.3 rules.
 
 **Remaining:** U05 (P3.5+P3.6+P3.7).
 
-### 2026-08-05 — U09 P8.1 server display-status gate fields (worker)
-
-**Done:** Implemented plan §10 P8.1 only (server-side; no client changes).
-
-- **Entity:** `BeaconDisplayStatus` — `canCancel`, `canDelete`,
-  `everAcknowledgedCommitterCount` (defaults false/false/0).
-- **Use case:** `BeaconDisplayCase` injects `CommitmentQueryCase`; computes
-  fields only when `tier == coordination && viewerId == author.id`; formulas
-  mirror `BeaconCase.deleteById` / cancel gates via
-  `everAcknowledgedUserIds` (`canDelete` uses draft OR empty ever-ack, not
-  `status != draft &&`).
-- **GraphQL:** `gqlTypeBeaconDisplayStatus` + `beaconDisplayStatusToGqlMap`
-  expose all three non-null fields.
-- **Tests:** extended `beacon_display_case_test.dart` — author with/without
-  acknowledged history, draft-author `canDelete` regression, non-author steward
-  gets false/0; uses `RecordingCommitmentRepository` + `CommitmentQueryCase`.
-
-**Tests run (all passed):**
-- `cd packages/server && dart run build_runner build -d`
-- `cd packages/server && dart test -x pg` → 1225/1225 green (+4 new)
-- `cd packages/tentura_lints && dart test` → 18/18 green
-- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
-
-**Commits (2, not pushed):**
-- `96b508a3` feat(commitment): P8.1 — server display-status gate fields and computation
-- `081fc972` feat(commitment): P8.1 — expose display-status gate fields in GraphQL
-
-**Decisions:** `everAcknowledgedUserIds` (not `everHadCommitter`) used per plan
-snippet; equivalent for gate booleans. `isAuthor` checked inside author-coordination
-branch per plan literal. DI regen updated local `di.config.dart` (gitignored).
-
-**Remaining:** U05 (P3.5+P3.6+P3.7) — orchestrator resequenced U09 ahead of
-remaining P3 sub-units; U07 (P3.11) can now consume `everAcknowledgedCommitterCount`
-once P8.2 client wiring lands in U15.
-
 ### 2026-08-05 — U01 review (orchestrator)
 
 **Verdict: ACCEPTED.** Independently re-ran `dart test test/domain/commitment/
@@ -430,3 +395,20 @@ branch per plan literal. DI regen updated local `di.config.dart` (gitignored).
 **Remaining:** U05 (P3.5+P3.6+P3.7) — orchestrator resequenced U09 ahead of
 remaining P3 sub-units; U07 (P3.11) can now consume `everAcknowledgedCommitterCount`
 once P8.2 client wiring lands in U15.
+
+### 2026-08-05 — U09 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1225/1225
+green) and `check-custom-lints.sh packages/server` (0/0 baseline). Read the
+live `BeaconCase.deleteById` (lines ~827-857) to confirm the exact shape the
+formula must mirror: draft branch hard-deletes and returns unconditionally
+BEFORE the `everHadCommitter` gate. Confirmed `canDelete = isAuthor &&
+(status == draft || everAck.isEmpty)` in `BeaconDisplayCase` matches this
+precisely — the earlier-plan-draft bug (`status != draft && …`, which would
+have blocked authors from deleting their own drafts) was avoided. Fields
+correctly gated on `tier == coordination && viewerId == author.id`, zeroed
+otherwise. GraphQL plumbing (`gqlTypeBeaconDisplayStatus` +
+`beaconDisplayStatusToGqlMap`) exposes all three fields non-null. Also
+deduplicated an accidental duplicate journal section (worker had appended
+its checkpoint twice — harmless doc-only glitch, no code impact). Proceeding
+to U05 (P3.5-P3.7).
