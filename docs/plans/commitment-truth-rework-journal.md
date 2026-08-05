@@ -681,3 +681,25 @@ U02/P2, and U09/P8.1, every piece of the plan's "core" release boundary
 reviewed. Proceeding to U10 — the core-verify unit: run the full plan §12.2
 verify matrix as an integrated whole, plus the `kDefaultMinClientVersion`
 bump (§12.3) that was deliberately deferred by U07 to this point.
+
+### 2026-08-05 — U10 migration-contract test rollback through m0139 (worker)
+
+**Done:** Extended the partial-schema rollback helpers in both migration-contract
+tests so `migrateDbSchema` can replay migrations below m0139 after teardown.
+Added `_rollBackM0139ForTest` (drops `beacon_commitment_event`, removes
+`offer_kind`/`stake_state` from `beacon_help_offer`, removes
+`review_reopen_count` from `beacon`, deletes schema_version `0139`) and wired
+it ahead of the existing m0138 unwind in
+`beacon_cover_migration_test.dart` and `realtime_notification_migration_test.dart`.
+No changes to `m0139.dart` — failures were purely missing rollback coverage
+after the new migration landed on this branch.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test test/data/database/beacon_cover_migration_test.dart` → 2/2
+- `cd packages/server && dart test test/data/database/realtime_notification_migration_test.dart` → 18/18
+- `cd packages/server && dart test` → full suite green (one flaky `trust_maintenance_test` failure on first run; clean on re-run)
+- `cd packages/tentura_lints && dart test` → 18/18
+- `./scripts/check-custom-lints.sh packages/server` → baseline OK
+
+**Remaining:** U10 CORE VERIFY matrix items beyond these two pg migration tests
+(if any still open), plus `kDefaultMinClientVersion` bump.
