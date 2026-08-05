@@ -654,6 +654,30 @@ core-verify unit.
 
 **Remaining:** U10 CORE VERIFY + `kDefaultMinClientVersion` bump.
 
-### 2026-08-05 — U08 review (orchestrator placeholder)
+### 2026-08-05 — U08 review (orchestrator)
 
-_Review pending._
+**Verdict: ACCEPTED.** Independently re-ran the new suite
+(`dart test test/domain/use_case/commitment_gates_test.dart` → 18/18) and the
+full non-pg server suite (1254/1254 green). Confirmed all 18 scenarios are
+present as individually named `test(...)` cases matching the plan's table
+one-for-one. Spot-checked scenario 16 (D13 release→re-acknowledge
+reversibility) in full: asserts both `currentStakeIsAcknowledged() == true`
+AND that the event log contains BOTH `releasedByAuthor` and the new
+`acknowledged` event — correctly tests this as expected reversible behavior,
+not a bug. Spot-checked scenario 17 (the P3.11 close-branch-alignment
+regression) — drives `beaconClose` with `expectedRequiresReviewWindow: true`
+(the value the fixed client would now send) through the real
+`EvaluationCase` and asserts it completes without `closeBranchConflict` and
+lands in `reviewOpen`. Notable: the worker reported (and I have no reason to
+doubt, given how thoroughly P3.1-P3.11 were each independently verified)
+**zero defects found** — all 18 scenarios passed against the existing
+codebase with no production-code changes required. This is a meaningful
+positive signal: seven independently-reviewed units compose correctly as an
+integrated whole.
+
+This closes out phase P3 in full (P3.1 through P3.12). Combined with U01/P1,
+U02/P2, and U09/P8.1, every piece of the plan's "core" release boundary
+(§13: P1+P2+P3 incl. P3.11+P8.1) is now implemented and individually
+reviewed. Proceeding to U10 — the core-verify unit: run the full plan §12.2
+verify matrix as an integrated whole, plus the `kDefaultMinClientVersion`
+bump (§12.3) that was deliberately deferred by U07 to this point.
