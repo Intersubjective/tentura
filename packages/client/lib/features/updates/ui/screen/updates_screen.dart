@@ -10,7 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
-import '../widget/attention_visibility_ack.dart';
+import '../widget/updates_receipt_card.dart';
 
 @RoutePage()
 /// Updates feed presenter.
@@ -149,7 +149,16 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                       itemBuilder: (context, index) =>
                           index == state.items.length
                           ? const _LoadMoreIndicator()
-                          : _UpdatesCard(receipt: state.items[index]),
+                          : UpdatesReceiptCard(
+                              receipt: state.items[index],
+                              onTap: () => _open(context, state.items[index]),
+                              onMarkSeen: () => context
+                                  .read<UpdatesFeedCubit>()
+                                  .markSeen(state.items[index].id),
+                              onSettle: () => context
+                                  .read<UpdatesFeedCubit>()
+                                  .settle(state.items[index].id),
+                            ),
                     ),
                   );
                 },
@@ -168,98 +177,10 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
     });
     setState(() {});
   }
-}
 
-class _UpdatesCard extends StatelessWidget {
-  const _UpdatesCard({required this.receipt});
-
-  final AttentionReceipt receipt;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    final colors = Theme.of(context).colorScheme;
-    final isUnread = !receipt.isSeen;
-    return AttentionVisibilityAck(
-      receiptId: receipt.id,
-      isSeen: receipt.isSeen,
-      onAcknowledge: (id) => context.read<UpdatesFeedCubit>().markSeen(id),
-      child: Semantics(
-        label: receipt.title,
-        child: ListTile(
-          onTap: () => _open(context),
-          contentPadding: tt.cardPadding,
-          leading: Icon(
-            _iconFor(receipt.kind),
-            color: isUnread ? tt.info : tt.textMuted,
-            size: tt.iconSize,
-          ),
-          title: Text(
-            receipt.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style:
-                TenturaText.title(
-                  isUnread ? colors.onSurface : tt.textMuted,
-                ).copyWith(
-                  fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
-                ),
-          ),
-          subtitle: Text(
-            receipt.body,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: TenturaText.bodySmall(tt.textMuted),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _shortAge(receipt.createdAt),
-                style: TenturaText.bodySmall(tt.textFaint),
-              ),
-              if (isUnread)
-                IconButton(
-                  tooltip: L10n.of(context)!.updatesMarkSeen,
-                  onPressed: () => context.read<UpdatesFeedCubit>().markSeen(
-                    receipt.id,
-                  ),
-                  icon: const Icon(Icons.done_outlined),
-                ),
-              if (receipt.isLiveObligation)
-                IconButton(
-                  tooltip: L10n.of(context)!.updatesMarkDone,
-                  onPressed: () => context.read<UpdatesFeedCubit>().settle(
-                    receipt.id,
-                  ),
-                  icon: const Icon(Icons.task_alt_outlined),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _open(BuildContext context) async {
+  Future<void> _open(BuildContext context, AttentionReceipt receipt) async {
     await context.read<UpdatesFeedCubit>().markSeen(receipt.id);
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
-  }
-
-  static IconData _iconFor(String kind) => switch (kind) {
-    'needsMe' || 'blockerOpened' => Icons.notifications_active_outlined,
-    'roomMention' => Icons.alternate_email,
-    'roomActivityLowPriority' || 'newRelay' => Icons.forum_outlined,
-    'inviteAccepted' => Icons.people_alt_outlined,
-    _ => Icons.notifications_outlined,
-  };
-
-  static String _shortAge(DateTime at) {
-    final age = DateTime.now().difference(at);
-    if (age.inMinutes < 1) return 'now';
-    if (age.inHours < 1) return '${age.inMinutes}m';
-    if (age.inDays < 1) return '${age.inHours}h';
-    return '${age.inDays}d';
   }
 }
 
