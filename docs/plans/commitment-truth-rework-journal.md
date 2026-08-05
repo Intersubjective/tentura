@@ -703,3 +703,52 @@ after the new migration landed on this branch.
 
 **Remaining:** U10 CORE VERIFY matrix items beyond these two pg migration tests
 (if any still open), plus `kDefaultMinClientVersion` bump.
+
+### 2026-08-05 — U10 review (orchestrator) — CORE RELEASE BOUNDARY COMPLETE
+
+**Verdict: ACCEPTED.** U10 combined a small orchestrator-authored edit (the
+version-gate bump, commit `11682ba5`, done directly since it was small/local/
+unambiguous per the overseer skill's remediation guidance) with a delegated
+worker fix for the migration-rollback-helper gap found while running the
+full (non-`-x pg`) server suite for the first time this session.
+
+**Version gate:** `kDefaultMinClientVersion` raised `5.0.0` → `5.6.38`
+(matching `packages/client/pubspec.yaml`'s current version after U06/U07's
+bumps) in `packages/server/lib/env.dart`, with `.env.example`'s commented
+example synced, per plan §12.3. No test pins the literal old value, so this
+was a safe, isolated change.
+
+**Migration rollback gap:** running `dart test` (full, with Postgres — a
+local Postgres container was already up) surfaced 12 failures, all in
+`beacon_cover_migration_test.dart` and `realtime_notification_migration_test.dart`.
+Root cause confirmed by direct inspection (not just the worker's say-so):
+these are pre-existing partial-schema-rollback contract tests that unwind
+`schema_version` down to an older migration to test that migration in
+isolation; every new migration requires extending the rollback helper, and
+this repo has done exactly this twice before for m0138 (commits `e6c4a482`,
+`ed7e4773`, both visible in this branch's history, predating this session).
+Delegated to a fresh worker with those two commits as explicit precedent.
+Verified the resulting diff (`_rollBackM0139ForTest` in both test files)
+reverses exactly what `m0139.dart` added — `beacon_commitment_event` table,
+`offer_kind`/`stake_state` columns + their CHECK constraints on
+`beacon_help_offer`, `review_reopen_count` on `beacon`, and the
+`schema_version` row — no more, no less. No change was needed to `m0139.dart`
+itself; confirmed this by independently re-running the full suite.
+
+**Full core-verify matrix, independently re-run by the orchestrator after
+the worker's fix:**
+- `cd packages/server && dart test` (full, WITH Postgres) → **1503/1503 green**
+  (previously 1254/1254 on `-x pg` alone before this unit added pg coverage)
+- `cd packages/tentura_lints && dart test` → 18/18
+- `./scripts/check-custom-lints.sh packages/server` → 0/0 (baseline)
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline, held
+  exactly since U06 first measured it)
+- `cd packages/client && flutter test` → 1652 passed, 14 skipped
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+**CORE RELEASE BOUNDARY (plan §13: P1+P2+P3 incl. P3.11+P8.1) IS NOW COMPLETE
+AND FULLY VERIFIED.** Every phase from P1 through P3.12, plus P8.1, is
+implemented, individually reviewed, and now collectively verified end to end
+including the previously-unrun pg-tagged test tier. Proceeding to U11 (P4 —
+`releaseCommitment`), the first follow-on phase per plan §13's ordering
+(P4 → P5 → P6 → P7 → P8 rest → P9 → P10).
