@@ -2758,6 +2758,11 @@
     "context": "BeaconViewScreen",
     "description": "Offer help button when coordination status is enough help offered help"
   },
+  "beaconOfferHelpAsBackup": "Offer as backup",
+  "@beaconOfferHelpAsBackup": {
+    "context": "BeaconViewScreen",
+    "description": "Secondary action when request already has enough help signaled"
+  },
   "labelForward": "Forward",
   "@labelForward": {
     "context": "BeaconViewScreen"
@@ -3766,6 +3771,14 @@
   "helpOfferDirectForwardChip": "Forwarded by you",
   "@helpOfferDirectForwardChip": {
     "description": "Chip on People tab when the author directly forwarded this request to the helper"
+  },
+  "helpOffersBackupGroupTitle": "Backup offers",
+  "@helpOffersBackupGroupTitle": {
+    "description": "People tab section heading for backup help offers"
+  },
+  "helpOfferBackupBadge": "Backup",
+  "@helpOfferBackupBadge": {
+    "description": "Badge on a backup help offer row in People tab"
   },
   "helpOfferDeclineDialogTitle": "Decline this offer",
   "helpOfferDeclineDialogHint": "Let them know why. This is required",

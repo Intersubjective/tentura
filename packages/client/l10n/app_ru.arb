@@ -2754,6 +2754,11 @@
     "context": "BeaconViewScreen",
     "description": "Offer help button when coordination status is enough help offered help"
   },
+  "beaconOfferHelpAsBackup": "Предложить как запасной вариант",
+  "@beaconOfferHelpAsBackup": {
+    "context": "BeaconViewScreen",
+    "description": "Secondary action when request already has enough help signaled"
+  },
   "labelForward": "Переслать",
   "@labelForward": {
     "context": "BeaconViewScreen"
@@ -3731,6 +3736,14 @@
   "helpOfferDirectForwardChip": "Вы переслали лично",
   "@helpOfferDirectForwardChip": {
     "description": "Чип на вкладке Люди, когда автор переслал запрос этому помощнику лично"
+  },
+  "helpOffersBackupGroupTitle": "На подхвате",
+  "@helpOffersBackupGroupTitle": {
+    "description": "Заголовок секции запасных предложений помощи на вкладке Люди"
+  },
+  "helpOfferBackupBadge": "Запасной",
+  "@helpOfferBackupBadge": {
+    "description": "Бейдж на строке запасного предложения помощи на вкладке Люди"
   },
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
