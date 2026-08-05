@@ -108,9 +108,11 @@ A **help offer** is a public, explicit action with a note — willingness to act
 
 ### 8.2 Overcommit = coordination, not gatekeeping
 
-The author signals **coverage/fit** via beacon status and **per-offer responses** — not approval/rejection of people. Status includes phases such as: no offers yet, offers awaiting author review, more/different help needed, enough help in motion.
+The author signals **coverage/fit** via beacon status and **per-offer responses** — not approval/rejection of people. The author **accepts or declines a help offer** (the proposal), not the person. Declining requires a **reason** and is **private** to the offerer.
 
-New offers are **not blocked** by “enough help” — the author coordinates openly.
+Status includes phases such as: no offers yet, offers awaiting author review, more/different help needed, enough help in motion.
+
+At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Forward**). The author coordinates openly across primary and backup offers.
 
 ### 8.3 Beacon detail + Room
 
@@ -124,7 +126,8 @@ Beacon detail: **Items**, **People**, **Log** + coordination header (STATUS / NO
 
 Framing: **“Acknowledge contributions / Close the loop”** — not public 360° review.
 
-- Opens after **successful author closure**; bounded **review window**.
+- Opens after **successful author closure** when the beacon **ever had an acknowledged committer**; bounded **review window**.
+- **Former committers** (ever acknowledged, no longer holding current stake) are included in the review window; a departed participant does **not** block **Close now**.
 - Role-specific prompts (author / helper / forwarder on winning path).
 - Raw reviews **private**; evaluated users see **beacon-local summaries** only.
 - **No basis to judge** is explicit; strong ratings need reasons.
