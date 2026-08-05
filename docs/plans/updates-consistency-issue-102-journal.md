@@ -60,7 +60,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
 | U6 | Multi-client My Work regression + reconnect dedup | complete | **accepted after remediation** |
-| U7 | Cross-surface consistency verification | complete | **pending overseer review** |
+| U7 | Cross-surface consistency verification | complete | **accepted by overseer** |
 | U8 | Integration and close-out | pending | — |
 
 Scope decision (user, 2026-08-05): **full scope U1–U8**, U3 included.
@@ -913,3 +913,45 @@ FINDINGS: Four surfaces verified — Updates/My Work nav indicators share `Atten
 REMAINING: none for U7; U8 integration close-out
 
 
+
+### 2026-08-05 — overseer — U7 manager review: ACCEPTED
+
+Exactly the requested shape: **zero production code changed** (`git diff --name-only` over the unit
+shows only `test/`, `docs/`), three guard tests, and a journal entry carrying file/line evidence per
+surface.
+
+**Verified by the overseer:** client `flutter test` **1645** (1636 + 9 new); server `dart analyze`
+0 errors, `--exclude-tags pg` **1184**, `--tags pg` **18, zero beyond baseline**; client lints 112
+(baseline 113); server lints 0; terminology ok.
+
+Spot-checked the `impacts` guard rather than trusting it: it asserts **bidirectionally** — an impact
+label with no subscriber fails, and an orphaned `impactSubscribers` mapping also fails — so the
+contract cannot silently drift in either direction. All 33 impact labels currently resolve to a real
+subscriber; no drift found.
+
+**Judgment call recorded for whoever closes the issue.** #102 asks that "My Work, request detail,
+People and Updates derive from the same event/state source." U7's evidence shows they share the same
+**event** source but not a single **state store**: Updates and the My Work/Updates nav indicators
+both derive from `AttentionCase`, while request detail and People compute local projections (room
+unread, unanswered help offers, YOU responsibility) refreshed from the same
+`beaconRoomInvalidations` + `catchUps` streams. I judge that as satisfying the criterion — the
+intent is that no surface has an independent, divergent source of truth, and none does — and
+`cross_surface_coordination_accept_test.dart` now pins that a single acceptance refreshes all of
+them. Flagging it explicitly because "same source" could be read more strictly.
+
+**Two new findings, both non-blocking and both pre-dating #102:**
+
+1. `InvalidationService._onMessage` (`invalidation_service.dart:140-145`) switches on a **String**
+   wire `type` field and silently drops unknown values, with no test. This is a **third instance of
+   the fail-open pattern** already found in U2 (recipient resolver) and U6 (stale unread subtitle):
+   a delivery-path dispatch where an unhandled case produces silence rather than an error. It sits
+   at the transport layer, upstream of everything #102 touches. Recommended as its own issue.
+2. `BeaconViewCubit._fetchForEntityTypes` (`beacon_view_cubit.dart:647-665`) has no targeted
+   branches for `roomReaction`/`roomPoll`, although `BeaconRoomCase._deskRelevantEntityTypes`
+   includes them. Full catch-up still converges, so it degrades latency rather than correctness, and
+   it is off the #102 acceptance path.
+
+Neither was fixed, per the unit's verify-then-fix-only-if-broken contract. Both belong to the user's
+backlog, not to this plan.
+
+Releasing U8.
