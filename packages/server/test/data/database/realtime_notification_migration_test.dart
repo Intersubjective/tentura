@@ -56,9 +56,10 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       // Migrant only applies versions above the highest recorded one, so every
-      // migration appended after this test was written (currently m0132–m0138)
+      // migration appended after this test was written (currently m0132–m0139)
       // must be unwound here as well — otherwise the re-application below is a
       // silent no-op and the m0115–m0120 columns never come back.
+      await _rollBackM0139ForTest(writer);
       await _rollBackM0138ForTest(writer);
       await _rollBackM0137ForTest(writer);
       await _rollBackM0136ForTest(writer);
@@ -1800,6 +1801,22 @@ Future<bool> _canConnect(Env env) async {
     return true;
   } on Object {
     return false;
+  }
+}
+
+Future<void> _rollBackM0139ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE IF EXISTS public.beacon_commitment_event',
+    'ALTER TABLE public.beacon_help_offer '
+        'DROP CONSTRAINT IF EXISTS beacon_help_offer_offer_kind_check',
+    'ALTER TABLE public.beacon_help_offer '
+        'DROP CONSTRAINT IF EXISTS beacon_help_offer_stake_state_check',
+    'ALTER TABLE public.beacon_help_offer DROP COLUMN IF EXISTS offer_kind',
+    'ALTER TABLE public.beacon_help_offer DROP COLUMN IF EXISTS stake_state',
+    'ALTER TABLE public.beacon DROP COLUMN IF EXISTS review_reopen_count',
+    "DELETE FROM public.schema_version WHERE version = '0139'",
+  ]) {
+    await connection.execute(statement);
   }
 }
 
