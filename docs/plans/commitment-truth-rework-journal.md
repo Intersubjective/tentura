@@ -40,7 +40,7 @@ deployment. We still commit once per phase (plan §0.5 format:
 
 - [x] U01 — P1: foundation (migration m0139, Drift tables/entities, pure
       predicates, port+repository, query case, P1 tests)
-- [ ] U02 — P2: record facts at all write points (help_offer_case,
+- [x] U02 — P2: record facts at all write points (help_offer_case,
       coordination_case, user_block_case, remove `deleteForCommit`, P2 tests)
 - [ ] U03 — P3.1+P3.2+P3.3: Cancel/Delete gates switch to `everHadCommitter`;
       `formerCommitter` role added everywhere it's exhaustively matched
@@ -166,6 +166,69 @@ not the plan prose); server 0.
 guidance). No product behavior wired yet — P2+ will call `CommitmentRepository.record`.
 
 **Remaining:** U02 (P2) — record facts at all write points.
+
+### 2026-08-05 — U02 P2 record facts at write points (worker)
+
+**Done:** Implemented plan §4 (P2.1–P2.5) in full.
+
+- **P2.1:** `HelpOfferCase` injects `CommitmentRepositoryPort`; new offers record
+  `offered`; `withdraw` records `withdrawnByHelper` instead of `deleteForCommit`.
+- **P2.2:** `CoordinationCase` injects `CommitmentRepositoryPort` +
+  `CommitmentQueryCase`; accept/decline/remove/setResponse write commitment events
+  with idempotent transition checks (`acknowledged`, `acknowledgementSoftened`,
+  `removedFromChat`, `readmittedToChat`).
+- **P2.3:** `UserBlockCase._withdrawOffersByOfferer` records `blockedCleanup`
+  (`reason = kBlockWithdrawReason`) instead of deleting coordination rows.
+- **P2.4:** Removed `deleteForCommit` from port, repository, and all test stubs
+  (`grep deleteForCommit packages/server` → empty).
+- **P2.5:** Extended `help_offer_case_test` (withdraw records event, no row delete);
+  new `coordination_case_commitment_events_test.dart` (accept/decline/remove/
+  setResponse + idempotence); updated `user_block_case_test` (blockedCleanup);
+  updated constructor wiring in admission-matrix, revert, graphql block tests;
+  added `test/support/recording_commitment_repository.dart`.
+
+**Test assertion updates (journal record):** `user_block_case_test` expectations
+changed from `deleteForCommitCalls` to `commitment.recordCalls` with
+`blockedCleanup` — prior tests explicitly asserted coordination-row deletion,
+which P2 replaces with append-only events.
+
+**Files touched (committed):**
+- `packages/server/lib/domain/use_case/help_offer_case.dart`
+- `packages/server/lib/domain/use_case/coordination_case.dart`
+- `packages/server/lib/domain/use_case/user_block_case.dart`
+- `packages/server/lib/domain/port/coordination_repository_port.dart`
+- `packages/server/lib/data/repository/coordination_repository.dart`
+- `packages/server/test/support/recording_commitment_repository.dart`
+- `packages/server/test/domain/use_case/help_offer_case_test.dart`
+- `packages/server/test/domain/use_case/coordination_case_commitment_events_test.dart`
+- `packages/server/test/domain/use_case/user_block_case_test.dart`
+- `packages/server/test/domain/use_case/coordination_case_revert_test.dart`
+- `packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart`
+- `packages/server/test/api/controllers/graphql/user_block_graphql_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart`
+- `packages/server/test/domain/use_case/help_offer_case_mocks.mocks.dart`
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1211/1211 green (+11 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+- `cd packages/server && dart test --tags pg test/data/repository/user_block_withdrawal_gate_pg_test.dart` → 9/9 green (local Postgres reachable)
+
+**Commits (4, not pushed):**
+- `eb70b7f8` feat(commitment): P2.1 — record offered/withdrawn events in HelpOfferCase
+- `b1509b75` feat(commitment): P2.2 — record commitment events in CoordinationCase
+- `39cd192e` feat(commitment): P2.3+P2.4 — block cleanup events; remove deleteForCommit
+- `5386679d` test(commitment): P2.5 — commitment event write-point tests
+- `cba7bbd4` docs(commitment): U02 P2 journal checkpoint
+
+**Decisions:** Idempotence helpers live as private methods on `CoordinationCase`
+(check `currentStakeState`, `everAcknowledged`, and removed/readmitted event
+sequence). `declineHelpOffer` snapshots `everAcknowledgedPair` before the
+decline mutation (same pattern as plan's write-rule box). Gates (Cancel/Delete)
+intentionally not switched — P3 scope.
+
+**Remaining:** U03 (P3) — switch gates to commitment facts.
 
 ### 2026-08-05 — U01 review (orchestrator)
 
