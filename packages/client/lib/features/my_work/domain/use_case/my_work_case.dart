@@ -18,6 +18,8 @@ import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart'
 
 import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
+import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
@@ -34,6 +36,7 @@ final class MyWorkCase extends UseCaseBase {
     this._beaconRoomCase,
     this._roomHints,
     this._deskPreferences,
+    this._displayRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal, {
     required super.env,
@@ -55,6 +58,7 @@ final class MyWorkCase extends UseCaseBase {
   final BeaconRoomHintsRepository _roomHints;
 
   final MyWorkDeskPreferencesPort _deskPreferences;
+  final BeaconDisplayRepository _displayRepository;
   final RealtimeSyncCase _realtimeSyncCase;
 
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
@@ -197,7 +201,27 @@ final class MyWorkCase extends UseCaseBase {
       roomHints: hints,
     );
     final withHints = _applyRoomInboxSubtitles(withResponsibility, hints);
-    return _withAuthorForwardFlags(withHints);
+    final withDisplayStatus = await _attachDisplayStatuses(withHints);
+    return _withAuthorForwardFlags(withDisplayStatus);
+  }
+
+  Future<List<MyWorkCardViewModel>> _attachDisplayStatuses(
+    List<MyWorkCardViewModel> cards,
+  ) async {
+    if (cards.isEmpty) return cards;
+    final authoredIds = [
+      for (final c in cards)
+        if (c.role == MyWorkCardRole.authored) c.beaconId,
+    ];
+    if (authoredIds.isEmpty) return cards;
+    final rows = await _displayRepository.fetchDisplayStatuses(authoredIds);
+    final byBeacon = {for (final row in rows) row.beaconId: row};
+    return [
+      for (final card in cards)
+        byBeacon.containsKey(card.beaconId)
+            ? card.copyWith(displayStatus: byBeacon[card.beaconId])
+            : card,
+    ];
   }
 
   List<MyWorkCardViewModel> _applyRoomInboxSubtitles(

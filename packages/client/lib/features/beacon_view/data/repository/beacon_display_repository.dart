@@ -40,6 +40,9 @@ class BeaconDisplayRepository {
           'reviewClosesAt': row.reviewClosesAt,
           'lastActivityAt': row.lastActivityAt,
           'lifecycleEndedAt': row.lifecycleEndedAt,
+          'canCancel': row.canCancel,
+          'canDelete': row.canDelete,
+          'everAcknowledgedCommitterCount': row.everAcknowledgedCommitterCount,
         }),
     ];
   }

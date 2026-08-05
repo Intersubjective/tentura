@@ -190,6 +190,7 @@ Future<void> beaconViewRunAuthorCloseSheet({
   required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
 }) async {
   if (!context.mounted) return;
+  if (!closeReviewWindowExpectationKnown(cubit.state)) return;
   var summary = buildClosureConfirmationSummary(cubit.state);
 
   Future<bool> attemptClose(bool expected) async {

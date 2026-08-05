@@ -9,5 +9,8 @@ query BeaconDisplayStatuses($beaconIds: [String!]!) {
     reviewClosesAt
     lastActivityAt
     lifecycleEndedAt
+    canCancel
+    canDelete
+    everAcknowledgedCommitterCount
   }
 }

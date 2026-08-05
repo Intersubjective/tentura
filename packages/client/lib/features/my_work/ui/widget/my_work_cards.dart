@@ -29,6 +29,12 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 
+bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
+    vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
+
+bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
+    (vm.displayStatus?.everAcknowledgedCommitterCount ?? 0) > 0;
+
 typedef MyWorkCardSelect = void Function(
   MyWorkCardViewModel vm, {
   String? viewTab,
@@ -321,7 +327,7 @@ class _AuthoredActiveCard extends StatelessWidget {
               onShare: b.allowsForward
                   ? () => unawaited(showBeaconShareSheet(context, beacon: b))
                   : null,
-              onCloseBeacon: b.status == BeaconStatus.open
+              onCloseBeacon: myWorkCloseBeaconEnabled(vm)
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -333,7 +339,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                       try {
                         await evaluationRepo.beaconClose(
                           beaconId: b.id,
-                          expectedRequiresReviewWindow: b.helpOfferCount > 0,
+                          expectedRequiresReviewWindow:
+                              myWorkExpectedRequiresReviewWindow(vm),
                         );
                       } catch (e) {
                         if (context.mounted) {
@@ -646,7 +653,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
               onShare: b.allowsForward
                   ? () => unawaited(showBeaconShareSheet(context, beacon: b))
                   : null,
-              onCloseBeacon: b.status == BeaconStatus.open
+              onCloseBeacon: myWorkCloseBeaconEnabled(vm)
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -658,7 +665,8 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       try {
                         await evaluationRepo.beaconClose(
                           beaconId: b.id,
-                          expectedRequiresReviewWindow: b.helpOfferCount > 0,
+                          expectedRequiresReviewWindow:
+                              myWorkExpectedRequiresReviewWindow(vm),
                         );
                       } catch (e) {
                         if (context.mounted) {

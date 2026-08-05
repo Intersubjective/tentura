@@ -13,6 +13,9 @@ class BeaconDisplayStatusDto {
     this.reviewClosesAt,
     this.lastActivityAt,
     this.lifecycleEndedAt,
+    this.canCancel = false,
+    this.canDelete = false,
+    this.everAcknowledgedCommitterCount = 0,
   });
 
   final String beaconId;
@@ -24,6 +27,9 @@ class BeaconDisplayStatusDto {
   final DateTime? reviewClosesAt;
   final DateTime? lastActivityAt;
   final DateTime? lifecycleEndedAt;
+  final bool canCancel;
+  final bool canDelete;
+  final int everAcknowledgedCommitterCount;
 
   BeaconCoordinationPhaseResult toPhaseResult() => BeaconCoordinationPhaseResult(
         phase: phase,
@@ -62,6 +68,10 @@ BeaconDisplayStatusDto beaconDisplayStatusFromGql(Map<String, dynamic> json) {
     reviewClosesAt: _parseOpt(json['reviewClosesAt'] as String?),
     lastActivityAt: _parseOpt(json['lastActivityAt'] as String?),
     lifecycleEndedAt: _parseOpt(json['lifecycleEndedAt'] as String?),
+    canCancel: json['canCancel'] as bool? ?? false,
+    canDelete: json['canDelete'] as bool? ?? false,
+    everAcknowledgedCommitterCount:
+        json['everAcknowledgedCommitterCount'] as int? ?? 0,
   );
 }
 

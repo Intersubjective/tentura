@@ -32,6 +32,8 @@ import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidat
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
 import '../../data/repository/coordination_repository.dart';
+import '../../data/repository/beacon_display_repository.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 
 @singleton
 final class BeaconViewCase extends UseCaseBase {
@@ -41,6 +43,7 @@ final class BeaconViewCase extends UseCaseBase {
     this._evaluationRepository,
     this._archiveRepository,
     this._coordinationRepository,
+    this._displayRepository,
     this._inboxRepository,
     this._factCards,
     this._beaconRoomCase,
@@ -59,6 +62,8 @@ final class BeaconViewCase extends UseCaseBase {
   final ArchiveRepository _archiveRepository;
 
   final CoordinationRepository _coordinationRepository;
+
+  final BeaconDisplayRepository _displayRepository;
 
   final InboxRepository _inboxRepository;
 
@@ -333,6 +338,8 @@ final class BeaconViewCase extends UseCaseBase {
         int? admissionAction,
         String? lastDeclineReason,
         String? lastRemoveReason,
+        int stakeState,
+        int offerKind,
       })
     >
   >
@@ -341,6 +348,12 @@ final class BeaconViewCase extends UseCaseBase {
   }) => _coordinationRepository.fetchHelpOffersWithCoordination(
     beaconId: beaconId,
   );
+
+  Future<BeaconDisplayStatusDto?> fetchDisplayStatus(String beaconId) async {
+    final rows = await _displayRepository.fetchDisplayStatuses([beaconId]);
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
 
   Future<
     ({

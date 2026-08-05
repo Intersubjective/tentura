@@ -348,6 +348,7 @@ Future<void> _runCloseFlow(
   VoidCallback? onOpenPeopleTab,
   void Function([CoordinationItem? focusItem])? onEnterRoomSurface,
 }) async {
+  if (!closeReviewWindowExpectationKnown(cubit.state)) return;
   var summary = buildClosureConfirmationSummary(cubit.state);
 
   Future<bool> attemptClose(bool expected) async {

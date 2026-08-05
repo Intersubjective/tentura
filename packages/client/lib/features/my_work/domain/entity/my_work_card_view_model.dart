@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
@@ -74,6 +75,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Explicit YOU-line counts for My Work cards.
     CoordinationResponsibility? youResponsibility,
+
+    /// Server display-status projection (author gate fields).
+    BeaconDisplayStatusDto? displayStatus,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();
