@@ -522,6 +522,23 @@ class MockBeaconRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<List<_i4.BeaconStageRow>>);
+
+  @override
+  _i3.Future<int> reviewReopenCount(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#reviewReopenCount, [beaconId]),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
+  _i3.Future<void> incrementReviewReopenCount(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#incrementReviewReopenCount, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
 }
 
 /// A class which mocks [ForwardAttributionRepositoryPort].

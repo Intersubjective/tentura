@@ -637,6 +637,26 @@ WHERE user_id = $1 AND created_at >= $2
   }
 
   @override
+  Future<int> reviewReopenCount(String beaconId) async {
+    final row = await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .getSingle();
+    return row.reviewReopenCount;
+  }
+
+  @override
+  Future<void> incrementReviewReopenCount(String beaconId) async {
+    final row = await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .getSingle();
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update(
+          (o) => o(reviewReopenCount: Value(row.reviewReopenCount + 1)),
+        );
+  }
+
+  @override
   Future<List<BeaconStageRow>> staleStages({
     required DateTime olderThan,
     int limit = 100,

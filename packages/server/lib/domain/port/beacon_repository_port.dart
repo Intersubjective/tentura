@@ -161,4 +161,8 @@ abstract class BeaconRepositoryPort {
     required DateTime olderThan,
     int limit = 100,
   });
+
+  Future<int> reviewReopenCount(String beaconId);
+
+  Future<void> incrementReviewReopenCount(String beaconId);
 }

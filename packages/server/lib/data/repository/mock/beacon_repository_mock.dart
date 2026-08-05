@@ -361,6 +361,12 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<int> reviewReopenCount(String beaconId) async => 0;
+
+  @override
+  Future<void> incrementReviewReopenCount(String beaconId) async {}
+
+  @override
   Future<List<BeaconStageRow>> staleStages({
     required DateTime olderThan,
     int limit = 100,

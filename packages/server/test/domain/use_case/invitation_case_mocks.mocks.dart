@@ -1063,6 +1063,23 @@ class MockBeaconRepositoryPort extends _i1.Mock
             ),
           )
           as _i6.Future<List<_i7.BeaconStageRow>>);
+
+  @override
+  _i6.Future<int> reviewReopenCount(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#reviewReopenCount, [beaconId]),
+            returnValue: _i6.Future<int>.value(0),
+          )
+          as _i6.Future<int>);
+
+  @override
+  _i6.Future<void> incrementReviewReopenCount(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#incrementReviewReopenCount, [beaconId]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 }
 
 /// A class which mocks [VoteUserFriendshipLookupPort].
