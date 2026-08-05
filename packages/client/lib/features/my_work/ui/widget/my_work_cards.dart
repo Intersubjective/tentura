@@ -355,7 +355,10 @@ class _AuthoredActiveCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onCancelBeacon: beaconAllowsCancel(b)
+              onCancelBeacon: beaconAllowsCancel(
+                b,
+                serverCanCancel: vm.displayStatus?.canCancel,
+              )
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -399,7 +402,10 @@ class _AuthoredActiveCard extends StatelessWidget {
                 if (await BeaconDeleteDialog.show(
                       context,
                       status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
+                        b,
+                        serverCanDelete: vm.displayStatus?.canDelete,
+                      ),
                     ) ??
                     false) {
                   try {
@@ -572,7 +578,10 @@ class _DraftAuthoredCard extends StatelessWidget {
                 if (await BeaconDeleteDialog.show(
                       context,
                       status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
+                        b,
+                        serverCanDelete: vm.displayStatus?.canDelete,
+                      ),
                     ) ??
                     false) {
                   try {
@@ -682,7 +691,10 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       }
                     }
                   : null,
-              onCancelBeacon: beaconAllowsCancel(b)
+              onCancelBeacon: beaconAllowsCancel(
+                b,
+                serverCanCancel: vm.displayStatus?.canCancel,
+              )
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
                       if (!context.mounted) return;
@@ -726,7 +738,10 @@ class _FinishedAuthoredCard extends StatelessWidget {
                 if (await BeaconDeleteDialog.show(
                       context,
                       status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
+                        b,
+                        serverCanDelete: vm.displayStatus?.canDelete,
+                      ),
                     ) ??
                     false) {
                   try {

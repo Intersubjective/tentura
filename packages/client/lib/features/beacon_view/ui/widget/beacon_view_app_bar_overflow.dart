@@ -473,7 +473,10 @@ Widget beaconViewAppBarOverflow({
               if (await BeaconDeleteDialog.show(
                     context,
                     status: b.status,
-                    hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                    hasEverHadCommitter: beaconDeleteBlockedByCommitters(
+                      b,
+                      serverCanDelete: state.displayStatus?.canDelete,
+                    ),
                   ) ??
                   false) {
                 if (!context.mounted) return;
