@@ -207,6 +207,10 @@ class HelpOfferTile extends StatelessWidget {
             const SizedBox(height: _rowGap),
             ForwardCapabilityChips(slugs: helpTypeSlugs),
           ],
+          if (isAuthorView && helpOffer.isDirectAuthorForward) ...[
+            const SizedBox(height: _rowGap),
+            _DirectForwardChip(label: l10n.helpOfferDirectForwardChip),
+          ],
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
             if (showHelpTypeChips) const SizedBox(height: 6),
@@ -282,6 +286,36 @@ class HelpOfferTile extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _DirectForwardChip extends StatelessWidget {
+  const _DirectForwardChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(tt.buttonRadius),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.tightGap,
+          vertical: tt.tightGap / 2,
+        ),
+        child: Text(
+          label,
+          style: TenturaText.labelSmall(
+            theme.colorScheme.onSecondaryContainer,
+          ),
+        ),
       ),
     );
   }

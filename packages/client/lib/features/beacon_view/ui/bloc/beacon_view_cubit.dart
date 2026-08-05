@@ -812,6 +812,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         String? lastRemoveReason,
         int stakeState,
         int offerKind,
+        bool isDirectAuthorForward,
       })
     >
     helpOffers,
@@ -836,6 +837,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         lastRemoveReason: c.lastRemoveReason,
         stakeState: CommitmentStakeState.fromInt(c.stakeState),
         offerKind: c.offerKind,
+        isDirectAuthorForward: c.isDirectAuthorForward,
       ),
   ];
 
@@ -952,6 +954,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   String? lastRemoveReason,
                   int stakeState,
                   int offerKind,
+                  bool isDirectAuthorForward,
                 })
               >;
       final inboxCtx =
@@ -1004,6 +1007,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             lastRemoveReason: c.lastRemoveReason,
             stakeState: CommitmentStakeState.fromInt(c.stakeState),
             offerKind: c.offerKind,
+            isDirectAuthorForward: c.isDirectAuthorForward,
           ),
       ];
 
@@ -1239,6 +1243,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     String? lastRemoveReason,
     int stakeState,
     int offerKind,
+    bool isDirectAuthorForward,
   })
   row,
 }) {

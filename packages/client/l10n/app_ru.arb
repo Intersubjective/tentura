@@ -3728,6 +3728,10 @@
   "helpOfferCanReadChat": "Может читать этот чат",
   "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
   "helpOfferAdmittedAutomaticallyHint": "Вы переслали этот запрос напрямую",
+  "helpOfferDirectForwardChip": "Вы переслали лично",
+  "@helpOfferDirectForwardChip": {
+    "description": "Чип на вкладке Люди, когда автор переслал запрос этому помощнику лично"
+  },
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
   "helpOfferRemoveDialogTitle": "Убрать из чата",

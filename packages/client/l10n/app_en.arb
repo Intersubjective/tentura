@@ -3763,6 +3763,10 @@
   "helpOfferCanReadChat": "Can read this chat",
   "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
   "helpOfferAdmittedAutomaticallyHint": "You forwarded this request to them directly",
+  "helpOfferDirectForwardChip": "Forwarded by you",
+  "@helpOfferDirectForwardChip": {
+    "description": "Chip on People tab when the author directly forwarded this request to the helper"
+  },
   "helpOfferDeclineDialogTitle": "Decline this offer",
   "helpOfferDeclineDialogHint": "Let them know why. This is required",
   "helpOfferRemoveDialogTitle": "Remove from chat",

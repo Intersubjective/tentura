@@ -319,4 +319,100 @@ void main() {
     expect(find.text('End participation'), findsNothing);
     expect(find.text('Participation ended'), findsOneWidget);
   });
+
+  testWidgets('shows direct-forward chip for author when flagged', (
+    tester,
+  ) async {
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          isDirectAuthorForward: true,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+            BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
+          ],
+          child: Scaffold(
+            body: BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Forwarded by you'), findsOneWidget);
+  });
+
+  testWidgets('direct-forward offers sort above others in willing section', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper Later'),
+          message: 'first',
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+        TimelineHelpOffer(
+          user: const Profile(id: 'h2', displayName: 'Helper Direct'),
+          message: 'second',
+          createdAt: _t,
+          updatedAt: _t,
+          isDirectAuthorForward: true,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+            BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
+          ],
+          child: Scaffold(
+            body: BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final directTop = tester.getTopLeft(find.text('Helper Direct')).dy;
+    final laterTop = tester.getTopLeft(find.text('Helper Later')).dy;
+    expect(directTop, lessThan(laterTop));
+
+    await tester.binding.setSurfaceSize(null);
+  });
 }

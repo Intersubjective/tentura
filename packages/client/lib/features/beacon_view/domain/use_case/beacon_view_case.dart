@@ -355,6 +355,7 @@ final class BeaconViewCase extends UseCaseBase {
         String? lastRemoveReason,
         int stakeState,
         int offerKind,
+        bool isDirectAuthorForward,
       })
     >
   >

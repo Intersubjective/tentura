@@ -155,6 +155,31 @@ class BeaconPeopleTabBody extends StatelessWidget {
       viewerUserId: state.myProfile.id,
     );
 
+    bool isDirectAuthorForward(String userId) {
+      for (final c in state.helpOffers) {
+        if (c.user.id == userId && !c.isWithdrawn) {
+          return c.isDirectAuthorForward;
+        }
+      }
+      return false;
+    }
+
+    List<BeaconPeopleRow> sortDirectForwardUp(List<BeaconPeopleRow> rows) {
+      if (rows.length < 2) return rows;
+      return [...rows]..sort((a, b) {
+        final aDirect = isDirectAuthorForward(a.userId);
+        final bDirect = isDirectAuthorForward(b.userId);
+        if (aDirect == bDirect) return 0;
+        return aDirect ? -1 : 1;
+      });
+    }
+
+    final peopleSections = BeaconPeopleSections(
+      activeHelpers: sections.activeHelpers,
+      willingToHelp: sortDirectForwardUp(sections.willingToHelp),
+      notFitting: sections.notFitting,
+    );
+
     final showWithdrawn = withdrawn.isNotEmpty;
     final requestedSectionId = peopleTabAttentionActive
         ? BeaconPeopleAccordionSection.willingToHelp
@@ -327,26 +352,26 @@ class BeaconPeopleTabBody extends StatelessWidget {
               peopleSectionFold(
                 sectionId: BeaconPeopleAccordionSection.activeHelpers,
                 title: l10n.beaconPeopleLensActiveHelpersHeading,
-                rows: sections.activeHelpers,
+                rows: peopleSections.activeHelpers,
                 initiallyExpanded: true,
               ),
-              if (sections.activeHelpers.isNotEmpty &&
-                  (sections.willingToHelp.isNotEmpty ||
-                      sections.notFitting.isNotEmpty))
+              if (peopleSections.activeHelpers.isNotEmpty &&
+                  (peopleSections.willingToHelp.isNotEmpty ||
+                      peopleSections.notFitting.isNotEmpty))
                 const SizedBox(height: 8),
               peopleSectionFold(
                 sectionId: BeaconPeopleAccordionSection.willingToHelp,
                 title: l10n.beaconPeopleLensWillingToHelpHeading,
-                rows: sections.willingToHelp,
+                rows: peopleSections.willingToHelp,
                 initiallyExpanded: true,
               ),
-              if (sections.willingToHelp.isNotEmpty &&
-                  sections.notFitting.isNotEmpty)
+              if (peopleSections.willingToHelp.isNotEmpty &&
+                  peopleSections.notFitting.isNotEmpty)
                 const SizedBox(height: 8),
               peopleSectionFold(
                 sectionId: BeaconPeopleAccordionSection.notFitting,
                 title: l10n.beaconPeopleLensNotFittingHeading,
-                rows: sections.notFitting,
+                rows: peopleSections.notFitting,
                 initiallyExpanded: false,
               ),
               if (showWithdrawn) ...[

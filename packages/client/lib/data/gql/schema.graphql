@@ -6595,6 +6595,7 @@ type v2_HelpOfferWithCoordinationRow {
   lastRemoveReason: String
   message: String!
   offerKind: Int!
+  isDirectAuthorForward: Boolean!
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String

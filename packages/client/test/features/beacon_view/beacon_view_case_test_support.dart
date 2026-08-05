@@ -56,6 +56,7 @@ typedef FakeHelpOfferCoordinationRow = ({
   String? lastRemoveReason,
   int stakeState,
   int offerKind,
+  bool isDirectAuthorForward,
 });
 
 Never _throwTestError(Object error) {

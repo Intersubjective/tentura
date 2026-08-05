@@ -46,6 +46,7 @@ class TimelineHelpOffer {
     this.lastRemoveReason,
     this.stakeState = CommitmentStakeState.none,
     this.offerKind = 0,
+    this.isDirectAuthorForward = false,
   });
   final Profile user;
   final String message;
@@ -63,6 +64,7 @@ class TimelineHelpOffer {
   final String? lastRemoveReason;
   final CommitmentStakeState stakeState;
   final int offerKind;
+  final bool isDirectAuthorForward;
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
@@ -82,6 +84,7 @@ class TimelineHelpOffer {
     String? lastRemoveReason,
     CommitmentStakeState? stakeState,
     int? offerKind,
+    bool? isDirectAuthorForward,
   }) => TimelineHelpOffer(
     user: user ?? this.user,
     message: message ?? this.message,
@@ -97,6 +100,8 @@ class TimelineHelpOffer {
     lastRemoveReason: lastRemoveReason ?? this.lastRemoveReason,
     stakeState: stakeState ?? this.stakeState,
     offerKind: offerKind ?? this.offerKind,
+    isDirectAuthorForward:
+        isDirectAuthorForward ?? this.isDirectAuthorForward,
   );
 }
 

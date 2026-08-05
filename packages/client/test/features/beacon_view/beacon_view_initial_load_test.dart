@@ -174,6 +174,7 @@ void main() {
               lastRemoveReason: null,
               stakeState: 0,
               offerKind: 0,
+              isDirectAuthorForward: false,
             ),
           ],
         ),

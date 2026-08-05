@@ -45,6 +45,7 @@ class CoordinationRepository {
         String? lastRemoveReason,
         int stakeState,
         int offerKind,
+        bool isDirectAuthorForward,
       })
     >
   >
@@ -83,6 +84,7 @@ class CoordinationRepository {
                 lastRemoveReason: e.lastRemoveReason,
                 stakeState: e.stakeState,
                 offerKind: e.offerKind,
+                isDirectAuthorForward: e.isDirectAuthorForward,
               ),
             )
             .toList();

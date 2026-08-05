@@ -64,7 +64,7 @@ deployment. We still commit once per phase (plan §0.5 format:
 - [x] U11 — P4: `releaseCommitment` (server use case, exception code,
       notification kind `commitmentReleased`, GraphQL, client case/cubit/UI,
       l10n, tests)
-- [ ] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
+- [x] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
 - [ ] U13 — P6: "Enough help" Forward-primary + backup offers (D2 A+B)
 - [ ] U14 — P7: My Work offer-response-state row (D3)
 - [ ] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
@@ -838,3 +838,43 @@ Confirmed the client GraphQL operation name is registered in
 `_tenturaDirectOperationNames` (mandatory per §0.2, easy to silently miss).
 
 Proceeding to U12 (P5 — remove auto-admit).
+
+### 2026-08-05 — U12 P5 remove auto-admit and direct-forward signal (worker)
+
+**Done:** Implemented plan §7 P5 (D4) in full.
+
+- **P5.1:** Removed `HelpOfferCase._autoAdmitIfTrusted` and unused
+  `ForwardEdgeRepositoryPort` / `HelpOfferAdmissionRepositoryPort` /
+  `BeaconRoomRepositoryPort` / `CoordinationRepositoryPort` constructor deps.
+  Historical `autoAdmit` enum values untouched.
+- **P5.2:** `HelpOfferWithCoordinationRow.isDirectAuthorForward` populated via
+  batch query on `beacon_forward_edge` (author `userId` → recipient, active).
+  GraphQL + DTO map wired.
+- **P5.3:** Client schema/query/model; People tab chip (`helpOfferDirectForwardChip`)
+  on author view; willing-to-help rows sorted with direct-forward offers first.
+- **P5.4:** Tests — admission matrix + help_offer_case confirm no room access /
+  no coordination row / only `offered` commitment event; widget tests for chip
+  and sort; transactional-attention inventory no longer expects
+  `offerAccepted` from `HelpOfferCase`.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1253/1253 green
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline held)
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1656 passed, 14 skipped
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+**Commits (3, not pushed):**
+- `fa815228` feat(commitment): P5.1 — remove auto-admit code path
+- `4a4ba43a` feat(commitment): P5.2 — isDirectAuthorForward on help offer coordination row
+- (pending) feat(commitment): P5.3 — client direct-forward chip, sort, and wiring
+
+**Decisions:** Client bumped `5.6.39` → `5.6.40`. Direct-forward chip shown only in
+author view (l10n is author-centric: "Forwarded by you"). Sort applies within
+`willingToHelp` section only (primary sort key; tie order preserved).
+`user_bookkeeping_case` still calls `isDirectAuthorForward` for inbox hints —
+unchanged (informational only).
+
+**Remaining:** U13 (P6) — Enough help Forward-primary + backup offers.

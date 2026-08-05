@@ -19,6 +19,7 @@ query HelpOffersWithCoordination($beaconId: String!) {
     lastRemoveReason
     offerKind
     stakeState
+    isDirectAuthorForward
     user {
       id
       displayName
