@@ -952,3 +952,17 @@ coupling header to coordination-tier author paths.
 
 P6 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
 U13 marked complete. Proceeding to U14 (P7).
+
+### 2026-08-05 — U13 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1260/1260
+green), both custom-lint gates (0/0, 112/112), terminology check (ok), and
+full client `flutter test` (1657 passed, 14 skipped). Verified `offerHelp`'s
+new-offer branch computes `offerKind` fresh from beacon status while the
+re-upsert branch reads and preserves the existing row's `offerKind` rather
+than recomputing — matches plan §8 P6.1 exactly (a re-upsert must not
+reclassify an offer if the beacon's status changed since it was first made).
+Confirmed both `hasUnreviewed` (server) and `unansweredHelpOffersCount`
+(client) now filter on `offerKind == 0`, keeping backup offers out of the
+"awaiting author response" signal on both sides consistently. Proceeding to
+U14 (P7 — My Work offer-response-state row).
