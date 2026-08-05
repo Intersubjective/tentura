@@ -721,6 +721,7 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('lastRemoveReason', graphQLString),
         field('stakeState', graphQLInt.nonNullable()),
         field('offerKind', graphQLInt.nonNullable()),
+        field('isDirectAuthorForward', graphQLBoolean.nonNullable()),
         field('user', gqlTypeUserPublic.nonNullable()),
       ]);
 

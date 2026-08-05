@@ -305,6 +305,25 @@ ORDER BY beacon_id, offer_user_id, seq DESC
           peerIds: rows.map((r) => r.userId),
         );
 
+    final beaconRow = await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .getSingleOrNull();
+    final authorId = beaconRow?.userId;
+    final directAuthorForwardRecipientIds = <String>{};
+    if (authorId != null) {
+      final forwardEdges = await _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) &
+                e.senderId.id(authorId) &
+                e.cancelledAt.isNull(),
+          )
+          .get();
+      directAuthorForwardRecipientIds.addAll(
+        forwardEdges.map((e) => e.recipientId),
+      );
+    }
+
     final participantRows = await _database.managers.beaconParticipants
         .filter((p) => p.beaconId.id(beaconId))
         .get();
@@ -351,6 +370,8 @@ ORDER BY beacon_id, offer_user_id, seq DESC
               : null,
           stakeState: row.stakeState,
           offerKind: row.offerKind,
+          isDirectAuthorForward:
+              directAuthorForwardRecipientIds.contains(row.userId),
         ),
       );
     }

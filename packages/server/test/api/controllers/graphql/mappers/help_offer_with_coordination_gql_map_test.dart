@@ -28,6 +28,26 @@ void main() {
     expect(m['offerKind'], 0);
   });
 
+  test('helpOfferWithCoordinationToGqlMap includes isDirectAuthorForward', () {
+    const user = UserPublicRecord(
+      id: 'U1',
+      displayName: 't',
+      description: '',
+    );
+    final row = HelpOfferWithCoordinationRow(
+      beaconId: 'B1',
+      userId: 'U1',
+      message: 'm',
+      status: 0,
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
+      user: user,
+      isDirectAuthorForward: true,
+    );
+    final m = helpOfferWithCoordinationToGqlMap(row);
+    expect(m['isDirectAuthorForward'], true);
+  });
+
   test('helpOfferWithCoordinationToGqlMap includes roomAccess for auto-admit', () {
     const user = UserPublicRecord(
       id: 'U1',

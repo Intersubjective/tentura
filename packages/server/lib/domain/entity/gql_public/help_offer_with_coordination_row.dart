@@ -24,6 +24,7 @@ class HelpOfferWithCoordinationRow {
     this.lastRemoveReason,
     this.stakeState = 0,
     this.offerKind = 0,
+    this.isDirectAuthorForward = false,
   });
 
   final String beaconId;
@@ -45,6 +46,7 @@ class HelpOfferWithCoordinationRow {
   final String? lastRemoveReason;
   final int stakeState;
   final int offerKind;
+  final bool isDirectAuthorForward;
   final UserPublicRecord user;
 
   HelpOfferWithCoordinationRow copyWith({
@@ -53,6 +55,7 @@ class HelpOfferWithCoordinationRow {
     String? lastRemoveReason,
     int? stakeState,
     int? offerKind,
+    bool? isDirectAuthorForward,
     bool clearAdmissionFields = false,
   }) => HelpOfferWithCoordinationRow(
     beaconId: beaconId,
@@ -79,5 +82,7 @@ class HelpOfferWithCoordinationRow {
         : lastRemoveReason ?? this.lastRemoveReason,
     stakeState: stakeState ?? this.stakeState,
     offerKind: offerKind ?? this.offerKind,
+    isDirectAuthorForward:
+        isDirectAuthorForward ?? this.isDirectAuthorForward,
   );
 }

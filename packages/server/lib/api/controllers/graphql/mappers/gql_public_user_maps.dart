@@ -64,5 +64,6 @@ Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
   'lastRemoveReason': row.lastRemoveReason,
   'stakeState': row.stakeState,
   'offerKind': row.offerKind,
+  'isDirectAuthorForward': row.isDirectAuthorForward,
   'user': userPublicToGqlMap(row.user),
 };
