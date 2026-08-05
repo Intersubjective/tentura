@@ -801,3 +801,40 @@ with `seedEvents`).
 
 P4 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
 U11 marked complete. Proceeding to U12 (P5).
+
+### 2026-08-05 — U11 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1259/1259
+green), both custom-lint gates (server 0/0, client 112/112 baseline),
+terminology check (ok), and full client `flutter test` (1654 passed, 14
+skipped).
+
+Specifically investigated one thing that looked, on first read, like it might
+violate the plan's enum-append-only rule: `commitmentReleased` was inserted
+into `NotificationKind` right after `commitmentRemoved`, NOT at the very end
+of the enum (which has `commitmentAccepted`/`commitmentResolved`/
+`commitmentCancelled`/`commitmentRedirected` after it). Checked whether this
+matters: `HelpOfferCoordinationExceptionCode`/`EvaluationExceptionCode` are
+explicitly called out in plan §0.1 as index-serialized (`codeNumber =
+codeSpace + index`) — `NotificationKind` is NOT one of those two. Grepped its
+actual persistence path (`attention_repository.dart`,
+`notification_outbox_repository.dart`): both look kinds up via
+`_kindFromName`/`.name` (string), never `.index`/ordinal. Confirmed no other
+file in server or client reads `NotificationKind.index`. So the mid-enum
+insertion is safe — this enum serializes by name, not position — and is not
+a violation of the plan's rule, just a different (and reasonable) insertion
+point chosen for readability (grouped next to the semantically related
+`commitmentRemoved`).
+
+Verified `releaseCommitment`'s check ordering (author → open-family status →
+`everAcknowledgedPair` → idempotent no-op on already released/exited →
+record event + attention intent) matches plan §6 P4.1 exactly, and that it
+touches nothing else (no offer status, no coordination row, no room access —
+D5/O2's intentional separation from "remove from chat" is preserved).
+Confirmed `commitmentNotAcknowledged` was appended strictly after
+`admissionRequiresAcknowledgement` (both from U06) in
+`HelpOfferCoordinationExceptionCode` — correct append-only ordering there.
+Confirmed the client GraphQL operation name is registered in
+`_tenturaDirectOperationNames` (mandatory per §0.2, easy to silently miss).
+
+Proceeding to U12 (P5 — remove auto-admit).
