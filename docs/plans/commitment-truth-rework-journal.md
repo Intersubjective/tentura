@@ -65,7 +65,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       notification kind `commitmentReleased`, GraphQL, client case/cubit/UI,
       l10n, tests)
 - [x] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
-- [ ] U13 — P6: "Enough help" Forward-primary + backup offers (D2 A+B)
+- [x] U13 — P6: "Enough help" Forward-primary + backup offers (D2 A+B)
 - [ ] U14 — P7: My Work offer-response-state row (D3)
 - [ ] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
       patch, l10n, tests
@@ -904,3 +904,51 @@ signal only, no access/response side effects) — resolves what initially
 looked like a surprising claim in the worker's decision note about
 `user_bookkeeping_case` already calling it. Proceeding to U13 (P6 — "Enough
 help" Forward-primary + backup offers).
+
+### 2026-08-05 — U13 P6 enough help Forward-primary + backup offers (worker)
+
+**Done:** Implemented plan §8 P6.1–P6.8 in full.
+
+- **P6.1:** `HelpOfferRepositoryPort.upsert` + `HelpOfferRepository` persist
+  `offerKind`; `HelpOfferCase.offerHelp` sets `offerKind = 1` on new offers when
+  beacon status is `enoughHelp`, preserves existing `offerKind` on re-upsert.
+- **P6.2:** `BeaconDisplayCase` `hasUnreviewed` filters `offerKind == 0`.
+- **P6.3+P6.4:** `_derivePublic` / `_derivePublicTier` `enoughHelp` →
+  `suggestedAction: forward` (coordination tier unchanged).
+- **P6.5:** `BeaconOperationalHeaderCard` — enoughHelp public viewers get Forward
+  primary + `beaconOfferHelpAsBackup` secondary; People tab backup group;
+  `unansweredHelpOffersCount` excludes `offerKind == 1`; backup badge on tile.
+- **P6.6:** Three l10n keys (EN+RU); client `5.6.40` → `5.6.41`.
+- **P6.7:** Tests in `help_offer_case_test`, `beacon_display_case_test`,
+  `derive_beacon_*_test`; test-repo stubs updated for `offerKind` param.
+- **P6.8:** Verified `offer_kind` present in `hasura/metadata.json` (P1.1);
+  local Hasura/docker reachable — no metadata change required.
+
+**Tests run (all passed):**
+- `cd packages/server && dart run build_runner build -d`
+- `cd packages/server && dart test -x pg` → 1260/1260 green (+7 new)
+- `cd packages/client && flutter gen-l10n`
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1657 passed, 14 skipped
+- `cd packages/tentura_lints && dart test` → 18/18
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline held)
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+**Commits (4, not pushed):**
+- `f1bef5b2` feat(commitment): P6.1+P6.2 — offerKind assignment and backup-aware hasUnreviewed
+- `308915fa` feat(commitment): P6.3+P6.4 — enoughHelp public tier suggests Forward
+- `681dc1f8` feat(commitment): P6.5 — backup offer UI, People grouping, unanswered counter
+- `1a086053` feat(commitment): P6.6 — l10n for backup offers (EN/RU)
+
+**Decisions:** Re-upsert reads `offerKind` via `fetchByBeaconId` (active rows only).
+Backup People section uses flat header (not accordion id) below notFitting/withdrawn
+folds. EnoughHelp HUD uses status check directly (not phase derivation) to avoid
+coupling header to coordination-tier author paths.
+
+**Remaining:** U14 (P7) — My Work offer-response-state row.
+
+### 2026-08-05 — U13 final
+
+P6 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
+U13 marked complete. Proceeding to U14 (P7).
