@@ -1067,6 +1067,7 @@ final class BrowserSession {
   Future<int?> readQaHeadRefreshLatencyMs() async {
     final fromWindow = await driver.execute(
       'return window.__tenturaQaHeadRefreshLatencyMs ?? null;',
+      [],
     );
     if (fromWindow is num) {
       return fromWindow.toInt();
