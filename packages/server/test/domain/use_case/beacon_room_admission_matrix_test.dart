@@ -27,11 +27,13 @@ import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'help_offer_case_mocks.mocks.dart';
@@ -43,6 +45,17 @@ const _helperId = 'Uhelper000001';
 const _outsiderId = 'Uoutsider0001';
 
 final _now = DateTime.utc(2025);
+
+CommitmentQueryCase _commitmentQueryCase(
+  NoOpCommitmentRepository commitmentRepo,
+  MockHelpOfferRepositoryPort helpOfferRepo,
+) =>
+    CommitmentQueryCase(
+      commitmentRepo,
+      helpOfferRepo,
+      env: Env(environment: Environment.test),
+      logger: Logger('BeaconRoomAdmissionMatrixTest'),
+    );
 
 BeaconEntity _beacon({BeaconStatus status = BeaconStatus.open}) => BeaconEntity(
   id: _beaconId,
@@ -229,6 +242,7 @@ void main() {
         helpOfferRepo = MockHelpOfferRepositoryPort();
         coordinationRepo = MockCoordinationRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
+        final commitmentRepo = NoOpCommitmentRepository();
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
@@ -236,6 +250,8 @@ void main() {
           roomRepo,
           _MinimalEvaluationRepo(),
           FakeUserBlockRepository(),
+          commitmentRepo,
+          _commitmentQueryCase(commitmentRepo, helpOfferRepo),
           guard: FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
@@ -405,6 +421,7 @@ void main() {
           onContextLoaded: onAttentionContextLoaded,
         );
         userBlocks = FakeUserBlockRepository();
+        final commitmentRepo = NoOpCommitmentRepository();
         sut = CoordinationCase(
           beaconRepo,
           helpOfferRepo,
@@ -412,6 +429,8 @@ void main() {
           roomRepo,
           _MinimalEvaluationRepo(),
           userBlocks,
+          commitmentRepo,
+          _commitmentQueryCase(commitmentRepo, helpOfferRepo),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           guard: guard ?? FakeBeaconAccessGuard(),
@@ -794,6 +813,7 @@ void main() {
           helpOfferRepo,
           beaconRepo,
           coordinationRepo,
+          NoOpCommitmentRepository(),
           inboxRepo,
           capabilityCase,
           roomRepo,

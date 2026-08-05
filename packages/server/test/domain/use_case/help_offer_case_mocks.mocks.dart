@@ -635,21 +635,6 @@ class MockCoordinationRepositoryPort extends _i1.Mock
   }
 
   @override
-  _i3.Future<void> deleteForCommit({
-    required String? beaconId,
-    required String? userId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteForCommit, [], {
-              #beaconId: beaconId,
-              #userId: userId,
-            }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
-
-  @override
   _i3.Future<void> upsertResponse({
     required String? beaconId,
     required String? offerUserId,

@@ -17,12 +17,6 @@ import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 final class EmptyGraphCoordinationRepository
     implements CoordinationRepositoryPort {
   @override
-  Future<void> deleteForCommit({
-    required String beaconId,
-    required String userId,
-  }) => throw UnimplementedError();
-
-  @override
   Future<void> upsertResponse({
     required String beaconId,
     required String offerUserId,

@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart'
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
@@ -24,6 +25,7 @@ import '../../support/block_aware_beacon_access_guard.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -36,6 +38,7 @@ void main() {
   late MockBeaconRoomRepositoryPort roomRepo;
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockHelpOfferAdmissionRepositoryPort admissionRepo;
+  late RecordingCommitmentRepository commitmentRepo;
   late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
   late HelpOfferCase case_;
@@ -69,6 +72,7 @@ void main() {
     roomRepo = MockBeaconRoomRepositoryPort();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     admissionRepo = MockHelpOfferAdmissionRepositoryPort();
+    commitmentRepo = RecordingCommitmentRepository();
     attention = TestAttentionHarness();
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -79,6 +83,7 @@ void main() {
       helpOfferRepo,
       beaconRepo,
       coordinationRepo,
+      commitmentRepo,
       inboxRepo,
       capabilityCase,
       roomRepo,
@@ -173,9 +178,6 @@ void main() {
     test('allows OPEN (0)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
-        coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) => Future.value());
-      when(
         helpOfferRepo.withdraw(
           beaconId: 'B1',
           userId: 'U1',
@@ -196,6 +198,15 @@ void main() {
         withdrawReason: 'other',
       );
 
+      expect(commitmentRepo.recordCalls, [
+        (
+          beaconId: 'B1',
+          userId: 'U1',
+          actorUserId: 'U1',
+          kind: CommitmentEventKind.withdrawnByHelper,
+          reason: 'other',
+        ),
+      ]);
       verify(
         helpOfferRepo.withdraw(
           beaconId: 'B1',
@@ -533,6 +544,7 @@ void main() {
         helpOfferRepo,
         beaconRepo,
         coordinationRepo,
+        RecordingCommitmentRepository(),
         inboxRepo,
         capabilityCase,
         roomRepo,

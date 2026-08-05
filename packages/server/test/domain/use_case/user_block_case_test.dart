@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -21,6 +21,8 @@ import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/domain/user_block/user_block_withdraw_reason.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+import '../../support/recording_commitment_repository.dart';
 
 final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
@@ -142,19 +144,6 @@ final class _FakeForwardEdges extends Fake implements ForwardEdgeRepositoryPort 
   }
 }
 
-final class _RecordingCoordination extends Fake
-    implements CoordinationRepositoryPort {
-  final deleteForCommitCalls = <({String beaconId, String userId})>[];
-
-  @override
-  Future<void> deleteForCommit({
-    required String beaconId,
-    required String userId,
-  }) async {
-    deleteForCommitCalls.add((beaconId: beaconId, userId: userId));
-  }
-}
-
 final class _RecordingInbox extends Fake implements InboxRepositoryPort {
   final upsertWatchingCalls =
       <({String senderId, String beaconId, bool touchForwardOrdering})>[];
@@ -248,7 +237,7 @@ UserBlockCase _buildCase({
   ForwardEdgeRepositoryPort? forwardEdges,
   UserContactRepositoryPort? contacts,
   BeaconRepositoryPort? beacons,
-  CoordinationRepositoryPort? coordination,
+  RecordingCommitmentRepository? commitment,
   InboxRepositoryPort? inbox,
   int blockRateLimitPerDay = 50,
 }) =>
@@ -260,7 +249,7 @@ UserBlockCase _buildCase({
       contacts ?? _FakeContacts(),
       users,
       beacons ?? _FakeBeacons(),
-      coordination ?? _RecordingCoordination(),
+      commitment ?? RecordingCommitmentRepository(),
       inbox ?? _RecordingInbox(),
       env: Env(
         environment: Environment.test,
@@ -379,7 +368,7 @@ void main() {
   });
 
   test(
-    'help-offer cleanup deletes coordination, withdraws, and upserts watching on open beacon',
+    'help-offer cleanup records blockedCleanup, withdraws, and upserts watching on open beacon',
     () async {
       const beaconId = 'B-open';
       final helpOffers = _FakeHelpOffers({
@@ -393,13 +382,13 @@ void main() {
           ),
         ],
       });
-      final coordination = _RecordingCoordination();
+      final commitment = RecordingCommitmentRepository();
       final inbox = _RecordingInbox();
       final case_ = _buildCase(
         blocks: _FakeBlocks(),
         users: _FakeUsers({blockerId, blockedId}),
         helpOffers: helpOffers,
-        coordination: coordination,
+        commitment: commitment,
         inbox: inbox,
         beacons: _FakeBeacons(
           authorIdByBeaconId: {beaconId: blockedId},
@@ -413,8 +402,14 @@ void main() {
         cascadeMode: 0,
       );
 
-      expect(coordination.deleteForCommitCalls, [
-        (beaconId: beaconId, userId: blockerId),
+      expect(commitment.recordCalls, [
+        (
+          beaconId: beaconId,
+          userId: blockerId,
+          actorUserId: blockerId,
+          kind: CommitmentEventKind.blockedCleanup,
+          reason: kBlockWithdrawReason,
+        ),
       ]);
       expect(helpOffers.withdrawCalls, [
         (
@@ -449,13 +444,13 @@ void main() {
           ),
         ],
       });
-      final coordination = _RecordingCoordination();
+      final commitment = RecordingCommitmentRepository();
       final inbox = _RecordingInbox();
       final case_ = _buildCase(
         blocks: _FakeBlocks(),
         users: _FakeUsers({blockerId, blockedId}),
         helpOffers: helpOffers,
-        coordination: coordination,
+        commitment: commitment,
         inbox: inbox,
         beacons: _FakeBeacons(
           authorIdByBeaconId: {beaconId: blockerId},
@@ -469,8 +464,14 @@ void main() {
         cascadeMode: 0,
       );
 
-      expect(coordination.deleteForCommitCalls, [
-        (beaconId: beaconId, userId: blockedId),
+      expect(commitment.recordCalls, [
+        (
+          beaconId: beaconId,
+          userId: blockedId,
+          actorUserId: blockedId,
+          kind: CommitmentEventKind.blockedCleanup,
+          reason: kBlockWithdrawReason,
+        ),
       ]);
       expect(helpOffers.withdrawCalls, [
         (

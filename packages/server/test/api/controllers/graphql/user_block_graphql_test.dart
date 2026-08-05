@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/entity/user_block_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -24,6 +23,8 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../../support/recording_commitment_repository.dart';
 
 final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
@@ -130,7 +131,7 @@ UserBlockCase _userBlockCase(_RecordingBlockRepository blocks) => UserBlockCase(
   _FakeContacts(),
   _FakeUsers(),
   _FakeBeacons(),
-  _FakeCoordination(),
+  NoOpCommitmentRepository(),
   _FakeInbox(),
   env: Env.test(),
   logger: Logger('user-block-graphql-test'),
@@ -160,9 +161,6 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
 }
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {}
-
-final class _FakeCoordination extends Fake
-    implements CoordinationRepositoryPort {}
 
 final class _FakeInbox extends Fake implements InboxRepositoryPort {}
 

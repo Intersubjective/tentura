@@ -17,10 +17,12 @@ import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -284,7 +286,26 @@ void main() {
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
   late _TrackingEvaluationRepository evalRepo;
+  late NoOpCommitmentRepository commitmentRepo;
+  late CommitmentQueryCase commitmentQueryCase;
   late CoordinationCase case_;
+
+  CoordinationCase _buildCoordinationCase(TestAttentionHarness attention) =>
+      CoordinationCase(
+        beaconRepo,
+        helpOfferRepo,
+        coordinationRepo,
+        roomRepo,
+        evalRepo,
+        FakeUserBlockRepository(),
+        commitmentRepo,
+        commitmentQueryCase,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        guard: FakeBeaconAccessGuard(),
+        env: Env(environment: Environment.test),
+        logger: Logger('CoordinationCaseRevertTest'),
+      );
 
   setUp(() {
     beaconRepo = _TransactionBeaconRepo(beacon(status: BeaconStatus.open));
@@ -292,20 +313,15 @@ void main() {
     coordinationRepo = MockCoordinationRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
     evalRepo = _TrackingEvaluationRepository();
-    final attention = TestAttentionHarness();
-    case_ = CoordinationCase(
-      beaconRepo,
+    commitmentRepo = NoOpCommitmentRepository();
+    commitmentQueryCase = CommitmentQueryCase(
+      commitmentRepo,
       helpOfferRepo,
-      coordinationRepo,
-      roomRepo,
-      evalRepo,
-      FakeUserBlockRepository(),
-      attentionIntents: attention.intents,
-      attention: attention.transactional,
-      guard: FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('CoordinationCaseRevertTest'),
     );
+    final attention = TestAttentionHarness();
+    case_ = _buildCoordinationCase(attention);
   });
 
   void stubTransaction(BeaconEntity locked) {
@@ -321,21 +337,7 @@ void main() {
   }
 
   CoordinationCase enabledCase(TestAttentionHarness attention) =>
-      CoordinationCase(
-        beaconRepo,
-        helpOfferRepo,
-        coordinationRepo,
-        roomRepo,
-        evalRepo,
-        FakeUserBlockRepository(),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        guard: FakeBeaconAccessGuard(),
-        env: Env(
-          environment: Environment.test,
-        ),
-        logger: Logger('CoordinationCaseRevertTest'),
-      );
+      _buildCoordinationCase(attention);
 
   group('requestStatusChanged producer', () {
     test(

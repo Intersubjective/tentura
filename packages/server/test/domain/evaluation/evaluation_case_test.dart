@@ -1540,12 +1540,6 @@ final class _SingleCommitterCoordinationRepo
   ) async => {'helper1': _responseType};
 
   @override
-  Future<void> deleteForCommit({
-    required String beaconId,
-    required String userId,
-  }) => throw UnimplementedError();
-
-  @override
   Future<void> upsertResponse({
     required String beaconId,
     required String offerUserId,
