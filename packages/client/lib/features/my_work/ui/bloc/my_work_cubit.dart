@@ -174,8 +174,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         if (isClosed || seq != _fetchSeq) {
           return;
         }
+        final withReviewWindows = await _myWorkCase.loadReviewWindows(
+          init.nonArchivedCards,
+          userId: _userId,
+        );
+        if (isClosed || seq != _fetchSeq) {
+          return;
+        }
         final merged = mergeMyWorkDeskCards(
-          serverCards: init.nonArchivedCards,
+          serverCards: withReviewWindows,
           localCards: state.nonArchivedCards,
           preferIds: _pendingDeskBeaconIds,
         );

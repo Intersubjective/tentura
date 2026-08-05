@@ -175,6 +175,7 @@ class _V2RoutingLink extends Link {
     'EvaluationParticipants',
     'EvaluationDraftParticipants',
     'ReviewWindowStatus',
+    'MyWorkReviewWindows',
     'EvaluationSummary',
     'EvaluationSubmit',
     'EvaluationFinalize',

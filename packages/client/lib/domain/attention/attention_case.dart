@@ -43,7 +43,7 @@ final class AttentionCase {
     this._realtime,
     this._blockCase,
     this._logger, {
-    @visibleForTesting bool? qaLatencyMeasurementEnabled,
+    @ignoreParam @visibleForTesting bool? qaLatencyMeasurementEnabled,
   }) : _qaLatencyMeasurementEnabled =
            qaLatencyMeasurementEnabled ?? kQaIntegrationTestMode {
     if (_qaLatencyMeasurementEnabled) {

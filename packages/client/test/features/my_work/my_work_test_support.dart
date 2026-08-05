@@ -23,12 +23,14 @@ import 'package:tentura/features/my_work/data/repository/archive_repository.dart
 import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
+import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
-import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../beacon_view/beacon_view_case_test_support.dart' show FakeBeaconDisplayRepository;
+import '../evaluation/evaluation_case_test.dart' show FakeEvaluationRepository;
 import '../../support/test_realtime_sync.dart';
 
 class FakeMyWorkRepository implements MyWorkRepository {
@@ -269,6 +271,7 @@ MyWorkCase buildTestMyWorkCase({
   FakeCoordinationItemRepository? coordinationRepo,
   FakeRoomHints? roomHints,
   FakeBeaconDisplayRepository? displayRepo,
+  FakeEvaluationRepository? evaluationRepo,
   RoomReadWatermarkStore? watermarkStore,
   FakeBeaconRoomRepository? roomRepo,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
@@ -295,6 +298,7 @@ MyWorkCase buildTestMyWorkCase({
     hints,
     prefs,
     displayRepo ?? FakeBeaconDisplayRepository(),
+    evaluationRepo ?? FakeEvaluationRepository(),
     realtime,
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     env: const Env(),

@@ -45,6 +45,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default([]) List<Profile> forwarderSenders,
     @Default(false) bool showReviewHelpOffersCta,
     @Default(false) bool showReviewCta,
+    @Default(false) bool showCloseNowCta,
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
 

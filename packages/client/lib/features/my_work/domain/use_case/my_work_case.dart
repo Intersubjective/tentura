@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart'
 import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
+import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
@@ -37,6 +39,7 @@ final class MyWorkCase extends UseCaseBase {
     this._roomHints,
     this._deskPreferences,
     this._displayRepository,
+    this._evaluationRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal, {
     required super.env,
@@ -59,6 +62,7 @@ final class MyWorkCase extends UseCaseBase {
 
   final MyWorkDeskPreferencesPort _deskPreferences;
   final BeaconDisplayRepository _displayRepository;
+  final EvaluationRepository _evaluationRepository;
   final RealtimeSyncCase _realtimeSyncCase;
 
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
@@ -123,6 +127,35 @@ final class MyWorkCase extends UseCaseBase {
       archivedCountHint: init.archivedCountHint,
       finishedArchiveHintDismissed: finishedArchiveHintDismissed,
     );
+  }
+
+  Future<List<MyWorkCardViewModel>> loadReviewWindows(
+    List<MyWorkCardViewModel> cards, {
+    required String userId,
+  }) async {
+    final reviewOpenAuthorIds = [
+      for (final c in cards)
+        if (c.role == MyWorkCardRole.authored &&
+            c.beacon.status == BeaconStatus.reviewOpen)
+          c.beaconId,
+    ];
+    if (reviewOpenAuthorIds.isEmpty) {
+      return cards;
+    }
+    final windows = await _evaluationRepository.fetchReviewWindowStatuses(
+      reviewOpenAuthorIds,
+    );
+    final canCloseByBeacon = {
+      for (final w in windows)
+        if (w.canCloseNow == true) w.beaconId: true,
+    };
+    return [
+      for (final card in cards)
+        canCloseByBeacon[card.beaconId] == true &&
+                card.role == MyWorkCardRole.authored
+            ? card.copyWith(showCloseNowCta: true)
+            : card,
+    ];
   }
 
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({

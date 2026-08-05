@@ -4565,6 +4565,7 @@ type query_root {
     where: mutual_score_bool_exp
   ): [mutual_score!]!
   reviewWindowStatus(id: String!): v2_ReviewWindowStatus!
+  reviewWindowStatuses(beaconIds: [String!]!): [v2_ReviewWindowStatus!]!
   roomMessageTarget(beaconId: String!, messageId: String!): v2_RoomMessageRow
 
   """

@@ -23,6 +23,7 @@ import '../gql/_g/evaluation_participants.req.gql.dart';
 import '../gql/_g/evaluation_skip.req.gql.dart';
 import '../gql/_g/evaluation_submit.req.gql.dart';
 import '../gql/_g/evaluation_summary.req.gql.dart';
+import 'package:tentura/features/my_work/data/gql/_g/my_work_review_windows.req.gql.dart';
 import '../gql/_g/review_window_status.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -150,6 +151,34 @@ class EvaluationRepository {
               canCloseNow: s.canCloseNow,
             );
           });
+
+  Future<List<ReviewWindowInfo>> fetchReviewWindowStatuses(
+    List<String> beaconIds,
+  ) {
+    if (beaconIds.isEmpty) {
+      return Future.value(const []);
+    }
+    return _remoteApiService
+        .request(
+          GMyWorkReviewWindowsReq(
+            (b) => b.vars.beaconIds.replace(beaconIds),
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) {
+          final rows =
+              r.dataOrThrow(label: _label).reviewWindowStatuses?.toList() ??
+              const [];
+          return [
+            for (final s in rows)
+              ReviewWindowInfo(
+                beaconId: s.beaconId,
+                hasWindow: true,
+                canCloseNow: s.canCloseNow,
+              ),
+          ];
+        });
+  }
 
   /// Draft screen: load window (for beacon title) and targets in parallel.
   Future<({ReviewWindowInfo window, List<EvaluationParticipant> participants})>

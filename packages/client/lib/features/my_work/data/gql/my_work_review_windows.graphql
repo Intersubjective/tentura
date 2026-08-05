@@ -1,0 +1,6 @@
+query MyWorkReviewWindows($beaconIds: [String!]!) {
+  reviewWindowStatuses(beaconIds: $beaconIds) {
+    beaconId
+    canCloseNow
+  }
+}
