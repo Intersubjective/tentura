@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:tentura/ui/test_ids.dart';
 import 'package:webdriver/async_io.dart' hide TimeoutException;
 
 const _appOrigin = 'https://dev.lvh.me:9443';
@@ -524,7 +523,7 @@ Future<int> _roomUnreadFromStatus(
   BrowserSession session,
   String beaconId,
 ) async {
-  final testId = TestIds.myWorkRoomStatus(beaconId);
+  final testId = 'my_work.room_status.$beaconId';
   final result = await session.driver.execute(
     '''
     const wanted = arguments[0];
