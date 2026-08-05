@@ -573,3 +573,51 @@ mutation. HUD tests updated to set `stakeState: acknowledged` on useful offers.
 
 **Remaining:** U08 (P3.12) gate-scenario suite; U10 CORE VERIFY +
 `kDefaultMinClientVersion` bump.
+
+### 2026-08-05 — U07 review (orchestrator)
+
+**Verdict: ACCEPTED.** This was the release-blocking unit; reviewed with extra
+care. Independently re-ran `dart test -x pg` (1236/1236 green),
+`check-custom-lints.sh` server (0/0) and client (112/112, baseline held), and
+full client `flutter test` (1652 passed, 14 skipped, no regressions).
+
+Traced the server field wiring end to end: `row` in
+`CoordinationRepository.helpOffersWithCoordination` is the full Drift-managed
+`BeaconHelpOffers` row (all table columns available since U01, including
+`stakeState`/`offerKind`) — not a hand-written SQL projection that could have
+silently omitted the new columns. Confirmed `gqlTypeHelpOfferWithCoordinationRow`
+and the DTO map expose both fields.
+
+Traced the client gate logic: `expectedRequiresReviewWindowForState` now
+returns `bool?` (`null` when `displayStatus` hasn't loaded), and BOTH call
+sites that actually trigger the close mutation
+(`beacon_view_status_bottom_sheet.dart`, `beacon_view_app_bar_overflow.dart`)
+guard on `closeReviewWindowExpectationKnown` before proceeding — the "disabled
+until DTO loaded" requirement is real, not just documented. My Work's
+`myWorkCloseBeaconEnabled`/`myWorkExpectedRequiresReviewWindow` mirror this.
+
+Investigated the worker's flagged "Unresolved decisions" item
+(`hasSuccessfulHelpOfferResult`/`helpOfferRowSettled` still read
+`coordinationResponse` directly): traced `computeClosureReadiness`'s actual
+call chain (`closeHardGate`, `hasClosureBlockingState`,
+`hasSuccessfulHelpOfferResult`, `allRelevantHelpOffersSettled`) and confirmed
+none of it routes through `helpOfferIsCommitter`/`beaconStateHasCommitters` in
+the live code — this is a separate CTA-priority/summary-copy heuristic, not
+the hard gate that blocks the close mutation (that gate — the one this unit
+was released-blocking for — is correctly fixed). The plan's claim that the
+one-line `helpOfferIsCommitter` fix "cascades" to `computeClosureReadiness` is
+stale relative to current code structure; the worker correctly deferred to
+live code over plan prose and flagged the discrepancy rather than either
+silently doing nothing or scope-creeping into an unrelated UX heuristic. Left
+as a known minor gap (CTA-priority copy may lag participation truth in edge
+cases; does not cause `closeBranchConflict` or any incorrect gate decision).
+
+Spot-checked the new regression tests in `beacon_closure_readiness_test.dart`
+— `helpOfferIsCommitter` group and `expectedRequiresReviewWindowForState`
+group both contain exactly the scenarios the plan calls for (released/exited
+stake not committer despite stale `useful` response; accept→withdraw uses
+server counter; null when DTO not loaded).
+
+Proceeding to U08 (P3.12 — the full 18-scenario gate test suite), which
+exercises everything U01-U07 have built as an integration check before the
+core-verify unit.
