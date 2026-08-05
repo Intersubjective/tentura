@@ -5,6 +5,10 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -16,6 +20,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -29,7 +34,9 @@ final class CoordinationCase extends UseCaseBase {
     this._coordinationRepository,
     this._beaconRoomRepository,
     this._evaluationRepository,
-    this._userBlockRepository, {
+    this._userBlockRepository,
+    this._commitmentRepository,
+    this._commitmentQueryCase, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required BeaconAccessGuard guard,
@@ -45,6 +52,8 @@ final class CoordinationCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final UserBlockRepositoryPort _userBlockRepository;
+  final CommitmentRepositoryPort _commitmentRepository;
+  final CommitmentQueryCase _commitmentQueryCase;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
@@ -156,6 +165,143 @@ final class CoordinationCase extends UseCaseBase {
     return trimmed;
   }
 
+  bool _isAcknowledgingResponseType(int responseType) =>
+      responseType == CoordinationResponseType.useful.smallintValue ||
+      responseType == CoordinationResponseType.needCoordination.smallintValue;
+
+  bool _isRemovedFromChatByEvents(List<CommitmentEvent> events) {
+    final sorted = [...events]..sort((a, b) => a.seq.compareTo(b.seq));
+    var removed = false;
+    for (final event in sorted) {
+      switch (event.kind) {
+        case CommitmentEventKind.removedFromChat:
+          removed = true;
+        case CommitmentEventKind.readmittedToChat:
+          removed = false;
+        case CommitmentEventKind.offered:
+        case CommitmentEventKind.acknowledged:
+        case CommitmentEventKind.acknowledgementSoftened:
+        case CommitmentEventKind.withdrawnByHelper:
+        case CommitmentEventKind.releasedByAuthor:
+        case CommitmentEventKind.blockedCleanup:
+        case CommitmentEventKind.unansweredAtClose:
+          break;
+      }
+    }
+    return removed;
+  }
+
+  Future<List<CommitmentEvent>> _eventsForPair({
+    required String beaconId,
+    required String userId,
+  }) =>
+      _commitmentRepository.eventsForPair(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+  Future<void> _recordAcknowledgedIfTransition({
+    required String beaconId,
+    required String userId,
+    required String actorUserId,
+  }) async {
+    final events = await _eventsForPair(beaconId: beaconId, userId: userId);
+    if (currentStakeState(events) == CommitmentStakeState.acknowledged) return;
+    await _commitmentRepository.record(
+      beaconId: beaconId,
+      userId: userId,
+      actorUserId: actorUserId,
+      kind: CommitmentEventKind.acknowledged,
+    );
+  }
+
+  Future<void> _recordSoftenedIfTransition({
+    required String beaconId,
+    required String userId,
+    required String actorUserId,
+  }) async {
+    final events = await _eventsForPair(beaconId: beaconId, userId: userId);
+    if (currentStakeState(events) == CommitmentStakeState.softened) return;
+    if (!everAcknowledged(events)) return;
+    await _commitmentRepository.record(
+      beaconId: beaconId,
+      userId: userId,
+      actorUserId: actorUserId,
+      kind: CommitmentEventKind.acknowledgementSoftened,
+    );
+  }
+
+  Future<void> _recordRemovedFromChatIfTransition({
+    required String beaconId,
+    required String userId,
+    required String actorUserId,
+    String? reason,
+  }) async {
+    final events = await _eventsForPair(beaconId: beaconId, userId: userId);
+    if (_isRemovedFromChatByEvents(events)) return;
+    await _commitmentRepository.record(
+      beaconId: beaconId,
+      userId: userId,
+      actorUserId: actorUserId,
+      kind: CommitmentEventKind.removedFromChat,
+      reason: reason,
+    );
+  }
+
+  Future<void> _recordReadmittedToChatIfTransition({
+    required String beaconId,
+    required String userId,
+    required String actorUserId,
+  }) async {
+    final events = await _eventsForPair(beaconId: beaconId, userId: userId);
+    if (!_isRemovedFromChatByEvents(events)) return;
+    await _commitmentRepository.record(
+      beaconId: beaconId,
+      userId: userId,
+      actorUserId: actorUserId,
+      kind: CommitmentEventKind.readmittedToChat,
+    );
+  }
+
+  Future<void> _recordResponseCommitmentEvents({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
+  }) async {
+    if (_isAcknowledgingResponseType(responseType)) {
+      await _recordAcknowledgedIfTransition(
+        beaconId: beaconId,
+        userId: offerUserId,
+        actorUserId: actorUserId,
+      );
+    } else if (await _commitmentQueryCase.everAcknowledgedPair(
+      beaconId: beaconId,
+      userId: offerUserId,
+    )) {
+      await _recordSoftenedIfTransition(
+        beaconId: beaconId,
+        userId: offerUserId,
+        actorUserId: actorUserId,
+      );
+    }
+    if (removeFromRoom) {
+      await _recordRemovedFromChatIfTransition(
+        beaconId: beaconId,
+        userId: offerUserId,
+        actorUserId: actorUserId,
+      );
+    } else if (inviteToRoom) {
+      await _recordReadmittedToChatIfTransition(
+        beaconId: beaconId,
+        userId: offerUserId,
+        actorUserId: actorUserId,
+      );
+    }
+  }
+
   BeaconStatusResult _statusResult(
     String beaconId,
     ({BeaconStatus status, DateTime? statusChangedAt}) snap,
@@ -183,6 +329,11 @@ final class CoordinationCase extends UseCaseBase {
           offerUserId: offerUserId,
           actorUserId: actorUserId,
         );
+        await _recordAcknowledgedIfTransition(
+          beaconId: beaconId,
+          userId: offerUserId,
+          actorUserId: actorUserId,
+        );
         await transaction.record(
           await _attentionIntents!.offerAccepted(
             receiverId: offerUserId,
@@ -203,6 +354,10 @@ final class CoordinationCase extends UseCaseBase {
     required String reason,
   }) async {
     final trimmedReason = _validateReason(reason);
+    final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
     await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
@@ -234,6 +389,13 @@ final class CoordinationCase extends UseCaseBase {
           actorUserId: actorUserId,
           reason: trimmedReason,
         );
+        if (hadAcknowledged) {
+          await _recordSoftenedIfTransition(
+            beaconId: beaconId,
+            userId: offerUserId,
+            actorUserId: actorUserId,
+          );
+        }
         await transaction.record(intent);
         return _statusResult(beaconId, snap);
       },
@@ -275,6 +437,12 @@ final class CoordinationCase extends UseCaseBase {
         final snap = await _coordinationRepository.removeFromRoom(
           beaconId: beaconId,
           offerUserId: offerUserId,
+          actorUserId: actorUserId,
+          reason: trimmedReason,
+        );
+        await _recordRemovedFromChatIfTransition(
+          beaconId: beaconId,
+          userId: offerUserId,
           actorUserId: actorUserId,
           reason: trimmedReason,
         );
@@ -332,6 +500,14 @@ final class CoordinationCase extends UseCaseBase {
         authorUserId: authorUserId,
       );
     }
+    await _recordResponseCommitmentEvents(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      actorUserId: authorUserId,
+      responseType: responseType,
+      inviteToRoom: inviteToRoom,
+      removeFromRoom: removeFromRoom,
+    );
     final snap = await _coordinationRepository.beaconStatusSnapshot(beaconId);
     return BeaconStatusResult(
       beaconId: beaconId,
