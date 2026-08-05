@@ -170,6 +170,7 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     String? targetEntityId,
     String? messageId,
     String? actorUserId,
+    String? beaconTitle,
   }) = _AttentionRecipientRoleFacts;
 }
 

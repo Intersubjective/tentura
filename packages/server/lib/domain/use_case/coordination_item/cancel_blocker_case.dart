@@ -55,6 +55,7 @@ final class CancelBlockerCase extends UseCaseBase {
             excerpt: updated.title,
             targetPersonId: updated.targetPersonId,
             coordinationItemId: updated.id,
+            coordinationItemKind: updated.kind,
             acceptedById: updated.acceptedById,
             creatorId: updated.creatorId,
             sourceEventKey: _sourceKey(updated, 'blocker_cancelled'),

@@ -286,6 +286,7 @@ class AttentionPolicy {
       'coordinationItemId': _safeId(role.coordinationItemId),
       'targetEntityId': _safeId(role.targetEntityId),
       'messageId': _safeId(role.messageId),
+      'beaconTitle': _safeBeaconTitle(role.beaconTitle),
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
@@ -298,6 +299,14 @@ class AttentionPolicy {
   String? _safeId(String? value) {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty || trimmed.length > 256) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  String? _safeBeaconTitle(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed.length > 512) {
       return null;
     }
     return trimmed;

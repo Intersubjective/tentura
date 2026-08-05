@@ -158,6 +158,7 @@ class AttentionIntentCase {
     required String sourceEventKey,
     String? targetPersonId,
     String? coordinationItemId,
+    String beaconTitle = '',
     bool withdrawn = false,
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
@@ -168,6 +169,7 @@ class AttentionIntentCase {
       bodyExcerpt: notificationExcerpt(excerpt),
       targetPersonId: targetPersonId,
       coordinationItemId: coordinationItemId,
+      beaconTitle: beaconTitle,
       promiseWithdrawn: withdrawn,
     ),
     eventType: withdrawn
@@ -184,6 +186,7 @@ class AttentionIntentCase {
     required bool resolved,
     String? targetPersonId,
     String? coordinationItemId,
+    String beaconTitle = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: resolved
@@ -197,6 +200,7 @@ class AttentionIntentCase {
       bodyExcerpt: notificationExcerpt(excerpt),
       targetPersonId: targetPersonId,
       coordinationItemId: coordinationItemId,
+      beaconTitle: beaconTitle,
     ),
     eventType: resolved
         ? AttentionEventType.blockerResolved
@@ -211,6 +215,7 @@ class AttentionIntentCase {
     required String excerpt,
     required String sourceEventKey,
     String? coordinationItemId,
+    String beaconTitle = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.needsMe,
@@ -220,6 +225,7 @@ class AttentionIntentCase {
       targetPersonId: targetUserId,
       bodyExcerpt: notificationExcerpt(excerpt),
       coordinationItemId: coordinationItemId,
+      beaconTitle: beaconTitle,
     ),
     eventType: AttentionEventType.needsMe,
     sourceEventKey: sourceEventKey,
@@ -231,6 +237,7 @@ class AttentionIntentCase {
     required String planExcerpt,
     required String sourceEventKey,
     List<String> admittedUserIds = const [],
+    String beaconTitle = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.coordinationChanged,
@@ -239,6 +246,7 @@ class AttentionIntentCase {
       actorUserId: actorUserId,
       bodyExcerpt: notificationExcerpt(planExcerpt),
       admittedUserIds: admittedUserIds,
+      beaconTitle: beaconTitle,
     ),
     eventType: AttentionEventType.coordinationChanged,
     sourceEventKey: sourceEventKey,
@@ -255,6 +263,7 @@ class AttentionIntentCase {
     required String excerpt,
     required String sourceEventKey,
     String? coordinationItemId,
+    String beaconTitle = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.staleRemind,
@@ -264,6 +273,7 @@ class AttentionIntentCase {
       targetPersonId: targetPersonId,
       bodyExcerpt: notificationExcerpt(excerpt),
       coordinationItemId: coordinationItemId,
+      beaconTitle: beaconTitle,
     ),
     eventType: AttentionEventType.staleReminder,
     sourceEventKey: sourceEventKey,
@@ -277,6 +287,8 @@ class AttentionIntentCase {
     required String sourceEventKey,
     String? targetPersonId,
     String? coordinationItemId,
+    int? coordinationItemKind,
+    String beaconTitle = '',
     String? acceptedById,
     String? creatorId,
   }) {
@@ -323,6 +335,8 @@ class AttentionIntentCase {
         bodyExcerpt: notificationExcerpt(excerpt),
         targetPersonId: targetPersonId,
         coordinationItemId: coordinationItemId,
+        coordinationItemKind: coordinationItemKind,
+        beaconTitle: beaconTitle,
         admittedUserIds: extraAccepted,
         moderatorUserIds: extraCreator,
       ),
@@ -665,6 +679,9 @@ class AttentionIntentCase {
               coordinationItemId: notification.coordinationItemId,
               targetEntityId: targetEntityId ?? notification.targetPersonId,
               actorUserId: notification.actorUserId,
+              beaconTitle: notification.beaconTitle.trim().isEmpty
+                  ? null
+                  : notification.beaconTitle.trim(),
             ),
           ),
       ],

@@ -86,6 +86,7 @@ final class PublishDraftAskCase extends UseCaseBase {
             targetUserId: target,
             excerpt: item.title,
             coordinationItemId: item.id,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'published'),
           ),
         );

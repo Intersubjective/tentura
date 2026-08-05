@@ -1,4 +1,5 @@
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -28,35 +29,58 @@ class BeaconNotificationCopyBuilder {
       intent.bodyExcerpt.isNotEmpty ? intent.bodyExcerpt : intent.titleExcerpt,
     );
     final beaconTitle = intent.beaconTitle.trim();
+    final itemNoun = _coordinationItemNoun(intent.coordinationItemKind);
 
     final (title, body) = switch (intent.kind) {
       NotificationKind.needsMe => (
         'Asked of you',
-        excerpt.isNotEmpty ? excerpt : 'Action needed in the request chat',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Action needed in the request chat',
+        ),
       ),
       NotificationKind.promiseMade =>
         intent.promiseWithdrawn
             ? (
                 '$actor withdrew a promise',
-                excerpt.isNotEmpty ? excerpt : 'Promise withdrawn',
+                _bodyWithRequest(
+                  beaconTitle: beaconTitle,
+                  excerpt: excerpt,
+                  fallback: 'Promise withdrawn',
+                ),
               )
             : (
                 '$actor promised',
-                excerpt.isNotEmpty
-                    ? excerpt
-                    : 'New promise in the request chat',
+                _bodyWithRequest(
+                  beaconTitle: beaconTitle,
+                  excerpt: excerpt,
+                  fallback: 'New promise in the request chat',
+                ),
               ),
       NotificationKind.coordinationChanged => (
         'Plan updated',
-        excerpt.isNotEmpty ? excerpt : 'Coordination changed',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Coordination changed',
+        ),
       ),
       NotificationKind.blockerOpened => (
         'Blocker opened',
-        excerpt.isNotEmpty ? excerpt : 'A blocker was opened',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'A blocker was opened',
+        ),
       ),
       NotificationKind.blockerResolved => (
         'Blocker resolved',
-        excerpt.isNotEmpty ? excerpt : 'A blocker was resolved',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'A blocker was resolved',
+        ),
       ),
       NotificationKind.roomAccess => (
         'Chat access',
@@ -67,11 +91,19 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.commitmentDeclined => (
         'Offer declined',
-        excerpt.isNotEmpty ? excerpt : 'Your offer was declined',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Your offer was declined',
+        ),
       ),
       NotificationKind.commitmentRemoved => (
         'Removed from chat',
-        excerpt.isNotEmpty ? excerpt : 'You were removed from the request chat',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'You were removed from the request chat',
+        ),
       ),
       NotificationKind.newRelay => (
         actor,
@@ -83,7 +115,9 @@ class BeaconNotificationCopyBuilder {
         intent.promiseWithdrawn
             ? (
                 actor,
-                excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : '$actor withdrew their help',
               )
             : (
                 actor,
@@ -95,7 +129,11 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.roomActivityLowPriority => (
         beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
-        excerpt.isNotEmpty ? excerpt : 'New chat update',
+        _bodyWithRequest(
+          beaconTitle: '',
+          excerpt: excerpt,
+          fallback: 'New chat update',
+        ),
       ),
       NotificationKind.roomMention => (
         actor,
@@ -103,29 +141,47 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.staleRemind => (
         'Still needs attention',
-        excerpt.isNotEmpty
-            ? excerpt
-            : 'Something in the request chat needs attention',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Something in the request chat needs attention',
+        ),
       ),
       NotificationKind.inviteAccepted => (
         'Invitation accepted',
         '$actor accepted your invitation',
       ),
       NotificationKind.commitmentAccepted => (
-        '$actor accepted your ask',
-        excerpt.isNotEmpty ? excerpt : 'Your ask was accepted',
+        '$actor accepted your $itemNoun',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Your $itemNoun was accepted',
+        ),
       ),
       NotificationKind.commitmentResolved => (
-        '$actor resolved the commitment',
-        excerpt.isNotEmpty ? excerpt : 'A commitment was resolved',
+        '$actor resolved the $itemNoun',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'The $itemNoun was resolved',
+        ),
       ),
       NotificationKind.commitmentCancelled => (
-        '$actor cancelled the commitment',
-        excerpt.isNotEmpty ? excerpt : 'A commitment was cancelled',
+        '$actor cancelled the $itemNoun',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'The $itemNoun was cancelled',
+        ),
       ),
       NotificationKind.commitmentRedirected => (
         '$actor reassigned this to you',
-        excerpt.isNotEmpty ? excerpt : 'You have a new assignment',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Open the request chat to see your new assignment',
+        ),
       ),
     };
 
@@ -164,6 +220,27 @@ class BeaconNotificationCopyBuilder {
       body: body,
       actionUrl: _actionUrl(intent),
     );
+  }
+
+  String _coordinationItemNoun(int? kind) => switch (kind) {
+    coordinationItemKindAsk => 'ask',
+    coordinationItemKindPromise => 'promise',
+    coordinationItemKindBlocker => 'blocker',
+    _ => 'commitment',
+  };
+
+  String _bodyWithRequest({
+    required String beaconTitle,
+    required String excerpt,
+    required String fallback,
+  }) {
+    final request = beaconTitle.trim();
+    if (excerpt.isNotEmpty) {
+      if (request.isNotEmpty) return '$request — $excerpt';
+      return excerpt;
+    }
+    if (request.isNotEmpty) return request;
+    return fallback;
   }
 
   String _actionUrl(BeaconNotificationIntent intent) {

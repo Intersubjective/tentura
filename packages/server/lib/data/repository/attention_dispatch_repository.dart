@@ -215,6 +215,7 @@ RETURNING id
     'targetEntityId': role.targetEntityId,
     'messageId': role.messageId,
     'actorUserId': role.actorUserId,
+    'beaconTitle': role.beaconTitle,
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {

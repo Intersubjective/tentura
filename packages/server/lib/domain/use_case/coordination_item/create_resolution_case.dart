@@ -69,6 +69,7 @@ final class CreateResolutionCase extends UseCaseBase {
               targetUserId: notifyTarget,
               excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
               coordinationItemId: item.id,
+              beaconTitle: beacon.title,
               sourceEventKey: _sourceKey(item, 'resolution_created'),
             ),
           );

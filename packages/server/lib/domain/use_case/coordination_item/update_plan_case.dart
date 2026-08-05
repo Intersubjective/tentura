@@ -76,6 +76,7 @@ final class UpdatePlanCase extends UseCaseBase {
             beaconId: beaconId,
             actorUserId: userId,
             planExcerpt: trimmed,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'plan_updated'),
           ),
         );

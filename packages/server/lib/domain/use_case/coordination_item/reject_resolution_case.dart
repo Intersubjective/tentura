@@ -57,6 +57,7 @@ final class RejectResolutionCase extends UseCaseBase {
               excerpt: updated.title,
               targetPersonId: resolutionCreatorId,
               coordinationItemId: updated.id,
+              coordinationItemKind: updated.kind,
               sourceEventKey: _sourceKey(updated, 'resolution_rejected'),
             ),
           );

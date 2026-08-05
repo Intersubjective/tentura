@@ -85,6 +85,7 @@ final class UpdateCoordinationItemCase extends UseCaseBase {
               beaconId: updated.beaconId,
               actorUserId: userId,
               planExcerpt: trimmed,
+              beaconTitle: beacon.title,
               sourceEventKey: _sourceKey(updated, 'item_updated'),
             ),
           );

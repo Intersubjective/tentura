@@ -80,6 +80,7 @@ final class RedirectPromiseCase extends UseCaseBase {
             excerpt: updated.title,
             targetPersonId: updated.targetPersonId,
             coordinationItemId: updated.id,
+            coordinationItemKind: updated.kind,
             sourceEventKey: _sourceKey(updated, 'redirected_to'),
           ),
         );
@@ -94,6 +95,7 @@ final class RedirectPromiseCase extends UseCaseBase {
               excerpt: updated.title,
               targetPersonId: previousTarget,
               coordinationItemId: updated.id,
+              coordinationItemKind: updated.kind,
               sourceEventKey: _sourceKey(updated, 'redirected_from'),
             ),
           );

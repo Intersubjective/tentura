@@ -86,6 +86,7 @@ final class CreatePromiseCase extends UseCaseBase {
             excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
             targetPersonId: target,
             coordinationItemId: item.id,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'created'),
           ),
         );

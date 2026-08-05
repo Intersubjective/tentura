@@ -54,6 +54,7 @@ final class AcceptAskCase extends UseCaseBase {
             excerpt: updated.title,
             targetPersonId: updated.creatorId,
             coordinationItemId: updated.id,
+            coordinationItemKind: updated.kind,
             sourceEventKey: _sourceKey(updated, 'accepted'),
           ),
         );

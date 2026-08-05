@@ -69,6 +69,7 @@ final class MarkBlockerCase extends UseCaseBase {
             excerpt: trimmed,
             targetPersonId: targetPersonId,
             coordinationItemId: item.id,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'opened'),
             resolved: false,
           ),

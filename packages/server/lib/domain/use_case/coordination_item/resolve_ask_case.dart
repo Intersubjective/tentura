@@ -58,6 +58,7 @@ final class ResolveAskCase extends UseCaseBase {
               excerpt: updated.title,
               targetPersonId: counterpart,
               coordinationItemId: updated.id,
+              coordinationItemKind: updated.kind,
               sourceEventKey: _sourceKey(updated, 'resolved'),
             ),
           );

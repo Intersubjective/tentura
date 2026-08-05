@@ -74,6 +74,7 @@ final class AcceptResolutionCase extends UseCaseBase {
               excerpt: updatedResolution.title,
               targetPersonId: resolutionCreatorId,
               coordinationItemId: updatedResolution.id,
+              coordinationItemKind: updatedResolution.kind,
               creatorId: target?.creatorId,
               sourceEventKey: _sourceKey(updatedResolution, 'resolution_accepted'),
             ),

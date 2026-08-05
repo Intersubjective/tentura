@@ -86,6 +86,7 @@ final class PublishDraftPromiseCase extends UseCaseBase {
             excerpt: item.title,
             targetPersonId: target,
             coordinationItemId: item.id,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'published'),
           ),
         );

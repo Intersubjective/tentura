@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -16,6 +17,7 @@ void main() {
     String titleExcerpt = '',
     String beaconTitle = '',
     String? coordinationItemId,
+    int? coordinationItemKind,
     bool promiseWithdrawn = false,
   }) =>
       BeaconNotificationIntent(
@@ -27,6 +29,7 @@ void main() {
         titleExcerpt: titleExcerpt,
         beaconTitle: beaconTitle,
         coordinationItemId: coordinationItemId,
+        coordinationItemKind: coordinationItemKind,
         promiseWithdrawn: promiseWithdrawn,
       );
 
@@ -113,6 +116,71 @@ void main() {
     expect(copy.title, 'Alex');
     expect(copy.body, 'Alex withdrew their help');
   });
+
+  test('commitmentAccepted distinguishes ask and promise nouns', () {
+    final askCopy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentAccepted,
+        coordinationItemKind: coordinationItemKindAsk,
+      ),
+      actorDisplayName: 'Sam',
+    );
+    final promiseCopy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentAccepted,
+        coordinationItemKind: coordinationItemKindPromise,
+      ),
+      actorDisplayName: 'Sam',
+    );
+
+    expect(askCopy.title, 'Sam accepted your ask');
+    expect(promiseCopy.title, 'Sam accepted your promise');
+  });
+
+  test('commitment copy includes request title when provided', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentResolved,
+        coordinationItemKind: coordinationItemKindAsk,
+        beaconTitle: 'Garden cleanup',
+        bodyExcerpt: 'Tools delivered',
+      ),
+      actorDisplayName: 'Alex',
+    );
+
+    expect(copy.body, 'Garden cleanup — Tools delivered');
+  });
+
+  test(
+    'every NotificationKind yields non-empty copy without raw ids',
+    () {
+      const rawBeaconId = 'b1234567890ab';
+      const rawActorId = 'u1234567890ab';
+      const rawItemId = 'i1234567890ab';
+
+      for (final kind in NotificationKind.values) {
+        final copy = builder.build(
+          intent: BeaconNotificationIntent(
+            kind: kind,
+            priority: NotificationPriority.normal,
+            beaconId: rawBeaconId,
+            actorUserId: rawActorId,
+            coordinationItemId: rawItemId,
+          ),
+          actorDisplayName: '',
+        );
+
+        expect(copy.title.trim().isNotEmpty, isTrue, reason: kind.name);
+        expect(copy.body.trim().isNotEmpty, isTrue, reason: kind.name);
+        expect(copy.title.contains(rawBeaconId), isFalse, reason: kind.name);
+        expect(copy.body.contains(rawBeaconId), isFalse, reason: kind.name);
+        expect(copy.title.contains(rawActorId), isFalse, reason: kind.name);
+        expect(copy.body.contains(rawActorId), isFalse, reason: kind.name);
+        expect(copy.title.contains(rawItemId), isFalse, reason: kind.name);
+        expect(copy.body.contains(rawItemId), isFalse, reason: kind.name);
+      }
+    },
+  );
 
   test('truncates long excerpt in body', () {
     final long = 'x' * 100;
