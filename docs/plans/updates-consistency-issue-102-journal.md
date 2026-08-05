@@ -58,7 +58,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
-| U5 | Latency budget + instrumentation + visible refresh failure | complete | — |
+| U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
 | U7 | Cross-surface consistency verification | pending | — |
 | U8 | Integration and close-out | pending | — |
@@ -535,3 +535,34 @@ TESTS:
 FILES: packages/server/lib/data/repository/attention_dispatch_repository.dart, packages/server/test/data/repository/attention_dispatch_telemetry_test.dart, packages/client/lib/domain/attention/{attention_case,entity/attention_feed}.dart, packages/client/lib/features/updates/ui/{bloc/updates_feed_{cubit,state},screen/updates_screen,widget/updates_refresh_error_banner}.dart, packages/client/test/{domain/attention/attention_case_test,features/updates/updates_feed_cubit_test}.dart, packages/client/l10n/app_{en,ru}.arb, packages/client/pubspec.yaml, docs/realtime-sync-operations.md, docs/plans/updates-consistency-issue-102-journal.md
 FINDINGS: Live-updates-paused banner (`realtime_status_presenter.dart`) covers disconnect; refresh-failure banner is orthogonal. QA latency exposed via `qaHeadRefreshLatencies` stream + `lastQaHeadRefreshLatency` getter and stable log marker `attention_event=head_refresh_latency`. Server telemetry uses `@visibleForTesting` format helper so privacy contract is unit-tested without pg.
 REMAINING: U6 multiclient harness should assert latency via QA getters/`proof.json`; U7 cross-surface verification.
+
+### 2026-08-05 — overseer — U5 manager review: ACCEPTED
+
+Verified independently:
+
+- `dart analyze` — **0 errors**; `dart test --exclude-tags pg` — **1184 passed** (1182 at U4).
+- `flutter test` — **1632 passed, 14 skipped, 0 failed** (1630 at U4).
+- `check-custom-lints.sh` — server total 0; client at/under baseline (still reporting an
+  improvement available).
+- `check-user-facing-terminology.sh` — ok.
+- **l10n key parity checked directly** (not by grep): 0 keys present in `app_en.arb` and missing
+  from `app_ru.arb`. Corrects an earlier overseer claim that the Updates keys were out of parity —
+  that came from a substring grep over lines, not keys, and was wrong. No gap existed.
+
+Substance confirmed by reading the code:
+- **Telemetry** `[AttentionDispatch] attention_event=receipt_created event_type=… recipients=<count>
+  occurrence_at=…` — counts and timestamps only, no ids/titles/bodies, matching the existing
+  `[Tag] key=value` convention. Extracted into a `@visibleForTesting` pure formatter, i.e. the U4
+  lesson about testable seams was applied without being asked.
+- **Client latency** gated behind `kQaIntegrationTestMode` with a `@visibleForTesting` constructor
+  override, exposed as a broadcast stream of `AttentionHeadRefreshLatency` so the U6 harness can
+  assert on it. No always-on telemetry, no new dart-define.
+- **Failure visibility** is genuinely non-blocking: the cubit sets `refreshError` / `actionError`
+  while keeping `StateIsSuccess()`, so existing items stay on screen behind a retry banner. The
+  worker went beyond the brief by separating feed-level refresh failures from per-action
+  (mark-seen / settle) failures — an improvement, kept.
+- **Runbook** adopts the existing 1.5 s / 3 s p95 targets explicitly as one budget rather than
+  inventing a second, extends the marker table, alert list and incident-triage steps, and records
+  that the disconnect case stays owned by `RealtimeStatusPresenter`.
+
+Releasing U6.
