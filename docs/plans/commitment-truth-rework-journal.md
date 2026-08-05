@@ -869,7 +869,7 @@ Proceeding to U12 (P5 — remove auto-admit).
 **Commits (3, not pushed):**
 - `fa815228` feat(commitment): P5.1 — remove auto-admit code path
 - `4a4ba43a` feat(commitment): P5.2 — isDirectAuthorForward on help offer coordination row
-- (pending) feat(commitment): P5.3 — client direct-forward chip, sort, and wiring
+- `97f15ba3` feat(commitment): P5.3 — client direct-forward chip, sort, and wiring
 
 **Decisions:** Client bumped `5.6.39` → `5.6.40`. Direct-forward chip shown only in
 author view (l10n is author-centric: "Forwarded by you"). Sort applies within
