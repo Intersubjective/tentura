@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -242,15 +243,25 @@ ClosureActionPriority closureActionPriorityFor(
 }
 
 bool helpOfferIsCommitter(TimelineHelpOffer offer) =>
-    !offer.isWithdrawn &&
-    (offer.coordinationResponse == CoordinationResponseType.useful ||
-        offer.coordinationResponse == CoordinationResponseType.needCoordination);
+    offer.stakeState == CommitmentStakeState.acknowledged;
 
-bool beaconStateHasCommitters(BeaconViewState state) =>
-    state.helpOffers.any(helpOfferIsCommitter);
+bool beaconStateHasCommitters(BeaconViewState state) {
+  final displayStatus = state.displayStatus;
+  if (displayStatus != null) {
+    return displayStatus.everAcknowledgedCommitterCount > 0;
+  }
+  return state.helpOffers.any(helpOfferIsCommitter);
+}
 
-bool expectedRequiresReviewWindowForState(BeaconViewState state) =>
-    beaconStateHasCommitters(state);
+/// `null` when server display status is not loaded yet (close must stay disabled).
+bool? expectedRequiresReviewWindowForState(BeaconViewState state) {
+  final displayStatus = state.displayStatus;
+  if (displayStatus == null) return null;
+  return displayStatus.everAcknowledgedCommitterCount > 0;
+}
+
+bool closeReviewWindowExpectationKnown(BeaconViewState state) =>
+    state.displayStatus != null;
 
 BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
   BeaconViewState state,
@@ -271,7 +282,8 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
     hasWholeBeaconDoneSignal: hasExplicitWholeBeaconDoneSignal(state),
     enoughHelpOffered: authorMarkedEnoughHelp(state),
     hasSuccessfulHelpOfferResult: hasSuccessfulHelpOfferResult(state),
-    requiresReviewWindow: expectedRequiresReviewWindowForState(state),
+    requiresReviewWindow:
+        expectedRequiresReviewWindowForState(state) ?? false,
   );
 }
 
