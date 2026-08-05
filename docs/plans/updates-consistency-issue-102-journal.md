@@ -654,7 +654,7 @@ mutation).
 ### 2026-08-05 — U6 attempt 2 — final
 
 STATUS: complete
-COMMITS: 28de4a86, eb618085, bff5cf4b, e1e11129, ea21b532, (pending watermark revert)
+COMMITS: 28de4a86, eb618085, bff5cf4b, e1e11129, ea21b532, a7fd8752
 TESTS:
 - `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS
 - `bash scripts/run_realtime_multiclient_web_local.sh` — **PASS 5/5**; negative proofs **live** and **catch_up** both failed as expected
