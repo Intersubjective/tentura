@@ -3,7 +3,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -29,7 +30,7 @@ final class UserBlockCase extends UseCaseBase {
     this._contacts,
     this._users,
     this._beacons,
-    this._coordination,
+    this._commitmentRepository,
     this._inbox, {
     AttentionIntentCase? attentionIntents,
     AttentionDispatchPort? attentionDispatch,
@@ -45,7 +46,7 @@ final class UserBlockCase extends UseCaseBase {
   final UserContactRepositoryPort _contacts;
   final UserRepositoryPort _users;
   final BeaconRepositoryPort _beacons;
-  final CoordinationRepositoryPort _coordination;
+  final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inbox;
   final AttentionIntentCase? _attentionIntents;
   final AttentionDispatchPort? _attentionDispatch;
@@ -159,9 +160,12 @@ final class UserBlockCase extends UseCaseBase {
       );
       if (authorId != beaconAuthorId) continue;
       final beaconId = offer.beaconId;
-      await _coordination.deleteForCommit(
+      await _commitmentRepository.record(
         beaconId: beaconId,
         userId: offererId,
+        actorUserId: offererId,
+        kind: CommitmentEventKind.blockedCleanup,
+        reason: kBlockWithdrawReason,
       );
       await _helpOffers.withdraw(
         beaconId: beaconId,

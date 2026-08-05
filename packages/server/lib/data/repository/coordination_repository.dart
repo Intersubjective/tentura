@@ -40,16 +40,6 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   final BeaconRoomRepositoryPort _beaconRoomRepository;
 
   @override
-  Future<void> deleteForCommit({
-    required String beaconId,
-    required String userId,
-  }) => _database.managers.beaconHelpOfferCoordinations
-      .filter(
-        (e) => e.offerBeaconId.id(beaconId) & e.offerUserId.id(userId),
-      )
-      .delete();
-
-  @override
   Future<void> upsertResponse({
     required String beaconId,
     required String offerUserId,
