@@ -11,6 +11,7 @@ import '../gql/_g/help_offers_with_coordination.data.gql.dart';
 import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
 import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
+import '../gql/_g/beacon_release_commitment.req.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
 import '../gql/_g/set_beacon_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
@@ -149,6 +150,30 @@ class CoordinationRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
         final res = r.dataOrThrow(label: _label).removeFromRoom;
+        return (
+          status: BeaconStatus.fromSmallint(res.status),
+          updatedAt: res.statusChangedAt == null
+              ? null
+              : DateTime.tryParse(res.statusChangedAt!),
+        );
+      });
+
+  Future<({BeaconStatus status, DateTime? updatedAt})> releaseCommitment({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) => _remoteApiService
+      .request(
+        GBeaconReleaseCommitmentReq(
+          (r) => r
+            ..vars.id = beaconId
+            ..vars.offerUserId = offerUserId
+            ..vars.reason = reason,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final res = r.dataOrThrow(label: _label).releaseCommitment;
         return (
           status: BeaconStatus.fromSmallint(res.status),
           updatedAt: res.statusChangedAt == null

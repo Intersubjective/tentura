@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -222,9 +223,26 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   context,
                   title: l10n.helpOfferRemoveDialogTitle,
                   hintText: l10n.helpOfferRemoveDialogHint,
+                  explanatoryNote: l10n.helpOfferRemoveKeepsParticipationNote,
                 );
                 if (reason != null && context.mounted) {
                   await beaconViewCubit.removeFromRoom(
+                    offerUserId: row.userId,
+                    reason: reason,
+                  );
+                }
+              }
+            : null,
+        onReleaseCommitment:
+            canManageOffer && c.stakeState == CommitmentStakeState.acknowledged
+            ? () async {
+                final reason = await HelpOfferAdmissionReasonDialog.show(
+                  context,
+                  title: l10n.helpOfferReleaseDialogTitle,
+                  hintText: l10n.helpOfferReleaseDialogHint,
+                );
+                if (reason != null && context.mounted) {
+                  await beaconViewCubit.releaseCommitment(
                     offerUserId: row.userId,
                     reason: reason,
                   );

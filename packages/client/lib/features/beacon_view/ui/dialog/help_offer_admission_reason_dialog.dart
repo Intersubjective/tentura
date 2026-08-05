@@ -8,6 +8,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
   const HelpOfferAdmissionReasonDialog({
     required this.title,
     required this.hintText,
+    this.explanatoryNote,
     super.key,
   });
 
@@ -15,6 +16,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     BuildContext context, {
     required String title,
     required String hintText,
+    String? explanatoryNote,
   }) => showTenturaAdaptiveSheet<String>(
     context: context,
     isScrollControlled: true,
@@ -23,11 +25,13 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     builder: (_) => HelpOfferAdmissionReasonDialog(
       title: title,
       hintText: hintText,
+      explanatoryNote: explanatoryNote,
     ),
   );
 
   final String title;
   final String hintText;
+  final String? explanatoryNote;
 
   @override
   State<HelpOfferAdmissionReasonDialog> createState() =>
@@ -81,6 +85,14 @@ class _HelpOfferAdmissionReasonDialogState
               widget.title,
               style: theme.textTheme.titleLarge,
             ),
+            if (widget.explanatoryNote != null &&
+                widget.explanatoryNote!.trim().isNotEmpty) ...[
+              SizedBox(height: tt.tightGap),
+              Text(
+                widget.explanatoryNote!,
+                style: TenturaText.bodySmall(theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
             SizedBox(height: tt.sectionGap),
             TextField(
               key: TestIds.key(TestIds.admissionReasonInput),

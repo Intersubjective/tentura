@@ -54,6 +54,7 @@ abstract final class TestIds {
   static String helpOfferAccept(String userId) => 'help_offer.$userId.accept';
   static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';
   static String helpOfferRemove(String userId) => 'help_offer.$userId.remove';
+  static String helpOfferRelease(String userId) => 'help_offer.$userId.release';
 
   static const admissionReasonInput = 'help_offer.admission_reason.input';
   static const admissionReasonSubmit = 'help_offer.admission_reason.submit';

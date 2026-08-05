@@ -5,6 +5,8 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -202,5 +204,119 @@ void main() {
 
     expect(find.text('Rejected'), findsOneWidget);
     expect(find.text('Author'), findsNothing);
+  });
+
+  testWidgets('End participation visible when stake is acknowledged', (
+    tester,
+  ) async {
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          stakeState: CommitmentStakeState.acknowledged,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+      ],
+      roomParticipants: [
+        BeaconParticipant(
+          id: 'p-h1',
+          beaconId: 'B1',
+          userId: 'h1',
+          userTitle: 'Helper',
+          role: BeaconParticipantRoleBits.helper,
+          status: BeaconParticipantStatusBits.committed,
+          roomAccess: RoomAccessBits.admitted,
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+            BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
+          ],
+          child: Scaffold(
+            body: BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('End participation'), findsOneWidget);
+    expect(find.text('Participation ended'), findsNothing);
+  });
+
+  testWidgets('End participation hidden after release stake state', (
+    tester,
+  ) async {
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          stakeState: CommitmentStakeState.released,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+      ],
+      roomParticipants: [
+        BeaconParticipant(
+          id: 'p-h1',
+          beaconId: 'B1',
+          userId: 'h1',
+          userTitle: 'Helper',
+          role: BeaconParticipantRoleBits.helper,
+          status: BeaconParticipantStatusBits.committed,
+          roomAccess: RoomAccessBits.admitted,
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+            BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
+          ],
+          child: Scaffold(
+            body: BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('End participation'), findsNothing);
+    expect(find.text('Participation ended'), findsOneWidget);
   });
 }

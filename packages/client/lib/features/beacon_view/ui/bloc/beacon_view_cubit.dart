@@ -559,6 +559,33 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  Future<void> releaseCommitment({
+    required String offerUserId,
+    required String reason,
+  }) async {
+    final trimmedReason = reason.trim();
+    final optimisticOffers = [
+      for (final c in state.helpOffers)
+        if (c.user.id == offerUserId)
+          c.copyWith(stakeState: CommitmentStakeState.released)
+        else
+          c,
+    ];
+    emit(state.copyWith(helpOffers: optimisticOffers));
+    try {
+      await _case.releaseCommitment(
+        beaconId: state.beacon.id,
+        offerUserId: offerUserId,
+        reason: trimmedReason,
+      );
+      unawaited(_fetchBeaconByIdWithTimeline());
+    } catch (e) {
+      await _fetchBeaconByIdWithTimeline();
+      if (!isClosed) _showSnackError(e);
+      rethrow;
+    }
+  }
+
   Future<void> publishBeacon() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

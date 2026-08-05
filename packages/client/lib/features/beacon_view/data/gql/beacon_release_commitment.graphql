@@ -1,0 +1,7 @@
+mutation BeaconReleaseCommitment($id: String!, $offerUserId: String!, $reason: String!) {
+  releaseCommitment(id: $id, offerUserId: $offerUserId, reason: $reason) {
+    beaconId
+    status
+    statusChangedAt
+  }
+}

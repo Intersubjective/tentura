@@ -169,6 +169,7 @@ class _V2RoutingLink extends Link {
     'AcceptHelpOffer',
     'DeclineHelpOffer',
     'RemoveFromRoom',
+    'BeaconReleaseCommitment',
     'SetBeaconStatus',
     'BeaconDisplayStatuses',
     'EvaluationParticipants',

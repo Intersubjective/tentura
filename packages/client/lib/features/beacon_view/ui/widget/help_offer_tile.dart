@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -39,6 +40,7 @@ class HelpOfferTile extends StatelessWidget {
     this.onAccept,
     this.onDecline,
     this.onRemoveFromChat,
+    this.onReleaseCommitment,
     this.participant,
     this.showAuthorStar = false,
     super.key,
@@ -55,6 +57,7 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onRemoveFromChat;
+  final VoidCallback? onReleaseCommitment;
   final BeaconParticipant? participant;
   final bool showAuthorStar;
 
@@ -82,6 +85,10 @@ class HelpOfferTile extends StatelessWidget {
         : DateFormat.yMMMd(
             locale,
           ).add_Hm().format(participantMeta.updatedAt.toLocal());
+    final stakeParticipationLabel = helpOfferStakeParticipationLabel(
+      l10n,
+      helpOffer.stakeState,
+    );
 
     final avatarWidget = SelfAwareAvatar.medium(
       profile: helpOffer.user,
@@ -176,7 +183,10 @@ class HelpOfferTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    if (isWithdrawn) TenturaStatusText(l10n.labelWithdrawn),
+                    if (isWithdrawn)
+                      TenturaStatusText(l10n.labelWithdrawn)
+                    else if (stakeParticipationLabel != null)
+                      TenturaStatusText(stakeParticipationLabel),
                   ],
                 ),
               ),
@@ -237,6 +247,7 @@ class HelpOfferTile extends StatelessWidget {
               onAccept: onAccept,
               onDecline: onDecline,
               onRemoveFromChat: onRemoveFromChat,
+              onReleaseCommitment: onReleaseCommitment,
               offerUserId: helpOffer.user.id,
               offerUserName: helpOffer.user.shownName,
             ),
@@ -289,6 +300,7 @@ class _AdmissionFooter extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     required this.onRemoveFromChat,
+    this.onReleaseCommitment,
     required this.offerUserId,
     required this.offerUserName,
   });
@@ -304,6 +316,7 @@ class _AdmissionFooter extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onRemoveFromChat;
+  final VoidCallback? onReleaseCommitment;
   final String offerUserId;
   final String offerUserName;
 
@@ -325,6 +338,7 @@ class _AdmissionFooter extends StatelessWidget {
         onAccept: onAccept,
         onDecline: onDecline,
         onRemoveFromChat: onRemoveFromChat,
+        onReleaseCommitment: onReleaseCommitment,
         offerUserId: offerUserId,
         offerUserName: offerUserName,
       );
@@ -361,6 +375,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     required this.onRemoveFromChat,
+    this.onReleaseCommitment,
     required this.offerUserId,
     required this.offerUserName,
   });
@@ -373,6 +388,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onRemoveFromChat;
+  final VoidCallback? onReleaseCommitment;
   final String offerUserId;
   final String offerUserName;
 
@@ -411,14 +427,30 @@ class _AuthorAdmissionFooter extends StatelessWidget {
               ],
             ),
           ),
-          if (onRemoveFromChat != null) ...[
+          if (onRemoveFromChat != null || onReleaseCommitment != null) ...[
             SizedBox(width: tt.rowGap),
-            TenturaTextAction(
-              key: TestIds.key(TestIds.helpOfferRemove(offerUserId)),
-              semanticsIdentifier: TestIds.helpOfferRemove(offerUserId),
-              label: l10n.helpOfferAdmissionRemove,
-              onPressed: onRemoveFromChat,
-              tone: TenturaTone.neutral,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (onReleaseCommitment != null)
+                  TenturaTextAction(
+                    key: TestIds.key(TestIds.helpOfferRelease(offerUserId)),
+                    semanticsIdentifier: TestIds.helpOfferRelease(offerUserId),
+                    label: l10n.helpOfferReleaseCommitment,
+                    onPressed: onReleaseCommitment,
+                    tone: TenturaTone.neutral,
+                  ),
+                if (onReleaseCommitment != null && onRemoveFromChat != null)
+                  SizedBox(height: tt.tightGap),
+                if (onRemoveFromChat != null)
+                  TenturaTextAction(
+                    key: TestIds.key(TestIds.helpOfferRemove(offerUserId)),
+                    semanticsIdentifier: TestIds.helpOfferRemove(offerUserId),
+                    label: l10n.helpOfferAdmissionRemove,
+                    onPressed: onRemoveFromChat,
+                    tone: TenturaTone.neutral,
+                  ),
+              ],
             ),
           ],
         ],
@@ -515,6 +547,19 @@ class _AuthorAdmissionFooter extends StatelessWidget {
               l10n.helpOfferAdmissionDeclineHint,
               style: TenturaText.bodySmall(tt.textFaint),
             ),
+        ],
+        if (onReleaseCommitment != null) ...[
+          SizedBox(height: tt.tightGap),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TenturaTextAction(
+              key: TestIds.key(TestIds.helpOfferRelease(offerUserId)),
+              semanticsIdentifier: TestIds.helpOfferRelease(offerUserId),
+              label: l10n.helpOfferReleaseCommitment,
+              onPressed: onReleaseCommitment,
+              tone: TenturaTone.neutral,
+            ),
+          ),
         ],
       ],
     );

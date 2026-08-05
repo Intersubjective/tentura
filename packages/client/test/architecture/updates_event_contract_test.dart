@@ -68,6 +68,15 @@ const _expectedEventTypes = <Map<String, String>>[
         'packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart',
   },
   {
+    'eventType': 'commitmentReleased',
+    'producer': 'CoordinationCase.releaseCommitment',
+    'recipientCategory': 'affected_helper',
+    'destinationFamily': 'beacon_people_or_safe_terminal',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/coordination_case_release_test.dart',
+  },
+  {
     'eventType': 'roomMessagePosted',
     'producer': 'BeaconRoomCase.createMessage',
     'recipientCategory': 'directed_chat_target',
@@ -188,7 +197,7 @@ void main() {
         )
         .map((entry) => entry['eventType'])
         .toSet();
-    expect(safeTerminalEvents, {'offerDeclined', 'offerRemoved'});
+    expect(safeTerminalEvents, {'offerDeclined', 'offerRemoved', 'commitmentReleased'});
     expect(
       _pendingProducerEventTypes,
       isNot(contains('inviteAccepted')),

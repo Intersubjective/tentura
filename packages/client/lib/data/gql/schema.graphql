@@ -3301,6 +3301,7 @@ type mutation_root {
   rejectResolution(itemId: String!, reason: String): v2_CoordinationItemRow!
   remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
+  releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   resolveAsk(itemId: String!, note: String): v2_CoordinationItemRow!
   resolveBlocker(itemId: String!, note: String): v2_CoordinationItemRow!
   resolvePlanStep(itemId: String!): v2_CoordinationItemRow!

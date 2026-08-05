@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -65,4 +66,18 @@ String beaconPeopleStatusLabel(
     return l10n.beaconPeopleStatusWithdrawn;
   }
   return l10n.beaconPeopleStatusUnknown(status);
+}
+
+/// Participation stake label for help-offer tiles (P4 — keyed on [stakeState]).
+String? helpOfferStakeParticipationLabel(
+  L10n l10n,
+  CommitmentStakeState stakeState,
+) {
+  return switch (stakeState) {
+    CommitmentStakeState.released => l10n.helpOfferParticipationEndedLabel,
+    CommitmentStakeState.exited => l10n.labelWithdrawn,
+    CommitmentStakeState.softened => l10n.helpOfferAcknowledgementSoftenedLabel,
+    CommitmentStakeState.acknowledged => l10n.beaconPeopleStatusHelpOffered,
+    _ => null,
+  };
 }

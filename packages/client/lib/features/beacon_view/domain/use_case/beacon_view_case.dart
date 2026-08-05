@@ -254,6 +254,21 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  Future<({BeaconStatus status, DateTime? updatedAt})> releaseCommitment({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    final result = await _coordinationRepository.releaseCommitment(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
+
   Future<void> setBeaconStatus({
     required String beaconId,
     required int status,
