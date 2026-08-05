@@ -67,7 +67,7 @@ deployment. We still commit once per phase (plan §0.5 format:
 - [x] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
 - [x] U13 — P6: "Enough help" Forward-primary + backup offers (D2 A+B)
 - [x] U14 — P7: My Work offer-response-state row (D3)
-- [ ] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
+- [x] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
       patch, l10n, tests
 - [ ] U16 — P9: issue #108 — diagnose-first, Delete explanation, Close-now
       CTA batch query, idempotency, e2e regression test
@@ -1036,3 +1036,55 @@ from the V2 `helpOffersWithCoordination` type P3.11 already wired) — correct
 catch, not a duplicate of prior work, since My Work uses the Hasura path and
 People tab uses the V2 path. Proceeding to U15 (P8 rest — client gate wiring,
 close-sheet patch, l10n).
+
+### 2026-08-05 — U15 P8.2–P8.5 client gate consumption (worker)
+
+**Done:** Implemented plan §10 P8.2–P8.5 (client UI consumption only).
+
+- **P8.2 verify:** Confirmed P3.11/U07 already plumbed `canCancel`/`canDelete`/
+  `everAcknowledgedCommitterCount` in `beacon_display_status_dto.dart`,
+  `beacon_display_statuses.graphql`, and `schema.graphql` — no DTO/schema
+  re-work needed.
+- **P8.2 gates:** `beacon_lifecycle_ui.dart` — optional `serverCanCancel` /
+  `serverCanDelete` overrides with unchanged heuristic fallbacks; wired at all
+  four call sites (`beacon_view_app_bar_overflow.dart`, `my_work_cards.dart`
+  ×3 delete + ×2 cancel) via `displayStatus` DTO.
+- **P8.2 menu:** `BeaconStatusMenuInput.serverCanCancel`; `_cancelledRow` uses
+  server value when present; new `BeaconStatusMenuDisabledReason.cancelHasCommitters`
+  (appended at enum end).
+- **P8.3:** Patched `beacon_close_confirm_sheet.dart` — inline "Answer first"
+  action beside unanswered-offers evidence row (pops sheet, calls existing
+  `onOpenPeople`); confirm button text unchanged.
+- **P8.4:** `beaconStatusCancelHasCommitters`, `beaconCloseAnswerFirst` (EN+RU).
+- **P8.5:** Extended `build_beacon_status_menu_rows_test.dart`; new
+  `beacon_close_confirm_sheet_test.dart` widget tests.
+
+**Tests run (all passed):**
+- `cd packages/client && flutter gen-l10n`
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1679 passed, 14 skipped (+4 new)
+- `cd packages/tentura_lints && dart test` → 18/18
+- `./scripts/check-custom-lints.sh packages/client` → 111/112 (improved; OK)
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `cd packages/server && dart test -x pg test/domain/use_case/beacon_display_case_test.dart` → 15/15
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+**Commits (5, not pushed):**
+- `f54b5afa` feat(commitment): P8.2 — wire server canCancel/canDelete into client gates
+- `44bc8aaf` feat(commitment): P8.2 — status menu cancel gate from server canCancel
+- `341cc77d` feat(commitment): P8.3 — close-sheet answer-first action for unanswered offers
+- `343b6b6f` feat(commitment): P8.4 — l10n for cancel committer reason and answer-first
+- `b9af02aa` test(commitment): P8.5 — status menu and close-sheet gate tests
+
+**Decisions:** Client bumped `5.6.42` → `5.6.43`. P8.1/P3.11 DTO plumbing was
+already complete as expected — this unit was UI-consumption only. Close-sheet
+evidence rows refactored to use `tt.tightGap` spacing tokens (fixed a pre-existing
+`no_raw_edge_insets` in the same helper while adding the action row). Did not
+add `beaconCloseUnansweredOffersWarning` or `beaconCloseAnyway` per plan.
+
+**Remaining:** U16 (P9) — issue #108 Close→Archive, Delete explanation, Close-now CTA.
+
+### 2026-08-05 — U15 final
+
+P8.2–P8.5 acceptance verified green on `feat/commitment-truth-rework`. Journal
+checklist U15 marked complete. Proceeding to U16 (P9).
