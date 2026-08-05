@@ -27,6 +27,7 @@ BeaconStatusMenuInput _input({
   bool canManageLifecycle = true,
   bool canSetCoordination = true,
   ReviewWindowMenuSnapshot? reviewWindow,
+  bool? serverCanCancel,
 }) =>
     BeaconStatusMenuInput(
       beacon: beacon ?? _beacon(),
@@ -35,6 +36,7 @@ BeaconStatusMenuInput _input({
       canManageLifecycle: canManageLifecycle,
       canSetCoordination: canSetCoordination,
       reviewWindow: reviewWindow,
+      serverCanCancel: serverCanCancel,
     );
 
 BeaconStatusMenuRow _row(
@@ -157,5 +159,30 @@ void main() {
       _row(rows, BeaconStatusMenuRowId.cancelled).disabledReason,
       BeaconStatusMenuDisabledReason.cancelHasOffers,
     );
+  });
+
+  test('cancel disabled with server canCancel false uses committer reason', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(helpOfferCount: 2),
+        serverCanCancel: false,
+      ),
+    );
+    expect(_row(rows, BeaconStatusMenuRowId.cancelled).isEnabled, isFalse);
+    expect(
+      _row(rows, BeaconStatusMenuRowId.cancelled).disabledReason,
+      BeaconStatusMenuDisabledReason.cancelHasCommitters,
+    );
+  });
+
+  test('cancel enabled when server canCancel true despite heuristic block', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(helpOfferCount: 2),
+        hasCommitters: true,
+        serverCanCancel: true,
+      ),
+    );
+    expect(_row(rows, BeaconStatusMenuRowId.cancelled).isEnabled, isTrue);
   });
 }
