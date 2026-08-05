@@ -3564,6 +3564,14 @@
   "beaconDeleteOpenTitle": "Delete request?",
   "beaconDeleteOpenBody": "This permanently removes the request. It never had acknowledged helpers.",
   "beaconDeleteGenericBody": "This removes the request for everyone who could see it.",
+  "beaconDeleteFailedRetry": "Couldn't delete the request",
+  "@beaconDeleteFailedRetry": {
+    "description": "Snackbar when delete mutation fails; offers retry"
+  },
+  "beaconCloseNowCta": "Close request",
+  "@beaconCloseNowCta": {
+    "description": "Primary CTA on My Work when all required reviews are done"
+  },
   "myWorkFinishedStatusClosed": "Closed",
   "myWorkFinishedStatusCancelled": "Cancelled",
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",

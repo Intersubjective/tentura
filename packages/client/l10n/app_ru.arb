@@ -3525,6 +3525,14 @@
   "beaconDeleteOpenTitle": "Удалить запрос?",
   "beaconDeleteOpenBody": "Запрос будет удалён безвозвратно. Подтверждённых помощников не было.",
   "beaconDeleteGenericBody": "Запрос исчезнет для всех, кто его видел.",
+  "beaconDeleteFailedRetry": "Не удалось удалить запрос",
+  "@beaconDeleteFailedRetry": {
+    "description": "Snackbar when delete mutation fails; offers retry"
+  },
+  "beaconCloseNowCta": "Закрыть запрос",
+  "@beaconCloseNowCta": {
+    "description": "Primary CTA on My Work when all required reviews are done"
+  },
   "myWorkFinishedStatusClosed": "Закрыт",
   "myWorkFinishedStatusCancelled": "Отменён",
   "myWorkFinishedHint": "Завершённые запросы остаются здесь, пока вы их не архивируете.",
