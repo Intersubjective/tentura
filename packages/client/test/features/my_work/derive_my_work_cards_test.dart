@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -74,6 +75,7 @@ void main() {
       offerHelpMessage: 'note',
       helpType: null,
       authorResponseType: null,
+      stakeState: CommitmentStakeState.none,
       forwarderSenders: const <Profile>[],
       helpOfferRowUpdatedAt: DateTime(2025, 1, 2),
       authorCoordinationUpdatedAt: null,
@@ -96,6 +98,7 @@ void main() {
       offerHelpMessage: 'mine',
       helpType: null,
       authorResponseType: null,
+      stakeState: CommitmentStakeState.none,
       forwarderSenders: const <Profile>[],
       helpOfferRowUpdatedAt: DateTime(2025, 1, 3),
       authorCoordinationUpdatedAt: null,
@@ -125,6 +128,7 @@ void main() {
       offerHelpMessage: '',
       helpType: null,
       authorResponseType: null,
+      stakeState: CommitmentStakeState.none,
       forwarderSenders: const <Profile>[],
       helpOfferRowUpdatedAt: DateTime(2025, 1, 2),
       authorCoordinationUpdatedAt: null,
@@ -167,6 +171,7 @@ void main() {
         offerHelpMessage: 'hi',
         helpType: null,
         authorResponseType: null,
+        stakeState: CommitmentStakeState.none,
         forwarderSenders: const <Profile>[],
         helpOfferRowUpdatedAt: DateTime(2025, 3),
         authorCoordinationUpdatedAt: null,
