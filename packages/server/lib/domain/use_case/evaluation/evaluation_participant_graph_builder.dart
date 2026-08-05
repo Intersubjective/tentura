@@ -1,13 +1,14 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
-import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
-import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_visibility_rules.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 import 'evaluation_participant_draft.dart';
 
@@ -18,17 +19,19 @@ typedef EvaluationParticipantGraphBundle = ({
   Map<String, ForwardEdgeEntity> latestEdgeToCommitter,
 });
 
+const _participationEndedSuffix = ' — participation ended';
+
 @Injectable(order: 2)
 final class EvaluationParticipantGraphBuilder {
   EvaluationParticipantGraphBuilder(
+    this._commitmentRepository,
     this._helpOfferRepository,
-    this._coordinationRepository,
     this._forwardEdgeRepository,
     this._userRepository,
   );
 
+  final CommitmentRepositoryPort _commitmentRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
-  final CoordinationRepositoryPort _coordinationRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final UserRepositoryPort _userRepository;
 
@@ -37,28 +40,35 @@ final class EvaluationParticipantGraphBuilder {
     required String authorId,
     required bool preClosure,
   }) async {
-    final helpOffers = await _helpOfferRepository.fetchByBeaconId(beaconId);
-    final coordinationByUserId =
-        await _coordinationRepository.coordinationResponseTypeByOfferUserId(
-      beaconId,
-    );
-    final acknowledgedCommitters = helpOffers
-        .where(
-          (c) => isAcknowledgedCommitterResponse(
-            coordinationByUserId[c.userId],
-          ),
-        )
-        .toList();
+    final eventsByUser = await _commitmentRepository.eventsByUser(beaconId);
+    final helpOffers = await _helpOfferRepository.fetchAllByBeaconId(beaconId);
+    final offerByUser = {for (final offer in helpOffers) offer.userId: offer};
+    final activeByUser = {
+      for (final offer in helpOffers)
+        if (offer.isActive) offer.userId: true,
+    };
+
+    final everAck = <String>{
+      for (final entry in eventsByUser.entries)
+        if (everAcknowledged(entry.value)) entry.key,
+    };
+    final current = <String>{
+      for (final entry in eventsByUser.entries)
+        if (hasCurrentStake(
+          entry.value,
+          hasActiveOffer: activeByUser[entry.key] ?? false,
+        ))
+          entry.key,
+    };
+
     final edges = await _forwardEdgeRepository.fetchByBeaconId(beaconId);
 
-    final helpOffererIds = acknowledgedCommitters.map((c) => c.userId).toList();
-
     final latestEdgeToCommitter = <String, ForwardEdgeEntity>{};
-    for (final c in helpOffererIds) {
-      final toC = edges.where((e) => e.recipientId == c).toList()
+    for (final userId in everAck) {
+      final toC = edges.where((e) => e.recipientId == userId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       if (toC.isNotEmpty) {
-        latestEdgeToCommitter[c] = toC.first;
+        latestEdgeToCommitter[userId] = toC.first;
       }
     }
 
@@ -83,31 +93,36 @@ final class EvaluationParticipantGraphBuilder {
       ),
     ];
 
-    for (final c in acknowledgedCommitters) {
-      final localDate = c.createdAt.toLocal();
-      final d =
-          '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+    final sortedEverAck = everAck.toList()
+      ..sort((a, b) {
+        final aOffer = offerByUser[a];
+        final bOffer = offerByUser[b];
+        if (aOffer == null && bOffer == null) return a.compareTo(b);
+        if (aOffer == null) return 1;
+        if (bOffer == null) return -1;
+        return aOffer.createdAt.compareTo(bOffer.createdAt);
+      });
+
+    for (final userId in sortedEverAck) {
+      final offer = offerByUser[userId];
+      if (offer == null) continue;
+
+      final role = current.contains(userId)
+          ? EvaluationParticipantRole.committer
+          : EvaluationParticipantRole.formerCommitter;
+      final edge = latestEdgeToCommitter[userId];
+      String? forwarderName;
+      if (edge != null && edge.senderId != authorId) {
+        forwarderName = (await _userRepository.getById(edge.senderId)).displayName;
+      }
       participants.add(
-        EvaluationParticipantDraft(
-          userId: c.userId,
-          role: EvaluationParticipantRole.committer,
-          contributionSummary:
-              'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
-          causalHint: 'Committer — committed in this request',
+        _committerParticipant(
+          userId: userId,
+          offer: offer,
+          role: role,
+          forwarderDisplayName: forwarderName,
         ),
       );
-      final edge = latestEdgeToCommitter[c.userId];
-      if (edge != null && edge.senderId != authorId) {
-        final fs = await _userRepository.getById(edge.senderId);
-        participants[participants.length - 1] = EvaluationParticipantDraft(
-          userId: c.userId,
-          role: EvaluationParticipantRole.committer,
-          contributionSummary:
-              'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
-          causalHint:
-              'Committer — received via forward from ${fs.displayName}; committed in this request',
-        );
-      }
     }
 
     for (final fid in forwarderIds) {
@@ -151,4 +166,30 @@ final class EvaluationParticipantGraphBuilder {
       latestEdgeToCommitter: latestEdgeToCommitter,
     );
   }
+}
+
+EvaluationParticipantDraft _committerParticipant({
+  required String userId,
+  required HelpOfferEntity offer,
+  required EvaluationParticipantRole role,
+  required String? forwarderDisplayName,
+}) {
+  final localDate = offer.createdAt.toLocal();
+  final d =
+      '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+  final baseSummary =
+      'Committed on $d${offer.message.isNotEmpty ? ': ${offer.message}' : ''}';
+  final baseHint = forwarderDisplayName != null
+      ? 'Committer — received via forward from $forwarderDisplayName; committed in this request'
+      : 'Committer — committed in this request';
+  final isFormer = role == EvaluationParticipantRole.formerCommitter;
+  return EvaluationParticipantDraft(
+    userId: userId,
+    role: role,
+    contributionSummary: isFormer
+        ? '$baseSummary$_participationEndedSuffix'
+        : baseSummary,
+    causalHint:
+        isFormer ? '$baseHint$_participationEndedSuffix' : baseHint,
+  );
 }
