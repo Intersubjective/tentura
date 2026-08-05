@@ -384,6 +384,106 @@ void main() {
       );
     });
 
+    test('notSuitable with inviteToRoom throws admissionRequiresAcknowledgement',
+        () async {
+      stubAuthorSetResponse();
+
+      await expectLater(
+        case_.setCoordinationResponse(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.notSuitable.smallintValue,
+          inviteToRoom: true,
+          removeFromRoom: false,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.admissionRequiresAcknowledgement,
+          ),
+        ),
+      );
+      verifyNever(
+        coordinationRepo.upsertResponse(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          authorUserId: anyNamed('authorUserId'),
+          responseType: anyNamed('responseType'),
+        ),
+      );
+    });
+
+    test('useful with inviteToRoom admits and records acknowledged', () async {
+      stubAuthorSetResponse();
+      when(
+        roomRepo.inviteOfferUserToBeaconRoom(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+        ),
+      ).thenAnswer((_) async {});
+
+      await case_.setCoordinationResponse(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        authorUserId: authorId,
+        responseType: CoordinationResponseType.useful.smallintValue,
+        inviteToRoom: true,
+        removeFromRoom: false,
+      );
+
+      verify(
+        roomRepo.inviteOfferUserToBeaconRoom(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+        ),
+      ).called(1);
+      expect(
+        commitmentRepo.recordCalls.map((call) => call.kind),
+        [CommitmentEventKind.acknowledged],
+      );
+    });
+
+    test(
+      'inviteToRoom with non-acknowledging response prefers admissionRequiresAcknowledgement over downgrade guard',
+      () async {
+        commitmentRepo = RecordingCommitmentRepository(
+          eventsByPair: {
+            commitmentPairKey(beaconId, helperId): [
+              event(seq: 1, kind: CommitmentEventKind.offered),
+              event(seq: 2, kind: CommitmentEventKind.acknowledged),
+            ],
+          },
+        );
+        buildCase();
+        stubAuthorSetResponse();
+
+        await expectLater(
+          case_.setCoordinationResponse(
+            beaconId: beaconId,
+            offerUserId: helperId,
+            authorUserId: authorId,
+            responseType: CoordinationResponseType.notSuitable.smallintValue,
+            inviteToRoom: true,
+            removeFromRoom: false,
+          ),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) =>
+                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+              'code',
+              HelpOfferCoordinationExceptionCode
+                  .admissionRequiresAcknowledgement,
+            ),
+          ),
+        );
+      },
+    );
+
     test('notSuitable without acknowledgement still succeeds', () async {
       stubAuthorSetResponse();
 

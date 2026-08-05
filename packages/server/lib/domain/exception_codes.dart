@@ -138,6 +138,7 @@ enum HelpOfferCoordinationExceptionCode {
   notAdmitted,
   alreadyAdmitted,
   commitmentAlreadyAcknowledged,
+  admissionRequiresAcknowledgement,
 }
 
 class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {

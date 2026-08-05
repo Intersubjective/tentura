@@ -478,6 +478,12 @@ final class CoordinationCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
       );
     }
+    if (inviteToRoom && !_isAcknowledgingResponseType(responseType)) {
+      throw HelpOfferCoordinationException(
+        coordinationCode:
+            HelpOfferCoordinationExceptionCode.admissionRequiresAcknowledgement,
+      );
+    }
     if (!_isAcknowledgingResponseType(responseType) &&
         await _commitmentQueryCase.everAcknowledgedPair(
           beaconId: beaconId,
