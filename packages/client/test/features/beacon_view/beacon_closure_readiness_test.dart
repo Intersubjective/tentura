@@ -9,6 +9,9 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -34,6 +37,7 @@ BeaconViewState _baseAuthorState({
   List<BeaconActivityEvent> roomActivityEvents = const [],
   StateStatus status = const StateIsSuccess(),
   Profile myProfile = const Profile(id: 'uAuthor', displayName: 'Me'),
+  BeaconDisplayStatusDto? displayStatus,
 }) =>
     BeaconViewState(
       beacon: beacon ?? _openBeacon(),
@@ -43,12 +47,14 @@ BeaconViewState _baseAuthorState({
       roomActivityEvents: roomActivityEvents,
       myProfile: myProfile,
       status: status,
+      displayStatus: displayStatus,
     );
 
 TimelineHelpOffer _helpOffer({
   required String userId,
   CoordinationResponseType? coordinationResponse,
   bool withdrawn = false,
+  CommitmentStakeState stakeState = CommitmentStakeState.none,
 }) =>
     TimelineHelpOffer(
       user: Profile(id: userId, displayName: userId),
@@ -57,6 +63,20 @@ TimelineHelpOffer _helpOffer({
       updatedAt: DateTime.utc(2025),
       isWithdrawn: withdrawn,
       coordinationResponse: coordinationResponse,
+      stakeState: stakeState,
+    );
+
+BeaconDisplayStatusDto _displayStatus({
+  int everAcknowledgedCommitterCount = 0,
+}) =>
+    BeaconDisplayStatusDto(
+      beaconId: 'b1',
+      status: BeaconStatus.open,
+      phase: BeaconCoordinationPhase.coordinating,
+      suggestedAction: BeaconPhasePrimaryAction.none,
+      slot2Kind: BeaconPhaseSlot2Kind.none,
+      tier: BeaconDisplayTier.coordination,
+      everAcknowledgedCommitterCount: everAcknowledgedCommitterCount,
     );
 
 void main() {
@@ -274,6 +294,67 @@ void main() {
 
     test('matches kBeaconAllowForceCloseWhenBlocked default contract', () {
       expect(kBeaconAllowForceCloseWhenBlocked, false);
+    });
+  });
+
+  group('helpOfferIsCommitter', () {
+    test('useful response with released stake is not committer', () {
+      final offer = _helpOffer(
+        userId: 'h1',
+        coordinationResponse: CoordinationResponseType.useful,
+        stakeState: CommitmentStakeState.released,
+      );
+      expect(helpOfferIsCommitter(offer), isFalse);
+    });
+
+    test('exited stake is not committer even with useful response', () {
+      final offer = _helpOffer(
+        userId: 'h1',
+        coordinationResponse: CoordinationResponseType.useful,
+        stakeState: CommitmentStakeState.exited,
+      );
+      expect(helpOfferIsCommitter(offer), isFalse);
+    });
+
+    test('acknowledged stake is committer', () {
+      final offer = _helpOffer(
+        userId: 'h1',
+        coordinationResponse: CoordinationResponseType.useful,
+        stakeState: CommitmentStakeState.acknowledged,
+      );
+      expect(helpOfferIsCommitter(offer), isTrue);
+    });
+  });
+
+  group('expectedRequiresReviewWindowForState', () {
+    test('accept then withdraw uses server everAck count, not stale response', () {
+      final state = _baseAuthorState(
+        helpOffers: [
+          _helpOffer(
+            userId: 'h1',
+            coordinationResponse: CoordinationResponseType.useful,
+            stakeState: CommitmentStakeState.exited,
+            withdrawn: true,
+          ),
+        ],
+        displayStatus: _displayStatus(everAcknowledgedCommitterCount: 1),
+      );
+      expect(expectedRequiresReviewWindowForState(state), isTrue);
+      expect(beaconStateHasCommitters(state), isTrue);
+    });
+
+    test('returns null when display status not loaded yet', () {
+      final state = _baseAuthorState(
+        helpOffers: [
+          _helpOffer(
+            userId: 'h1',
+            coordinationResponse: CoordinationResponseType.useful,
+            stakeState: CommitmentStakeState.acknowledged,
+          ),
+        ],
+      );
+      expect(expectedRequiresReviewWindowForState(state), isNull);
+      expect(closeReviewWindowExpectationKnown(state), isFalse);
     });
   });
 }

@@ -1425,11 +1425,26 @@ void main() {
         final result = await evaluationCase.beaconClose(
           beaconId: beaconId,
           userId: userId,
+          // Client-shaped expected after P3.11: everAcknowledgedCommitterCount > 0.
           expectedRequiresReviewWindow: true,
         );
 
         expect(result.status, BeaconStatus.reviewOpen.smallintValue);
         expect(evalRepo.insertReviewWindowCalls, 1);
+      },
+    );
+
+    test(
+      'does not throw closeBranchConflict when client sends DTO-shaped expected',
+      () async {
+        await expectLater(
+          evaluationCase.beaconClose(
+            beaconId: beaconId,
+            userId: userId,
+            expectedRequiresReviewWindow: true,
+          ),
+          completes,
+        );
       },
     );
   });

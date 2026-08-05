@@ -172,6 +172,8 @@ void main() {
               admissionAction: null,
               lastDeclineReason: null,
               lastRemoveReason: null,
+              stakeState: 0,
+              offerKind: 0,
             ),
           ],
         ),

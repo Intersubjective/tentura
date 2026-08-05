@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -51,6 +52,10 @@ TimelineHelpOffer _offer({
       updatedAt: DateTime.utc(2026, 6, 20),
       coordinationResponse: response,
       roomAccess: roomAccess,
+      stakeState: response == CoordinationResponseType.useful ||
+              response == CoordinationResponseType.needCoordination
+          ? CommitmentStakeState.acknowledged
+          : CommitmentStakeState.none,
     );
 
 void main() {

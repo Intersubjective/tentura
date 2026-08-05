@@ -19,6 +19,8 @@ import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidat
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
+import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
@@ -52,6 +54,8 @@ typedef FakeHelpOfferCoordinationRow = ({
   int? admissionAction,
   String? lastDeclineReason,
   String? lastRemoveReason,
+  int stakeState,
+  int offerKind,
 });
 
 Never _throwTestError(Object error) {
@@ -91,6 +95,23 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
     await _forwardChanges.close();
     await _helpOfferChanges.close();
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeBeaconDisplayRepository implements BeaconDisplayRepository {
+  FakeBeaconDisplayRepository({this.rows = const []});
+
+  final List<BeaconDisplayStatusDto> rows;
+
+  @override
+  Future<List<BeaconDisplayStatusDto>> fetchDisplayStatuses(
+    List<String> beaconIds,
+  ) async => [
+    for (final row in rows)
+      if (beaconIds.contains(row.beaconId)) row,
+  ];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -402,6 +423,7 @@ BeaconViewCase buildTestBeaconViewCase({
   TrackingBeaconRepository? beaconRepo,
   FakeBeaconViewEvaluationRepository? evaluationRepo,
   FakeBeaconViewCoordinationRepository? coordinationRepo,
+  FakeBeaconDisplayRepository? displayRepo,
   FakeBeaconViewFactCardRepository? factCardsRepo,
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
   FakeBeaconViewRoomRepository? roomRepo,
@@ -413,6 +435,7 @@ BeaconViewCase buildTestBeaconViewCase({
   final evaluation = evaluationRepo ?? FakeBeaconViewEvaluationRepository();
   final coordination =
       coordinationRepo ?? FakeBeaconViewCoordinationRepository();
+  final display = displayRepo ?? FakeBeaconDisplayRepository();
   final factCards = factCardsRepo ?? FakeBeaconViewFactCardRepository();
   final activityEvents =
       activityEventsRepo ?? FakeBeaconViewActivityEventRepository();
@@ -423,6 +446,7 @@ BeaconViewCase buildTestBeaconViewCase({
     evaluation,
     FakeBeaconViewArchiveRepository(),
     coordination,
+    display,
     FakeBeaconViewInboxRepository(),
     factCards,
     buildTestBeaconRoomCaseForView(watermark, room: roomRepo),
