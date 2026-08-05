@@ -6,6 +6,28 @@ import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordina
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 
 void main() {
+  test('helpOfferWithCoordinationToGqlMap includes stakeState and offerKind', () {
+    const user = UserPublicRecord(
+      id: 'U1',
+      displayName: 't',
+      description: '',
+    );
+    final row = HelpOfferWithCoordinationRow(
+      beaconId: 'B1',
+      userId: 'U1',
+      message: 'm',
+      status: 0,
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
+      user: user,
+      stakeState: 4,
+      offerKind: 0,
+    );
+    final m = helpOfferWithCoordinationToGqlMap(row);
+    expect(m['stakeState'], 4);
+    expect(m['offerKind'], 0);
+  });
+
   test('helpOfferWithCoordinationToGqlMap includes roomAccess for auto-admit', () {
     const user = UserPublicRecord(
       id: 'U1',

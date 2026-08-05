@@ -22,6 +22,8 @@ class HelpOfferWithCoordinationRow {
     this.admissionAction,
     this.lastDeclineReason,
     this.lastRemoveReason,
+    this.stakeState = 0,
+    this.offerKind = 0,
   });
 
   final String beaconId;
@@ -41,12 +43,16 @@ class HelpOfferWithCoordinationRow {
   final int? admissionAction;
   final String? lastDeclineReason;
   final String? lastRemoveReason;
+  final int stakeState;
+  final int offerKind;
   final UserPublicRecord user;
 
   HelpOfferWithCoordinationRow copyWith({
     int? admissionAction,
     String? lastDeclineReason,
     String? lastRemoveReason,
+    int? stakeState,
+    int? offerKind,
     bool clearAdmissionFields = false,
   }) => HelpOfferWithCoordinationRow(
     beaconId: beaconId,
@@ -71,5 +77,7 @@ class HelpOfferWithCoordinationRow {
     lastRemoveReason: clearAdmissionFields
         ? null
         : lastRemoveReason ?? this.lastRemoveReason,
+    stakeState: stakeState ?? this.stakeState,
+    offerKind: offerKind ?? this.offerKind,
   );
 }

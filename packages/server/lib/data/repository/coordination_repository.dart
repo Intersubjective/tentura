@@ -349,6 +349,8 @@ ORDER BY beacon_id, offer_user_id, seq DESC
           lastRemoveReason: admission?.action == HelpOfferAdmissionAction.remove
               ? admission?.reason
               : null,
+          stakeState: row.stakeState,
+          offerKind: row.offerKind,
         ),
       );
     }

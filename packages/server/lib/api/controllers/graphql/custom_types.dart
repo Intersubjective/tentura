@@ -719,6 +719,8 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('admissionAction', graphQLInt),
         field('lastDeclineReason', graphQLString),
         field('lastRemoveReason', graphQLString),
+        field('stakeState', graphQLInt.nonNullable()),
+        field('offerKind', graphQLInt.nonNullable()),
         field('user', gqlTypeUserPublic.nonNullable()),
       ]);
 

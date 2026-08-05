@@ -62,5 +62,7 @@ Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
   'admissionAction': row.admissionAction,
   'lastDeclineReason': row.lastDeclineReason,
   'lastRemoveReason': row.lastRemoveReason,
+  'stakeState': row.stakeState,
+  'offerKind': row.offerKind,
   'user': userPublicToGqlMap(row.user),
 };
