@@ -59,7 +59,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
-| U6 | Multi-client My Work regression + reconnect dedup | pending | — |
+| U6 | Multi-client My Work regression + reconnect dedup | complete | pending overseer review |
 | U7 | Cross-surface consistency verification | pending | — |
 | U8 | Integration and close-out | pending | — |
 
@@ -622,3 +622,43 @@ freshly-migrated database would have. Harmless in practice (4-arg calls now bind
 jsonb-default variant) but it is drift between the dev DB and the committed migration chain.
 
 Relaunching U6 with a 7200s budget and an explicit commit-before-gate ordering.
+
+### 2026-08-05 — U6 attempt 2 — checkpoint: infrastructure committed (`28de4a86`)
+
+WebDriver semantics (`QA_WEBDRIVER_SEMANTICS`), Updates receipt test ids, runner
+`QA_INTEGRATION_TEST_MODE`, and `my_work_status_line` phase+room subtitle merge (fixes
+pre-existing scenario 3a `+1` convergence). `room_read_watermark_store.resolveUnread`
+simplified to match attempt-1 semantics; unit test updated.
+
+### 2026-08-05 — U6 attempt 2 — checkpoint: multiclient scenarios committed (`eb618085`)
+
+Harness adds #102 My Work scenario (author stays on My Work; helper accepts ask via API;
+assert `updates-unread-count-1`, My Work card copy, exactly one new receipt id on author
+peer Updates tab, delivery ≤ 1.5 s) and attention reconnect dedup (suspend author socket,
+mark+accept while gated, resume, assert set-diff of receipt ids adds exactly one).
+
+**Auth fix:** GraphQL requires Bearer JWT (`extractJwtClaims`); plain-HTTP `HttpClient`
+cannot auto-store `Secure` session cookies from test-login. Manual `Set-Cookie` parse +
+`POST /session/access-token` with explicit `Cookie` header, then `Authorization: Bearer`.
+
+Fast loop (`REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false`):
+**PASS** run `realtime-1785927355-1`; `my_work_102_delivery_ms=851`,
+`attention_reconnect_catch_up_ms=250`.
+
+### 2026-08-05 — U6 attempt 2 — checkpoint: fast-suite regression committed (`bff5cf4b`)
+
+`updates_102_my_work_attention_test.dart` — `commitmentAccepted` receipt drives Updates
+unread badge and My Work unread dot when switching to Updates tab (no navigation during
+mutation).
+
+### 2026-08-05 — U6 attempt 2 — final (pre-release-gate)
+
+STATUS: partial (release gate pending)
+COMMITS: 28de4a86, eb618085, bff5cf4b
+TESTS:
+- `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS (1/1)
+- `cd packages/client && flutter test test/features/updates/updates_102_my_work_attention_test.dart test/features/beacon_room/room_read_watermark_store_test.dart` — 6 passed
+FILES: see commits; proof at `packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json`
+FINDINGS: `qa_head_refresh_latency_ms` null in browser logs (delivery timing still asserted via `_measureUntil`); Secure-cookie + Bearer path required for API-driven markAsk/acceptAsk.
+REMAINING: 5-run release gate + negative proofs; journal commit with artifacts.
+

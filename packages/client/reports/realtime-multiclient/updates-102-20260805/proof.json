@@ -1,0 +1,32 @@
+{
+  "suite": "updates-102",
+  "recordedAt": "2026-08-05",
+  "fastLoopRunId": "realtime-1785927355-1",
+  "gitRevision": "bff5cf4b",
+  "timings_ms": {
+    "my_work_102_delivery_ms": 851,
+    "attention_reconnect_catch_up_ms": 250,
+    "reconnect_catch_up_ms": 1709,
+    "same_account_my_work_read_ms": 6
+  },
+  "budgets_ms": {
+    "connected_p95": 1500,
+    "reconnect_p95": 3000
+  },
+  "my_work_102": {
+    "runId": "realtime-1785927355-1",
+    "beaconId": "Befa1de34d831",
+    "itemId": "If711ab8656dc",
+    "receiptId": "6e84e284-838a-49ac-a1ac-d5ad8a106fa6",
+    "delivery_ms": 851,
+    "qa_head_refresh_latency_ms": null,
+    "ok": true
+  },
+  "attention_reconnect": {
+    "newReceiptIds": [
+      "c2713cb0-c225-48d8-9223-6c9b99d7e2fc"
+    ],
+    "catch_up_ms": 250,
+    "ok": true
+  }
+}
