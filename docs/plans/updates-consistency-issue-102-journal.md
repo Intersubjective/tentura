@@ -760,7 +760,7 @@ COMMITS: a89ac196, e55f3106, fe5c6aee
 ### 2026-08-05 — U6 remediation — final
 
 STATUS: complete
-COMMITS: feec5fce, a89ac196, e55f3106, fe5c6aee, 160c5562, 72a48dc7, 7410e018, 035b6678, 12714aad, 5835f427, (proof commit pending)
+COMMITS: feec5fce, a89ac196, e55f3106, fe5c6aee, 160c5562, 72a48dc7, 7410e018, 035b6678, 12714aad, 5835f427, e91dda75
 TESTS:
 - `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS (`my_work_102_qa_head_refresh_latency_ms=217`)
 - `bash scripts/run_realtime_multiclient_web_local.sh` — **PASS 5/5** session `20260805-135611`; negative proofs live + catch_up observed
