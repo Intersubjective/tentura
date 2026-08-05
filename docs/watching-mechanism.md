@@ -35,7 +35,7 @@ Per-user stance for a beacon is stored per inbox row:
 
 ## Transitions
 
-- **Into Watching:** user chooses Move to Watching; or user completes **forward** with **no active help offer** (sender row becomes watching).
+- **Into Watching:** user chooses Move to Watching; user completes **forward** with **no active help offer** (sender row becomes watching); or the **system** places the user in Watching after **withdrawing a help offer** on an open-family beacon (not an explicit user choice — distinct from choosing Move to Watching).
 - **Out of Watching (stronger actions):** offer help → My Work; not for me → archive; forward onward → recipient-visible **Forwarded** (precedence below).
 
 **Return to Needs me** — Watching overflow may move the item back to triage.
