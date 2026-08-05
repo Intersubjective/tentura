@@ -51,7 +51,7 @@ deployment. We still commit once per phase (plan §0.5 format:
 - [x] U06 — P3.8+P3.9+P3.10: withdraw forbidden in Wrapping up, response
       downgrade forbidden after acknowledgement, room-admission-requires-
       acknowledgement invariant (+ client UI guard)
-- [ ] U07 — P3.11: client truth alignment for Close (**release-blocking per
+- [x] U07 — P3.11: client truth alignment for Close (**release-blocking per
       plan**) — server `stakeState`/`offerKind` on coordination row, client
       `CommitmentStakeState`, `helpOfferIsCommitter` rewrite, My Work counter
       wiring (depends on P8.1 field `everAcknowledgedCommitterCount` — see U09)
@@ -106,7 +106,12 @@ not the plan prose); server 0.
 
 ## Unresolved decisions / blockers
 
-(none yet)
+- `hasSuccessfulHelpOfferResult` / `helpOfferRowSettled` in
+  `beacon_closure_readiness.dart` still read `coordinationResponse == useful`
+  for settlement/readiness heuristics (not committer/Close-contract truth).
+  Left unchanged — plan scoped committer truth to `helpOfferIsCommitter` and
+  `expectedRequiresReviewWindowForState` only; settlement copy may still reflect
+  stale author response until a later UX pass.
 
 ## Checkpoints
 
@@ -524,3 +529,47 @@ in a follow-up commit) is a non-issue — final state is clean. Proceeding to
 U07 (P3.11) — the release-blocking client truth-alignment unit; both of its
 dependencies (P3.5's close-gate switch and P8.1's
 `everAcknowledgedCommitterCount`) are now in place.
+
+### 2026-08-05 — U07 P3.11 client truth alignment for Close (worker)
+
+**Done:** Implemented plan §5 P3.11 points 1–4 (P3.11.5 / `kDefaultMinClientVersion`
+deferred to U10 CORE VERIFY per instructions).
+
+- **P3.11.1:** `HelpOfferWithCoordinationRow` + `CoordinationRepository` +
+  GraphQL map expose `stakeState`/`offerKind` from `beacon_help_offer`.
+- **P3.11.2:** `CommitmentStakeState` enum (`fromInt` forward-compat); threaded
+  through client schema/query, `CoordinationRepository`, `TimelineHelpOffer`,
+  `BeaconViewCubit` mapper.
+- **P3.11.3:** `helpOfferIsCommitter` → `stakeState == acknowledged`;
+  `beaconStateHasCommitters` prefers `displayStatus.everAcknowledgedCommitterCount`;
+  `expectedRequiresReviewWindowForState` returns server DTO value (`null` when
+  DTO not loaded → Close disabled).
+- **P3.11.4:** Client `BeaconDisplayStatusDto` + query now include
+  `canCancel`/`canDelete`/`everAcknowledgedCommitterCount` (P8.2 data plumbing
+  pulled forward); fetched in beacon view + My Work enrichment; My Work close
+  uses DTO counter (disabled until loaded); beacon-view close flows gated on
+  `closeReviewWindowExpectationKnown`.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1236/1236 green (+2 new)
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1652 passed, 14 skipped
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline held)
+
+**Commits (6, not pushed):**
+- `303b0f89` feat(commitment): P3.11 — server stakeState/offerKind on help offer coordination row
+- `70318368` feat(commitment): P3.11 — client CommitmentStakeState and TimelineHelpOffer wiring
+- `5dffdcfa` feat(commitment): P3.11 — participation truth via stakeState for committer checks
+- `4f0150ac` feat(commitment): P3.11 — wire everAcknowledgedCommitterCount for Close readiness
+- `2ed2db5a` test(commitment): P3.11 — close review-window contract regression tests
+- `75922d97` docs(commitment): U07 P3.11 journal checkpoint
+
+**Decisions:** Client bumped `5.6.37` → `5.6.38`. `canCancel`/`canDelete` plumbed
+but not wired to UI (per scope). Close sheet still uses `requiresReviewWindow ??
+false` in summary for copy when DTO missing, but close actions are gated before
+mutation. HUD tests updated to set `stakeState: acknowledged` on useful offers.
+
+**Remaining:** U08 (P3.12) gate-scenario suite; U10 CORE VERIFY +
+`kDefaultMinClientVersion` bump.
