@@ -340,3 +340,23 @@ Confirmed `formerCommitter(3)` was appended (not inserted/reordered) and
 match plan §5 point-for-point, including the if-chain in
 `buildEvaluationVisibility` (the one the compiler wouldn't have caught).
 Proceeding to U04.
+
+### 2026-08-05 — U04 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1221/1221
+green) and `check-custom-lints.sh packages/server` (0/0 baseline). Inspected
+the full diff of `evaluation_participant_graph_builder.dart`: injects
+`CommitmentRepositoryPort` directly (not `CommitmentQueryCase` — correct, avoids
+case→case at same order), drops `CoordinationRepositoryPort` (confirmed it was
+only used for the now-superseded `coordinationResponseTypeByOfferUserId` call,
+no other use in the file); `everAck`/`current` computed from
+`eventsByUser`/`everAcknowledged`/`hasCurrentStake`; role assignment,
+`participation ended` suffix on both summary and hint, forwarder computation
+over `everAck`, and `fetchAllByBeaconId` (not the active-only fetch) all match
+plan §5 P3.4 exactly. Test-fixture rewiring in `evaluation_case_test.dart`
+(coordination-response fixtures → `RecordingCommitmentRepository` events) is a
+data-source change with equivalent asserted behavior, not a weakened
+assertion. Proceeding to U09 (P8.1) next per the manifest's dependency
+resequencing — it only needs `CommitmentQueryCase.everAcknowledgedUserIds`,
+already stable since U01, and unblocks U07 (P3.11) sooner. U05/U06/U07/U08
+follow after.
