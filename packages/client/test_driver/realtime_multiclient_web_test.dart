@@ -468,6 +468,7 @@ Future<void> _runJourney({
   await author.open('/profile/view/${fixture.helperUserId}');
   await author.waitForText('Trust: mutual');
   await helper.open('/profile/view/${fixture.authorUserId}');
+  await helper.waitForText('Trust: mutual');
   await helper.clickText('Show menu');
   await helper.clickText('Stop trusting');
   await helper.clickText('Remove');
