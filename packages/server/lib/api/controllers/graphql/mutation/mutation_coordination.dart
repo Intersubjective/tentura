@@ -41,6 +41,7 @@ final class MutationCoordination extends GqlNodeBase {
     acceptHelpOffer,
     declineHelpOffer,
     removeFromRoom,
+    releaseCommitment,
     setBeaconStatus,
   ];
 
@@ -132,6 +133,28 @@ final class MutationCoordination extends GqlNodeBase {
           .then(beaconStatusResultToGqlMap);
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get releaseCommitment =>
+      GraphQLObjectField(
+        'releaseCommitment',
+        gqlTypeBeaconStatusResult.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _offerUserId.field,
+          _reason.field,
+        ],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _coordinationCase
+              .releaseCommitment(
+                beaconId: InputFieldId.fromArgsNonNullable(args),
+                offerUserId: _offerUserId.fromArgsNonNullable(args),
+                authorUserId: jwt.sub,
+                reason: _reason.fromArgsNonNullable(args),
+              )
+              .then(beaconStatusResultToGqlMap);
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get setBeaconStatus =>
       GraphQLObjectField(
