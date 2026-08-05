@@ -42,6 +42,7 @@ Short pointers for agents — read only what your task needs.
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
 | [`plans/profile-request-routing-plan.md`](plans/profile-request-routing-plan.md) | Profile → request-routing surface (issue #83) |
+| [`plans/commitment-truth-rework-plan.md`](plans/commitment-truth-rework-plan.md) | Append-only commitment facts, former committers, admission/withdraw/review gates |
 
 ## Audits and analyses
 
