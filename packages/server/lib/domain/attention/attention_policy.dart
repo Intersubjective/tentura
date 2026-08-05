@@ -286,7 +286,9 @@ class AttentionPolicy {
       'coordinationItemId': _safeId(role.coordinationItemId),
       'targetEntityId': _safeId(role.targetEntityId),
       'messageId': _safeId(role.messageId),
-      'beaconTitle': _safeBeaconTitle(role.beaconTitle),
+      'beaconTitle': role.canReadBeaconContent
+          ? _safeBeaconTitle(role.beaconTitle)
+          : null,
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
