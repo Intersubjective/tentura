@@ -1335,7 +1335,9 @@
                     "created_at",
                     "updated_at",
                     "help_type",
-                    "withdraw_reason"
+                    "withdraw_reason",
+                    "offer_kind",
+                    "stake_state"
                   ],
                   "filter": {
                     "beacon": {

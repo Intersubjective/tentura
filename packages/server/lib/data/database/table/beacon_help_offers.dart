@@ -24,6 +24,12 @@ class BeaconHelpOffers extends Table with TimestampsFields {
   late final Column<int> status = integer()
       .withDefault(const Constant(0))();
 
+  /// 0=normal, 1=backup (см. план §2.1).
+  late final Column<int> offerKind = integer().withDefault(const Constant(0))();
+
+  /// Display-only projection of commitment events (см. план §2.5).
+  late final Column<int> stakeState = integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {beaconId, userId};
 

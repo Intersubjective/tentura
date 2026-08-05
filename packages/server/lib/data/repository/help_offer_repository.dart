@@ -114,6 +114,8 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         userId: row.userId,
         message: row.message,
         status: row.status,
+        offerKind: row.offerKind,
+        stakeState: row.stakeState,
         helpType: row.helpType,
         withdrawReason: row.withdrawReason,
         createdAt: row.createdAt.dateTime,

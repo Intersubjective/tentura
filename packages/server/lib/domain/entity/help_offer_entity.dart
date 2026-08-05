@@ -13,6 +13,8 @@ abstract class HelpOfferEntity with _$HelpOfferEntity {
     required DateTime updatedAt,
     @Default('') String message,
     @Default(0) int status,
+    @Default(0) int offerKind,
+    @Default(0) int stakeState,
     String? helpType,
     String? withdrawReason,
     UserEntity? user,

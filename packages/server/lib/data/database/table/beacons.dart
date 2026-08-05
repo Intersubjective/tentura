@@ -62,6 +62,9 @@ class Beacons extends Table
   /// Root of the lineage tree (self when this beacon is the original).
   late final lineageRootBeaconId = text().nullable().references(Beacons, #id)();
 
+  late final Column<int> reviewReopenCount =
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 
