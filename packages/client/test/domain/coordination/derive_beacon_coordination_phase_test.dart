@@ -86,6 +86,18 @@ void main() {
     expect(result.suggestedAction, BeaconPhasePrimaryAction.none);
   });
 
+  test('enoughHelp public tier suggests forward', () {
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(status: BeaconStatus.enoughHelp),
+        tier: BeaconVisibilityTier.public,
+        now: _t,
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.enoughHelpInMotion);
+    expect(result.suggestedAction, BeaconPhasePrimaryAction.forward);
+  });
+
   test('open neutral zero offers is lookingForHelpers', () {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(

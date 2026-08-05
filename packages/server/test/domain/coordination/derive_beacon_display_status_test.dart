@@ -49,6 +49,17 @@ void main() {
       expect(r.phase, BeaconDisplayPhase.enoughHelpInMotion);
     });
 
+    test('enoughHelp public tier suggests forward', () {
+      final r = deriveBeaconDisplayStatus(
+        BeaconDisplayStatusInput(
+          status: BeaconStatus.enoughHelp,
+          tier: BeaconDisplayTier.public,
+        ),
+      );
+      expect(r.phase, BeaconDisplayPhase.enoughHelpInMotion);
+      expect(r.suggestedAction, BeaconDisplayPrimaryAction.forward);
+    });
+
     test('blocked when open blocker signal', () {
       final r = deriveBeaconDisplayStatus(
         BeaconDisplayStatusInput(

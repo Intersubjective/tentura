@@ -224,7 +224,7 @@ BeaconDisplayStatusResult _derivePublic(BeaconDisplayStatusInput input) {
   if (input.status == BeaconStatus.enoughHelp) {
     return BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.enoughHelpInMotion,
-      suggestedAction: BeaconDisplayPrimaryAction.offerHelp,
+      suggestedAction: BeaconDisplayPrimaryAction.forward,
       lastActivityAt: activityAt,
     );
   }

@@ -181,7 +181,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   if (status == BeaconStatus.enoughHelp) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
-      suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+      suggestedAction: BeaconPhasePrimaryAction.forward,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );

@@ -247,6 +247,50 @@ void main() {
       );
     });
 
+    test('enoughHelp public tier suggests forward', () async {
+      when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
+        (_) async => openBeacon(status: BeaconStatus.enoughHelp),
+      );
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: strangerId,
+      );
+
+      expect(result.single.tier, BeaconDisplayTier.public);
+      expect(result.single.phase, BeaconDisplayPhase.enoughHelpInMotion);
+      expect(
+        result.single.suggestedAction,
+        BeaconDisplayPrimaryAction.forward,
+      );
+    });
+
+    test('backup offer without response does not trigger offersAwaitingAuthor',
+        () async {
+      when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
+        (_) async => openBeacon(status: BeaconStatus.enoughHelp),
+      );
+      when(helpOfferRepo.fetchByBeaconId(beaconId)).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: offererId,
+            createdAt: now,
+            updatedAt: now,
+            offerKind: 1,
+          ),
+        ],
+      );
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.enoughHelpInMotion);
+      expect(result.single.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
+    });
+
     test('reviewOpen fetches review window closesAt', () async {
       when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
         (_) async => openBeacon(status: BeaconStatus.reviewOpen),
