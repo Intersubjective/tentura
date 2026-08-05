@@ -3767,6 +3767,30 @@
   "helpOfferDeclineDialogHint": "Let them know why. This is required",
   "helpOfferRemoveDialogTitle": "Remove from chat",
   "helpOfferRemoveDialogHint": "Let them know why. This is required",
+  "helpOfferRemoveKeepsParticipationNote": "Chat access only — participation stays recorded.",
+  "@helpOfferRemoveKeepsParticipationNote": {
+    "description": "Explains that removing from chat does not end recorded participation"
+  },
+  "helpOfferReleaseCommitment": "End participation",
+  "@helpOfferReleaseCommitment": {
+    "description": "Author action to end a helper's recorded participation"
+  },
+  "helpOfferReleaseDialogTitle": "End participation?",
+  "@helpOfferReleaseDialogTitle": {
+    "description": "Confirmation title for ending participation"
+  },
+  "helpOfferReleaseDialogHint": "Why is this participation ending?",
+  "@helpOfferReleaseDialogHint": {
+    "description": "Reason prompt when ending participation"
+  },
+  "helpOfferParticipationEndedLabel": "Participation ended",
+  "@helpOfferParticipationEndedLabel": {
+    "description": "Stake-state label when author ended participation"
+  },
+  "helpOfferAcknowledgementSoftenedLabel": "Author's reply changed",
+  "@helpOfferAcknowledgementSoftenedLabel": {
+    "description": "Stake-state label when acknowledgement was softened"
+  },
   "helpOfferDeclinedWithReason": "Declined: {reason}",
   "@helpOfferDeclinedWithReason": {
     "placeholders": {

@@ -3732,6 +3732,30 @@
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
   "helpOfferRemoveDialogTitle": "Убрать из чата",
   "helpOfferRemoveDialogHint": "Напишите причину. Это обязательно",
+  "helpOfferRemoveKeepsParticipationNote": "Только доступ к чату — участие сохраняется.",
+  "@helpOfferRemoveKeepsParticipationNote": {
+    "description": "Пояснение: убрать из чата не завершает участие"
+  },
+  "helpOfferReleaseCommitment": "Завершить участие",
+  "@helpOfferReleaseCommitment": {
+    "description": "Действие автора — завершить зафиксированное участие"
+  },
+  "helpOfferReleaseDialogTitle": "Завершить участие?",
+  "@helpOfferReleaseDialogTitle": {
+    "description": "Заголовок подтверждения завершения участия"
+  },
+  "helpOfferReleaseDialogHint": "Почему участие завершается?",
+  "@helpOfferReleaseDialogHint": {
+    "description": "Подсказка причины при завершении участия"
+  },
+  "helpOfferParticipationEndedLabel": "Участие завершено",
+  "@helpOfferParticipationEndedLabel": {
+    "description": "Метка stake-state после завершения участия автором"
+  },
+  "helpOfferAcknowledgementSoftenedLabel": "Ответ автора изменён",
+  "@helpOfferAcknowledgementSoftenedLabel": {
+    "description": "Метка stake-state при смягчении подтверждения"
+  },
   "helpOfferDeclinedWithReason": "Отклонено: {reason}",
   "@helpOfferDeclinedWithReason": {
     "placeholders": {
