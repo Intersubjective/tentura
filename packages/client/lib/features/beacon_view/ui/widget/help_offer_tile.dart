@@ -211,6 +211,10 @@ class HelpOfferTile extends StatelessWidget {
             const SizedBox(height: _rowGap),
             _DirectForwardChip(label: l10n.helpOfferDirectForwardChip),
           ],
+          if (helpOffer.offerKind == 1) ...[
+            const SizedBox(height: _rowGap),
+            _DirectForwardChip(label: l10n.helpOfferBackupBadge),
+          ],
           if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
             if (showHelpTypeChips) const SizedBox(height: 6),

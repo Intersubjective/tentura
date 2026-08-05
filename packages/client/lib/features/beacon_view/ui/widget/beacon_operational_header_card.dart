@@ -61,9 +61,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final authorSpec = state.isBeaconMine && onAuthorHudAction != null
         ? deriveBeaconHudAuthorActSpec(l10n: l10n, state: state)
         : null;
-    final specs = authorSpec == null
+    final helperActions = authorSpec == null
         ? _buildHelperHudActions(l10n)
-        : const <_HudActionSpec>[];
+        : const _HelperHudActions();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -102,9 +102,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                   : () => onAuthorHudAction!(authorSpec.action),
             ),
             const SizedBox(height: 10),
-          ] else if (specs.isNotEmpty) ...[
+          ] else if (helperActions.hasActions) ...[
             const SizedBox(height: 10),
-            _HudActionRail(actions: specs),
+            _HudActionStack(actions: helperActions),
             const SizedBox(height: 10),
           ],
           Divider(height: 1, color: tt.border),
@@ -113,22 +113,41 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
   }
 
-  List<_HudActionSpec> _buildHelperHudActions(L10n l10n) {
+  _HelperHudActions _buildHelperHudActions(L10n l10n) {
     final b = state.beacon;
     final openFamily = b.status.isOpenFamily;
 
     if (b.status == BeaconStatus.deleted ||
         b.status == BeaconStatus.closed ||
         b.status == BeaconStatus.cancelled) {
-      return const [];
+      return const _HelperHudActions();
     }
 
     if (state.isBeaconMine) {
-      return const [];
+      return const _HelperHudActions();
     }
 
     if (state.isSteward || b.status == BeaconStatus.reviewOpen || !openFamily) {
-      return const [];
+      return const _HelperHudActions();
+    }
+
+    if (b.status == BeaconStatus.enoughHelp && !state.isHelpOffered) {
+      final primary = <_HudActionSpec>[];
+      if (onForward != null) {
+        primary.add(
+          _HudActionSpec(
+            icon: Icons.send_outlined,
+            label: l10n.labelForward,
+            onPressed: onForward,
+            filled: true,
+          ),
+        );
+      }
+      return _HelperHudActions(
+        primary: primary,
+        secondaryLabel: onOfferHelp != null ? l10n.beaconOfferHelpAsBackup : null,
+        onSecondary: onOfferHelp,
+      );
     }
 
     final canOfferHelp = openFamily &&
@@ -176,7 +195,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-      return out.take(3).toList();
+      return _HelperHudActions(primary: out.take(3).toList());
     }
 
     final canEditHelpOffer = openFamily &&
@@ -203,7 +222,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-      return out.take(3).toList();
+      return _HelperHudActions(primary: out.take(3).toList());
     }
 
     final out = <_HudActionSpec>[];
@@ -237,8 +256,24 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         ),
       );
     }
-    return out.take(3).toList();
+    return _HelperHudActions(primary: out.take(3).toList());
   }
+}
+
+class _HelperHudActions {
+  const _HelperHudActions({
+    this.primary = const [],
+    this.secondaryLabel,
+    this.onSecondary,
+  });
+
+  final List<_HudActionSpec> primary;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
+
+  bool get hasActions =>
+      primary.isNotEmpty ||
+      (secondaryLabel != null && onSecondary != null);
 }
 
 class _HudActionSpec {
@@ -262,6 +297,7 @@ class _HudActionRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (actions.isEmpty) return const SizedBox.shrink();
     final wide = context.windowClass != WindowClass.compact;
     return Row(
       // Default cross-axis is center. Avoid stretch: header sits in a sliver with
@@ -275,6 +311,33 @@ class _HudActionRail extends StatelessWidget {
             Expanded(
               child: _HudActionButton(spec: actions[i]),
             ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HudActionStack extends StatelessWidget {
+  const _HudActionStack({required this.actions});
+
+  final _HelperHudActions actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _HudActionRail(actions: actions.primary),
+        if (actions.secondaryLabel != null && actions.onSecondary != null) ...[
+          SizedBox(height: tt.tightGap),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TenturaTextAction(
+              label: actions.secondaryLabel!,
+              onPressed: actions.onSecondary,
+            ),
+          ),
         ],
       ],
     );

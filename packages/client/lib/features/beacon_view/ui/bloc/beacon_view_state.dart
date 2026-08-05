@@ -366,6 +366,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
         .where(
           (c) =>
               !c.isWithdrawn &&
+              c.offerKind == 0 &&
               c.coordinationResponse == null &&
               c.roomAccess != RoomAccessBits.admitted &&
               !admittedUserIds.contains(c.user.id),

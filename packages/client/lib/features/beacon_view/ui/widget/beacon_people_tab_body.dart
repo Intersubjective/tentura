@@ -133,7 +133,12 @@ class BeaconPeopleTabBody extends StatelessWidget {
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
 
+    final backupOffers = state.helpOffers
+        .where((c) => !c.isWithdrawn && c.offerKind == 1)
+        .toList(growable: false);
+
     final helpOfferInputs = state.helpOffers
+        .where((c) => c.offerKind == 0)
         .map(
           (c) => BeaconPeopleHelpOfferInput(
             userId: c.user.id,
@@ -374,6 +379,28 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 rows: peopleSections.notFitting,
                 initiallyExpanded: false,
               ),
+              if (backupOffers.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${l10n.helpOffersBackupGroupTitle} (${backupOffers.length})',
+                  style: sectionHeaderStyle,
+                ),
+                const SizedBox(height: 8),
+                for (var k = 0; k < backupOffers.length; k++) ...[
+                  if (k != 0) const SizedBox(height: 12),
+                  focusWrap(
+                    backupOffers[k].user.id,
+                    HelpOfferTile(
+                      helpOffer: backupOffers[k],
+                      beaconId: beacon.id,
+                      beaconAuthor: beacon.author,
+                      beaconAuthorId: beacon.author.id,
+                      isMine: backupOffers[k].user.id == state.myProfile.id,
+                      isAuthorView: state.isAuthorOrSteward,
+                    ),
+                  ),
+                ],
+              ],
               if (showWithdrawn) ...[
                 const SizedBox(height: 8),
                 AccordionExpansionTile(
