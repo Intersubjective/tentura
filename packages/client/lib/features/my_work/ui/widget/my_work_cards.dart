@@ -10,6 +10,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_offer_response_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
@@ -496,6 +497,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
+          MyWorkOfferResponseRow(viewModel: vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -814,6 +816,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
+          MyWorkOfferResponseRow(viewModel: vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
