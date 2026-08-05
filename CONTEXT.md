@@ -115,17 +115,20 @@ Three-case chrome under a promoted source: reactions + date; promotion row (avat
 ## Beacon lifecycle
 
 **Close** (author intent):
-The author declaring a beacon **done / wrapped up** (a successful or neutral end of the work). Distinct from **Cancel**. Whether closing finalizes immediately or opens a **review window** depends only on participation (committers), never on naming. Never labels the result "cancelled".
+The author declaring a beacon **done / wrapped up** (a successful or neutral end of the work). Distinct from **Cancel**. Whether closing finalizes immediately or opens a **review window** depends on whether the beacon **ever had an acknowledged committer** (`everHadCommitter`), not on how many committers are active at close time. Never labels the result "cancelled".
 _Avoid_: using "close" to mean "abandon"; conflating the close *intent* with the committer-count *mechanics*.
 
 **Cancel** (author intent):
-The author **calling the beacon off / retracting** it — an explicit abandon. A separate, deliberate action from **Close**, never auto-derived from committer count. Produces a distinct "cancelled" outcome. Offered **only when there are 0 committers**: once anyone commits, the author's sole end-path is **Close** → **Wrapping up** (committers are owed their review), so a committed beacon cannot be unilaterally cancelled.
-_Avoid_: deriving "cancelled" automatically from no committers; offering Cancel once committers exist or during Wrapping up.
+The author **calling the beacon off / retracting** it — an explicit abandon. A separate, deliberate action from **Close**, never auto-derived from committer count. Produces a distinct "cancelled" outcome. Offered **only when the request never had an acknowledged committer** (`everHadCommitter == false`): once anyone was ever acknowledged (see **Committer** / **Commitment facts**), the author's sole end-path is **Close** → **Wrapping up** (participants are owed their review), so a beacon that ever had a committer cannot be unilaterally cancelled.
+_Avoid_: deriving "cancelled" automatically from no committers; offering Cancel once a committer was ever acknowledged or during Wrapping up.
 
 **Committer**:
-A non-author user whose help offer the author has **acknowledged** — an active (non-withdrawn) `beacon_help_offer` whose author coordination response is `useful` or `needCoordination`. Offers that are **unacknowledged** (no response yet) or **rejected** (`overlapping`, `needDifferentSkill`, `notSuitable`) are NOT committers. Committer count (excluding the author and forwarders) decides the **mechanics** of **Close**, the **stakes gate** on Cancel/Delete, and who is a **required reviewer** for **Close now**.
-_Assumption_: acknowledged = {`useful`, `needCoordination`}; narrow to `useful`-only if needed.
-_Avoid_: counting every raw/active offer as a committer (rejected/unacknowledged offers don't grant stake).
+A non-author user whose help offer the author has **acknowledged** (`useful` or `needCoordination`) and who **currently holds stake** — derived from append-only **commitment facts** (see **Commitment facts**), not from a mutable coordination row alone. Historical truth uses `everAcknowledged`: an acknowledgement counts unless the helper withdrew within the **24-hour grace period** with **no intervening commitment event** between acknowledgement and withdraw (any other event — e.g. author softened the response, removed from chat — closes the grace window, so a later withdraw still leaves a permanent committer record). A user with `everAcknowledged == true` but no current stake is a **Former committer**: still counts for Cancel/Delete gating and review participation, but does **not** block **Close now** and is not counted among current committers for open-family mechanics.
+_Assumption_: acknowledging response types = {`useful`, `needCoordination`}.
+_Avoid_: treating a withdrawn or released helper as if they were never acknowledged; counting unacknowledged/rejected offers as committers; inferring stake from `response_type` alone after exit/release.
+
+**Former committer**:
+A non-author who was **ever acknowledged** but no longer has **current stake** (withdrew outside grace, author ended participation, block cleanup, etc.). Included in the review window with role `formerCommitter`; same evaluation visibility as an active committer. Does **not** block **Close now**; still prevents **Cancel** and **Delete** on published beacons.
 
 **Closed** (outcome state):
 A beacon the author **Closed** and is now done. Reached either immediately (Close with no committers) or after the review window ends. A single "done" outcome — the user-facing label does **not** distinguish whether a review happened.
@@ -135,22 +138,34 @@ _Avoid_: separate user-facing names for "closed without review" vs "closed after
 A beacon the author explicitly **Cancelled** (called off). Only reached via the **Cancel** intent, never from committer count.
 
 **Wrapping up** (status; internal `reviewOpen` / state 5):
-The in-between after the author **Closes** a beacon that has committers: a time-boxed countdown (default 7 days) during which helpers reflect/evaluate and the author can still post updates and edit, but **no new help offers and no forwarding**. Ends by moving to **Closed**. Shown with a countdown banner that states the rules.
-_Avoid_: "Review open" (opaque), or wording that implies moderation/approval gating.
+The in-between after the author **Closes** a beacon that **ever had an acknowledged committer** (`everHadCommitter == true`): a time-boxed countdown (default 7 days) during which participants reflect/evaluate and the author can still post updates and edit, but **no new help offers and no forwarding**. Ends by moving to **Closed**. Shown with a countdown banner that states the rules. Opens even if all current committers have since left — historical acknowledgement is enough.
+_Avoid_: "Review open" (opaque), or wording that implies moderation/approval gating; requiring a currently active committer to open the window.
 
 **Close now** (early close during Wrapping up):
-An author action available only when every **required reviewer** has **finished or skipped** their review (per-user review status in {finished, skipped}). **Required reviewers = the author + committers; forwarders are excluded** (a forwarder may review, but their pending review never blocks closure). It skips the remaining countdown and moves the beacon to **Closed**. Disabled (with explanation) while a required reviewer still has the review open, since the window protects committers' stake. Distinct from extending or reopening.
-_Avoid_: an unconditional early-close button; letting a forwarder's pending review block Close now; closing while a committer still has their review pending.
+An author action available only when every **required reviewer** has **finished or skipped** their review (per-user review status in {finished, skipped}). **Required reviewers = the author + current committers only**; **former committers** and **forwarders are excluded** (they may still review, but their pending review never blocks closure). It skips the remaining countdown and moves the beacon to **Closed**. Disabled (with explanation) while a required current committer or the author still has their review open. Distinct from extending or reopening.
+_Avoid_: an unconditional early-close button; letting a former committer's or forwarder's pending review block Close now; closing while a **current** committer still has their review pending.
 
 **Extend review** (author action during Wrapping up):
 Adds another 7 days to the countdown. Allowed at most **twice**. Additive and low-risk — no confirmation; the UI shows extensions remaining and the new close date.
 
 **Reopen** (author action during Wrapping up):
-Returns the beacon to **Open**, discarding the review window and its scaffolding and reverting the inbox/activity tombstones the close fired. Strong confirmation ("returns to Open and discards current review progress").
+Returns the beacon to **Open**, discarding the review window and its scaffolding and reverting the inbox/activity tombstones the close fired. Strong confirmation ("returns to Open and discards current review progress"). Allowed **at most once** per review window (`kMaxReviewReopens = 1`).
 
 **Deleted** (removal state):
-A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** (an offer the author ever marked `useful`/`needCoordination`, even if later withdrawn) can never be deleted (the author uses **Archive** to clear it from their own desk). A bare offer-then-withdraw with no author acknowledgment does NOT lock Delete (anti-griefing). Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
-_Avoid_: deleting a beacon that ever had an acknowledged committer; locking Delete on unacknowledged/rejected offers; treating Delete as a universal escape hatch that bypasses committer stake.
+A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** can never be deleted (the author uses **Archive** to clear it from their own desk). There is **no** separate gate on "material work in the room" — admission invariant ensures non-stewards only work in chat after acknowledgement (see **Commitment facts**). A bare offer-then-withdraw with no author acknowledgment (including withdraw inside the 24-hour grace) does NOT lock Delete. Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
+_Avoid_: deleting a beacon that ever had an acknowledged committer; locking Delete on unacknowledged/rejected offers or grace-period exits; treating Delete as a universal escape hatch that bypasses committer stake.
+
+## Commitment facts
+
+Participation truth for help offers is stored in append-only **`beacon_commitment_event`** rows (one event per fact; facts are **only ever added, never erased**). Three axes must not be conflated:
+
+| Axis | Meaning | Property |
+|------|---------|----------|
+| **A. Room access** | Whether the person may use Chat (`room_access`) | Reversible (remove/readmit) |
+| **B. Current stake** | Who is actively in the work now | Reversible (withdraw, release, re-acknowledge) |
+| **C. Historical truth** | "The author acknowledged this person's contribution" | Append-only (`everAcknowledged`) |
+
+Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Admission invariant:** non-author, non-steward Chat access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
 
 ## My desk (My Work)
 
@@ -169,8 +184,8 @@ Every non-archived card: active + **drafts** + help-offered/active authored rows
 Authored beacons in `draft` lifecycle only (`authoredDraft` card kind).
 
 **Archived** (per-user flag):
-A **per-user** filing flag, **orthogonal to lifecycle**. Any user may archive any beacon they can see, for themselves only; default is **not archived**. Archiving moves the beacon into that user's **Archived** filter; finished beacons do **not** auto-archive. Server-persisted per user; affects My desk sectioning only.
-_Avoid_: equating "archived" with any `lifecycle` state (closed/cancelled/review-complete); a finished beacon stays in the main list until the user archives it.
+A **per-user** filing flag, **orthogonal to lifecycle**. Any user may archive any beacon they can see, for themselves only; default is **not archived**. Archiving moves the beacon into that user's **Archived** filter. **Closing does not auto-archive** — a closed beacon stays in **Active** until the user archives it themselves (issue #108). Server-persisted per user; affects My desk sectioning only.
+_Avoid_: equating "archived" with any `lifecycle` state (closed/cancelled/review-complete); auto-moving closed beacons into Archived.
 
 **Archived filter**:
 The user's own archived beacons (any lifecycle), lazy-fetched. Separate from active/all/drafts.
@@ -182,5 +197,5 @@ Deduped count of the user's archived beacon ids from the init query, shown befor
 Count of draft cards from the init fetch; empty-state shortcut only when count > 0.
 
 **Finished card** (My desk):
-A My desk card for a **Closed** or **Cancelled** beacon the user has **not** archived. Appears in **Active** and **All** (not only Archived), ranked at a bottom tier so live work stays on top, with a design-system **status indicator** (icon + "Closed"/"Cancelled" label, never color-only, never a `Chip`/pill) and a one-tap **Archive** affordance. A one-time inline hint explains finished beacons stay until archived.
-_Avoid_: routing finished-but-unarchived beacons into the Archived filter (that coupling is removed); interleaving them with live work by recency.
+A My desk card for a **Closed** or **Cancelled** beacon the user has **not** archived. Appears in **Active** and **All** (not only Archived), ranked at a bottom tier so live work stays on top, with a design-system **status indicator** (icon + "Closed"/"Cancelled"/"review closed" label as appropriate, never color-only, never a `Chip`/pill) and a one-tap **Archive** CTA. Closing does **not** move the card to Archived — the user must archive explicitly. A one-time inline hint explains finished beacons stay until archived.
+_Avoid_: routing finished-but-unarchived beacons into the Archived filter; auto-archiving on close; interleaving them with live work by recency.
