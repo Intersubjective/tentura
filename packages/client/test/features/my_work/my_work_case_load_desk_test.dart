@@ -32,6 +32,35 @@ void main() {
     expect(init.finishedArchiveHintDismissed, isFalse);
   });
 
+  test('loadDeskInit clears stale room unread subtitle when hints read zero', () async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b1',
+      status: BeaconStatus.open,
+      updatedAt: DateTime(2025, 6),
+    );
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [beacon],
+        helpOfferedNonArchived: const [],
+        archivedCountHint: 0,
+        lastItemDiscussionMessageAtByBeaconId: const {},
+      );
+    final hints = FakeRoomHints();
+    final case_ = buildTestMyWorkCase(repo: repo, roomHints: hints);
+
+    hints.hintsByBeaconId = const {
+      'b1': InboxRoomCardHints(isRoomMember: true, roomUnreadCount: 1),
+    };
+    final unread = await case_.loadDeskInit(userId: 'u1');
+    expect(unread.nonArchivedCards.single.roomInboxSubtitle, '+1');
+
+    hints.hintsByBeaconId = const {
+      'b1': InboxRoomCardHints(isRoomMember: true, roomUnreadCount: 0),
+    };
+    final cleared = await case_.loadDeskInit(userId: 'u1');
+    expect(cleared.nonArchivedCards.single.roomInboxSubtitle, isEmpty);
+  });
+
   test(
     'loadDeskInit returns finishedArchiveHintDismissed from prefs',
     () async {

@@ -232,9 +232,7 @@ final class MyWorkCase extends UseCaseBase {
             roomCurrentLine: h.currentLineSnippet,
             roomOpenBlockerTitle: h.openBlockerTitle,
             roomOpenBlocker: h.openBlocker,
-            roomInboxSubtitle: parts.isEmpty
-                ? c.roomInboxSubtitle
-                : parts.join(' · '),
+            roomInboxSubtitle: parts.join(' · '),
           );
         }(),
     ];
