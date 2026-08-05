@@ -566,3 +566,59 @@ Substance confirmed by reading the code:
   that the disconnect case stays owned by `RealtimeStatusPresenter`.
 
 Releasing U6.
+
+### 2026-08-05 — overseer — U6 attempt 1 TIMED OUT; U5 regression found and fixed
+
+**U6 attempt 1 (worker log `u6-worker.log`) hit the runner's 3600s hard limit (exit 124) with ZERO
+commits.** Cause is overseer sizing, not worker failure: the release gate alone
+(`run_realtime_multiclient_web_local.sh` = 5 consecutive runs + negative proofs) can consume the
+whole budget, and the worker was told to commit per step but ran the gate before committing.
+
+Its uncommitted tree (16 modified tracked files + `m0139.dart` + a new regression test) was
+preserved as evidence in the session scratchpad
+(`u6-timeout-tracked.patch`, `u6-m0139.dart`, `u6-multiclient-test-attempt.dart`) and then reverted.
+Pre-existing untracked user files were confirmed untouched throughout.
+
+**The important part: that worker had independently found a real regression that U5 introduced and
+the overseer had accepted.**
+
+- `5ccfd891` (U5 telemetry) changed the `attention_occurrence` insert to `RETURNING id, created_at`.
+  `attention_occurrence` has **`occurred_at`** and no `created_at` (m0121:12).
+- Every `AttentionDispatchRepository.record()` therefore failed at SQL prepare
+  (`42703: column "created_at" does not exist`). Because `record()` runs inside the caller's
+  mutation transaction, **the accept/resolve/redirect/cancel mutations themselves would have
+  thrown** — the whole feature built in U1–U3 was dead against a real database.
+- Reading it back also needs `DateTime.parse(row.read<String>('occurred_at')).toUtc()`: the column
+  is `timestamptz` and Drift's `read<DateTime>` decodes epoch millis. Precedent:
+  `coordination_repository.dart:278`, `help_offer_admission_repository.dart:140`,
+  `lineage_memory_read_repository.dart:81`; the trap is documented in
+  `test/architecture/drift_postgres_timestamptz_bind_inventory_test.dart`.
+
+**Overseer process failure — recorded so it is not repeated.** U4 and U5 were both accepted after
+running only `dart analyze` + `dart test --exclude-tags pg` + client tests. Neither exercises a real
+Postgres, so broken SQL was invisible; both units reported fully green. **From U6 onward, every unit
+that touches `packages/server/lib/data` MUST be gated on `dart test --tags pg` before acceptance**,
+compared against the 18-failure baseline.
+
+Also fixed: U2's `commitment_attention_pg_test.dart` replay test had gone stale. U4 added
+`coordinationItemKind`, which feeds the copy builder; the copy is part of `immutable_payload`, and
+`immutable_payload` is the replay-identity comparison — so the test's hand-built intent described a
+*different* occurrence and correctly tripped the idempotency guard. The test now mirrors
+`AcceptAskCase` exactly.
+
+Both fixes committed as `5bced446`. State after: `dart analyze` 0 errors; `--exclude-tags pg`
+**1184 passed**; `--tags pg` **18 failures, zero beyond the known baseline**.
+
+**`m0139` investigated and REJECTED.** The attempt-1 worker added a migration dropping the legacy
+4-arg `emit_realtime_entity_change` overload (m0114 creates 4-arg; m0133 adds a 5-arg jsonb-default
+variant and never drops the old one; the `notify_notification_outbox_*` triggers from m0116 call it
+with exactly 4 args, and those triggers swallow errors via `EXCEPTION WHEN OTHERS … RETURN NULL`).
+Plausible theory, but measured: the realtime failures are **unchanged** with and without m0139, so
+it does not explain them. The 18 baseline failures remain unexplained and out of #102 scope.
+
+**Environment note for the user:** that migration *was* applied to the local dev database during the
+timed-out run before being discarded, so the dev DB no longer has the 4-arg overload that a
+freshly-migrated database would have. Harmless in practice (4-arg calls now bind the
+jsonb-default variant) but it is drift between the dev DB and the committed migration chain.
+
+Relaunching U6 with a 7200s budget and an explicit commit-before-gate ordering.
