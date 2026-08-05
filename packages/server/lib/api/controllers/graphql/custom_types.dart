@@ -689,6 +689,9 @@ final gqlTypeBeaconDisplayStatus =
         field('reviewClosesAt', graphQLString),
         field('lastActivityAt', graphQLString),
         field('lifecycleEndedAt', graphQLString),
+        field('canCancel', graphQLBoolean.nonNullable()),
+        field('canDelete', graphQLBoolean.nonNullable()),
+        field('everAcknowledgedCommitterCount', graphQLInt.nonNullable()),
       ]);
 
 /// Result of `setCoordinationResponse` (V2) — legacy name retained for compat.

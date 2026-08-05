@@ -17,6 +17,9 @@ Map<String, dynamic> beaconDisplayStatusToGqlMap(BeaconDisplayStatus dto) => {
   'reviewClosesAt': dto.reviewClosesAt?.toUtc().toIso8601String(),
   'lastActivityAt': dto.lastActivityAt?.toUtc().toIso8601String(),
   'lifecycleEndedAt': dto.lifecycleEndedAt?.toUtc().toIso8601String(),
+  'canCancel': dto.canCancel,
+  'canDelete': dto.canDelete,
+  'everAcknowledgedCommitterCount': dto.everAcknowledgedCommitterCount,
 };
 
 /// Legacy alias for mutation map name.
