@@ -448,3 +448,21 @@ otherwise. GraphQL plumbing (`gqlTypeBeaconDisplayStatus` +
 deduplicated an accidental duplicate journal section (worker had appended
 its checkpoint twice — harmless doc-only glitch, no code impact). Proceeding
 to U05 (P3.5-P3.7).
+
+### 2026-08-05 — U05 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1230/1230
+green) and `check-custom-lints.sh packages/server` (0/0 baseline). Inspected
+`beaconClose`: gate now `everHadCommitter`, mismatch still throws
+`closeBranchConflict` before any mutation, `_recordUnansweredAtCloseOffers`
+runs before the status transition and correctly filters `isActive &&
+offerKind == 0 && !everAcknowledged`. Inspected `reopenFromReview`: limit
+check before mutation, `incrementReviewReopenCount` after, both inside the
+existing `runInBeaconStateTransaction` (row-locked, so the read-then-write
+increment is safe despite not being a single SQL statement). `_canCloseNow`
+confirmed unchanged and still excludes roles 2/3 from blocking, with a new
+regression test pinning it down. Note: the worker's own journal checkpoint
+landed out of chronological order (inserted mid-file instead of appended at
+the end) — content is correct, only the ordering is odd; left as-is since
+git commit history is the authoritative sequence record, not worth a
+disruptive file rewrite. Proceeding to U06 (P3.8-P3.10).
