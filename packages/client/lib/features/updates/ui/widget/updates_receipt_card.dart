@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -51,6 +52,7 @@ class UpdatesReceiptCard extends StatelessWidget {
       isSeen: receipt.isSeen,
       onAcknowledge: (_) async => onMarkSeen(),
       child: Semantics(
+        identifier: TestIds.updatesReceipt(receipt.id),
         label: copy.title,
         button: true,
         child: ListTile(

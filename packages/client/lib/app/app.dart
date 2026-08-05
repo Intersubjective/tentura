@@ -55,7 +55,8 @@ class App extends StatelessWidget {
     // Disabled in release / ENV=prod — see [kEnableWebSemantics].
     // Skipped in integration-test mode: the handle is never disposed, which
     // fails flutter_test's end-of-test SemanticsHandle verification.
-    if (kEnableWebSemantics && !kQaIntegrationTestMode) {
+    if (kEnableWebSemantics &&
+        (!kQaIntegrationTestMode || kQaWebDriverSemantics)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           SemanticsBinding.instance.ensureSemantics();

@@ -140,7 +140,9 @@ log "starting one Flutter web dev server"
     --web-hostname=localhost \
     --web-port="$WEB_PORT" \
     --dart-define-from-file=env/local-web.env \
-    --dart-define=WS_SERVER_NAME=https://dev.lvh.me:9443
+    --dart-define=WS_SERVER_NAME=https://dev.lvh.me:9443 \
+    --dart-define=QA_INTEGRATION_TEST_MODE=true \
+    --dart-define=QA_WEBDRIVER_SEMANTICS=true
 ) >"$WEB_LOG" 2>&1 &
 STARTED_WEB=$!
 for _ in $(seq 1 180); do

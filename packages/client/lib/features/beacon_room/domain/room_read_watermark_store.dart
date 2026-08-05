@@ -85,10 +85,7 @@ class RoomReadWatermarkStore {
   }) {
     if (serverCount == 0) return 0;
     final local = _readThroughByBeacon[beaconId];
-    if (local == null) return serverCount;
-    if (serverSeenAt == null || local.isAfter(serverSeenAt)) {
-      return 0;
-    }
+    if (local != null && serverSeenAt == null) return 0;
     return serverCount;
   }
 

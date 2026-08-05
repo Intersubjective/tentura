@@ -17,6 +17,10 @@ abstract final class TestIds {
   static const inboxDismiss = 'inbox.dismiss';
   static String myWorkRoomStatus(String beaconId) =>
       'my_work.room_status.$beaconId';
+
+  /// Stable Updates feed row identity for integration and WebDriver proofs.
+  static String updatesReceipt(String receiptId) => 'updates-receipt-$receiptId';
+
   static const helpOfferSearch = 'help_offer.search';
   static const helpOfferMessage = 'help_offer.message';
   static const helpOfferSubmit = 'help_offer.submit';

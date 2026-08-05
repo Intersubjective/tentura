@@ -34,8 +34,9 @@ BeaconPhaseStatusPresentation myWorkHeaderPhaseStatus(
   String? roomSubtitle,
 }) {
   var s2 = data.phaseStatus.slot2?.trim() ?? '';
-  if (s2.isEmpty) {
-    s2 = roomSubtitle?.trim() ?? '';
+  final room = roomSubtitle?.trim() ?? '';
+  if (room.isNotEmpty) {
+    s2 = s2.isEmpty ? room : '$s2 · $room';
   }
   if (s2.isEmpty) return data.phaseStatus;
   return BeaconPhaseStatusPresentation(

@@ -63,7 +63,7 @@ void main() {
           serverCount: 3,
           serverSeenAt: staleSeen,
         ),
-        0,
+        3,
       );
       expect(
         store.resolveUnread(
