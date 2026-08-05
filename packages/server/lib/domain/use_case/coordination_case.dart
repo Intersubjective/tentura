@@ -449,6 +449,67 @@ final class CoordinationCase extends UseCaseBase {
     );
   }
 
+  Future<BeaconStatusResult> releaseCommitment({
+    required String beaconId,
+    required String offerUserId,
+    required String authorUserId,
+    required String reason,
+  }) async {
+    final trimmedReason = _validateReason(reason);
+    final beacon = await _ensureAuthor(
+      beaconId: beaconId,
+      userId: authorUserId,
+    );
+    if (!beacon.status.isOpenFamily) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
+      );
+    }
+    if (!await _commitmentQueryCase.everAcknowledgedPair(
+      beaconId: beaconId,
+      userId: offerUserId,
+    )) {
+      throw HelpOfferCoordinationException(
+        coordinationCode:
+            HelpOfferCoordinationExceptionCode.commitmentNotAcknowledged,
+      );
+    }
+    final events = await _eventsForPair(
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
+    final stake = currentStakeState(events);
+    if (stake == CommitmentStakeState.released ||
+        stake == CommitmentStakeState.exited) {
+      final snap = await _coordinationRepository.beaconStatusSnapshot(beaconId);
+      return _statusResult(beaconId, snap);
+    }
+    return _attention!.runAction(
+      actorUserId: authorUserId,
+      action: (transaction) async {
+        final intent = await _attentionIntents!.commitmentReleased(
+          receiverId: offerUserId,
+          beaconId: beaconId,
+          actorUserId: authorUserId,
+          reason: trimmedReason,
+          sourceEventKey: 'admission:${generateId('A')}',
+        );
+        await _commitmentRepository.record(
+          beaconId: beaconId,
+          userId: offerUserId,
+          actorUserId: authorUserId,
+          kind: CommitmentEventKind.releasedByAuthor,
+          reason: trimmedReason,
+        );
+        await transaction.record(intent);
+        final snap = await _coordinationRepository.beaconStatusSnapshot(
+          beaconId,
+        );
+        return _statusResult(beaconId, snap);
+      },
+    );
+  }
+
   Future<BeaconStatusResult> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
