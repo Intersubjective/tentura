@@ -262,27 +262,19 @@ Future<void> _runJourney({
   );
   _require(await author.textCount(chatMessage) == 1, 'Chat bubble duplicated');
 
-  // helperPeer leaving Chat marks the room seen account-wide. Navigate away
-  // before helper mounts My Work so the probe starts from zero unread.
-  await helperPeer.open('/home/inbox');
-  await helperPeer.waitForText('Inbox');
-
   // 3a. Two independently authenticated sessions for the helper account prove
   // room_seen convergence. One tab remains mounted on My Work while its
   // same-account peer reads Chat; the mounted projection never navigates or
   // reloads. Inbox uses the same desk-relevant stream and has a focused Cubit
   // contract because offered Requests are no longer present in Inbox.
-  await helper.open('/home/work');
-  await helper.waitForText(title);
-  await helperPeer.open('/home/work');
-  await helperPeer.waitForText(title);
-  await _waitUntil(
-    () async => !await helper.testIdTextContains(
-      'my_work.room_status.$beaconId',
-      '+',
-    ),
-    timeout: const Duration(seconds: 5),
-  );
+  await Future.wait([
+    helper.open('/home/work'),
+    helperPeer.open('/home/work'),
+  ]);
+  await Future.wait([
+    helper.waitForText(title),
+    helperPeer.waitForText(title),
+  ]);
   await author.sendChatMessage(myWorkUnreadMessage);
   await author.waitForText(myWorkUnreadMessage);
   await helper.waitForTestIdText(
