@@ -363,13 +363,10 @@ final class CoordinationCase extends UseCaseBase {
       offerUserId: offerUserId,
       actorUserId: actorUserId,
     );
-    final participant = await _beaconRoomRepository.findParticipant(
-      beaconId: beaconId,
-      userId: offerUserId,
-    );
-    if (participant?.roomAccess == RoomAccessBits.admitted) {
+    if (hadAcknowledged) {
       throw HelpOfferCoordinationException(
-        coordinationCode: HelpOfferCoordinationExceptionCode.alreadyAdmitted,
+        coordinationCode:
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
       );
     }
     return _attention!.runAction(
@@ -479,6 +476,16 @@ final class CoordinationCase extends UseCaseBase {
     if (!active.any((c) => c.userId == offerUserId)) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+      );
+    }
+    if (!_isAcknowledgingResponseType(responseType) &&
+        await _commitmentQueryCase.everAcknowledgedPair(
+          beaconId: beaconId,
+          userId: offerUserId,
+        )) {
+      throw HelpOfferCoordinationException(
+        coordinationCode:
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
       );
     }
     await _coordinationRepository.upsertResponse(

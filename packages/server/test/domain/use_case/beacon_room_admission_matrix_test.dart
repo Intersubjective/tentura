@@ -5,6 +5,8 @@ import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
@@ -15,7 +17,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -47,7 +49,7 @@ const _outsiderId = 'Uoutsider0001';
 final _now = DateTime.utc(2025);
 
 CommitmentQueryCase _commitmentQueryCase(
-  NoOpCommitmentRepository commitmentRepo,
+  CommitmentRepositoryPort commitmentRepo,
   MockHelpOfferRepositoryPort helpOfferRepo,
 ) =>
     CommitmentQueryCase(
@@ -629,13 +631,48 @@ void main() {
         );
       });
 
-      test('decline rejects already admitted committer', () async {
-        stubOpenActiveOffer();
-        when(
-          roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
-        ).thenAnswer(
-          (_) async => participant(roomAccess: RoomAccessBits.admitted),
+      test('decline rejects previously acknowledged committer', () async {
+        final commitmentRepo = RecordingCommitmentRepository(
+          eventsByPair: {
+            commitmentPairKey(_beaconId, _helperId): [
+              CommitmentEvent(
+                id: 'CE-1',
+                seq: 1,
+                beaconId: _beaconId,
+                userId: _helperId,
+                actorUserId: _authorId,
+                kind: CommitmentEventKind.offered,
+                createdAt: _now,
+              ),
+              CommitmentEvent(
+                id: 'CE-2',
+                seq: 2,
+                beaconId: _beaconId,
+                userId: _helperId,
+                actorUserId: _authorId,
+                kind: CommitmentEventKind.acknowledged,
+                createdAt: _now.add(const Duration(minutes: 1)),
+              ),
+            ],
+          },
         );
+        attention = TestAttentionHarness();
+        sut = CoordinationCase(
+          beaconRepo,
+          helpOfferRepo,
+          coordinationRepo,
+          roomRepo,
+          _MinimalEvaluationRepo(),
+          userBlocks,
+          commitmentRepo,
+          _commitmentQueryCase(commitmentRepo, helpOfferRepo),
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
+          guard: FakeBeaconAccessGuard(),
+          env: Env(environment: Environment.test),
+          logger: Logger('BeaconRoomAdmissionMatrixTest'),
+        );
+        stubOpenActiveOffer();
 
         await expectLater(
           sut.declineHelpOffer(
@@ -645,7 +682,7 @@ void main() {
             reason: 'not now',
           ),
           throwsCoordinationCode(
-            HelpOfferCoordinationExceptionCode.alreadyAdmitted,
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
           ),
         );
       });

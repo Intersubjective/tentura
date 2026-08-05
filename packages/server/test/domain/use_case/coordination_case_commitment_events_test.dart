@@ -13,6 +13,8 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
@@ -213,7 +215,8 @@ void main() {
       expect(commitmentRepo.recordCalls, isEmpty);
     });
 
-    test('records acknowledgementSoftened only after prior acknowledgement', () async {
+    test('decline after acknowledgement throws commitmentAlreadyAcknowledged',
+        () async {
       commitmentRepo = RecordingCommitmentRepository(
         eventsByPair: {
           commitmentPairKey(beaconId, helperId): [
@@ -224,66 +227,31 @@ void main() {
       );
       buildCase();
       stubAdmissionPrereqs();
-      when(
-        coordinationRepo.declineHelpOffer(
+
+      await expectLater(
+        case_.declineHelpOffer(
           beaconId: beaconId,
           offerUserId: helperId,
           actorUserId: authorId,
           reason: 'no',
         ),
-      ).thenAnswer(
-        (_) async => (status: BeaconStatus.open, statusChangedAt: now),
-      );
-
-      await case_.declineHelpOffer(
-        beaconId: beaconId,
-        offerUserId: helperId,
-        actorUserId: authorId,
-        reason: 'no',
-      );
-
-      expect(commitmentRepo.recordCalls, [
-        (
-          beaconId: beaconId,
-          userId: helperId,
-          actorUserId: authorId,
-          kind: CommitmentEventKind.acknowledgementSoftened,
-          reason: null,
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
+          ),
         ),
-      ]);
-    });
-
-    test('does not duplicate acknowledgementSoftened', () async {
-      commitmentRepo = RecordingCommitmentRepository(
-        eventsByPair: {
-          commitmentPairKey(beaconId, helperId): [
-            event(seq: 1, kind: CommitmentEventKind.offered),
-            event(seq: 2, kind: CommitmentEventKind.acknowledged),
-            event(seq: 3, kind: CommitmentEventKind.acknowledgementSoftened),
-          ],
-        },
       );
-      buildCase();
-      stubAdmissionPrereqs();
-      when(
+      verifyNever(
         coordinationRepo.declineHelpOffer(
-          beaconId: beaconId,
-          offerUserId: helperId,
-          actorUserId: authorId,
-          reason: 'no',
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          reason: anyNamed('reason'),
         ),
-      ).thenAnswer(
-        (_) async => (status: BeaconStatus.open, statusChangedAt: now),
       );
-
-      await case_.declineHelpOffer(
-        beaconId: beaconId,
-        offerUserId: helperId,
-        actorUserId: authorId,
-        reason: 'no',
-      );
-
-      expect(commitmentRepo.recordCalls, isEmpty);
     });
   });
 
@@ -375,7 +343,8 @@ void main() {
       ]);
     });
 
-    test('notSuitable after acknowledgement records acknowledgementSoftened', () async {
+    test('notSuitable after acknowledgement throws commitmentAlreadyAcknowledged',
+        () async {
       commitmentRepo = RecordingCommitmentRepository(
         eventsByPair: {
           commitmentPairKey(beaconId, helperId): [
@@ -387,6 +356,37 @@ void main() {
       buildCase();
       stubAuthorSetResponse();
 
+      await expectLater(
+        case_.setCoordinationResponse(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.notSuitable.smallintValue,
+          inviteToRoom: false,
+          removeFromRoom: false,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
+          ),
+        ),
+      );
+      verifyNever(
+        coordinationRepo.upsertResponse(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          authorUserId: anyNamed('authorUserId'),
+          responseType: anyNamed('responseType'),
+        ),
+      );
+    });
+
+    test('notSuitable without acknowledgement still succeeds', () async {
+      stubAuthorSetResponse();
+
       await case_.setCoordinationResponse(
         beaconId: beaconId,
         offerUserId: helperId,
@@ -396,15 +396,15 @@ void main() {
         removeFromRoom: false,
       );
 
-      expect(commitmentRepo.recordCalls, [
-        (
+      verify(
+        coordinationRepo.upsertResponse(
           beaconId: beaconId,
-          userId: helperId,
-          actorUserId: authorId,
-          kind: CommitmentEventKind.acknowledgementSoftened,
-          reason: null,
+          offerUserId: helperId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.notSuitable.smallintValue,
         ),
-      ]);
+      ).called(1);
+      expect(commitmentRepo.recordCalls, isEmpty);
     });
 
     test('removeFromRoom also records removedFromChat', () async {

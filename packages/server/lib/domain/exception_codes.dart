@@ -137,6 +137,7 @@ enum HelpOfferCoordinationExceptionCode {
   reasonTooLong,
   notAdmitted,
   alreadyAdmitted,
+  commitmentAlreadyAcknowledged,
 }
 
 class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {
