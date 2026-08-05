@@ -42,6 +42,7 @@ enum BeaconStatusMenuDisabledReason {
   waitingForReviewers,
   lifecycleAuthorOnly,
   terminalState,
+  cancelHasCommitters,
 }
 
 class ReviewWindowMenuSnapshot {
@@ -77,6 +78,7 @@ class BeaconStatusMenuInput {
     required this.canSetCoordination,
     this.reviewWindow,
     this.allowForceCloseWhenBlocked = false,
+    this.serverCanCancel,
   });
 
   final Beacon beacon;
@@ -86,6 +88,7 @@ class BeaconStatusMenuInput {
   final bool canSetCoordination;
   final ReviewWindowMenuSnapshot? reviewWindow;
   final bool allowForceCloseWhenBlocked;
+  final bool? serverCanCancel;
 }
 
 class BeaconStatusMenuRow {
@@ -452,6 +455,25 @@ BeaconStatusMenuRow _cancelledRow(BeaconStatusMenuInput input) {
       isSelected: false,
       isEnabled: false,
       disabledReason: BeaconStatusMenuDisabledReason.lifecycleAuthorOnly,
+    );
+  }
+
+  if (input.serverCanCancel == false) {
+    return BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.cancelled,
+      action: BeaconStatusMenuAction.cancel,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.cancelHasCommitters,
+    );
+  }
+
+  if (input.serverCanCancel == true) {
+    return BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.cancelled,
+      action: BeaconStatusMenuAction.cancel,
+      isSelected: false,
+      isEnabled: true,
     );
   }
 

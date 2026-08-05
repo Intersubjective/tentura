@@ -50,6 +50,8 @@ String beaconStatusMenuDisabledReasonLabel(
       BeaconStatusMenuDisabledReason.lifecycleAuthorOnly =>
         l10n.beaconStatusHintAuthorOnly,
       BeaconStatusMenuDisabledReason.terminalState => '',
+      BeaconStatusMenuDisabledReason.cancelHasCommitters =>
+        l10n.beaconStatusCancelHasCommitters,
     };
 
 String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRowId id) =>

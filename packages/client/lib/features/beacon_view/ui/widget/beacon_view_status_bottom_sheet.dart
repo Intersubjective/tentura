@@ -44,6 +44,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
             extensionsUsed: review.extensionsUsed,
             canCloseNow: review.canCloseNow,
           ),
+    serverCanCancel: state.displayStatus?.canCancel,
   );
   final rows = buildBeaconStatusMenuRows(menuInput);
 
