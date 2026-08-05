@@ -58,7 +58,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
-| U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
+| U5 | Latency budget + instrumentation + visible refresh failure | complete | — |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
 | U7 | Cross-surface consistency verification | pending | — |
 | U8 | Integration and close-out | pending | — |
@@ -495,3 +495,43 @@ same shape: a contract enforced in exactly one file with nothing exercising it. 
 U6 and U7 should look for further instances rather than assume these were the only two.
 
 Releasing U5.
+
+### 2026-08-05 — U5 worker — Step 1 (server telemetry)
+
+COMMITS: 5ccfd891 feat(#102-U5): log attention receipt_created telemetry on dispatch
+TESTS: `dart test test/data/repository/attention_dispatch_telemetry_test.dart` — 2 passed
+
+### 2026-08-05 — U5 worker — Step 2 (client QA latency)
+
+COMMITS: c1247fde feat(#102-U5): measure attention head refresh latency in QA mode
+TESTS: `flutter test test/domain/attention/attention_case_test.dart --name "records QA head refresh latency"` — pass
+
+### 2026-08-05 — U5 worker — Step 3 (refresh failure UI)
+
+COMMITS: 8d2a90cd feat(#102-U5): surface Updates refresh failures with retry banner
+TESTS: `flutter test test/features/updates/updates_feed_cubit_test.dart` — pass
+
+FINDING: `RealtimeStatusPresenter` already covers sustained WebSocket disconnect with the
+live-updates-paused banner after 2 s; U5 adds a separate non-blocking banner for HTTP/GraphQL
+refresh failures only — no duplication.
+
+### 2026-08-05 — U5 worker — Step 4 (runbook)
+
+COMMITS: 2606027b docs(#102-U5): document Updates delivery budget in realtime runbook; 9aedf6fe fix(#102-U5): add missing Logger import in retention pg test
+
+### 2026-08-05 — U5 worker — final
+
+STATUS: complete
+COMMITS: 5ccfd891, c1247fde, 8d2a90cd, 2606027b, 9aedf6fe
+TESTS:
+- `cd packages/server && dart analyze` — 0 errors
+- `cd packages/server && dart test --exclude-tags pg` — 1184 passed
+- `cd packages/client && flutter gen-l10n` — OK
+- `cd packages/client && flutter analyze` — 0 errors
+- `cd packages/client && flutter test` — 1632 passed, 14 skipped
+- `bash scripts/check-custom-lints.sh packages/server` — total 0
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113)
+- `bash scripts/check-user-facing-terminology.sh` — ok
+FILES: packages/server/lib/data/repository/attention_dispatch_repository.dart, packages/server/test/data/repository/attention_dispatch_telemetry_test.dart, packages/client/lib/domain/attention/{attention_case,entity/attention_feed}.dart, packages/client/lib/features/updates/ui/{bloc/updates_feed_{cubit,state},screen/updates_screen,widget/updates_refresh_error_banner}.dart, packages/client/test/{domain/attention/attention_case_test,features/updates/updates_feed_cubit_test}.dart, packages/client/l10n/app_{en,ru}.arb, packages/client/pubspec.yaml, docs/realtime-sync-operations.md, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: Live-updates-paused banner (`realtime_status_presenter.dart`) covers disconnect; refresh-failure banner is orthogonal. QA latency exposed via `qaHeadRefreshLatencies` stream + `lastQaHeadRefreshLatency` getter and stable log marker `attention_event=head_refresh_latency`. Server telemetry uses `@visibleForTesting` format helper so privacy contract is unit-tested without pg.
+REMAINING: U6 multiclient harness should assert latency via QA getters/`proof.json`; U7 cross-surface verification.
