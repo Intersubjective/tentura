@@ -23,6 +23,21 @@ void main() {
       expect(allowed, isNot(contains('delivered_as_promised')));
     });
 
+    test('former committer tags match current committer', () {
+      for (final isNegative in [true, false]) {
+        expect(
+          EvaluationReasonTags.allowedForRoleAndSign(
+            EvaluationParticipantRole.formerCommitter,
+            isNegative: isNegative,
+          ),
+          EvaluationReasonTags.allowedForRoleAndSign(
+            EvaluationParticipantRole.committer,
+            isNegative: isNegative,
+          ),
+        );
+      }
+    });
+
     test('forwarder positive tags are role-specific', () {
       final allowed = EvaluationReasonTags.allowedForRoleAndSign(
         EvaluationParticipantRole.forwarder,
@@ -40,6 +55,17 @@ void main() {
       );
       expect(union, containsAll(EvaluationReasonTags.authorPositive));
       expect(union, containsAll(EvaluationReasonTags.authorNegative));
+    });
+
+    test('former committer union matches committer', () {
+      expect(
+        EvaluationReasonTags.allowedUnionForRole(
+          EvaluationParticipantRole.formerCommitter,
+        ),
+        EvaluationReasonTags.allowedUnionForRole(
+          EvaluationParticipantRole.committer,
+        ),
+      );
     });
   });
 }

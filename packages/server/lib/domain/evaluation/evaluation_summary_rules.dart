@@ -97,6 +97,7 @@ String evaluationRoleSummaryLine(
     EvaluationParticipantRole.author => 'Author',
     EvaluationParticipantRole.committer => 'Committer',
     EvaluationParticipantRole.forwarder => 'Forwarder',
+    EvaluationParticipantRole.formerCommitter => 'Former committer',
   };
   final toneWord = switch (tone) {
     'positive' => 'mostly positive',

@@ -24,6 +24,7 @@ void main() {
   const author = 'author';
   const c1 = 'committer1';
   const c2 = 'committer2';
+  const former = 'former1';
   const forwarder = 'forwarder';
 
   test('author evaluates all non-self; committers evaluate author and each other', () {
@@ -58,6 +59,42 @@ void main() {
       }),
     );
   });
+
+  test(
+    'former committer evaluates author and other committers or former committers',
+    () {
+      final vis = buildEvaluationVisibility(
+        authorId: author,
+        participants: const [
+          EvaluationVisibilityParticipant(
+            userId: author,
+            role: EvaluationParticipantRole.author,
+          ),
+          EvaluationVisibilityParticipant(
+            userId: c1,
+            role: EvaluationParticipantRole.committer,
+          ),
+          EvaluationVisibilityParticipant(
+            userId: former,
+            role: EvaluationParticipantRole.formerCommitter,
+          ),
+        ],
+        latestEdgeToCommitter: {},
+      );
+
+      expect(
+        _pairSet(vis),
+        equals({
+          (author, c1),
+          (author, former),
+          (c1, author),
+          (c1, former),
+          (former, author),
+          (former, c1),
+        }),
+      );
+    },
+  );
 
   test('committer may evaluate forwarder on path when forwarder is not author', () {
     final vis = buildEvaluationVisibility(

@@ -93,6 +93,13 @@ void main() {
         evaluationRoleSummaryLine(EvaluationParticipantRole.forwarder, 'mixed'),
         'As Forwarder: mixed',
       );
+      expect(
+        evaluationRoleSummaryLine(
+          EvaluationParticipantRole.formerCommitter,
+          'positive',
+        ),
+        'As Former committer: mostly positive',
+      );
     });
   });
 

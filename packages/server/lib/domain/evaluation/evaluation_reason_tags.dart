@@ -57,6 +57,10 @@ abstract final class EvaluationReasonTags {
         return isNegative
             ? committerNegative.toSet()
             : committerPositive.toSet();
+      case EvaluationParticipantRole.formerCommitter:
+        return isNegative
+            ? committerNegative.toSet()
+            : committerPositive.toSet();
       case EvaluationParticipantRole.forwarder:
         return isNegative
             ? forwarderNegative.toSet()
@@ -69,6 +73,10 @@ abstract final class EvaluationReasonTags {
       {...switch (role) {
         EvaluationParticipantRole.author => [...authorPositive, ...authorNegative],
         EvaluationParticipantRole.committer => [
+            ...committerPositive,
+            ...committerNegative,
+          ],
+        EvaluationParticipantRole.formerCommitter => [
             ...committerPositive,
             ...committerNegative,
           ],

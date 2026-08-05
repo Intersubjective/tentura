@@ -42,7 +42,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       predicates, port+repository, query case, P1 tests)
 - [x] U02 — P2: record facts at all write points (help_offer_case,
       coordination_case, user_block_case, remove `deleteForCommit`, P2 tests)
-- [ ] U03 — P3.1+P3.2+P3.3: Cancel/Delete gates switch to `everHadCommitter`;
+- [x] U03 — P3.1+P3.2+P3.3: Cancel/Delete gates switch to `everHadCommitter`;
       `formerCommitter` role added everywhere it's exhaustively matched
 - [ ] U04 — P3.4: review-composition graph builder rewritten on commitment
       events
@@ -228,7 +228,36 @@ sequence). `declineHelpOffer` snapshots `everAcknowledgedPair` before the
 decline mutation (same pattern as plan's write-rule box). Gates (Cancel/Delete)
 intentionally not switched — P3 scope.
 
-**Remaining:** U03 (P3) — switch gates to commitment facts.
+**Remaining:** U04 (P3.4) — review-composition graph builder on commitment events.
+
+### 2026-08-05 — U03 P3.1+P3.2+P3.3 gate switch and formerCommitter role (worker)
+
+**Done:** Implemented plan §5 P3.1–P3.3 only (no P3.4+).
+
+- **P3.1:** `BeaconCase.beaconCancel` gates on
+  `CommitmentQueryCase.everHadCommitter(beaconId)`; injected
+  `CommitmentQueryCase`, removed unused coordination/help-offer deps from
+  `BeaconCase`.
+- **P3.2:** `BeaconCase.deleteById` same gate (draft hard-delete path unchanged).
+- **P3.3:** `EvaluationParticipantRole.formerCommitter(3)` + branches in
+  `evaluation_reason_tags.dart`, `evaluation_summary_rules.dart`,
+  `evaluation_visibility_rules.dart` (if-chain updated per plan point 4).
+- **Tests:** extended cancel/delete gate tests with accept→withdraw scenarios via
+  real `RecordingCommitmentRepository` + `CommitmentQueryCase`; extended
+  evaluation visibility/reason-tag/summary tests for role 3.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1216/1216 green (+5 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+- `dart run build_runner build -d` in packages/server (DI regen for BeaconCase)
+
+**Decisions:** Removed `CoordinationRepositoryPort` / `HelpOfferRepositoryPort`
+from `BeaconCase` constructor (only used by old gates). Added
+`test/support/noop_commitment_query_case.dart` for other BeaconCase tests.
+Cancel error description updated to plan wording (“ever had a committer”).
+
+**Remaining:** U04 (P3.4) — review-composition graph builder.
 
 ### 2026-08-05 — U01 review (orchestrator)
 

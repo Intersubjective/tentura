@@ -2,7 +2,8 @@
 enum EvaluationParticipantRole {
   author(0),
   committer(1),
-  forwarder(2);
+  forwarder(2),
+  formerCommitter(3);
 
   const EvaluationParticipantRole(this.dbValue);
 
@@ -12,6 +13,7 @@ enum EvaluationParticipantRole {
         0 => EvaluationParticipantRole.author,
         1 => EvaluationParticipantRole.committer,
         2 => EvaluationParticipantRole.forwarder,
+        3 => EvaluationParticipantRole.formerCommitter,
         _ => EvaluationParticipantRole.committer,
       };
 }

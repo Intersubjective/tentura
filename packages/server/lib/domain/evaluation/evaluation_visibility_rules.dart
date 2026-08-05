@@ -49,10 +49,13 @@ List<EvaluationVisibilityPair> buildEvaluationVisibility({
       }
       continue;
     }
-    if (e.role == EvaluationParticipantRole.committer) {
+    if (e.role == EvaluationParticipantRole.committer ||
+        e.role == EvaluationParticipantRole.formerCommitter) {
       add(eid, authorId);
       for (final p in participants) {
-        if (p.role == EvaluationParticipantRole.committer && p.userId != eid) {
+        if ((p.role == EvaluationParticipantRole.committer ||
+                p.role == EvaluationParticipantRole.formerCommitter) &&
+            p.userId != eid) {
           add(eid, p.userId);
         }
       }
