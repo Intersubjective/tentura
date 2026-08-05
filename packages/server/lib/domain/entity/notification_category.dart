@@ -35,8 +35,12 @@ NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
   NotificationKind.commitmentEvent ||
   NotificationKind.commitmentDeclined ||
   NotificationKind.commitmentRemoved ||
+  NotificationKind.commitmentCancelled ||
   NotificationKind.newRelay ||
   NotificationKind.roomMention => NotificationCategory.coordination,
+  NotificationKind.commitmentAccepted ||
+  NotificationKind.commitmentResolved => NotificationCategory.unblocksMe,
+  NotificationKind.commitmentRedirected => NotificationCategory.asksOfMe,
   NotificationKind.inviteAccepted => NotificationCategory.connections,
   NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
 };

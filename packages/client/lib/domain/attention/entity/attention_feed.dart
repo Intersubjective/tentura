@@ -30,5 +30,6 @@ abstract class AttentionFeedSnapshot with _$AttentionFeedSnapshot {
     @Default(<AttentionView, AttentionFeedPage>{})
     Map<AttentionView, AttentionFeedPage> pages,
     @Default(AttentionView.all) AttentionView activeView,
+    Object? headRefreshError,
   }) = _AttentionFeedSnapshot;
 }

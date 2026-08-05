@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:meta/meta.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
 
@@ -134,20 +135,36 @@ final class QueryAttention extends GqlNodeBase {
     }
   }
 
-  static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
-    final payload = receipt.presentationPayload;
-    const allowedPayloadKeys = {
-      'eventType',
-      'actorUserId',
-      'beaconId',
-      'coordinationItemId',
-      'targetEntityId',
-      'messageId',
-    };
-    if (payload.keys.any((key) => !allowedPayloadKeys.contains(key)) ||
+  @visibleForTesting
+  static const attentionPresentationPayloadAllowedKeys = {
+    'eventType',
+    'actorUserId',
+    'beaconId',
+    'coordinationItemId',
+    'targetEntityId',
+    'messageId',
+    'beaconTitle',
+  };
+
+  @visibleForTesting
+  static void validateAttentionPresentationPayload(
+    Map<String, Object?> payload,
+  ) {
+    if (payload.keys.any(
+          (key) => !attentionPresentationPayloadAllowedKeys.contains(key),
+        ) ||
         payload.values.any((value) => value is! String)) {
       throw StateError('Unexpected attention presentation payload');
     }
+  }
+
+  @visibleForTesting
+  static Map<String, Object?> mapReceiptForTesting(AttentionReceipt receipt) =>
+      _mapReceipt(receipt);
+
+  static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
+    final payload = receipt.presentationPayload;
+    validateAttentionPresentationPayload(payload);
     return {
       'id': receipt.id,
       'category': receipt.category.name,

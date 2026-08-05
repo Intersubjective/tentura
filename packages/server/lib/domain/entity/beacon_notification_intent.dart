@@ -15,6 +15,7 @@ abstract class BeaconNotificationIntent with _$BeaconNotificationIntent {
   @Default('') String titleExcerpt,
   @Default('') String bodyExcerpt,
   @Default('') String beaconTitle,
+    int? coordinationItemKind,
     String? coordinationItemId,
     String? targetPersonId,
     @Default([]) List<String> forwardRecipientIds,

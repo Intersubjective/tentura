@@ -11,12 +11,19 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/accept_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/reject_resolution_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubBeacons extends Fake implements BeaconRepositoryPort {
   _StubBeacons(this.entity);
@@ -54,6 +61,8 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   String? lastCreateTitle;
   String? lastCreateBody;
   String? lastTargetItemId;
+  CoordinationItemRecord? nextReturnOnCreate;
+  DateTime? nextUpdatedAt;
 
   @override
   Future<CoordinationItemRecord?> getById(String id) async => itemsById[id];
@@ -77,6 +86,9 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     lastCreateTitle = title;
     lastCreateBody = body;
     lastTargetItemId = targetItemId;
+    if (nextReturnOnCreate != null) {
+      return nextReturnOnCreate!;
+    }
     final now = DateTime.utc(2024);
     return testCoordinationItem(
       id: 'Riiiiiiiiiiii',
@@ -111,9 +123,19 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     if (existing == null) {
       throw StateError('missing item $id');
     }
-    final updated = existing.copyWith(status: newStatus);
+    final updatedAt = nextUpdatedAt ?? existing.updatedAt;
+    final updated = existing.copyWith(status: newStatus, updatedAt: updatedAt);
     itemsById[id] = updated;
     return updated;
+  }
+}
+
+final class _RecordingDispatch extends Fake implements AttentionDispatchPort {
+  final List<AttentionDispatchIntent> recorded = [];
+
+  @override
+  Future<void> record(AttentionDispatchIntent intent) async {
+    recorded.add(intent);
   }
 }
 
@@ -149,9 +171,49 @@ CoordinationItemRecord _sampleResolution({
   ).copyWith(targetItemId: targetItemId);
 }
 
+final class _SnapshotUnitOfWork implements MutatingUnitOfWorkPort {
+  _SnapshotUnitOfWork(this._items);
+
+  final _StubItems _items;
+
+  @override
+  Future<T> run<T>({
+    required Future<T> Function() action,
+    String? actorUserId,
+  }) async {
+    final snapshot = Map<String, CoordinationItemRecord>.from(_items.itemsById);
+    try {
+      return await action();
+    } on Object catch (error, stackTrace) {
+      _items.itemsById
+        ..clear()
+        ..addAll(snapshot);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+}
+
+final class _FailingOnSecondUpdateItems extends _StubItems {
+  int updateCalls = 0;
+
+  @override
+  Future<CoordinationItemRecord> updateStatus({
+    required String id,
+    required int newStatus,
+    required String actorId,
+  }) async {
+    updateCalls++;
+    if (updateCalls == 2) {
+      throw StateError('simulated failure');
+    }
+    return super.updateStatus(id: id, newStatus: newStatus, actorId: actorId);
+  }
+}
+
 void main() {
   const creatorId = 'Ucreator00001';
   const actorId = 'Uactor0000001';
+  const beaconAuthorId = 'Uauthor000001';
   const beaconId = 'Bbbbbbbbbbbbb';
   const resolutionId = 'Riiiiiiiiiiii';
   const targetItemId = 'Tiiiiiiiiiiii';
@@ -159,14 +221,20 @@ void main() {
   group('CreateResolutionCase', () {
     late _StubBeacons beacons;
     late _StubItems items;
+    late TestAttentionHarness attention;
     late CreateResolutionCase sut;
 
     setUp(() {
       beacons = _StubBeacons(_openBeacon(beaconId));
       items = _StubItems();
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+      );
       sut = CreateResolutionCase(
         beacons,
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -211,16 +279,72 @@ void main() {
       );
       expect(items.lastCreateKind, isNull);
     });
+
+    test('records needsMe for target item owner', () async {
+      items.itemsById[targetItemId] = testCoordinationItem(
+        id: targetItemId,
+        beaconId: beaconId,
+        kind: coordinationItemKindBlocker,
+        status: coordinationItemStatusOpen,
+        title: 'Blocker',
+        creatorId: actorId,
+        published: true,
+        source: coordinationItemSourceDefault,
+        createdAt: DateTime.utc(2024),
+        updatedAt: DateTime.utc(2024),
+      );
+      final createdAt = DateTime.utc(2024, 7, 1, 12, 0, 0, 123, 456);
+      items.nextReturnOnCreate = testCoordinationItem(
+        id: resolutionId,
+        beaconId: beaconId,
+        kind: coordinationItemKindResolution,
+        status: coordinationItemStatusOpen,
+        title: 'Close blocker',
+        body: '',
+        creatorId: creatorId,
+        published: true,
+        source: coordinationItemSourceDefault,
+        createdAt: createdAt,
+        updatedAt: createdAt,
+      ).copyWith(targetItemId: targetItemId);
+
+      await sut.call(
+        userId: creatorId,
+        beaconId: beaconId,
+        title: 'Close blocker',
+        targetItemId: targetItemId,
+      );
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.needsMe);
+      expect(intent.kind, NotificationKind.needsMe);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$resolutionId:resolution_created:'
+        '${createdAt.microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(actorId),
+      );
+    });
   });
 
   group('AcceptResolutionCase', () {
     late _StubItems items;
+    late TestAttentionHarness attention;
     late AcceptResolutionCase sut;
 
     setUp(() {
       items = _StubItems();
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+      );
       sut = AcceptResolutionCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -325,16 +449,110 @@ void main() {
       );
       expect(items.statusUpdates, isEmpty);
     });
+
+    test('records commitmentResolved for resolution creator', () async {
+      items.itemsById[resolutionId] = _sampleResolution(
+        id: resolutionId,
+        beaconId: beaconId,
+        creatorId: creatorId,
+        targetItemId: targetItemId,
+      );
+      items.itemsById[targetItemId] = testCoordinationItem(
+        id: targetItemId,
+        beaconId: beaconId,
+        kind: coordinationItemKindBlocker,
+        status: coordinationItemStatusOpen,
+        title: 'Blocker',
+        creatorId: actorId,
+        published: true,
+        source: coordinationItemSourceDefault,
+        createdAt: DateTime.utc(2024),
+        updatedAt: DateTime.utc(2024),
+      );
+      final acceptedAt = DateTime.utc(2024, 8, 1, 12, 0, 0, 123, 456);
+      items.nextUpdatedAt = acceptedAt;
+
+      await sut.call(userId: actorId, itemId: resolutionId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentResolved);
+      expect(intent.kind, NotificationKind.commitmentResolved);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$resolutionId:resolution_accepted:'
+        '${acceptedAt.microsecondsSinceEpoch}',
+      );
+      expect(intent.recipients, isNotEmpty);
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(creatorId),
+      );
+    });
+
+    test('rolls back both status writes when second update fails', () async {
+      final failingItems = _FailingOnSecondUpdateItems();
+      failingItems.itemsById[resolutionId] = _sampleResolution(
+        id: resolutionId,
+        beaconId: beaconId,
+        creatorId: creatorId,
+        targetItemId: targetItemId,
+      );
+      failingItems.itemsById[targetItemId] = testCoordinationItem(
+        id: targetItemId,
+        beaconId: beaconId,
+        kind: coordinationItemKindBlocker,
+        status: coordinationItemStatusOpen,
+        title: 'Blocker',
+        creatorId: actorId,
+        published: true,
+        source: coordinationItemSourceDefault,
+        createdAt: DateTime.utc(2024),
+        updatedAt: DateTime.utc(2024),
+      );
+      final dispatch = _RecordingDispatch();
+      final transactional = TransactionalAttentionCase(
+        _SnapshotUnitOfWork(failingItems),
+        dispatch,
+      );
+      final rollbackSut = AcceptResolutionCase(
+        failingItems,
+        attentionIntents: attention.intents,
+        attention: transactional,
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
+
+      await expectLater(
+        () => rollbackSut.call(userId: actorId, itemId: resolutionId),
+        throwsStateError,
+      );
+      expect(
+        failingItems.itemsById[targetItemId]!.status,
+        coordinationItemStatusOpen,
+      );
+      expect(
+        failingItems.itemsById[resolutionId]!.status,
+        coordinationItemStatusOpen,
+      );
+      expect(dispatch.recorded, isEmpty);
+    });
   });
 
   group('RejectResolutionCase', () {
     late _StubItems items;
+    late TestAttentionHarness attention;
     late RejectResolutionCase sut;
 
     setUp(() {
       items = _StubItems();
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+      );
       sut = RejectResolutionCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -352,6 +570,33 @@ void main() {
       expect(items.statusUpdates.single.id, resolutionId);
       expect(items.statusUpdates.single.newStatus, coordinationItemStatusCancelled);
       expect(items.statusUpdates.single.actorId, actorId);
+    });
+
+    test('records commitmentCancelled for resolution creator', () async {
+      items.itemsById[resolutionId] = _sampleResolution(
+        id: resolutionId,
+        beaconId: beaconId,
+        creatorId: creatorId,
+      );
+      final rejectedAt = DateTime.utc(2024, 8, 2, 12, 0, 0, 123, 456);
+      items.nextUpdatedAt = rejectedAt;
+
+      await sut.call(userId: actorId, itemId: resolutionId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentCancelled);
+      expect(intent.kind, NotificationKind.commitmentCancelled);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$resolutionId:resolution_rejected:'
+        '${rejectedAt.microsecondsSinceEpoch}',
+      );
+      expect(intent.recipients, isNotEmpty);
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(creatorId),
+      );
     });
 
     test('rejects missing resolution', () async {

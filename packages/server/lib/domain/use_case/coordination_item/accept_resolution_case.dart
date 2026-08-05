@@ -4,6 +4,8 @@ import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '../_use_case_base.dart';
 
@@ -11,11 +13,16 @@ import '../_use_case_base.dart';
 final class AcceptResolutionCase extends UseCaseBase {
   AcceptResolutionCase(
     this._itemRepository, {
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  });
+  }) : _attentionIntents = attentionIntents,
+       _attention = attention;
 
   final CoordinationItemRepositoryPort _itemRepository;
+  final AttentionIntentCase? _attentionIntents;
+  final TransactionalAttentionCase? _attention;
 
   Future<CoordinationItemRecord> call({
     required String userId,
@@ -33,23 +40,53 @@ final class AcceptResolutionCase extends UseCaseBase {
     }
 
     final targetId = resolution.targetItemId;
+    CoordinationItemRecord? target;
     if (targetId != null && targetId.isNotEmpty) {
-      final target = await _itemRepository.getById(targetId);
-      if (target != null &&
-          (target.status == coordinationItemStatusOpen ||
-              target.status == coordinationItemStatusAccepted)) {
-        await _itemRepository.updateStatus(
-          id: targetId,
+      target = await _itemRepository.getById(targetId);
+    }
+
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        if (target != null &&
+            (target.status == coordinationItemStatusOpen ||
+                target.status == coordinationItemStatusAccepted)) {
+          await _itemRepository.updateStatus(
+            id: targetId!,
+            newStatus: coordinationItemStatusResolved,
+            actorId: userId,
+          );
+        }
+
+        final updatedResolution = await _itemRepository.updateStatus(
+          id: itemId,
           newStatus: coordinationItemStatusResolved,
           actorId: userId,
         );
-      }
-    }
 
-    return _itemRepository.updateStatus(
-      id: itemId,
-      newStatus: coordinationItemStatusResolved,
-      actorId: userId,
+        final resolutionCreatorId = updatedResolution.creatorId;
+        if (resolutionCreatorId.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.commitmentChanged(
+              beaconId: updatedResolution.beaconId,
+              actorUserId: userId,
+              transition: 'resolved',
+              excerpt: updatedResolution.title,
+              targetPersonId: resolutionCreatorId,
+              coordinationItemId: updatedResolution.id,
+              coordinationItemKind: updatedResolution.kind,
+              creatorId: target?.creatorId,
+              sourceEventKey: _sourceKey(updatedResolution, 'resolution_accepted'),
+            ),
+          );
+        }
+
+        return updatedResolution;
+      },
     );
   }
+
+  String _sourceKey(CoordinationItemRecord item, String transition) =>
+      'coordination_item:${item.id}:$transition:'
+      '${item.updatedAt.toUtc().microsecondsSinceEpoch}';
 }

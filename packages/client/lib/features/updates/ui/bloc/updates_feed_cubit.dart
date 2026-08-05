@@ -33,6 +33,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         view: snapshot.activeView,
         items: page?.items ?? const [],
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
+        refreshError: snapshot.headRefreshError,
         status: const StateIsSuccess(),
       ),
     );
@@ -40,17 +41,26 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
 
   Future<void> setView(AttentionView view) async {
     if (state.view == view) return;
-    emit(state.copyWith(view: view, status: const StateIsLoading()));
+    emit(
+      state.copyWith(
+        view: view,
+        status: const StateIsLoading(),
+        refreshError: null,
+        actionError: null,
+      ),
+    );
     _attention.setActiveView(view);
   }
 
   void setSearch(String value) => _attention.setSearch(value);
 
   Future<void> refresh() async {
+    emit(state.copyWith(refreshError: null));
     try {
       await _attention.refresh();
     } catch (error, stackTrace) {
       _logger.warning('Updates refresh failed', error, stackTrace);
+      emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
     }
   }
 
@@ -60,30 +70,37 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       await _attention.fetchNextPage();
     } catch (error, stackTrace) {
       _logger.warning('Updates pagination failed', error, stackTrace);
+      emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
     }
   }
 
   Future<void> markSeen(String id) async {
     try {
       await _attention.markSeen([id]);
+      emit(state.copyWith(actionError: null));
     } catch (error, stackTrace) {
       _logger.warning('Updates mark-seen failed', error, stackTrace);
+      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
     }
   }
 
   Future<void> markAllSeen() async {
     try {
       await _attention.markAllSeen();
+      emit(state.copyWith(actionError: null));
     } catch (error, stackTrace) {
       _logger.warning('Updates mark-all-seen failed', error, stackTrace);
+      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
     }
   }
 
   Future<void> settle(String id) async {
     try {
       await _attention.settle(id);
+      emit(state.copyWith(actionError: null));
     } catch (error, stackTrace) {
       _logger.warning('Updates settle failed', error, stackTrace);
+      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
     }
   }
 

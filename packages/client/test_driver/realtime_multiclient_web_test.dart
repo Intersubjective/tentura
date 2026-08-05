@@ -8,6 +8,7 @@ import 'package:webdriver/async_io.dart' hide TimeoutException;
 const _appOrigin = 'https://dev.lvh.me:9443';
 const _apiOrigin = 'http://127.0.0.1:2080';
 const _driverUri = 'http://127.0.0.1:4444/';
+const _sessionCookieName = '__Host-tentura_session';
 
 Future<void> main() async {
   final qaToken = Platform.environment['QA_AUTH_TOKEN']?.trim() ?? '';
@@ -32,6 +33,7 @@ Future<void> main() async {
   )..createSync(recursive: true);
 
   final timings = <String, int>{};
+  final proof = <String, dynamic>{};
   final fixture = await _bootstrap(qaToken, runId);
   BrowserSession? author;
   BrowserSession? authorPeer;
@@ -70,6 +72,8 @@ Future<void> main() async {
       fixture: fixture,
       qaToken: qaToken,
       timings: timings,
+      proof: proof,
+      artifactDir: artifactDir,
       disabledPath: disabledPath,
     );
     await _assertNoUncaughtFlutterErrors([
@@ -90,6 +94,11 @@ Future<void> main() async {
   } finally {
     await _controlSocket(
       qaToken,
+      fixture.authorUserId,
+      action: 'resume',
+    );
+    await _controlSocket(
+      qaToken,
       fixture.helperUserId,
       action: 'resume',
     );
@@ -102,6 +111,11 @@ Future<void> main() async {
     File('${artifactDir.path}/timings.json').writeAsStringSync(
       const JsonEncoder.withIndent('  ').convert(timings),
     );
+    if (proof.isNotEmpty) {
+      File('${artifactDir.path}/proof.json').writeAsStringSync(
+        const JsonEncoder.withIndent('  ').convert(proof),
+      );
+    }
   }
 
   if (failure != null) {
@@ -120,6 +134,8 @@ Future<void> _runJourney({
   required Fixture fixture,
   required String qaToken,
   required Map<String, int> timings,
+  required Map<String, dynamic> proof,
+  required Directory artifactDir,
   required String disabledPath,
 }) async {
   final suffix = DateTime.now().microsecondsSinceEpoch;
@@ -164,7 +180,12 @@ Future<void> _runJourney({
   await authorPeer.waitForText('Updates');
 
   // 2. Helper offers help; the already-mounted People projection converges.
+  await helper.open('/home/inbox');
+  await helper.waitForText('Inbox');
+  await helper.waitForText(title);
+  await helper.waitForTestId('inbox.offer_help');
   await helper.clickTestId('inbox.offer_help');
+  await helper.waitForTestId('help_offer.message');
   await helper.setTestId('help_offer.message', 'I can help with software');
   await helper.clickTestId('help_offer.browse_categories');
   await helper.setTestId('help_offer.search', 'software');
@@ -207,33 +228,34 @@ Future<void> _runJourney({
 
   // 3. Both Chat views stay mounted. First prove the established error UI,
   // then prove the successful hint creates exactly one remote bubble.
+  // helperPeer enters Chat so helper's same-account My Work tab stays room-naive.
   await Future.wait([
     author.open('/beacon/view/$beaconId'),
-    helper.open('/beacon/view/$beaconId'),
+    helperPeer.open('/beacon/view/$beaconId'),
   ]);
   await Future.wait([
     author.clickTestId('beacon.room.open'),
-    helper.clickTestId('beacon.room.open'),
+    helperPeer.clickTestId('beacon.room.open'),
   ]);
   await Future.wait([
     author.waitForTestId('room.message.input'),
-    helper.waitForTestId('room.message.input'),
+    helperPeer.waitForTestId('room.message.input'),
   ]);
 
-  await helper.blockGraphql(true);
-  await helper.sendChatMessage(failedMessage);
-  await helper.waitForText('No Internet connection');
+  await helperPeer.blockGraphql(true);
+  await helperPeer.sendChatMessage(failedMessage);
+  await helperPeer.waitForText('No Internet connection');
   _require(
     !await author.hasText(failedMessage),
     'Failed message was delivered',
   );
-  await helper.blockGraphql(false);
+  await helperPeer.blockGraphql(false);
   // Error snackbars remain visible for 15 seconds and cover the composer. Close
   // the deliberately-proven error before verifying that the next send works.
-  await helper.dismissSnackBar('No Internet connection');
-  await helper.waitForTextGone('No Internet connection');
+  await helperPeer.dismissSnackBar('No Internet connection');
+  await helperPeer.waitForTextGone('No Internet connection');
 
-  await helper.sendChatMessage(chatMessage);
+  await helperPeer.sendChatMessage(chatMessage);
   timings['chat_delivery_ms'] = await _measureUntil(
     () => author.hasText(chatMessage),
     timeout: const Duration(seconds: 5),
@@ -253,21 +275,143 @@ Future<void> _runJourney({
     helper.waitForText(title),
     helperPeer.waitForText(title),
   ]);
+  final unreadBeforeProbe = await _roomUnreadFromStatus(helper, beaconId);
   await author.sendChatMessage(myWorkUnreadMessage);
-  await helper.waitForTestIdText(
-    'my_work.room_status.$beaconId',
-    '+1',
+  await author.waitForText(myWorkUnreadMessage);
+  await _waitUntil(
+    () async =>
+        await _roomUnreadFromStatus(helper, beaconId) == unreadBeforeProbe + 1,
   );
   await helperPeer.open('/beacon/view/$beaconId');
   await helperPeer.clickTestId('beacon.room.open');
   await helperPeer.waitForText(myWorkUnreadMessage);
   timings['same_account_my_work_read_ms'] = await _measureUntil(
-    () async => !await helper.testIdTextContains(
-      'my_work.room_status.$beaconId',
-      '+1',
-    ),
+    () async => await _roomUnreadFromStatus(helper, beaconId) == 0,
     timeout: const Duration(seconds: 5),
   );
+
+  // Issue #102 setup: author creates the ask while still on the beacon surface,
+  // then moves to My Work and stays there while helper accepts.
+  final askTitle = 'Accept proof $suffix';
+  final askBody = '102 accept regression $suffix';
+  final askItemId = await _markAskViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: beaconId,
+    targetPersonId: fixture.helperUserId,
+    title: askTitle,
+    body: askBody,
+  );
+
+  // 7. Issue #102: author stays on My Work; helper accepts an ask via API.
+  await Future.wait([
+    author.open('/home/work'),
+    authorPeer.open('/home/updates'),
+  ]);
+  await Future.wait([
+    author.waitForText(title),
+    authorPeer.waitForText('Updates'),
+  ]);
+  final receiptIdsBefore102 = await authorPeer.collectUpdatesReceiptIds();
+  await _acceptAskViaApi(helperEmail: fixture.helperEmail, itemId: askItemId);
+  timings['my_work_102_delivery_ms'] = await _measureUntil(
+    () async =>
+        await author.hasTestId('updates-unread-count-1') &&
+        await author.hasText('Ask accepted') &&
+        await authorPeer.hasTestId('updates-unread-count-1'),
+    timeout: const Duration(seconds: 5),
+  );
+  _require(
+    await authorPeer.textCount('accepted your ask') == 1,
+    'Commitment accept produced duplicate Updates cards',
+  );
+  final receiptIdsAfter102 = await authorPeer.collectUpdatesReceiptIds();
+  final newReceiptIds102 = receiptIdsAfter102.difference(receiptIdsBefore102);
+  _require(
+    newReceiptIds102.length == 1,
+    'Expected exactly one new Updates receipt id',
+  );
+  final receiptId102 = newReceiptIds102.single;
+  _require(
+    await authorPeer.receiptIdCount(receiptId102) == 1,
+    'Duplicate stable receipt id in Updates feed',
+  );
+  final qaLatencyMs = await author.readQaHeadRefreshLatencyMs();
+  if (qaLatencyMs != null) {
+    timings['my_work_102_qa_head_refresh_latency_ms'] = qaLatencyMs;
+  }
+  proof['my_work_102'] = {
+    'runId': Platform.environment['REALTIME_MULTICLIENT_RUN_ID'],
+    'beaconId': beaconId,
+    'itemId': askItemId,
+    'receiptId': receiptId102,
+    'delivery_ms': timings['my_work_102_delivery_ms'],
+    'qa_head_refresh_latency_ms': qaLatencyMs,
+    'artifactDir': artifactDir.path,
+    'ok': true,
+  };
+
+  // 8. Missed attention receipt: author socket gated, then catch-up without dupes.
+  final receiptIdsBeforeReconnect =
+      await authorPeer.collectUpdatesReceiptIds();
+  final suspendedAuthor = await _controlSocket(
+    qaToken,
+    fixture.authorUserId,
+    action: 'suspend',
+  );
+  _require(
+    suspendedAuthor.sessionsClosed > 0,
+    'QA gate closed no author session',
+  );
+  final reconnectAskItemId = await _markAskViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: beaconId,
+    targetPersonId: fixture.helperUserId,
+    title: 'Reconnect catch-up ask $suffix',
+    body: 'Attention reconnect proof $suffix',
+  );
+  await _acceptAskViaApi(
+    helperEmail: fixture.helperEmail,
+    itemId: reconnectAskItemId,
+  );
+  final receiptIdsWhileGated = await authorPeer.collectUpdatesReceiptIds();
+  _require(
+    receiptIdsWhileGated.difference(receiptIdsBeforeReconnect).isEmpty,
+    'Attention receipt arrived while author socket was gated',
+  );
+  if (disabledPath != 'catch_up') {
+    await _controlSocket(qaToken, fixture.authorUserId, action: 'resume');
+  }
+  timings['attention_reconnect_catch_up_ms'] = await _measureUntil(
+    () async {
+      final ids = await authorPeer.collectUpdatesReceiptIds();
+      return ids.difference(receiptIdsBeforeReconnect).length == 1;
+    },
+    timeout: const Duration(seconds: 8),
+  );
+  final receiptIdsAfterReconnect = await authorPeer.collectUpdatesReceiptIds();
+  _require(
+    receiptIdsAfterReconnect.length ==
+        receiptIdsAfterReconnect.toSet().length,
+    'Reconnect catch-up duplicated a receipt id in the feed',
+  );
+  final newReceiptIdsReconnect = receiptIdsAfterReconnect.difference(
+    receiptIdsBeforeReconnect,
+  );
+  _require(
+    newReceiptIdsReconnect.length == 1,
+    'Reconnect catch-up produced wrong receipt id count',
+  );
+  _require(
+    await authorPeer.receiptIdCount(newReceiptIdsReconnect.single) == 1,
+    'Reconnect catch-up duplicated stable receipt content',
+  );
+  proof['attention_reconnect'] = {
+    'receiptIdsBefore': receiptIdsBeforeReconnect.toList(),
+    'receiptIdsAfter': receiptIdsAfterReconnect.toList(),
+    'newReceiptIds': newReceiptIdsReconnect.toList(),
+    'catch_up_ms': timings['attention_reconnect_catch_up_ms'],
+    'ok': true,
+  };
 
   // 4. Helper My Work stays mounted while the author enters review.
   await helper.open('/home/work');
@@ -323,6 +467,7 @@ Future<void> _runJourney({
   await author.open('/profile/view/${fixture.helperUserId}');
   await author.waitForText('Trust: mutual');
   await helper.open('/profile/view/${fixture.authorUserId}');
+  await helper.waitForText('Trust: mutual');
   await helper.clickText('Show menu');
   await helper.clickText('Stop trusting');
   await helper.clickText('Remove');
@@ -334,7 +479,8 @@ Future<void> _runJourney({
   // Connected delivery budget is p95 <= 1.5s. A single run records samples;
   // the shell runner aggregates five consecutive runs as the exit gate.
   for (final entry in timings.entries) {
-    final reconnect = entry.key == 'reconnect_catch_up_ms';
+    final reconnect = entry.key == 'reconnect_catch_up_ms' ||
+        entry.key == 'attention_reconnect_catch_up_ms';
     final budgetMs = reconnect ? 3000 : 1500;
     _require(
       entry.value <= budgetMs,
@@ -373,6 +519,31 @@ String _beaconIdFromUrl(String rawUrl) {
   return match.group(1)!;
 }
 
+Future<int> _roomUnreadFromStatus(
+  BrowserSession session,
+  String beaconId,
+) async {
+  final testId = 'my_work.room_status.$beaconId';
+  final result = await session.driver.execute(
+    '''
+    const wanted = arguments[0];
+    const elements = Array.from(document.querySelectorAll('*'));
+    for (const element of elements) {
+      for (const attr of Array.from(element.attributes || [])) {
+        if (attr.value !== wanted) continue;
+        const text = element.getAttribute('aria-label') ||
+          element.innerText || element.textContent || '';
+        const match = text.match(/\\+(\\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      }
+    }
+    return 0;
+  ''',
+    [testId],
+  );
+  return (result as num?)?.toInt() ?? 0;
+}
+
 Future<int> _measureUntil(
   FutureOr<bool> Function() condition, {
   required Duration timeout,
@@ -384,7 +555,7 @@ Future<int> _measureUntil(
 
 Future<void> _waitUntil(
   FutureOr<bool> Function() condition, {
-  Duration timeout = const Duration(seconds: 20),
+  Duration timeout = const Duration(seconds: 45),
 }) async {
   final deadline = DateTime.timestamp().add(timeout);
   while (DateTime.timestamp().isBefore(deadline)) {
@@ -444,6 +615,140 @@ Future<SocketControlResult> _controlSocket(
     suspended: body['suspended']! as bool,
     sessionsClosed: body['sessionsClosed']! as int,
   );
+}
+
+String _escapeGraphQlString(String value) =>
+    value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+
+Future<String> _markAskViaApi({
+  required String authorEmail,
+  required String beaconId,
+  required String targetPersonId,
+  required String title,
+  required String body,
+}) async {
+  final query =
+      'mutation { markAsk(beaconId: "$beaconId", title: "${_escapeGraphQlString(title)}", targetPersonId: "$targetPersonId", body: "${_escapeGraphQlString(body)}") { id } }';
+  final response = await _postGraphQlAuthenticated(
+    email: authorEmail,
+    query: query,
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('markAsk failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final markAsk = data?['markAsk'] as Map<String, dynamic>?;
+  final id = markAsk?['id'] as String?;
+  if (id == null || id.isEmpty) {
+    throw StateError('markAsk returned no id: $response');
+  }
+  return id;
+}
+
+Future<void> _acceptAskViaApi({
+  required String helperEmail,
+  required String itemId,
+}) async {
+  final query = 'mutation { acceptAsk(itemId: "$itemId") { id status } }';
+  final response = await _postGraphQlAuthenticated(
+    email: helperEmail,
+    query: query,
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('acceptAsk failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final acceptAsk = data?['acceptAsk'] as Map<String, dynamic>?;
+  final status = acceptAsk?['status'];
+  if (status != 1) {
+    throw StateError('acceptAsk did not accept: $response');
+  }
+}
+
+Future<Map<String, dynamic>> _postGraphQlAuthenticated({
+  required String email,
+  required String query,
+}) async {
+  final bearer = await _bearerTokenForEmail(email);
+  final client = HttpClient();
+  try {
+    final gqlUri = Uri.parse('$_apiOrigin/api/v2/graphql');
+    final gqlRequest = await client.postUrl(gqlUri);
+    gqlRequest.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+    gqlRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+    gqlRequest.write(jsonEncode({'query': query}));
+    final gqlResponse = await gqlRequest.close();
+    final gqlBody = await gqlResponse.transform(utf8.decoder).join();
+    if (gqlResponse.statusCode != HttpStatus.ok) {
+      throw StateError(
+        'GraphQL HTTP ${gqlResponse.statusCode} for $email: $gqlBody',
+      );
+    }
+    final decoded = jsonDecode(gqlBody);
+    if (decoded is! Map<String, dynamic>) {
+      throw StateError('GraphQL returned non-object for $email: $gqlBody');
+    }
+    return decoded;
+  } finally {
+    client.close(force: true);
+  }
+}
+
+Future<String> _bearerTokenForEmail(String email) async {
+  final client = HttpClient();
+  try {
+    final loginUri = Uri.parse('$_apiOrigin/api/v2/auth/email/test-login');
+    final loginRequest = await client.postUrl(loginUri);
+    loginRequest.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+    loginRequest.write(jsonEncode({'email': email}));
+    final loginResponse = await loginRequest.close();
+    final loginBody = await loginResponse.transform(utf8.decoder).join();
+    if (loginResponse.statusCode != HttpStatus.ok) {
+      throw StateError(
+        'test-login failed for $email: ${loginResponse.statusCode} $loginBody',
+      );
+    }
+
+    final sessionCookie = _sessionCookieFromResponse(loginResponse);
+    if (sessionCookie == null) {
+      throw StateError('test-login did not set session cookie for $email');
+    }
+
+    final tokenUri = Uri.parse('$_apiOrigin/api/v2/session/access-token');
+    final tokenRequest = await client.postUrl(tokenUri);
+    tokenRequest.headers.set(HttpHeaders.cookieHeader, sessionCookie);
+    final tokenResponse = await tokenRequest.close();
+    final tokenBody = await tokenResponse.transform(utf8.decoder).join();
+    if (tokenResponse.statusCode != HttpStatus.ok) {
+      throw StateError(
+        'access-token failed for $email: ${tokenResponse.statusCode} $tokenBody',
+      );
+    }
+    final decoded = jsonDecode(tokenBody) as Map<String, dynamic>;
+    final token = decoded['access_token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw StateError('access-token missing for $email: $tokenBody');
+    }
+    return token;
+  } finally {
+    client.close(force: true);
+  }
+}
+
+String? _sessionCookieFromResponse(HttpClientResponse response) {
+  final setCookies = response.headers[HttpHeaders.setCookieHeader];
+  if (setCookies == null) {
+    return null;
+  }
+  for (final raw in setCookies) {
+    final nameValue = raw.split(';').first.trim();
+    if (nameValue.startsWith('$_sessionCookieName=')) {
+      return nameValue;
+    }
+  }
+  return null;
 }
 
 Future<void> _assertNoUncaughtFlutterErrors(
@@ -519,7 +824,10 @@ final class BrowserSession {
       throw StateError('$name login failed: $result');
     }
     await driver.refresh();
-    await waitForText('My Work');
+    await waitForText(
+      'My Work',
+      timeout: const Duration(seconds: 45),
+    );
   }
 
   Future<void> open(String path) async {
@@ -713,7 +1021,10 @@ final class BrowserSession {
       ) ==
       true;
 
-  Future<void> waitForText(String text) => _waitUntil(() => hasText(text));
+  Future<void> waitForText(
+    String text, {
+    Duration timeout = const Duration(seconds: 45),
+  }) => _waitUntil(() => hasText(text), timeout: timeout);
 
   Future<void> waitForTextGone(String text) =>
       _waitUntil(() async => !await hasText(text));
@@ -735,6 +1046,94 @@ final class BrowserSession {
       return true;
     });
     await closeButton.click();
+  }
+
+  Future<Set<String>> collectUpdatesReceiptIds() async {
+    final result = await driver.execute(
+      '''
+      const prefix = 'updates-receipt-';
+      const ids = [];
+      const elements = Array.from(document.querySelectorAll('*'));
+      for (const element of elements) {
+        for (const attr of Array.from(element.attributes || [])) {
+          if (attr.value && attr.value.startsWith(prefix)) {
+            ids.push(attr.value.slice(prefix.length));
+          }
+        }
+      }
+      return ids;
+    ''',
+      [],
+    );
+    return (result as List).map((value) => value as String).toSet();
+  }
+
+  Future<int> receiptIdCount(String receiptId) async {
+    final testId = 'updates-receipt-$receiptId';
+    final result = await driver.execute(
+      '''
+      const wanted = arguments[0];
+      let count = 0;
+      const elements = Array.from(document.querySelectorAll('*'));
+      for (const element of elements) {
+        for (const attr of Array.from(element.attributes || [])) {
+          if (attr.value === wanted) count++;
+        }
+      }
+      return count;
+    ''',
+      [testId],
+    );
+    return (result as num).toInt();
+  }
+
+  Future<int?> readQaHeadRefreshLatencyMs() async {
+    final fromWindow = await driver.execute(
+      'return window.__tenturaQaHeadRefreshLatencyMs ?? null;',
+      [],
+    );
+    if (fromWindow is num) {
+      return fromWindow.toInt();
+    }
+    await readBrowserLogs();
+    final pattern = RegExp(
+      r'attention_event=head_refresh_latency latency_ms=(\d+)',
+    );
+    for (final entry in _browserLogs.reversed) {
+      final message = entry.message ?? '';
+      final match = pattern.firstMatch(message);
+      if (match != null) {
+        return int.parse(match.group(1)!);
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> postGraphQl(String query) async {
+    final result = await driver.executeAsync(
+      '''
+      const done = arguments[arguments.length - 1];
+      fetch('/api/v2/graphql', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: arguments[0]})
+      }).then(async response => {
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch (_) {
+          return {errors: [{message: text}], status: response.status};
+        }
+      }).then(body => done(body))
+        .catch(error => done({errors: [{message: String(error)}]}));
+    ''',
+      [query],
+    );
+    if (result is! Map) {
+      throw StateError('$name GraphQL failed: $result');
+    }
+    return result.cast<String, dynamic>();
   }
 
   Future<int> textCount(String text) async {

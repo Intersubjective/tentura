@@ -24,6 +24,10 @@ enum AttentionEventType {
   promiseWithdrawn,
   coordinationChanged,
   staleReminder,
+  commitmentAccepted,
+  commitmentResolved,
+  commitmentCancelled,
+  commitmentRedirected,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -166,6 +170,7 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     String? targetEntityId,
     String? messageId,
     String? actorUserId,
+    String? beaconTitle,
   }) = _AttentionRecipientRoleFacts;
 }
 

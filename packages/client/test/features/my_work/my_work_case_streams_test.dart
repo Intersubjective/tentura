@@ -328,6 +328,54 @@ void main() {
       },
     );
 
+    test(
+      'desk-relevant room message schedules a follow-up hint refresh',
+      () async {
+        final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+        await cubit.stream.firstWhere((s) => s.isSuccess);
+        expect(repo.fetchInitCallCount, 1);
+
+        roomRepo.emitRoomInvalidation(
+          const BeaconRoomInvalidation(
+            beaconId: 'b1',
+            entityType: BeaconRoomEntityType.roomMessage,
+          ),
+        );
+
+        await waitForFetchCount(2);
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        expect(repo.fetchInitCallCount, greaterThanOrEqualTo(3));
+
+        await cubit.close();
+      },
+    );
+
+    test('overlapping desk refetches queue one rerun after in-flight fetch', () async {
+      repo.fetchInitDelay = const Duration(milliseconds: 80);
+      final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      expect(repo.fetchInitCallCount, 1);
+
+      roomRepo
+        ..emitRoomInvalidation(
+          const BeaconRoomInvalidation(
+            beaconId: 'b1',
+            entityType: BeaconRoomEntityType.roomSeen,
+          ),
+        )
+        ..emitRoomInvalidation(
+          const BeaconRoomInvalidation(
+            beaconId: 'b1',
+            entityType: BeaconRoomEntityType.roomMessage,
+          ),
+        );
+
+      await waitForFetchCount(3);
+      expect(repo.fetchInitCallCount, greaterThanOrEqualTo(3));
+
+      await cubit.close();
+    });
+
     test('overlapping refetches keep only the latest result', () async {
       repo
         ..fetchInitDelay = const Duration(milliseconds: 50)

@@ -244,18 +244,22 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
               ),
               SizedBox(height: tt.sectionGap),
             ],
-            TextField(
-              key: TestIds.key(TestIds.helpOfferMessage),
-              autofocus: !widget.requireWithdrawReason,
-              controller: _controller,
-              maxLines: 3,
-              decoration: tenturaNoteInputDecoration(
-                context,
-                labelText: widget.hintText,
+            Semantics(
+              identifier: TestIds.helpOfferMessage,
+              textField: true,
+              child: TextField(
+                key: TestIds.key(TestIds.helpOfferMessage),
+                autofocus: !widget.requireWithdrawReason,
+                controller: _controller,
+                maxLines: 3,
+                decoration: tenturaNoteInputDecoration(
+                  context,
+                  labelText: widget.hintText,
+                ),
+                onChanged: (_) => setState(() {}),
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
               ),
-              onChanged: (_) => setState(() {}),
-              onTapOutside: (_) =>
-                  FocusManager.instance.primaryFocus?.unfocus(),
             ),
             if (widget.showHelpTypeChips) ...[
               SizedBox(height: tt.sectionGap),

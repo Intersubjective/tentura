@@ -4,6 +4,8 @@ import 'package:test/test.dart';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -12,12 +14,14 @@ import 'package:tentura_server/domain/use_case/coordination_item/resolve_plan_st
 import 'package:tentura_server/env.dart';
 
 import '../../../support/coordination_item_record_fixtures.dart';
+import '../../../support/test_attention_harness.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? item;
   CoordinationItemRecord? nextReturn;
   _AddPlanStepCall? lastAddPlanStep;
   _UpdateStatusCall? lastUpdateStatus;
+  DateTime? nextUpdatedAt;
 
   @override
   Future<CoordinationItemRecord?> getById(String id) async => item;
@@ -49,7 +53,9 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
       newStatus: newStatus,
       actorId: actorId,
     );
-    return nextReturn ?? item!.copyWith(status: newStatus);
+    final updatedAt = nextUpdatedAt ?? item!.updatedAt;
+    return (nextReturn ?? item!.copyWith(status: newStatus))
+        .copyWith(updatedAt: updatedAt);
   }
 }
 
@@ -127,29 +133,37 @@ CoordinationItemRecord _planStep({
 
 void main() {
   const userId = 'Ucreator00001';
+  const beaconAuthorId = 'Uauthor000001';
   const beaconId = 'Bbbbbbbbbbbbb';
   const parentId = 'Iparent000001';
   const stepId = 'Istep00000001';
 
   group('AddPlanStepCase', () {
     late _StubItems items;
+    late TestAttentionHarness attention;
     late AddPlanStepCase sut;
 
     setUp(() {
       items = _StubItems();
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+      );
       items.item = _rootPlan(
         id: parentId,
         beaconId: beaconId,
         creatorId: userId,
       );
+      final addedAt = DateTime.utc(2024, 9, 1, 12, 0, 0, 123, 456);
       items.nextReturn = _planStep(
         id: stepId,
         beaconId: beaconId,
         parentId: parentId,
         creatorId: userId,
-      );
+      ).copyWith(updatedAt: addedAt);
       sut = AddPlanStepCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -168,6 +182,24 @@ void main() {
       expect(items.lastAddPlanStep?.creatorId, userId);
       expect(items.lastAddPlanStep?.title, 'First step');
       expect(items.lastAddPlanStep?.body, 'Details');
+    });
+
+    test('records coordinationChanged with non-empty recipients', () async {
+      await sut.call(
+        userId: userId,
+        parentItemId: parentId,
+        title: 'First step',
+      );
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.coordinationChanged);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$stepId:plan_step_added:'
+        '${DateTime.utc(2024, 9, 1, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(intent.recipients, isNotEmpty);
     });
 
     test('rejects empty title', () async {
@@ -229,21 +261,30 @@ void main() {
 
   group('ResolvePlanStepCase', () {
     late _StubItems items;
+    late TestAttentionHarness attention;
     late ResolvePlanStepCase sut;
 
     setUp(() {
       items = _StubItems();
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
+      );
       items.item = _planStep(
         id: stepId,
         beaconId: beaconId,
         parentId: parentId,
         creatorId: userId,
       );
+      final resolvedAt = DateTime.utc(2024, 9, 2, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusResolved,
+        updatedAt: resolvedAt,
       );
+      items.nextUpdatedAt = resolvedAt;
       sut = ResolvePlanStepCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -259,6 +300,20 @@ void main() {
         items.lastUpdateStatus?.newStatus,
         coordinationItemStatusResolved,
       );
+    });
+
+    test('records coordinationChanged with non-empty recipients', () async {
+      await sut.call(userId: userId, itemId: stepId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.coordinationChanged);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$stepId:plan_step_resolved:'
+        '${DateTime.utc(2024, 9, 2, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(intent.recipients, isNotEmpty);
     });
 
     test('rejects missing item', () async {

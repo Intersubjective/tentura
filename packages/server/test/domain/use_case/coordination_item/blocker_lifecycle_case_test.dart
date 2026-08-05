@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -283,20 +284,28 @@ void main() {
 
   group('CancelBlockerCase', () {
     late _StubItems items;
+    late TestAttentionHarness attention;
     late CancelBlockerCase sut;
+
+    const cancellerId = 'Uother0000001';
 
     setUp(() {
       items = _StubItems();
+      attention = TestAttentionHarness();
       items.item = _publishedBlocker(
         id: itemId,
         beaconId: beaconId,
         creatorId: ownerId,
       );
+      final cancelledAt = DateTime.utc(2024, 10, 1, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusCancelled,
+        updatedAt: cancelledAt,
       );
       sut = CancelBlockerCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -306,6 +315,24 @@ void main() {
       final out = await sut.call(userId: ownerId, itemId: itemId);
       expect(out.status, coordinationItemStatusCancelled);
       expect(items.lastUpdateStatus, coordinationItemStatusCancelled);
+    });
+
+    test('records commitmentCancelled for blocker creator when actor differs', () async {
+      await sut.call(userId: cancellerId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentCancelled);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:blocker_cancelled:'
+        '${DateTime.utc(2024, 10, 1, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(intent.recipients, isNotEmpty);
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(ownerId),
+      );
     });
 
     test('not found rejected', () async {

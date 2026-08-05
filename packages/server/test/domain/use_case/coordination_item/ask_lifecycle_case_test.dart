@@ -1,6 +1,9 @@
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import '../../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
@@ -606,8 +609,12 @@ void main() {
   group('ResolveAskCase', () {
     late _StubItems items;
     late ResolveAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -615,11 +622,15 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final resolvedAt = DateTime.utc(2024, 6, 3, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusResolved,
+        updatedAt: resolvedAt,
       );
       sut = ResolveAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -628,6 +639,35 @@ void main() {
     test('resolves open ask', () async {
       await sut.call(userId: ownerId, itemId: itemId);
       expect(items.lastStatusUpdate, coordinationItemStatusResolved);
+    });
+
+    test('records commitmentResolved for counterpart when creator resolves', () async {
+      await sut.call(userId: ownerId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentResolved);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:resolved:'
+        '${DateTime.utc(2024, 6, 3, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(targetId),
+      );
+    });
+
+    test('records commitmentResolved for creator when target resolves', () async {
+      items.item = items.item!.copyWith(status: coordinationItemStatusAccepted);
+      await sut.call(userId: targetId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      expect(
+        attention.recorded.single.recipients
+            .map((recipient) => recipient.recipientId),
+        contains(ownerId),
+      );
     });
 
     test('resolves accepted ask', () async {
@@ -674,8 +714,12 @@ void main() {
   group('CancelAskCase', () {
     late _StubItems items;
     late CancelAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -683,11 +727,16 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final cancelledAt = DateTime.utc(2024, 6, 6, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusCancelled,
+        acceptedById: targetId,
+        updatedAt: cancelledAt,
       );
       sut = CancelAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -696,6 +745,23 @@ void main() {
     test('cancels open ask', () async {
       await sut.call(userId: ownerId, itemId: itemId);
       expect(items.lastStatusUpdate, coordinationItemStatusCancelled);
+    });
+
+    test('records commitmentCancelled for target and acceptor', () async {
+      await sut.call(userId: ownerId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentCancelled);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:cancelled:'
+        '${DateTime.utc(2024, 6, 6, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId).toSet(),
+        {targetId},
+      );
     });
 
     test('cancels accepted ask', () async {
@@ -917,8 +983,12 @@ void main() {
   group('AcceptAskCase', () {
     late _StubItems items;
     late AcceptAskCase sut;
+    late TestAttentionHarness attention;
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -926,11 +996,15 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
+      final acceptedAt = DateTime.utc(2024, 6, 1, 12, 0, 0, 123, 456);
       items.nextReturn = items.item!.copyWith(
         status: coordinationItemStatusAccepted,
+        updatedAt: acceptedAt,
       );
       sut = AcceptAskCase(
         items,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -940,6 +1014,24 @@ void main() {
       final out = await sut.call(userId: targetId, itemId: itemId);
       expect(out.status, coordinationItemStatusAccepted);
       expect(items.lastAcceptedById, targetId);
+    });
+
+    test('records commitmentAccepted for ask creator', () async {
+      await sut.call(userId: targetId, itemId: itemId);
+
+      expect(attention.recorded, hasLength(1));
+      final intent = attention.recorded.single;
+      expect(intent.eventType, AttentionEventType.commitmentAccepted);
+      expect(intent.kind, NotificationKind.commitmentAccepted);
+      expect(
+        intent.sourceEventKey,
+        'coordination_item:$itemId:accepted:'
+        '${DateTime.utc(2024, 6, 1, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        contains(ownerId),
+      );
     });
 
     test('not found rejected', () async {
@@ -973,10 +1065,14 @@ void main() {
   group('RedirectAskCase', () {
     late _StubItems items;
     late RedirectAskCase sut;
+    late TestAttentionHarness attention;
 
     const newTargetId = 'Unewtarget001';
 
     setUp(() {
+      attention = TestAttentionHarness(
+        context: BeaconNotificationContext(beaconAuthorId: ownerId),
+      );
       items = _StubItems();
       items.item = _publishedAsk(
         id: itemId,
@@ -984,10 +1080,16 @@ void main() {
         creatorId: ownerId,
         targetPersonId: targetId,
       );
-      items.nextReturn = items.item!.copyWith(targetPersonId: newTargetId);
+      final redirectedAt = DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456);
+      items.nextReturn = items.item!.copyWith(
+        targetPersonId: newTargetId,
+        updatedAt: redirectedAt,
+      );
       sut = RedirectAskCase(
         items,
         FakeUserBlockRepository(),
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -1001,6 +1103,40 @@ void main() {
       );
       expect(out.targetPersonId, newTargetId);
       expect(items.lastRedirectTarget, newTargetId);
+    });
+
+    test('records redirected_to and redirected_from events', () async {
+      await sut.call(
+        userId: ownerId,
+        itemId: itemId,
+        newTargetPersonId: newTargetId,
+      );
+
+      expect(attention.recorded, hasLength(2));
+      final redirectedTo = attention.recorded.singleWhere(
+        (intent) => intent.eventType == AttentionEventType.commitmentRedirected,
+      );
+      final redirectedFrom = attention.recorded.singleWhere(
+        (intent) => intent.eventType == AttentionEventType.commitmentCancelled,
+      );
+      expect(
+        redirectedTo.sourceEventKey,
+        'coordination_item:$itemId:redirected_to:'
+        '${DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        redirectedFrom.sourceEventKey,
+        'coordination_item:$itemId:redirected_from:'
+        '${DateTime.utc(2024, 6, 5, 12, 0, 0, 123, 456).microsecondsSinceEpoch}',
+      );
+      expect(
+        redirectedTo.recipients.map((recipient) => recipient.recipientId),
+        contains(newTargetId),
+      );
+      expect(
+        redirectedFrom.recipients.map((recipient) => recipient.recipientId),
+        contains(targetId),
+      );
     });
 
     test('not found rejected', () async {

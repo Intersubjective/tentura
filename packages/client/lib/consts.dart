@@ -129,6 +129,10 @@ const kQaIntegrationTestMode = bool.fromEnvironment(
   'QA_INTEGRATION_TEST_MODE',
 );
 
+/// Enables web semantics while [kQaIntegrationTestMode] is on — for WebDriver
+/// harnesses that assert on DOM semantics, not flutter_test integration runs.
+const kQaWebDriverSemantics = bool.fromEnvironment('QA_WEBDRIVER_SEMANTICS');
+
 /// Share URL for invitation codes — `/invite/I…` on the public origin.
 Uri inviteShareUri(String invitationId) {
   return Uri.parse(kServerName).replace(path: '/invite/$invitationId');

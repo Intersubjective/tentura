@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_policy.dart';
@@ -10,9 +12,10 @@ import '../database/tentura_db.dart';
 
 @Singleton(as: AttentionDispatchPort)
 class AttentionDispatchRepository implements AttentionDispatchPort {
-  const AttentionDispatchRepository(this._database);
+  AttentionDispatchRepository(this._database, this._logger);
 
   final TenturaDb _database;
+  final Logger _logger;
 
   static const _policy = AttentionPolicy();
 
@@ -25,7 +28,7 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
   source_event_key, event_type, actor_user_id, immutable_payload
 ) VALUES ($1, $2, $3, $4::jsonb)
 ON CONFLICT (source_event_key) DO NOTHING
-RETURNING id''',
+RETURNING id, occurred_at''',
           variables: [
             Variable<String>(intent.sourceEventKey),
             Variable<String>(intent.eventType.name),
@@ -61,7 +64,14 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
       }
       return;
     }
-    final occurrenceId = occurrence.single.read<String>('id');
+    final occurrenceRow = occurrence.single;
+    final occurrenceId = occurrenceRow.read<String>('id');
+    // `occurred_at` is a Postgres `timestamptz`; Drift's `read<DateTime>` would
+    // decode it as epoch millis and throw. Parse the string, as the other
+    // repositories do — see drift_postgres_timestamptz_bind_inventory_test.
+    final occurrenceAt = DateTime.parse(
+      occurrenceRow.read<String>('occurred_at'),
+    ).toUtc();
     for (final recipient in intent.recipients) {
       final role = recipient.role.copyWith(
         beaconId: recipient.role.beaconId ?? intent.beaconId,
@@ -194,7 +204,37 @@ RETURNING id
         ],
       );
     }
+    logReceiptCreatedTelemetry(
+      logger: _logger,
+      eventType: intent.eventType,
+      recipientCount: intent.recipients.length,
+      occurrenceAt: occurrenceAt,
+    );
   }
+
+  @visibleForTesting
+  static void logReceiptCreatedTelemetry({
+    required Logger logger,
+    required AttentionEventType eventType,
+    required int recipientCount,
+    required DateTime occurrenceAt,
+  }) {
+    logger.info(formatReceiptCreatedTelemetry(
+      eventType: eventType,
+      recipientCount: recipientCount,
+      occurrenceAt: occurrenceAt,
+    ));
+  }
+
+  @visibleForTesting
+  static String formatReceiptCreatedTelemetry({
+    required AttentionEventType eventType,
+    required int recipientCount,
+    required DateTime occurrenceAt,
+  }) =>
+      '[AttentionDispatch] attention_event=receipt_created '
+      'event_type=${eventType.name} recipients=$recipientCount '
+      'occurrence_at=${occurrenceAt.toUtc().toIso8601String()}';
 
   Map<String, Object?> _occurrencePayload(AttentionDispatchIntent intent) => {
     'kind': intent.kind.name,
@@ -215,6 +255,7 @@ RETURNING id
     'targetEntityId': role.targetEntityId,
     'messageId': role.messageId,
     'actorUserId': role.actorUserId,
+    'beaconTitle': role.beaconTitle,
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {

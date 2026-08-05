@@ -17,4 +17,8 @@ enum NotificationKind {
   inviteAccepted,
   commitmentDeclined,
   commitmentRemoved,
+  commitmentAccepted,
+  commitmentResolved,
+  commitmentCancelled,
+  commitmentRedirected,
 }

@@ -9,7 +9,9 @@ const _kEnv = String.fromEnvironment('ENV', defaultValue: 'dev');
 /// Off in release and when `ENV=prod` so the `flt-semantics-host` overlay does
 /// not swallow pointer events meant for platform views (e.g. Google Maps).
 bool get kEnableWebSemantics =>
-    kIsWeb && !kReleaseMode && _kEnv != 'prod';
+    kIsWeb &&
+    _kEnv != 'prod' &&
+    (!kReleaseMode || kQaWebDriverSemantics);
 
 bool _isAbsoluteHttpUrl(String value) {
   final uri = Uri.tryParse(value.trim());

@@ -71,6 +71,62 @@ void main() {
       'runAction(',
       '.staleReminder(',
     ],
+    'coordination_item/accept_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/accept_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/resolve_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/resolve_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/redirect_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/redirect_promise_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/cancel_ask_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/create_resolution_case.dart': [
+      'runAction(',
+      '.needsMe(',
+    ],
+    'coordination_item/accept_resolution_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/reject_resolution_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/cancel_blocker_case.dart': [
+      'runAction(',
+      '.commitmentChanged(',
+    ],
+    'coordination_item/add_plan_step_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
+    'coordination_item/resolve_plan_step_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
+    'coordination_item/update_coordination_item_case.dart': [
+      'runAction(',
+      '.coordinationChanged(',
+    ],
   };
 
   const legacyMethods = <String>[

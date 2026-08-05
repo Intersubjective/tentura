@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "pendingProducerEventTypes": [],
   "eventTypes": [
     {
@@ -81,6 +81,347 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/invitation_case_test.dart"
+    }
+  ],
+  "producers": [
+    {
+      "useCase": "packages/server/lib/domain/use_case/auth_case.dart",
+      "eventType": "inviteAccepted",
+      "recipientCategory": "inviter",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/auth_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/attention_expiry_sweep_case.dart",
+      "eventType": "requestStatusChanged",
+      "recipientCategory": "active_participants_and_inbox_stance_holders",
+      "destinationFamily": "beacon",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/attention_expiry_sweep_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/beacon_case.dart",
+      "eventType": "requestStatusChanged",
+      "recipientCategory": "active_participants_and_inbox_stance_holders",
+      "destinationFamily": "beacon",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/beacon_room_case.dart",
+      "eventType": "roomMessagePosted",
+      "recipientCategory": "directed_chat_target",
+      "destinationFamily": "beacon_room_message",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_case_message_mutations_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_case.dart",
+      "eventType": "offerAccepted",
+      "recipientCategory": "affected_helper",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_ask_case.dart",
+      "eventType": "commitmentAccepted",
+      "recipientCategory": "item_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/commitment_attention_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_promise_case.dart",
+      "eventType": "commitmentAccepted",
+      "recipientCategory": "item_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/accept_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_resolution_case.dart",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "resolution_creator_and_target_owner",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/add_plan_step_case.dart",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/plan_step_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/cancel_ask_case.dart",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "affected_participants",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/cancel_blocker_case.dart",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "affected_participants",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/cancel_promise_case.dart",
+      "eventType": "promiseWithdrawn",
+      "recipientCategory": "target_person",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/cancel_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/coordination_responsibility_case.dart",
+      "silent": true,
+      "silentReason": "Query-only batch read of responsibility counts; no state mutation or AttentionDispatchIntent."
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_draft_ask_case.dart",
+      "silent": true,
+      "silentReason": "Draft asks are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_draft_blocker_case.dart",
+      "silent": true,
+      "silentReason": "Draft blockers are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_blocker_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_draft_promise_case.dart",
+      "silent": true,
+      "silentReason": "Draft promises are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_promise_case.dart",
+      "eventType": "promiseMade",
+      "recipientCategory": "target_person",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/create_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_resolution_case.dart",
+      "eventType": "needsMe",
+      "recipientCategory": "target_item_owner_or_beacon_author",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/delete_draft_ask_case.dart",
+      "silent": true,
+      "silentReason": "Deleting a private draft does not affect other participants.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/delete_draft_blocker_case.dart",
+      "silent": true,
+      "silentReason": "Deleting a private draft does not affect other participants.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_blocker_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/delete_draft_promise_case.dart",
+      "silent": true,
+      "silentReason": "Deleting a private draft does not affect other participants.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/mark_ask_case.dart",
+      "eventType": "needsMe",
+      "recipientCategory": "target_of_ask",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/mark_blocker_case.dart",
+      "eventType": "blockerOpened",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory_or_standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/publish_draft_ask_case.dart",
+      "eventType": "needsMe",
+      "recipientCategory": "target_of_ask",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/publish_draft_blocker_case.dart",
+      "eventType": "blockerOpened",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory_or_standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_blocker_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/publish_draft_promise_case.dart",
+      "eventType": "promiseMade",
+      "recipientCategory": "target_person",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/redirect_ask_case.dart",
+      "eventType": "commitmentRedirected",
+      "recipientCategory": "new_target_and_previous_target",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/redirect_promise_case.dart",
+      "eventType": "commitmentRedirected",
+      "recipientCategory": "new_target_and_previous_target",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/redirect_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/reject_resolution_case.dart",
+      "eventType": "commitmentCancelled",
+      "recipientCategory": "resolution_creator",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/remind_coordination_item_case.dart",
+      "eventType": "staleReminder",
+      "recipientCategory": "responsible_user",
+      "destinationFamily": "beacon_room",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_ask_case.dart",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "counterpart_participant",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_blocker_case.dart",
+      "eventType": "blockerResolved",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_plan_step_case.dart",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/plan_step_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/resolve_promise_case.dart",
+      "eventType": "commitmentResolved",
+      "recipientCategory": "counterpart_participant",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolve_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/update_coordination_item_case.dart",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/update_coordination_item_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/update_draft_ask_case.dart",
+      "silent": true,
+      "silentReason": "Draft asks are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/update_draft_blocker_case.dart",
+      "silent": true,
+      "silentReason": "Draft blockers are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_blocker_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/update_draft_promise_case.dart",
+      "silent": true,
+      "silentReason": "Draft promises are private to their creator until published.",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/draft_promise_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/coordination_item/update_plan_case.dart",
+      "eventType": "coordinationChanged",
+      "recipientCategory": "admitted_room_members",
+      "destinationFamily": "beacon_room",
+      "muteability": "standard_or_noisy",
+      "coveringTest": "packages/server/test/domain/use_case/coordination_item/update_plan_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/credential_auth_case.dart",
+      "eventType": "inviteAccepted",
+      "recipientCategory": "inviter",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/credential_auth_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/evaluation_case.dart",
+      "eventType": "reviewOpened",
+      "recipientCategory": "admitted_participants",
+      "destinationFamily": "review",
+      "muteability": "mandatory",
+      "coveringTest": "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/forward_case.dart",
+      "eventType": "relayReceived",
+      "recipientCategory": "forward_recipients",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/help_offer_case.dart",
+      "eventType": "helpOfferSubmitted",
+      "recipientCategory": "author_and_stewards",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "mandatory_or_standard",
+      "coveringTest": "packages/server/test/domain/use_case/help_offer_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/invitation_case.dart",
+      "eventType": "inviteAccepted",
+      "recipientCategory": "inviter",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/invitation_case_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/user_trust_edge_case.dart",
+      "eventType": "mutualConnectionFormed",
+      "recipientCategory": "reciprocal_counterpart",
+      "destinationFamily": "profile",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
     }
   ]
 }

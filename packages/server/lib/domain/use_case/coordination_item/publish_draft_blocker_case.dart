@@ -73,6 +73,7 @@ final class PublishDraftBlockerCase extends UseCaseBase {
             excerpt: item.title,
             targetPersonId: item.targetPersonId,
             coordinationItemId: item.id,
+            beaconTitle: beacon.title,
             sourceEventKey: _sourceKey(item, 'published'),
             resolved: false,
           ),
