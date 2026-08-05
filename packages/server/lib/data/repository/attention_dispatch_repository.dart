@@ -28,7 +28,7 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
   source_event_key, event_type, actor_user_id, immutable_payload
 ) VALUES ($1, $2, $3, $4::jsonb)
 ON CONFLICT (source_event_key) DO NOTHING
-RETURNING id, created_at''',
+RETURNING id, occurred_at''',
           variables: [
             Variable<String>(intent.sourceEventKey),
             Variable<String>(intent.eventType.name),
@@ -66,7 +66,12 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
     }
     final occurrenceRow = occurrence.single;
     final occurrenceId = occurrenceRow.read<String>('id');
-    final occurrenceAt = occurrenceRow.read<DateTime>('created_at');
+    // `occurred_at` is a Postgres `timestamptz`; Drift's `read<DateTime>` would
+    // decode it as epoch millis and throw. Parse the string, as the other
+    // repositories do — see drift_postgres_timestamptz_bind_inventory_test.
+    final occurrenceAt = DateTime.parse(
+      occurrenceRow.read<String>('occurred_at'),
+    ).toUtc();
     for (final recipient in intent.recipients) {
       final role = recipient.role.copyWith(
         beaconId: recipient.role.beaconId ?? intent.beaconId,

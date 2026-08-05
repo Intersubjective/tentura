@@ -184,6 +184,11 @@ WHERE account_id = @creatorId
           excerpt: updated.title,
           targetPersonId: updated.creatorId,
           coordinationItemId: updated.id,
+          // Must mirror AcceptAskCase exactly: the item kind feeds the copy
+          // builder, and the copy is part of `immutable_payload`, which is the
+          // replay-identity comparison. Omitting it makes this a *different*
+          // occurrence rather than a replay.
+          coordinationItemKind: updated.kind,
           sourceEventKey: sourceEventKey,
         );
 
