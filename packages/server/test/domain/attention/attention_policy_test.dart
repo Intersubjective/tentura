@@ -226,7 +226,7 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.authorOfBeacon},
     role: _baseRole,
   ),
-  'offerAccepted' || 'offerDeclined' || 'offerRemoved' => (
+  'offerAccepted' || 'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => (
     reasons: const {AttentionRecipientReason.affectedParticipant},
     role: _baseRole,
   ),

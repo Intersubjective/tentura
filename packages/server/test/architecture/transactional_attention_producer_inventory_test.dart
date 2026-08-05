@@ -27,6 +27,7 @@ void main() {
       '.offerAccepted(',
       '.offerDeclined(',
       '.offerRemoved(',
+      '.commitmentReleased(',
     ],
     'evaluation_case.dart': ['runAction(', '.reviewOpened('],
     'beacon_room_case.dart': [

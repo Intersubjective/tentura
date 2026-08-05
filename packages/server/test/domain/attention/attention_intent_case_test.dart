@@ -102,6 +102,18 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.commitmentReleased,
+          legacyKind: 'commitmentReleased',
+          recipient: target,
+          build: (intents) => intents.commitmentReleased(
+            receiverId: target,
+            beaconId: beacon,
+            actorUserId: actor,
+            reason: 'Participation ended',
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.roomMessagePosted,
           legacyKind: 'roomActivityLowPriority',
           recipient: target,

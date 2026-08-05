@@ -28,6 +28,7 @@ enum AttentionEventType {
   commitmentResolved,
   commitmentCancelled,
   commitmentRedirected,
+  commitmentReleased,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {

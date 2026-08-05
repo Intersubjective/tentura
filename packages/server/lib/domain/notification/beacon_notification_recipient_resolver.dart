@@ -123,6 +123,7 @@ class BeaconNotificationRecipientResolver {
 
       case NotificationKind.commitmentDeclined:
       case NotificationKind.commitmentRemoved:
+      case NotificationKind.commitmentReleased:
         final affected = intent.targetPersonId;
         if (affected != null && affected.isNotEmpty) {
           add(

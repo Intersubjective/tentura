@@ -61,6 +61,7 @@ class AttentionPolicy {
     AttentionEventType.offerAccepted ||
     AttentionEventType.offerDeclined ||
     AttentionEventType.offerRemoved ||
+    AttentionEventType.commitmentReleased ||
     AttentionEventType.reviewOpened ||
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => AttentionSuppressionClass.mandatory,
@@ -102,6 +103,7 @@ class AttentionPolicy {
     AttentionEventType.offerAccepted ||
     AttentionEventType.offerDeclined ||
     AttentionEventType.offerRemoved ||
+    AttentionEventType.commitmentReleased ||
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => NotificationCategory.asksOfMe,
     AttentionEventType.reviewOpened ||
@@ -125,7 +127,9 @@ class AttentionPolicy {
     AttentionEventType eventType,
     AttentionRecipientRoleFacts role,
   ) => switch (eventType) {
-    AttentionEventType.offerDeclined || AttentionEventType.offerRemoved =>
+    AttentionEventType.offerDeclined ||
+    AttentionEventType.offerRemoved ||
+    AttentionEventType.commitmentReleased =>
       role.canReadBeaconContent
           ? AttentionAccessPolicy.beaconContent
           : AttentionAccessPolicy.recipientSafe,
@@ -168,8 +172,9 @@ class AttentionPolicy {
         targetEntityId: role.beaconId,
       ),
       AttentionEventType.helpOfferSubmitted ||
-      AttentionEventType.offerDeclined ||
-      AttentionEventType.offerRemoved => AttentionDestination(
+    AttentionEventType.offerDeclined ||
+    AttentionEventType.offerRemoved ||
+    AttentionEventType.commitmentReleased => AttentionDestination(
         kind: AttentionDestinationKind.beaconPeopleOffer,
         targetEntityId: role.targetEntityId,
       ),
@@ -257,6 +262,7 @@ class AttentionPolicy {
     AttentionEventType.offerAccepted => 'offer_accepted',
     AttentionEventType.offerDeclined => 'offer_declined',
     AttentionEventType.offerRemoved => 'offer_removed',
+    AttentionEventType.commitmentReleased => 'commitment_released',
     AttentionEventType.roomMessagePosted => 'room_message_posted',
     AttentionEventType.requestStatusChanged => 'request_status_changed',
     AttentionEventType.reviewOpened => 'review_opened',

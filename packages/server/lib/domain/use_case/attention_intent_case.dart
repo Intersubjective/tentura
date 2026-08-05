@@ -151,6 +151,26 @@ class AttentionIntentCase {
     targetEntityId: receiverId,
   );
 
+  Future<AttentionDispatchIntent> commitmentReleased({
+    required String receiverId,
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+    required String sourceEventKey,
+  }) => fromBeaconNotification(
+    notification: BeaconNotificationIntent(
+      kind: NotificationKind.commitmentReleased,
+      priority: NotificationPriority.normal,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      targetPersonId: receiverId,
+      bodyExcerpt: notificationExcerpt(reason),
+    ),
+    eventType: AttentionEventType.commitmentReleased,
+    sourceEventKey: sourceEventKey,
+    targetEntityId: receiverId,
+  );
+
   Future<AttentionDispatchIntent> promiseChanged({
     required String beaconId,
     required String actorUserId,

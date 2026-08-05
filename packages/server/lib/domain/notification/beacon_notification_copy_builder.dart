@@ -105,6 +105,14 @@ class BeaconNotificationCopyBuilder {
           fallback: 'You were removed from the request chat',
         ),
       ),
+      NotificationKind.commitmentReleased => (
+        'Participation ended',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'The author ended your participation in this request',
+        ),
+      ),
       NotificationKind.newRelay => (
         actor,
         excerpt.isNotEmpty
@@ -253,7 +261,8 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentEvent =>
         '/#$kPathAppLinkView?id=$id&dest=people',
       NotificationKind.commitmentDeclined ||
-      NotificationKind.commitmentRemoved =>
+      NotificationKind.commitmentRemoved ||
+      NotificationKind.commitmentReleased =>
         '/#$kPathAppLinkView?id=$id&dest=people',
       NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
       NotificationKind.inviteAccepted => '/#/',
