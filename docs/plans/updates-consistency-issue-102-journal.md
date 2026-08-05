@@ -60,7 +60,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
 | U6 | Multi-client My Work regression + reconnect dedup | complete | **accepted after remediation** |
-| U7 | Cross-surface consistency verification | in progress | — |
+| U7 | Cross-surface consistency verification | complete | **pending overseer review** |
 | U8 | Integration and close-out | pending | — |
 
 Scope decision (user, 2026-08-05): **full scope U1–U8**, U3 included.
@@ -893,5 +893,23 @@ COMMITS: d9088586
 
 **Guard:** `packages/client/test/features/updates/cross_surface_coordination_accept_test.dart` — `commitmentAccepted` notification refreshes `AttentionCase`; `coordination_item` room invalidation refreshes My Work desk + beacon_view YOU responsibility.
 
-COMMITS: (pending — step 3 commit next)
+COMMITS: dcb7b64e
+
+### 2026-08-05 — U7 worker — final
+
+STATUS: complete
+COMMITS: 151a1863 test(#102-U7): guard cross-surface subscription wiring with evidence; d9088586 test(#102-U7): assert contract impacts map to client subscribers; dcb7b64e test(#102-U7): guard coordination accept cross-surface invalidation
+TESTS:
+- `cd packages/client && flutter analyze` — 0 errors
+- `cd packages/client && flutter test` — **1645 passed**, 14 skipped (baseline 1636 + 9 new)
+- `cd packages/server && dart analyze` — 0 errors
+- `cd packages/server && dart test --exclude-tags pg` — 1184 passed
+- `cd packages/server && dart test --tags pg` — 18 failures (baseline, unchanged)
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113)
+- `bash scripts/check-custom-lints.sh packages/server` — total 0
+- `bash scripts/check-user-facing-terminology.sh` — ok
+FILES: packages/client/test/architecture/{cross_surface_subscription,realtime_entity_contract_impacts}_test.dart, packages/client/test/features/updates/cross_surface_coordination_accept_test.dart, docs/contracts/realtime-entity-contract.json, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: Four surfaces verified — Updates/My Work nav indicators share `AttentionCase`; request detail/People use local room/coordination projections refreshed via `beaconRoomInvalidations` + `catchUps`. No production code changes required. Non-blocking findings: `InvalidationService` string switch drops unknown wire types silently; `BeaconViewCubit._fetchForEntityTypes` omits `roomReaction`/`roomPoll` targeted paths (catch-up still converges).
+REMAINING: none for U7; U8 integration close-out
+
 
