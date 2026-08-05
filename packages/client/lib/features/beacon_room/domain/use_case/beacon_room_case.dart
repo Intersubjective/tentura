@@ -70,9 +70,13 @@ final class BeaconRoomCase extends UseCaseBase {
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _room.beaconRoomInvalidations;
 
-  Stream<String> get deskRelevantChanges => beaconRoomInvalidations
-      .where((inv) => _deskRelevantEntityTypes.contains(inv.entityType))
-      .map((inv) => inv.beaconId);
+  Stream<BeaconRoomInvalidation> get deskRelevantInvalidations =>
+      beaconRoomInvalidations.where(
+        (inv) => _deskRelevantEntityTypes.contains(inv.entityType),
+      );
+
+  Stream<String> get deskRelevantChanges =>
+      deskRelevantInvalidations.map((inv) => inv.beaconId);
 
   DateTime? readThrough(String beaconId) => _watermark.readThrough(beaconId);
 

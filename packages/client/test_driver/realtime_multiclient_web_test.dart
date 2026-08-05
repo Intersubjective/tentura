@@ -276,6 +276,7 @@ Future<void> _runJourney({
     helperPeer.waitForText(title),
   ]);
   await author.sendChatMessage(myWorkUnreadMessage);
+  await author.waitForText(myWorkUnreadMessage);
   await helper.waitForTestIdText(
     'my_work.room_status.$beaconId',
     '+1',
@@ -1064,6 +1065,12 @@ final class BrowserSession {
   }
 
   Future<int?> readQaHeadRefreshLatencyMs() async {
+    final fromWindow = await driver.execute(
+      'return window.__tenturaQaHeadRefreshLatencyMs ?? null;',
+    );
+    if (fromWindow is num) {
+      return fromWindow.toInt();
+    }
     await readBrowserLogs();
     final pattern = RegExp(
       r'attention_event=head_refresh_latency latency_ms=(\d+)',

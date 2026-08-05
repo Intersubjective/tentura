@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
@@ -36,8 +37,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
-    _deskRelevantChanges = _myWorkCase.deskRelevantChanges.listen(
-      _onDeskRelevantChanged,
+    _deskRelevantChanges = _myWorkCase.deskRelevantInvalidations.listen(
+      _onDeskRelevantInvalidation,
       cancelOnError: false,
     );
     _bookkeepingRefresh = _myWorkCase.bookkeepingRefresh.listen(
@@ -54,6 +55,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   static const _pendingRetryDelay = Duration(milliseconds: 400);
   static const _deskRelevantDebounce = Duration(milliseconds: 100);
   static const _catchUpDebounce = Duration(milliseconds: 100);
+  static const _roomMessageHintRetryDelay = Duration(milliseconds: 300);
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -68,6 +70,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   Timer? _catchUpTimer;
 
   final _deskRelevantTimers = <String, Timer>{};
+  final _roomMessageHintRetryTimers = <String, Timer>{};
+
+  bool _fetchInFlight = false;
+  bool _fetchQueued = false;
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
@@ -77,7 +83,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<String> _readWatermarkSub;
 
-  late final StreamSubscription<String> _deskRelevantChanges;
+  late final StreamSubscription<BeaconRoomInvalidation> _deskRelevantChanges;
 
   late final StreamSubscription<void> _bookkeepingRefresh;
   late final StreamSubscription<void> _catchUps;
@@ -90,6 +96,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       timer.cancel();
     }
     _deskRelevantTimers.clear();
+    for (final timer in _roomMessageHintRetryTimers.values) {
+      timer.cancel();
+    }
+    _roomMessageHintRetryTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardChanges.cancel();
@@ -111,11 +121,25 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     });
   }
 
-  void _onDeskRelevantChanged(String beaconId) {
+  void _onDeskRelevantInvalidation(BeaconRoomInvalidation invalidation) {
+    final beaconId = invalidation.beaconId;
     if (isClosed || beaconId.isEmpty) return;
     _deskRelevantTimers.remove(beaconId)?.cancel();
     _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
       _deskRelevantTimers.remove(beaconId);
+      if (!isClosed) {
+        unawaited(fetch(showLoading: false));
+        if (invalidation.entityType == BeaconRoomEntityType.roomMessage) {
+          _scheduleRoomMessageHintRetry(beaconId);
+        }
+      }
+    });
+  }
+
+  void _scheduleRoomMessageHintRetry(String beaconId) {
+    _roomMessageHintRetryTimers.remove(beaconId)?.cancel();
+    _roomMessageHintRetryTimers[beaconId] = Timer(_roomMessageHintRetryDelay, () {
+      _roomMessageHintRetryTimers.remove(beaconId);
       if (!isClosed) {
         unawaited(fetch(showLoading: false));
       }
@@ -123,53 +147,71 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   Future<void> fetch({bool showLoading = true}) async {
-    final seq = ++_fetchSeq;
-    final filterBefore = state.filter;
-    if (showLoading) {
-      emit(
-        state.copyWith(
-          status: StateStatus.isLoading,
-          archivedFetchInProgress: false,
-          nonArchivedProjectionLoaded: false,
-        ),
-      );
+    if (_fetchInFlight) {
+      _fetchQueued = true;
+      return;
     }
+    await _runFetch(showLoading: showLoading);
+  }
+
+  Future<void> _runFetch({required bool showLoading}) async {
+    _fetchInFlight = true;
+    _fetchQueued = false;
     try {
-      final init = await _myWorkCase.loadDeskInit(userId: _userId);
-      if (isClosed || seq != _fetchSeq) {
-        return;
+      final seq = ++_fetchSeq;
+      final filterBefore = state.filter;
+      if (showLoading) {
+        emit(
+          state.copyWith(
+            status: StateStatus.isLoading,
+            archivedFetchInProgress: false,
+            nonArchivedProjectionLoaded: false,
+          ),
+        );
       }
-      final merged = mergeMyWorkDeskCards(
-        serverCards: init.nonArchivedCards,
-        localCards: state.nonArchivedCards,
-        preferIds: _pendingDeskBeaconIds,
-      );
-      final mergedIds = merged.map((c) => c.beaconId).toSet();
-      final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
-      _pendingDeskBeaconIds.removeWhere(mergedIds.contains);
-      emit(
-        state.copyWith(
-          status: const StateIsSuccess(),
-          loadError: null,
-          nonArchivedProjectionLoaded: true,
-          nonArchivedCards: merged,
-          archivedCountHint: init.archivedCountHint,
-          finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
-          archivedCards: const [],
-          archivedDataFetched: false,
-        ),
-      );
-      _schedulePendingRetryIfNeeded(stillPending);
-      if (filterBefore == MyWorkFilter.archived) {
-        emit(state.copyWith(archivedFetchInProgress: true));
-        unawaited(_loadArchived(seq));
+      try {
+        final init = await _myWorkCase.loadDeskInit(userId: _userId);
+        if (isClosed || seq != _fetchSeq) {
+          return;
+        }
+        final merged = mergeMyWorkDeskCards(
+          serverCards: init.nonArchivedCards,
+          localCards: state.nonArchivedCards,
+          preferIds: _pendingDeskBeaconIds,
+        );
+        final mergedIds = merged.map((c) => c.beaconId).toSet();
+        final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
+        _pendingDeskBeaconIds.removeWhere(mergedIds.contains);
+        emit(
+          state.copyWith(
+            status: const StateIsSuccess(),
+            loadError: null,
+            nonArchivedProjectionLoaded: true,
+            nonArchivedCards: merged,
+            archivedCountHint: init.archivedCountHint,
+            finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
+            archivedCards: const [],
+            archivedDataFetched: false,
+          ),
+        );
+        _schedulePendingRetryIfNeeded(stillPending);
+        if (filterBefore == MyWorkFilter.archived) {
+          emit(state.copyWith(archivedFetchInProgress: true));
+          unawaited(_loadArchived(seq));
+        }
+      } catch (e) {
+        if (isClosed || seq != _fetchSeq) {
+          return;
+        }
+        if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
+          emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+        }
       }
-    } catch (e) {
-      if (isClosed || seq != _fetchSeq) {
-        return;
-      }
-      if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
-        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+    } finally {
+      _fetchInFlight = false;
+      if (_fetchQueued && !isClosed) {
+        _fetchQueued = false;
+        unawaited(_runFetch(showLoading: false));
       }
     }
   }
