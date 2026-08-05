@@ -4,6 +4,8 @@ import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
@@ -28,6 +30,7 @@ final class HelpOfferCase extends UseCaseBase {
     this._helpOfferRepository,
     this._beaconRepository,
     this._coordinationRepository,
+    this._commitmentRepository,
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRoomRepository,
@@ -44,6 +47,7 @@ final class HelpOfferCase extends UseCaseBase {
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationRepositoryPort _coordinationRepository;
+  final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
@@ -120,6 +124,12 @@ final class HelpOfferCase extends UseCaseBase {
           userId: userId,
           message: message,
           helpTypes: helpTypes,
+        );
+        await _commitmentRepository.record(
+          beaconId: beaconId,
+          userId: userId,
+          actorUserId: userId,
+          kind: CommitmentEventKind.offered,
         );
         if (helpTypes != null && helpTypes.isNotEmpty) {
           for (final type in helpTypes) {
@@ -235,9 +245,12 @@ final class HelpOfferCase extends UseCaseBase {
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
-        await _coordinationRepository.deleteForCommit(
+        await _commitmentRepository.record(
           beaconId: beaconId,
           userId: userId,
+          actorUserId: userId,
+          kind: CommitmentEventKind.withdrawnByHelper,
+          reason: withdrawReason,
         );
         await _helpOfferRepository.withdraw(
           beaconId: beaconId,
