@@ -1,9 +1,14 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/commitment_consts.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
@@ -26,6 +31,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/utils/id.dart';
 
 import 'capability_case.dart';
+import 'commitment_query_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
@@ -95,7 +101,10 @@ final class EvaluationCase extends UseCaseBase {
     this._userProfileBatchLookup,
     this._participantGraphBuilder,
     this._draftPurger,
-    this._capabilityCase, {
+    this._capabilityCase,
+    this._commitmentQueryCase,
+    this._commitmentRepository,
+    this._helpOfferRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionExpirySweepCase? attentionExpirySweep,
@@ -118,6 +127,9 @@ final class EvaluationCase extends UseCaseBase {
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CapabilityCase _capabilityCase;
+  final CommitmentQueryCase _commitmentQueryCase;
+  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
@@ -163,15 +175,8 @@ final class EvaluationCase extends UseCaseBase {
             );
           }
 
-          final graph = await _participantGraphBuilder.build(
-            beaconId: beaconId,
-            authorId: beacon.author.id,
-            preClosure: false,
-          );
-          final committerCount = graph.participants
-              .where((p) => p.role == EvaluationParticipantRole.committer)
-              .length;
-          final requiresReviewWindow = committerCount >= 1;
+          final requiresReviewWindow =
+              await _commitmentQueryCase.everHadCommitter(beaconId);
 
           if (expectedRequiresReviewWindow != requiresReviewWindow) {
             throw EvaluationException(
@@ -179,6 +184,11 @@ final class EvaluationCase extends UseCaseBase {
               description: 'Committer count changed; refresh and retry',
             );
           }
+
+          await _recordUnansweredAtCloseOffers(
+            beaconId: beaconId,
+            authorId: beacon.author.id,
+          );
 
           final targetStatus = requiresReviewWindow
               ? BeaconStatus.reviewOpen
@@ -208,6 +218,11 @@ final class EvaluationCase extends UseCaseBase {
             );
           }
 
+          final graph = await _participantGraphBuilder.build(
+            beaconId: beaconId,
+            authorId: beacon.author.id,
+            preClosure: false,
+          );
           final participants = graph.participants;
           final visibility = graph.visibility;
 
@@ -382,6 +397,13 @@ final class EvaluationCase extends UseCaseBase {
               evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
             );
           }
+          if (await _beaconRepository.reviewReopenCount(beaconId) >=
+              kMaxReviewReopens) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Reopen limit reached',
+            );
+          }
           final intent = transaction == null
               ? null
               : await _attentionIntents!.requestStatusChanged(
@@ -404,6 +426,7 @@ final class EvaluationCase extends UseCaseBase {
             reason: BeaconLifecycleChangeReason.reopenedFromReview,
             actorId: userId,
           );
+          await _beaconRepository.incrementReviewReopenCount(beaconId);
           if (intent != null) {
             await transaction!.record(intent);
           }
@@ -414,6 +437,27 @@ final class EvaluationCase extends UseCaseBase {
         },
       ),
     );
+  }
+
+  Future<void> _recordUnansweredAtCloseOffers({
+    required String beaconId,
+    required String authorId,
+  }) async {
+    final offers = await _helpOfferRepository.fetchByBeaconId(beaconId);
+    for (final offer in offers) {
+      if (!offer.isActive || offer.offerKind != 0) continue;
+      final events = await _commitmentRepository.eventsForPair(
+        beaconId: beaconId,
+        userId: offer.userId,
+      );
+      if (everAcknowledged(events)) continue;
+      await _commitmentRepository.record(
+        beaconId: beaconId,
+        userId: offer.userId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.unansweredAtClose,
+      );
+    }
   }
 
   /// Author closes early when required reviewers finished or skipped.
