@@ -48,7 +48,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       events
 - [x] U05 — P3.5+P3.6+P3.7: Close review-window trigger, `unansweredAtClose`
       write, `_canCloseNow` former-committer exclusion, reopen limit
-- [ ] U06 — P3.8+P3.9+P3.10: withdraw forbidden in Wrapping up, response
+- [x] U06 — P3.8+P3.9+P3.10: withdraw forbidden in Wrapping up, response
       downgrade forbidden after acknowledgement, room-admission-requires-
       acknowledgement invariant (+ client UI guard)
 - [ ] U07 — P3.11: client truth alignment for Close (**release-blocking per
@@ -466,3 +466,42 @@ landed out of chronological order (inserted mid-file instead of appended at
 the end) — content is correct, only the ordering is odd; left as-is since
 git commit history is the authoritative sequence record, not worth a
 disruptive file rewrite. Proceeding to U06 (P3.8-P3.10).
+
+### 2026-08-05 — U06 P3.8+P3.9+P3.10 withdraw, downgrade, admission invariant (worker)
+
+**Done:** Implemented plan §5 P3.8–P3.10 only (no P3.11 client Close alignment, no P3.12 suite).
+
+- **P3.8:** `allowsBeaconWithdraw` / `allowsWithdrawWhileHelpOffered` now gate on
+  `status.isOpenFamily` (withdraw forbidden in Wrapping up / reviewOpen).
+  Updated `docs/before-response-terminal-tombstone.md` §Withdraw — non-open-family
+  tombstone branch documented as block-cleanup-only for user withdraw.
+- **P3.9:** Appended `commitmentAlreadyAcknowledged` to
+  `HelpOfferCoordinationExceptionCode` (end of enum). `setCoordinationResponse`
+  and `declineHelpOffer` throw before mutation when downgrading/declining an
+  ever-acknowledged pair. `alreadyAdmitted` enum value retained; call site removed.
+- **P3.10:** Appended `admissionRequiresAcknowledgement`. `setCoordinationResponse`
+  rejects `inviteToRoom == true` with non-acknowledging `responseType` (check
+  ordered before P3.9 downgrade guard). Client: `CoordinationResponseType.allowsInviteToRoom`
+  + cubit strips `inviteToRoom` for non-acknowledging responses before API call.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1234/1234 green (+4 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+- `./scripts/check-custom-lints.sh packages/client` → within baseline
+- `cd packages/client && flutter test` → 1647 passed, 14 skipped
+
+**Commits (6, not pushed):**
+- `1063c788` feat(commitment): P3.8 — forbid withdraw during Wrapping up
+- `66247da9` feat(commitment): P3.9 — forbid response downgrade after acknowledgement
+- `e3d9484e` feat(commitment): P3.10 — room admission requires acknowledgement (server)
+- `88de3ee8` feat(commitment): P3.10 — strip invite-to-room for non-acknowledging responses (client)
+- `805a1e06` fix(commitment): restore beacon_fact_card import in admission matrix test
+
+**Decisions:** No coordination-response picker widget exists in client (removed in
+prior admit/decline simplification); P3.10 UI guard lives in
+`BeaconViewCubit.setCoordinationResponse` + `CoordinationResponseType.allowsInviteToRoom`.
+`declineHelpOffer` reuses pre-fetched `hadAcknowledged` snapshot for the throw
+(no extra `findParticipant` call). Client version bumped `5.6.36` → `5.6.37`.
+
+**Remaining:** U07 (P3.11) client truth alignment for Close; U08 (P3.12) gate-scenario suite.
