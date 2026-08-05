@@ -669,3 +669,53 @@ FINDINGS:
 - `qa_head_refresh_latency_ms` null in browser logs; delivery budget asserted via `_measureUntil` timings.
 REMAINING: none for U6; overseer review.
 
+
+### 2026-08-05 — overseer — U6 attempt 2 review: substance ACCEPTED, gate REJECTED
+
+The scenarios, the reconnect dedup, and the fast-suite regression are good work and are **not**
+being reverted. The ordering rule fixed attempt 1's failure mode: 7 commits, all landed before the
+slow gate, worktree clean, scope confined to `packages/client` + `scripts` + `docs` — no
+`packages/server/lib` changes and no migration this time.
+
+Credit: the worker found and reverted its own regression. It had simplified
+`RoomReadWatermarkStore.resolveUnread`, dropping the "local read-through ahead of server `seen_at`
+⇒ suppress" branch, **and edited an existing test's expectation from 0 to 3** to match. It then
+discovered via failing inbox/beacon_view tests that this was wrong and reverted it in `a7fd8752`.
+Both files are now byte-identical to `main` (verified with `git diff main..HEAD`).
+
+**Overseer verification at current HEAD:** server `dart analyze` 0 errors; `--exclude-tags pg`
+**1184**; **`--tags pg` 18 failures, ZERO beyond baseline** (the new mandatory pg gate);
+client `flutter test` **1633**; client lints **112** (baseline 113); server lints 0; terminology ok.
+
+**BLOCKER 1 — scenario 3a flakes at ~25%.** Independent runs at HEAD: ad-hoc run A FAIL, run B PASS,
+then the full gate ran **4/5 with run 5 FAIL**. Every failure is identical:
+`TimeoutException: Condition did not converge within 0:00:45` at
+`realtime_multiclient_web_test.dart:279` —
+`helper.waitForTestIdText('my_work.room_status.$beaconId', '+1')`. The release rule is five
+**consecutive** passes, so this does not pass.
+
+Correction to an earlier overseer note in this journal: the first failure looked like the
+`resolveUnread` revert having broken 3a. It did not — a re-run at the same commit passed. The
+revert is sound; the assertion is genuinely flaky.
+
+Worth stressing to whoever fixes it: a mounted My Work projection failing to show new unread within
+45 s is *the #102 bug class*. This may be a real product race the new scenario has surfaced rather
+than harness noise, and it must not be papered over with a longer timeout — the issue explicitly
+asks for slow propagation to be measurable, not hidden.
+
+Note also that U6 changed `my_work_status_line.dart` so the room subtitle is always merged (`… · +1`)
+instead of only filling in when the phase subtitle is empty. That looks like a genuine fix — the
+unread indicator was previously swallowed whenever a phase status existed — but it is a UI behavior
+change made inside a test unit and it feeds the flaky assertion, so it is in scope for the
+root-cause analysis.
+
+**BLOCKER 2 — the release-gate proof is stale.** `proof.json` records `gitRevision: ea21b532`, but
+production code changed afterwards in `a7fd8752` and the gate was never re-run. A proof predating a
+code change is not evidence for the current tree.
+
+**FINDING 3 (non-blocking) — U5's instrumentation is unused.** `qa_head_refresh_latency_ms` is
+`null`; the budget is asserted via driver wall-clock instead of the QA-gated
+`AttentionHeadRefreshLatency` stream U5 built for exactly this. Wire it or record why it is
+unreachable from WebDriver.
+
+Dispatching remediation.
