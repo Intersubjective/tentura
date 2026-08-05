@@ -106,6 +106,24 @@ not the plan prose); server 0.
 
 ## Unresolved decisions / blockers
 
+- **U16 (P9) blocked by environment issue, 2026-08-05 21:46 CEST.** Two
+  consecutive `cursor-agent` worker launches for U16 were externally killed
+  (`status: killed`) well before their 5400s budget — first after ~254s,
+  second after only ~46s, both while the worker was mid read/grep
+  (exploration), not during anything unusual (no docker/server start yet on
+  either attempt). Diagnostic: launched a trivial 180s background `sleep` in
+  parallel — it completed normally, confirming background bash tasks in
+  general are NOT being killed by the environment; the issue is specific to
+  the `cursor-agent` process. All 16 prior `cursor-agent` worker launches
+  this session (U01-U15 plus the U10 migration-rollback remediation)
+  completed normally. The shrinking time-to-kill (254s → 46s) across
+  consecutive attempts suggests a possible usage/rate constraint on Cursor
+  Cloud invocations rather than a one-off fluke. No uncommitted changes or
+  orphaned processes from either killed attempt (both cleaned up — an
+  orphaned dev server the first attempt started on :2080 was stopped, docker
+  infra confirmed healthy and untouched, `git status` clean). Paused U16 to
+  report this to the user rather than keep retrying blindly.
+
 - `hasSuccessfulHelpOfferResult` / `helpOfferRowSettled` in
   `beacon_closure_readiness.dart` still read `coordinationResponse == useful`
   for settlement/readiness heuristics (not committer/Close-contract truth).
