@@ -13,6 +13,9 @@ class BeaconDisplayStatus {
     this.reviewClosesAt,
     this.lastActivityAt,
     this.lifecycleEndedAt,
+    this.canCancel = false,
+    this.canDelete = false,
+    this.everAcknowledgedCommitterCount = 0,
   });
 
   final String beaconId;
@@ -24,4 +27,7 @@ class BeaconDisplayStatus {
   final DateTime? reviewClosesAt;
   final DateTime? lastActivityAt;
   final DateTime? lifecycleEndedAt;
+  final bool canCancel;
+  final bool canDelete;
+  final int everAcknowledgedCommitterCount;
 }

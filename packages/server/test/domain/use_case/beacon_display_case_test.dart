@@ -4,17 +4,23 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
+import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_display_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/noop_commitment_query_case.dart';
+import '../../support/recording_commitment_repository.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 class _FakeEvaluationRepository extends Fake implements EvaluationRepositoryPort {
@@ -33,6 +39,7 @@ void main() {
   late MockBeaconRoomRepositoryPort roomRepo;
   late FakeBeaconAccessGuard guard;
   late BeaconDisplayCase case_;
+  late CommitmentQueryCase commitmentQueryCase;
 
   const beaconId = 'B0000000000000000000000001';
   const authorId = 'U0000000000000000000000001';
@@ -54,6 +61,20 @@ void main() {
         updatedAt: now,
       );
 
+  CommitmentQueryCase commitmentQueryCaseFromEvents(
+    List<CommitmentEvent> events,
+  ) =>
+      CommitmentQueryCase(
+        RecordingCommitmentRepository(
+          eventsByPair: {
+            commitmentPairKey(beaconId, offererId): events,
+          },
+        ),
+        helpOfferRepo,
+        env: Env(environment: Environment.test),
+        logger: Logger('BeaconDisplayCaseTest'),
+      );
+
   setUp(() {
     beaconRepo = MockBeaconRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
@@ -61,6 +82,9 @@ void main() {
     evaluationRepo = _FakeEvaluationRepository();
     roomRepo = MockBeaconRoomRepositoryPort();
     guard = FakeBeaconAccessGuard();
+    commitmentQueryCase = noopCommitmentQueryCase(
+      logger: Logger('BeaconDisplayCaseTest'),
+    );
 
     case_ = BeaconDisplayCase(
       beaconRepo,
@@ -69,6 +93,7 @@ void main() {
       evaluationRepo,
       roomRepo,
       guard,
+      commitmentQueryCase,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconDisplayCaseTest'),
     );
@@ -282,6 +307,118 @@ void main() {
       expect(result.single.slot2Kind, expected.slot2Kind);
       expect(result.single.lastActivityAt, expected.lastActivityAt);
       expect(result.single.lifecycleEndedAt, expected.lifecycleEndedAt);
+    });
+
+    group('P8.1 commitment gate fields', () {
+      Future<BeaconDisplayStatus> authorStatus({
+        BeaconStatus status = BeaconStatus.open,
+        CommitmentQueryCase? queryCase,
+      }) async {
+        when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
+          (_) async => openBeacon(status: status),
+        );
+        final displayCase = queryCase == null
+            ? case_
+            : BeaconDisplayCase(
+                beaconRepo,
+                helpOfferRepo,
+                coordinationRepo,
+                evaluationRepo,
+                roomRepo,
+                guard,
+                queryCase,
+                env: Env(environment: Environment.test),
+                logger: Logger('BeaconDisplayCaseTest'),
+              );
+        final result = await displayCase.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: authorId,
+        );
+        return result.single;
+      }
+
+      test('author with no acknowledged committers can cancel and delete', () async {
+        final status = await authorStatus();
+
+        expect(status.canCancel, isTrue);
+        expect(status.canDelete, isTrue);
+        expect(status.everAcknowledgedCommitterCount, 0);
+      });
+
+      test('draft author can delete with no commitment history', () async {
+        final status = await authorStatus(status: BeaconStatus.draft);
+
+        expect(status.canDelete, isTrue);
+        expect(status.canCancel, isFalse);
+        expect(status.everAcknowledgedCommitterCount, 0);
+      });
+
+      test(
+        'author with ever-acknowledged committer cannot cancel or delete',
+        () async {
+          final status = await authorStatus(
+            queryCase: commitmentQueryCaseFromEvents([
+              CommitmentEvent(
+                id: 'CE-1',
+                seq: 1,
+                beaconId: beaconId,
+                userId: offererId,
+                actorUserId: authorId,
+                kind: CommitmentEventKind.acknowledged,
+                reason: null,
+                createdAt: now,
+              ),
+            ]),
+          );
+
+          expect(status.canCancel, isFalse);
+          expect(status.canDelete, isFalse);
+          expect(status.everAcknowledgedCommitterCount, 1);
+        },
+      );
+
+      test('non-author viewer gets false gates and zero count', () async {
+        when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
+          (_) async => openBeacon(),
+        );
+        when(
+          roomRepo.isBeaconSteward(
+            beaconId: beaconId,
+            userId: stewardId,
+          ),
+        ).thenAnswer((_) async => true);
+        final displayCase = BeaconDisplayCase(
+          beaconRepo,
+          helpOfferRepo,
+          coordinationRepo,
+          evaluationRepo,
+          roomRepo,
+          guard,
+          commitmentQueryCaseFromEvents([
+            CommitmentEvent(
+              id: 'CE-1',
+              seq: 1,
+              beaconId: beaconId,
+              userId: offererId,
+              actorUserId: authorId,
+              kind: CommitmentEventKind.acknowledged,
+              reason: null,
+              createdAt: now,
+            ),
+          ]),
+          env: Env(environment: Environment.test),
+          logger: Logger('BeaconDisplayCaseTest'),
+        );
+
+        final stewardResult = await displayCase.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: stewardId,
+        );
+
+        expect(stewardResult.single.canCancel, isFalse);
+        expect(stewardResult.single.canDelete, isFalse);
+        expect(stewardResult.single.everAcknowledgedCommitterCount, 0);
+      });
     });
   });
 }

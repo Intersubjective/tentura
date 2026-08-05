@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 
 import '_use_case_base.dart';
 
@@ -20,7 +21,8 @@ final class BeaconDisplayCase extends UseCaseBase {
     this._coordinationRepository,
     this._evaluationRepository,
     this._beaconRoomRepository,
-    this._guard, {
+    this._guard,
+    this._commitmentQueryCase, {
     required super.env,
     required super.logger,
   });
@@ -31,6 +33,7 @@ final class BeaconDisplayCase extends UseCaseBase {
   final EvaluationRepositoryPort _evaluationRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final BeaconAccessGuard _guard;
+  final CommitmentQueryCase _commitmentQueryCase;
 
   Future<List<BeaconDisplayStatus>> displayStatuses({
     required List<String> beaconIds,
@@ -84,6 +87,25 @@ final class BeaconDisplayCase extends UseCaseBase {
         ),
       );
 
+      final isAuthorCoordination =
+          tier == BeaconDisplayTier.coordination &&
+          viewerId == beacon.author.id;
+      var canCancel = false;
+      var canDelete = false;
+      var everAcknowledgedCommitterCount = 0;
+      if (isAuthorCoordination) {
+        final everAck = await _commitmentQueryCase.everAcknowledgedUserIds(
+          beaconId,
+        );
+        final isAuthor = viewerId == beacon.author.id;
+        canCancel =
+            isAuthor && beacon.status.isOpenFamily && everAck.isEmpty;
+        canDelete =
+            isAuthor &&
+            (beacon.status == BeaconStatus.draft || everAck.isEmpty);
+        everAcknowledgedCommitterCount = everAck.length;
+      }
+
       out.add(
         BeaconDisplayStatus(
           beaconId: beaconId,
@@ -95,6 +117,9 @@ final class BeaconDisplayCase extends UseCaseBase {
           reviewClosesAt: derived.reviewClosesAt,
           lastActivityAt: derived.lastActivityAt,
           lifecycleEndedAt: derived.lifecycleEndedAt,
+          canCancel: canCancel,
+          canDelete: canDelete,
+          everAcknowledgedCommitterCount: everAcknowledgedCommitterCount,
         ),
       );
     }
