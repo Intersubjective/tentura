@@ -61,7 +61,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       fields on `beaconDisplayStatuses` (needed by U07 p.4 — see plan §13)
 - [ ] U10 — CORE VERIFY: full verify matrix for P1+P2+P3+P8.1 as integrated
       whole per plan §12.2 subset + `kDefaultMinClientVersion` bump (§12.3)
-- [ ] U11 — P4: `releaseCommitment` (server use case, exception code,
+- [x] U11 — P4: `releaseCommitment` (server use case, exception code,
       notification kind `commitmentReleased`, GraphQL, client case/cubit/UI,
       l10n, tests)
 - [ ] U12 — P5: remove auto-admit (D4), direct-author-forward chip/sort
@@ -752,3 +752,52 @@ implemented, individually reviewed, and now collectively verified end to end
 including the previously-unrun pg-tagged test tier. Proceeding to U11 (P4 —
 `releaseCommitment`), the first follow-on phase per plan §13's ordering
 (P4 → P5 → P6 → P7 → P8 rest → P9 → P10).
+
+### 2026-08-05 — U11 P4 releaseCommitment (worker)
+
+**Done:** Implemented plan §6 P4.1–P4.5 in full.
+
+- **P4.1:** `CoordinationCase.releaseCommitment` — author-only via `_ensureAuthor`,
+  `beaconNotOpen` gate, `_validateReason`, `commitmentNotAcknowledged` (new enum
+  value appended), idempotent `released`/`exited`, records `releasedByAuthor` only
+  (no room/coordination/offer status changes), `commitmentReleased` attention intent.
+- **P4.1a:** `NotificationKind.commitmentReleased`, copy/recipient/batch/attention
+  plumbing, `AttentionEventType.commitmentReleased`, updates-event contract entry.
+- **P4.2:** GraphQL `releaseCommitment` mutation field.
+- **P4.3:** Client GraphQL op + direct routing, `BeaconViewCase`/`BeaconViewCubit`
+  orchestration, People tab UI (`onReleaseCommitment`, stake-state labels, remove
+  dialog note via `HelpOfferAdmissionReasonDialog.explanatoryNote`).
+- **P4.4:** Six new l10n keys (EN+RU).
+- **P4.5:** `coordination_case_release_test.dart` (3 scenarios); widget tests in
+  `beacon_people_tab_test.dart` for release visibility/label.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test -x pg` → 1259/1259 green (+3 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0/0
+- `./scripts/check-custom-lints.sh packages/client` → 112/112 (baseline held)
+- `cd packages/client && flutter gen-l10n`
+- `cd packages/client && dart run build_runner build -d`
+- `cd packages/client && flutter test` → 1654 passed, 14 skipped
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+**Commits (5, not pushed):**
+- `82ee71fc` feat(commitment): P4.1 — releaseCommitment server use case
+- `9bb855a3` feat(commitment): P4.1a — commitmentReleased notification plumbing
+- `4e5ca91c` feat(commitment): P4.2 — GraphQL releaseCommitment mutation
+- `017a04e4` feat(commitment): P4.4 — l10n for end participation and remove note
+- `0f38bdf3` feat(commitment): P4.3 — client releaseCommitment wiring and People UI
+
+**Decisions:** Client bumped `5.6.38` → `5.6.39`. Release action shown only when
+`stakeState == acknowledged`; participation labels driven by `helpOfferStakeParticipationLabel`
+(stakeState, not coordinationResponse). `attention_policy` maps `commitmentReleased`
+like `offerRemoved` (asksOfMe / safe-terminal destination family). Test harness
+uses sequential `record()` for offered/acknowledged setup (avoids `_nextSeq` clash
+with `seedEvents`).
+
+**Remaining:** U12 (P5) — remove auto-admit.
+
+### 2026-08-05 — U11 final
+
+P4 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
+U11 marked complete. Proceeding to U12 (P5).
