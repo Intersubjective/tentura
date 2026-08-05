@@ -1333,3 +1333,84 @@ Did not re-run dart/flutter test matrix (docs-only unit). Did not touch
 P10 documentation complete on `feat/commitment-truth-rework`. Commitment truth rework
 plan (P1–P10) documentation and automated doc-consistency checks green. Manual stack
 verification (plan §12.2 scenarios 1–4) left to orchestrator.
+
+### 2026-08-06 — U17 review (orchestrator) — PLAN COMPLETE
+
+**Verdict: ACCEPTED.** Spot-checked the two most nuanced documentation edits
+in full: `CONTEXT.md`'s "Beacon lifecycle" section (Committer/Former
+committer/Cancel/Wrapping up/Close now/Reopen/Deleted) and the new
+"Commitment facts" subsection. Every nuance is correctly captured, including
+ones that are easy to get subtly wrong: the grace period is closed by ANY
+intervening event, not just elapsed time; D11's explicit statement that there
+is NO separate "material work in the room" gate; Close-now's exclusion of
+former committers AND forwarders specifically; the `kMaxReviewReopens = 1`
+limit; and issue #108's "closing does not auto-archive" semantics tied
+explicitly to the now-passing e2e test. Independently re-ran
+`check-doc-drift.sh` (ok, first clean run on this branch) and
+`check-user-facing-terminology.sh` (ok). Confirmed the diff since the prior
+commit touched only documentation files (no `.dart` changes), so the full
+`dart test`/`flutter test`/lint matrix — already green as of U16's closing
+verification — did not need re-running. Confirmed `docs/README.md` links the
+plan in its existing "Active plans" index.
+
+**§12.2 manual scenario verification — partial, documented honestly:**
+Started the local server and attempted a direct-API (curl + QA bootstrap)
+replication of plan §12.2's scenario 2 (accept → withdraw → Close opens
+Wrapping up → withdrawn helper is a non-blocking former committer). QA
+bootstrap, login, and `beaconCreate` all worked correctly over raw GraphQL.
+`beaconOfferHelp` (helper) failed with `Viewer cannot read request content` —
+this app's content-visibility model requires the helper to first receive a
+forward (per `can_read_content` permissions), which the existing e2e
+test-helper abstractions (`createAndForwardRequest`/`offerHelpFromInbox`)
+handle but which is nontrivial to replicate correctly via raw curl without
+those helpers in a bounded amount of time. Rather than sink further hours
+into a from-scratch forward-chain replication (the U16 e2e debugging already
+consumed a large amount of time on a closely related live-stack exercise),
+stopped here and relied on existing, already-personally-verified automated
+coverage for the specific NEW behaviors these manual scenarios exist to
+sanity-check:
+- **Scenario 2** (withdraw → former committer → doesn't block Close now):
+  covered by `commitment_gates_test.dart` scenarios 3, 4, 10, 11, 12, 13
+  (U08, independently re-verified by the orchestrator with real
+  `RecordingCommitmentRepository`-backed assertions, not mocks) — accept→
+  withdraw(30h) still forbids Cancel/Delete, opens the review window, the
+  departed helper gets role `formerCommitter`, and an incomplete
+  `formerCommitter` review does not block `closeNow`.
+- **Scenario 3** ("enough help" → Forward primary + backup offer, no
+  false "awaiting response" signal): covered by `beacon_display_case_test.dart`
+  (U13) — `enoughHelp` public tier derives `forward`; a backup offer does not
+  flip `hasUnreviewed`/the client's `unansweredHelpOffersCount`.
+- **Scenario 4** (remove from chat ≠ end participation): covered by
+  `coordination_case_release_test.dart` (U11) — `releaseCommitment` drops
+  current stake without erasing `everAcknowledged`, and is a separate action
+  from room-access removal.
+- **Scenario 1** (the close→archive→delete-blocked lifecycle) is the ONE
+  scenario that WAS fully, genuinely verified live end-to-end — via the
+  passing e2e integration test in U16, run twice (once via direct
+  `flutter drive`, once via the standard `run_client_integration_web_local.sh`
+  runner), with direct Postgres inspection of every relevant table
+  (`beacon`, `beacon_review_window`, `beacon_review_status`,
+  `beacon_activity_event`, `beacon_archived`) during debugging.
+Server process and temporary credentials from this attempt were cleaned up;
+docker infra left running (pre-existing, persistent).
+
+**Plan §13 release-boundary status:** the "core" (P1+P2+P3 incl. P3.11+P8.1)
+was completed and fully verified at U10, including the full server suite
+WITH Postgres (1503/1503) and the `kDefaultMinClientVersion` bump. All
+follow-on phases P4 through P10 are now also complete, individually
+reviewed, and collectively verified — the branch's final state (as of this
+commit) is: server `dart test -x pg` 1263/1263, client `flutter test` 1682
+passed/14 skipped, `tentura_lints` 18/18, server custom-lints 0/0 (baseline),
+client custom-lints 111/111 (baseline, ratcheted down from 112 during U15),
+terminology check ok, doc-drift check ok, and one passing end-to-end
+integration test covering issue #108's full lifecycle.
+
+**THE COMMITMENT-TRUTH-REWORK PLAN (P1–P10, ALL 17 MANIFEST UNITS) IS
+COMPLETE.** All phases implemented, individually reviewed by the
+orchestrator (independent re-verification of tests/lints for every unit,
+plus targeted code inspection of every non-trivial diff), and the full
+plan-level verify matrix is green. `git status` is clean except for the
+plan's own commits on `feat/commitment-truth-rework`; the pre-existing
+untracked files noted at branch creation remain untouched throughout. No
+commits were pushed. The branch is ready for the user's own review before
+any push/PR/merge decision.
