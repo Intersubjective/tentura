@@ -243,3 +243,18 @@ projection update, exactly 4 query-case methods, no `hasMaterialRoomWork`).
 Confirmed `HelpOfferRepositoryPort.fetchAllByBeaconId` and
 `HelpOfferEntity.isActive` exist as used. No pre-existing untracked files were
 touched. Proceeding to U02.
+
+### 2026-08-05 — U02 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1211/1211
+green), `tentura_lints dart test` (18/18), `check-custom-lints.sh
+packages/server` (0/0 baseline). Inspected diffs for `help_offer_case.dart`,
+`coordination_case.dart`, `user_block_case.dart` line by line against plan §4:
+`offerHelp`/`withdraw` write points match; `_recordResponseCommitmentEvents`
+correctly implements the acknowledged/softened branch plus the
+removeFromRoom/inviteToRoom→readmitted branch in the right precedence;
+idempotence helpers (`_recordAcknowledgedIfTransition` etc.) check current
+state before writing, matching the write-rule box in §4. Confirmed
+`deleteForCommit` has zero remaining source references (only stale compiled
+binaries matched). Confirmed the `_coordination` field removed from
+`UserBlockCase` had no other use before deletion. Proceeding to U03.
