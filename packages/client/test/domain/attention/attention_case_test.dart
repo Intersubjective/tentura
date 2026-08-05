@@ -195,6 +195,54 @@ void main() {
       expect(attention.snapshot.summary.unreadTotal, 2);
     });
 
+    test('records QA head refresh latency for the newest receipt', () async {
+      final qaRepository = _Repository();
+      final qaAccounts = _Accounts();
+      final first = Completer<AttentionFeed>();
+      final second = Completer<AttentionFeed>();
+      qaRepository.pendingFetches.addAll([first, second]);
+      final qaAttention = AttentionCase(
+        qaRepository,
+        qaAccounts,
+        realtimeCase,
+        noopBlockCase(),
+        Logger('attention-case-qa-latency-test'),
+        qaLatencyMeasurementEnabled: true,
+      );
+      addTearDown(qaAttention.dispose);
+      addTearDown(qaAccounts.dispose);
+      final samples = <AttentionHeadRefreshLatency>[];
+      final sub = qaAttention.qaHeadRefreshLatencies!.listen(samples.add);
+
+      qaAccounts.emit('account-a');
+      await _settle();
+      expect(qaRepository.fetchCalls, 1);
+      first.complete(
+        _feed(
+          items: [
+            _receipt(id: 'older').copyWith(
+              createdAt: DateTime.now().toUtc().subtract(
+                const Duration(seconds: 30),
+              ),
+            ),
+            _receipt(id: 'newer').copyWith(
+              createdAt: DateTime.now().toUtc().subtract(
+                const Duration(seconds: 5),
+              ),
+            ),
+          ],
+        ),
+      );
+      await _settle();
+
+      expect(samples, hasLength(1));
+      expect(samples.single.latency, greaterThanOrEqualTo(const Duration(seconds: 4)));
+      expect(samples.single.latency, lessThan(const Duration(seconds: 10)));
+      expect(qaAttention.lastQaHeadRefreshLatency, samples.single);
+
+      await sub.cancel();
+    });
+
     test('block change refreshes the feed head', () async {
       final blockRepository = _Repository();
       final blockAccounts = _Accounts();

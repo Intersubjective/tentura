@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
+
+import 'package:tentura/consts.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
@@ -17,6 +20,19 @@ import 'entity/attention_summary.dart';
 import 'port/attention_account_port.dart';
 import 'port/attention_repository_port.dart';
 
+/// QA-only measurement of receipt commit to head-snapshot emission latency.
+final class AttentionHeadRefreshLatency {
+  const AttentionHeadRefreshLatency({
+    required this.latency,
+    required this.receiptCreatedAt,
+    required this.measuredAt,
+  });
+
+  final Duration latency;
+  final DateTime receiptCreatedAt;
+  final DateTime measuredAt;
+}
+
 /// The sole owner that converts notification hints into attention feed refreshes.
 @lazySingleton
 final class AttentionCase {
@@ -25,8 +41,13 @@ final class AttentionCase {
     this._account,
     this._realtime,
     this._blockCase,
-    this._logger,
-  ) {
+    this._logger, {
+    @visibleForTesting bool? qaLatencyMeasurementEnabled,
+  }) : _qaLatencyMeasurementEnabled =
+           qaLatencyMeasurementEnabled ?? kQaIntegrationTestMode {
+    if (_qaLatencyMeasurementEnabled) {
+      _qaLatencySamples = StreamController<AttentionHeadRefreshLatency>.broadcast();
+    }
     _start();
   }
 
@@ -35,6 +56,7 @@ final class AttentionCase {
   final RealtimeSyncCase _realtime;
   final BlockCase _blockCase;
   final Logger _logger;
+  final bool _qaLatencyMeasurementEnabled;
   final AttentionAckStore _acks = AttentionAckStore();
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
     const AttentionFeedSnapshot(),
@@ -50,6 +72,14 @@ final class AttentionCase {
   bool _headRefreshInFlight = false;
   bool _headRefreshQueued = false;
   String? _search;
+  StreamController<AttentionHeadRefreshLatency>? _qaLatencySamples;
+  AttentionHeadRefreshLatency? _lastQaHeadRefreshLatency;
+
+  Stream<AttentionHeadRefreshLatency>? get qaHeadRefreshLatencies =>
+      _qaLatencySamples?.stream;
+
+  AttentionHeadRefreshLatency? get lastQaHeadRefreshLatency =>
+      _qaLatencyMeasurementEnabled ? _lastQaHeadRefreshLatency : null;
 
   Stream<AttentionSummary> get unreadSummary =>
       _snapshot.stream.map((snapshot) => snapshot.summary).distinct();
@@ -180,6 +210,7 @@ final class AttentionCase {
       if (generation == _accountGeneration) _applyPage(feed, replaceHead: true);
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
+        _emit(snapshot.copyWith(headRefreshError: error));
         _logger.warning('Attention head refresh failed', error, stackTrace);
       }
     } finally {
@@ -212,7 +243,10 @@ final class AttentionCase {
         items: items,
         nextCursor: feed.page.nextCursor,
       );
-    _emit(snapshot.copyWith(summary: feed.summary, pages: pages));
+    _emit(snapshot.copyWith(summary: feed.summary, pages: pages, headRefreshError: null));
+    if (replaceHead) {
+      _recordQaHeadRefreshLatency(items, DateTime.now().toUtc());
+    }
   }
 
   void _applyOptimisticAcks() {
@@ -242,12 +276,36 @@ final class AttentionCase {
     if (!_snapshot.isClosed) _snapshot.add(next);
   }
 
+  void _recordQaHeadRefreshLatency(
+    List<AttentionReceipt> items,
+    DateTime measuredAt,
+  ) {
+    if (!_qaLatencyMeasurementEnabled || items.isEmpty) return;
+    final newest = items.reduce(
+      (left, right) =>
+          right.createdAt.isAfter(left.createdAt) ? right : left,
+    );
+    final sample = AttentionHeadRefreshLatency(
+      latency: measuredAt.difference(newest.createdAt),
+      receiptCreatedAt: newest.createdAt,
+      measuredAt: measuredAt,
+    );
+    _lastQaHeadRefreshLatency = sample;
+    _qaLatencySamples?.add(sample);
+    _logger.info(
+      '[AttentionCase] attention_event=head_refresh_latency '
+      'latency_ms=${sample.latency.inMilliseconds} '
+      'receipt_created_at=${newest.createdAt.toUtc().toIso8601String()}',
+    );
+  }
+
   @disposeMethod
   Future<void> dispose() async {
     await _accountSub?.cancel();
     await _notificationSub?.cancel();
     await _catchUpSub?.cancel();
     await _blockSub?.cancel();
+    await _qaLatencySamples?.close();
     await _snapshot.close();
   }
 }
