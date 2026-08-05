@@ -12,6 +12,8 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
@@ -27,6 +29,10 @@ import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart'
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 
 import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
@@ -166,10 +172,14 @@ class _StatusTransitionCall {
 }
 
 class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
-  _TransactionStubBeaconRepo(this.lockedBeacon);
+  _TransactionStubBeaconRepo(this.lockedBeacon, {int reviewReopenCount = 0})
+    : _storedReviewReopenCount = reviewReopenCount;
 
   final BeaconEntity lockedBeacon;
   final statusTransitions = <_StatusTransitionCall>[];
+  int _storedReviewReopenCount;
+
+  int get storedReviewReopenCount => _storedReviewReopenCount;
 
   @override
   Future<T> runInBeaconStateTransaction<T>({
@@ -198,7 +208,56 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   }
 
   @override
+  Future<int> reviewReopenCount(String beaconId) async =>
+      _storedReviewReopenCount;
+
+  @override
+  Future<void> incrementReviewReopenCount(String beaconId) async {
+    _storedReviewReopenCount++;
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+EvaluationCase buildTestEvaluationCase({
+  required BeaconRepositoryPort beaconRepo,
+  required ForwardEdgeRepositoryPort forwardRepo,
+  required EvaluationRepositoryPort evalRepo,
+  required UserProfileBatchLookup userProfileBatchLookup,
+  required EvaluationParticipantGraphBuilder graphBuilder,
+  required CapabilityCase capabilityCase,
+  required TestAttentionHarness attention,
+  required AttentionExpirySweepCase expirySweep,
+  CommitmentRepositoryPort? commitmentRepo,
+  HelpOfferRepositoryPort? helpOfferRepo,
+  ReviewFinalizationPort? reviewFinalization,
+}) {
+  final commitment = commitmentRepo ?? NoOpCommitmentRepository();
+  final offers = helpOfferRepo ?? EmptyGraphHelpOfferRepository();
+  return EvaluationCase(
+    beaconRepo,
+    forwardRepo,
+    evalRepo,
+    userProfileBatchLookup,
+    graphBuilder,
+    EvaluationDraftPurger(evalRepo),
+    capabilityCase,
+    CommitmentQueryCase(
+      commitment,
+      offers,
+      env: Env(environment: Environment.test),
+      logger: Logger('EvaluationCaseTest'),
+    ),
+    commitment,
+    offers,
+    attentionIntents: attention.intents,
+    attention: attention.transactional,
+    attentionExpirySweep: expirySweep,
+    reviewFinalization: reviewFinalization,
+    env: Env(environment: Environment.test),
+    logger: Logger('EvaluationCaseTest'),
+  );
 }
 
 @immutable
@@ -464,7 +523,6 @@ void main() {
       forwardRepo,
       userRepo,
     );
-    final draftPurger = EvaluationDraftPurger(evalRepo);
 
     final noopCapabilityCase = CapabilityCase(
       _NoopCapabilityEventRepo(),
@@ -472,20 +530,18 @@ void main() {
       logger: Logger('EvaluationCaseTest'),
     );
 
-    evaluationCase = EvaluationCase(
-      MockBeaconRepository(),
-      forwardRepo,
-      evalRepo,
-      userProfileBatchLookup,
-      graphBuilder,
-      draftPurger,
-      noopCapabilityCase,
-      attentionIntents: attention.intents,
-      attention: attention.transactional,
-      attentionExpirySweep: expirySweep,
+    evaluationCase = buildTestEvaluationCase(
+      beaconRepo: MockBeaconRepository(),
+      forwardRepo: forwardRepo,
+      evalRepo: evalRepo,
+      userProfileBatchLookup: userProfileBatchLookup,
+      graphBuilder: graphBuilder,
+      capabilityCase: noopCapabilityCase,
+      attention: attention,
+      expirySweep: expirySweep,
+      commitmentRepo: NoOpCommitmentRepository(),
+      helpOfferRepo: helpOfferRepo,
       reviewFinalization: reviewFinalization,
-      env: Env(environment: Environment.test),
-      logger: Logger('EvaluationCaseTest'),
     );
   });
 
@@ -824,23 +880,19 @@ void main() {
         forwardRepo,
         userRepo,
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        forwardRepo,
-        evalRepo,
-        userProfileBatchLookup,
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: userProfileBatchLookup,
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
+        attention: attention,
+        expirySweep: expirySweep,
       );
     });
 
@@ -864,6 +916,57 @@ void main() {
           actorId: userId,
         ),
       ]);
+      expect(beaconRepo.storedReviewReopenCount, 1);
+    });
+
+    test('throws when reopen limit reached', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.reviewOpen,
+        ),
+        reviewReopenCount: 1,
+      );
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          helpOfferRepo,
+          forwardRepo,
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+
+      expect(
+        () => evaluationCase.reopenFromReview(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.description,
+            'description',
+            'Reopen limit reached',
+          ),
+        ),
+      );
     });
   });
 
@@ -906,23 +1009,21 @@ void main() {
         forwardRepo,
         userRepo,
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        forwardRepo,
-        evalRepo,
-        userProfileBatchLookup,
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: userProfileBatchLookup,
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
       );
     });
 
@@ -966,23 +1067,22 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
+        attention: attention,
+        expirySweep: expirySweep,
+        helpOfferRepo: helpOfferRepo,
       );
     });
 
@@ -1046,23 +1146,22 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
       );
     });
 
@@ -1145,23 +1244,22 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
       );
     });
 
@@ -1225,23 +1323,22 @@ void main() {
           EmptyGraphForwardEdgeRepository(),
           StubUserRepository('User'),
         );
-        evaluationCase = EvaluationCase(
-          beaconRepo,
-          EmptyGraphForwardEdgeRepository(),
-          evalRepo,
-          StubUserProfileBatchLookup('User'),
-          graphBuilder,
-          EvaluationDraftPurger(evalRepo),
-          CapabilityCase(
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final helpOfferRepo = EmptyGraphHelpOfferRepository();
+        evaluationCase = buildTestEvaluationCase(
+          beaconRepo: beaconRepo,
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: graphBuilder,
+          capabilityCase: CapabilityCase(
             _NoopCapabilityEventRepo(),
             env: Env(environment: Environment.test),
             logger: Logger('EvaluationCaseTest'),
           ),
-          attentionIntents: attention.intents,
-          attention: attention.transactional,
-          attentionExpirySweep: expirySweep,
-          env: Env(environment: Environment.test),
-          logger: Logger('EvaluationCaseTest'),
+          attention: attention,
+          expirySweep: expirySweep,
+          helpOfferRepo: helpOfferRepo,
         );
 
         expect(
@@ -1262,6 +1359,204 @@ void main() {
         );
       },
     );
+  });
+
+  group('beaconClose everHadCommitter review window', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+      final now = DateTime.utc(2025);
+      const helperId = 'helper1';
+      final withdrawnOffer = HelpOfferEntity(
+        beaconId: beaconId,
+        userId: helperId,
+        createdAt: now,
+        updatedAt: now.add(const Duration(hours: 31)),
+        status: 1,
+        message: 'helped out',
+      );
+      final helpOfferRepo = ConfigurableGraphHelpOfferRepository([withdrawnOffer]);
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: helperId,
+        authorId: userId,
+        baseTime: now,
+        withdrawAfterAck: const Duration(hours: 30),
+      );
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
+        helpOfferRepo,
+        forwardRepo,
+        StubUserRepository('User'),
+      );
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+      );
+    });
+
+    test(
+      'opens review window when helper withdrew after grace without current committer',
+      () async {
+        final result = await evaluationCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: true,
+        );
+
+        expect(result.status, BeaconStatus.reviewOpen.smallintValue);
+        expect(evalRepo.insertReviewWindowCalls, 1);
+      },
+    );
+  });
+
+  group('beaconClose unansweredAtClose events', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+    });
+
+    test('records unansweredAtClose for active normal unanswered offer', () async {
+      final now = DateTime.utc(2025);
+      const unansweredHelper = 'helper-unanswered';
+      final commitmentRepo = RecordingCommitmentRepository(
+        eventsByPair: {
+          commitmentPairKey(beaconId, unansweredHelper): [
+            CommitmentEvent(
+              id: 'CE-offered',
+              seq: 1,
+              beaconId: beaconId,
+              userId: unansweredHelper,
+              actorUserId: unansweredHelper,
+              kind: CommitmentEventKind.offered,
+              createdAt: now,
+            ),
+          ],
+        },
+      );
+      final helpOfferRepo = ConfigurableGraphHelpOfferRepository([
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: unansweredHelper,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ]);
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          commitmentRepo,
+          helpOfferRepo,
+          forwardRepo,
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+      );
+
+      await evaluationCase.beaconClose(
+        beaconId: beaconId,
+        userId: userId,
+        expectedRequiresReviewWindow: false,
+      );
+
+      expect(commitmentRepo.recordCalls, hasLength(1));
+      expect(commitmentRepo.recordCalls.single.kind,
+          CommitmentEventKind.unansweredAtClose);
+      expect(commitmentRepo.recordCalls.single.userId, unansweredHelper);
+      expect(commitmentRepo.recordCalls.single.actorUserId, userId);
+    });
+
+    test('does not record unansweredAtClose for backup offers', () async {
+      final now = DateTime.utc(2025);
+      const backupHelper = 'backup-helper';
+      final commitmentRepo = RecordingCommitmentRepository();
+      final helpOfferRepo = ConfigurableGraphHelpOfferRepository([
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: backupHelper,
+          createdAt: now,
+          updatedAt: now,
+          offerKind: 1,
+        ),
+      ]);
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          commitmentRepo,
+          helpOfferRepo,
+          forwardRepo,
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+      );
+
+      await evaluationCase.beaconClose(
+        beaconId: beaconId,
+        userId: userId,
+        expectedRequiresReviewWindow: false,
+      );
+
+      expect(commitmentRepo.recordCalls, isEmpty);
+    });
   });
 
   group('extendReviewWindow', () {
@@ -1302,24 +1597,23 @@ void main() {
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
-      evaluationCase = EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
+        attention: attention,
+        expirySweep: expirySweep,
+        helpOfferRepo: helpOfferRepo,
         reviewFinalization: reviewFinalization,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
       );
     });
 
@@ -1363,30 +1657,29 @@ void main() {
     const helperId = 'helper1';
 
     EvaluationCase buildCase() {
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
       final graphBuilder = EvaluationParticipantGraphBuilder(
         NoOpCommitmentRepository(),
-        EmptyGraphHelpOfferRepository(),
-        EmptyGraphForwardEdgeRepository(),
+        helpOfferRepo,
+        forwardRepo,
         StubUserRepository('User'),
       );
-      return EvaluationCase(
-        beaconRepo,
-        EmptyGraphForwardEdgeRepository(),
-        evalRepo,
-        StubUserProfileBatchLookup('User'),
-        graphBuilder,
-        EvaluationDraftPurger(evalRepo),
-        CapabilityCase(
+      return buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
           _NoopCapabilityEventRepo(),
           env: Env(environment: Environment.test),
           logger: Logger('EvaluationCaseTest'),
         ),
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        attentionExpirySweep: expirySweep,
+        attention: attention,
+        expirySweep: expirySweep,
+        helpOfferRepo: helpOfferRepo,
         reviewFinalization: reviewFinalization,
-        env: Env(environment: Environment.test),
-        logger: Logger('EvaluationCaseTest'),
       );
     }
 
@@ -1463,6 +1756,40 @@ void main() {
       );
       expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
     });
+
+    test(
+      'does not block closeNow when former committer review is incomplete',
+      () async {
+        evalRepo.participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'former-helper',
+            role: 3,
+            contributionSummary: 'former',
+            causalHint: 'h',
+          ),
+        ];
+        evalRepo.reviewStatusesResult = {
+          userId: 2,
+          'former-helper': 1,
+        };
+
+        final result = await evaluationCase.closeNow(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(result.status, BeaconStatus.closed.smallintValue);
+        expect(reviewFinalization.closeAndFinalizeCalls, isNotEmpty);
+      },
+    );
 
     test(
       'throws reviewWindowNotOpen when review window already closed',
