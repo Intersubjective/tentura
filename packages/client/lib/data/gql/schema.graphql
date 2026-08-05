@@ -6337,6 +6337,9 @@ type v2_BeaconCloseReviewResult {
 
 type v2_BeaconDisplayStatus {
   beaconId: String!
+  canCancel: Boolean!
+  canDelete: Boolean!
+  everAcknowledgedCommitterCount: Int!
   lastActivityAt: String
   lifecycleEndedAt: String
   phase: String!
@@ -6590,10 +6593,12 @@ type v2_HelpOfferWithCoordinationRow {
   lastDeclineReason: String
   lastRemoveReason: String
   message: String!
+  offerKind: Int!
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String
   roomAccess: Int
+  stakeState: Int!
   status: Int!
   updatedAt: String!
   user: v2_user!

@@ -42,6 +42,8 @@ class CoordinationRepository {
         int? admissionAction,
         String? lastDeclineReason,
         String? lastRemoveReason,
+        int stakeState,
+        int offerKind,
       })
     >
   >
@@ -78,6 +80,8 @@ class CoordinationRepository {
                 admissionAction: e.admissionAction,
                 lastDeclineReason: e.lastDeclineReason,
                 lastRemoveReason: e.lastRemoveReason,
+                stakeState: e.stakeState,
+                offerKind: e.offerKind,
               ),
             )
             .toList();

@@ -17,6 +17,8 @@ query HelpOffersWithCoordination($beaconId: String!) {
     admissionAction
     lastDeclineReason
     lastRemoveReason
+    offerKind
+    stakeState
     user {
       id
       displayName

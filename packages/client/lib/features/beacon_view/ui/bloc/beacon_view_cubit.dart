@@ -11,9 +11,11 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -781,6 +783,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         int? admissionAction,
         String? lastDeclineReason,
         String? lastRemoveReason,
+        int stakeState,
+        int offerKind,
       })
     >
     helpOffers,
@@ -803,6 +807,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         lastDeclineReason: c.lastDeclineReason,
         lastRemoveReason: c.lastRemoveReason,
+        stakeState: CommitmentStakeState.fromInt(c.stakeState),
+        offerKind: c.offerKind,
       ),
   ];
 
@@ -894,6 +900,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomActivityEvents(beaconId),
         _case.fetchRoomUnreadSnapshot(beaconId),
         _loadYouResponsibility(beaconId),
+        _case.fetchDisplayStatus(beaconId),
       ]);
 
       final helpOffers =
@@ -916,6 +923,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   int? admissionAction,
                   String? lastDeclineReason,
                   String? lastRemoveReason,
+                  int stakeState,
+                  int offerKind,
                 })
               >;
       final inboxCtx =
@@ -931,6 +940,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final roomUnreadSnapshot = results[6]! as RoomUnreadSnapshot;
       final youResponsibility = results[7] as CoordinationResponsibility?;
+      final displayStatus = results[8] as BeaconDisplayStatusDto?;
       _serverUnreadCount = roomUnreadSnapshot.count;
       _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
       final roomUnreadCount = _case.resolveRoomUnread(
@@ -965,6 +975,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             ),
             lastDeclineReason: c.lastDeclineReason,
             lastRemoveReason: c.lastRemoveReason,
+            stakeState: CommitmentStakeState.fromInt(c.stakeState),
+            offerKind: c.offerKind,
           ),
       ];
 
@@ -1023,6 +1035,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
           reviewWindowInfo: reviewWindowInfo,
+          displayStatus: displayStatus,
           roomUnreadCount: roomUnreadCount,
           youResponsibility: youResponsibility,
           forwardsLoaded: wasForwardsLoaded,
@@ -1197,6 +1210,8 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     int? admissionAction,
     String? lastDeclineReason,
     String? lastRemoveReason,
+    int stakeState,
+    int offerKind,
   })
   row,
 }) {
