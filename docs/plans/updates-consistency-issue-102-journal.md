@@ -868,7 +868,7 @@ Traced all four #102 surfaces to their event/state sources. **No production refa
 
 GUARDS: `packages/client/test/architecture/cross_surface_subscription_test.dart` (6 tests).
 
-COMMITS: (pending step 1 commit)
+COMMITS: 151a1863
 
 ### 2026-08-05 — U7 worker — Step 2 (contract `impacts` guard)
 
@@ -876,7 +876,7 @@ Added `packages/client/test/architecture/realtime_entity_contract_impacts_test.d
 
 All 33 impact labels have subscribers — **no contract/client drift found**.
 
-COMMITS: (pending step 2 commit)
+COMMITS: d9088586
 
 ### 2026-08-05 — U7 worker — Step 3 (defect hunt + cross-surface accept guard)
 
@@ -893,5 +893,5 @@ COMMITS: (pending step 2 commit)
 
 **Guard:** `packages/client/test/features/updates/cross_surface_coordination_accept_test.dart` — `commitmentAccepted` notification refreshes `AttentionCase`; `coordination_item` room invalidation refreshes My Work desk + beacon_view YOU responsibility.
 
-COMMITS: (pending step 3 commit)
+COMMITS: (pending — step 3 commit next)
 
