@@ -11,9 +11,13 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> items,
     @Default(false) bool hasNextPage,
     @Default(StateIsLoading()) StateStatus status,
+    Object? refreshError,
+    Object? actionError,
   }) = _UpdatesFeedState;
 
   const UpdatesFeedState._();
 
   bool get isEmpty => items.isEmpty;
+  bool get hasRefreshError => refreshError != null;
+  bool get hasActionError => actionError != null;
 }

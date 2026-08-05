@@ -4440,6 +4440,7 @@
   "updatesMarkSeen": "Отметить прочитанным",
   "updatesMarkDone": "Отметить выполненным",
   "updatesMarkAllSeen": "Отметить всё прочитанным",
+  "updatesRefreshFailedBanner": "Не удалось обновить ленту. Список может быть устаревшим.",
   "updatesEmptyTitle": "Ничего нового",
   "updatesEmptyAllHint": "Здесь появится новая активность.",
   "updatesEmptyUnreadHint": "У вас нет непрочитанных обновлений.",

@@ -4647,6 +4647,10 @@
   "updatesMarkSeen": "Mark seen",
   "updatesMarkDone": "Mark done",
   "updatesMarkAllSeen": "Mark all seen",
+  "updatesRefreshFailedBanner": "Couldn't refresh updates. Your list may be out of date.",
+  "@updatesRefreshFailedBanner": {
+    "description": "Non-blocking banner when the Updates feed refresh fails."
+  },
   "updatesEmptyTitle": "Nothing new",
   "updatesEmptyAllHint": "New activity will appear here.",
   "updatesEmptyUnreadHint": "You have no unread updates.",

@@ -11,6 +11,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 import '../widget/updates_receipt_card.dart';
+import '../widget/updates_refresh_error_banner.dart';
 
 @RoutePage()
 /// Updates feed presenter.
@@ -139,26 +140,40 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                   }
                   return RefreshIndicator.adaptive(
                     onRefresh: context.read<UpdatesFeedCubit>().refresh,
-                    child: ListView.separated(
+                    child: CustomScrollView(
                       key: PageStorageKey<String>('updates-${state.view.name}'),
                       controller: _scrollController,
-                      itemCount:
-                          state.items.length + (state.hasNextPage ? 1 : 0),
-                      separatorBuilder: (_, _) =>
-                          const TenturaHairlineDivider(),
-                      itemBuilder: (context, index) =>
-                          index == state.items.length
-                          ? const _LoadMoreIndicator()
-                          : UpdatesReceiptCard(
-                              receipt: state.items[index],
-                              onTap: () => _open(context, state.items[index]),
-                              onMarkSeen: () => context
-                                  .read<UpdatesFeedCubit>()
-                                  .markSeen(state.items[index].id),
-                              onSettle: () => context
-                                  .read<UpdatesFeedCubit>()
-                                  .settle(state.items[index].id),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        if (state.hasRefreshError)
+                          SliverToBoxAdapter(
+                            child: UpdatesRefreshErrorBanner(
+                              onRetry: () => unawaited(
+                                context.read<UpdatesFeedCubit>().refresh(),
+                              ),
                             ),
+                          ),
+                        SliverList.separated(
+                          itemCount: state.items.length +
+                              (state.hasNextPage ? 1 : 0),
+                          separatorBuilder: (_, _) =>
+                              const TenturaHairlineDivider(),
+                          itemBuilder: (context, index) =>
+                              index == state.items.length
+                              ? const _LoadMoreIndicator()
+                              : UpdatesReceiptCard(
+                                  receipt: state.items[index],
+                                  onTap: () =>
+                                      _open(context, state.items[index]),
+                                  onMarkSeen: () => context
+                                      .read<UpdatesFeedCubit>()
+                                      .markSeen(state.items[index].id),
+                                  onSettle: () => context
+                                      .read<UpdatesFeedCubit>()
+                                      .settle(state.items[index].id),
+                                ),
+                        ),
+                      ],
                     ),
                   );
                 },
