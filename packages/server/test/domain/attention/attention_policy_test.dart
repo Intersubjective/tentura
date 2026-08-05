@@ -54,6 +54,7 @@ void main() {
               'coordinationItemId',
               'targetEntityId',
               'messageId',
+              'beaconTitle',
             }),
           ),
         );
@@ -126,7 +127,10 @@ void main() {
         recipientReasons: const {
           AttentionRecipientReason.affectedParticipant,
         },
-        role: _baseRole.copyWith(canReadBeaconContent: false),
+        role: _baseRole.copyWith(
+          canReadBeaconContent: false,
+          beaconTitle: 'Secret request name',
+        ),
       );
 
       expect(projection.accessPolicy, AttentionAccessPolicy.recipientSafe);
@@ -135,8 +139,32 @@ void main() {
         AttentionDestinationKind.safeTerminal,
       );
       expect(projection.presentationKey, 'offer_removed');
+      expect(projection.presentationPayload, isNot(contains('beaconTitle')));
     },
   );
+
+  test('beaconTitle is included only when recipient can read beacon content', () {
+    final entitled = policy.project(
+      eventType: AttentionEventType.commitmentAccepted,
+      recipientId: 'recipient',
+      recipientReasons: const {AttentionRecipientReason.targetOfAsk},
+      role: _baseRole.copyWith(beaconTitle: 'Garden cleanup'),
+    );
+    final restricted = policy.project(
+      eventType: AttentionEventType.offerDeclined,
+      recipientId: 'removed-helper',
+      recipientReasons: const {
+        AttentionRecipientReason.affectedParticipant,
+      },
+      role: _baseRole.copyWith(
+        canReadBeaconContent: false,
+        beaconTitle: 'Garden cleanup',
+      ),
+    );
+
+    expect(entitled.presentationPayload['beaconTitle'], 'Garden cleanup');
+    expect(restricted.presentationPayload, isNot(contains('beaconTitle')));
+  });
 
   test('beacon-scoped attention requires a semantic relationship', () {
     expect(

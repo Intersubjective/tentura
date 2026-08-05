@@ -393,3 +393,45 @@ TESTS: see step checkpoints; server `dart test --exclude-tags pg` 1177; client `
 FILES: packages/server/lib/domain/{entity/beacon_notification_intent,attention/attention_models,attention/attention_policy,notification/beacon_notification_copy_builder}.dart, packages/server/lib/data/repository/attention_dispatch_repository.dart, packages/server/lib/domain/use_case/{attention_intent_case,coordination_item/*}.dart, packages/server/test/domain/notification/beacon_notification_copy_builder_test.dart, packages/client/lib/features/updates/{updates_receipt_display_copy,ui/widget/updates_receipt_card,ui/screen/updates_screen}.dart, packages/client/test/features/updates/*, packages/client/l10n/app_{en,ru}.arb, packages/client/pubspec.yaml, packages/client/web/index.html, docs/plans/updates-consistency-issue-102-journal.md
 FINDINGS: Producers without beacon title on hot path (no extra DB): all `commitmentChanged` call sites (accept/resolve/redirect/cancel/resolution), plan-step add/resolve, remind_coordination_item, resolve_blocker, cancel_promise — copy still names action via excerpt/item noun; client request line appears when `presentationPayload.beaconTitle` is set from populated producers. Lock-screen safe copy unchanged.
 REMAINING: none for U4
+
+### 2026-08-05 — U4 remediation — defect found in manager review
+
+**Defect:** U4 added `beaconTitle` to `AttentionPolicy._presentationPayload`, but
+`QueryAttention._mapReceipt` allow-listed only opaque ids. Any receipt with a
+non-null request title caused `attentionFeed` to throw
+`StateError('Unexpected attention presentation payload')` — a full Updates
+outage on the surface #102 exists to fix. No test exercised the allow-list;
+`legacy_canonical_compat_fixture_test.dart` uses empty payloads only.
+
+**Fix:**
+1. Added `beaconTitle` to `QueryAttention.attentionPresentationPayloadAllowedKeys`
+   and extracted `validateAttentionPresentationPayload` as a `@visibleForTesting`
+   seam.
+2. Gated `beaconTitle` emission on `role.canReadBeaconContent` so
+   `recipient_safe` events (`offer_declined`, `offer_removed`,
+   `room_member_removed`) do not leak request titles after access loss.
+
+**Guard-bites proof:** temporarily added `'junkKey': 'probe'` to
+`_presentationPayload`; `query_attention_payload_test.dart` bridge test
+(`policy presentation payload survives GraphQL allow-list`) went **red**;
+removed junk key, green again.
+
+### 2026-08-05 — U4 remediation — final
+
+STATUS: complete
+COMMITS: 75033468 fix(#102-U4): allow beaconTitle in attention payload and gate on read access; dfe1d68f test(#102-U4): guard attention payload allow-list and beaconTitle privacy
+TESTS:
+- `dart analyze` — 0 errors
+- `dart test --exclude-tags pg` — 1182 passed (+5 vs U4 baseline 1177)
+- `dart test --tags pg` — 230 passed, 2 skipped, 19 failed (18 pre-existing in
+  `realtime_notification_migration_test.dart` and `beacon_cover_migration_test.dart`;
+  plus 1 pre-existing in `commitment_attention_pg_test.dart` idempotency case — fails
+  with and without this remediation)
+- `flutter test` — 1630 passed, 14 skipped
+- `bash scripts/check-custom-lints.sh packages/server` — total 0
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113)
+FILES: packages/server/lib/api/controllers/graphql/query/query_attention.dart, packages/server/lib/domain/attention/attention_policy.dart, packages/server/test/api/controllers/graphql/query_attention_payload_test.dart, packages/server/test/domain/attention/attention_policy_test.dart, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: privacy gate aligns `beaconTitle` with existing `canReadBeaconContent` /
+`recipient_safe` access policy; client card unchanged — entitled recipients still
+receive the title in `presentationPayloadJson`.
+REMAINING: none for U4 remediation
