@@ -649,9 +649,8 @@ core-verify unit.
 - `cd packages/tentura_lints && dart test` → 18/18 green
 - `./scripts/check-custom-lints.sh packages/server` → 0/0 baseline
 
-**Commits (2, not pushed):**
-- `TBD` test(commitment): P3.12 — 18-scenario gate integration suite
-- `TBD` docs(commitment): U08 P3.12 journal checkpoint
+**Commits (1, not pushed):**
+- `4a94ca81` test(commitment): P3.12 — 18-scenario gate integration suite (includes journal checkpoint)
 
 **Remaining:** U10 CORE VERIFY + `kDefaultMinClientVersion` bump.
 
