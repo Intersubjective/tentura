@@ -167,5 +167,16 @@ guidance). No product behavior wired yet — P2+ will call `CommitmentRepository
 
 **Remaining:** U02 (P2) — record facts at all write points.
 
-(workers append dated entries here before exit; orchestrator appends review
-verdicts)
+### 2026-08-05 — U01 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test test/domain/commitment/
+commitment_state_test.dart` (16/16 green) and `dart test -x pg` (1200/1200
+green, no regressions) on the worker's HEAD. Inspected `m0139.dart` against
+plan §3 step-by-step — matches exactly, including backfill ordering (8a before
+9-11a). Inspected `commitment_state.dart`, `commitment_repository.dart`,
+`commitment_query_case.dart` — match plan §1.3-§1.5 signatures and semantics
+(self-sorting predicates, `customInsert` without `seq`, transactional
+projection update, exactly 4 query-case methods, no `hasMaterialRoomWork`).
+Confirmed `HelpOfferRepositoryPort.fetchAllByBeaconId` and
+`HelpOfferEntity.isActive` exist as used. No pre-existing untracked files were
+touched. Proceeding to U02.
