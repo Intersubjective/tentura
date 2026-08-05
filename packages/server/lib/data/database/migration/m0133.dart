@@ -2,6 +2,7 @@ part of '_migrations.dart';
 
 /// Room message NOTIFY extras (`message_id`) and attachment invalidation.
 final m0133 = Migration('0133', [
+  'DROP FUNCTION IF EXISTS public.emit_realtime_entity_change(text, text, text, text[]);',
   r'''
 CREATE OR REPLACE FUNCTION public.emit_realtime_entity_change(
   p_entity text,

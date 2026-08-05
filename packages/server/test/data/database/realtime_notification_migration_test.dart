@@ -56,9 +56,16 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       // Migrant only applies versions above the highest recorded one, so every
-      // migration appended after this test was written must be unwound here as
-      // well — otherwise the re-application below is a silent no-op and the
-      // m0117-m0120 columns never come back.
+      // migration appended after this test was written (currently m0132–m0138)
+      // must be unwound here as well — otherwise the re-application below is a
+      // silent no-op and the m0115–m0120 columns never come back.
+      await _rollBackM0138ForTest(writer);
+      await _rollBackM0137ForTest(writer);
+      await _rollBackM0136ForTest(writer);
+      await _rollBackM0135ForTest(writer);
+      await _rollBackM0134ForTest(writer);
+      await _rollBackM0133ForTest(writer);
+      await _rollBackM0132ForTest(writer);
       await _rollBackM0131ForTest(writer);
       await _rollBackM0130ForTest(writer);
       await _rollBackM0129ForTest(writer);
@@ -1387,6 +1394,9 @@ INSERT INTO public.beacon_participant (
             'userId': ownerId,
           },
         );
+        await _settle();
+        notifications.clear();
+
         await writer.execute(
           Sql.named('''
 INSERT INTO public.beacon_room_message (
@@ -1400,7 +1410,6 @@ INSERT INTO public.beacon_room_message (
           },
         );
         await _settle();
-        notifications.clear();
 
         List<Map<String, dynamic>> insertChanges() => _ofKind(
           notifications,
@@ -1791,6 +1800,114 @@ Future<bool> _canConnect(Env env) async {
     return true;
   } on Object {
     return false;
+  }
+}
+
+Future<void> _rollBackM0138ForTest(Connection connection) async {
+  for (final statement in const [
+    r'''
+ALTER TABLE public.user_block_intent
+  DROP CONSTRAINT IF EXISTS user_block_intent_cascade_mode_check
+''',
+    r'''
+ALTER TABLE public.user_block_intent
+  ADD CONSTRAINT user_block_intent_cascade_mode_check
+    CHECK (cascade_mode IN (0, 1, 2))
+''',
+    r'''
+CREATE OR REPLACE FUNCTION public.block_cascade_candidates(
+  _blocker text, _root text, _mode smallint, _max_depth integer, _limit integer
+) RETURNS TABLE (user_id text, depth integer)
+  LANGUAGE sql STABLE AS $$
+WITH RECURSIVE sub AS (
+  SELECT g.descendant_node_key AS k, g.descendant_user_id AS uid, 1 AS depth
+  FROM public.invite_genealogy g
+  WHERE g.ancestor_user_id = _root
+  UNION ALL
+  SELECT g.descendant_node_key, g.descendant_user_id, s.depth + 1
+  FROM public.invite_genealogy g
+  JOIN sub s ON g.ancestor_node_key = s.k
+  WHERE s.depth < _max_depth
+    AND s.uid IS DISTINCT FROM _blocker
+    AND (s.uid IS NULL
+         OR _mode = 2
+         OR public.block_cascade_unattached(_blocker, _root, s.uid))
+)
+SELECT s.uid, min(s.depth)::int
+FROM sub s
+WHERE s.uid IS NOT NULL
+  AND s.uid <> _blocker
+  AND (_mode = 2 OR public.block_cascade_unattached(_blocker, _root, s.uid))
+GROUP BY s.uid
+ORDER BY 2, 1
+LIMIT _limit;
+$$;
+''',
+    "DELETE FROM public.schema_version WHERE version = '0138'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0137ForTest(Connection connection) async {
+  // m0137 only replaces trust_rebuild_effective_edge; dropping the version row
+  // lets migrateDbSchema replay past the pre-withdrawal-gate body.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0137'",
+  );
+}
+
+Future<void> _rollBackM0136ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TRIGGER IF EXISTS user_block_inherit_trg ON public.invite_genealogy',
+    'DROP FUNCTION IF EXISTS public.user_block_inherit_on_invite()',
+    'DROP FUNCTION IF EXISTS public.graph_edges_between(text[], boolean, json)',
+    "DELETE FROM public.schema_version WHERE version = '0136'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0135ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE IF EXISTS public.user_block_intent',
+    'DROP TABLE IF EXISTS public.user_block',
+    'DROP FUNCTION IF EXISTS public.block_cascade_candidates(text, text, smallint, integer, integer)',
+    'DROP FUNCTION IF EXISTS public.block_cascade_unattached(text, text, text)',
+    'DROP FUNCTION IF EXISTS public.block_hides(text, text)',
+    "DELETE FROM public.schema_version WHERE version = '0135'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0134ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP FUNCTION IF EXISTS public.graph_edges_between(text[], boolean)',
+    "DELETE FROM public.schema_version WHERE version = '0134'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0133ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TRIGGER IF EXISTS beacon_room_message_attachment_notify '
+        'ON public.beacon_room_message_attachment',
+    'DROP FUNCTION IF EXISTS public.notify_room_message_attachment_change()',
+    'DROP FUNCTION IF EXISTS public.emit_realtime_entity_change(text, text, text, text[], jsonb)',
+    "DELETE FROM public.schema_version WHERE version = '0133'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0132ForTest(Connection connection) async {
+  for (final statement in const [
+    'ALTER TABLE public.beacon DROP COLUMN IF EXISTS cover_thumb_image_id',
+    "DELETE FROM public.schema_version WHERE version = '0132'",
+  ]) {
+    await connection.execute(statement);
   }
 }
 
