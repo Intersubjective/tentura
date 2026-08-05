@@ -11,7 +11,11 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+
+import '../../support/recording_commitment_repository.dart';
 
 /// Returns no coordination responses for graph builder tests.
 final class EmptyGraphCoordinationRepository
@@ -88,8 +92,7 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async => [];
 
   @override
-  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
-      throw UnimplementedError();
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async => [];
 
   @override
   Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
@@ -339,6 +342,223 @@ final class StubUserRepository implements UserRepositoryPort {
     required String userId,
     bool bindFriendship = true,
   }) => throw UnimplementedError();
+}
+
+/// Commitment history for one acknowledged helper (active offer, current stake).
+RecordingCommitmentRepository acknowledgedCommitterCommitmentRepo({
+  required String beaconId,
+  required String helperId,
+  required String authorId,
+  DateTime? baseTime,
+  Duration? withdrawAfterAck,
+}) {
+  final t0 = baseTime ?? DateTime.utc(2025);
+  final events = <CommitmentEvent>[
+    CommitmentEvent(
+      id: 'CE-offered',
+      seq: 1,
+      beaconId: beaconId,
+      userId: helperId,
+      actorUserId: helperId,
+      kind: CommitmentEventKind.offered,
+      createdAt: t0,
+    ),
+    CommitmentEvent(
+      id: 'CE-ack',
+      seq: 2,
+      beaconId: beaconId,
+      userId: helperId,
+      actorUserId: authorId,
+      kind: CommitmentEventKind.acknowledged,
+      createdAt: t0.add(const Duration(hours: 1)),
+    ),
+  ];
+  if (withdrawAfterAck != null) {
+    events.add(
+      CommitmentEvent(
+        id: 'CE-withdraw',
+        seq: 3,
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: helperId,
+        kind: CommitmentEventKind.withdrawnByHelper,
+        createdAt: t0.add(const Duration(hours: 1)).add(withdrawAfterAck),
+      ),
+    );
+  }
+  return RecordingCommitmentRepository(
+    eventsByPair: {commitmentPairKey(beaconId, helperId): events},
+  );
+}
+
+final class ConfigurableGraphHelpOfferRepository
+    implements HelpOfferRepositoryPort {
+  ConfigurableGraphHelpOfferRepository(this._offers);
+
+  final List<HelpOfferEntity> _offers;
+
+  @override
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
+      _offers.where((o) => o.beaconId == beaconId && o.isActive).toList();
+
+  @override
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async =>
+      _offers.where((o) => o.beaconId == beaconId).toList();
+
+  @override
+  Future<void> upsert({
+    required String beaconId,
+    required String userId,
+    String message = '',
+    List<String>? helpTypes,
+    int status = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> withdraw({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String message = '',
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<bool> hasActiveHelpOffer({
+    required String beaconId,
+    required String userId,
+  }) =>
+      throw UnimplementedError();
+}
+
+final class ConfigurableGraphForwardEdgeRepository
+    implements ForwardEdgeRepositoryPort {
+  ConfigurableGraphForwardEdgeRepository(this._edges);
+
+  final List<ForwardEdgeEntity> _edges;
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) async =>
+      _edges.where((e) => e.beaconId == beaconId).toList();
+
+  @override
+  Future<ForwardEdgeEntity?> fetchById(String edgeId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<bool> existsWithParent(String parentEdgeId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> cancel(String edgeId, String senderId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> updateNote(String edgeId, String senderId, String note) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> markAsRead(String edgeId, String recipientId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> create({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    required String note,
+    String? context,
+    String? parentEdgeId,
+    String? batchId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<String>> createBatch({
+    required String beaconId,
+    required String senderId,
+    required List<String> recipientIds,
+    required String batchId,
+    required String Function(String recipientId) noteForRecipient,
+    String? context,
+    String? parentEdgeId,
+    Future<void> Function()? onAfterEdgesInserted,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({
+    required String beaconId,
+    required String helpOffererId,
+    required String viewerId,
+  }) async =>
+      [];
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchByRecipientId(
+    String recipientId, {
+    String? context,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<bool> isDirectAuthorForward({
+    required String beaconId,
+    required String authorId,
+    required String userId,
+  }) async =>
+      false;
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) async =>
+      [];
+
+  @override
+  Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
+    required String beaconId,
+    required String recipientId,
+  }) async =>
+      [];
+
+  @override
+  Future<List<ForwardEdgeEntity>> fetchAllByBeaconId(String beaconId) async =>
+      _edges.where((e) => e.beaconId == beaconId).toList();
+
+  @override
+  Future<int> countPriorOutgoingBatches({
+    required String beaconId,
+    required String senderId,
+    required String batchId,
+  }) async =>
+      0;
+
+  @override
+  Future<ForwardEdgeEntity?> findActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+  }) async =>
+      null;
+
+  @override
+  Future<void> createForInviteAccept({
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    String? parentEdgeId,
+  }) async {}
 }
 
 final class StubUserProfileBatchLookup implements UserProfileBatchLookup {

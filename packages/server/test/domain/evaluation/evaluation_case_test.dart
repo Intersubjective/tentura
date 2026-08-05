@@ -6,11 +6,8 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
-import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
@@ -31,6 +28,7 @@ import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purge
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
+import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
 import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -461,8 +459,8 @@ void main() {
     final userProfileBatchLookup = StubUserProfileBatchLookup('User');
 
     final graphBuilder = EvaluationParticipantGraphBuilder(
+      NoOpCommitmentRepository(),
       helpOfferRepo,
-      EmptyGraphCoordinationRepository(),
       forwardRepo,
       userRepo,
     );
@@ -821,8 +819,8 @@ void main() {
       final userRepo = StubUserRepository('User');
       final userProfileBatchLookup = StubUserProfileBatchLookup('User');
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        NoOpCommitmentRepository(),
         helpOfferRepo,
-        EmptyGraphCoordinationRepository(),
         forwardRepo,
         userRepo,
       );
@@ -893,15 +891,18 @@ void main() {
           updatedAt: now,
         ),
       );
-      final coordinationRepo = _SingleCommitterCoordinationRepo(
-        CoordinationResponseType.useful.smallintValue,
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: 'helper1',
+        authorId: userId,
+        baseTime: now,
       );
       final forwardRepo = EmptyGraphForwardEdgeRepository();
       final userRepo = StubUserRepository('User');
       final userProfileBatchLookup = StubUserProfileBatchLookup('User');
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
         helpOfferRepo,
-        coordinationRepo,
         forwardRepo,
         userRepo,
       );
@@ -960,8 +961,8 @@ void main() {
         ),
       );
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        NoOpCommitmentRepository(),
         EmptyGraphHelpOfferRepository(),
-        EmptyGraphCoordinationRepository(),
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
@@ -1033,11 +1034,15 @@ void main() {
           updatedAt: now,
         ),
       );
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: 'helper1',
+        authorId: userId,
+        baseTime: now,
+      );
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
         helpOfferRepo,
-        _SingleCommitterCoordinationRepo(
-          CoordinationResponseType.useful.smallintValue,
-        ),
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
@@ -1128,11 +1133,15 @@ void main() {
           updatedAt: now,
         ),
       );
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: 'helper1',
+        authorId: userId,
+        baseTime: now,
+      );
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
         helpOfferRepo,
-        _SingleCommitterCoordinationRepo(
-          CoordinationResponseType.useful.smallintValue,
-        ),
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
@@ -1211,8 +1220,8 @@ void main() {
           ),
         );
         final graphBuilder = EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
           EmptyGraphHelpOfferRepository(),
-          EmptyGraphCoordinationRepository(),
           EmptyGraphForwardEdgeRepository(),
           StubUserRepository('User'),
         );
@@ -1288,8 +1297,8 @@ void main() {
         ),
       );
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        NoOpCommitmentRepository(),
         EmptyGraphHelpOfferRepository(),
-        EmptyGraphCoordinationRepository(),
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
@@ -1355,8 +1364,8 @@ void main() {
 
     EvaluationCase buildCase() {
       final graphBuilder = EvaluationParticipantGraphBuilder(
+        NoOpCommitmentRepository(),
         EmptyGraphHelpOfferRepository(),
-        EmptyGraphCoordinationRepository(),
         EmptyGraphForwardEdgeRepository(),
         StubUserRepository('User'),
       );
@@ -1514,8 +1523,9 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
   }) => throw UnimplementedError();
 
   @override
-  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
-      throw UnimplementedError();
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async => [
+    _offer,
+  ];
 
   @override
   Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
@@ -1525,60 +1535,5 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
   Future<bool> hasActiveHelpOffer({
     required String beaconId,
     required String userId,
-  }) => throw UnimplementedError();
-}
-
-final class _SingleCommitterCoordinationRepo
-    implements CoordinationRepositoryPort {
-  _SingleCommitterCoordinationRepo(this._responseType);
-
-  final int _responseType;
-
-  @override
-  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
-    String beaconId,
-  ) async => {'helper1': _responseType};
-
-  @override
-  Future<void> upsertResponse({
-    required String beaconId,
-    required String offerUserId,
-    required String authorUserId,
-    required int responseType,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> acceptHelpOffer({
-    required String beaconId,
-    required String offerUserId,
-    required String actorUserId,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> declineHelpOffer({
-    required String beaconId,
-    required String offerUserId,
-    required String actorUserId,
-    required String reason,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})> removeFromRoom({
-    required String beaconId,
-    required String offerUserId,
-    required String actorUserId,
-    required String reason,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<({BeaconStatus status, DateTime? statusChangedAt})>
-  beaconStatusSnapshot(
-    String beaconId,
-  ) async => (status: BeaconStatus.open, statusChangedAt: null);
-
-  @override
-  Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
-    String beaconId, {
-    required String viewerId,
   }) => throw UnimplementedError();
 }

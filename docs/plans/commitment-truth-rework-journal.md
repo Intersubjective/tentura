@@ -44,7 +44,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       coordination_case, user_block_case, remove `deleteForCommit`, P2 tests)
 - [x] U03 — P3.1+P3.2+P3.3: Cancel/Delete gates switch to `everHadCommitter`;
       `formerCommitter` role added everywhere it's exhaustively matched
-- [ ] U04 — P3.4: review-composition graph builder rewritten on commitment
+- [x] U04 — P3.4: review-composition graph builder rewritten on commitment
       events
 - [ ] U05 — P3.5+P3.6+P3.7: Close review-window trigger, `unansweredAtClose`
       write, `_canCloseNow` former-committer exclusion, reopen limit
@@ -257,7 +257,47 @@ from `BeaconCase` constructor (only used by old gates). Added
 `test/support/noop_commitment_query_case.dart` for other BeaconCase tests.
 Cancel error description updated to plan wording (“ever had a committer”).
 
-**Remaining:** U04 (P3.4) — review-composition graph builder.
+**Remaining:** U05 (P3.5+P3.6+P3.7) — Close review-window trigger, close-now,
+reopen limit.
+
+### 2026-08-05 — U04 P3.4 review-composition graph builder (worker)
+
+**Done:** Implemented plan §5 P3.4 only.
+
+- **Builder:** `EvaluationParticipantGraphBuilder` injects
+  `CommitmentRepositoryPort` (not `CommitmentQueryCase`); drops
+  `CoordinationRepositoryPort`. `build` derives `everAck` /
+  `current` via `everAcknowledged` / `hasCurrentStake` on
+  `eventsByUser`; roles `committer` vs `formerCommitter`; former
+  summaries/hints append ` — participation ended`; forwarders computed
+  over `everAck`; offer `message`/`createdAt` from `fetchAllByBeaconId`.
+- **Tests:** new `evaluation_participant_graph_builder_test.dart` (5
+  scenarios: former after 30h withdraw, grace withdraw absent, active
+  committer regression, participation-ended suffix, forwarder to former).
+- **Fixture updates:** `evaluation_case_test.dart` beaconClose groups now
+  seed `RecordingCommitmentRepository` instead of coordination response
+  map; removed `_SingleCommitterCoordinationRepo` (orphaned by P3.4).
+  `evaluation_graph_test_repos.dart` adds `acknowledgedCommitterCommitmentRepo`,
+  configurable help-offer/forward repos, `fetchAllByBeaconId` on empty stub.
+
+**Test assertion updates (journal record):** `evaluation_case_test.dart`
+beaconClose paths that previously relied on `_SingleCommitterCoordinationRepo`
++ active-offer intersection now require acknowledged commitment events —
+same product behavior (active acknowledged helper opens review window),
+different data source aligned with P3.4.
+
+**Tests run (all passed):**
+- `cd packages/server && dart run build_runner build -d`
+- `cd packages/server && dart test -x pg` → 1221/1221 green (+5 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0 custom lint issues
+
+**Decisions:** `requiresReviewWindow` in `EvaluationCase.beaconClose` still
+counts only `committer` role (not `formerCommitter`) — P3.5 scope (U05).
+Former committers are included in review participant scaffolding and
+visibility via P3.3 rules.
+
+**Remaining:** U05 (P3.5+P3.6+P3.7).
 
 ### 2026-08-05 — U01 review (orchestrator)
 
