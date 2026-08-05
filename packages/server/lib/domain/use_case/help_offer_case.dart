@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -74,11 +75,17 @@ final class HelpOfferCase extends UseCaseBase {
       userId: userId,
     );
     if (hasActive) {
+      final existingOffers =
+          await _helpOfferRepository.fetchByBeaconId(beaconId);
+      final existingOfferKind = existingOffers
+          .firstWhere((o) => o.userId == userId)
+          .offerKind;
       await _helpOfferRepository.upsert(
         beaconId: beaconId,
         userId: userId,
         message: message,
         helpTypes: helpTypes,
+        offerKind: existingOfferKind,
       );
       if (helpTypes != null && helpTypes.isNotEmpty) {
         for (final type in helpTypes) {
@@ -101,6 +108,8 @@ final class HelpOfferCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.authorCannotCommit,
       );
     }
+    final offerKind =
+        beacon.status == BeaconStatus.enoughHelp ? 1 : 0;
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
@@ -109,6 +118,7 @@ final class HelpOfferCase extends UseCaseBase {
           userId: userId,
           message: message,
           helpTypes: helpTypes,
+          offerKind: offerKind,
         );
         await _commitmentRepository.record(
           beaconId: beaconId,

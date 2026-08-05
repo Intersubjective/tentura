@@ -78,6 +78,7 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
+    int offerKind = 0,
   }) => throw UnimplementedError();
 
   @override
@@ -412,6 +413,7 @@ final class ConfigurableGraphHelpOfferRepository
     String message = '',
     List<String>? helpTypes,
     int status = 0,
+    int offerKind = 0,
   }) =>
       throw UnimplementedError();
 

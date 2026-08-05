@@ -25,6 +25,7 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
+    int offerKind = 0,
   }) => _database.withMutatingUser(userId, () async {
     final helpTypesJson = helpTypes?.isEmpty ?? true
         ? null
@@ -36,6 +37,7 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         message: Value(message),
         helpType: Value(helpTypesJson),
         status: Value(status),
+        offerKind: Value(offerKind),
       ),
       onConflict: DoUpdate(
         (_) => BeaconHelpOffersCompanion(
@@ -45,6 +47,7 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
               ? const Value(null)
               : const Value.absent(),
           status: Value(status),
+          offerKind: Value(offerKind),
           updatedAt: Value(PgDateTime(DateTime.timestamp())),
         ),
       ),

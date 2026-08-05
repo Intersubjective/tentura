@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -270,11 +271,23 @@ void main() {
           userId: 'U1',
         ),
       ).thenAnswer((_) async => true);
+      when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: now,
+            updatedAt: now,
+            offerKind: 0,
+          ),
+        ],
+      );
       when(
         helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
+          offerKind: 0,
         ),
       ).thenAnswer((_) => Future.value());
 
@@ -285,6 +298,103 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
+          offerKind: 0,
+        ),
+      ).called(1);
+    });
+  });
+
+  group('offerHelp — offerKind assignment (P6)', () {
+    void stubNewOffer(BeaconStatus status) {
+      stubBeacon(beacon(id: 'B1', status: status));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: anyNamed('offerKind'),
+        ),
+      ).thenAnswer((_) async {});
+    }
+
+    test('enoughHelp beacon persists offerKind 1', () async {
+      stubNewOffer(BeaconStatus.enoughHelp);
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: 1,
+        ),
+      ).called(1);
+    });
+
+    test('open beacon persists offerKind 0', () async {
+      stubNewOffer(BeaconStatus.open);
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: 0,
+        ),
+      ).called(1);
+    });
+
+    test('needsMoreHelp beacon persists offerKind 0', () async {
+      stubNewOffer(BeaconStatus.needsMoreHelp);
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: 0,
+        ),
+      ).called(1);
+    });
+
+    test('re-upsert preserves original offerKind when beacon status changed',
+        () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => true);
+      when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: now,
+            updatedAt: now,
+            offerKind: 0,
+          ),
+        ],
+      );
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          message: 'updated',
+          offerKind: 0,
+        ),
+      ).thenAnswer((_) async {});
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'updated');
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          message: 'updated',
+          offerKind: 0,
         ),
       ).called(1);
     });
@@ -362,6 +472,16 @@ void main() {
         when(
           helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
         ).thenAnswer((_) async => true);
+        when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+          (_) async => [
+            HelpOfferEntity(
+              beaconId: 'B1',
+              userId: 'U1',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ],
+        );
         when(
           helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
         ).thenAnswer((_) => Future.value());

@@ -67,16 +67,19 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
+    int offerKind = 0,
   }) async {
     final now = _clock();
+    final existing = _offers[_key(beaconId, userId)];
     _offers[_key(beaconId, userId)] = HelpOfferEntity(
       beaconId: beaconId,
       userId: userId,
       message: message,
       helpType: helpTypes?.isNotEmpty == true ? helpTypes!.first : null,
-      createdAt: _offers[_key(beaconId, userId)]?.createdAt ?? now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       status: status,
+      offerKind: offerKind,
     );
   }
 

@@ -64,8 +64,12 @@ final class BeaconDisplayCase extends UseCaseBase {
 
       final hasUnreviewed =
           beacon.status.isOpenFamily &&
-          activeOffers > 0 &&
-          offers.any((o) => o.status == 0 && coords[o.userId] == null);
+          offers.any(
+            (o) =>
+                o.status == 0 &&
+                o.offerKind == 0 &&
+                coords[o.userId] == null,
+          );
 
       DateTime? reviewClosesAt;
       int? reviewWindowStatus;

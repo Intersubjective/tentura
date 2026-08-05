@@ -564,6 +564,7 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
     String? message = '',
     List<String>? helpTypes,
     int? status = 0,
+    int? offerKind = 0,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#upsert, [], {
@@ -572,6 +573,7 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
               #message: message,
               #helpTypes: helpTypes,
               #status: status,
+              #offerKind: offerKind,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

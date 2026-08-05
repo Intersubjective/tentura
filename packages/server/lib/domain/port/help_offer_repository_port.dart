@@ -7,6 +7,7 @@ abstract class HelpOfferRepositoryPort {
     String message = '',
     List<String>? helpTypes,
     int status = 0,
+    int offerKind = 0,
   });
 
   Future<void> withdraw({
