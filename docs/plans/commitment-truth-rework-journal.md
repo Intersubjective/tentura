@@ -1088,3 +1088,30 @@ add `beaconCloseUnansweredOffersWarning` or `beaconCloseAnyway` per plan.
 
 P8.2–P8.5 acceptance verified green on `feat/commitment-truth-rework`. Journal
 checklist U15 marked complete. Proceeding to U16 (P9).
+
+### 2026-08-05 — U15 review (orchestrator)
+
+**Verdict: ACCEPTED**, plus one small orchestrator-applied fix. Confirmed the
+worker correctly verified (not redid) P3.11's client DTO plumbing before
+starting — exactly the scope discipline the prompt asked for. Verified
+`beacon_lifecycle_ui.dart`'s rewrite matches the plan's formula precisely,
+with both heuristic bodies preserved byte-for-byte as fallbacks.
+
+**Baseline ratchet:** the worker's P8.3 close-sheet patch fixed a pre-existing
+`no_raw_edge_insets` violation as a side effect (switched a raw-number
+`EdgeInsets` to `tt.tightGap` spacing tokens while adding the new action row),
+bringing the client custom-lint count from 112 to 111 — but did not lower
+`scripts/custom-lint-baseline.txt` to match, even though the script itself
+prints "Lower the baseline... to lock the improvement in" and the file's own
+header says "The number may only go DOWN. Fix violations, then lower the
+baseline." This is exactly the kind of small, local, unambiguous fix the
+overseer's remediation guidance says to apply directly rather than dispatch a
+worker for: updated the baseline file's count (112→111) and its dated
+category breakdown comment, re-ran `check-custom-lints.sh packages/client` to
+confirm it now reads `111 (baseline: 111)` — locking in the improvement so a
+future regression back to 112 will be caught.
+
+Independently re-ran `dart test -x pg` (1260/1260, confirming server
+untouched), server custom-lints (0/0), terminology check (ok), and full
+client `flutter test` (1679 passed, 14 skipped). Proceeding to U16 (P9 —
+issue #108).
