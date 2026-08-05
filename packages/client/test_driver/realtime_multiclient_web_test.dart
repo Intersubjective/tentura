@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:tentura/ui/test_ids.dart';
 import 'package:webdriver/async_io.dart' hide TimeoutException;
 
 const _appOrigin = 'https://dev.lvh.me:9443';
@@ -275,20 +276,18 @@ Future<void> _runJourney({
     helper.waitForText(title),
     helperPeer.waitForText(title),
   ]);
+  final unreadBeforeProbe = await _roomUnreadFromStatus(helper, beaconId);
   await author.sendChatMessage(myWorkUnreadMessage);
   await author.waitForText(myWorkUnreadMessage);
-  await helper.waitForTestIdText(
-    'my_work.room_status.$beaconId',
-    '+1',
+  await _waitUntil(
+    () async =>
+        await _roomUnreadFromStatus(helper, beaconId) == unreadBeforeProbe + 1,
   );
   await helperPeer.open('/beacon/view/$beaconId');
   await helperPeer.clickTestId('beacon.room.open');
   await helperPeer.waitForText(myWorkUnreadMessage);
   timings['same_account_my_work_read_ms'] = await _measureUntil(
-    () async => !await helper.testIdTextContains(
-      'my_work.room_status.$beaconId',
-      '+1',
-    ),
+    () async => await _roomUnreadFromStatus(helper, beaconId) == 0,
     timeout: const Duration(seconds: 5),
   );
 
@@ -519,6 +518,31 @@ String _beaconIdFromUrl(String rawUrl) {
   final match = RegExp('/beacon/view/([^/?#]+)').firstMatch(rawUrl);
   if (match == null) throw StateError('No beacon id in $rawUrl');
   return match.group(1)!;
+}
+
+Future<int> _roomUnreadFromStatus(
+  BrowserSession session,
+  String beaconId,
+) async {
+  final testId = TestIds.myWorkRoomStatus(beaconId);
+  final result = await session.driver.execute(
+    '''
+    const wanted = arguments[0];
+    const elements = Array.from(document.querySelectorAll('*'));
+    for (const element of elements) {
+      for (const attr of Array.from(element.attributes || [])) {
+        if (attr.value !== wanted) continue;
+        const text = element.getAttribute('aria-label') ||
+          element.innerText || element.textContent || '';
+        const match = text.match(/\\+(\\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      }
+    }
+    return 0;
+  ''',
+    [testId],
+  );
+  return (result as num?)?.toInt() ?? 0;
 }
 
 Future<int> _measureUntil(
