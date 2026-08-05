@@ -69,9 +69,9 @@ deployment. We still commit once per phase (plan §0.5 format:
 - [x] U14 — P7: My Work offer-response-state row (D3)
 - [x] U15 — P8 (rest): P8.2+P8.3+P8.4+P8.5 — client gate wiring, close-sheet
       patch, l10n, tests
-- [ ] U16 — P9: issue #108 — diagnose-first, Delete explanation, Close-now
+- [x] U16 — P9: issue #108 — diagnose-first, Delete explanation, Close-now
       CTA batch query, idempotency, e2e regression test
-- [ ] U17 — P10: docs (§12.1 table), final verify matrix (§12.2), manual
+- [x] U17 — P10: docs (§12.1 table), final verify matrix (§12.2), manual
       scenario walkthrough, version bump confirmation
 
 ## Acceptance / verification commands (plan §0.3, run after every phase)
@@ -1293,3 +1293,43 @@ Independently re-ran `dart test -x pg` (1260/1260, confirming server
 untouched), server custom-lints (0/0), terminology check (ok), and full
 client `flutter test` (1679 passed, 14 skipped). Proceeding to U16 (P9 —
 issue #108).
+### 2026-08-06 — U17 P10 documentation (worker)
+
+**Done:** Implemented plan §12.1 in full (9 doc targets + `docs/README.md` plans index).
+
+- **CONTEXT.md:** Beacon lifecycle — `Committer`/`Former committer` via append-only
+  `everAcknowledged` (24h grace, any intervening event closes grace); **Cancel** gated on
+  `everHadCommitter`; **Close**/**Wrapping up** on ever-had-committer; **Close now** =
+  author + current committers only; **Reopen** limit `kMaxReviewReopens = 1`; **Deleted**
+  explicit no material-room-work gate (D11); new **Commitment facts** subsection; **Archived**
+  / **Finished card** — close does not auto-archive, review-closed status + Archive CTA (#108).
+- **Tentura_current_status_quo.md §8.2:** accept/decline help offer, private decline reason,
+  backup offers at enough help.
+- **Tentura_current_status_quo.md §9:** former committers in review; departed does not block
+  Close now.
+- **beacon_room.md §Admission:** removed auto-admit; direct-forward chip/sort; backup offers;
+  remove-from-chat ≠ end participation.
+- **beacon-evaluation-principles.md:** former committer role + 24h grace semantics.
+- **before-response-terminal-tombstone.md:** withdraw forbidden in Wrapping up; non-open-family
+  tombstone path block-cleanup only.
+- **watching-mechanism.md:** post-withdraw Watching is system-driven.
+- **docs/README.md:** link in Active plans index.
+
+**§12.2 automated checks (docs subset only):**
+- `bash scripts/check-doc-drift.sh` → ok (first run on this branch for the new script)
+- `bash scripts/check-user-facing-terminology.sh` → ok
+
+Manual §12.2 scenarios (4 numbered) deferred to orchestrator per unit instructions.
+Did not re-run dart/flutter test matrix (docs-only unit). Did not touch
+`pubspec.yaml` or `kDefaultMinClientVersion`.
+
+**Открытые вопросы / unrelated findings:** none from `check-doc-drift.sh`.
+`docs/README.md` had an existing **Active plans** table — link added there (not a new section).
+
+**Remaining:** none for P10 documentation scope.
+
+### 2026-08-06 — U17 final
+
+P10 documentation complete on `feat/commitment-truth-rework`. Commitment truth rework
+plan (P1–P10) documentation and automated doc-consistency checks green. Manual stack
+verification (plan §12.2 scenarios 1–4) left to orchestrator.
