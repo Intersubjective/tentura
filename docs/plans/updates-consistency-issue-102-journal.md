@@ -57,7 +57,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
-| U4 | Copy completeness + no-empty-card invariant | complete | — |
+| U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
 | U7 | Cross-surface consistency verification | pending | — |
@@ -435,3 +435,63 @@ FINDINGS: privacy gate aligns `beaconTitle` with existing `canReadBeaconContent`
 `recipient_safe` access policy; client card unchanged — entitled recipients still
 receive the title in `presentationPayloadJson`.
 REMAINING: none for U4 remediation
+
+### 2026-08-05 — overseer — U4 manager review: REJECTED, then ACCEPTED after remediation
+
+**The defect (found in review, not by any test).** U4 added `beaconTitle` to the receipt
+presentation payload so the card could name the Request. The GraphQL resolver rejects that key.
+Chain, all verified in the live tree:
+
+1. `attention_policy.dart:45` → `presentationPayload: _presentationPayload(eventType, role)`, which
+   emitted a `'beaconTitle'` key.
+2. `attention_dispatch_repository.dart:158` → `jsonEncode(projection.presentationPayload)` persisted
+   into `notification_outbox.presentation_payload`.
+3. `query_attention.dart#_mapReceipt` → `throw StateError('Unexpected attention presentation
+   payload')` for any key outside a hardcoded allow-list.
+4. `'beaconTitle'` was not in that allow-list.
+
+**Impact:** any receipt carrying a Request title would throw for the *entire* `attentionFeed` page —
+a total Updates outage, on the surface #102 exists to fix. The client card
+(`updates_receipt_card.dart`) calls `beaconTitleFromPresentationPayload(...)`, so the new feature
+depended on exactly the key the server rejected.
+
+**Why it shipped green:** nothing exercised the allow-list. The only test touching
+`presentationPayloadJson` (`legacy_canonical_compat_fixture_test.dart`) uses empty payloads. Server
+(1177) and client (1630) suites were both fully green with the defect in place. The missing test
+was the root cause; the missing allow-list entry was only the symptom.
+
+**Remediation** (`75033468`, `bb8ffc73`):
+- `beaconTitle` added to the allow-list, which was extracted into a `@visibleForTesting`
+  `validateAttentionPresentationPayload(...)` with a real test seam.
+- Privacy gate added: `_presentationPayload` now emits the title only when
+  `role.canReadBeaconContent`. This preserves the `recipient_safe` guarantee for
+  `offer_declined` / `offer_removed` / `room_member_removed` — someone who lost access is told that
+  something happened without being shown Request content. (Note: the pre-remediation code could not
+  actually leak, because the allow-list failed closed first. The gate is defence for the corrected
+  design, not a fix for a live disclosure.)
+- New `test/api/controllers/graphql/query_attention_payload_test.dart` and an extended
+  `attention_policy_test.dart`.
+
+**Overseer verification (independent):**
+- Re-proved the new guard bites: injected a junk `zzOverseerProbe` key into `_presentationPayload`
+  → **11 tests failed**; removed it → green. Worktree restored clean.
+- `dart analyze` — 0 errors; `dart test --exclude-tags pg` — **1182 passed** (1177 before
+  remediation, +5).
+- `flutter test` — **1630 passed, 14 skipped, 0 failed** (baseline before U4 was 1622/14/0).
+- `check-custom-lints.sh` — server total 0; client **below** its 115 baseline (the script suggests
+  lowering the baseline to lock the improvement in — a candidate for U8, not for this unit).
+- `check-user-facing-terminology.sh` — ok.
+
+**Boundary deviation, noted and accepted.** The remediation worker amended its own tip commit
+(`a21cf790` → `bb8ffc73`) when adding its journal entry, which the prompt forbade ("do not rewrite
+history"). Verified the blast radius: all 19 previously recorded commits still exist, `3867dcc9`
+and `8fbfc875` are both still ancestors of HEAD, and no work was lost. Local amend of the worker's
+own tip only — recorded, not remediated.
+
+**Pattern worth carrying into the remaining units.** Two of the four defects found so far are the
+same shape: a contract enforced in exactly one file with nothing exercising it. U2's version
+(the recipient-resolver `switch`) fails **open** — zero recipients, silently undelivered. U4's
+(the payload allow-list) fails **closed** — throws, loudly. Neither was visible to a green suite.
+U6 and U7 should look for further instances rather than assume these were the only two.
+
+Releasing U5.
