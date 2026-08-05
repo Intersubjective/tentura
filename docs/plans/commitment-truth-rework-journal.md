@@ -1017,3 +1017,22 @@ Help-offered archived cards share `_FinishedHelpOfferedCard` with finished
 
 P7 acceptance verified green on `feat/commitment-truth-rework`. Journal
 checklist U14 marked complete. Proceeding to U15 (P8 rest).
+
+### 2026-08-05 — U14 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1260/1260
+green, confirming this client-only unit left the server untouched), both
+custom-lint gates (0/0, 112/112), terminology check (ok), and full client
+`flutter test` (1675 passed, 14 skipped, +18 from U13's 1657). Read
+`derive_offer_response_state.dart` in full — the if/else-if chain matches the
+mandated branch-priority order exactly (released → exited → softened →
+acknowledged → closed-without-response → declined → awaitingAuthor).
+Confirmed the two named regression tests exist and are worded to test
+exactly the failure mode the plan calls out: a stale `useful` author response
+does not override a later `released`/`exited` stake state. Noted the
+worker's finding that `packages/client/lib/data/gql/schema.graphql` was
+missing `stake_state` on the Hasura-side `beacon_help_offer` type (distinct
+from the V2 `helpOffersWithCoordination` type P3.11 already wired) — correct
+catch, not a duplicate of prior work, since My Work uses the Hasura path and
+People tab uses the V2 path. Proceeding to U15 (P8 rest — client gate wiring,
+close-sheet patch, l10n).
