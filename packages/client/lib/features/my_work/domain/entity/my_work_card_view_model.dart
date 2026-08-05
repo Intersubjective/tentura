@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
@@ -40,6 +41,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     required Beacon beacon,
     @Default('') String offerHelpMessage,
     CoordinationResponseType? authorResponseType,
+    @Default(CommitmentStakeState.none) CommitmentStakeState stakeState,
     @Default([]) List<Profile> forwarderSenders,
     @Default(false) bool showReviewHelpOffersCta,
     @Default(false) bool showReviewCta,

@@ -27,6 +27,7 @@ query MyWorkInit($userId: String!) {
     updated_at
     message
     help_type
+    stake_state
     coordination {
       response_type
       updated_at
@@ -74,6 +75,7 @@ query MyWorkArchived($userId: String!) {
     updated_at
     message
     help_type
+    stake_state
     coordination {
       response_type
       updated_at

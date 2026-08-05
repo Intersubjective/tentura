@@ -1,6 +1,7 @@
 import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
@@ -119,6 +120,7 @@ MyWorkCardViewModel _deriveHelpOffered({
       beacon: beacon,
       offerHelpMessage: row.offerHelpMessage,
       authorResponseType: row.authorResponseType,
+      stakeState: row.stakeState,
       forwarderSenders: row.forwarderSenders,
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
@@ -134,6 +136,7 @@ MyWorkCardViewModel _deriveHelpOffered({
       beacon: beacon,
       offerHelpMessage: row.offerHelpMessage,
       authorResponseType: row.authorResponseType,
+      stakeState: row.stakeState,
       forwarderSenders: row.forwarderSenders,
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
@@ -150,6 +153,7 @@ MyWorkCardViewModel _deriveHelpOffered({
     beacon: beacon,
     offerHelpMessage: row.offerHelpMessage,
     authorResponseType: row.authorResponseType,
+    stakeState: row.stakeState,
     forwarderSenders: row.forwarderSenders,
     showReviewCta: reviewOpen,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
@@ -304,6 +308,7 @@ MyWorkCardViewModel myWorkCardViewModelForBeaconView({
       offerHelpMessage: myOfferHelpMessage,
       helpType: null,
       authorResponseType: myAuthorResponseType,
+      stakeState: CommitmentStakeState.none,
       forwarderSenders: <Profile>[],
       helpOfferRowUpdatedAt: myHelpOfferUpdatedAt ?? beacon.updatedAt,
       authorCoordinationUpdatedAt: null,

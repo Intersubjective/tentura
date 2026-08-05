@@ -6,6 +6,7 @@ import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -166,6 +167,7 @@ class MyWorkRepository {
       authorResponseType: CoordinationResponseType.tryFromInt(
         e.coordination?.response_type,
       ),
+      stakeState: CommitmentStakeState.fromInt(e.stake_state),
       forwarderSenders: forwarders,
       helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,
@@ -187,6 +189,7 @@ class MyWorkRepository {
       authorResponseType: CoordinationResponseType.tryFromInt(
         e.coordination?.response_type,
       ),
+      stakeState: CommitmentStakeState.fromInt(e.stake_state),
       forwarderSenders: forwarders,
       helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,

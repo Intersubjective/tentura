@@ -699,6 +699,7 @@ type beacon_help_offer {
   help_type: String
   message: String!
   status: smallint!
+  stake_state: smallint!
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -788,6 +789,7 @@ input beacon_help_offer_bool_exp {
   help_type: String_comparison_exp
   message: String_comparison_exp
   status: smallint_comparison_exp
+  stake_state: smallint_comparison_exp
   updated_at: timestamptz_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
@@ -1009,6 +1011,7 @@ input beacon_help_offer_order_by {
   help_type: order_by
   message: order_by
   status: order_by
+  stake_state: order_by
   updated_at: order_by
   user: user_order_by
   user_id: order_by
@@ -1039,6 +1042,9 @@ enum beacon_help_offer_select_column {
 
   """column name"""
   status
+
+  """column name"""
+  stake_state
 
   """column name"""
   updated_at

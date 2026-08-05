@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
@@ -8,6 +9,7 @@ typedef MyWorkHelpOfferedRow = ({
   String offerHelpMessage,
   String? helpType,
   CoordinationResponseType? authorResponseType,
+  CommitmentStakeState stakeState,
   List<Profile> forwarderSenders,
 
   /// `beacon_help_offers.updated_at` (offer help message / row changes).
