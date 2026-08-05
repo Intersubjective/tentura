@@ -338,10 +338,21 @@ class FakeEvaluationRepository implements EvaluationRepository {
   String? lastBeaconReopenId;
   String? lastBeaconCloseNowId;
 
+  List<String>? lastReviewWindowStatusesIds;
+  List<ReviewWindowInfo> reviewWindowStatusesResult = const [];
+
   @override
   Future<ReviewWindowInfo> fetchReviewWindowStatus(String beaconId) async {
     lastReviewWindowBeaconId = beaconId;
     return reviewWindowResult;
+  }
+
+  @override
+  Future<List<ReviewWindowInfo>> fetchReviewWindowStatuses(
+    List<String> beaconIds,
+  ) async {
+    lastReviewWindowStatusesIds = beaconIds;
+    return reviewWindowStatusesResult;
   }
 
   @override

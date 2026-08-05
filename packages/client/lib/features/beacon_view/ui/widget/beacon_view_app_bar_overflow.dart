@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
+import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
@@ -470,6 +471,7 @@ Widget beaconViewAppBarOverflow({
       onDelete: showBeaconManagementOverflow
           ? () async {
               if (!context.mounted) return;
+              final myWorkCubit = context.read<MyWorkCubit>();
               if (await BeaconDeleteDialog.show(
                     context,
                     status: b.status,
@@ -477,6 +479,7 @@ Widget beaconViewAppBarOverflow({
                       b,
                       serverCanDelete: state.displayStatus?.canDelete,
                     ),
+                    onArchive: () => myWorkCubit.archiveBeacon(beaconId),
                   ) ??
                   false) {
                 if (!context.mounted) return;

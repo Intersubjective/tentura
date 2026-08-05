@@ -18,6 +18,8 @@ abstract final class TestIds {
   static String myWorkRoomStatus(String beaconId) =>
       'my_work.room_status.$beaconId';
 
+  static String myWorkCloseNow(String beaconId) => 'my_work.close_now.$beaconId';
+
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) => 'updates-receipt-$receiptId';
 

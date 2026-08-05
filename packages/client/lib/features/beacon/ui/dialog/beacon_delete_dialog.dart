@@ -8,23 +8,27 @@ class BeaconDeleteDialog extends StatelessWidget {
     BuildContext context, {
     required BeaconStatus status,
     required bool hasEverHadCommitter,
+    Future<void> Function()? onArchive,
   }) =>
       showAdaptiveDialog(
         context: context,
         builder: (_) => BeaconDeleteDialog(
           status: status,
           hasEverHadCommitter: hasEverHadCommitter,
+          onArchive: onArchive,
         ),
       );
 
   const BeaconDeleteDialog({
     required this.status,
     required this.hasEverHadCommitter,
+    this.onArchive,
     super.key,
   });
 
   final BeaconStatus status;
   final bool hasEverHadCommitter;
+  final Future<void> Function()? onArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +38,14 @@ class BeaconDeleteDialog extends StatelessWidget {
         title: Text(l10n.beaconDeleteBlockedTitle),
         content: Text(l10n.beaconDeleteBlockedBody),
         actions: [
+          if (onArchive != null)
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await onArchive!();
+              },
+              child: Text(l10n.myWorkArchive),
+            ),
           TextButton(
             onPressed: Navigator.of(context).pop,
             child: Text(l10n.buttonOk),

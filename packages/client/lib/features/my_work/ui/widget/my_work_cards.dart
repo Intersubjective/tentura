@@ -21,6 +21,7 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.da
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -35,6 +36,32 @@ bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
 
 bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
     (vm.displayStatus?.everAcknowledgedCommitterCount ?? 0) > 0;
+
+Future<void> _confirmAndDeleteMyWorkBeacon(
+  BuildContext context, {
+  required MyWorkCardViewModel vm,
+}) async {
+  final b = vm.beacon;
+  final repo = GetIt.I<BeaconRepository>();
+  final cubit = context.read<MyWorkCubit>();
+  await Future<void>.delayed(Duration.zero);
+  if (!context.mounted) return;
+  if (await BeaconDeleteDialog.show(
+        context,
+        status: b.status,
+        hasEverHadCommitter: beaconDeleteBlockedByCommitters(
+          b,
+          serverCanDelete: vm.displayStatus?.canDelete,
+        ),
+        onArchive: () => cubit.archiveBeacon(b.id),
+      ) ??
+      false) {
+    await runBeaconDeleteWithRetry(
+      context,
+      delete: () => repo.delete(b.id),
+    );
+  }
+}
 
 typedef MyWorkCardSelect = void Function(
   MyWorkCardViewModel vm, {
@@ -246,6 +273,7 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     final hasReviewCta = vm.showReviewHelpOffersCta;
     final needsForwardCta = !vm.authorHasForwardedOnce;
+    final showCloseNowCta = vm.showCloseNowCta;
     final phaseAction = myWorkEffectivePrimaryAction(
       vm: vm,
       viewerUserId: currentUserId,
@@ -257,52 +285,95 @@ class _AuthoredActiveCard extends StatelessWidget {
     );
 
     final Widget? footerActions;
-    if (phaseCtaLabel != null) {
-      footerActions = Align(
-        alignment: Alignment.centerRight,
-        child: TenturaCommandButton(
-          label: phaseCtaLabel,
-          onPressed: () => switch (phaseAction) {
-            BeaconPhasePrimaryAction.reviewOffers =>
-              _openBeaconReviewHelpOffers(context, vm, onSelect: onSelect),
-            BeaconPhasePrimaryAction.forward => unawaited(
-              context.router.push(ForwardBeaconRoute(beaconId: b.id)),
-            ),
-            BeaconPhasePrimaryAction.resolveBlocker => _openBeaconOrSelect(
-              context,
-              vm,
-              onSelect: onSelect,
-            ),
-            _ => _openBeaconOrSelect(context, vm, onSelect: onSelect),
-          },
-        ),
-      );
-    } else if (hasReviewCta || needsForwardCta) {
+    if (showCloseNowCta ||
+        phaseCtaLabel != null ||
+        hasReviewCta ||
+        needsForwardCta) {
       footerActions = Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (hasReviewCta)
+          if (showCloseNowCta) ...[
             Align(
               alignment: Alignment.centerRight,
               child: TenturaCommandButton(
-                label: l10n.myWorkReviewHelpOffersCta,
-                onPressed: () =>
-                    _openBeaconReviewHelpOffers(context, vm, onSelect: onSelect),
+                key: TestIds.key(TestIds.myWorkCloseNow(b.id)),
+                label: l10n.beaconCloseNowCta,
+                onPressed: () async {
+                  try {
+                    await evaluationRepo.beaconCloseNow(b.id);
+                    if (context.mounted) {
+                      await context.read<MyWorkCubit>().fetch(
+                        showLoading: false,
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      showSnackBar(
+                        context,
+                        isError: true,
+                        text: e.toString(),
+                        error: e,
+                      );
+                    }
+                  }
+                },
               ),
             ),
-          if (hasReviewCta && needsForwardCta)
-            const SizedBox(height: kSpacingSmall),
-          if (needsForwardCta)
-            SizedBox(
-              width: double.infinity,
+            if (hasReviewCta || needsForwardCta || phaseCtaLabel != null)
+              const SizedBox(height: kSpacingSmall),
+          ],
+          if (phaseCtaLabel != null)
+            Align(
+              alignment: Alignment.centerRight,
               child: TenturaCommandButton(
-                label: l10n.inboxCardOpenBeacon,
-                icon: const Icon(Icons.arrow_forward),
-                onPressed: () => unawaited(
-                  context.router.push(ForwardBeaconRoute(beaconId: b.id)),
-                ),
+                label: phaseCtaLabel,
+                onPressed: () => switch (phaseAction) {
+                  BeaconPhasePrimaryAction.reviewOffers =>
+                    _openBeaconReviewHelpOffers(context, vm, onSelect: onSelect),
+                  BeaconPhasePrimaryAction.forward => unawaited(
+                    context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                  ),
+                  BeaconPhasePrimaryAction.resolveBlocker => _openBeaconOrSelect(
+                    context,
+                    vm,
+                    onSelect: onSelect,
+                  ),
+                  _ => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+                },
               ),
+            )
+          else if (hasReviewCta || needsForwardCta)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (hasReviewCta)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TenturaCommandButton(
+                      label: l10n.myWorkReviewHelpOffersCta,
+                      onPressed: () => _openBeaconReviewHelpOffers(
+                        context,
+                        vm,
+                        onSelect: onSelect,
+                      ),
+                    ),
+                  ),
+                if (hasReviewCta && needsForwardCta)
+                  const SizedBox(height: kSpacingSmall),
+                if (needsForwardCta)
+                  SizedBox(
+                    width: double.infinity,
+                    child: TenturaCommandButton(
+                      label: l10n.inboxCardOpenBeacon,
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed: () => unawaited(
+                        context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                      ),
+                    ),
+                  ),
+              ],
             ),
         ],
       );
@@ -396,32 +467,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                       );
                     }
                   : null,
-              onDelete: () async {
-                await Future<void>.delayed(Duration.zero);
-                if (!context.mounted) return;
-                if (await BeaconDeleteDialog.show(
-                      context,
-                      status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
-                        b,
-                        serverCanDelete: vm.displayStatus?.canDelete,
-                      ),
-                    ) ??
-                    false) {
-                  try {
-                    await repo.delete(b.id);
-                  } catch (e) {
-                    if (context.mounted) {
-                      showSnackBar(
-                        context,
-                        isError: true,
-                        text: e.toString(),
-                        error: e,
-                      );
-                    }
-                  }
-                }
-              },
+              onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
           const SizedBox(height: 6),
@@ -571,33 +617,7 @@ class _DraftAuthoredCard extends StatelessWidget {
               beacon: b,
               editActionLabel: l10n.myWorkEditDraft,
               onEdit: () => _openEditDraft(context, b.id),
-              onDelete: () async {
-                await Future<void>.delayed(Duration.zero);
-                if (!context.mounted) return;
-                final repo = GetIt.I<BeaconRepository>();
-                if (await BeaconDeleteDialog.show(
-                      context,
-                      status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
-                        b,
-                        serverCanDelete: vm.displayStatus?.canDelete,
-                      ),
-                    ) ??
-                    false) {
-                  try {
-                    await repo.delete(b.id);
-                  } catch (e) {
-                    if (context.mounted) {
-                      showSnackBar(
-                        context,
-                        isError: true,
-                        text: e.toString(),
-                        error: e,
-                      );
-                    }
-                  }
-                }
-              },
+              onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
           const SizedBox(height: 6),
@@ -732,32 +752,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       );
                     }
                   : null,
-              onDelete: () async {
-                await Future<void>.delayed(Duration.zero);
-                if (!context.mounted) return;
-                if (await BeaconDeleteDialog.show(
-                      context,
-                      status: b.status,
-                      hasEverHadCommitter: beaconDeleteBlockedByCommitters(
-                        b,
-                        serverCanDelete: vm.displayStatus?.canDelete,
-                      ),
-                    ) ??
-                    false) {
-                  try {
-                    await repo.delete(b.id);
-                  } catch (e) {
-                    if (context.mounted) {
-                      showSnackBar(
-                        context,
-                        isError: true,
-                        text: e.toString(),
-                        error: e,
-                      );
-                    }
-                  }
-                }
-              },
+              onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
           const SizedBox(height: 6),

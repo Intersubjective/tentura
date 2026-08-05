@@ -24,6 +24,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -237,13 +238,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> delete(String beaconId) async {
+    if (state.status == StateStatus.isLoading) return;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.deleteBeacon(beaconId);
       _effects.emit(const NavigateBack());
       emit(state.copyWith(status: const StateIsSuccess()));
-    } catch (e) {
-      _showSnackError(e);
+    } catch (_) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      _effects.emit(
+        ShowMessage(
+          BeaconDeleteFailedMessage(() => unawaited(delete(beaconId))),
+        ),
+      );
     }
   }
 
@@ -263,6 +270,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<BeaconCloseResult?> closeBeacon({
     required bool expectedRequiresReviewWindow,
   }) async {
+    if (state.status == StateStatus.isLoading) return null;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await _case.beaconClose(
@@ -274,6 +282,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     } catch (e) {
       _showSnackError(e);
       return null;
+    } finally {
+      if (!isClosed && state.status == StateStatus.isLoading) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 
@@ -298,12 +310,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> closeBeaconNow() async {
+    if (state.status == StateStatus.isLoading) return;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.beaconCloseNow(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       _showSnackError(e);
+    } finally {
+      if (!isClosed && state.status == StateStatus.isLoading) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 
