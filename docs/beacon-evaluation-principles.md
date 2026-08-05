@@ -11,7 +11,9 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 
 * Evaluate contribution to this beacon, not the person in general.
 * Keep evaluation local, subjective, contextual, and tied to a concrete episode.
-* Treat authoring, committing, and forwarding as different kinds of contribution.
+* Treat authoring, committing, forwarding, and **former committer** participation as different kinds of contribution.
+* **Former committers** (ever acknowledged, participation ended) remain in the review window and evaluation graph; exiting work does not erase the record.
+* A helper's **withdraw within 24 hours** of acknowledgement, with no intervening commitment events, is a silent exit that does not create a permanent committer record; any other event between acknowledgement and withdraw closes that grace window.
 * Optimize for future routing quality, not visible status.
 * Preserve honest signal while minimizing retaliation, politeness inflation, and clique gaming.
 * Keep raw evaluations private by default.
