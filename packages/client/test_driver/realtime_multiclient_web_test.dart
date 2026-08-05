@@ -275,6 +275,16 @@ Future<void> _runJourney({
     helper.waitForText(title),
     helperPeer.waitForText(title),
   ]);
+  // helperPeer leaving Chat marks the room seen account-wide; wait until the
+  // mounted helper My Work projection converges to zero unread before proving
+  // the next message creates exactly one new unread badge.
+  await _waitUntil(
+    () async => !await helper.testIdTextContains(
+      'my_work.room_status.$beaconId',
+      '+',
+    ),
+    timeout: const Duration(seconds: 5),
+  );
   await author.sendChatMessage(myWorkUnreadMessage);
   await author.waitForText(myWorkUnreadMessage);
   await helper.waitForTestIdText(
