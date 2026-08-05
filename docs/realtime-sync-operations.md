@@ -164,6 +164,13 @@ non-blocking retry banner. A sustained WebSocket outage is covered separately by
 the live-updates-paused banner (`RealtimeStatusPresenter`); do not duplicate that
 for disconnects.
 
+**#102 gate evidence** (2026-08-05, revision `5835f427`, five consecutive runs):
+`packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json` —
+`my_work_102_delivery_ms` p95 **590 ms**, `my_work_102_qa_head_refresh_latency_ms`
+p95 **223 ms**, `attention_reconnect_catch_up_ms` p95 **304 ms** (budgets 1500 ms /
+3000 ms). Negative proofs (`live`, `catch_up`) failed as expected when delivery
+was deliberately disabled.
+
 ## Incident triage
 
 1. Confirm the HTTP mutation committed and identify its canonical wire kind in
