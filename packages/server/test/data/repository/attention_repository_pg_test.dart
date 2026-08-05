@@ -84,7 +84,7 @@ FOR EACH ROW EXECUTE FUNCTION public.capture_attention_uow_receipt()
       database = TenturaDb(target.databaseEnv);
       query = AttentionRepository(database);
       ack = AttentionAckRepository(database);
-      dispatch = AttentionDispatchRepository(database);
+      dispatch = AttentionDispatchRepository(database, Logger('attention_pg_test'));
       delivery = AttentionChannelDeliveryRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
       room = BeaconRoomRepository(database);

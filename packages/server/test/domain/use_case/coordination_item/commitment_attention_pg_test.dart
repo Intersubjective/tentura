@@ -63,7 +63,7 @@ Future<void> main() async {
       await migrateDbSchema(writer);
       database = TenturaDb(target.databaseEnv);
       items = CoordinationItemRepository(database);
-      dispatch = AttentionDispatchRepository(database);
+      dispatch = AttentionDispatchRepository(database, Logger('commitment_attention_pg_test'));
       unitOfWork = MutatingUnitOfWork(database);
       attention = TransactionalAttentionCase(unitOfWork, dispatch);
       final room = BeaconRoomRepository(database);

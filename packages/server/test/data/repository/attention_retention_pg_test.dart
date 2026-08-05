@@ -46,7 +46,7 @@ Future<void> main() async {
 
       database = TenturaDb(target.databaseEnv);
       outbox = NotificationOutboxRepository(database);
-      dispatch = AttentionDispatchRepository(database);
+      dispatch = AttentionDispatchRepository(database, Logger('attention_retention_pg_test'));
       unitOfWork = MutatingUnitOfWork(database);
 
       await writer.execute('''

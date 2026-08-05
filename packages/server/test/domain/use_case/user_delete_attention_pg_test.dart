@@ -56,7 +56,7 @@ Future<void> main() async {
       await migrateDbSchema(writer);
 
       database = TenturaDb(target.databaseEnv);
-      dispatch = AttentionDispatchRepository(database);
+      dispatch = AttentionDispatchRepository(database, Logger('user_delete_attention_pg_test'));
       delivery = AttentionChannelDeliveryRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
       userCase = UserCase(
