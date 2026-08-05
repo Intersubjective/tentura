@@ -6,6 +6,8 @@
     "packages/server/test/data/database/realtime_notification_migration_test.dart",
     "packages/server/test/data/repository/room_message_snapshot_lookup_test.dart",
     "packages/client/test/architecture/realtime_entity_contract_test.dart",
+    "packages/client/test/architecture/realtime_entity_contract_impacts_test.dart",
+    "packages/client/test/architecture/cross_surface_subscription_test.dart",
     "packages/client/test/data/service/invalidation_service_test.dart",
     "packages/client/test/features/beacon_room/beacon_room_case_test.dart",
     "packages/client/test/features/beacon_room/room_cubit_unread_test.dart",
