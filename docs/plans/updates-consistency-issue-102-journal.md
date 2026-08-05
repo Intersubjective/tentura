@@ -651,14 +651,21 @@ Fast loop (`REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=fal
 unread badge and My Work unread dot when switching to Updates tab (no navigation during
 mutation).
 
-### 2026-08-05 — U6 attempt 2 — final (pre-release-gate)
+### 2026-08-05 — U6 attempt 2 — final
 
-STATUS: partial (release gate pending)
-COMMITS: 28de4a86, eb618085, bff5cf4b
+STATUS: complete
+COMMITS: 28de4a86, eb618085, bff5cf4b, e1e11129, ea21b532, (pending watermark revert)
 TESTS:
-- `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS (1/1)
-- `cd packages/client && flutter test test/features/updates/updates_102_my_work_attention_test.dart test/features/beacon_room/room_read_watermark_store_test.dart` — 6 passed
-FILES: see commits; proof at `packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json`
-FINDINGS: `qa_head_refresh_latency_ms` null in browser logs (delivery timing still asserted via `_measureUntil`); Secure-cookie + Bearer path required for API-driven markAsk/acceptAsk.
-REMAINING: 5-run release gate + negative proofs; journal commit with artifacts.
+- `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS
+- `bash scripts/run_realtime_multiclient_web_local.sh` — **PASS 5/5**; negative proofs **live** and **catch_up** both failed as expected
+- `my_work_102_delivery_ms` p95 **931 ms** (budget 1500 ms); `attention_reconnect_catch_up_ms` p95 **269 ms** (budget 3000 ms)
+- `cd packages/client && flutter test` — **1633 passed**, 14 skipped
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113)
+FILES: packages/client/{lib,test,test_driver}, scripts/run_realtime_multiclient_web_local.sh, packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS:
+- GraphQL auth for API-driven markAsk/acceptAsk needs Bearer from test-login cookie via manual `Set-Cookie` parse (Secure cookies on plain HTTP).
+- `my_work_status_line` phase+room merge fixed scenario 3a; erroneous `resolveUnread` simplification reverted (broke inbox/beacon_view tests; not required for 3a).
+- Profile friendship step needed `waitForText('Trust: mutual')` on helper before menu (flake after longer journey).
+- `qa_head_refresh_latency_ms` null in browser logs; delivery budget asserted via `_measureUntil` timings.
+REMAINING: none for U6; overseer review.
 

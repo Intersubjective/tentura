@@ -1,32 +1,26 @@
 {
   "suite": "updates-102",
   "recordedAt": "2026-08-05",
-  "fastLoopRunId": "realtime-1785927355-1",
-  "gitRevision": "bff5cf4b",
-  "timings_ms": {
-    "my_work_102_delivery_ms": 851,
-    "attention_reconnect_catch_up_ms": 250,
-    "reconnect_catch_up_ms": 1709,
-    "same_account_my_work_read_ms": 6
+  "releaseGateSession": "20260805-130745",
+  "gitRevision": "ea21b532",
+  "runsCompleted": 5,
+  "negativeProofs": {
+    "live": "expected failure observed",
+    "catch_up": "expected failure observed"
   },
-  "budgets_ms": {
-    "connected_p95": 1500,
-    "reconnect_p95": 3000
+  "timings_p95_ms": {
+    "my_work_102_delivery_ms": 931,
+    "attention_reconnect_catch_up_ms": 269,
+    "inbox_delivery_ms": 1450,
+    "connected_budget_ms": 1500,
+    "reconnect_budget_ms": 3000
   },
   "my_work_102": {
-    "runId": "realtime-1785927355-1",
-    "beaconId": "Befa1de34d831",
-    "itemId": "If711ab8656dc",
-    "receiptId": "6e84e284-838a-49ac-a1ac-d5ad8a106fa6",
-    "delivery_ms": 851,
-    "qa_head_refresh_latency_ms": null,
+    "delivery_ms_samples": [578, 720, 770, 914, 931],
     "ok": true
   },
   "attention_reconnect": {
-    "newReceiptIds": [
-      "c2713cb0-c225-48d8-9223-6c9b99d7e2fc"
-    ],
-    "catch_up_ms": 250,
+    "catch_up_ms_samples": [219, 227, 235, 244, 269],
     "ok": true
   }
 }
