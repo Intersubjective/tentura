@@ -55,7 +55,7 @@ deployment. We still commit once per phase (plan §0.5 format:
       plan**) — server `stakeState`/`offerKind` on coordination row, client
       `CommitmentStakeState`, `helpOfferIsCommitter` rewrite, My Work counter
       wiring (depends on P8.1 field `everAcknowledgedCommitterCount` — see U09)
-- [ ] U08 — P3.12: full P3 gate-scenario test suite (18 scenarios) — run after
+- [x] U08 — P3.12: full P3 gate-scenario test suite (18 scenarios) — run after
       U03–U07 land
 - [x] U09 — P8.1: server `canCancel`/`canDelete`/`everAcknowledgedCommitterCount`
       fields on `beaconDisplayStatuses` (needed by U07 p.4 — see plan §13)
@@ -621,3 +621,40 @@ server counter; null when DTO not loaded).
 Proceeding to U08 (P3.12 — the full 18-scenario gate test suite), which
 exercises everything U01-U07 have built as an integration check before the
 core-verify unit.
+
+### 2026-08-05 — U08 P3.12 gate-scenario integration suite (worker)
+
+**Done:** Implemented plan §5 P3.12 — all 18 numbered scenarios as individual
+`test(...)` cases in `commitment_gates_test.dart`, grouped by gate/mechanism.
+
+- **Harness:** `test/support/commitment_gates_harness.dart` wires real
+  `HelpOfferCase`, `CoordinationCase`, `BeaconCase`, `EvaluationCase`, and
+  `CommitmentQueryCase` against `RecordingCommitmentRepository` (clock-aware),
+  `InMemoryHelpOfferRepository`, and `MutableBeaconRepository`. Coordination
+  row mutations remain Mockito stubs (established U02 pattern); commitment
+  truth and gate predicates exercise production code end-to-end.
+- **Clock:** Extended `RecordingCommitmentRepository` with `advanceClock` /
+  `setClock` so grace-period scenarios (4 vs 3/5/10) drive real
+  `HelpOfferCase.withdraw` timestamps.
+- **Scenarios 1–18:** Cancel/Delete gates (1–6), coordination invariants
+  (7–9), Close + review composition (10–11), closeNow (12–13), reopen limit
+  (14), withdraw in reviewOpen (15), D13 release→re-ack (16), P3.11 Close
+  branch alignment + visibility (17–18).
+- **Defects found:** none — all 18 scenarios green against existing P3.1–P3.11
+  code without production changes.
+
+**Tests run (all passed):**
+- `cd packages/server && dart test test/domain/use_case/commitment_gates_test.dart` → 18/18
+- `cd packages/server && dart test -x pg` → 1254/1254 green (+18 new)
+- `cd packages/tentura_lints && dart test` → 18/18 green
+- `./scripts/check-custom-lints.sh packages/server` → 0/0 baseline
+
+**Commits (2, not pushed):**
+- `TBD` test(commitment): P3.12 — 18-scenario gate integration suite
+- `TBD` docs(commitment): U08 P3.12 journal checkpoint
+
+**Remaining:** U10 CORE VERIFY + `kDefaultMinClientVersion` bump.
+
+### 2026-08-05 — U08 review (orchestrator placeholder)
+
+_Review pending._

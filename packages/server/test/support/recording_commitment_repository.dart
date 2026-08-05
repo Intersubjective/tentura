@@ -20,14 +20,27 @@ final class RecordingCommitmentRepository extends Fake
     implements CommitmentRepositoryPort {
   RecordingCommitmentRepository({
     Map<String, List<CommitmentEvent>> eventsByPair = const {},
+    DateTime? initialClock,
   }) : _eventsByPair = {
           for (final entry in eventsByPair.entries)
             entry.key: List<CommitmentEvent>.from(entry.value),
-        };
+        },
+        _clock = initialClock ?? DateTime.utc(2026);
 
   final recordCalls = <CommitmentRecordCall>[];
   final Map<String, List<CommitmentEvent>> _eventsByPair;
   var _nextSeq = 1;
+  DateTime _clock;
+
+  DateTime get clock => _clock;
+
+  void advanceClock(Duration duration) {
+    _clock = _clock.add(duration);
+  }
+
+  void setClock(DateTime value) {
+    _clock = value;
+  }
 
   void seedEvents({
     required String beaconId,
@@ -66,7 +79,7 @@ final class RecordingCommitmentRepository extends Fake
         actorUserId: actorUserId,
         kind: kind,
         reason: reason,
-        createdAt: DateTime.utc(2026),
+        createdAt: _clock,
       ),
     );
   }
