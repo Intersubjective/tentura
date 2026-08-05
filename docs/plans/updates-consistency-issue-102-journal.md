@@ -57,7 +57,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U1 | Event coverage contract + guard test (no behavior change) | complete | **accepted by overseer** |
 | U2 | Emit accept / resolve / redirect / cancel events (the #102 core) | complete | **accepted by overseer** |
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
-| U4 | Copy completeness + no-empty-card invariant | pending | — |
+| U4 | Copy completeness + no-empty-card invariant | complete | — |
 | U5 | Latency budget + instrumentation + visible refresh failure | pending | — |
 | U6 | Multi-client My Work regression + reconnect dedup | pending | — |
 | U7 | Cross-surface consistency verification | pending | — |
@@ -358,3 +358,38 @@ New finding for U4 (in addition to the "accepted your ask" noun bug):
   a third time-formatting variant.
 
 Releasing U4.
+
+### 2026-08-05 — U4 worker — Step 1 (server copy invariant + noun fix)
+
+COMMITS: 4fb53f6a feat(#102-U4): non-empty notification copy and commitment noun fix
+TESTS:
+- `dart analyze` — 0 errors
+- `dart test --exclude-tags pg` — 1177 passed (+3)
+- `dart test test/domain/notification/beacon_notification_copy_builder_test.dart` — pass
+- `bash scripts/check-custom-lints.sh packages/server` — total 0
+
+FINDINGS: Added optional `coordinationItemKind` on `BeaconNotificationIntent` (set from item record at every `commitmentChanged` call site) rather than inferring noun from transition string. `beaconTitle` populated on intent builders where beacon is already loaded (mark/publish/create_resolution/update_plan/update_coordination_item paths); commitment accept/resolve/redirect/cancel cases still lack beacon title without an extra DB round-trip — noted below. `beaconTitle` flows to `presentationPayloadJson` via `AttentionRecipientRoleFacts` + `AttentionPolicy._presentationPayload` for client request line.
+
+### 2026-08-05 — U4 worker — Step 2 (client fallback mapper)
+
+COMMITS: 93bda774 feat(#102-U4): add Updates receipt display-copy fallback mapper
+TESTS: `flutter test test/features/updates/updates_receipt_display_copy_test.dart` — 5 passed
+
+### 2026-08-05 — U4 worker — Step 3 (card presentation + widget tests)
+
+COMMITS: ddf015da feat(#102-U4): complete Updates card presentation and regression tests
+TESTS:
+- `flutter gen-l10n` — OK
+- `flutter analyze` — 0 errors (pre-existing info)
+- `flutter test` — 1630 passed, 14 skipped
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113, OK)
+- `bash scripts/check-user-facing-terminology.sh` — ok
+
+### 2026-08-05 — U4 worker — final
+
+STATUS: complete
+COMMITS: 4fb53f6a, 93bda774, ddf015da
+TESTS: see step checkpoints; server `dart test --exclude-tags pg` 1177; client `flutter test` 1630 passed, 14 skipped
+FILES: packages/server/lib/domain/{entity/beacon_notification_intent,attention/attention_models,attention/attention_policy,notification/beacon_notification_copy_builder}.dart, packages/server/lib/data/repository/attention_dispatch_repository.dart, packages/server/lib/domain/use_case/{attention_intent_case,coordination_item/*}.dart, packages/server/test/domain/notification/beacon_notification_copy_builder_test.dart, packages/client/lib/features/updates/{updates_receipt_display_copy,ui/widget/updates_receipt_card,ui/screen/updates_screen}.dart, packages/client/test/features/updates/*, packages/client/l10n/app_{en,ru}.arb, packages/client/pubspec.yaml, packages/client/web/index.html, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: Producers without beacon title on hot path (no extra DB): all `commitmentChanged` call sites (accept/resolve/redirect/cancel/resolution), plan-step add/resolve, remind_coordination_item, resolve_blocker, cancel_promise — copy still names action via excerpt/item noun; client request line appears when `presentationPayload.beaconTitle` is set from populated producers. Lock-screen safe copy unchanged.
+REMAINING: none for U4
