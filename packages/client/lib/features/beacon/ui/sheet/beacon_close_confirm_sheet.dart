@@ -65,39 +65,6 @@ Future<bool> showBeaconCloseConfirmSheet({
     ),
   };
 
-  final evidence = <Widget>[
-    if (branchPreview != null) _evidenceRow(scheme, branchPreview),
-    _evidenceRow(
-      scheme,
-      summary.hasOpenBlocker
-          ? l10n.beaconCloseSheetEvidenceOpenBlocker
-          : l10n.beaconCloseSheetEvidenceNoOpenBlocker,
-      positive: !summary.hasOpenBlocker,
-    ),
-    if (summary.hasWholeBeaconDoneSignal)
-      _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceWholeBeaconDone),
-    if (summary.enoughHelpOffered)
-      _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceEnoughHelp),
-    if (summary.hasSuccessfulHelpOfferResult)
-      _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceUsefulOrDone),
-    if (summary.unsettledRelevantCount > 0)
-      _evidenceRow(
-        scheme,
-        l10n.beaconCloseSheetEvidenceUnsettledCount(
-          summary.unsettledRelevantCount,
-        ),
-        positive: false,
-      ),
-    if (summary.unansweredHelpOffersCount > 0)
-      _evidenceRow(
-        scheme,
-        l10n.beaconCloseSheetEvidenceUnansweredCount(
-          summary.unansweredHelpOffersCount,
-        ),
-        positive: false,
-      ),
-  ];
-
   var confirmed = false;
   await showTenturaAdaptiveSheet<void>(
     context: context,
@@ -105,6 +72,60 @@ Future<bool> showBeaconCloseConfirmSheet({
     isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
+      final evidence = <Widget>[
+        if (branchPreview != null)
+          _evidenceRow(scheme, branchPreview, bottomPadding: tt.tightGap),
+        _evidenceRow(
+          scheme,
+          summary.hasOpenBlocker
+              ? l10n.beaconCloseSheetEvidenceOpenBlocker
+              : l10n.beaconCloseSheetEvidenceNoOpenBlocker,
+          positive: !summary.hasOpenBlocker,
+          bottomPadding: tt.tightGap,
+        ),
+        if (summary.hasWholeBeaconDoneSignal)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceWholeBeaconDone,
+            bottomPadding: tt.tightGap,
+          ),
+        if (summary.enoughHelpOffered)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceEnoughHelp,
+            bottomPadding: tt.tightGap,
+          ),
+        if (summary.hasSuccessfulHelpOfferResult)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceUsefulOrDone,
+            bottomPadding: tt.tightGap,
+          ),
+        if (summary.unsettledRelevantCount > 0)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceUnsettledCount(
+              summary.unsettledRelevantCount,
+            ),
+            positive: false,
+            bottomPadding: tt.tightGap,
+          ),
+        if (summary.unansweredHelpOffersCount > 0)
+          _evidenceRowWithAction(
+            scheme,
+            l10n.beaconCloseSheetEvidenceUnansweredCount(
+              summary.unansweredHelpOffersCount,
+            ),
+            actionLabel: l10n.beaconCloseAnswerFirst,
+            onAction: () {
+              Navigator.of(ctx).pop();
+              onOpenPeople();
+            },
+            positive: false,
+            bottomPadding: tt.tightGap,
+            actionSpacing: tt.tightGap,
+          ),
+      ];
       return SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(
@@ -227,9 +248,10 @@ Future<bool> showBeaconCloseConfirmSheet({
 Widget _evidenceRow(
   ColorScheme scheme,
   String text, {
+  required double bottomPadding,
   bool positive = true,
 }) => Padding(
-  padding: const EdgeInsets.only(bottom: 6),
+  padding: EdgeInsets.only(bottom: bottomPadding),
   child: Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -238,11 +260,57 @@ Widget _evidenceRow(
         size: 18,
         color: positive ? scheme.primary : scheme.outline,
       ),
-      const SizedBox(width: 8),
+      SizedBox(width: bottomPadding),
       Expanded(
         child: Text(
           text,
           style: TenturaText.body(scheme.onSurfaceVariant),
+        ),
+      ),
+    ],
+  ),
+);
+
+Widget _evidenceRowWithAction(
+  ColorScheme scheme,
+  String text, {
+  required String actionLabel,
+  required VoidCallback onAction,
+  required double bottomPadding,
+  required double actionSpacing,
+  bool positive = true,
+}) => Padding(
+  padding: EdgeInsets.only(bottom: bottomPadding),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        positive ? Icons.check_circle_outline : Icons.info_outline,
+        size: 18,
+        color: positive ? scheme.primary : scheme.outline,
+      ),
+      SizedBox(width: bottomPadding),
+      Expanded(
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: actionSpacing,
+          runSpacing: actionSpacing,
+          children: [
+            Text(
+              text,
+              style: TenturaText.body(scheme.onSurfaceVariant),
+            ),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(actionLabel),
+            ),
+          ],
         ),
       ),
     ],
