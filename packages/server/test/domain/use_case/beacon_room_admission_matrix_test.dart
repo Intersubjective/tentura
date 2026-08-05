@@ -813,24 +813,16 @@ void main() {
       });
     });
 
-    group('HelpOfferCase.offerHelp — auto-admit matrix', () {
+    group('HelpOfferCase.offerHelp — direct forward does not auto-admit (P5)', () {
       late MockBeaconRepositoryPort beaconRepo;
       late MockHelpOfferRepositoryPort helpOfferRepo;
       late MockCoordinationRepositoryPort coordinationRepo;
       late MockInboxRepositoryPort inboxRepo;
       late MockPersonCapabilityEventRepositoryPort capabilityRepo;
       late MockBeaconRoomRepositoryPort roomRepo;
-      late MockForwardEdgeRepositoryPort forwardEdgeRepo;
-      late MockHelpOfferAdmissionRepositoryPort admissionRepo;
+      late RecordingCommitmentRepository commitmentRepo;
       late TestAttentionHarness attention;
       late HelpOfferCase sut;
-
-      BeaconParticipantRecord participant({required int roomAccess}) =>
-          testBeaconParticipant(
-            beaconId: _beaconId,
-            userId: _helperId,
-            roomAccess: roomAccess,
-          );
 
       setUp(() {
         beaconRepo = MockBeaconRepositoryPort();
@@ -839,8 +831,7 @@ void main() {
         inboxRepo = MockInboxRepositoryPort();
         capabilityRepo = MockPersonCapabilityEventRepositoryPort();
         roomRepo = MockBeaconRoomRepositoryPort();
-        forwardEdgeRepo = MockForwardEdgeRepositoryPort();
-        admissionRepo = MockHelpOfferAdmissionRepositoryPort();
+        commitmentRepo = RecordingCommitmentRepository();
         attention = TestAttentionHarness();
         final capabilityCase = CapabilityCase(
           capabilityRepo,
@@ -850,13 +841,9 @@ void main() {
         sut = HelpOfferCase(
           helpOfferRepo,
           beaconRepo,
-          coordinationRepo,
-          NoOpCommitmentRepository(),
+          commitmentRepo,
           inboxRepo,
           capabilityCase,
-          roomRepo,
-          forwardEdgeRepo,
-          admissionRepo,
           FakeBeaconAccessGuard(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
@@ -876,131 +863,39 @@ void main() {
         when(
           helpOfferRepo.upsert(beaconId: _beaconId, userId: _helperId),
         ).thenAnswer((_) async {});
-        when(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: anyNamed('beaconId'),
-            offerUserId: anyNamed('offerUserId'),
-            authorUserId: anyNamed('authorUserId'),
-            admissionReason: anyNamed('admissionReason'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          admissionRepo.record(
-            beaconId: anyNamed('beaconId'),
-            offerUserId: anyNamed('offerUserId'),
-            actorUserId: anyNamed('actorUserId'),
-            action: anyNamed('action'),
-          ),
-        ).thenAnswer((_) async {});
       });
 
-      for (final row
-          in <
-            ({
-              bool trusted,
-              int? roomAccess,
-              bool expectAdmit,
-              String label,
-            })
-          >[
-            (
-              trusted: true,
-              roomAccess: null,
-              expectAdmit: true,
-              label: 'trusted direct forward admits new helper',
-            ),
-            (
-              trusted: true,
-              roomAccess: RoomAccessBits.none,
-              expectAdmit: false,
-              label: 'author revoke (none) blocks auto-admit',
-            ),
-            (
-              trusted: true,
-              roomAccess: RoomAccessBits.requested,
-              expectAdmit: true,
-              label: 'trusted helper with requested access is re-admitted',
-            ),
-            (
-              trusted: false,
-              roomAccess: null,
-              expectAdmit: false,
-              label: 'non-trusted helper is not auto-admitted',
-            ),
-          ]) {
-        test(row.label, () async {
-          when(
-            forwardEdgeRepo.isDirectAuthorForward(
-              beaconId: _beaconId,
-              authorId: _authorId,
-              userId: _helperId,
-            ),
-          ).thenAnswer((_) async => row.trusted);
-
-          if (row.roomAccess == null) {
-            when(
-              roomRepo.findParticipant(
-                beaconId: _beaconId,
-                userId: _helperId,
-              ),
-            ).thenAnswer((_) async => null);
-          } else {
-            when(
-              roomRepo.findParticipant(
-                beaconId: _beaconId,
-                userId: _helperId,
-              ),
-            ).thenAnswer(
-              (_) async => participant(roomAccess: row.roomAccess!),
-            );
-          }
-
+      test(
+        'direct author forward recipient is not admitted until explicit accept',
+        () async {
           await sut.offerHelp(beaconId: _beaconId, userId: _helperId);
 
-          if (row.expectAdmit) {
-            verify(
-              roomRepo.inviteOfferUserToBeaconRoom(
-                beaconId: _beaconId,
-                offerUserId: _helperId,
-                authorUserId: _authorId,
-                admissionReason: BeaconRoomAdmissionReason.autoAdmit,
-              ),
-            ).called(1);
-            expect(
-              attention.recorded.map((intent) => intent.eventType.name),
-              ['helpOfferSubmitted', 'offerAccepted'],
-            );
-            verify(
-              admissionRepo.record(
-                beaconId: _beaconId,
-                offerUserId: _helperId,
-                actorUserId: _authorId,
-                action: HelpOfferAdmissionAction.autoAdmit,
-              ),
-            ).called(1);
-          } else {
-            verifyNever(
-              roomRepo.inviteOfferUserToBeaconRoom(
-                beaconId: anyNamed('beaconId'),
-                offerUserId: anyNamed('offerUserId'),
-                authorUserId: anyNamed('authorUserId'),
-              ),
-            );
-            expect(
-              attention.recorded.map((intent) => intent.eventType.name),
-              ['helpOfferSubmitted'],
-            );
-            verifyNever(
-              admissionRepo.record(
-                beaconId: anyNamed('beaconId'),
-                offerUserId: anyNamed('offerUserId'),
-                actorUserId: anyNamed('actorUserId'),
-                action: anyNamed('action'),
-              ),
-            );
-          }
-        });
-      }
+          verifyNever(
+            roomRepo.inviteOfferUserToBeaconRoom(
+              beaconId: anyNamed('beaconId'),
+              offerUserId: anyNamed('offerUserId'),
+              authorUserId: anyNamed('authorUserId'),
+              admissionReason: anyNamed('admissionReason'),
+            ),
+          );
+          verifyNever(
+            coordinationRepo.upsertResponse(
+              beaconId: anyNamed('beaconId'),
+              offerUserId: anyNamed('offerUserId'),
+              authorUserId: anyNamed('authorUserId'),
+              responseType: anyNamed('responseType'),
+            ),
+          );
+          expect(
+            commitmentRepo.recordCalls.map((c) => c.kind),
+            [CommitmentEventKind.offered],
+          );
+          expect(
+            attention.recorded.map((intent) => intent.eventType.name),
+            ['helpOfferSubmitted'],
+          );
+        },
+      );
     });
   });
 }

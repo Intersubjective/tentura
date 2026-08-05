@@ -18,7 +18,6 @@ void main() {
     'help_offer_case.dart': [
       'runAction<',
       '.helpOfferSubmitted(',
-      '.offerAccepted(',
       '.helpWithdrawn(',
     ],
     'forward_case.dart': ['runAction(', '.relayReceived('],

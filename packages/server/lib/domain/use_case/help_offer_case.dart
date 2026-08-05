@@ -1,22 +1,15 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
-import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -29,13 +22,9 @@ final class HelpOfferCase extends UseCaseBase {
   HelpOfferCase(
     this._helpOfferRepository,
     this._beaconRepository,
-    this._coordinationRepository,
     this._commitmentRepository,
     this._inboxRepository,
     this._capabilityCase,
-    this._beaconRoomRepository,
-    this._forwardEdgeRepository,
-    this._admissionRepository,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
@@ -46,13 +35,9 @@ final class HelpOfferCase extends UseCaseBase {
 
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconRepositoryPort _beaconRepository;
-  final CoordinationRepositoryPort _coordinationRepository;
   final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
-  final BeaconRoomRepositoryPort _beaconRoomRepository;
-  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
-  final HelpOfferAdmissionRepositoryPort _admissionRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
@@ -151,67 +136,6 @@ final class HelpOfferCase extends UseCaseBase {
             helpOffererId: userId,
             authorId: beacon.author.id,
             sourceEventKey: 'help_offer:${generateId('A')}',
-          ),
-        );
-      },
-    );
-    await _autoAdmitIfTrusted(
-      beacon: beacon,
-      helpOffererId: userId,
-    );
-  }
-
-  /// Auto-admits [helpOffererId] to the beacon room without waiting for explicit
-  /// author approval when the author directly forwarded this beacon to them.
-  /// Skipped when the author previously revoked room access for this user.
-  Future<void> _autoAdmitIfTrusted({
-    required BeaconEntity beacon,
-    required String helpOffererId,
-  }) async {
-    final isTrusted = await _forwardEdgeRepository.isDirectAuthorForward(
-      beaconId: beacon.id,
-      authorId: beacon.author.id,
-      userId: helpOffererId,
-    );
-    if (!isTrusted) return;
-
-    final existing = await _beaconRoomRepository.findParticipant(
-      beaconId: beacon.id,
-      userId: helpOffererId,
-    );
-    if (existing != null && existing.roomAccess == RoomAccessBits.none) return;
-
-    await _attention!.runAction<void>(
-      actorUserId: beacon.author.id,
-      action: (transaction) async {
-        await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
-          beaconId: beacon.id,
-          offerUserId: helpOffererId,
-          authorUserId: beacon.author.id,
-          admissionReason: BeaconRoomAdmissionReason.autoAdmit,
-        );
-        await _coordinationRepository.upsertResponse(
-          beaconId: beacon.id,
-          offerUserId: helpOffererId,
-          authorUserId: beacon.author.id,
-          responseType: CoordinationResponseType.useful.smallintValue,
-        );
-        await _admissionRepository.record(
-          beaconId: beacon.id,
-          offerUserId: helpOffererId,
-          actorUserId: beacon.author.id,
-          action: HelpOfferAdmissionAction.autoAdmit,
-        );
-        await transaction.record(
-          await _attentionIntents!.offerAccepted(
-            receiverId: helpOffererId,
-            beaconId: beacon.id,
-            actorUserId: beacon.author.id,
-            sourceEventKey: 'admission:${generateId('A')}',
-            bodyExcerpt:
-                "You were added to this request's shared chat because the "
-                'author forwarded this request to you. Everyone admitted can '
-                'read messages, including earlier history.',
           ),
         );
       },

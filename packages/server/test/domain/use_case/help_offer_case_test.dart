@@ -6,13 +6,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
-import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
-import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
-import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
-import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -22,7 +16,6 @@ import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import 'help_offer_case_mocks.mocks.dart';
 import '../../support/block_aware_beacon_access_guard.dart';
-import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/recording_commitment_repository.dart';
@@ -32,12 +25,10 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
-  late MockCoordinationRepositoryPort coordinationRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
-  late MockForwardEdgeRepositoryPort forwardEdgeRepo;
-  late MockHelpOfferAdmissionRepositoryPort admissionRepo;
+  late MockCoordinationRepositoryPort coordinationRepo;
   late RecordingCommitmentRepository commitmentRepo;
   late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
@@ -66,12 +57,10 @@ void main() {
   setUp(() {
     beaconRepo = MockBeaconRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
-    coordinationRepo = MockCoordinationRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
-    forwardEdgeRepo = MockForwardEdgeRepositoryPort();
-    admissionRepo = MockHelpOfferAdmissionRepositoryPort();
+    coordinationRepo = MockCoordinationRepositoryPort();
     commitmentRepo = RecordingCommitmentRepository();
     attention = TestAttentionHarness();
     capabilityCase = CapabilityCase(
@@ -82,35 +71,15 @@ void main() {
     case_ = HelpOfferCase(
       helpOfferRepo,
       beaconRepo,
-      coordinationRepo,
       commitmentRepo,
       inboxRepo,
       capabilityCase,
-      roomRepo,
-      forwardEdgeRepo,
-      admissionRepo,
       FakeBeaconAccessGuard(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('HelpOfferCaseTest'),
     );
-    // Default: not trusted — no direct forward from author.
-    when(
-      forwardEdgeRepo.isDirectAuthorForward(
-        beaconId: anyNamed('beaconId'),
-        authorId: anyNamed('authorId'),
-        userId: anyNamed('userId'),
-      ),
-    ).thenAnswer((_) async => false);
-    when(
-      admissionRepo.record(
-        beaconId: anyNamed('beaconId'),
-        offerUserId: anyNamed('offerUserId'),
-        actorUserId: anyNamed('actorUserId'),
-        action: anyNamed('action'),
-      ),
-    ).thenAnswer((_) async {});
   });
 
   group('withdraw lifecycle', () {
@@ -318,26 +287,10 @@ void main() {
           message: 'updated',
         ),
       ).called(1);
-      // Auto-admit must NOT run on the update path.
-      verifyNever(
-        forwardEdgeRepo.isDirectAuthorForward(
-          beaconId: anyNamed('beaconId'),
-          authorId: anyNamed('authorId'),
-          userId: anyNamed('userId'),
-        ),
-      );
     });
   });
 
-  group('auto-admit on new help offer', () {
-    BeaconParticipantRecord participant({required int roomAccess}) =>
-        testBeaconParticipant(
-          id: 'P1',
-          beaconId: 'B1',
-          userId: 'U1',
-          roomAccess: roomAccess,
-        );
-
+  group('direct author forward recipient offer (P5 — no auto-admit)', () {
     void stubNewHelpOffer() {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
@@ -348,175 +301,39 @@ void main() {
       ).thenAnswer((_) async {});
     }
 
-    void stubAdmitCalls() {
-      when(
-        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) async => null);
-      when(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: 'B1',
-          offerUserId: 'U1',
-          authorUserId: 'Uauth',
-          admissionReason: BeaconRoomAdmissionReason.autoAdmit,
-        ),
-      ).thenAnswer((_) => Future.value());
-    }
-
     test(
-      'admits when author directly forwarded beacon to help offerer',
+      'does not write coordination response or acknowledged commitment event',
       () async {
         stubNewHelpOffer();
-        when(
-          forwardEdgeRepo.isDirectAuthorForward(
-            beaconId: 'B1',
-            authorId: 'Uauth',
-            userId: 'U1',
-          ),
-        ).thenAnswer((_) async => true);
-        stubAdmitCalls();
 
         await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
-        verify(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: 'B1',
-            offerUserId: 'U1',
-            authorUserId: 'Uauth',
-            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
+        verifyNever(
+          coordinationRepo.upsertResponse(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            authorUserId: anyNamed('authorUserId'),
+            responseType: anyNamed('responseType'),
           ),
-        ).called(1);
+        );
+        verifyNever(
+          roomRepo.inviteOfferUserToBeaconRoom(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            authorUserId: anyNamed('authorUserId'),
+            admissionReason: anyNamed('admissionReason'),
+          ),
+        );
+        expect(
+          commitmentRepo.recordCalls.map((c) => c.kind),
+          [CommitmentEventKind.offered],
+        );
         expect(
           attention.recorded.map((intent) => intent.eventType.name),
-          ['helpOfferSubmitted', 'offerAccepted'],
+          ['helpOfferSubmitted'],
         );
       },
     );
-
-    test(
-      'skips admit when help offerer is a mutual friend but not directly forwarded',
-      () async {
-        stubNewHelpOffer();
-
-        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
-
-        verifyNever(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: anyNamed('beaconId'),
-            offerUserId: anyNamed('offerUserId'),
-            authorUserId: anyNamed('authorUserId'),
-          ),
-        );
-      },
-    );
-
-    test(
-      'skips admit when author explicitly revoked access (roomAccess=none)',
-      () async {
-        stubNewHelpOffer();
-        when(
-          forwardEdgeRepo.isDirectAuthorForward(
-            beaconId: 'B1',
-            authorId: 'Uauth',
-            userId: 'U1',
-          ),
-        ).thenAnswer((_) async => true);
-        when(
-          roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
-        ).thenAnswer((_) async => participant(roomAccess: RoomAccessBits.none));
-
-        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
-
-        verifyNever(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: anyNamed('beaconId'),
-            offerUserId: anyNamed('offerUserId'),
-            authorUserId: anyNamed('authorUserId'),
-          ),
-        );
-      },
-    );
-
-    test(
-      're-admits trusted user when participant exists with non-none access',
-      () async {
-        stubNewHelpOffer();
-        when(
-          forwardEdgeRepo.isDirectAuthorForward(
-            beaconId: 'B1',
-            authorId: 'Uauth',
-            userId: 'U1',
-          ),
-        ).thenAnswer((_) async => true);
-        when(
-          roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
-        ).thenAnswer(
-          (_) async => participant(roomAccess: RoomAccessBits.requested),
-        );
-        when(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: 'B1',
-            offerUserId: 'U1',
-            authorUserId: 'Uauth',
-            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
-          ),
-        ).thenAnswer((_) => Future.value());
-        when(
-          coordinationRepo.upsertResponse(
-            beaconId: 'B1',
-            offerUserId: 'U1',
-            authorUserId: 'Uauth',
-            responseType: CoordinationResponseType.useful.smallintValue,
-          ),
-        ).thenAnswer((_) => Future.value());
-
-        await case_.offerHelp(beaconId: 'B1', userId: 'U1');
-
-        verify(
-          roomRepo.inviteOfferUserToBeaconRoom(
-            beaconId: 'B1',
-            offerUserId: 'U1',
-            authorUserId: 'Uauth',
-            admissionReason: BeaconRoomAdmissionReason.autoAdmit,
-          ),
-        ).called(1);
-        verify(
-          admissionRepo.record(
-            beaconId: 'B1',
-            offerUserId: 'U1',
-            actorUserId: 'Uauth',
-            action: HelpOfferAdmissionAction.autoAdmit,
-          ),
-        ).called(1);
-      },
-    );
-  });
-
-  group('helpOffersWithCoordination after auto-admit (contract)', () {
-    test('row carries useful response and auto-admit event', () {
-      const user = UserPublicRecord(
-        id: 'U1',
-        displayName: 't',
-        description: '',
-      );
-      final row = HelpOfferWithCoordinationRow(
-        beaconId: 'B1',
-        userId: 'U1',
-        message: 'm',
-        status: 0,
-        createdAt: DateTime.utc(2025),
-        updatedAt: DateTime.utc(2025),
-        user: user,
-        roomAccess: RoomAccessBits.admitted,
-        responseType: CoordinationResponseType.useful.smallintValue,
-        admissionAction: HelpOfferAdmissionAction.autoAdmit.smallintValue,
-      );
-      expect(row.responseType, CoordinationResponseType.useful.smallintValue);
-      expect(row.roomAccess, RoomAccessBits.admitted);
-      expect(
-        row.admissionAction,
-        HelpOfferAdmissionAction.autoAdmit.smallintValue,
-      );
-    });
   });
 
   group('offerHelp — author notification', () {
@@ -565,13 +382,9 @@ void main() {
       case_ = HelpOfferCase(
         helpOfferRepo,
         beaconRepo,
-        coordinationRepo,
         RecordingCommitmentRepository(),
         inboxRepo,
         capabilityCase,
-        roomRepo,
-        forwardEdgeRepo,
-        admissionRepo,
         BlockAwareBeaconAccessGuard(
           blocks: blocks,
           beaconRepo: beaconRepo,

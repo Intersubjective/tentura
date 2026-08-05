@@ -479,13 +479,9 @@ final class CommitmentGatesHarness {
     helpOfferCase = HelpOfferCase(
       helpOfferRepo,
       beaconRepo,
-      _coordinationRepo,
       commitmentRepo,
       _inboxRepo,
       capabilityCase,
-      _roomRepo,
-      _forwardEdgeRepo,
-      _admissionRepo,
       FakeBeaconAccessGuard(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
