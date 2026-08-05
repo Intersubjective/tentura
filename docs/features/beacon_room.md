@@ -69,7 +69,11 @@ Room content stays **scoped**: people who are not in the Room do not see room-pr
 
 **@mentions:** typing `@` in the chat composer opens completion-hints for admitted participants (filter by handle or display name; ↑/↓ / Enter / Tab / Esc). Sending a completed `@handle` delivers a **personal push** (coordination category, on by default) and marks the event for the **daily email digest** (also on by default). Only newly added mentionees on message edit are notified.
 
-**Admission** is normally explicit — offering help or forwarding does not automatically grant full Chat access. **Exception:** when the author **directly forwarded** the request to someone and they offer help, they are admitted automatically; that admission is always surfaced in the Chat (join system line), People tab (auto-admit label), and the admission notification.
+**Admission** is always **explicit** — offering help or receiving a direct forward does not automatically grant Chat access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked (chip) and sorted **upward** in the People list, but the author must still **Accept** explicitly before admission.
+
+**Backup offers:** when the beacon signals **enough help**, additional help offers are allowed as **backup** offers — secondary coordination that does not trigger "offers awaiting author" pressure on the author.
+
+**Remove from chat ≠ End participation:** removing someone from Chat revokes **room access only**; their participation record and committer stake remain until the author uses the separate **End participation** action (or the helper withdraws). The UI must not conflate these two actions.
 
 ## Forwarding
 
