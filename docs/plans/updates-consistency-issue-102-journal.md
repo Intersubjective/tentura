@@ -1080,3 +1080,39 @@ TESTS: see verification matrix above
 FILES: docs/realtime-sync-operations.md, scripts/custom-lint-baseline.txt, docs/plans/updates-consistency-issue-102-journal.md
 FINDINGS: contract gap=0, pending=[]; runbook gate evidence aligned with U6 proof; client lint baseline locked at 112; all §2 criteria map to named tests; pg suite honest gate is 18 pre-existing / zero new.
 REMAINING: deferred items and follow-ups listed above — none block branch merge review; push/PR/deploy explicitly out of scope for this plan.
+
+### 2026-08-05 — overseer — U8 manager review: ACCEPTED · PLAN COMPLETE
+
+Docs, contract reconciliation and the lint baseline only — no production code, which is correct for
+a close-out.
+
+**Independently re-verified at final HEAD (`39e579ac`), not taken from the worker's matrix:**
+
+| Gate | Result |
+|---|---|
+| server `dart analyze` | **0 errors** |
+| server `dart test --exclude-tags pg` | **1184 passed** |
+| server `dart test --tags pg` | **18 failures, ZERO beyond the pre-existing baseline** |
+| client `flutter test` | **1645 passed, 14 skipped, 0 failed** |
+| `check-custom-lints.sh` client / server | **112** (baseline now 112) / **0** |
+| `check-user-facing-terminology.sh` | ok |
+| `check-doc-drift.sh` | ok |
+| `updates-event-contract.json` gap rows | **0** |
+
+Spot-checked the acceptance matrix rather than trusting it: every test name cited for the
+"visible retry/error" and "actor/action/request/time/next step" criteria exists on disk, and the
+`test/features/updates/` + cross-surface architecture files run **20 passed**.
+
+History integrity re-checked after two workers amended their own tip commits (`a21cf790`→`bb8ffc73`,
+`37b5e6a8`→`39e579ac`): all twelve sampled unit/review commits remain ancestors of HEAD, nothing
+lost. Both amends touched only the amending worker's own last commit.
+
+Branch state: `feat/updates-consistency-102`, **50 commits ahead of `main`, not pushed**, no PR, no
+tag, no deploy. All eight pre-existing untracked files — including `key.fb` and `out.key`, which
+were never read or committed — are present and unstaged.
+
+**Plan complete: U1–U8 all accepted** (U4 and U6 after remediation). The deferred items and the
+seven recommended follow-up issues in the U8 close-out are the authoritative hand-off list; the two
+most load-bearing are the **18 pre-existing pg failures on `main`** and the **`inbox_delivery_ms`
+budget at ~97%**, which together mean neither the pg suite nor the browser gate is currently a
+trustworthy signal on this repository, independent of #102.
