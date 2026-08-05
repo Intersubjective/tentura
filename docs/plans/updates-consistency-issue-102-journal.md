@@ -59,7 +59,7 @@ Orchestrator-owned files on this branch: the plan and this journal.
 | U3 | Emit remaining silent transitions + `accept_resolution` transaction fix | complete | **accepted by overseer** |
 | U4 | Copy completeness + no-empty-card invariant | complete | **accepted after remediation** |
 | U5 | Latency budget + instrumentation + visible refresh failure | complete | **accepted by overseer** |
-| U6 | Multi-client My Work regression + reconnect dedup | complete | pending overseer review |
+| U6 | Multi-client My Work regression + reconnect dedup | complete | **accepted after remediation** |
 | U7 | Cross-surface consistency verification | pending | — |
 | U8 | Integration and close-out | pending | — |
 
@@ -719,3 +719,54 @@ code change is not evidence for the current tree.
 unreachable from WebDriver.
 
 Dispatching remediation.
+
+### 2026-08-05 — U6 remediation — Defect 1 root cause and fix
+
+**Root cause (product + harness):** Two defects compounded in scenario 3a.
+
+1. **Product — stale subtitle retention** (`my_work_case.dart`): `_applyRoomInboxSubtitles`
+   kept the prior `roomInboxSubtitle` when a refetch returned zero unread (`parts.isEmpty ?
+   c.roomInboxSubtitle : …`). After `room_seen` invalidation, mounted My Work never cleared a `+N`
+   badge even when `InboxRoomContextBatch` reported `roomUnreadCount: 0`.
+
+2. **Product — desk refresh concurrency** (`my_work_cubit.dart`): My Work lacked the in-flight +
+   one-queued-rerun gate used by `AttentionCase` / `BeaconViewCubit`. Overlapping
+   `room_message` + `room_seen` invalidations could complete a stale full-desk fetch as the latest
+   result. Added the gate plus a single 300 ms follow-up hint refresh after `room_message`
+   invalidations.
+
+3. **Harness — `+1` substring false negative:** When prior chat unread had not converged, the
+   status line showed `+2` (`Coordinating the plan · active today · +2`). `waitForTestIdText(…,
+   '+1')` does not match `+2` (`'+2'.includes('+1')` is false in JS), producing a 45 s timeout
+   indistinguishable from a missing refresh. Replaced with parsed unread-count delta assertions
+   (baseline + 1 after author message; zero after same-account peer reads chat).
+
+Evidence: failure page sources at `reports/realtime-multiclient/20260805-134014/run-1/` showed `+2`
+while the assertion waited for `+1`; after subtitle-clear fix, zero-unread baseline still stuck at
+`+1` until numeric delta assertion landed.
+
+COMMITS: feec5fce, 160c5562, 035b6678, 12714aad, 5835f427 (plus instrumentation commits below)
+
+### 2026-08-05 — U6 remediation — Defect 3 instrumentation
+
+U5's `AttentionHeadRefreshLatency` stream is not reachable from WebDriver: Dart `Logger.info`
+output does not surface in Chrome `browser` logs under Flutter web profile builds. Wired QA
+publish to `window.__tenturaQaHeadRefreshLatencyMs` via `QaAttentionLatencyProbe` (web
+`js_interop`); harness reads it before falling back to log grep. Gate run samples:
+`my_work_102_qa_head_refresh_latency_ms` p95 **223 ms** (all five runs non-null).
+
+COMMITS: a89ac196, e55f3106, fe5c6aee
+
+### 2026-08-05 — U6 remediation — final
+
+STATUS: complete
+COMMITS: feec5fce, a89ac196, e55f3106, fe5c6aee, 160c5562, 72a48dc7, 7410e018, 035b6678, 12714aad, 5835f427, (proof commit pending)
+TESTS:
+- `REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false bash scripts/run_realtime_multiclient_web_local.sh` — PASS (`my_work_102_qa_head_refresh_latency_ms=217`)
+- `bash scripts/run_realtime_multiclient_web_local.sh` — **PASS 5/5** session `20260805-135611`; negative proofs live + catch_up observed
+- `cd packages/client && flutter test` — **1636 passed**, 14 skipped
+- `bash scripts/check-custom-lints.sh packages/client` — total 112 (baseline 113)
+- `cd packages/server && dart test --exclude-tags pg` — **1184 passed**
+FILES: packages/client/lib/features/my_work/{ui/bloc/my_work_cubit,domain/use_case/my_work_case}.dart, packages/client/lib/domain/attention/{attention_case,qa_attention_latency_probe*}.dart, packages/client/test_driver/realtime_multiclient_web_test.dart, packages/client/reports/realtime-multiclient/updates-102-20260805/proof.json, docs/plans/updates-consistency-issue-102-journal.md
+FINDINGS: scenario 3a flake was primarily product stale-subtitle + refresh concurrency; harness `+1` substring masked `+2` states; QA latency needs DOM bridge not Logger on web.
+REMAINING: none for U6 remediation

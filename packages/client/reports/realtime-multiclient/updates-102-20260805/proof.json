@@ -1,26 +1,28 @@
 {
   "suite": "updates-102",
   "recordedAt": "2026-08-05",
-  "releaseGateSession": "20260805-130745",
-  "gitRevision": "ea21b532",
+  "releaseGateSession": "20260805-135611",
+  "gitRevision": "5835f427",
   "runsCompleted": 5,
   "negativeProofs": {
     "live": "expected failure observed",
     "catch_up": "expected failure observed"
   },
   "timings_p95_ms": {
-    "my_work_102_delivery_ms": 931,
-    "attention_reconnect_catch_up_ms": 269,
-    "inbox_delivery_ms": 1450,
+    "my_work_102_delivery_ms": 590,
+    "my_work_102_qa_head_refresh_latency_ms": 223,
+    "attention_reconnect_catch_up_ms": 304,
+    "inbox_delivery_ms": 1471,
     "connected_budget_ms": 1500,
     "reconnect_budget_ms": 3000
   },
   "my_work_102": {
-    "delivery_ms_samples": [578, 720, 770, 914, 931],
+    "delivery_ms_samples": [573, 567, 496, 433, 590],
+    "qa_head_refresh_latency_ms_samples": [218, 196, 189, 223, 190],
     "ok": true
   },
   "attention_reconnect": {
-    "catch_up_ms_samples": [219, 227, 235, 244, 269],
+    "catch_up_ms_samples": [304, 244, 234, 229, 247],
     "ok": true
   }
 }
