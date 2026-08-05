@@ -505,3 +505,22 @@ prior admit/decline simplification); P3.10 UI guard lives in
 (no extra `findParticipant` call). Client version bumped `5.6.36` → `5.6.37`.
 
 **Remaining:** U07 (P3.11) client truth alignment for Close; U08 (P3.12) gate-scenario suite.
+
+### 2026-08-05 — U06 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1234/1234
+green), `check-custom-lints.sh` server (0/0) and client (112/112, matches
+baseline file exactly), and full `flutter test` (1647 passed, 14 skipped, no
+regressions). Confirmed `HelpOfferCoordinationExceptionCode` has both new
+values appended strictly at the end (`alreadyAdmitted` retained, unused but
+not deleted), no reordering. Confirmed `setCoordinationResponse`'s check
+order matches the plan exactly: author → status → responseType validity →
+offer activity → P3.10 admission invariant → P3.9 downgrade guard → write.
+Confirmed the client guard (`CoordinationResponseType.
+allowsInviteToRoomForResponseType` + `effectiveInviteToRoom` in
+`BeaconViewCubit`) makes the server error practically unreachable through
+normal UI flow. Self-corrected worker mistake (stray import removal, fixed
+in a follow-up commit) is a non-issue — final state is clean. Proceeding to
+U07 (P3.11) — the release-blocking client truth-alignment unit; both of its
+dependencies (P3.5's close-gate switch and P8.1's
+`everAcknowledgedCommitterCount`) are now in place.
