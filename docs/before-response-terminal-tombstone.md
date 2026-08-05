@@ -38,7 +38,7 @@ Mappings:
 - New state **`2` (deleted)** → set `status = 4` (from `0`, or upgrade from `3` to `4`).
 - **`5` → `6` (review window ends)** — if `inbox_item.status = 1` (**Watching**) and the user has a **withdrawn** `beacon_help_offer` (`status = 1`) and **no active** help offer (`status = 0`), set `status = 3`. This matches users who **offered help then withdrew**: `beaconWithdraw` calls `upsertWatchingForSender`, which is **not** the same as explicitly choosing Watching before closure (see watching doc); once the beacon reaches **review complete**, they should see a **passive tombstone**, not a triage-style Watching row. Users who chose **Watching** without ever having a help offer row keep **Watching** (Case 6).
 
-**Withdraw (`beaconWithdraw`)** when the beacon is **not in the open family**: the server tombstones the inbox row instead of leaving a triage-style **Watching** row on a terminal beacon. Open beacons still use Watching after withdraw.
+**Withdraw (`beaconWithdraw`)** when the beacon is **not in the open family**: the server tombstones the inbox row instead of leaving a triage-style **Watching** row on a terminal beacon. Open beacons still use Watching after withdraw. User-initiated withdraw no longer reaches this branch under normal product rules (P3.8 — withdraw is forbidden once the beacon leaves open-family, including Wrapping up); the non-open-family tombstone path remains for **block-driven cleanup** and other server-side writers that may still run when the beacon is not open-family.
 
 Logic lives in Postgres (see migrations `m0024`–`m0026`) and [`HelpOfferCase.withdraw`](../packages/server/lib/domain/use_case/help_offer_case.dart) so all writers behave consistently.
 

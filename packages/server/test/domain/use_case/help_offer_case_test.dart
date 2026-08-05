@@ -175,6 +175,28 @@ void main() {
       );
     });
 
+    test('rejects WRAPPING UP (reviewOpen)', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.reviewOpen));
+
+      await expectLater(
+        case_.withdraw(
+          beaconId: 'B1',
+          userId: 'U1',
+          withdrawReason: 'other',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
+          ),
+        ),
+      );
+      verifyZeroInteractions(helpOfferRepo);
+      verifyZeroInteractions(inboxRepo);
+    });
+
     test('allows OPEN (0)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(

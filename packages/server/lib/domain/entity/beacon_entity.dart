@@ -64,7 +64,7 @@ abstract class BeaconEntity with _$BeaconEntity {
       status == BeaconStatus.deleted ||
       status == BeaconStatus.closed;
 
-  bool get allowsBeaconWithdraw => status.allowsCoordination;
+  bool get allowsBeaconWithdraw => status.isOpenFamily;
 
   bool get hasImage => images.isNotEmpty;
 
