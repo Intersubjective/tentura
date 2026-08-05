@@ -16,8 +16,6 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -25,6 +23,7 @@ import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/noop_commitment_query_case.dart';
 
 class _MediaBeaconRepo extends Fake implements BeaconRepositoryPort {
   _MediaBeaconRepo(this.locked);
@@ -186,11 +185,6 @@ class _FakeTaskRepo extends Fake implements TaskRepositoryPort {
   }
 }
 
-class _FakeCoordinationRepo extends Fake
-    implements CoordinationRepositoryPort {}
-
-class _FakeHelpOfferRepo extends Fake implements HelpOfferRepositoryPort {}
-
 void main() {
   late _MediaBeaconRepo beaconRepo;
   late _TrackingImageRepo imageRepo;
@@ -219,8 +213,7 @@ void main() {
       imageRepo,
       imageObjectGc,
       taskRepo,
-      _FakeCoordinationRepo(),
-      _FakeHelpOfferRepo(),
+      noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseMediaTest'),

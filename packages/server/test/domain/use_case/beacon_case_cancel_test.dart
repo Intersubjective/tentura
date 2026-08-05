@@ -5,8 +5,9 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
@@ -14,16 +15,18 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/noop_commitment_query_case.dart';
+import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 
 @immutable
@@ -92,20 +95,6 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _StubCoordinationRepo implements CoordinationRepositoryPort {
-  _StubCoordinationRepo(this._responseByUserId);
-
-  final Map<String, int> _responseByUserId;
-
-  @override
-  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
-    String beaconId,
-  ) async => _responseByUserId;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class _StubHelpOfferRepo implements HelpOfferRepositoryPort {
   _StubHelpOfferRepo(this._offers);
 
@@ -113,6 +102,10 @@ class _StubHelpOfferRepo implements HelpOfferRepositoryPort {
 
   @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
+      _offers;
+
+  @override
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async =>
       _offers;
 
   @override
@@ -128,6 +121,7 @@ class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 void main() {
   const authorId = 'Uauth';
   const beaconId = 'Bopen';
+  const helperId = 'Uhelper';
   final now = DateTime.utc(2026, 6, 25);
 
   BeaconEntity openBeacon({String author = authorId}) => BeaconEntity(
@@ -139,17 +133,33 @@ void main() {
     status: BeaconStatus.open,
   );
 
-  HelpOfferEntity helpOffer({String userId = 'Uhelper'}) => HelpOfferEntity(
+  HelpOfferEntity helpOffer({String userId = helperId}) => HelpOfferEntity(
     beaconId: beaconId,
     userId: userId,
     createdAt: now,
     updatedAt: now,
   );
 
+  CommitmentQueryCase commitmentQueryCaseFromEvents(
+    List<CommitmentEvent> events,
+  ) {
+    final commitmentRepo = RecordingCommitmentRepository(
+      eventsByPair: {
+        commitmentPairKey(beaconId, helperId): events,
+      },
+    );
+    return CommitmentQueryCase(
+      commitmentRepo,
+      _StubHelpOfferRepo(const []),
+      env: Env(environment: Environment.test),
+      logger: Logger('BeaconCaseCancelTest'),
+    );
+  }
+
   BeaconCase buildCase({
     required BeaconEntity beacon,
-    Map<String, int> coordinationResponses = const {},
     List<HelpOfferEntity> offers = const [],
+    CommitmentQueryCase? commitmentQueryCase,
   }) {
     final attention = TestAttentionHarness();
     return BeaconCase(
@@ -157,8 +167,7 @@ void main() {
       _FakeImageRepo(),
       _FakeImageObjectGc(),
       _FakeTaskRepo(),
-      _StubCoordinationRepo(coordinationResponses),
-      _StubHelpOfferRepo(offers),
+      commitmentQueryCase ?? noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -177,8 +186,7 @@ void main() {
         _FakeImageRepo(),
         _FakeImageObjectGc(),
         _FakeTaskRepo(),
-        _StubCoordinationRepo({}),
-        _StubHelpOfferRepo([helpOffer()]),
+        noopCommitmentQueryCase(),
         FakeBeaconAccessGuard(),
         attentionIntents: attention.intents,
         attention: attention.transactional,
@@ -221,8 +229,7 @@ void main() {
           _FakeImageRepo(),
           _FakeImageObjectGc(),
           _FakeTaskRepo(),
-          _StubCoordinationRepo({}),
-          _StubHelpOfferRepo([]),
+          noopCommitmentQueryCase(),
           FakeBeaconAccessGuard(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
@@ -275,14 +282,22 @@ void main() {
       );
     });
 
-    test('rejects when an acknowledged committer exists', () async {
-      const helperId = 'Uhelper';
+    test('rejects when a committer was ever acknowledged', () async {
       final case_ = buildCase(
         beacon: openBeacon(),
-        offers: [helpOffer(userId: helperId)],
-        coordinationResponses: {
-          helperId: CoordinationResponseType.useful.smallintValue,
-        },
+        offers: [helpOffer()],
+        commitmentQueryCase: commitmentQueryCaseFromEvents([
+          CommitmentEvent(
+            id: 'CE-1',
+            seq: 1,
+            beaconId: beaconId,
+            userId: helperId,
+            actorUserId: authorId,
+            kind: CommitmentEventKind.acknowledged,
+            reason: null,
+            createdAt: now,
+          ),
+        ]),
       );
 
       await expectLater(
@@ -298,5 +313,48 @@ void main() {
         ),
       );
     });
+
+    test(
+      'rejects after accept then withdraw when commitment history remains',
+      () async {
+        final case_ = buildCase(
+          beacon: openBeacon(),
+          offers: const [],
+          commitmentQueryCase: commitmentQueryCaseFromEvents([
+            CommitmentEvent(
+              id: 'CE-1',
+              seq: 1,
+              beaconId: beaconId,
+              userId: helperId,
+              actorUserId: authorId,
+              kind: CommitmentEventKind.acknowledged,
+              reason: null,
+              createdAt: now,
+            ),
+            CommitmentEvent(
+              id: 'CE-2',
+              seq: 2,
+              beaconId: beaconId,
+              userId: helperId,
+              actorUserId: helperId,
+              kind: CommitmentEventKind.withdrawnByHelper,
+              reason: null,
+              createdAt: now.add(const Duration(hours: 31)),
+            ),
+          ]),
+        );
+
+        await expectLater(
+          case_.beaconCancel(beaconId: beaconId, userId: authorId),
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.description,
+              'description',
+              'Cannot cancel a request that ever had a committer',
+            ),
+          ),
+        );
+      },
+    );
   });
 }

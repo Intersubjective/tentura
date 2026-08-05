@@ -4,23 +4,26 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/noop_commitment_query_case.dart';
+import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 
 class _TransactionBeaconRepo implements BeaconRepositoryPort {
@@ -94,18 +97,7 @@ class _StatusTransitionCall {
   final String? actorId;
 }
 
-class _StubCoordinationRepo extends Fake implements CoordinationRepositoryPort {
-  Future<Map<String, int>> Function()? onCoordinationResponseTypeByOfferUserId;
-  int coordinationLookupCalls = 0;
-
-  @override
-  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
-    String beaconId,
-  ) {
-    coordinationLookupCalls++;
-    return onCoordinationResponseTypeByOfferUserId!();
-  }
-}
+class _FakeHelpOfferRepo extends Fake implements HelpOfferRepositoryPort {}
 
 class _TrackingImageRepo extends Fake implements ImageRepositoryPort {
   final deletedImages = <({String authorId, String imageId})>[];
@@ -134,11 +126,10 @@ class _TrackingImageObjectGc extends Fake implements ImageObjectGcPort {
 
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
-class _FakeHelpOfferRepo extends Fake implements HelpOfferRepositoryPort {}
-
 void main() {
+  const beaconId = 'B1';
+  const helperId = 'Uhelper';
   late _TransactionBeaconRepo beaconRepo;
-  late _StubCoordinationRepo coordinationRepo;
   late _TrackingImageRepo imageRepo;
   late _TrackingImageObjectGc imageObjectGc;
   late BeaconCase case_;
@@ -149,7 +140,7 @@ void main() {
     List<ImageEntity> images = const [],
   }) =>
       BeaconEntity(
-        id: 'B1',
+        id: beaconId,
         title: 'Title',
         author: const UserEntity(id: 'Uauth'),
         createdAt: now,
@@ -158,26 +149,41 @@ void main() {
         images: images,
       );
 
-  setUp(() {
-    beaconRepo = _TransactionBeaconRepo(beacon(status: BeaconStatus.open));
-    coordinationRepo = _StubCoordinationRepo();
-    imageRepo = _TrackingImageRepo();
-    imageObjectGc = _TrackingImageObjectGc();
-    coordinationRepo.onCoordinationResponseTypeByOfferUserId = () async => {};
+  CommitmentQueryCase commitmentQueryCaseFromEvents(
+    List<CommitmentEvent> events,
+  ) =>
+      CommitmentQueryCase(
+        RecordingCommitmentRepository(
+          eventsByPair: {
+            commitmentPairKey(beaconId, helperId): events,
+          },
+        ),
+        _FakeHelpOfferRepo(),
+        env: Env(environment: Environment.test),
+        logger: Logger('BeaconCaseDeleteTest'),
+      );
+
+  BeaconCase buildCase({CommitmentQueryCase? commitmentQueryCase}) {
     final attention = TestAttentionHarness();
-    case_ = BeaconCase(
+    return BeaconCase(
       beaconRepo,
       imageRepo,
       imageObjectGc,
       _FakeTaskRepo(),
-      coordinationRepo,
-      _FakeHelpOfferRepo(),
+      commitmentQueryCase ?? noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseDeleteTest'),
     );
+  }
+
+  setUp(() {
+    beaconRepo = _TransactionBeaconRepo(beacon(status: BeaconStatus.open));
+    imageRepo = _TrackingImageRepo();
+    imageObjectGc = _TrackingImageObjectGc();
+    case_ = buildCase();
   });
 
   test('deleteById hard-deletes draft beacon and removes images', () async {
@@ -191,7 +197,7 @@ void main() {
       images: [image],
     );
 
-    final result = await case_.deleteById(beaconId: 'B1', userId: 'Uauth');
+    final result = await case_.deleteById(beaconId: beaconId, userId: 'Uauth');
 
     expect(result, isTrue);
     expect(imageRepo.deletedImages, [
@@ -201,37 +207,46 @@ void main() {
       (authorId: 'Uauth', imageId: 'Img1'),
     ]);
     expect(beaconRepo.deleteBeaconByIdCalls, 1);
-    expect(beaconRepo.lastDeleteBeaconId, 'B1');
+    expect(beaconRepo.lastDeleteBeaconId, beaconId);
     expect(beaconRepo.lastDeleteUserId, 'Uauth');
     expect(beaconRepo.statusTransitions, isEmpty);
-    expect(coordinationRepo.coordinationLookupCalls, 0);
   });
 
   test('deleteById transitions open beacon to deleted when no committer', () async {
     beaconRepo.locked = beacon(status: BeaconStatus.open);
 
-    final result = await case_.deleteById(beaconId: 'B1', userId: 'Uauth');
+    final result = await case_.deleteById(beaconId: beaconId, userId: 'Uauth');
 
     expect(result, isTrue);
     expect(beaconRepo.deleteBeaconByIdCalls, 0);
     expect(beaconRepo.statusTransitions, hasLength(1));
     final transition = beaconRepo.statusTransitions.single;
-    expect(transition.beaconId, 'B1');
+    expect(transition.beaconId, beaconId);
     expect(transition.fromStatus, BeaconStatus.open);
     expect(transition.toStatus, BeaconStatus.deleted);
     expect(transition.reason, BeaconLifecycleChangeReason.deleted);
     expect(transition.actorId, 'Uauth');
-    expect(coordinationRepo.coordinationLookupCalls, 1);
   });
 
-  test('deleteById rejects when acknowledged committer existed', () async {
+  test('deleteById rejects when a committer was ever acknowledged', () async {
     beaconRepo.locked = beacon(status: BeaconStatus.open);
-    coordinationRepo.onCoordinationResponseTypeByOfferUserId = () async => {
-          'Uhelper': CoordinationResponseType.useful.smallintValue,
-        };
+    case_ = buildCase(
+      commitmentQueryCase: commitmentQueryCaseFromEvents([
+        CommitmentEvent(
+          id: 'CE-1',
+          seq: 1,
+          beaconId: beaconId,
+          userId: helperId,
+          actorUserId: 'Uauth',
+          kind: CommitmentEventKind.acknowledged,
+          reason: null,
+          createdAt: now,
+        ),
+      ]),
+    );
 
     await expectLater(
-      case_.deleteById(beaconId: 'B1', userId: 'Uauth'),
+      case_.deleteById(beaconId: beaconId, userId: 'Uauth'),
       throwsA(
         isA<EvaluationException>().having(
           (e) => e.code.codeNumber,
@@ -246,11 +261,55 @@ void main() {
     expect(beaconRepo.deleteBeaconByIdCalls, 0);
   });
 
+  test(
+    'deleteById rejects after accept then withdraw when commitment history remains',
+    () async {
+      beaconRepo.locked = beacon(status: BeaconStatus.open);
+      case_ = buildCase(
+        commitmentQueryCase: commitmentQueryCaseFromEvents([
+          CommitmentEvent(
+            id: 'CE-1',
+            seq: 1,
+            beaconId: beaconId,
+            userId: helperId,
+            actorUserId: 'Uauth',
+            kind: CommitmentEventKind.acknowledged,
+            reason: null,
+            createdAt: now,
+          ),
+          CommitmentEvent(
+            id: 'CE-2',
+            seq: 2,
+            beaconId: beaconId,
+            userId: helperId,
+            actorUserId: helperId,
+            kind: CommitmentEventKind.withdrawnByHelper,
+            reason: null,
+            createdAt: now.add(const Duration(hours: 31)),
+          ),
+        ]),
+      );
+
+      await expectLater(
+        case_.deleteById(beaconId: beaconId, userId: 'Uauth'),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.description,
+            'description',
+            'Cannot delete a request that ever had a committer',
+          ),
+        ),
+      );
+      expect(beaconRepo.statusTransitions, isEmpty);
+      expect(beaconRepo.deleteBeaconByIdCalls, 0);
+    },
+  );
+
   test('deleteById rejects disallowed status transition', () async {
     beaconRepo.locked = beacon(status: BeaconStatus.deleted);
 
     await expectLater(
-      case_.deleteById(beaconId: 'B1', userId: 'Uauth'),
+      case_.deleteById(beaconId: beaconId, userId: 'Uauth'),
       throwsA(
         isA<EvaluationException>().having(
           (e) => e.code.codeNumber,

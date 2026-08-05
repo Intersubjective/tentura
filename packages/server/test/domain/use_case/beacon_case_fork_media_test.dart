@@ -15,13 +15,13 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/noop_commitment_query_case.dart';
 
 class _ForkBeaconRepo extends Fake implements BeaconRepositoryPort {
   _ForkBeaconRepo(this.source);
@@ -134,11 +134,6 @@ class _FakeTaskRepo extends Fake implements TaskRepositoryPort {
   Future<String> schedule(TaskEntity task) async => 'T1';
 }
 
-class _FakeCoordinationRepo extends Fake
-    implements CoordinationRepositoryPort {}
-
-class _FakeHelpOfferRepo extends Fake implements HelpOfferRepositoryPort {}
-
 class _AllowGuard implements BeaconAccessGuard {
   bool allowed = true;
 
@@ -195,8 +190,7 @@ void main() {
       imageRepo,
       _FakeImageObjectGc(),
       _FakeTaskRepo(),
-      _FakeCoordinationRepo(),
-      _FakeHelpOfferRepo(),
+      noopCommitmentQueryCase(),
       guard,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseForkMediaTest'),

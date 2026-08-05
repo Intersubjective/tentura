@@ -13,14 +13,12 @@ import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
-import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -171,8 +169,7 @@ final class BeaconCase extends UseCaseBase {
     ImageRepositoryPort imageRepository,
     ImageObjectGcPort imageObjectGc,
     TaskRepositoryPort tasksRepository,
-    CoordinationRepositoryPort coordinationRepository,
-    HelpOfferRepositoryPort helpOfferRepository,
+    CommitmentQueryCase commitmentQueryCase,
     BeaconAccessGuard guard,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
@@ -181,8 +178,7 @@ final class BeaconCase extends UseCaseBase {
     imageRepository,
     imageObjectGc,
     tasksRepository,
-    coordinationRepository,
-    helpOfferRepository,
+    commitmentQueryCase,
     guard,
     attentionIntents: attentionIntents,
     attention: attention,
@@ -195,8 +191,7 @@ final class BeaconCase extends UseCaseBase {
     this._imageRepository,
     this._imageObjectGc,
     this._tasksRepository,
-    this._coordinationRepository,
-    this._helpOfferRepository,
+    this._commitmentQueryCase,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
@@ -213,9 +208,7 @@ final class BeaconCase extends UseCaseBase {
 
   final TaskRepositoryPort _tasksRepository;
 
-  final CoordinationRepositoryPort _coordinationRepository;
-
-  final HelpOfferRepositoryPort _helpOfferRepository;
+  final CommitmentQueryCase _commitmentQueryCase;
 
   final BeaconAccessGuard _guard;
 
@@ -779,20 +772,10 @@ final class BeaconCase extends UseCaseBase {
                 description: 'Only the author can cancel',
               );
             }
-            final coords = await _coordinationRepository
-                .coordinationResponseTypeByOfferUserId(
-                  beaconId,
-                );
-            final activeOffers = await _helpOfferRepository.fetchByBeaconId(
-              beaconId,
-            );
-            final hasCommitters = activeOffers.any(
-              (o) => isAcknowledgedCommitterResponse(coords[o.userId]),
-            );
-            if (hasCommitters) {
+            if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
               throw EvaluationException(
                 evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-                description: 'Cannot cancel a request with committers',
+                description: 'Cannot cancel a request that ever had a committer',
               );
             }
             final intent = transaction == null
@@ -867,12 +850,7 @@ final class BeaconCase extends UseCaseBase {
           return true;
         }
 
-        final coords = await _coordinationRepository
-            .coordinationResponseTypeByOfferUserId(beacon.id);
-        final everHadAcknowledgedCommitter = coords.values.any(
-          isAcknowledgedCommitterResponse,
-        );
-        if (everHadAcknowledgedCommitter) {
+        if (await _commitmentQueryCase.everHadCommitter(beacon.id)) {
           throw EvaluationException(
             evaluationCode: EvaluationExceptionCode.beaconNotClosable,
             description: 'Cannot delete a request that ever had a committer',
