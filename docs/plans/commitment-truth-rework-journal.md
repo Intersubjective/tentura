@@ -287,3 +287,16 @@ state before writing, matching the write-rule box in §4. Confirmed
 `deleteForCommit` has zero remaining source references (only stale compiled
 binaries matched). Confirmed the `_coordination` field removed from
 `UserBlockCase` had no other use before deletion. Proceeding to U03.
+
+### 2026-08-05 — U03 review (orchestrator)
+
+**Verdict: ACCEPTED.** Independently re-ran `dart test -x pg` (1216/1216
+green) and `check-custom-lints.sh packages/server` (0/0 baseline). Confirmed
+`BeaconCase`'s `CoordinationRepositoryPort`/`HelpOfferRepositoryPort` deps were
+only used by the two old committer-detection blocks now replaced — removing
+them did not strand other functionality (clean diff, no leftover references).
+Confirmed `formerCommitter(3)` was appended (not inserted/reordered) and
+`fromDb` explicitly maps all four values. Confirmed all four P3.3 edit sites
+match plan §5 point-for-point, including the if-chain in
+`buildEvaluationVisibility` (the one the compiler wouldn't have caught).
+Proceeding to U04.
