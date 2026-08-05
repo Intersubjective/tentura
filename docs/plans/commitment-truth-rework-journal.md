@@ -878,3 +878,8 @@ author view (l10n is author-centric: "Forwarded by you"). Sort applies within
 unchanged (informational only).
 
 **Remaining:** U13 (P6) — Enough help Forward-primary + backup offers.
+
+### 2026-08-05 — U12 final
+
+P5 acceptance verified green on `feat/commitment-truth-rework`. Journal checklist
+U12 marked complete. Proceeding to U13 (P6).
