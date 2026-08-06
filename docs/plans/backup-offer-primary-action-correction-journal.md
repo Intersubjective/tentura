@@ -82,7 +82,7 @@ filled `Offer as backup` primary wired to `onOfferHelp` and `TenturaTextAction`
 
 **Status:** complete.
 
-**Commits:** (pending — see below after `git commit`)
+**Commits:** `3d879bda` — fix(beacon-hud): make backup-offer primary action, Forward secondary, for enoughHelp state
 
 **Tests run:**
 - `cd packages/client && flutter test test/features/beacon_view/beacon_operational_header_card_test.dart` — 11 passed
