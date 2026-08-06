@@ -365,6 +365,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     List<String>? helpTypes,
   }) async {
     final wasAlreadyHelpOffered = state.isHelpOffered;
+    final wasEnoughHelp = state.beacon.status == BeaconStatus.enoughHelp;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.forwardOfferHelp(
@@ -376,7 +377,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError && !wasAlreadyHelpOffered) {
         _effects.emit(
-          ShowMessage(HelpOfferedForwardNudgeMessage(state.beacon.id)),
+          ShowMessage(
+            wasEnoughHelp
+                ? const BackupOfferSentMessage()
+                : HelpOfferedForwardNudgeMessage(state.beacon.id),
+          ),
         );
       }
     } catch (e) {

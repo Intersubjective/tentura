@@ -3767,7 +3767,7 @@
   "@helpOffersBackupGroupTitle": {
     "description": "Заголовок секции запасных предложений помощи на вкладке Люди"
   },
-  "helpOfferBackupBadge": "Запасной",
+  "helpOfferBackupBadge": "Доступен как запасной",
   "@helpOfferBackupBadge": {
     "description": "Бейдж на строке запасного предложения помощи на вкладке Люди"
   },

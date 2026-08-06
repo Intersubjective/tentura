@@ -4,6 +4,20 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
+final class BackupOfferSentMessage extends LocalizableMessage {
+  const BackupOfferSentMessage();
+
+  @override
+  String get toEn =>
+      'Your backup offer was sent to the author. '
+      'They may contact you if more help is needed.';
+
+  @override
+  String get toRu =>
+      'Ваше предложение помощи как запасного варианта отправлено автору. '
+      'Он может обратиться к вам, если понадобится больше помощи.';
+}
+
 final class MovedToInboxMessage extends LocalizableMessage {
   const MovedToInboxMessage();
 

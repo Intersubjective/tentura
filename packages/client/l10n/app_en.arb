@@ -3802,7 +3802,7 @@
   "@helpOffersBackupGroupTitle": {
     "description": "People tab section heading for backup help offers"
   },
-  "helpOfferBackupBadge": "Backup",
+  "helpOfferBackupBadge": "Available as backup",
   "@helpOfferBackupBadge": {
     "description": "Badge on a backup help offer row in People tab"
   },
