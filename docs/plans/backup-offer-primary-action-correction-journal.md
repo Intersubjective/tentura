@@ -148,3 +148,33 @@ open path asserts `HelpOfferedForwardNudgeMessage`.
 - `packages/client/test/features/beacon_view/beacon_view_offer_help_test.dart`
 - `packages/client/pubspec.yaml`
 - `packages/client/web/index.html`
+
+### P2 final — complete (2026-08-06)
+
+**Status:** complete.
+
+**Commits:** `05b25ebd` — feat(beacon-view): backup-offer badge copy and confirmation message
+
+**Tests run:**
+- `cd packages/client && flutter test test/features/beacon_view/beacon_view_offer_help_test.dart` — 2 passed
+- `cd packages/client && flutter test` — 1685 passed, 14 skipped
+- `./scripts/check-custom-lints.sh packages/client` — OK (baseline 111)
+
+**Files changed:**
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/lib/features/beacon_view/ui/message/help_offer_messages.dart`
+- `packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart`
+- `packages/client/test/features/beacon_view/beacon_view_offer_help_test.dart`
+- `packages/client/pubspec.yaml`
+- `packages/client/web/index.html`
+- `docs/plans/backup-offer-primary-action-correction-journal.md`
+
+**Findings / decisions:**
+- Russian badge uses "Доступен как запасной" (not "На подхвате") to stay distinct from
+  the People-tab section heading while matching the English "Available as backup".
+- Cubit test deliberately changes beacon status after fetch on the enoughHelp path to
+  prove `wasEnoughHelp` is captured pre-mutation.
+- Web cache-buster synced with pubspec in the same commit (per P1 review note).
+
+**Remaining work for P2:** none.
