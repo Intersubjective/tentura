@@ -61,6 +61,7 @@ class AttentionIntentCase {
     required String authorId,
     required String sourceEventKey,
     List<String> moderatorUserIds = const [],
+    bool isBackupOffer = false,
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.commitmentEvent,
@@ -69,6 +70,7 @@ class AttentionIntentCase {
       actorUserId: helpOffererId,
       targetPersonId: authorId,
       moderatorUserIds: moderatorUserIds,
+      isBackupOffer: isBackupOffer,
     ),
     eventType: AttentionEventType.helpOfferSubmitted,
     sourceEventKey: sourceEventKey,

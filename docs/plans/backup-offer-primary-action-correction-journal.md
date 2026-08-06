@@ -39,8 +39,8 @@ for. Never revert or stash any of the above.
 ## Ordered unit checklist
 
 - [x] P1 — client: swap primary/secondary HUD action for `enoughHelp` (accepted, HEAD `7c65e788`)
-- [x] P2 — client: People-tab badge wording + backup-offer confirmation copy
-- [ ] P3 — server: distinct notification copy for backup offers
+- [x] P2 — client: People-tab badge wording + backup-offer confirmation copy (accepted, HEAD `42f3a24e`)
+- [x] P3 — server: distinct notification copy for backup offers
 - [ ] P4 — server: regression tests locking in points 5/7/8
 - [ ] P5 — docs: status-quo + beacon_room.md updates
 
@@ -178,3 +178,74 @@ open path asserts `HelpOfferedForwardNudgeMessage`.
 - Web cache-buster synced with pubspec in the same commit (per P1 review note).
 
 **Remaining work for P2:** none.
+
+### P2 manager review — accepted (2026-08-06)
+
+Reviewed commit `05b25ebd` diff directly: `wasEnoughHelp` captured before the
+mutating call/fetch as required; `BackupOfferSentMessage` follows the plain
+(no-action) `LocalizableMessage` pattern with the exact confirmation copy from
+the plan; `helpOfferBackupBadge` changed to "Available as backup" (en) /
+"Доступен как запасной" (ru), `helpOffersBackupGroupTitle` left untouched as
+instructed. Web cache-buster synced correctly this time. Independently
+re-ran `flutter test test/features/beacon_view/beacon_view_offer_help_test.dart`
+myself — 2/2 passed.
+
+**Verdict:** P2 ACCEPTED. Current HEAD: `42f3a24e`.
+
+### P3 checkpoint — code + test (2026-08-06)
+
+**Status:** implementation complete, verification pending commit.
+
+**P3.1:** Added `isBackupOffer` Freezed field on `BeaconNotificationIntent`;
+threaded through `AttentionIntentCase.helpOfferSubmitted` and
+`HelpOfferCase.offerHelp` (`isBackupOffer: offerKind == 1`). Ran
+`dart run build_runner build -d` (freezed output gitignored per server
+`.gitignore`).
+
+**P3.1 finding (beacon_room_case):** `BeaconRoomCase.offerHelp` (~735) calls
+`participantOfferHelp`, which updates `beacon_participants` only — does not
+write `beacon_help_offer.offer_kind`. Left that `helpOfferSubmitted` call
+unchanged (defaults `isBackupOffer: false`). Correct per plan.
+
+**P3.2:** `BeaconNotificationCopyBuilder` `commitmentEvent` arm now branches
+on `isBackupOffer` for `"$actor offered to help as backup"` fallback body.
+
+**Tests:** Copy-builder backup-offer case; `help_offer_case_test` asserts
+notification body for `enoughHelp` vs `open`.
+
+**Files touched:**
+- `packages/server/lib/domain/entity/beacon_notification_intent.dart`
+- `packages/server/lib/domain/use_case/attention_intent_case.dart`
+- `packages/server/lib/domain/use_case/help_offer_case.dart`
+- `packages/server/lib/domain/notification/beacon_notification_copy_builder.dart`
+- `packages/server/test/domain/notification/beacon_notification_copy_builder_test.dart`
+- `packages/server/test/domain/use_case/help_offer_case_test.dart`
+
+### P3 final — complete (2026-08-06)
+
+**Status:** complete.
+
+**Commits:** (pending commit below)
+
+**Tests run:**
+- `cd packages/server && dart test -x pg` — all passed
+
+**Files changed:**
+- `packages/server/lib/domain/entity/beacon_notification_intent.dart`
+- `packages/server/lib/domain/use_case/attention_intent_case.dart`
+- `packages/server/lib/domain/use_case/help_offer_case.dart`
+- `packages/server/lib/domain/notification/beacon_notification_copy_builder.dart`
+- `packages/server/test/domain/notification/beacon_notification_copy_builder_test.dart`
+- `packages/server/test/domain/use_case/help_offer_case_test.dart`
+- `docs/plans/backup-offer-primary-action-correction-journal.md`
+
+**Findings / decisions:**
+- `beacon_room_case.dart` room-scoped `offerHelp` is unrelated to
+  `enoughHelp` backup offers; no `isBackupOffer` threading needed there.
+- Notification `isBackupOffer` is observable on recorded intents via body
+  copy (`Actor offered to help as backup` vs `Actor offered help`); no field
+  on `AttentionDispatchIntent`.
+- No client version bump (server notification copy only).
+
+**Remaining work for P3:** none.
+

@@ -146,6 +146,7 @@ final class HelpOfferCase extends UseCaseBase {
             helpOffererId: userId,
             authorId: beacon.author.id,
             sourceEventKey: 'help_offer:${generateId('A')}',
+            isBackupOffer: offerKind == 1,
           ),
         );
       },

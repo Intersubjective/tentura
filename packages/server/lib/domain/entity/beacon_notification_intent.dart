@@ -22,5 +22,6 @@ abstract class BeaconNotificationIntent with _$BeaconNotificationIntent {
     @Default([]) List<String> admittedUserIds,
     @Default([]) List<String> moderatorUserIds,
     @Default(false) bool promiseWithdrawn,
+    @Default(false) bool isBackupOffer,
   }) = _BeaconNotificationIntent;
 }

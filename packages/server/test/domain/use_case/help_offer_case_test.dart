@@ -361,6 +361,24 @@ void main() {
       ).called(1);
     });
 
+    test('enoughHelp notification uses backup-offer copy', () async {
+      stubNewOffer(BeaconStatus.enoughHelp);
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
+      expect(attention.recorded.single.body, 'Actor offered to help as backup');
+    });
+
+    test('open notification uses standard help-offer copy', () async {
+      stubNewOffer(BeaconStatus.open);
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
+      expect(attention.recorded.single.body, 'Actor offered help');
+    });
+
     test('re-upsert preserves original offerKind when beacon status changed',
         () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));

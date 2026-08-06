@@ -19,6 +19,7 @@ void main() {
     String? coordinationItemId,
     int? coordinationItemKind,
     bool promiseWithdrawn = false,
+    bool isBackupOffer = false,
   }) =>
       BeaconNotificationIntent(
         kind: kind,
@@ -31,6 +32,7 @@ void main() {
         coordinationItemId: coordinationItemId,
         coordinationItemKind: coordinationItemKind,
         promiseWithdrawn: promiseWithdrawn,
+        isBackupOffer: isBackupOffer,
       );
 
   test('needsMe uses excerpt body and room deep link', () {
@@ -115,6 +117,23 @@ void main() {
 
     expect(copy.title, 'Alex');
     expect(copy.body, 'Alex withdrew their help');
+  });
+
+  test('commitmentEvent backup offer uses backup copy', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentEvent,
+        isBackupOffer: true,
+      ),
+      actorDisplayName: '',
+    );
+
+    expect(copy.title, 'Someone');
+    expect(copy.body, 'Someone offered to help as backup');
+    expect(
+      copy.actionUrl,
+      '/#$kPathAppLinkView?id=beacon-1&dest=people',
+    );
   });
 
   test('commitmentAccepted distinguishes ask and promise nouns', () {

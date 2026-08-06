@@ -127,10 +127,17 @@ class BeaconNotificationCopyBuilder {
                     ? excerpt
                     : '$actor withdrew their help',
               )
-            : (
-                actor,
-                excerpt.isNotEmpty ? excerpt : '$actor offered help',
-              ),
+            : intent.isBackupOffer
+                ? (
+                    actor,
+                    excerpt.isNotEmpty
+                        ? excerpt
+                        : '$actor offered to help as backup',
+                  )
+                : (
+                    actor,
+                    excerpt.isNotEmpty ? excerpt : '$actor offered help',
+                  ),
       NotificationKind.reviewReady => (
         'Request closed — close the loop',
         beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
