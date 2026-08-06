@@ -51,7 +51,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
           child: BlocBuilder<InboxCubit, InboxState>(
             buildWhen: (_, c) => c.isSuccess || c.isLoading,
             builder: (_, state) {
-              if (state.isLoading) {
+              if (state.isLoading && !state.projectionLoaded) {
                 return const Center(
                   child: CircularProgressIndicator.adaptive(),
                 );

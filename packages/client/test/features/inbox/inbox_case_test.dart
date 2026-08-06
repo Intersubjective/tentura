@@ -321,7 +321,7 @@ void main() {
       await blockCase.dispose();
     });
 
-    test('stale fetch completion cannot replace a newer snapshot', () async {
+    test('overlapping fetches coalesce; latest snapshot wins', () async {
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
       final cubit = InboxCubit(
         userId: 'u1',
@@ -330,20 +330,52 @@ void main() {
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
 
-      final stale = Completer<List<InboxItem>>();
-      final fresh = Completer<List<InboxItem>>();
-      repo.pendingFetches.addAll([stale, fresh]);
+      final first = Completer<List<InboxItem>>();
+      final second = Completer<List<InboxItem>>();
+      repo.pendingFetches.addAll([first, second]);
 
-      final staleFetch = cubit.fetch(showLoading: false, showError: false);
-      final freshFetch = cubit.fetch(showLoading: false, showError: false);
-      fresh.complete([_item(status: InboxItemStatus.watching)]);
-      await freshFetch;
-      stale.complete([_item(status: InboxItemStatus.rejected)]);
-      await staleFetch;
+      final a = cubit.fetch(showLoading: false, showError: false);
+      final b = cubit.fetch(showLoading: false, showError: false);
 
-      expect(cubit.state.items.single.status, InboxItemStatus.watching);
+      first.complete([_item(status: InboxItemStatus.watching)]);
+      await Future<void>.delayed(Duration.zero);
+      second.complete([_item(status: InboxItemStatus.rejected)]);
+
+      expect(await a, isTrue);
+      expect(await b, isTrue);
+      expect(cubit.state.items.single.status, InboxItemStatus.rejected);
       await cubit.close();
     });
+
+    test(
+      'empty initial load is not stuck when a silent refresh fails',
+      () async {
+        final initial = Completer<List<InboxItem>>();
+        final silent = Completer<List<InboxItem>>();
+        repo.pendingFetches.addAll([initial, silent]);
+
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        expect(cubit.state.isLoading, isTrue);
+
+        realtimePort.emitCatchUp();
+        await Future<void>.delayed(Duration.zero);
+
+        initial.complete(const []);
+        await Future<void>.delayed(Duration.zero);
+        silent.completeError(Exception('silent refresh failed'));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.isSuccess, isTrue);
+        expect(cubit.state.projectionLoaded, isTrue);
+        expect(cubit.state.isLoading, isFalse);
+        expect(cubit.state.items, isEmpty);
+        await cubit.close();
+      },
+    );
   });
 }
 

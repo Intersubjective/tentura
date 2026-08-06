@@ -117,7 +117,9 @@ class _InboxScreenState extends State<InboxScreen> {
                     context.windowClass == WindowClass.expanded;
 
                 late final Widget body;
-                if (state.isLoading) {
+                // Full-screen spinner only until the first projection lands.
+                // In-flight silent refreshes must not hide an empty placeholder.
+                if (state.isLoading && !state.projectionLoaded) {
                   body = const Center(
                     child: CircularProgressIndicator.adaptive(),
                   );

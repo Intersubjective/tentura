@@ -30,7 +30,12 @@ class InboxCubit extends Cubit<InboxState> {
                ? GetIt.I<InboxOperationalCubit>()
                : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
-       super(InboxState(currentUserId: userId)) {
+       super(
+         InboxState(
+           currentUserId: userId,
+           status: StateStatus.isLoading,
+         ),
+       ) {
     _helpOfferChanges = _inboxCase.helpOfferChanges.listen(
       _onHelpOfferChanged,
       cancelOnError: false,
@@ -70,7 +75,10 @@ class InboxCubit extends Cubit<InboxState> {
   late final StreamSubscription<String> _deskRelevantChanges;
   late final StreamSubscription<void> _catchUps;
 
-  int _fetchSequence = 0;
+  /// Single-flight gate so overlapping catch-up/local refreshes cannot discard
+  /// an in-flight initial load and leave [StateIsLoading] stuck.
+  Completer<bool>? _fetchGate;
+  var _fetchQueued = false;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -183,7 +191,34 @@ class InboxCubit extends Cubit<InboxState> {
     bool showLoading = true,
     bool showError = true,
   }) async {
-    final sequence = ++_fetchSequence;
+    final existing = _fetchGate;
+    if (existing != null) {
+      _fetchQueued = true;
+      return existing.future;
+    }
+
+    final gate = Completer<bool>();
+    _fetchGate = gate;
+    var ok = false;
+    try {
+      ok = await _runFetch(showLoading: showLoading, showError: showError);
+      while (_fetchQueued && !isClosed) {
+        _fetchQueued = false;
+        ok = await _runFetch(showLoading: false, showError: false);
+      }
+    } finally {
+      _fetchGate = null;
+      if (!gate.isCompleted) {
+        gate.complete(ok);
+      }
+    }
+    return ok;
+  }
+
+  Future<bool> _runFetch({
+    required bool showLoading,
+    required bool showError,
+  }) async {
     if (showLoading) {
       emit(
         state.copyWith(
@@ -194,7 +229,7 @@ class InboxCubit extends Cubit<InboxState> {
     }
     try {
       final raw = await _inboxCase.fetch(userId: _userId);
-      if (isClosed || sequence != _fetchSequence) return false;
+      if (isClosed) return false;
       final items = [
         for (final item in raw) _withResolvedRoomUnread(item),
       ];
@@ -208,8 +243,13 @@ class InboxCubit extends Cubit<InboxState> {
       _reportInboxActivity();
       return true;
     } catch (e) {
-      if (isClosed || sequence != _fetchSequence) return false;
-      if (showError) _emitSnackError(e);
+      if (isClosed) return false;
+      if (showError) {
+        _emitSnackError(e);
+      } else if (state.isLoading) {
+        // Silent refresh must not leave the full-screen spinner up.
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
       return false;
     }
   }
