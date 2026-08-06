@@ -42,7 +42,7 @@ for. Never revert or stash any of the above.
 - [x] P2 — client: People-tab badge wording + backup-offer confirmation copy (accepted, HEAD `42f3a24e`)
 - [x] P3 — server: distinct notification copy for backup offers (accepted, HEAD `3edad100`)
 - [x] P4 — server: regression tests locking in points 5/7/8 (accepted, HEAD `b1e60843`)
-- [x] P5 — docs: status-quo + beacon_room.md updates
+- [x] P5 — docs: status-quo + beacon_room.md updates (accepted, HEAD `19cc0e6e`)
 
 ## Verification commands
 
@@ -375,4 +375,21 @@ backup`) — zero matches, confirming no one-click activation affordance exists.
 - Commit includes pre-existing uncommitted hunks in both doc files (preserved per journal rule); diff sanity check confirmed no regression of unrelated edits.
 
 **Remaining work for P5:** none. Plan complete (P1–P5).
+
+### P5 manager review — accepted (2026-08-06)
+
+Reviewed the full diff of `19cc0e6e` directly (via `git log -p`, since path-scoped
+`git diff`/`git show` calls were intermittently returning empty in this shell —
+worked around by diffing the whole commit and reading the relevant hunks).
+Confirmed: only two content sentences changed — the §8.2 "primary public
+action" sentence in `Tentura_current_status_quo.md` (now "Offer as backup"
+primary / "Forward" secondary) and the "Backup offers:" paragraph in
+`beacon_room.md` (expanded with button ordering, People-tab label, notification
+copy, confirmation copy, no-auto-activation). Every pre-existing unrelated hunk
+in both files (§8.1 withdraw rules, §8.2 chat-admission note, §8.3/§8.4
+additions, the "Remove from chat ≠ End participation" expansion) is
+byte-for-byte unchanged from before this plan started.
+
+**Verdict:** P5 ACCEPTED. Current HEAD: `19cc0e6e`.
+
 
