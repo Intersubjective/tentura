@@ -40,8 +40,8 @@ for. Never revert or stash any of the above.
 
 - [x] P1 — client: swap primary/secondary HUD action for `enoughHelp` (accepted, HEAD `7c65e788`)
 - [x] P2 — client: People-tab badge wording + backup-offer confirmation copy (accepted, HEAD `42f3a24e`)
-- [x] P3 — server: distinct notification copy for backup offers
-- [ ] P4 — server: regression tests locking in points 5/7/8
+- [x] P3 — server: distinct notification copy for backup offers (accepted, HEAD `3edad100`)
+- [x] P4 — server: regression tests locking in points 5/7/8
 - [ ] P5 — docs: status-quo + beacon_room.md updates
 
 ## Verification commands
@@ -248,4 +248,72 @@ notification body for `enoughHelp` vs `open`.
 - No client version bump (server notification copy only).
 
 **Remaining work for P3:** none.
+
+### P3 manager review — accepted (2026-08-06)
+
+Reviewed commit `13d58612` diff directly: `isBackupOffer` field added to
+`BeaconNotificationIntent` with the same `@Default(false)` pattern as
+`promiseWithdrawn`; threaded through `helpOfferSubmitted` and the
+`help_offer_case.dart` call site (`offerKind == 1`); `beacon_room_case.dart`'s
+unrelated call site correctly left untouched (confirmed independently — grep
+for `offerKind`/`isBackupOffer` in that file returns zero matches);
+`priority: NotificationPriority.normal` unchanged for both kinds; copy builder
+switch arm matches the plan's exact snippet. Confirmed the gitignored
+`beacon_notification_intent.freezed.dart` was correctly regenerated (build_runner
+was actually run — verified `isBackupOffer` present in the generated file
+directly).
+
+Independently ran `dart test test/domain/notification/beacon_notification_copy_builder_test.dart
+test/domain/use_case/help_offer_case_test.dart` — 33/33 passed. Then ran the
+full server suite `dart test -x pg` — 1266/1266 passed.
+
+**Verdict:** P3 ACCEPTED. Current HEAD: `3edad100`.
+
+### P4 checkpoint — tests (2026-08-06)
+
+**Status:** implementation complete, verification pending commit.
+
+**Point 5:** Extended `enoughHelp notification uses backup-offer copy` in
+`help_offer_case_test.dart` with
+`expect(attention.recorded.single.priority, NotificationPriority.normal)`.
+`AttentionDispatchIntent` exposes `.priority`; no separate intent-case test
+needed.
+
+**Point 7:** No existing test asserted `offerKind` survives beacon status
+transitions (`evaluation_case_test.dart:1554` covers unansweredAtClose only;
+`help_offer_case_test` re-upsert test covers user-initiated update, not
+author status change). Added
+`backup offerKind across beacon status transitions (P4)` in
+`coordination_case_revert_test.dart` (nearest file with `setBeaconStatus`
+coverage; `coordination_case_test.dart` does not exist): seeds `offerKind: 1`,
+transitions `enoughHelp` → `needsMoreHelp` → `enoughHelp`, re-reads via
+`helpOfferRepo.fetchByBeaconId`, asserts `offerKind` still 1 and
+`verifyNever` on `upsert`.
+
+**Point 8:** `grep -rn "activate" packages/client/lib packages/server/lib | grep -i backup` — zero matches (empty output).
+
+**Files touched:**
+- `packages/server/test/domain/use_case/help_offer_case_test.dart`
+- `packages/server/test/domain/use_case/coordination_case_revert_test.dart`
+
+### P4 final — complete (2026-08-06)
+
+**Status:** complete.
+
+**Commits:** `137e0398` — test(server): lock in backup-offer regression for priority and offerKind
+
+**Tests run:**
+- `cd packages/server && dart test -x pg` — 1267 passed
+
+**Files changed:**
+- `packages/server/test/domain/use_case/help_offer_case_test.dart`
+- `packages/server/test/domain/use_case/coordination_case_revert_test.dart`
+- `docs/plans/backup-offer-primary-action-correction-journal.md`
+
+**Findings / decisions:**
+- Point-8 grep verbatim: `grep -rn "activate" packages/client/lib packages/server/lib | grep -i backup` produced no output (zero matches).
+- Point-7 test placed in `coordination_case_revert_test.dart` rather than a non-existent `coordination_case_test.dart`; uses existing `MockHelpOfferRepositoryPort` + `setBeaconStatus` helpers.
+- `AttentionDispatchIntent.priority` is the right assertion surface for point 5 (not `BeaconNotificationIntent`, which is not on the recorded dispatch object).
+
+**Remaining work for P4:** none.
 

@@ -677,6 +677,48 @@ void main() {
     });
   });
 
+  group('backup offerKind across beacon status transitions (P4)', () {
+    test('setBeaconStatus does not change backup offer offerKind', () async {
+      final backupOffer = HelpOfferEntity(
+        beaconId: beaconId,
+        userId: offerUserId,
+        createdAt: now,
+        updatedAt: now,
+        offerKind: 1,
+      );
+      when(
+        helpOfferRepo.fetchByBeaconId(beaconId),
+      ).thenAnswer((_) async => [backupOffer]);
+
+      stubTransaction(beacon(status: BeaconStatus.enoughHelp));
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.needsMoreHelp.smallintValue,
+      );
+
+      expect(beaconRepo.locked.status, BeaconStatus.needsMoreHelp);
+      expect((await helpOfferRepo.fetchByBeaconId(beaconId)).single.offerKind, 1);
+
+      await case_.setBeaconStatus(
+        beaconId: beaconId,
+        authorUserId: authorId,
+        status: BeaconStatus.enoughHelp.smallintValue,
+      );
+
+      expect(beaconRepo.locked.status, BeaconStatus.enoughHelp);
+      expect((await helpOfferRepo.fetchByBeaconId(beaconId)).single.offerKind, 1);
+      verifyNever(
+        helpOfferRepo.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          offerKind: anyNamed('offerKind'),
+        ),
+      );
+    });
+  });
+
   group('setBeaconStatus neutral open', () {
     test('from needsMoreHelp sets open status', () async {
       stubTransaction(beacon(status: BeaconStatus.needsMoreHelp));

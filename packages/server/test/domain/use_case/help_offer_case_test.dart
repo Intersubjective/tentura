@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
@@ -368,6 +369,10 @@ void main() {
 
       expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
       expect(attention.recorded.single.body, 'Actor offered to help as backup');
+      expect(
+        attention.recorded.single.priority,
+        NotificationPriority.normal,
+      );
     });
 
     test('open notification uses standard help-offer copy', () async {
