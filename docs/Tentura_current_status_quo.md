@@ -96,6 +96,10 @@ Targeted forwarding is default. Broadcast is escalation, not the norm.
 
 Offering help moves responsibility into My Work logic. This split prevents collapse into a passive feed.
 
+On **help-offered** My Work cards, the helper sees an **offer-response state** derived from the display-only `stake_state` projection (awaiting author / accepted / declined / softened / participation ended / exited / closed without response) — not from inventing state out of `response_type` alone after exit or release.
+
+**Closing does not archive.** A closed or cancelled card stays in **Active** with a finished-status indicator and an **Archive** CTA until the user files it (issue #108). **Cancel** and **Delete** are unavailable once the request **ever had an acknowledged committer**; the desk path is **Close** → review (if owed) → **Archive**.
+
 **Watching** — triaged passive follow; not a third primary card action beside Forward / Not for me. See [`watching-mechanism.md`](watching-mechanism.md).
 
 **Before-response tombstones** — when a beacon closes before I took an explicit stance, the app preserves “never chose” truth. See [`before-response-terminal-tombstone.md`](before-response-terminal-tombstone.md).
@@ -104,15 +108,17 @@ Offering help moves responsibility into My Work logic. This split prevents colla
 
 ### 8.1 Commit is open by default
 
-A **help offer** is a public, explicit action with a note — willingness to act, not mere interest. **Withdraw** is explicit and visible.
+A **help offer** is a public, explicit action with a note — willingness to act, not mere interest. **Withdraw** is explicit while the request is still in the **open family**; it is **forbidden during Wrapping up** (participation already closed by the author's Close — skip review instead). Withdraw records an append-only commitment fact (it does not erase acknowledgement history). After withdraw on an open request, the system may place the helper in **Watching**.
 
 ### 8.2 Overcommit = coordination, not gatekeeping
 
 The author signals **coverage/fit** via beacon status and **per-offer responses** — not approval/rejection of people. The author **accepts or declines a help offer** (the proposal), not the person. Declining requires a **reason** and is **private** to the offerer.
 
+**Chat admission is always explicit** — offering help or receiving a direct forward does **not** auto-admit. Accepting with an acknowledging response (`useful` / `needCoordination`) grants Chat access together with committer stake.
+
 Status includes phases such as: no offers yet, offers awaiting author review, more/different help needed, enough help in motion.
 
-At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Forward**). The author coordinates openly across primary and backup offers.
+At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Offer as backup**, with **Forward** available as a secondary action). The author coordinates openly across primary and backup offers.
 
 ### 8.3 Beacon detail + Room
 
@@ -120,7 +126,13 @@ Beacon detail: **Items**, **People**, **Log** + coordination header (STATUS / NO
 
 **Room** — separate workspace for admitted helpers: messages, plan/ask/blocker/promise/resolution items, scoped facts. Room-private content does not leak to non-members on public beacon surfaces. See [`features/beacon_room.md`](features/beacon_room.md).
 
+**Remove from chat ≠ End participation** — revoke Chat access without erasing stake history; ending participation is a separate author action (`releaseCommitment`). Vocabulary and gates: [`../CONTEXT.md`](../CONTEXT.md) § Beacon lifecycle / Commitment facts.
+
 **No comment thread** on the beacon — deliberate anti-forum stance.
+
+### 8.4 Participation truth
+
+Participation is three independent axes: **room access** (reversible), **current stake** (reversible), and **historical acknowledgement** (append-only). Gates (Cancel, Delete, review composition, Close now) use ever-acknowledged history with a **24-hour grace** on silent withdraw — not “who is active right now.” See [`../CONTEXT.md`](../CONTEXT.md) § Commitment facts.
 
 ## 9. Post-close review
 

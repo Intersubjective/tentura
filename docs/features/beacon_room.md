@@ -71,9 +71,9 @@ Room content stays **scoped**: people who are not in the Room do not see room-pr
 
 **Admission** is always **explicit** — offering help or receiving a direct forward does not automatically grant Chat access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked (chip) and sorted **upward** in the People list, but the author must still **Accept** explicitly before admission.
 
-**Backup offers:** when the beacon signals **enough help**, additional help offers are allowed as **backup** offers — secondary coordination that does not trigger "offers awaiting author" pressure on the author.
+**Backup offers:** when the beacon signals **enough help**, additional help offers are allowed as **backup** offers — secondary coordination that does not trigger "offers awaiting author" pressure on the author. For an uninvolved viewer in this state, **"Offer as backup" becomes the primary action** (Forward remains available as secondary). A backup offer appears in People as **"Available as backup"**, is always visible to the author, and generates a normal-priority notification ("X offered to help as backup") — never elevated urgency. The offering user sees a confirmation that their offer was sent and the author may reach out if more help is needed. Backup offers are never auto-activated; the author must move the beacon back to an open/needs-more-help state and contact a backup directly.
 
-**Remove from chat ≠ End participation:** removing someone from Chat revokes **room access only**; their participation record and committer stake remain until the author uses the separate **End participation** action (or the helper withdraws). The UI must not conflate these two actions.
+**Remove from chat ≠ End participation:** removing someone from Chat revokes **room access only**; their participation record and committer stake remain until the author uses the separate **End participation** action (or the helper withdraws). **End participation** (`releaseCommitment`) drops **current stake** while keeping `everAcknowledged` — the person becomes a **former committer** (still in review composition; still blocks Cancel/Delete). The author may **Accept** again later to restore stake. The UI must not conflate remove-from-chat with ending participation.
 
 ## Forwarding
 

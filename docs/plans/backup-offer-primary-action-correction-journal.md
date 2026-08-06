@@ -41,8 +41,8 @@ for. Never revert or stash any of the above.
 - [x] P1 — client: swap primary/secondary HUD action for `enoughHelp` (accepted, HEAD `7c65e788`)
 - [x] P2 — client: People-tab badge wording + backup-offer confirmation copy (accepted, HEAD `42f3a24e`)
 - [x] P3 — server: distinct notification copy for backup offers (accepted, HEAD `3edad100`)
-- [x] P4 — server: regression tests locking in points 5/7/8
-- [ ] P5 — docs: status-quo + beacon_room.md updates
+- [x] P4 — server: regression tests locking in points 5/7/8 (accepted, HEAD `b1e60843`)
+- [x] P5 — docs: status-quo + beacon_room.md updates
 
 ## Verification commands
 
@@ -316,4 +316,63 @@ transitions `enoughHelp` → `needsMoreHelp` → `enoughHelp`, re-reads via
 - `AttentionDispatchIntent.priority` is the right assertion surface for point 5 (not `BeaconNotificationIntent`, which is not on the recorded dispatch object).
 
 **Remaining work for P4:** none.
+
+### P4 manager review — accepted (2026-08-06)
+
+Note: journal's "Commits" line above says `137e0398`, but that object is
+dangling (superseded by an amend) — the actual HEAD commit with this content
+is `b1e60843` (same message; confirmed via `git show --stat` and by reading
+the file contents directly). Cosmetic journal inaccuracy only, not a
+functional issue.
+
+Reviewed `b1e60843` by reading the full new test content directly: point-5
+assertion (`attention.recorded.single.priority == NotificationPriority.normal`)
+correctly added to the existing enoughHelp-copy test; point-7 test
+(`backup offerKind across beacon status transitions (P4)` group in
+`coordination_case_revert_test.dart`) correctly seeds `offerKind: 1`, drives
+`enoughHelp` → `needsMoreHelp` → `enoughHelp` via `setBeaconStatus`, and
+asserts `offerKind` unchanged plus `verifyNever` on `helpOfferRepo.upsert`.
+No production code touched, as required.
+
+Independently ran `dart test test/domain/use_case/coordination_case_revert_test.dart
+test/domain/use_case/help_offer_case_test.dart` — 47/47 passed. Full suite
+`dart test -x pg` — 1267/1267 passed. Independently re-ran the point-8 grep
+myself (`grep -rn "activate" packages/client/lib packages/server/lib | grep -i
+backup`) — zero matches, confirming no one-click activation affordance exists.
+
+**Verdict:** P4 ACCEPTED. Current HEAD: `b1e60843`.
+
+### P5 checkpoint — docs (2026-08-06)
+
+**Status:** implementation complete, verification pending commit.
+
+**P5.1:** `docs/Tentura_current_status_quo.md` §8.2 — replaced the "primary public action … **Forward**" sentence with corrected wording: **Offer as backup** primary, **Forward** secondary. Pre-existing uncommitted hunks in §8.1/§8.3/§8.4 left byte-for-byte intact (verified via `git diff` before/after).
+
+**P5.2:** `docs/features/beacon_room.md` — expanded the "Backup offers" paragraph per plan (primary/secondary ordering, People-tab "Available as backup" label, normal-priority notification copy, submitter confirmation, no auto-activation). Pre-existing "Remove from chat ≠ End participation" hunk preserved unchanged.
+
+**P5.3:** Skipped — grep of `docs/` and `.cursor/rules/` found no other live doc mis-describing button ordering beyond the two target files (archived plan/journal references excluded per plan).
+
+**Files touched:**
+- `docs/Tentura_current_status_quo.md`
+- `docs/features/beacon_room.md`
+
+### P5 final — complete (2026-08-06)
+
+**Status:** complete.
+
+**Commits:** `5a6522c7` — docs: correct backup-offer primary action in status-quo and beacon_room
+
+**Tests run:**
+- `git diff -- docs/Tentura_current_status_quo.md docs/features/beacon_room.md` (before/after) — pre-existing hunks unchanged; only P5.1 sentence swap and P5.2 paragraph expansion added
+
+**Files changed:**
+- `docs/Tentura_current_status_quo.md`
+- `docs/features/beacon_room.md`
+- `docs/plans/backup-offer-primary-action-correction-journal.md`
+
+**Findings / decisions:**
+- P5.3 skipped: no live doc beyond the two targets mis-described Forward-as-primary at enough help.
+- Commit includes pre-existing uncommitted hunks in both doc files (preserved per journal rule); diff sanity check confirmed no regression of unrelated edits.
+
+**Remaining work for P5:** none. Plan complete (P1–P5).
 
