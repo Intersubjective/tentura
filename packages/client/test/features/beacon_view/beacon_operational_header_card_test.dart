@@ -71,6 +71,7 @@ Future<void> _pumpHeaderCard(
   WidgetTester tester, {
   required BeaconViewState state,
   void Function(BeaconHudAuthorAction action)? onAuthorHudAction,
+  VoidCallback? onOfferHelp,
   VoidCallback? onForward,
   VoidCallback? onEditHelpOffer,
 }) async {
@@ -88,6 +89,7 @@ Future<void> _pumpHeaderCard(
               state: state,
               onAuthorTap: () {},
               onAuthorHudAction: onAuthorHudAction,
+              onOfferHelp: onOfferHelp,
               onForward: onForward ?? () {},
               onEditHelpOffer: onEditHelpOffer,
             ),
@@ -395,6 +397,52 @@ void main() {
       expect(find.text('Forward'), findsNothing);
       expect(find.text('Update status'), findsNothing);
     });
+  });
+
+  group('helper HUD actions', () {
+    testWidgets(
+      'enoughHelp non-offered helper shows backup offer primary and Forward secondary',
+      (tester) async {
+        const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
+        final state = BeaconViewState(
+          beacon: _openAuthorBeacon(status: BeaconStatus.enoughHelp),
+          myProfile: viewer,
+          beaconContextLoaded: true,
+        );
+
+        var offerHelpTaps = 0;
+        var forwardTaps = 0;
+
+        await _pumpHeaderCard(
+          tester,
+          state: state,
+          onOfferHelp: () => offerHelpTaps++,
+          onForward: () => forwardTaps++,
+        );
+
+        final backupPrimary = find.widgetWithText(
+          FilledButton,
+          'Offer as backup',
+        );
+        expect(backupPrimary, findsOneWidget);
+        expect(tester.widget<FilledButton>(backupPrimary).onPressed, isNotNull);
+
+        final forwardSecondary = find.descendant(
+          of: find.byType(TenturaTextAction),
+          matching: find.text('Forward'),
+        );
+        expect(forwardSecondary, findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Forward'), findsNothing);
+
+        await tester.tap(backupPrimary);
+        await tester.pumpAndSettle();
+        expect(offerHelpTaps, 1);
+
+        await tester.tap(find.byType(TenturaTextAction));
+        await tester.pumpAndSettle();
+        expect(forwardTaps, 1);
+      },
+    );
   });
 
   group('removed HUD CTAs', () {

@@ -133,20 +133,20 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
     if (b.status == BeaconStatus.enoughHelp && !state.isHelpOffered) {
       final primary = <_HudActionSpec>[];
-      if (onForward != null) {
+      if (onOfferHelp != null) {
         primary.add(
           _HudActionSpec(
-            icon: Icons.send_outlined,
-            label: l10n.labelForward,
-            onPressed: onForward,
+            icon: Icons.volunteer_activism_outlined,
+            label: l10n.beaconOfferHelpAsBackup,
+            onPressed: onOfferHelp,
             filled: true,
           ),
         );
       }
       return _HelperHudActions(
         primary: primary,
-        secondaryLabel: onOfferHelp != null ? l10n.beaconOfferHelpAsBackup : null,
-        onSecondary: onOfferHelp,
+        secondaryLabel: onForward != null ? l10n.labelForward : null,
+        onSecondary: onForward,
       );
     }
 
