@@ -225,7 +225,7 @@ notification body for `enoughHelp` vs `open`.
 
 **Status:** complete.
 
-**Commits:** (pending commit below)
+**Commits:** `13d58612` — feat(server): backup-offer notification copy for enoughHelp offers
 
 **Tests run:**
 - `cd packages/server && dart test -x pg` — all passed
