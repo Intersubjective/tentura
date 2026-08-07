@@ -43,7 +43,7 @@ None of these overlap with files this plan's units touch.
 | 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | complete |
 | 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | complete |
 | 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | complete |
-| 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | pending |
+| 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | complete |
 
 Units are sequential (no parallelism) per the overseer contract, in plan
 order P1→P5. P6 is closure/verification performed by the manager (this
@@ -163,3 +163,79 @@ same import). All three planned TZ values (`UTC`, `Europe/Amsterdam`,
 `coordinationLogTimestampLabel` signatures matched the plan; import path for
 `coordinationLogTimestampLabel` confirmed as
 `package:tentura/ui/widget/coordination_log_row_chrome.dart`.
+
+### 2026-08-07 — P6 complete (manager-run, plan closed)
+
+All five implementation units (P1-P5) reviewed by the manager against their
+committed diffs (each matched the plan's prescribed code with zero
+unexplained deviation) and independently re-run (not just trusting worker
+self-reports):
+
+- `beacon_repository_schedule_serialization_test.dart` — 3/3 pass.
+- `input_field_datetime_test.dart` — 4/4 pass (both standalone and confirmed
+  present under the standard `test/**/*_test.dart` discovery used by the
+  full-suite run below; the compact reporter doesn't echo per-test names in
+  a 1271-test batch, which is a reporter-verbosity artifact, not evidence of
+  omission).
+- `ui_utils_datetime_test.dart` — 2/2 pass.
+- `review_window_banner_host_test.dart` — 7/7 pass (full file, including
+  pre-existing cases).
+- `timezone_conversion_matrix_test.dart` — additionally sanity-checked for
+  real regression value, not tautology: temporarily reverted P3's two
+  `.toLocal()` calls in `ui_utils.dart` and re-ran under `TZ=Europe/Amsterdam`
+  — the matrix failed exactly as expected (`dateFormatYMD` produced
+  `6/20/2026` instead of the correct `6/21/2026`), then the revert was
+  discarded (`git checkout --`) confirming zero diff versus the accepted P3
+  commit.
+
+Full regression (plan §2 + §5):
+
+- `cd packages/client && flutter analyze` — 763 issues, all pre-existing
+  (identical count to every per-phase run above); no new issues in any file
+  this plan touched.
+- `cd packages/client && flutter test` — **1704 passed, 14 skipped
+  (pre-existing skips), 0 failed.**
+- `cd packages/client && bash test/ui/utils/run_timezone_matrix.sh` — all
+  three `TZ=` runs pass.
+- `cd packages/server && dart analyze` — 2177 issues, all pre-existing
+  (targeted `dart analyze lib/api/controllers/graphql/input/_input_types.dart`
+  in P2 already confirmed "No issues found!" for the one file this plan
+  changed on the server).
+- `cd packages/server && dart test -x pg` — **1271 passed, 0 failed.**
+
+Acceptance criteria cross-check against plan §0/§6:
+
+- P1: `scheduleDateTimeToIso` always emits a `Z`-suffixed string; all three
+  beacon mutation methods (create/update/updateDraft) use it for both
+  `startAt`/`endAt`. Confirmed in diff.
+- P2: `InputFieldDatetime.fromArgs`/`fromArgsNonNullable` always return
+  `isUtc == true`; offset-less input treated as UTC digits, not server-local.
+  Confirmed in diff + test.
+- P3: `dateFormatYMD`/`timeFormatHm` convert to local before formatting;
+  `beacon_tile.dart`, `inbox_item_tile.dart`,
+  `beacon_hud_metadata_composer.dart` needed no source change (confirmed: no
+  diff touched them).
+- P4: `review_window_banner_host.dart` shows a formatted local date, never
+  the raw ISO string. Confirmed in diff + test.
+- P5: TZ matrix passes under UTC + Amsterdam (DST-observing) + Kiritimati
+  (UTC+14, date-line). Confirmed, and confirmed non-tautological (see above).
+- No changes touched `info_tab.dart`, `beacon_create_cubit.dart`,
+  `timestamptz_serializer.dart`, or any Drift table definition — confirmed
+  via `git diff fbd55c6c..HEAD --stat` (only the six files this plan's units
+  own, plus this journal and the plan doc itself, changed).
+- No author-timezone storage, timezone/time picker, or dual-label UI was
+  added — scope boundary from plan §0.4/§1 held throughout all five units.
+
+**All pre-existing uncommitted worktree changes from journal start (`CONTEXT.md`,
+`docs/README.md`, the two `docs/archive/*` files, `docs/audits/room-coordination-audit.md`,
+`packages/client/web/index.html`,
+`packages/server/lib/data/database/table/beacon_commitment_events.dart`,
+`packages/server/lib/env.dart`, and all listed untracked files) remain
+untouched** — verified via `git status --short` showing the identical set at
+plan close as at plan start.
+
+**Plan status: complete.** All 6 units accepted; no remaining work. Deferred
+by explicit user decision (plan §0.4, §6): author-timezone storage, "your
+time vs. original" dual-label UI, and the accepted ±1-day date-only-deadline
+consequence for distant-timezone viewers — not defects, a documented scope
+boundary.
