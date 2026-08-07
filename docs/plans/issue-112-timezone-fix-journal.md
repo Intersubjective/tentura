@@ -132,7 +132,7 @@ listed `schedule_date_format.dart` and `relative_time.dart` which use their own
 `review_window_banner_host_test.dart` with assertion that raw ISO is not shown
 and localized date is.
 
-**Commit:** (pending)
+**Commit:** `1dc6c449` — fix(client): format review window closesAt for display (P4)
 
 **Tests:**
 - `cd packages/client && flutter test test/features/evaluation/review_window_banner_host_test.dart` — pass (7 tests)
