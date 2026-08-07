@@ -10,6 +10,9 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+
+import '../widget/trust_change_receipt_card.dart';
 import '../widget/updates_receipt_card.dart';
 import '../widget/updates_refresh_error_banner.dart';
 
@@ -158,20 +161,35 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                               (state.hasNextPage ? 1 : 0),
                           separatorBuilder: (_, _) =>
                               const TenturaHairlineDivider(),
-                          itemBuilder: (context, index) =>
-                              index == state.items.length
-                              ? const _LoadMoreIndicator()
-                              : UpdatesReceiptCard(
-                                  receipt: state.items[index],
-                                  onTap: () =>
-                                      _open(context, state.items[index]),
-                                  onMarkSeen: () => context
-                                      .read<UpdatesFeedCubit>()
-                                      .markSeen(state.items[index].id),
-                                  onSettle: () => context
-                                      .read<UpdatesFeedCubit>()
-                                      .settle(state.items[index].id),
-                                ),
+                          itemBuilder: (context, index) {
+                            if (index == state.items.length) {
+                              return const _LoadMoreIndicator();
+                            }
+                            final receipt = state.items[index];
+                            final onTap = () => _open(context, receipt);
+                            final onMarkSeen = () => context
+                                .read<UpdatesFeedCubit>()
+                                .markSeen(receipt.id);
+                            final onSettle = () => context
+                                .read<UpdatesFeedCubit>()
+                                .settle(receipt.id);
+                            if (isTrustChangePresentationKey(
+                              receipt.presentationKey,
+                            )) {
+                              return TrustChangeReceiptCard(
+                                receipt: receipt,
+                                onTap: onTap,
+                                onMarkSeen: onMarkSeen,
+                                onSettle: onSettle,
+                              );
+                            }
+                            return UpdatesReceiptCard(
+                              receipt: receipt,
+                              onTap: onTap,
+                              onMarkSeen: onMarkSeen,
+                              onSettle: onSettle,
+                            );
+                          },
                         ),
                       ],
                     ),

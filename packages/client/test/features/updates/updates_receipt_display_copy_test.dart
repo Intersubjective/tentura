@@ -54,6 +54,26 @@ void main() {
     expect(copy.body, l10n.updatesFallbackBodyGeneric);
   });
 
+  test('trust change presentation keys use grouped fallbacks', () {
+    final given = resolveUpdatesReceiptDisplayCopy(
+      title: '',
+      body: '',
+      presentationKey: 'trust_given_changed_down',
+      l10n: l10n,
+    );
+    final received = resolveUpdatesReceiptDisplayCopy(
+      title: '',
+      body: '',
+      presentationKey: 'trust_received_changed_neutral',
+      l10n: l10n,
+    );
+
+    expect(given.title, l10n.updatesFallbackTitleTrustGivenChanged);
+    expect(given.body, l10n.updatesFallbackBodyTrustGivenChanged);
+    expect(received.title, l10n.updatesFallbackTitleTrustReceivedChanged);
+    expect(received.body, l10n.updatesFallbackBodyTrustReceivedChanged);
+  });
+
   test('beaconTitleFromPresentationPayload reads beacon title', () {
     expect(
       beaconTitleFromPresentationPayload(
