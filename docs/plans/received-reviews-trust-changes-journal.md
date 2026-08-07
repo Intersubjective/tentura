@@ -37,7 +37,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 |---|------|----------------|--------|
 | A1 | Server: `evaluationSummary` → `evaluationReceived` rework, drop `noBasis` filter, delete `countDistinctEvaluatorsForEvaluated` + callers/mocks/tests | §4.1 | done |
 | A2 | Server: `listFinalizedEvaluationsBetween` port method + `CrossBeaconEvaluationRecord` + Drift impl + `evaluationsWrittenAboutMeBy` use case | §4.2 | done |
-| A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | pending |
+| A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | done |
 | B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | pending |
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | pending |
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | pending |
@@ -129,3 +129,29 @@ interpolation of caller input) is the established pattern across nearly every fi
 `data/repository/` — this unit's raw-SQL join is idiomatic here, not a deviation.
 Confirmed no `noBasis` filter was reintroduced and `evaluationReceivedTrustToneFromValue`
 is reused for tone mapping, consistent with A1.
+
+### A3 — GraphQL API wiring (§4.5)
+
+**What changed**
+- Added GraphQL query fields `evaluationReceived` and `evaluationsWrittenAboutMeBy` to `query_evaluation.dart` (registered in `all`); left `evaluationSummary` untouched.
+- JWT enforcement: `userId` / `viewerId` from `getCredentials(args).sub`; client `id` arg is beacon id (`evaluationReceived`) or profile-owner user id (`evaluationsWrittenAboutMeBy`).
+- New GraphQL object types in `custom_types.dart`: `EvaluationReceived`, `EvaluationReceivedRow`, `EvaluationsWrittenAboutViewerRow` (all registered in `customTypes`).
+- Mappers in `gql_v2_dto_maps.dart`: `evaluationReceivedToGqlMap`, `evaluationReceivedRowToGqlMap`, `evaluationsWrittenAboutViewerRowToGqlMap`.
+- Reused A1 `gql_public` DTOs (`EvaluationReceivedResult` / `EvaluationReceivedRow`); no new gql_public files — profile rows map from domain `EvaluationsWrittenAboutViewerRow`.
+
+**Judgement calls**
+- **Shape mismatch:** `evaluationsWrittenAboutMeBy` returns a distinct GraphQL type `EvaluationsWrittenAboutViewerRow` (not `EvaluationReceivedRow`) because the domain row carries `beaconId`, `beaconTitle`, `beaconClosedAt`, `evaluatorId`, `evaluatedUserId` instead of reviewer display fields.
+- **`tone` as string:** `EvaluationReceivedTrustTone.name` → `"up"` / `"down"` / `"noChange"` / `"noBasis"` (no GraphQL enum type in this codebase).
+- **`reviewerRole` as int:** matches existing `EvaluationParticipant.role` GraphQL field (`dbValue` 0–3).
+
+**Commit:** (see finish block)
+
+**Verification**
+```bash
+cd packages/server && dart test test/domain/evaluation/ test/domain/use_case/evaluation/  # 86 passed
+cd packages/server && dart analyze   # no compile errors in changed files; package-wide info-level debt unchanged
+./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
+```
+No server GraphQL snapshot/introspection test references `evaluationSummary` (grep under `packages/server/test/`).
+
+(Appended chronologically below as units complete.)

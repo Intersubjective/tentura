@@ -6,6 +6,8 @@ import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_resul
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
+import 'package:tentura_server/domain/entity/evaluation/evaluations_written_about_viewer_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/review_window_status_result.dart';
@@ -137,4 +139,42 @@ Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) => {
   'pos1': dto.pos1,
   'pos2': dto.pos2,
   'roleSummaryLine': dto.roleSummaryLine,
+};
+
+Map<String, dynamic> evaluationReceivedToGqlMap(
+  EvaluationReceivedResult dto,
+) => {
+  'beaconId': dto.beaconId,
+  'beaconTitle': dto.beaconTitle,
+  'windowClosed': dto.windowClosed,
+  'rows': dto.rows.map(evaluationReceivedRowToGqlMap).toList(),
+};
+
+Map<String, dynamic> evaluationReceivedRowToGqlMap(
+  EvaluationReceivedRow dto,
+) => {
+  'reviewerId': dto.reviewerId,
+  'reviewerDisplayName': dto.reviewerDisplayName,
+  'reviewerImageId': dto.reviewerImageId,
+  'reviewerRole': dto.reviewerRole.dbValue,
+  'value': dto.value,
+  'tone': dto.tone.name,
+  'reasonTags': dto.reasonTags,
+  'note': dto.note,
+  'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
+};
+
+Map<String, dynamic> evaluationsWrittenAboutViewerRowToGqlMap(
+  EvaluationsWrittenAboutViewerRow dto,
+) => {
+  'beaconId': dto.beaconId,
+  'beaconTitle': dto.beaconTitle,
+  'beaconClosedAt': dto.beaconClosedAt?.toUtc().toIso8601String(),
+  'evaluatorId': dto.evaluatorId,
+  'evaluatedUserId': dto.evaluatedUserId,
+  'value': dto.value,
+  'tone': dto.tone.name,
+  'reasonTags': dto.reasonTags,
+  'note': dto.note,
+  'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
 };

@@ -34,6 +34,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeEvaluationDraftRow,
   gqlTypeReviewWindowStatus,
   gqlTypeEvaluationSummary,
+  gqlTypeEvaluationReceived,
+  gqlTypeEvaluationReceivedRow,
+  gqlTypeEvaluationsWrittenAboutViewerRow,
   gqlTypeCoordinationStatusResult,
   gqlTypeBeaconDisplayStatus,
   gqlTypeHelpOfferWithCoordinationRow,
@@ -659,6 +662,67 @@ final gqlTypeEvaluationSummary =
         field('pos1', graphQLInt),
         field('pos2', graphQLInt),
         field('roleSummaryLine', graphQLString.nonNullable()),
+      ]);
+
+/// Named per-reviewer received reviews for one beacon (V2).
+final gqlTypeEvaluationReceived =
+    GraphQLObjectType(
+        'EvaluationReceived',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('beaconTitle', graphQLString.nonNullable()),
+        field('windowClosed', graphQLBoolean.nonNullable()),
+        field(
+          'rows',
+          GraphQLListType(
+            gqlTypeEvaluationReceivedRow.nonNullable(),
+          ).nonNullable(),
+        ),
+      ]);
+
+/// One named review received by the evaluated participant (V2).
+final gqlTypeEvaluationReceivedRow =
+    GraphQLObjectType(
+        'EvaluationReceivedRow',
+        null,
+      )
+      ..fields.addAll([
+        field('reviewerId', graphQLString.nonNullable()),
+        field('reviewerDisplayName', graphQLString.nonNullable()),
+        field('reviewerImageId', graphQLString.nonNullable()),
+        field('reviewerRole', graphQLInt.nonNullable()),
+        field('value', graphQLInt.nonNullable()),
+        field('tone', graphQLString.nonNullable()),
+        field(
+          'reasonTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('note', graphQLString.nonNullable()),
+        field('occurredAt', graphQLString.nonNullable()),
+      ]);
+
+/// One finalized review a profile owner wrote about the viewer (V2).
+final gqlTypeEvaluationsWrittenAboutViewerRow =
+    GraphQLObjectType(
+        'EvaluationsWrittenAboutViewerRow',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('beaconTitle', graphQLString.nonNullable()),
+        field('beaconClosedAt', graphQLString),
+        field('evaluatorId', graphQLString.nonNullable()),
+        field('evaluatedUserId', graphQLString.nonNullable()),
+        field('value', graphQLInt.nonNullable()),
+        field('tone', graphQLString.nonNullable()),
+        field(
+          'reasonTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('note', graphQLString.nonNullable()),
+        field('occurredAt', graphQLString.nonNullable()),
       ]);
 
 /// Result of coordination/status mutations (V2).

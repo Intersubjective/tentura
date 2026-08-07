@@ -18,6 +18,8 @@ final class QueryEvaluation extends GqlNodeBase {
     reviewWindowStatus,
     reviewWindowStatuses,
     evaluationSummary,
+    evaluationReceived,
+    evaluationsWrittenAboutMeBy,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get evaluationParticipants =>
@@ -105,6 +107,38 @@ final class QueryEvaluation extends GqlNodeBase {
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
           ).then(evaluationSummaryToGqlMap);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationReceived =>
+      GraphQLObjectField(
+        'evaluationReceived',
+        gqlTypeEvaluationReceived.nonNullable(),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.evaluationReceived(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            userId: jwt.sub,
+          ).then(evaluationReceivedToGqlMap);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationsWrittenAboutMeBy =>
+      GraphQLObjectField(
+        'evaluationsWrittenAboutMeBy',
+        GraphQLListType(
+          gqlTypeEvaluationsWrittenAboutViewerRow.nonNullable(),
+        ),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.evaluationsWrittenAboutMeBy(
+            viewerId: jwt.sub,
+            authorOfReviewsId: InputFieldId.fromArgsNonNullable(args),
+          ).then(
+            (rows) => rows.map(evaluationsWrittenAboutViewerRowToGqlMap).toList(),
+          );
         },
       );
 }
