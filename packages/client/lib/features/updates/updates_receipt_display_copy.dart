@@ -2,6 +2,32 @@ import 'dart:convert';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 
+/// Trust-change presentation keys emitted by the server (direction-encoded).
+const trustChangePresentationKeys = <String>{
+  'trust_given_changed_up',
+  'trust_given_changed_down',
+  'trust_given_changed_neutral',
+  'trust_received_changed_up',
+  'trust_received_changed_down',
+  'trust_received_changed_neutral',
+};
+
+/// Whether [presentationKey] is a trust-given or trust-received Updates card.
+bool isTrustChangePresentationKey(String? presentationKey) =>
+    presentationKey != null &&
+    trustChangePresentationKeys.contains(presentationKey);
+
+enum TrustChangeDirection { up, down, neutral }
+
+/// Direction suffix parsed from a trust-change [presentationKey].
+TrustChangeDirection trustChangeDirectionFromPresentationKey(
+  String presentationKey,
+) {
+  if (presentationKey.endsWith('_up')) return TrustChangeDirection.up;
+  if (presentationKey.endsWith('_down')) return TrustChangeDirection.down;
+  return TrustChangeDirection.neutral;
+}
+
 /// Resolved title/body for an Updates receipt, with presentation-key fallbacks.
 class UpdatesReceiptDisplayCopy {
   const UpdatesReceiptDisplayCopy({
@@ -74,6 +100,14 @@ String _fallbackTitle(String? presentationKey, L10n l10n) =>
       'commitment_resolved' => l10n.updatesFallbackTitleCommitmentResolved,
       'commitment_cancelled' => l10n.updatesFallbackTitleCommitmentCancelled,
       'commitment_redirected' => l10n.updatesFallbackTitleCommitmentRedirected,
+      'trust_given_changed_up' ||
+      'trust_given_changed_down' ||
+      'trust_given_changed_neutral' =>
+        l10n.updatesFallbackTitleTrustGivenChanged,
+      'trust_received_changed_up' ||
+      'trust_received_changed_down' ||
+      'trust_received_changed_neutral' =>
+        l10n.updatesFallbackTitleTrustReceivedChanged,
       _ => l10n.updatesFallbackTitleGeneric,
     };
 
@@ -101,5 +135,13 @@ String _fallbackBody(String? presentationKey, L10n l10n) =>
       'commitment_resolved' => l10n.updatesFallbackBodyCommitmentResolved,
       'commitment_cancelled' => l10n.updatesFallbackBodyCommitmentCancelled,
       'commitment_redirected' => l10n.updatesFallbackBodyCommitmentRedirected,
+      'trust_given_changed_up' ||
+      'trust_given_changed_down' ||
+      'trust_given_changed_neutral' =>
+        l10n.updatesFallbackBodyTrustGivenChanged,
+      'trust_received_changed_up' ||
+      'trust_received_changed_down' ||
+      'trust_received_changed_neutral' =>
+        l10n.updatesFallbackBodyTrustReceivedChanged,
       _ => l10n.updatesFallbackBodyGeneric,
     };

@@ -4559,7 +4559,11 @@
   "updatesFallbackTitleCommitmentCancelled": "Обязательство отменено",
   "updatesFallbackBodyCommitmentCancelled": "Обязательство по запросу отменено.",
   "updatesFallbackTitleCommitmentRedirected": "Переназначено на вас",
-  "updatesFallbackBodyCommitmentRedirected": "Откройте чат запроса, чтобы увидеть назначение."
+  "updatesFallbackBodyCommitmentRedirected": "Откройте чат запроса, чтобы увидеть назначение.",
+  "updatesFallbackTitleTrustGivenChanged": "Изменение доверия",
+  "updatesFallbackBodyTrustGivenChanged": "Ваше доверие к кому-то изменилось после закрытия запроса.",
+  "updatesFallbackTitleTrustReceivedChanged": "Изменение доверия",
+  "updatesFallbackBodyTrustReceivedChanged": "Кто-то по-другому оценил вас после закрытия запроса."
   ,"notificationSettingsInApp": "В приложении"
   ,"notificationSettingsInAppMandatory": "Обновления о безопасности и обязательствах всегда остаются видимыми."
   ,"notificationSettingsInAppCoordination": "Активность координации"
