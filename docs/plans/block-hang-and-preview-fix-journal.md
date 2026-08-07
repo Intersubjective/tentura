@@ -149,8 +149,8 @@ navigation test. The file failed to compile (`Type 'BlockCase' not found`,
 skill calls small/local/unambiguous — fixed directly by the manager (no new
 Cursor worker dispatched) by restoring the two import lines.
 
-**Fix commit:** `<pending — see next entry>` — re-add the two dropped imports
-in `block_user_sheet_test.dart`.
+**Fix commit:** `3733abbc` — fix(client): restore imports dropped in
+`block_user_sheet_test.dart` (P3 remediation).
 
 **Re-verification after the fix:**
 - `cd packages/client && flutter test test/features/block/ui/sheet/block_user_sheet_test.dart` — pass (7 tests)
