@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -6,6 +7,18 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'review_banner.dart';
+
+/// [ReviewWindowInfo.closesAt] is a raw server ISO string, not a [DateTime]
+/// — format it the same way `review_contributions_screen.dart` does instead
+/// of interpolating the raw wire value (issue #112).
+String? _formatClosesAt(BuildContext context, String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) return null;
+  return DateFormat.yMMMd(
+    Localizations.localeOf(context).toLanguageTag(),
+  ).format(parsed.toLocal());
+}
 
 /// Presents review-window status from [BeaconViewState.reviewWindowInfo].
 ///
@@ -37,6 +50,7 @@ class ReviewWindowBannerHost extends StatelessWidget {
     }
 
     final l10n = L10n.of(context)!;
+    final closesAtLabel = _formatClosesAt(context, review.closesAt);
     final scheme = Theme.of(context).colorScheme;
 
     if (!isAuthor && review.viewerHasOutstandingReviewWork) {
@@ -52,10 +66,10 @@ class ReviewWindowBannerHost extends StatelessWidget {
                 ReviewContributionsRoute(id: review.beaconId),
               ),
             ),
-            if (review.closesAt != null && review.closesAt!.isNotEmpty) ...[
+            if (closesAtLabel != null) ...[
               const SizedBox(height: 6),
               Text(
-                l10n.beaconReviewWindowClosesAt(review.closesAt!),
+                l10n.beaconReviewWindowClosesAt(closesAtLabel),
                 style: TenturaText.status(scheme.onSurfaceVariant),
               ),
             ],
@@ -76,10 +90,10 @@ class ReviewWindowBannerHost extends StatelessWidget {
               l10n.beaconHudWaitingForReviews,
               style: TenturaText.status(scheme.onSurfaceVariant),
             ),
-            if (review.closesAt != null && review.closesAt!.isNotEmpty) ...[
+            if (closesAtLabel != null) ...[
               const SizedBox(height: 6),
               Text(
-                l10n.beaconReviewWindowClosesAt(review.closesAt!),
+                l10n.beaconReviewWindowClosesAt(closesAtLabel),
                 style: TenturaText.status(scheme.onSurfaceVariant),
               ),
             ],

@@ -41,7 +41,7 @@ None of these overlap with files this plan's units touch.
 | 1 | P1 — client wire-format fix (`scheduleDateTimeToIso`, `.toUtc()`) | `packages/client/lib/features/beacon/data/repository/beacon_repository.dart` + new test | complete |
 | 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | complete |
 | 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | complete |
-| 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | pending |
+| 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | complete |
 | 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | pending |
 | 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | pending |
 
@@ -122,3 +122,20 @@ listed `schedule_date_format.dart` and `relative_time.dart` which use their own
 - `cd packages/client && flutter analyze` — exit 0, 763 pre-existing info-level issues; no new errors in changed files
 
 **Deviations from plan:** None — live callers matched plan's grep inventory; transitive fix claim confirmed.
+
+### 2026-08-07 — P4 complete
+
+**Changed:** Added `_formatClosesAt` helper in `review_window_banner_host.dart`
+(parse → `.toLocal()` → `DateFormat.yMMMd(locale)`), matching
+`review_contributions_screen.dart:285-297`; computed `closesAtLabel` once in
+`build` and used it in both viewer and author banner branches. Extended
+`review_window_banner_host_test.dart` with assertion that raw ISO is not shown
+and localized date is.
+
+**Commit:** (pending)
+
+**Tests:**
+- `cd packages/client && flutter test test/features/evaluation/review_window_banner_host_test.dart` — pass (7 tests)
+- `cd packages/client && flutter analyze` — exit 0, 763 pre-existing info-level issues; no new errors in changed files
+
+**Deviations from plan:** None — live code matched plan line numbers and pattern.

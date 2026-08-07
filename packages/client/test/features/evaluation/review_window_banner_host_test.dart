@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
@@ -107,6 +108,19 @@ void main() {
 
       expect(find.text('Waiting for reviews'), findsNothing);
       expect(find.text('Review'), findsNothing);
+    });
+
+    testWidgets('formats closesAt as a localized date, not the raw ISO string', (
+      tester,
+    ) async {
+      await pumpBanner(tester, window: _window());
+
+      expect(find.textContaining('2099-01-01T00:00:00.000Z'), findsNothing);
+
+      final expected = DateFormat.yMMMd('en').format(
+        DateTime.parse('2099-01-01T00:00:00.000Z').toLocal(),
+      );
+      expect(find.textContaining(expected), findsOneWidget);
     });
   });
 }
