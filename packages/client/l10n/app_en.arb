@@ -3205,6 +3205,8 @@
   "evaluationReceivedNeutralLabel": "No significant change",
   "evaluationReceivedNoBasisLabel": "No basis to judge",
   "evaluationReceivedSeeReviewWindowStatus": "See review window status",
+  "reviewWindowViewReceivedReviewsAction": "See the reviews you receive",
+  "closedRequestViewMyReviewsAction": "View my reviews",
   "evaluationTrustLessSummary": "Less",
   "evaluationTrustMoreSummary": "More",
   "evaluationTrustNoChangeSummary": "No change",

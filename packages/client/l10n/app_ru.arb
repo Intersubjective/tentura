@@ -3201,6 +3201,8 @@
   "evaluationReceivedNeutralLabel": "Существенных изменений нет",
   "evaluationReceivedNoBasisLabel": "Нет оснований для оценки",
   "evaluationReceivedSeeReviewWindowStatus": "Статус окна отзывов",
+  "reviewWindowViewReceivedReviewsAction": "Посмотреть полученные отзывы",
+  "closedRequestViewMyReviewsAction": "Мои отзывы",
   "evaluationTrustLessSummary": "Меньше",
   "evaluationTrustMoreSummary": "Больше",
   "evaluationTrustNoChangeSummary": "Без изменений",
