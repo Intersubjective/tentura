@@ -261,3 +261,20 @@ cd packages/server && dart analyze   # 0 errors (2197 info-level pre-existing)
 cd packages/server && dart test test/app/di_smoke_test.dart  # 2 passed
 ./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
 ```
+
+**Overseer review: ACCEPTED.** Independently reran the full test set (158 passed), the DI
+smoke test (2 passed, both prod and dev graphs resolve — confirms the widened
+`ReviewFinalizationPort` return type didn't break Injectable wiring), `dart analyze`
+(0 error-severity issues), and `check-custom-lints.sh packages/server` (0, baseline 0).
+Verified `kPathBeaconView` added to the shared root `lib/consts.dart` (`'/beacon/view'`)
+matches the client's own `packages/client/lib/consts.dart` value exactly — no divergence.
+Verified against the live `attention_policy.dart` `_destination` switch that
+`trustReceivedChanged`'s destination `targetEntityId` really does come from `role.beaconId`
+(not `role.targetEntityId`), confirming the worker's stated judgement call was checked
+against the real B2 code, not assumed. Verified copy strings avoid MeritRank internals
+(no "bin"/numeric score) and correctly use D4's "and their network" as descriptive prose.
+Verified `pendingProducerEventTypes` is now `[]` and `attention_intent_case_test.dart`
+gained real fixtures for both event types (not just contract bookkeeping). Both call sites
+correctly skip `TrustBin.noEffect` pairs per the Q1 default, and both use fresh
+per-pair-per-direction `sourceEventKey`s. This closes out all server-side work (A1-A3,
+B1-B2) — client units (C1 onward) can now build against a stable GraphQL/Updates surface.
