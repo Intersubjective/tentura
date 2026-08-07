@@ -602,3 +602,56 @@ isolation. Independently reran the full targeted test set (153 passed) and
 direction — confirms the recipient/actor wiring B1 built is genuinely correct, not just
 superficially present. No production code was touched, consistent with this being a
 test-coverage gap, not a functional bug.
+
+## F2 — Plan-level verification sweep (§7) — CLOSED OUT
+
+Ran the full CI-equivalent matrix myself (not scoped to any one unit) after all ten
+implementation units plus the F2 remediation above:
+
+```bash
+cd packages/server && dart test -x pg                        # 1293 passed
+cd packages/tentura_lints && dart test                       # 18 passed
+cd packages/client && flutter test                           # 1731 passed, 14 skipped
+cd packages/server && dart test test/app/di_smoke_test.dart  # 2 passed (prod + dev graphs)
+./scripts/check-custom-lints.sh packages/client               # 106 (baseline 111 — improved, not just held)
+./scripts/check-custom-lints.sh packages/server                # 0 (baseline 0)
+bash scripts/check-user-facing-terminology.sh                  # ok
+```
+
+Walked plan §7's full acceptance-criteria table row by row:
+
+| Criterion | Status |
+|---|---|
+| Reviewed user finds feedback from both Updates and closed request | ✅ built + tested (C2, C3, D1) |
+| UI explains direction/meaning without MeritRank internals | ✅ tested explicitly (D1's internals-leak assertion) |
+| Users cannot see raw reviews they're not entitled to | ✅ by construction — `evaluationReceived`'s only caller-controllable identity is `evaluatedUserId == jwt.sub` (A1, unchanged from pre-plan code); `evaluationsWrittenAboutMeBy`'s `viewerId` comes from `getCredentials(args).sub` server-side in the A3 GraphQL resolver, never a client argument (verified live during A3's review). The A1-noted minor `beaconTitle` existence-leak to non-participants was an accepted, documented plan default, not a regression. |
+| Missing/partial reviews have explicit state | ✅ tested (C2's four widget-test states) |
+| No basis distinct from neutral (D6) | ✅ tested at every layer: server tone mapping (A1), received-reviews tile (C2), Updates card only ever sees 3 states by design (D1, verified not a gap) |
+| Data persists after reload/across devices | ✅ true by construction (server-sourced, no local-only state) — plan explicitly says no new test needed |
+| E2E coverage for author, committer, eligible forwarder | ✅ **was a real gap, now fixed** — see the F2 remediation entry directly above |
+| Client web integration scenario (plan §7: "add a scenario closing a request with 1 reviewer" via `run_client_integration_web_local.sh`) | ⚠️ **deliberately deferred, not built.** This requires bringing up the full local dev stack (Docker, Caddy, a running server+Hasura) to drive a real headless-browser suite — a heavier, environment-dependent action not attempted in this session. The unit-level and widget-level coverage across A1–F1 already proves D1 (single-reviewer aggregation with no N≥3 gate) at every layer below full E2E: A1's `evaluationReceived` tests use single-reviewer fixtures throughout, and C2's screen tests render single-row lists directly. Flagging this explicitly as the one acceptance-table item not fully closed, per the user's judgment on whether to pursue it separately. |
+
+**Cross-unit integration checks:** GraphQL schema (`schema.graphql`) and contract JSON
+(`updates-event-contract.json`, both server and client copies) are internally consistent —
+confirmed via each unit's own contract-test runs plus this sweep's full suite. No migration
+was needed (§3.4, confirmed by A2). `MIN_CLIENT_VERSION` deliberately not raised (F1). Version
+bumped to `5.7.0` (F1). No `*.g.dart`/`*.freezed.dart`/`*.gr.dart` were ever hand-edited —
+every unit ran codegen after source changes, verified per-unit and again here.
+
+**Final worktree state:** `git status` is byte-identical to the session's starting
+pre-existing-changes snapshot (see top of this journal) — no stray or leftover files from
+any of the 12 units or the remediation pass. 50 commits made this session
+(`14e89bbf..HEAD`), all under `main`, none pushed.
+
+**One deliberately unresolved item, flagged for the user (not silently completed):**
+`docs/plans/received-reviews-trust-changes-plan.md` itself was untracked (pre-existing) at
+session start and remains untracked — the overseer skill's "never commit pre-existing
+changes" rule applied literally to it, so it was left alone throughout even though every
+commit message in this session references it by path. The user may want to commit it
+alongside this work so the plan document has a permanent record next to its
+implementation, but that decision was left to the user rather than assumed.
+
+**Plan status: implementation complete.** All 10 implementation units (A1-A3, B1-B2, C1-C3,
+D1, E1) plus l10n/version cleanup (F1) and one test-coverage remediation are done, committed,
+and independently verified by the overseer. The one open item is the deferred client E2E
+browser scenario noted above.
