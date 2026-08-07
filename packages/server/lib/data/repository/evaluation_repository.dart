@@ -513,6 +513,7 @@ RETURNING evaluator_id, evaluated_user_id, value
       return ReviewCloseSnapshot(
         beaconId: beaconId,
         beaconAuthorId: beaconRow.userId,
+        beaconTitle: beaconRow.title,
         windowOpenedAt: window.openedAt.dateTime,
         finalizedEvaluations: finalized,
       );

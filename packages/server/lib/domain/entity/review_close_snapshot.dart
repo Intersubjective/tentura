@@ -16,6 +16,7 @@ abstract class ReviewCloseSnapshot with _$ReviewCloseSnapshot {
   const factory ReviewCloseSnapshot({
     required String beaconId,
     required String beaconAuthorId,
+    required String beaconTitle,
     required DateTime windowOpenedAt,
     required List<FinalizedEvaluation> finalizedEvaluations,
   }) = _ReviewCloseSnapshot;

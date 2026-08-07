@@ -70,6 +70,7 @@ void main() {
     evalRepo.snapshotOnClose = ReviewCloseSnapshot(
       beaconId: beaconId,
       beaconAuthorId: authorId,
+      beaconTitle: 'Finalize test request',
       windowOpenedAt: windowOpened,
       finalizedEvaluations: [
         const FinalizedEvaluation(
@@ -87,8 +88,10 @@ void main() {
   });
 
   test('closeAndFinalize records commitment and forward evidence', () async {
-    final ok = await case_.closeAndFinalize(beaconId, reason: 'expired');
-    expect(ok, isTrue);
+    final result = await case_.closeAndFinalize(beaconId, reason: 'expired');
+    expect(result.didClose, isTrue);
+    expect(result.beaconTitle, 'Finalize test request');
+    expect(result.pairs, isNotEmpty);
     expect(trustEvidence.recorded, isNotEmpty);
 
     final commitmentItems = trustEvidence.recorded
@@ -130,6 +133,7 @@ void main() {
     evalRepo.snapshotOnClose = ReviewCloseSnapshot(
       beaconId: beaconId,
       beaconAuthorId: authorId,
+      beaconTitle: 'Finalize test request',
       windowOpenedAt: windowOpened,
       finalizedEvaluations: [
         const FinalizedEvaluation(
@@ -150,8 +154,10 @@ void main() {
 
   test('returns false when review window already closed', () async {
     evalRepo.snapshotOnClose = null;
-    final ok = await case_.closeAndFinalize(beaconId, reason: 'expired');
-    expect(ok, isFalse);
+    final result = await case_.closeAndFinalize(beaconId, reason: 'expired');
+    expect(result.didClose, isFalse);
+    expect(result.beaconTitle, isNull);
+    expect(result.pairs, isEmpty);
     expect(trustEvidence.recorded, isEmpty);
   });
 }

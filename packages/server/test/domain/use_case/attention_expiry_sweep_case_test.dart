@@ -5,6 +5,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
+import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 
@@ -22,7 +23,7 @@ class _ReviewFinalization implements ReviewFinalizationPort {
   final calls = <({String beaconId, String reason, String? actorUserId})>[];
 
   @override
-  Future<bool> closeAndFinalize(
+  Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
@@ -32,7 +33,7 @@ class _ReviewFinalization implements ReviewFinalizationPort {
       reason: reason,
       actorUserId: actorUserId,
     ));
-    return true;
+    return const ReviewFinalizationResult(didClose: true);
   }
 }
 

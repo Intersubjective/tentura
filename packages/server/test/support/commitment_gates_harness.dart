@@ -26,6 +26,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
+import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
@@ -308,7 +309,7 @@ final class GateScenarioReviewFinalization extends Fake
       <({String beaconId, String reason, String? actorUserId})>[];
 
   @override
-  Future<bool> closeAndFinalize(
+  Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
@@ -316,7 +317,7 @@ final class GateScenarioReviewFinalization extends Fake
     closeAndFinalizeCalls.add(
       (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
     );
-    return true;
+    return const ReviewFinalizationResult(didClose: true);
   }
 }
 

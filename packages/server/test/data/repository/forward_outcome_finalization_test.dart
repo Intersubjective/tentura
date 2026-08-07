@@ -121,6 +121,7 @@ ON CONFLICT (id) DO NOTHING
     evalRepo.snapshotOnClose = ReviewCloseSnapshot(
       beaconId: beaconId,
       beaconAuthorId: authorId,
+      beaconTitle: 'Forward finalize request',
       windowOpenedAt: DateTime.utc(2026, 1, 1),
       finalizedEvaluations: [
         const FinalizedEvaluation(
@@ -138,8 +139,8 @@ ON CONFLICT (id) DO NOTHING
       trustEvidence: trustRepo,
     );
 
-    final ok = await case_.closeAndFinalize(beaconId, reason: 'test');
-    expect(ok, isTrue);
+    final result = await case_.closeAndFinalize(beaconId, reason: 'test');
+    expect(result.didClose, isTrue);
 
     final forwardRows = await db.customSelect(
       '''
@@ -152,7 +153,7 @@ WHERE request_id = '$beaconId' AND trust_context = 'forward'
     expect(await trustRepo.hasForwardEvidenceForRequest(beaconId), isTrue);
 
     final second = await case_.closeAndFinalize(beaconId, reason: 'retry');
-    expect(second, isTrue);
+    expect(second.didClose, isTrue);
     final afterRetry = await db.customSelect(
       '''
 SELECT COUNT(*)::int AS c FROM trust_evidence_event

@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
+import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
@@ -471,6 +472,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     return ReviewCloseSnapshot(
       beaconId: beaconId,
       beaconAuthorId: actorUserId ?? 'author',
+      beaconTitle: 'Test request',
       windowOpenedAt: DateTime.utc(2026, 1, 1),
       finalizedEvaluations: const [],
     );
@@ -502,7 +504,7 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
       <({String beaconId, String reason, String? actorUserId})>[];
 
   @override
-  Future<bool> closeAndFinalize(
+  Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
@@ -510,7 +512,7 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
     closeAndFinalizeCalls.add(
       (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
     );
-    return true;
+    return const ReviewFinalizationResult(didClose: true);
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
+import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -43,12 +44,12 @@ final class ReviewFinalizationCase extends UseCaseBase
   final HelpOfferRepositoryPort _helpOfferRepository;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
 
-  Future<bool> closeAndFinalize(
+  Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
   }) =>
-      _unitOfWork.run<bool>(
+      _unitOfWork.run<ReviewFinalizationResult>(
         actorUserId: actorUserId,
         action: () async {
           final snapshot = await _evaluationRepository.closeReviewWindow(
@@ -56,14 +57,36 @@ final class ReviewFinalizationCase extends UseCaseBase
             reason: reason,
             actorUserId: actorUserId,
           );
-          if (snapshot == null) return false;
+          if (snapshot == null) {
+            return const ReviewFinalizationResult(didClose: false);
+          }
 
           final now = DateTime.timestamp();
           await _recordCommitmentEvidence(snapshot, at: now);
           await _recordForwardEvidence(snapshot, at: now);
-          return true;
+          return ReviewFinalizationResult(
+            didClose: true,
+            beaconTitle: snapshot.beaconTitle,
+            pairs: _finalizedTrustPairs(snapshot),
+          );
         },
       );
+
+  List<FinalizedTrustPair> _finalizedTrustPairs(ReviewCloseSnapshot snapshot) {
+    final pairs = <FinalizedTrustPair>[];
+    for (final ev in snapshot.finalizedEvaluations) {
+      final bin = reviewValueToBin(ev.value);
+      if (bin == null) continue;
+      pairs.add(
+        FinalizedTrustPair(
+          evaluatorId: ev.evaluatorId,
+          evaluatedUserId: ev.evaluatedUserId,
+          bin: bin,
+        ),
+      );
+    }
+    return pairs;
+  }
 
   Future<void> _recordCommitmentEvidence(
     ReviewCloseSnapshot snapshot, {
