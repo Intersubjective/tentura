@@ -298,7 +298,7 @@ B1-B2) — client units (C1 onward) can now build against a stable GraphQL/Updat
 - **Entity field naming:** domain uses `trustTone` (not server wire `tone`) to keep Flutter/design-system `TenturaTone` mapping at UI layer per clean-architecture rule.
 - **No `EvaluationCase` changes:** deferred — no cubit consumer yet in this unit.
 
-**Commits:** `17b42c96` (schema + `.graphql` docs), `e063728f` (entities + `build_client.dart`), `a70165cf` (repository + tests + journal).
+**Commits:** `17b42c96` (schema + `.graphql` docs), `e063728f` (entities + `build_client.dart`), `b06820e0` (repository + tests + journal).
 
 **Verification**
 ```bash
