@@ -38,7 +38,7 @@ untracked, and owned by this plan.)
 |---|---|---|
 | P1 | Wire up GraphQL transport timeout (`build_client.dart`) | complete |
 | P2 | Scope block-visibility graph-cache invalidation (`graph_cubit.dart`) | complete |
-| P3 | Block confirmation snackbar + live profile refresh | pending |
+| P3 | Block confirmation snackbar + live profile refresh | complete |
 | P4 | Surface capped cascade count in block preview | pending |
 | P5 | Manager-run full regression pass (not a worker unit) | pending |
 
@@ -91,3 +91,42 @@ Plus each unit's own targeted test path (see plan).
 - `cd packages/client && flutter test test/features/graph/` — pass (132 tests)
 
 **Commit:** `fde73c8b` — fix(client): scope graph cache invalidation on block events (P2)
+
+## Checkpoint — P3.1 complete (2026-08-07)
+
+**Changes:**
+- After a successful block, `BlockUserSheetBody` shows a confirmation snackbar
+  (`blockConfirmedMessage` / `blockManageAction` l10n keys) before popping the
+  sheet; the Manage action calls `GetIt.I<RootRouter>().push(BlockedUsersRoute)`
+  (matches deferred-navigation pattern used elsewhere in the app).
+- Extended `block_user_sheet_test.dart`: `FakeBlockCase.block()` implementation,
+  snackbar + manage-action navigation tests (`_RecordingRootRouter` via GetIt).
+- Client patch bump `5.6.47` → `5.6.48`.
+
+**Verification:**
+- `cd packages/client && flutter test test/features/block/ui/sheet/block_user_sheet_test.dart` — pass (7 tests)
+
+**Commit:** `215387ef` — feat(client): show block confirmation snackbar with manage link (P3.1)
+
+## Checkpoint — P3.2 complete (2026-08-07)
+
+**Changes:**
+- `ProfileViewCubit` subscribes to `_blockCase.changes` filtered to the open
+  profile id and debounces a silent refetch (same `_scheduleSilentFetch` path as
+  projection changes).
+- Removed unscoped `_blockCase.changes` from `ProfileViewCase.projectionChanges`
+  and dropped the unused `BlockCase` constructor dependency (scoped invalidation
+  now lives in the cubit only).
+- Extended `profile_view_cubit_test.dart`: same-id block event refetches; different-id
+  does not.
+
+**Verification:**
+- `cd packages/client && flutter test test/features/block/ test/features/profile_view/` — pass (36 tests)
+- `cd packages/client && flutter analyze` — 774 pre-existing infos, no new errors
+
+**Commit:** `0a72eba1` — fix(client): refresh open profile on scoped block changes (P3.2)
+
+## Final entry — P3 worker exit (2026-08-07)
+
+P3 (P3.1 + P3.2) complete. P4 (capped cascade preview copy) and P5 (manager
+regression pass) remain for subsequent workers.
