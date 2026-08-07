@@ -448,3 +448,20 @@ cd packages/client && flutter analyze lib/features/updates/ lib/domain/attention
 cd packages/client && flutter test test/features/updates/ test/domain/attention/  # 35 passed
 ./scripts/check-custom-lints.sh packages/client  # 106, baseline 111 unchanged
 ```
+
+**Overseer review: ACCEPTED.** Independently reran codegen (7 outputs regenerated),
+`flutter analyze lib/features/updates/ lib/domain/attention/` (4 info-level style hints,
+zero errors), `flutter test test/features/updates/ test/domain/attention/` (35 passed,
+including the new `destination_map_test.dart` "received reviews destination uses beacon id
+path" case), and `check-custom-lints.sh packages/client` (106, still below baseline 111).
+Confirmed `TenturaChangeHighlight`'s real constructor (`{required bool active, required
+Widget child}`) matches the worker's usage exactly. Read `trust_change_receipt_card_test.dart`
+directly: covers all three tone states by name (`trust_given_changed_up/_down`,
+`trust_received_changed_neutral`) plus an explicit assertion that "bin"/"edge weight"/
+"MeritRank" never appear in rendered text — exactly the D4 no-internals-leak requirement.
+Confirmed the three-vs-four-state finding is correct per B1's design (noEffect-bin pairs are
+skipped entirely at the call site, and `noBasis` is an `EvaluationReceivedTrustTone` concept
+scoped to the received-reviews screen, not a `TrustBin` value this card could ever see) —
+the worker flagged this as a deliberate finding rather than guessing, exactly as instructed.
+Confirmed `UpdatesReceiptCard._iconFor` was correctly left untouched (kind-based, cannot
+distinguish the two trust events) and dispatch happens purely on `presentationKey`.
