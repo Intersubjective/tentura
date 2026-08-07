@@ -2238,6 +2238,98 @@ void main() {
       expect(row.note, 'note');
     });
 
+    test('returns row when author reviewed committer', () async {
+      const authorId = 'author1';
+      const committerId = 'committer1';
+      evalRepo
+        ..listEvaluationsForEvaluatedUserResult = [
+          BeaconEvaluationRecord(
+            beaconId: beaconId,
+            evaluatorId: authorId,
+            evaluatedUserId: committerId,
+            value: BeaconEvaluationValue.pos1,
+            reasonTags: 'tag_a',
+            note: 'note',
+            status: BeaconEvaluationRowStatus.final_,
+            createdAt: DateTime.utc(2026, 3, 1),
+            updatedAt: DateTime.utc(2026, 3, 1),
+          ),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: authorId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: committerId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ];
+
+      final result = await evaluationCase.evaluationReceived(
+        beaconId: beaconId,
+        userId: committerId,
+      );
+
+      expect(result.rows, hasLength(1));
+      final row = result.rows.single;
+      expect(row.reviewerId, authorId);
+      expect(row.reviewerRole, EvaluationParticipantRole.author);
+      expect(row.tone, EvaluationReceivedTrustTone.up);
+    });
+
+    test('returns row when committer reviewed author', () async {
+      const authorId = 'author1';
+      const committerId = 'committer1';
+      evalRepo
+        ..listEvaluationsForEvaluatedUserResult = [
+          BeaconEvaluationRecord(
+            beaconId: beaconId,
+            evaluatorId: committerId,
+            evaluatedUserId: authorId,
+            value: BeaconEvaluationValue.neg1,
+            reasonTags: 'tag_a',
+            note: 'note',
+            status: BeaconEvaluationRowStatus.final_,
+            createdAt: DateTime.utc(2026, 3, 1),
+            updatedAt: DateTime.utc(2026, 3, 1),
+          ),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: authorId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: committerId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ];
+
+      final result = await evaluationCase.evaluationReceived(
+        beaconId: beaconId,
+        userId: authorId,
+      );
+
+      expect(result.rows, hasLength(1));
+      final row = result.rows.single;
+      expect(row.reviewerId, committerId);
+      expect(row.reviewerRole, EvaluationParticipantRole.committer);
+      expect(row.tone, EvaluationReceivedTrustTone.down);
+    });
+
     test('includes noBasis rows with distinct tone', () async {
       evalRepo
         ..listEvaluationsForEvaluatedUserResult = [
