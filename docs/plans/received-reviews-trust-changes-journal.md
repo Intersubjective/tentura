@@ -36,7 +36,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | # | Unit | Plan sections | Status |
 |---|------|----------------|--------|
 | A1 | Server: `evaluationSummary` → `evaluationReceived` rework, drop `noBasis` filter, delete `countDistinctEvaluatorsForEvaluated` + callers/mocks/tests | §4.1 | done |
-| A2 | Server: `listFinalizedEvaluationsBetween` port method + `CrossBeaconEvaluationRecord` + Drift impl + `evaluationsWrittenAboutMeBy` use case | §4.2 | pending |
+| A2 | Server: `listFinalizedEvaluationsBetween` port method + `CrossBeaconEvaluationRecord` + Drift impl + `evaluationsWrittenAboutMeBy` use case | §4.2 | done |
 | A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | pending |
 | B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | pending |
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | pending |
@@ -94,3 +94,26 @@ in `evaluation_summary_rules.dart` is pre-existing dead code (only referenced by
 test), unrelated to this unit, left alone correctly.
 
 (Appended chronologically below as units complete.)
+
+### A2 — Cross-beacon finalized evaluations port + use case (§4.2)
+
+**What changed**
+- Added `CrossBeaconEvaluationRecord` (`domain/entity/evaluation/cross_beacon_evaluation_record.dart`) and `EvaluationsWrittenAboutViewerRow` (`evaluations_written_about_viewer_row.dart`) for repository vs use-case layers.
+- Extended `EvaluationRepositoryPort` with `listFinalizedEvaluationsBetween`; implemented in `evaluation_repository.dart` via `customSelect` joining `beacon_evaluation` to `beacon`, filtering `status == final_` only (not `countsTowardSummary`), closed beacon statuses (`4` legacy + `6`), ordered `updated_at DESC`. Includes `noBasis` rows (no value filter).
+- Added `EvaluationCase.evaluationsWrittenAboutMeBy` — calls repo with `evaluatorId: authorOfReviewsId`, `evaluatedUserId: viewerId`; maps tone via `evaluationReceivedTrustToneFromValue` (same sentinel as §4.1).
+- Mock + test doubles updated (`evaluation_repository_mock.dart`, `_FakeEvaluationRepository`, `_TrackingEvaluationRepository`).
+- Tests: `evaluationsWrittenAboutMeBy` group in `evaluation_case_test.dart` (empty, tone/noBasis mapping, pair scoping).
+
+**Judgement calls**
+- **Closed-beacon filter:** SQL adds `b.status IN (4, 6)` so mid-window (`reviewOpen`) requests never surface even if a stray row existed — stricter than `final_` alone.
+- **Index finding:** `beacon_evaluation` has PK `(beacon_id, evaluator_id, evaluated_user_id)` only; no index on `(evaluator_id, evaluated_user_id, status)`. Cross-beacon profile query may seq-scan at scale — flagged, no migration added (out of unit scope per plan §3.4 note).
+- **JWT enforcement:** deferred to GraphQL resolver (unit A3); use case trusts caller-supplied `viewerId`/`authorOfReviewsId` pair.
+
+**Commit:** `3e4e27b8` — Server: add cross-beacon finalized evaluations query (§4.2).
+
+**Verification**
+```bash
+cd packages/server && dart test test/domain/evaluation/ test/domain/use_case/evaluation/  # 86 passed
+cd packages/server && dart test test/domain/use_case/coordination_case_revert_test.dart  # 27 passed
+./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
+```
