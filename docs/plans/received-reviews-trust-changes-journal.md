@@ -554,3 +554,51 @@ ICU-parameterized pair instead) — correct call not to add a dead key.
 **All implementation and cleanup work (A1-A3, B1-B2, C1-C3, D1, E1, F1) is now complete
 and independently verified. Only F2 — the overseer's own cross-cutting plan-level
 verification sweep — remains.**
+
+### F2 remediation — trust-event integration test coverage
+
+**What changed**
+- Made `_FakeReviewFinalization` in `evaluation_case_test.dart` return a configurable `ReviewFinalizationResult` (default unchanged: `didClose: true`, empty `pairs`).
+- Added `closeNow` group tests asserting `attention.recorded` trust intents via the real `AttentionIntentCase` harness:
+  - three-role matrix (author→committer, committer→author, forwarder→committer): 3× `trustGivenChanged` + 3× `trustReceivedChanged`, matched per pair by `eventType`, `recipients.single.recipientId`, and `actorUserId`;
+  - `TrustBin.noEffect` pair skipped (only `requestStatusChanged` remains among trust event types);
+  - mixed multi-pair close (good + veryBad + noEffect): 2 given + 2 received with correct recipient sets.
+- Made `_ReviewFinalization` in `attention_expiry_sweep_case_test.dart` configurable the same way; added tests that `runDue` records given/received intents for a good pair and skips `noEffect`.
+- Added `evaluationReceived` tests for author→committer and committer→author named rows (forwarder + formerCommitter pairings were already covered).
+
+**Why**
+- Plan §7 acceptance row required integration-level proof that `EvaluationCase.closeNow` and `AttentionExpirySweepCase.runDue` actually invoke `AttentionIntentCase.trustGivenChanged`/`trustReceivedChanged` with correct recipients — the B1 call-site loops were untested because fakes always returned empty `pairs`.
+
+**Commits**
+- `49e02698` — Server test: cover closeNow trust-change intent emission (§4.3).
+- `9b301677` — Server test: cover AttentionExpirySweepCase trust intent wiring.
+- `a6841358` — Server test: add evaluationReceived author/committer pairing coverage.
+
+**Verification**
+```bash
+cd packages/server && dart test test/domain/evaluation/ test/domain/use_case/evaluation/ test/domain/use_case/attention_expiry_sweep_case_test.dart test/domain/attention/  # 153 passed
+./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
+```
+
+**Assertions added (exact)**
+- `closeNow` three-role: `given`/`received` length 3 each; per `FinalizedTrustPair`, `trustGivenChanged` recipient = `evaluatorId` + `actorUserId == evaluatedUserId`; `trustReceivedChanged` recipient = `evaluatedUserId` + `actorUserId == evaluatorId`.
+- `closeNow` noEffect: zero `trustGivenChanged` and zero `trustReceivedChanged`; exactly one `requestStatusChanged`.
+- `closeNow` mixed: 2 given + 2 received; recipient sets `{userId, helperId}` for both directions.
+- `AttentionExpirySweepCase.runDue`: one given (recipient `Ureviewer`) + one received (recipient `Ureviewed`); noEffect variant skips both trust types, keeps one `requestStatusChanged`.
+- `evaluationReceived`: author→committer row has `reviewerRole == author`, tone `up`; committer→author row has `reviewerRole == committer`, tone `down`.
+
+**Implementation correctness:** confirmed correct — no production code changes were needed; all new tests pass against existing B1 call-site logic.
+
+**Overseer review: ACCEPTED.** This gap was found by the overseer during F2 verification,
+not reported by any implementation unit: `_FakeReviewFinalization`/`_ReviewFinalization` in
+the two test files always returned empty `pairs`, so B1's trust-event-emission loops in
+`EvaluationCase.closeNow`/`AttentionExpirySweepCase.runDue` were never actually exercised by
+any test, despite `attention_intent_case_test.dart` separately testing the builder methods in
+isolation. Independently reran the full targeted test set (153 passed) and
+`check-custom-lints.sh packages/server` (0, baseline 0) after the fix. Reviewed the
+`closeNow` three-role test directly: uses `singleWhere` (throws on wrong cardinality, not just
+`any`/`contains`) to match each `FinalizedTrustPair` to its `trustGivenChanged`/
+`trustReceivedChanged` intent by both `recipientId` AND `actorUserId` in the correct
+direction — confirms the recipient/actor wiring B1 built is genuinely correct, not just
+superficially present. No production code was touched, consistent with this being a
+test-coverage gap, not a functional bug.
