@@ -4597,6 +4597,15 @@
       }
     }
   }
+  ,"blockPreviewCascadeCapped": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт не менее {count} человека} few{Будут скрыты не менее {count} человек} many{Будут скрыты не менее {count} человек} other{Будут скрыты не менее {count} человек}}"
+  ,"@blockPreviewCascadeCapped": {
+    "description": "Impact preview when the cascade candidate count hit the server's cap (block_cascade_candidates / blockCascadeMaxRows) — the real number may be higher than shown.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
   ,"blockPreviewOpenCommitments": "У вас есть открытые обязательства с этим человеком, которые блокировка не отменяет."
   ,"@blockPreviewOpenCommitments": {
     "description": "Warning when block preview reports open commitments."

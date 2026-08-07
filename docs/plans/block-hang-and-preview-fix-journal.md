@@ -39,7 +39,7 @@ untracked, and owned by this plan.)
 | P1 | Wire up GraphQL transport timeout (`build_client.dart`) | complete |
 | P2 | Scope block-visibility graph-cache invalidation (`graph_cubit.dart`) | complete |
 | P3 | Block confirmation snackbar + live profile refresh | complete |
-| P4 | Surface capped cascade count in block preview | pending |
+| P4 | Surface capped cascade count in block preview | complete |
 | P5 | Manager-run full regression pass (not a worker unit) | pending |
 
 Dependencies: P1–P4 touch disjoint files and have no code dependency on each
@@ -165,3 +165,24 @@ and removed from `ProfileViewCase.projectionChanges` was a real pre-existing
 over-broad-invalidation bug of the same species as P2's, and removing it in
 favor of the id-scoped subscription in the cubit is a correct, in-scope fix
 consistent with this plan's own principle, not scope creep.
+
+## Checkpoint — P4 complete (2026-08-07)
+
+**Changes:**
+- `BlockUserSheetBody` branches cascade preview copy on `preview.cascadeCapped`:
+  capped → `blockPreviewCascadeCapped(count)`, uncapped → `blockPreviewCascade(count)`.
+- Added `blockPreviewCascadeCapped` l10n keys in `app_en.arb` / `app_ru.arb`
+  (Russian uses ICU plural form matching `blockPreviewCascade`).
+- Extended `block_user_sheet_test.dart`: capped (5000, `cascadeCapped: true`)
+  and explicit uncapped (`cascadeCapped: false`) widget tests.
+- Client patch bump `5.6.48` → `5.6.49`.
+
+**Verification:**
+- `cd packages/client && flutter gen-l10n` — ok
+- `cd packages/client && flutter analyze` — 763 pre-existing infos, no new errors
+- `cd packages/client && flutter test test/features/block/ui/sheet/block_user_sheet_test.dart` — pass (9 tests)
+- `cd packages/client && flutter test test/features/block/` — pass (18 tests)
+
+## Final entry — P4 worker exit (2026-08-07)
+
+P4 complete. P5 (manager-run full regression pass) remains.

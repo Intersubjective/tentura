@@ -4807,6 +4807,15 @@
       }
     }
   }
+  ,"blockPreviewCascadeCapped": "At least {count} additional people would be hidden"
+  ,"@blockPreviewCascadeCapped": {
+    "description": "Impact preview when the cascade candidate count hit the server's cap (block_cascade_candidates / blockCascadeMaxRows) — the real number may be higher than shown.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
   ,"blockPreviewOpenCommitments": "You have open commitments with this person that blocking does not cancel."
   ,"@blockPreviewOpenCommitments": {
     "description": "Warning when block preview reports open commitments."

@@ -122,6 +122,60 @@ void main() {
     });
   });
 
+  group('BlockUserSheetBody P4', () {
+    testWidgets('cascade preview shows capped copy when cascadeCapped is true', (
+      tester,
+    ) async {
+      final fakeCase = FakeBlockCase()
+        ..previewResults = [
+          const BlockPreview(),
+          const BlockPreview(
+            cascadeCandidateCount: 5000,
+            cascadeCapped: true,
+          ),
+        ];
+
+      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+
+      final l10n = lookupL10n(const Locale('en'));
+      final switchFinder = find.byKey(const Key('block_cascade_switch'));
+
+      await tester.tap(switchFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.blockPreviewCascadeCapped(5000)),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.blockPreviewCascade(5000)), findsNothing);
+    });
+
+    testWidgets('cascade preview shows uncapped copy when cascadeCapped is false', (
+      tester,
+    ) async {
+      final fakeCase = FakeBlockCase()
+        ..previewResults = [
+          const BlockPreview(),
+          const BlockPreview(cascadeCandidateCount: 3, cascadeCapped: false),
+        ];
+
+      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+
+      final l10n = lookupL10n(const Locale('en'));
+      final switchFinder = find.byKey(const Key('block_cascade_switch'));
+
+      await tester.tap(switchFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.blockPreviewCascade(3)), findsOneWidget);
+      expect(find.text(l10n.blockPreviewCascadeCapped(3)), findsNothing);
+    });
+  });
+
   group('BlockUserSheetBody P3.1', () {
     testWidgets('successful block shows confirmation snackbar with manage action', (
       tester,

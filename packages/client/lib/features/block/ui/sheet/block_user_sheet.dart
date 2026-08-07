@@ -177,7 +177,11 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
             else if (preview != null) ...[
               if (_cascadeEnabled) ...[
                 Text(
-                  l10n.blockPreviewCascade(preview.cascadeCandidateCount),
+                  preview.cascadeCapped
+                      ? l10n.blockPreviewCascadeCapped(
+                          preview.cascadeCandidateCount,
+                        )
+                      : l10n.blockPreviewCascade(preview.cascadeCandidateCount),
                   style: textTheme.bodyMedium,
                 ),
                 SizedBox(height: tt.rowGap),
