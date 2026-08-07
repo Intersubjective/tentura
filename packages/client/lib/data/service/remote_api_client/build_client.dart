@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'package:ferry/ferry.dart'
     show Client, FetchPolicy, Link, NextLink, OperationType;
@@ -26,14 +27,15 @@ typedef ClientParams = ({
 Future<Client> buildClient({
   required ClientParams params,
   required Future<String?> Function() getToken,
+  http.Client? httpClient,
 }) async {
   final defaultHeaders = {
     kHeaderAccept: kContentApplicationJson,
     kHeaderUserAgent: params.userAgent,
   };
 
-  final hasuraHttpClient = _createGraphqlHttpClient();
-  final tenturaV2HttpClient = _createGraphqlHttpClient();
+  final hasuraHttpClient = httpClient ?? _createGraphqlHttpClient();
+  final tenturaV2HttpClient = httpClient ?? _createGraphqlHttpClient();
 
   return Client(
     defaultFetchPolicies: {
@@ -42,6 +44,8 @@ Future<Client> buildClient({
       OperationType.subscription: FetchPolicy.NoCache,
     },
     link: Link.from([
+      _TimeoutLink(params.requestTimeout),
+
       _HasuraSetofScalarFixLink(),
 
       DedupeLink(),
@@ -100,6 +104,39 @@ Future<Client> buildClient({
       ),
     ]),
   );
+}
+
+/// Uploads stream large multipart bodies over potentially slow connections
+/// and must not be capped here — [V2UploadMultipartLink] already carries
+/// them unbounded today; this link must not change that. Every other
+/// operation must complete or fail within [timeout] instead of hanging the
+/// caller (and therefore the UI's loading state) forever.
+class _TimeoutLink extends Link {
+  _TimeoutLink(this.timeout);
+
+  final Duration timeout;
+
+  static const _unboundedOperationNames = {
+    'BeaconAddImage',
+    'BeaconStageImage',
+    'BeaconSetMedia',
+  };
+
+  @override
+  Stream<Response> request(Request request, [NextLink? forward]) {
+    final stream = forward!(request);
+    if (_unboundedOperationNames.contains(request.operation.operationName)) {
+      return stream;
+    }
+    return stream.timeout(
+      timeout,
+      onTimeout: (sink) => sink.addError(
+        mapRemoteFailure(
+          TimeoutException('GraphQL request timed out', timeout),
+        ),
+      ),
+    );
+  }
 }
 
 http.Client _createGraphqlHttpClient() {
