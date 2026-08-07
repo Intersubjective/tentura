@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -86,11 +87,18 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: kBeaconHudRowGap),
           BeaconDefinitionHudRow(beacon: state.beacon),
-          if (state.beacon.status == BeaconStatus.reviewOpen)
+          if (state.beacon.status == BeaconStatus.reviewOpen) ...[
             ReviewWindowBannerHost(
               reviewWindowInfo: state.reviewWindowInfo,
               isAuthor: state.isBeaconMine,
             ),
+            TenturaCommandButton(
+              label: l10n.reviewWindowViewReceivedReviewsAction,
+              onPressed: () => context.router.push(
+                ReceivedReviewsRoute(id: state.beacon.id),
+              ),
+            ),
+          ],
           if (authorSpec != null) ...[
             const SizedBox(height: 10),
             BeaconHudAuthorActBlock(

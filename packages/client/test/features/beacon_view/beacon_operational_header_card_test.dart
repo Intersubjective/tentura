@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
@@ -65,6 +66,23 @@ Beacon _openAuthorBeacon({
       createdAt: DateTime.utc(2026, 6, 20),
       updatedAt: DateTime.utc(2026, 6, 20),
       status: status,
+    );
+
+ReviewWindowInfo _reviewWindow({
+  bool hasWindow = true,
+  bool windowComplete = false,
+  int? userReviewStatus = 0,
+  int totalCount = 2,
+  bool? canCloseNow,
+}) =>
+    ReviewWindowInfo(
+      beaconId: 'b1',
+      hasWindow: hasWindow,
+      closesAt: '2099-01-01T00:00:00.000Z',
+      windowComplete: windowComplete,
+      userReviewStatus: userReviewStatus,
+      totalCount: totalCount,
+      canCloseNow: canCloseNow,
     );
 
 Future<void> _pumpHeaderCard(
@@ -490,6 +508,98 @@ void main() {
       );
 
       expect(find.text('Edit help offer'), findsNothing);
+    });
+  });
+
+  group('reviewOpen received-reviews CTA', () {
+    Future<void> pumpReviewOpenHeader(
+      WidgetTester tester, {
+      required ReviewWindowInfo? reviewWindowInfo,
+      required bool isAuthor,
+    }) async {
+      final myProfile = isAuthor
+          ? authorProfile
+          : const Profile(id: 'uViewer', displayName: 'Viewer');
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(status: BeaconStatus.reviewOpen),
+        myProfile: myProfile,
+        beaconContextLoaded: true,
+        reviewWindowInfo: reviewWindowInfo,
+      );
+
+      await _pumpHeaderCard(tester, state: state);
+    }
+
+    testWidgets('renders while review window info is loading', (tester) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(status: BeaconStatus.reviewOpen),
+        myProfile: const Profile(id: 'uViewer', displayName: 'Viewer'),
+        beaconContextLoaded: true,
+        reviewWindowInfo: null,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: BlocProvider<ProfileCubit>.value(
+            value: _MockProfileCubit(state.myProfile),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BeaconOperationalHeaderCard(
+                  state: state,
+                  onAuthorTap: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('See the reviews you receive'), findsOneWidget);
+    });
+
+    testWidgets('renders for non-author with outstanding review work', (
+      tester,
+    ) async {
+      await pumpReviewOpenHeader(
+        tester,
+        reviewWindowInfo: _reviewWindow(),
+        isAuthor: false,
+      );
+
+      expect(find.text('Review'), findsOneWidget);
+      expect(find.text('See the reviews you receive'), findsOneWidget);
+    });
+
+    testWidgets('renders for author waiting on reviews', (tester) async {
+      await pumpReviewOpenHeader(
+        tester,
+        reviewWindowInfo: _reviewWindow(
+          userReviewStatus: 2,
+          canCloseNow: false,
+        ),
+        isAuthor: true,
+      );
+
+      expect(find.text('Waiting for reviews'), findsOneWidget);
+      expect(find.text('See the reviews you receive'), findsOneWidget);
+    });
+
+    testWidgets('renders when ReviewWindowBannerHost shrinks', (tester) async {
+      await pumpReviewOpenHeader(
+        tester,
+        reviewWindowInfo: _reviewWindow(windowComplete: true),
+        isAuthor: false,
+      );
+
+      expect(find.text('Review'), findsNothing);
+      expect(find.text('Waiting for reviews'), findsNothing);
+      expect(find.text('See the reviews you receive'), findsOneWidget);
     });
   });
 }
