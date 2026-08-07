@@ -117,3 +117,15 @@ cd packages/server && dart test test/domain/evaluation/ test/domain/use_case/eva
 cd packages/server && dart test test/domain/use_case/coordination_case_revert_test.dart  # 27 passed
 ./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
 ```
+
+**Overseer review: ACCEPTED.** Independently reran `test/domain/evaluation/`,
+`test/domain/use_case/evaluation/`, and `coordination_case_revert_test.dart` (113 passed)
+and `check-custom-lints.sh packages/server` (0, baseline 0). Verified the `b.status IN
+(4, 6)` filter against `lib/domain/entity/beacon_status.dart`: smallint `4` is a real
+legacy `PENDING_REVIEW → closed` mapping (`fromSmallint`), not an invented value — the
+extra beacon-status guard is correct and consistent, not just `status == final_` alone.
+Verified `customSelect` with parameterized `Variable<...>` bindings (no string
+interpolation of caller input) is the established pattern across nearly every file in
+`data/repository/` — this unit's raw-SQL join is idiomatic here, not a deviation.
+Confirmed no `noBasis` filter was reintroduced and `evaluationReceivedTrustToneFromValue`
+is reused for tone mapping, consistent with A1.
