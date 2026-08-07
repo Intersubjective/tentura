@@ -24,6 +24,9 @@ Uri attentionDestination(AttentionReceipt receipt) {
     ),
     'review' => Uri(path: '$kPathReviewContributions/$target'),
     'profile' => Uri(path: '$kPathProfileView/$target'),
+    'received_reviews' when beaconId != null => Uri(
+      path: '$kPathReceivedReviews/$beaconId',
+    ),
     _ => Uri.parse(receipt.actionUrl),
   };
 }

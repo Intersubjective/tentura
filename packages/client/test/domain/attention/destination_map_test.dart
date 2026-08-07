@@ -40,6 +40,19 @@ void main() {
     expect(uri.queryParameters.containsKey(kQueryCoordinationItemId), isFalse);
   });
 
+  test('received reviews destination uses beacon id path', () {
+    final uri = attentionDestination(
+      receipt(
+        destinationKind: 'received_reviews',
+        targetEntityId: 'B1',
+        beaconId: 'B1',
+        actionUrl: '/beacon/reviews-received/Bfallback',
+      ),
+    );
+
+    expect(uri.path, '$kPathReceivedReviews/B1');
+  });
+
   test('unknown destination retains the server action url', () {
     expect(
       attentionDestination(
