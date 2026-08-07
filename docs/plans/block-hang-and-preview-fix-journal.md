@@ -73,4 +73,4 @@ Plus each unit's own targeted test path (see plan).
 - `cd packages/client && flutter test test/data/service/remote_api_client/` — pass (6 tests)
 - `cd packages/client && flutter analyze` — 766 pre-existing infos, no new errors in changed files
 
-**Commit:** (pending staging below)
+**Commit:** `666af9fd` — fix(client): cap GraphQL link chain with requestTimeout (P1)
