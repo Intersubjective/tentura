@@ -50,6 +50,22 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 
 Dependencies: A1→A2 (repository file overlap), A2→A3 (needs new types), B1 depends on A1 (evaluation_case.dart churn) landing first to avoid merge pain, B2 depends on B1. C1 depends on A1-A3+B2 (GraphQL schema/contract must be stable before client codegen). C2/C3 depend on C1. D1 depends on B2+C1. E1 depends on A2+C1. F1 last (touches version files), F2 last of all.
 
+**Correction (before either B unit was dispatched):** the above "B2 depends on B1" is
+backwards and was caught by the overseer during B1 prompt-writing, before any worker ran.
+§4.3's `AttentionIntentCase.trustGivenChanged`/`trustReceivedChanged` builders must
+reference `AttentionEventType.trustGivenChanged`/`trustReceivedChanged`, which only
+exist once §4.4 adds them to the enum — and the instant those enum values exist, every
+no-fallback exhaustive switch in `attention_policy.dart` must gain matching cases or the
+file fails to compile. §4.4 (enum + policy switches + `AttentionDestinationKind.receivedReviews`
++ contract JSON + `attention_policy_test.dart` fixtures + client `destination_map.dart`
+branch) is self-contained and compiles/tests cleanly with no producer yet emitting the new
+event types (the contract's `producer` field is just a documentation string). §4.3 (finalization
+return widening + intent builders + call-site wiring) is the one with a real forward
+dependency. **Actual dispatch order: B2 (§4.4) first, then B1 (§4.3) second** — the reverse of
+the table above and of the row order. The table's B1/B2 labels are kept as originally named
+(tied to plan section numbers, §4.3/§4.4) to avoid renumbering churn; only the *execution
+order* is swapped.
+
 ## Cursor worker environment
 
 - `cursor-agent 2026.08.04-aaa8809`, logged in as `vadim@intersubjective.space`.
