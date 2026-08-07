@@ -40,7 +40,7 @@ None of these overlap with files this plan's units touch.
 |---|------|-------|--------|
 | 1 | P1 — client wire-format fix (`scheduleDateTimeToIso`, `.toUtc()`) | `packages/client/lib/features/beacon/data/repository/beacon_repository.dart` + new test | complete |
 | 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | complete |
-| 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | pending |
+| 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | complete |
 | 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | pending |
 | 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | pending |
 | 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | pending |
@@ -102,3 +102,23 @@ planned — sibling `mappers/` already existed).
 - `cd packages/server && dart test test/api/controllers/graphql/input/input_field_datetime_test.dart` — pass (4 tests)
 
 **Deviations from plan:** None — live code matched plan; helpers placed as private instance methods on `InputFieldDatetime` (plan's indentation implied class scope; import path `package:tentura_server/api/controllers/graphql/input/_input_types.dart` matches sibling tests).
+
+### 2026-08-07 — P3 complete
+
+**Changed:** Added `.toLocal()` inside `dateFormatYMD`/`timeFormatHm` in
+`ui_utils.dart` with doc comment per plan. New unit test
+`ui_utils_datetime_test.dart`. No other source files changed — verified via
+`grep` across `packages/client/lib`: three call sites without pre-conversion
+(`beacon_tile.dart`, `inbox_item_tile.dart`, `beacon_hud_metadata_composer.dart`)
+and four with redundant-but-idempotent `.toLocal()` (`help_offer_tile.dart`,
+`updates_receipt_card.dart`, `coordination_log_row_chrome.dart`; plan also
+listed `schedule_date_format.dart` and `relative_time.dart` which use their own
+`DateFormat` paths, not these helpers).
+
+**Commit:** `e867a5b7` — fix(client): render dateFormatYMD/timeFormatHm in viewer-local time (P3)
+
+**Tests:**
+- `cd packages/client && flutter test test/ui/utils/ui_utils_datetime_test.dart` — pass (2 tests)
+- `cd packages/client && flutter analyze` — exit 0, 763 pre-existing info-level issues; no new errors in changed files
+
+**Deviations from plan:** None — live callers matched plan's grep inventory; transitive fix claim confirmed.
