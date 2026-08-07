@@ -33,7 +33,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     /// Overrides default edit-beacon label for the edit row (e.g. draft).
     this.editActionLabel,
     this.onOpenBeacon,
-    this.onShare,
     this.onRequestStatus,
     this.onCloseBeacon,
     this.onCancelBeacon,
@@ -62,7 +61,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   /// Inbox / list: open detail (optional).
   final VoidCallback? onOpenBeacon;
 
-  final VoidCallback? onShare;
   final Future<void> Function()? onRequestStatus;
   final Future<void> Function()? onCloseBeacon;
   final Future<void> Function()? onCancelBeacon;
@@ -123,9 +121,6 @@ class BeaconOverflowMenu extends StatelessWidget {
 
     if (onOpenBeacon != null) {
       add('open_beacon', Icons.open_in_new, l10n.openBeacon);
-    }
-    if (onShare != null) {
-      add('share', Icons.qr_code, l10n.shareLink);
     }
     if (onRequestStatus != null) {
       add(
@@ -267,7 +262,6 @@ class BeaconOverflowMenu extends StatelessWidget {
         itemBuilder: (_) => entries,
         onSelected: (value) => switch (value) {
           'open_beacon' => onOpenBeacon?.call(),
-          'share' => onShare?.call(),
           'request_status' => unawaited(
             _deferPopupAction(context, onRequestStatus),
           ),

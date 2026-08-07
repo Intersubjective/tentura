@@ -244,13 +244,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
                             ),
                           )
                         : null,
-                    onForward: () => unawaited(
-                      beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                        context,
-                        beaconViewCubit,
-                        l10n,
-                      ),
-                    ),
                     onWatch:
                         !state.isBeaconMine &&
                             !state.isHelpOffered &&

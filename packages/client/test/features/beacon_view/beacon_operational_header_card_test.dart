@@ -72,7 +72,6 @@ Future<void> _pumpHeaderCard(
   required BeaconViewState state,
   void Function(BeaconHudAuthorAction action)? onAuthorHudAction,
   VoidCallback? onOfferHelp,
-  VoidCallback? onForward,
   VoidCallback? onEditHelpOffer,
 }) async {
   await tester.pumpWidget(
@@ -90,7 +89,6 @@ Future<void> _pumpHeaderCard(
               onAuthorTap: () {},
               onAuthorHudAction: onAuthorHudAction,
               onOfferHelp: onOfferHelp,
-              onForward: onForward ?? () {},
               onEditHelpOffer: onEditHelpOffer,
             ),
           ),
@@ -351,7 +349,9 @@ void main() {
       );
     });
 
-    testWidgets('idle open author shows muted Forward', (tester) async {
+    testWidgets('idle open author has no HUD ACT (Forward lives in chrome)', (
+      tester,
+    ) async {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
@@ -364,7 +364,7 @@ void main() {
         onAuthorHudAction: (_) {},
       );
 
-      expect(find.text('Forward'), findsOneWidget);
+      expect(find.text('Forward'), findsNothing);
       expect(find.text('Update status'), findsNothing);
     });
 
@@ -401,7 +401,7 @@ void main() {
 
   group('helper HUD actions', () {
     testWidgets(
-      'enoughHelp non-offered helper shows backup offer primary and Forward secondary',
+      'enoughHelp non-offered helper shows backup offer primary without Forward',
       (tester) async {
         const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
         final state = BeaconViewState(
@@ -411,13 +411,11 @@ void main() {
         );
 
         var offerHelpTaps = 0;
-        var forwardTaps = 0;
 
         await _pumpHeaderCard(
           tester,
           state: state,
           onOfferHelp: () => offerHelpTaps++,
-          onForward: () => forwardTaps++,
         );
 
         final backupPrimary = find.widgetWithText(
@@ -427,20 +425,12 @@ void main() {
         expect(backupPrimary, findsOneWidget);
         expect(tester.widget<FilledButton>(backupPrimary).onPressed, isNotNull);
 
-        final forwardSecondary = find.descendant(
-          of: find.byType(TenturaTextAction),
-          matching: find.text('Forward'),
-        );
-        expect(forwardSecondary, findsOneWidget);
-        expect(find.widgetWithText(FilledButton, 'Forward'), findsNothing);
+        expect(find.text('Forward'), findsNothing);
+        expect(find.byType(TenturaTextAction), findsNothing);
 
         await tester.tap(backupPrimary);
         await tester.pumpAndSettle();
         expect(offerHelpTaps, 1);
-
-        await tester.tap(find.byType(TenturaTextAction));
-        await tester.pumpAndSettle();
-        expect(forwardTaps, 1);
       },
     );
   });

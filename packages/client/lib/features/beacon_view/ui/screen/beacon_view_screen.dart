@@ -28,6 +28,7 @@ import '../bloc/beacon_view_cubit.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_operational_scroll_view.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
+import '../widget/beacon_view_forward_app_bar_button.dart';
 import '../widget/beacon_view_status_bottom_sheet.dart';
 import '../widget/beacon_view_constants.dart';
 import '../widget/beacon_view_room_app_bar_button.dart';
@@ -1481,6 +1482,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             state: state,
                             onPressed: _enterRoomSurface,
                           ),
+                        if (beaconViewShowsForwardAppBarAction(
+                              state: state,
+                              showBeaconContent: showBeaconContent,
+                              showInitialLoading: showInitialLoading,
+                            ) &&
+                            !threadActive)
+                          BeaconViewForwardAppBarButton(
+                            onPressed: () => unawaited(
+                              beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                                context,
+                                beaconViewCubit,
+                                l10n,
+                              ),
+                            ),
+                          ),
                         if (showBeaconContent)
                           beaconViewAppBarOverflow(
                             context: context,
@@ -1539,6 +1555,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   },
                                 )
                               : const SizedBox.shrink();
+                          final showSplitForward = !threadActive &&
+                              beaconViewShowsForwardAppBarAction(
+                                state: state,
+                                showBeaconContent: showBeaconContent,
+                                showInitialLoading: showInitialLoading,
+                              );
                           return Row(
                             children: [
                               Expanded(
@@ -1566,7 +1588,22 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                 width: roomPaneWidth,
                                 child: Align(
                                   alignment: Alignment.centerRight,
-                                  child: overflow,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (showSplitForward)
+                                        BeaconViewForwardAppBarButton(
+                                          onPressed: () => unawaited(
+                                            beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                                              context,
+                                              beaconViewCubit,
+                                              l10n,
+                                            ),
+                                          ),
+                                        ),
+                                      overflow,
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -1659,6 +1696,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 BeaconViewRoomAppBarButton(
                   state: state,
                   onPressed: _enterRoomSurface,
+                ),
+              if (beaconViewShowsForwardAppBarAction(
+                    state: state,
+                    showBeaconContent: showBeaconContent,
+                    showInitialLoading: showInitialLoading,
+                  ) &&
+                  !threadActive)
+                BeaconViewForwardAppBarButton(
+                  onPressed: () => unawaited(
+                    beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                      context,
+                      beaconViewCubit,
+                      l10n,
+                    ),
+                  ),
                 ),
               if (showBeaconContent)
                 beaconViewAppBarOverflow(

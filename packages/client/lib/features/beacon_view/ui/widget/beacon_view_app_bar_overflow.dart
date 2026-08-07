@@ -25,7 +25,6 @@ import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart'
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -117,20 +116,6 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
       ),
     ),
   );
-}
-
-bool forwardInPrimaryCta(BeaconViewState state) {
-  final b = state.beacon;
-  if (state.isBeaconMine || b.status != BeaconStatus.open) {
-    return false;
-  }
-  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
-    return true;
-  }
-  if (state.isHelpOffered && !b.allowsWithdrawWhileHelpOffered) {
-    return true;
-  }
-  return false;
 }
 
 bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
@@ -294,8 +279,6 @@ Future<void> beaconViewHandleAuthorHudAction({
         return;
       }
       await cubit.closeBeaconNow();
-    case BeaconHudAuthorAction.forward:
-      await beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n);
   }
 }
 
@@ -397,7 +380,6 @@ Widget beaconViewAppBarOverflow({
 }) {
   final b = state.beacon;
   final beaconId = b.id;
-  final hideOverflowForward = forwardInPrimaryCta(state);
   final hideOfferHelpWithdraw = hideOfferHelpWithdrawFromOverflow(state);
   final showBeaconManagementOverflow = !inRoomSurface;
   final onCreatePromise = beaconViewRoomCreatePromiseAction(
@@ -420,12 +402,8 @@ Widget beaconViewAppBarOverflow({
   );
 
   if (state.isBeaconMine) {
-    final hideHudForward = forwardShownInAuthorHud(state);
     return BeaconOverflowMenu(
       beacon: b,
-      onShare: showBeaconManagementOverflow && b.allowsForward
-          ? () => unawaited(showBeaconShareSheet(context, beacon: b))
-          : null,
       onRequestStatus: showBeaconManagementOverflow &&
               beaconViewShowsRequestStatusOverflow(state)
           ? () async {
@@ -451,13 +429,6 @@ Widget beaconViewAppBarOverflow({
       onCreatePromise: onCreatePromise,
       onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
-      onForward: showBeaconManagementOverflow &&
-              b.allowsForward &&
-              !hideHudForward
-          ? () => unawaited(
-              beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-            )
-          : null,
       onForwardsGraph: showBeaconManagementOverflow
           ? () => screenCubit.showForwardsGraphFor(beaconId)
           : null,
@@ -533,11 +504,6 @@ Widget beaconViewAppBarOverflow({
               );
             }
           }
-        : null,
-    onForward: showBeaconManagementOverflow && !hideOverflowForward
-        ? () => unawaited(
-            beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-          )
         : null,
     onForwardsGraph: showBeaconManagementOverflow
         ? () => screenCubit.showForwardsGraphFor(beaconId)

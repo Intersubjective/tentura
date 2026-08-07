@@ -210,6 +210,9 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
       if (beacon.status == BeaconStatus.reviewOpen) {
         return l10n.beaconHudWaitingForReviews;
       }
+      if (beacon.allowsForward) {
+        return l10n.beaconHudYouForward;
+      }
       if (authorHudShowsStatusOverflowFallback(state)) {
         return l10n.beaconHudYouChangeStatusInOverflow;
       }
@@ -262,7 +265,6 @@ String _authorYouSituationLine(
     }(),
     BeaconHudAuthorAction.markEnoughHelp =>
       l10n.beaconHudYouAuthorCoordinationActive,
-    BeaconHudAuthorAction.forward => l10n.beaconHudYouForward,
     BeaconHudAuthorAction.wrapUpForReview ||
     BeaconHudAuthorAction.closeNow =>
       l10n.beaconHudYouAuthorReadyToClose,

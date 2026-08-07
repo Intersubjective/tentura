@@ -25,7 +25,6 @@ import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon/ui/sheet/beacon_share_sheet.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -396,9 +395,6 @@ class _AuthoredActiveCard extends StatelessWidget {
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
               beacon: b,
-              onShare: b.allowsForward
-                  ? () => unawaited(showBeaconShareSheet(context, beacon: b))
-                  : null,
               onCloseBeacon: myWorkCloseBeaconEnabled(vm)
                   ? () async {
                       await Future<void>.delayed(Duration.zero);
@@ -681,9 +677,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
               beacon: b,
-              onShare: b.allowsForward
-                  ? () => unawaited(showBeaconShareSheet(context, beacon: b))
-                  : null,
               onCloseBeacon: myWorkCloseBeaconEnabled(vm)
                   ? () async {
                       await Future<void>.delayed(Duration.zero);

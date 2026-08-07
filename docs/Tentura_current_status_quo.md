@@ -118,7 +118,7 @@ The author signals **coverage/fit** via beacon status and **per-offer responses*
 
 Status includes phases such as: no offers yet, offers awaiting author review, more/different help needed, enough help in motion.
 
-At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Offer as backup**, with **Forward** available as a secondary action). The author coordinates openly across primary and backup offers.
+At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Offer as backup**, with **Forward** available as a persistent secondary control in Request chrome). The author coordinates openly across primary and backup offers.
 
 ### 8.3 Beacon detail + Room
 

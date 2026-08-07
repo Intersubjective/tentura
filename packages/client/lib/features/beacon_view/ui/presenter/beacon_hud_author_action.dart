@@ -14,7 +14,6 @@ enum BeaconHudAuthorAction {
   wrapUpForReview,
   reviewContributions,
   closeNow,
-  forward,
 }
 
 /// Resolved author ACT for the HUD action rail.
@@ -60,16 +59,6 @@ bool authorPersonallyOwnsBlocker(BeaconViewState state) {
 bool authorHasOpenBlocker(BeaconViewState state) =>
     buildClosureConfirmationSummary(state).hasOpenBlocker;
 
-bool authorForwardAllowed(BeaconViewState state) {
-  final b = state.beacon;
-  if (!b.allowsForward) return false;
-  if (b.status != BeaconStatus.open &&
-      b.status != BeaconStatus.needsMoreHelp) {
-    return false;
-  }
-  return true;
-}
-
 /// Derives the author HUD action kind without UI labels.
 BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
   if (!authorHudActGate(state)) return null;
@@ -113,10 +102,6 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
     }
   }
 
-  if (!blocked && authorForwardAllowed(state)) {
-    return BeaconHudAuthorAction.forward;
-  }
-
   return null;
 }
 
@@ -145,12 +130,10 @@ IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.wrapUpForReview => Icons.rate_review_outlined,
     BeaconHudAuthorAction.reviewContributions => Icons.rate_review_outlined,
     BeaconHudAuthorAction.closeNow => Icons.lock_outline,
-    BeaconHudAuthorAction.forward => Icons.send_outlined,
   };
 }
 
 bool filledBeaconHudAuthorAction(BeaconHudAuthorAction action) =>
-    action != BeaconHudAuthorAction.forward &&
     action != BeaconHudAuthorAction.closeNow;
 
 String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
@@ -162,7 +145,6 @@ String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.reviewContributions =>
       l10n.beaconHudActReviewContributions,
     BeaconHudAuthorAction.closeNow => l10n.beaconReviewCloseNowAction,
-    BeaconHudAuthorAction.forward => l10n.labelForward,
   };
 }
 
@@ -179,7 +161,6 @@ String effectLineForBeaconHudAuthorAction(
     BeaconHudAuthorAction.reviewContributions =>
       l10n.beaconHudActEffectReviewContributions,
     BeaconHudAuthorAction.closeNow => l10n.beaconHudActEffectCloseNow,
-    BeaconHudAuthorAction.forward => l10n.beaconHudActEffectForward,
   };
 }
 
@@ -201,10 +182,6 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
     filled: filledBeaconHudAuthorAction(action),
   );
 }
-
-/// Whether Forward should appear in overflow (not duplicated in the HUD ACT).
-bool forwardShownInAuthorHud(BeaconViewState state) =>
-    deriveBeaconHudAuthorAction(state) == BeaconHudAuthorAction.forward;
 
 /// Whether Request status overflow is the author's fallback when HUD ACT is null.
 bool authorHudShowsStatusOverflowFallback(BeaconViewState state) =>

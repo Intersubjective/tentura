@@ -25,7 +25,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onAuthorHudAction,
     this.onOfferHelp,
     this.onEditHelpOffer,
-    this.onForward,
     this.onWatch,
     this.onStopWatching,
     this.onSwitchToPeopleTab,
@@ -41,7 +40,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final void Function(BeaconHudAuthorAction action)? onAuthorHudAction;
   final VoidCallback? onOfferHelp;
   final VoidCallback? onEditHelpOffer;
-  final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
 
@@ -143,11 +141,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-      return _HelperHudActions(
-        primary: primary,
-        secondaryLabel: onForward != null ? l10n.labelForward : null,
-        onSecondary: onForward,
-      );
+      return _HelperHudActions(primary: primary);
     }
 
     final canOfferHelp = openFamily &&
@@ -164,16 +158,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           filled: true,
         ),
       ];
-      if (onForward != null) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.send_outlined,
-            label: l10n.labelForward,
-            onPressed: onForward,
-            filled: false,
-          ),
-        );
-      }
       if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
         out.add(
           _HudActionSpec(
@@ -204,38 +188,19 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         onEditHelpOffer != null;
 
     if (canEditHelpOffer) {
-      final out = <_HudActionSpec>[
-        _HudActionSpec(
-          icon: Icons.edit_outlined,
-          label: l10n.beaconCtaEditHelpOffer,
-          onPressed: onEditHelpOffer,
-          filled: true,
-        ),
-      ];
-      if (onForward != null) {
-        out.add(
+      return _HelperHudActions(
+        primary: [
           _HudActionSpec(
-            icon: Icons.send_outlined,
-            label: l10n.labelForward,
-            onPressed: onForward,
-            filled: false,
+            icon: Icons.edit_outlined,
+            label: l10n.beaconCtaEditHelpOffer,
+            onPressed: onEditHelpOffer,
+            filled: true,
           ),
-        );
-      }
-      return _HelperHudActions(primary: out.take(3).toList());
+        ],
+      );
     }
 
     final out = <_HudActionSpec>[];
-    if (onForward != null) {
-      out.add(
-        _HudActionSpec(
-          icon: Icons.send_outlined,
-          label: l10n.labelForward,
-          onPressed: onForward,
-          filled: false,
-        ),
-      );
-    }
     if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
       out.add(
         _HudActionSpec(
@@ -263,17 +228,11 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 class _HelperHudActions {
   const _HelperHudActions({
     this.primary = const [],
-    this.secondaryLabel,
-    this.onSecondary,
   });
 
   final List<_HudActionSpec> primary;
-  final String? secondaryLabel;
-  final VoidCallback? onSecondary;
 
-  bool get hasActions =>
-      primary.isNotEmpty ||
-      (secondaryLabel != null && onSecondary != null);
+  bool get hasActions => primary.isNotEmpty;
 }
 
 class _HudActionSpec {
@@ -324,23 +283,7 @@ class _HudActionStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = context.tt;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _HudActionRail(actions: actions.primary),
-        if (actions.secondaryLabel != null && actions.onSecondary != null) ...[
-          SizedBox(height: tt.tightGap),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TenturaTextAction(
-              label: actions.secondaryLabel!,
-              onPressed: actions.onSecondary,
-            ),
-          ),
-        ],
-      ],
-    );
+    return _HudActionRail(actions: actions.primary);
   }
 }
 

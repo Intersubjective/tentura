@@ -238,11 +238,8 @@ void main() {
       );
     });
 
-    test('forward only in open or needsMoreHelp when no higher action', () {
-      expect(
-        deriveBeaconHudAuthorAction(_authorState()),
-        BeaconHudAuthorAction.forward,
-      );
+    test('no forward ACT; open idle author has null HUD action', () {
+      expect(deriveBeaconHudAuthorAction(_authorState()), isNull);
       expect(
         deriveBeaconHudAuthorAction(
           _authorState(status: BeaconStatus.enoughHelp),
@@ -251,7 +248,7 @@ void main() {
       );
     });
 
-    test('blocked coordination suppresses forward', () {
+    test('blocked coordination suppresses lifecycle ACT', () {
       expect(
         deriveBeaconHudAuthorAction(
           _authorState(status: BeaconStatus.needsMoreHelp),
