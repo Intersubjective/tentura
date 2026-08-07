@@ -12,7 +12,7 @@ alwaysApply: true
 | **Internal** (code, DB, GraphQL, routes, technical docs) | `Beacon`, `beacon`, `beacon_room` | room |
 | **User-facing** (l10n values, push, landing, snackbars) | **Request** / **Requests** | **Chat** |
 
-Russian: **запрос** / **запросы**; workspace **чат**.
+Russian: **запрос** / **запросы**; workspace **чат**. Coordination **ask** (sub-thread item in chat): **просьба** / **просьбы** — not «запрос».
 
 ## Forbidden
 

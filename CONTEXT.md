@@ -9,7 +9,7 @@ Coordination product for **Requests** (internally: **Beacons**), **Chats** (inte
 | **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **Chat** |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` |
 
-**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Chat (internally: room)** is the private coordination workspace on a request.
+**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Chat (internally: room)** is the private coordination workspace on a request. **Ask** (coordination item / sub-thread in chat): user-facing **ask** (EN); Russian **просьба** / **просьбы** — distinct from Request → **запрос**.
 
 **Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon" or "room" as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
