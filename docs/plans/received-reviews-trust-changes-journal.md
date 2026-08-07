@@ -41,7 +41,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | done |
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | done |
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | done |
-| C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | pending |
+| C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | done |
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | pending |
 | D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | pending |
 | E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | pending |
@@ -330,3 +330,33 @@ a regression). Verified the `DateTime.parse(...)` (no `.toLocal()`) convention a
 UTC-handling judgement call was checked against real code. Domain entities correctly avoid
 Flutter/design-system imports per clean-architecture rule. `fetchSummary`/old
 `evaluation_summary.dart` left untouched as instructed.
+
+### C2 — Received reviews screen + tile + routing (§6.3)
+
+**What changed**
+- New `ReceivedReviewsScreen` (`@RoutePage()`, `@PathParam('id')` beacon id) + `ReceivedReviewsView` body (extracted for widget tests without AutoRouter).
+- New `ReceivedReviewsCubit` — thin single-repo cubit injecting `EvaluationRepository` via `fromGetIt`; **did not reuse `EvaluationCubit`** (write-flow oriented: participants, submit, finalize).
+- New `ReceivedReviewTile` — avatar, role `TenturaTypeLabel`, trust line with tinted-circle glyph (`_TrustToneGlyph`, pattern from `coordination_ui.dart` pill tints), reason tags, note, `compactRelativeTimeAgo` (same helper as `UpdatesReceiptCard`).
+- Route: `kPathReceivedReviews = '/beacon/reviews-received'`; `ReceivedReviewsRoute` in `root_router.dart` + `home_tab_branches.dart` branch + `_browsePathOwners` entry (owner `HomeTab.work`).
+- l10n (en+ru): screen title/generic, empty states, trust-direction labels, `evaluationRoleFormerCommitter`, review-window-status link.
+- Widget tests: `received_reviews_screen_test.dart` (rows, both empty states, `noBasis` vs `noChange`).
+
+**Judgement calls**
+- **Route path:** `/beacon/reviews-received/:id` — distinct from `/beacon/review/:id` (`ReviewContributionsRoute`); matches B2 `AttentionDestinationKind.receivedReviews` wire name family.
+- **Cubit:** new `ReceivedReviewsCubit` rather than extending `EvaluationCubit` — read-only fetch, no overlap with write/submit state machine.
+- **Role labels:** reused `evaluationRoleAuthor` / `evaluationRoleHelpOfferer` / `evaluationRoleForwarder`; added `evaluationRoleFormerCommitter` for int `3` (client `EvaluationParticipantRole` still lacks this value).
+- **Date display:** `compactRelativeTimeAgo` from `ui/utils/relative_time.dart` via `TenturaMetaText` — matches Updates receipt cards.
+- **§6.6 deferred:** `EvaluationSummaryCard` untouched (next unit C3 retires it with entry points).
+- **`destination_map.dart`:** not updated here (D1 / Updates unit); route exists for future `received_reviews` deep links once map branch lands.
+
+**Commits:** `1004ff17` (l10n), `4b9f10fe` (tile), `0265e4cc` (screen+cubit), `19427f16` (routing), `4ea6fc16` (tests).
+
+**Verification**
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d
+cd packages/client && flutter analyze lib/features/evaluation/ lib/app/router/  # 0 new errors (pre-existing warnings only)
+cd packages/client && flutter test test/features/evaluation/   # 57 passed
+./scripts/check-custom-lints.sh packages/client                # 109, baseline 111 unchanged
+```
+
+**API for next unit (C3):** navigate with `ReceivedReviewsRoute(id: beaconId)` or `pushPath('$kPathReceivedReviews/$beaconId')`; screen constructor `ReceivedReviewsScreen({@PathParam('id') id})`.
