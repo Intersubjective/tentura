@@ -22,6 +22,8 @@ import 'package:tentura_server/domain/port/person_capability_event_repository_po
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
+import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
@@ -319,12 +321,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   DateTime extendReviewResult = DateTime.utc(2025, 1, 8);
   final closeReviewWindowCalls =
       <({String beaconId, String reason, String? actorUserId})>[];
-
-  @override
-  Future<int> countDistinctEvaluatorsForEvaluated({
-    required String beaconId,
-    required String evaluatedUserId,
-  }) async => 0;
+  List<BeaconEvaluationRecord> listEvaluationsForEvaluatedUserResult = [];
 
   @override
   Future<BeaconEvaluationRecord?> getEvaluation({
@@ -387,7 +384,12 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
-  }) async => [];
+  }) async => listEvaluationsForEvaluatedUserResult
+      .where(
+        (e) =>
+            e.beaconId == beaconId && e.evaluatedUserId == evaluatedUserId,
+      )
+      .toList();
 
   @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
@@ -1923,6 +1925,191 @@ void main() {
       expect(rows, hasLength(1));
       expect(rows.single.beaconId, beaconId);
       expect(rows.single.canCloseNow, isTrue);
+    });
+  });
+
+  group('evaluationReceived', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+    const reviewerId = 'reviewer1';
+    const evaluatedId = 'evaluated1';
+
+    EvaluationCase buildCase() {
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        NoOpCommitmentRepository(),
+        helpOfferRepo,
+        forwardRepo,
+        StubUserRepository('User'),
+      );
+      return buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('Reviewer'),
+        graphBuilder: graphBuilder,
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        helpOfferRepo: helpOfferRepo,
+        reviewFinalization: reviewFinalization,
+      );
+    }
+
+    BeaconEvaluationRecord evaluationRow({
+      required int value,
+      int status = BeaconEvaluationRowStatus.final_,
+    }) {
+      final now = DateTime.utc(2026, 3, 1);
+      return BeaconEvaluationRecord(
+        beaconId: beaconId,
+        evaluatorId: reviewerId,
+        evaluatedUserId: evaluatedId,
+        value: value,
+        reasonTags: 'tag_a',
+        note: 'note',
+        status: status,
+        createdAt: now,
+        updatedAt: now,
+      );
+    }
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 'Request title',
+          author: UserEntity(id: 'author1'),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.closed,
+        ),
+      );
+      evaluationCase = buildCase();
+    });
+
+    test('returns windowClosed false while review window open', () async {
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 'Request title',
+          author: UserEntity(id: 'author1'),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.reviewOpen,
+        ),
+      );
+      evaluationCase = buildCase();
+
+      final result = await evaluationCase.evaluationReceived(
+        beaconId: beaconId,
+        userId: evaluatedId,
+      );
+
+      expect(result.windowClosed, isFalse);
+      expect(result.rows, isEmpty);
+      expect(result.beaconTitle, 'Request title');
+    });
+
+    test('returns named rows with reviewer role and tone when closed', () async {
+      evalRepo
+        ..listEvaluationsForEvaluatedUserResult = [
+          evaluationRow(value: BeaconEvaluationValue.pos1),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: reviewerId,
+            role: 2,
+            contributionSummary: 'forwarder',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: evaluatedId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ];
+
+      final result = await evaluationCase.evaluationReceived(
+        beaconId: beaconId,
+        userId: evaluatedId,
+      );
+
+      expect(result.windowClosed, isTrue);
+      expect(result.rows, hasLength(1));
+      final row = result.rows.single;
+      expect(row.reviewerId, reviewerId);
+      expect(row.reviewerDisplayName, 'Reviewer');
+      expect(row.reviewerRole, EvaluationParticipantRole.forwarder);
+      expect(row.tone, EvaluationReceivedTrustTone.up);
+      expect(row.reasonTags, ['tag_a']);
+      expect(row.note, 'note');
+    });
+
+    test('includes noBasis rows with distinct tone', () async {
+      evalRepo
+        ..listEvaluationsForEvaluatedUserResult = [
+          evaluationRow(value: BeaconEvaluationValue.noBasis),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: reviewerId,
+            role: 3,
+            contributionSummary: 'former',
+            causalHint: 'h',
+          ),
+        ];
+
+      final result = await evaluationCase.evaluationReceived(
+        beaconId: beaconId,
+        userId: evaluatedId,
+      );
+
+      expect(result.rows.single.tone, EvaluationReceivedTrustTone.noBasis);
+      expect(
+        result.rows.single.reviewerRole,
+        EvaluationParticipantRole.formerCommitter,
+      );
+    });
+
+    test('evaluationSummary adapter is not suppressed for one reviewer', () async {
+      evalRepo
+        ..listEvaluationsForEvaluatedUserResult = [
+          evaluationRow(value: BeaconEvaluationValue.pos2),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: reviewerId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: evaluatedId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ];
+
+      final summary = await evaluationCase.evaluationSummary(
+        beaconId: beaconId,
+        userId: evaluatedId,
+      );
+
+      expect(summary.suppressed, isFalse);
+      expect(summary.pos2, 1);
     });
   });
 

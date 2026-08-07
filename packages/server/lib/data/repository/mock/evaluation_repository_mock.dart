@@ -23,13 +23,6 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
       null;
 
   @override
-  Future<int> countDistinctEvaluatorsForEvaluated({
-    required String beaconId,
-    required String evaluatedUserId,
-  }) async =>
-      0;
-
-  @override
   Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,

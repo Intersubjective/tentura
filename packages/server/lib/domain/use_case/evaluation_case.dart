@@ -16,11 +16,13 @@ import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_resu
 import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_received_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/review_window_status_result.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
+import 'package:tentura_server/domain/evaluation/evaluation_received_trust_tone.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_reason_tags.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -42,13 +44,11 @@ List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
     ? <String>[]
     : csv.split(',').where((s) => s.isNotEmpty).toList();
 
-EvaluationSummaryResult _buildEvaluationSummary({
-  required BeaconStatus beaconStatus,
-  required int distinctEvaluatorCount,
-  required List<SummaryEvaluationRowInput> rows,
+EvaluationSummaryResult _evaluationSummaryFromReceived({
+  required EvaluationReceivedResult received,
   required EvaluationParticipantRole? viewerRole,
 }) {
-  if (beaconStatus != BeaconStatus.closed) {
+  if (!received.windowClosed) {
     return const EvaluationSummaryResult(
       suppressed: true,
       tone: 'mixed',
@@ -57,7 +57,7 @@ EvaluationSummaryResult _buildEvaluationSummary({
       roleSummaryLine: '',
     );
   }
-  if (rows.isEmpty) {
+  if (received.rows.isEmpty) {
     return const EvaluationSummaryResult(
       suppressed: true,
       tone: 'mixed',
@@ -66,17 +66,16 @@ EvaluationSummaryResult _buildEvaluationSummary({
       roleSummaryLine: '',
     );
   }
-  final tone = evaluationToneFromValues(rows.map((r) => r.value));
-  if (distinctEvaluatorCount < 3) {
-    return EvaluationSummaryResult(
-      suppressed: true,
-      tone: tone,
-      message: 'Feedback in this request (details limited for privacy)',
-      topReasonTags: const [],
-      roleSummaryLine: '',
-    );
-  }
-  final agg = evaluationSummaryAggregates(rows);
+  final rowInputs = received.rows
+      .map(
+        (r) => (
+          value: r.value,
+          reasonTagsCsv: r.reasonTags.join(','),
+        ),
+      )
+      .toList();
+  final tone = evaluationToneFromValues(received.rows.map((r) => r.value));
+  final agg = evaluationSummaryAggregates(rowInputs);
   return EvaluationSummaryResult(
     suppressed: false,
     tone: tone,
@@ -906,12 +905,87 @@ final class EvaluationCase extends UseCaseBase {
     );
   }
 
-  Future<EvaluationSummaryResult> evaluationSummary({
+  Future<EvaluationReceivedResult> evaluationReceived({
     required String beaconId,
     required String userId,
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final windowClosed = beacon.status == BeaconStatus.closed;
+    if (!windowClosed) {
+      return EvaluationReceivedResult(
+        beaconId: beaconId,
+        beaconTitle: beacon.title,
+        windowClosed: false,
+        rows: const [],
+      );
+    }
+
+    final rows = await _evaluationRepository.listEvaluationsForEvaluatedUser(
+      beaconId: beaconId,
+      evaluatedUserId: userId,
+    );
+    if (rows.isEmpty) {
+      return EvaluationReceivedResult(
+        beaconId: beaconId,
+        beaconTitle: beacon.title,
+        windowClosed: true,
+        rows: const [],
+      );
+    }
+
+    final parts = await _evaluationRepository.listParticipants(beaconId);
+    final roleByUserId = {
+      for (final p in parts)
+        p.userId: EvaluationParticipantRole.fromDb(p.role),
+    };
+    final usersById = await _userProfileBatchLookup.userEntitiesByIds(
+      rows.map((r) => r.evaluatorId),
+    );
+
+    final outRows = <EvaluationReceivedRow>[];
+    for (final r in rows) {
+      final reviewer = usersById[r.evaluatorId];
+      if (reviewer == null) {
+        throw IdNotFoundException(id: r.evaluatorId);
+      }
+      final reviewerRole = roleByUserId[r.evaluatorId];
+      if (reviewerRole == null) {
+        throw IdNotFoundException(id: r.evaluatorId);
+      }
+      outRows.add(
+        EvaluationReceivedRow(
+          reviewerId: r.evaluatorId,
+          reviewerDisplayName: reviewer.displayName,
+          reviewerImageId: reviewer.image?.id ?? '',
+          reviewerRole: reviewerRole,
+          value: r.value,
+          tone: evaluationReceivedTrustToneFromValue(r.value),
+          reasonTags: _reasonTagsFromCsv(r.reasonTags),
+          note: r.note,
+          occurredAt: r.updatedAt,
+        ),
+      );
+    }
+    outRows.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+
+    return EvaluationReceivedResult(
+      beaconId: beaconId,
+      beaconTitle: beacon.title,
+      windowClosed: true,
+      rows: outRows,
+    );
+  }
+
+  /// GraphQL `evaluationSummary` — aggregate adapter over [evaluationReceived].
+  Future<EvaluationSummaryResult> evaluationSummary({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final received = await evaluationReceived(
+      beaconId: beaconId,
+      userId: userId,
+    );
     final parts = await _evaluationRepository.listParticipants(beaconId);
     BeaconEvaluationParticipantRecord? me;
     for (final p in parts) {
@@ -920,29 +994,11 @@ final class EvaluationCase extends UseCaseBase {
         break;
       }
     }
-    final n = await _evaluationRepository.countDistinctEvaluatorsForEvaluated(
-      beaconId: beaconId,
-      evaluatedUserId: userId,
-    );
-    final rows = await _evaluationRepository.listEvaluationsForEvaluatedUser(
-      beaconId: beaconId,
-      evaluatedUserId: userId,
-    );
-    final rowInputs = rows
-        .map(
-          (r) => (
-            value: r.value,
-            reasonTagsCsv: r.reasonTags,
-          ),
-        )
-        .toList();
     final viewerRole = me == null
         ? null
         : EvaluationParticipantRole.fromDb(me.role);
-    return _buildEvaluationSummary(
-      beaconStatus: beacon.status,
-      distinctEvaluatorCount: n,
-      rows: rowInputs,
+    return _evaluationSummaryFromReceived(
+      received: received,
       viewerRole: viewerRole,
     );
   }

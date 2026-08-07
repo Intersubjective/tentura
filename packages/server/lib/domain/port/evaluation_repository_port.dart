@@ -78,11 +78,6 @@ abstract class EvaluationRepositoryPort {
     required String evaluatedUserId,
   });
 
-  Future<int> countDistinctEvaluatorsForEvaluated({
-    required String beaconId,
-    required String evaluatedUserId,
-  });
-
   Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
     String beaconId,
   );

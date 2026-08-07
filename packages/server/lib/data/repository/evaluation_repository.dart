@@ -3,7 +3,6 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
-import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
@@ -217,7 +216,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
-  /// Non–NO_BASIS evaluations for aggregate summary.
+  /// Submitted or finalized evaluations written about [evaluatedUserId].
   @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
@@ -231,24 +230,10 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         .get();
     return rows
         .where(
-          (r) =>
-              r.value != BeaconEvaluationValue.noBasis &&
-              BeaconEvaluationRowStatus.countsTowardSummary(r.status),
+          (r) => BeaconEvaluationRowStatus.countsTowardSummary(r.status),
         )
         .map(beaconEvaluationToRecord)
         .toList();
-  }
-
-  @override
-  Future<int> countDistinctEvaluatorsForEvaluated({
-    required String beaconId,
-    required String evaluatedUserId,
-  }) async {
-    final rows = await listEvaluationsForEvaluatedUser(
-      beaconId: beaconId,
-      evaluatedUserId: evaluatedUserId,
-    );
-    return rows.map((r) => r.evaluatorId).toSet().length;
   }
 
   /// All draft rows for a beacon (any evaluator).
