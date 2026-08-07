@@ -42,7 +42,7 @@ None of these overlap with files this plan's units touch.
 | 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | complete |
 | 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | complete |
 | 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | complete |
-| 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | pending |
+| 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | complete |
 | 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | pending |
 
 Units are sequential (no parallelism) per the overseer contract, in plan
@@ -139,3 +139,27 @@ and localized date is.
 - `cd packages/client && flutter analyze` — exit 0, 763 pre-existing info-level issues; no new errors in changed files
 
 **Deviations from plan:** None — live code matched plan line numbers and pattern.
+
+### 2026-08-07 — P5 complete
+
+**Changed:** New `timezone_conversion_matrix_test.dart` exercising
+`dateFormatYMD`/`timeFormatHm`, `formatScheduleDate`,
+`coordinationLogTimestampLabel`, and `compactRelativeTimeAgo` with self-
+referential `.toLocal()` assertions on boundary UTC instants. New
+`run_timezone_matrix.sh` runs the test under `TZ=UTC`,
+`TZ=Europe/Amsterdam`, and `TZ=Pacific/Kiritimati`.
+
+**Commit:** `7218fa91` — test(client): add multi-timezone formatter regression matrix (P5)
+
+**Tests:**
+- `cd packages/client && flutter analyze` — exit 0, 763 pre-existing info-level issues; no new errors in changed files
+- `cd packages/client && bash test/ui/utils/run_timezone_matrix.sh` — pass (12 tests: 4 per TZ × 3 zones)
+
+**Deviations from plan:** Added `import 'package:flutter/material.dart';` for
+`Locale` in the test file (plan omitted it; `relative_time_test.dart` uses the
+same import). All three planned TZ values (`UTC`, `Europe/Amsterdam`,
+`Pacific/Kiritimati`) were available in this environment — no fallback to
+`Asia/Tokyo` / `America/New_York`. Live `formatScheduleDate` and
+`coordinationLogTimestampLabel` signatures matched the plan; import path for
+`coordinationLogTimestampLabel` confirmed as
+`package:tentura/ui/widget/coordination_log_row_chrome.dart`.
