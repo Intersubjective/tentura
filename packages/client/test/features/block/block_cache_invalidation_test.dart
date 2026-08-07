@@ -18,11 +18,13 @@ Future<void> _settle() => pumpEventQueue(times: 5);
 
 void main() {
   group('block cache invalidation', () {
-    test('GraphCubit refetches trust graph when BlockCase.changes emits', () async {
+    test('GraphCubit refetches trust graph when BlockCase.changes emits for ego',
+        () async {
       final source = _FakeGraphSource();
       final blockCase = ControllableBlockCase();
+      const egoId = 'Ume';
       final cubit = GraphCubit(
-        me: const Profile(id: 'Ume', displayName: 'Me'),
+        me: const Profile(id: egoId, displayName: 'Me'),
         graphSourceRepository: source,
         edgeColors: const GraphEdgeColors(
           negative: Colors.red,
@@ -41,11 +43,44 @@ void main() {
       await _settle();
       final callsAfterBootstrap = source.calls;
 
-      blockCase.emitBlock();
+      blockCase.emitBlock(objectId: egoId);
       await _settle();
 
       expect(source.calls, greaterThan(callsAfterBootstrap));
     });
+
+    test(
+      'GraphCubit ignores BlockCase.changes for users not in the loaded graph',
+      () async {
+        final source = _FakeGraphSource();
+        final blockCase = ControllableBlockCase();
+        const egoId = 'Ume';
+        final cubit = GraphCubit(
+          me: const Profile(id: egoId, displayName: 'Me'),
+          graphSourceRepository: source,
+          edgeColors: const GraphEdgeColors(
+            negative: Colors.red,
+            ego: Colors.orange,
+            neutral: Colors.blue,
+            target: Colors.green,
+          ),
+          beaconRepository: _FakeBeaconRepository(),
+          profileRepository: _FakeProfileRepository(),
+          blockCase: blockCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+        addTearDown(blockCase.dispose);
+
+        await _settle();
+        final callsAfterBootstrap = source.calls;
+
+        blockCase.emitBlock(objectId: 'U-unrelated');
+        await _settle();
+
+        expect(source.calls, callsAfterBootstrap);
+      },
+    );
   });
 }
 

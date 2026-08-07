@@ -37,7 +37,7 @@ untracked, and owned by this plan.)
 | Unit | Description | Status |
 |---|---|---|
 | P1 | Wire up GraphQL transport timeout (`build_client.dart`) | complete |
-| P2 | Scope block-visibility graph-cache invalidation (`graph_cubit.dart`) | pending |
+| P2 | Scope block-visibility graph-cache invalidation (`graph_cubit.dart`) | complete |
 | P3 | Block confirmation snackbar + live profile refresh | pending |
 | P4 | Surface capped cascade count in block preview | pending |
 | P5 | Manager-run full regression pass (not a worker unit) | pending |
@@ -74,3 +74,20 @@ Plus each unit's own targeted test path (see plan).
 - `cd packages/client && flutter analyze` — 766 pre-existing infos, no new errors in changed files
 
 **Commit:** `666af9fd` — fix(client): cap GraphQL link chain with requestTimeout (P1)
+
+## Checkpoint — P2 complete (2026-08-07)
+
+**Changes:**
+- `_onBlockVisibilityChanged` now uses the `event` parameter and returns early
+  when `event.id` is neither in `_nodes` nor the ego node — unrelated block
+  events no longer wipe the graph cache or trigger a refetch.
+- Extended `block_cache_invalidation_test.dart`: existing case now blocks the
+  ego id (`Ume`) to assert refetch still happens for relevant events; new case
+  blocks `U-unrelated` and asserts `fetch()` is not called again.
+
+**Verification:**
+- `cd packages/client && flutter analyze` — pass (760 pre-existing infos, no new errors)
+- `cd packages/client && flutter test test/features/block/block_cache_invalidation_test.dart` — pass (2 tests)
+- `cd packages/client && flutter test test/features/graph/` — pass (132 tests)
+
+**Commit:** (pending — see final entry below)

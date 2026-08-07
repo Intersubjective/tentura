@@ -209,8 +209,14 @@ class GraphCubit extends Cubit<GraphState> {
     return super.close();
   }
 
-  void _onBlockVisibilityChanged(RepositoryEvent<BlockIntent> _) {
+  void _onBlockVisibilityChanged(RepositoryEvent<BlockIntent> event) {
     if (forwardsGraphBeaconId != null) {
+      return;
+    }
+    // A block/unblock event for a user that isn't part of anything currently
+    // loaded has nothing to invalidate here — wiping the whole cache in that
+    // case is exactly the "unrelated friends disappear" defect (issue #111).
+    if (!_nodes.containsKey(event.id) && event.id != _egoNode.id) {
       return;
     }
     _cacheEpoch++;
