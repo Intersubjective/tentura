@@ -186,3 +186,59 @@ consistent with this plan's own principle, not scope creep.
 ## Final entry — P4 worker exit (2026-08-07)
 
 P4 complete. P5 (manager-run full regression pass) remains.
+
+**Commit:** `24877dfd` — feat(client): surface capped cascade count in block preview (P4)
+
+## Manager review — P4 (2026-08-07)
+
+Independently re-ran the reported commands rather than trusting the worker's
+self-report (per the lesson from the P3 remediation above):
+
+- `cd packages/client && flutter test test/features/block/` — pass (18 tests), fresh run
+- Inspected the actual diff on `block_user_sheet.dart` / `app_en.arb` /
+  `app_ru.arb` (not just the worker's description): the ternary on
+  `preview.cascadeCapped` and both new l10n entries match the plan's P4
+  section exactly. Accepted as-is, no defects found.
+
+## P5 — Manager-run full regression pass (2026-08-07)
+
+Plan-level verification after all four units (P1–P4) plus the P3 import
+remediation are committed:
+
+- `cd packages/client && flutter analyze` — 763 pre-existing info/warning
+  issues, zero errors, none in any file this plan touched.
+- `cd packages/client && flutter test` (full client suite, not just the
+  touched feature dirs) — **1694 passed, 14 skipped, 0 failed.** No
+  regression anywhere in the client test suite from any of P1–P4.
+- Re-checked each phase's acceptance criterion against the merged result:
+  - P1: `build_client_test.dart` proves a non-upload operation against a
+    never-responding transport fails fast with `ConnectionUplinkException`
+    instead of hanging, and `BeaconAddImage` remains unbounded.
+  - P2: `block_cache_invalidation_test.dart` proves an unrelated block event
+    no longer triggers a cache wipe/refetch, while a block affecting the ego
+    node still does.
+  - P3: `block_user_sheet_test.dart` proves the confirmation snackbar and its
+    "Manage" action really navigate (via a recording fake router, not just a
+    rendered-widget check); `profile_view_cubit_test.dart` proves same-id
+    block events refetch the open profile and different-id events don't; the
+    pre-existing unscoped `_blockCase.changes` merge in
+    `ProfileViewCase.projectionChanges` (found during implementation, not
+    anticipated by the plan) was correctly replaced by the id-scoped
+    subscription.
+  - P4: `block_user_sheet_test.dart` proves the capped copy renders only when
+    `cascadeCapped` is true, and the existing uncapped copy is unaffected.
+- `git status --porcelain` confirms only this plan's own files remain
+  uncommitted (the plan document itself and this journal — see the closing
+  commit) and every pre-existing change recorded at plan start (§ "Pre-existing
+  worktree changes") is untouched.
+
+**Plan status: complete.** All acceptance criteria in
+`block-hang-and-preview-fix-plan.md` are met. Commits, in order:
+`666af9fd`, `d7bd9a8d` (P1) · `fde73c8b`, `6a0d7361` (P2) ·
+`215387ef`, `0a72eba1`, `00e27166` (P3) · `3733abbc`, `68bace46` (P3
+remediation) · `24877dfd` (P4).
+
+**Deferred (see plan §6, intentionally out of scope):** cascade-materialization
+freshness/push-invalidation, and profiling any MeritRank write/read
+contention during cascade batches. Neither is required for issue #111's
+reported symptoms, which are now fixed.
