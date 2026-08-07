@@ -75,11 +75,16 @@ class ClearSnackBarsOnPushObserver extends NavigatorObserver {
   }
 }
 
+/// Display-only formatters: always render the viewer's local wall-clock
+/// time, regardless of whether [dateTime] is UTC or already local
+/// (`.toLocal()` on an already-local value is a no-op). Do not bypass these
+/// with a raw `DateFormat` call on an unconverted `DateTime` — that was the
+/// bug behind issue #112's beacon_tile/inbox_item_tile/HUD-composer leaks.
 String dateFormatYMD(DateTime? dateTime) =>
-    dateTime == null ? '' : _fmtYMd.format(dateTime);
+    dateTime == null ? '' : _fmtYMd.format(dateTime.toLocal());
 
 String timeFormatHm(DateTime? dateTime) =>
-    dateTime == null ? '' : _fmtHm.format(dateTime);
+    dateTime == null ? '' : _fmtHm.format(dateTime.toLocal());
 
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   BuildContext context, {
