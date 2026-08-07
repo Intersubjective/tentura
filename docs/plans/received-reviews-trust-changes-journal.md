@@ -43,7 +43,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | done |
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | done |
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | done |
-| D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | pending |
+| D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | done |
 | E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | pending |
 | F1 | Client: l10n keys (en+ru) + `pubspec.yaml` version bump + `MIN_CLIENT_VERSION` decision per `DEV_GUIDELINES.md` | §6.7, versioning rule | pending |
 | F2 | Overseer-run: full plan-level verification sweep against §7 acceptance table, gap-fill any missing test coverage, close out | §7 | pending |
@@ -423,3 +423,28 @@ asserts `find.text('See the reviews you receive')` across all four `ReviewWindow
 states (loading, non-author-with-work, author-waiting, shrink) — this is exactly the
 regression the plan was warning about (a CTA appended inside only one branch would vanish in
 the others), and the tests prove it doesn't.
+
+### D1 — Trust-change Updates card + dispatch (§5.3, §6.2)
+
+**What changed**
+- **Part 1:** `destination_map.dart` — added `'received_reviews' when beaconId != null` → `kPathReceivedReviews/$beaconId` (closes B2 deferred hand-off). Test in `destination_map_test.dart`.
+- **Part 2:** New `TrustChangeReceiptCard` — mirrors `UpdatesReceiptCard` callback signatures and `AttentionVisibilityAck`/`Semantics`/`ListTile` structure; leading `_TrustToneGlyph` replicated from C2's `ReceivedReviewTile` pattern (private widget, same token-based circle construction); direction from `presentationKey` via `trustChangeDirectionFromPresentationKey`; `TenturaChangeHighlight` on unread receipts (`!receipt.isSeen`) with 220ms auto-clear timer.
+- **Part 3:** `updates_receipt_display_copy.dart` — `isTrustChangePresentationKey`, `trustChangeDirectionFromPresentationKey`, six presentation keys grouped onto 4 l10n fallbacks via `||` (direction-agnostic strings). l10n en+ru: `updatesFallbackTitle/BodyTrustGivenChanged`, `updatesFallbackTitle/BodyTrustReceivedChanged`.
+- **Part 4:** `updates_screen.dart` `itemBuilder` dispatches on `isTrustChangePresentationKey(receipt.presentationKey)` → `TrustChangeReceiptCard`, else `UpdatesReceiptCard`. Did **not** touch `UpdatesReceiptCard._iconFor` (kind-based, cannot distinguish trust events).
+
+**Judgement calls**
+- **l10n grouping:** direction-agnostic fallback titles/bodies (`"Trust update"` / direction-neutral prose) via `||` per plan §6.7 — no ICU interpolation, no new keys beyond the 4 named.
+- **Icon-in-circle reuse:** replicated `_TrustToneGlyph` privately in `trust_change_receipt_card.dart` (C2's version is private in `received_review_tile.dart`; not extracted to avoid scope creep).
+- **Dispatch mechanism:** inline `itemBuilder` branch in `updates_screen.dart` (readable, keeps generic card untouched).
+- **`TenturaChangeHighlight` freshness:** `!receipt.isSeen` gates initial highlight; 220ms `Timer` clears `active` (matches component duration; no separate "is new" signal beyond unread state).
+- **Three vs four tone states:** card only renders up/down/neutral — `noBasis` never generates trust-change events (B1 Q1 skips null-bin pairs); no fourth state added (plan §7 "four states" applies to received-reviews screen `EvaluationReceivedTrustTone.noBasis`, not this card).
+
+**Commits:** `fbe5829d` (destination_map), `30e4c947` (card + fallbacks + l10n), `4f254f7f` (screen dispatch + tests).
+
+**Verification**
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d
+cd packages/client && flutter analyze lib/features/updates/ lib/domain/attention/  # 5 info-level only
+cd packages/client && flutter test test/features/updates/ test/domain/attention/  # 35 passed
+./scripts/check-custom-lints.sh packages/client  # 106, baseline 111 unchanged
+```
