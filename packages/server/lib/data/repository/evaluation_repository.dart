@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
@@ -5,6 +6,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 
@@ -234,6 +236,62 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         )
         .map(beaconEvaluationToRecord)
         .toList();
+  }
+
+  /// Finalized evaluations one person wrote about another across closed requests.
+  @override
+  Future<List<CrossBeaconEvaluationRecord>> listFinalizedEvaluationsBetween({
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT
+  e.beacon_id,
+  e.evaluator_id,
+  e.evaluated_user_id,
+  e.value,
+  e.reason_tags,
+  e.note,
+  e.updated_at,
+  b.title AS beacon_title,
+  b.status_changed_at AS beacon_closed_at
+FROM beacon_evaluation e
+INNER JOIN beacon b ON b.id = e.beacon_id
+WHERE e.evaluator_id = $1
+  AND e.evaluated_user_id = $2
+  AND e.status = $3
+  AND b.status IN ($4, $5)
+ORDER BY e.updated_at DESC
+''',
+          variables: [
+            Variable<String>(evaluatorId),
+            Variable<String>(evaluatedUserId),
+            const Variable<int>(BeaconEvaluationRowStatus.final_),
+            const Variable<int>(4),
+            const Variable<int>(6),
+          ],
+        )
+        .get();
+
+    return [
+      for (final row in rows)
+        CrossBeaconEvaluationRecord(
+          evaluatorId: row.read<String>('evaluator_id'),
+          evaluatedUserId: row.read<String>('evaluated_user_id'),
+          value: row.read<int>('value'),
+          reasonTags: row.read<String>('reason_tags'),
+          note: row.read<String>('note'),
+          occurredAt: _readEvaluationTimestamp(row, 'updated_at'),
+          beaconId: row.read<String>('beacon_id'),
+          beaconTitle: row.read<String>('beacon_title'),
+          beaconClosedAt: _readEvaluationTimestampNullable(
+            row,
+            'beacon_closed_at',
+          ),
+        ),
+    ];
   }
 
   /// All draft rows for a beacon (any evaluator).
@@ -494,4 +552,26 @@ Future<void> _insertBeaconLifecycleEvent({
   return actorId == null
       ? insert()
       : db.withMutatingUser(mutatingUserId, insert);
+}
+
+DateTime _readEvaluationTimestamp(QueryRow row, String column) {
+  final value = _readEvaluationTimestampNullable(row, column);
+  if (value == null) {
+    throw StateError('Expected non-null timestamp for $column');
+  }
+  return value;
+}
+
+DateTime? _readEvaluationTimestampNullable(QueryRow row, String column) {
+  final value = row.data[column];
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is PgDateTime) {
+    return value.dateTime;
+  }
+  return DateTime.parse(value.toString());
 }

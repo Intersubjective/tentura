@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/evaluation/evaluations_written_about_viewer_row.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_extend_review_result.dart';
@@ -975,6 +976,33 @@ final class EvaluationCase extends UseCaseBase {
       windowClosed: true,
       rows: outRows,
     );
+  }
+
+  /// Reviews [authorOfReviewsId] wrote about [viewerId] across closed requests.
+  Future<List<EvaluationsWrittenAboutViewerRow>> evaluationsWrittenAboutMeBy({
+    required String viewerId,
+    required String authorOfReviewsId,
+  }) async {
+    final rows = await _evaluationRepository.listFinalizedEvaluationsBetween(
+      evaluatorId: authorOfReviewsId,
+      evaluatedUserId: viewerId,
+    );
+
+    return [
+      for (final r in rows)
+        EvaluationsWrittenAboutViewerRow(
+          beaconId: r.beaconId,
+          beaconTitle: r.beaconTitle,
+          beaconClosedAt: r.beaconClosedAt,
+          evaluatorId: r.evaluatorId,
+          evaluatedUserId: r.evaluatedUserId,
+          value: r.value,
+          tone: evaluationReceivedTrustToneFromValue(r.value),
+          reasonTags: _reasonTagsFromCsv(r.reasonTags),
+          note: r.note,
+          occurredAt: r.occurredAt,
+        ),
+    ];
   }
 
   /// GraphQL `evaluationSummary` — aggregate adapter over [evaluationReceived].

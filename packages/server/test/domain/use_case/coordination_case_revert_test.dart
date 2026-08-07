@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -102,6 +103,13 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String evaluatedUserId,
   }) async => [];
+
+  @override
+  Future<List<CrossBeaconEvaluationRecord>> listFinalizedEvaluationsBetween({
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async =>
+      [];
 
   @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(

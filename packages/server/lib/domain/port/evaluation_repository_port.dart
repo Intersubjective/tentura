@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 
 abstract class EvaluationRepositoryPort {
@@ -75,6 +76,13 @@ abstract class EvaluationRepositoryPort {
 
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
+    required String evaluatedUserId,
+  });
+
+  /// Finalized (non-draft, window-closed) evaluations [evaluatorId] wrote about
+  /// [evaluatedUserId], across all closed requests, newest first.
+  Future<List<CrossBeaconEvaluationRecord>> listFinalizedEvaluationsBetween({
+    required String evaluatorId,
     required String evaluatedUserId,
   });
 

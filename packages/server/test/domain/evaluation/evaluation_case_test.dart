@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
@@ -322,6 +323,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   final closeReviewWindowCalls =
       <({String beaconId, String reason, String? actorUserId})>[];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatedUserResult = [];
+  List<CrossBeaconEvaluationRecord> listFinalizedEvaluationsBetweenResult = [];
 
   @override
   Future<BeaconEvaluationRecord?> getEvaluation({
@@ -390,6 +392,19 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
             e.beaconId == beaconId && e.evaluatedUserId == evaluatedUserId,
       )
       .toList();
+
+  @override
+  Future<List<CrossBeaconEvaluationRecord>> listFinalizedEvaluationsBetween({
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async =>
+      listFinalizedEvaluationsBetweenResult
+          .where(
+            (r) =>
+                r.evaluatorId == evaluatorId &&
+                r.evaluatedUserId == evaluatedUserId,
+          )
+          .toList();
 
   @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
@@ -2110,6 +2125,111 @@ void main() {
 
       expect(summary.suppressed, isFalse);
       expect(summary.pos2, 1);
+    });
+  });
+
+  group('evaluationsWrittenAboutMeBy', () {
+    const authorId = 'author-reviewer';
+    const viewerId = 'viewer-evaluated';
+    final occurredAt = DateTime.utc(2026, 4, 1, 12);
+
+    CrossBeaconEvaluationRecord crossBeaconRow({required int value}) =>
+        CrossBeaconEvaluationRecord(
+          evaluatorId: authorId,
+          evaluatedUserId: viewerId,
+          value: value,
+          reasonTags: 'reliable,on_time',
+          note: 'Great help',
+          occurredAt: occurredAt,
+          beaconId: 'beacon-cross-1',
+          beaconTitle: 'Move help this weekend',
+          beaconClosedAt: DateTime.utc(2026, 3, 31),
+        );
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          BeaconEntity(
+            id: beaconId,
+            title: 'unused',
+            author: UserEntity(id: 'author1'),
+            createdAt: DateTime.timestamp(),
+            updatedAt: DateTime.timestamp(),
+            status: BeaconStatus.closed,
+          ),
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        capabilityCase: CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        helpOfferRepo: EmptyGraphHelpOfferRepository(),
+        reviewFinalization: reviewFinalization,
+      );
+    });
+
+    test('returns empty when repository has no rows', () async {
+      final rows = await evaluationCase.evaluationsWrittenAboutMeBy(
+        viewerId: viewerId,
+        authorOfReviewsId: authorId,
+      );
+      expect(rows, isEmpty);
+    });
+
+    test('maps finalized rows with trust tone including noBasis', () async {
+      evalRepo.listFinalizedEvaluationsBetweenResult = [
+        crossBeaconRow(value: BeaconEvaluationValue.pos1),
+        crossBeaconRow(value: BeaconEvaluationValue.noBasis),
+      ];
+
+      final rows = await evaluationCase.evaluationsWrittenAboutMeBy(
+        viewerId: viewerId,
+        authorOfReviewsId: authorId,
+      );
+
+      expect(rows, hasLength(2));
+      expect(rows[0].beaconTitle, 'Move help this weekend');
+      expect(rows[0].tone, EvaluationReceivedTrustTone.up);
+      expect(rows[0].reasonTags, ['reliable', 'on_time']);
+      expect(rows[1].tone, EvaluationReceivedTrustTone.noBasis);
+    });
+
+    test('scopes query to author and viewer pair', () async {
+      evalRepo.listFinalizedEvaluationsBetweenResult = [
+        crossBeaconRow(value: BeaconEvaluationValue.pos1),
+        CrossBeaconEvaluationRecord(
+          evaluatorId: 'other-author',
+          evaluatedUserId: viewerId,
+          value: BeaconEvaluationValue.neg1,
+          reasonTags: '',
+          note: '',
+          occurredAt: occurredAt,
+          beaconId: 'beacon-other',
+          beaconTitle: 'Other',
+          beaconClosedAt: null,
+        ),
+      ];
+
+      final rows = await evaluationCase.evaluationsWrittenAboutMeBy(
+        viewerId: viewerId,
+        authorOfReviewsId: authorId,
+      );
+
+      expect(rows, hasLength(1));
+      expect(rows.single.evaluatorId, authorId);
+      expect(rows.single.evaluatedUserId, viewerId);
     });
   });
 
