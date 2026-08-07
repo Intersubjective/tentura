@@ -37,6 +37,7 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
@@ -503,6 +504,10 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
   final closeAndFinalizeCalls =
       <({String beaconId, String reason, String? actorUserId})>[];
 
+  ReviewFinalizationResult result = const ReviewFinalizationResult(
+    didClose: true,
+  );
+
   @override
   Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
@@ -512,7 +517,7 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
     closeAndFinalizeCalls.add(
       (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
     );
-    return const ReviewFinalizationResult(didClose: true);
+    return result;
   }
 }
 
@@ -1876,6 +1881,168 @@ void main() {
         );
       },
     );
+
+    test(
+      'records trustGivenChanged and trustReceivedChanged for author, committer, and forwarder pairs',
+      () async {
+        const committerId = helperId;
+        const forwarderId = 'forwarder1';
+        evalRepo.reviewStatusesResult = {
+          userId: 2,
+          committerId: 3,
+        };
+        reviewFinalization.result = ReviewFinalizationResult(
+          didClose: true,
+          beaconTitle: 'Collaboration request',
+          pairs: [
+            const FinalizedTrustPair(
+              evaluatorId: userId,
+              evaluatedUserId: committerId,
+              bin: TrustBin.good,
+            ),
+            const FinalizedTrustPair(
+              evaluatorId: committerId,
+              evaluatedUserId: userId,
+              bin: TrustBin.bad,
+            ),
+            const FinalizedTrustPair(
+              evaluatorId: forwarderId,
+              evaluatedUserId: committerId,
+              bin: TrustBin.veryGood,
+            ),
+          ],
+        );
+
+        await evaluationCase.closeNow(beaconId: beaconId, userId: userId);
+
+        final given = attention.recorded
+            .where((i) => i.eventType == AttentionEventType.trustGivenChanged)
+            .toList();
+        final received = attention.recorded
+            .where((i) => i.eventType == AttentionEventType.trustReceivedChanged)
+            .toList();
+        expect(given, hasLength(3));
+        expect(received, hasLength(3));
+
+        for (final pair in reviewFinalization.result.pairs) {
+          expect(
+            given.singleWhere(
+              (intent) =>
+                  intent.recipients.single.recipientId == pair.evaluatorId &&
+                  intent.actorUserId == pair.evaluatedUserId,
+            ).eventType,
+            AttentionEventType.trustGivenChanged,
+          );
+          expect(
+            received.singleWhere(
+              (intent) =>
+                  intent.recipients.single.recipientId == pair.evaluatedUserId &&
+                  intent.actorUserId == pair.evaluatorId,
+            ).eventType,
+            AttentionEventType.trustReceivedChanged,
+          );
+        }
+      },
+    );
+
+    test('skips trust intents for noEffect finalized pairs', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 3,
+      };
+      reviewFinalization.result = ReviewFinalizationResult(
+        didClose: true,
+        beaconTitle: 'Neutral review',
+        pairs: [
+          const FinalizedTrustPair(
+            evaluatorId: userId,
+            evaluatedUserId: helperId,
+            bin: TrustBin.noEffect,
+          ),
+        ],
+      );
+
+      await evaluationCase.closeNow(beaconId: beaconId, userId: userId);
+
+      expect(
+        attention.recorded.where(
+          (i) => i.eventType == AttentionEventType.trustGivenChanged,
+        ),
+        isEmpty,
+      );
+      expect(
+        attention.recorded.where(
+          (i) => i.eventType == AttentionEventType.trustReceivedChanged,
+        ),
+        isEmpty,
+      );
+      expect(
+        attention.recorded.where(
+          (i) => i.eventType == AttentionEventType.requestStatusChanged,
+        ),
+        hasLength(1),
+      );
+    });
+
+    test('records trust intents for each non-neutral pair in a mixed close', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 3,
+      };
+      reviewFinalization.result = ReviewFinalizationResult(
+        didClose: true,
+        beaconTitle: 'Mixed trust close',
+        pairs: [
+          const FinalizedTrustPair(
+            evaluatorId: userId,
+            evaluatedUserId: helperId,
+            bin: TrustBin.good,
+          ),
+          const FinalizedTrustPair(
+            evaluatorId: helperId,
+            evaluatedUserId: userId,
+            bin: TrustBin.veryBad,
+          ),
+          const FinalizedTrustPair(
+            evaluatorId: userId,
+            evaluatedUserId: helperId,
+            bin: TrustBin.noEffect,
+          ),
+        ],
+      );
+
+      await evaluationCase.closeNow(beaconId: beaconId, userId: userId);
+
+      final given = attention.recorded
+          .where((i) => i.eventType == AttentionEventType.trustGivenChanged)
+          .toList();
+      final received = attention.recorded
+          .where((i) => i.eventType == AttentionEventType.trustReceivedChanged)
+          .toList();
+      expect(given, hasLength(2));
+      expect(received, hasLength(2));
+
+      expect(
+        given.map((intent) => intent.recipients.single.recipientId).toSet(),
+        {userId, helperId},
+      );
+      expect(
+        received.map((intent) => intent.recipients.single.recipientId).toSet(),
+        {userId, helperId},
+      );
+      expect(
+        given.singleWhere(
+          (intent) => intent.recipients.single.recipientId == userId,
+        ).eventType,
+        AttentionEventType.trustGivenChanged,
+      );
+      expect(
+        received.singleWhere(
+          (intent) => intent.recipients.single.recipientId == userId,
+        ).eventType,
+        AttentionEventType.trustReceivedChanged,
+      );
+    });
   });
 
   group('reviewWindowStatuses', () {
