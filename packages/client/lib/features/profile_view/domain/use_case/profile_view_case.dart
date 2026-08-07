@@ -8,7 +8,6 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
-import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -25,8 +24,7 @@ final class ProfileViewCase extends UseCaseBase {
     this._likes,
     this._capabilities,
     this._contacts,
-    this._realtime,
-    this._blockCase, {
+    this._realtime, {
     required super.env,
     required super.logger,
   });
@@ -36,7 +34,6 @@ final class ProfileViewCase extends UseCaseBase {
   final CapabilityRepositoryPort _capabilities;
   final ContactsCase _contacts;
   final RealtimeSyncCase _realtime;
-  final BlockCase _blockCase;
 
   Stream<void> projectionChanges(String profileId) => MergeStream<void>([
     _realtime
@@ -55,7 +52,6 @@ final class ProfileViewCase extends UseCaseBase {
     _realtime.catchUps.map((_) {}),
     _contacts.changes,
     _capabilities.changes,
-    _blockCase.changes.map((_) {}),
   ]);
 
   Future<ProfileViewSnapshot> load(String profileId) async {

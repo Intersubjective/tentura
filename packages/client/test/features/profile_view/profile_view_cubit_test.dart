@@ -119,10 +119,20 @@ void main() {
       await harness.waitFor(() => harness.profiles.fetchCalls == 1);
       final afterBootstrap = harness.profiles.fetchCalls;
 
-      harness.blockCase.emitBlock();
+      harness.blockCase.emitBlock(objectId: 'U-target');
       await harness.waitFor(
         () => harness.profiles.fetchCalls > afterBootstrap,
       );
+    });
+
+    test('unrelated block change does not refetch the open profile', () async {
+      harness.start();
+      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+
+      harness.blockCase.emitBlock(objectId: 'U-other');
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(harness.profiles.fetchCalls, 1);
     });
 
     test('stale completion cannot replace a newer snapshot', () async {
@@ -207,7 +217,6 @@ final class _ProfileViewHarness {
       capabilities,
       contactsCase,
       realtimeCase,
-      blockCase,
       env: const Env(),
       logger: Logger('test'),
     );

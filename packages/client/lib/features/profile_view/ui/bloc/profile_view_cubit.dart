@@ -5,6 +5,8 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/profile/domain/exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -45,6 +47,9 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
           (_) => _scheduleSilentFetch(),
           cancelOnError: false,
         );
+    _blockChangesSub = _blockCase.changes
+        .where((event) => event.id == id)
+        .listen((_) => _scheduleSilentFetch(), cancelOnError: false);
     unawaited(fetch());
   }
 
@@ -79,6 +84,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   final BlockCase _blockCase;
   final UiEffectPort _effects;
   StreamSubscription<void>? _projectionSub;
+  StreamSubscription<RepositoryEvent<BlockIntent>>? _blockChangesSub;
   Timer? _refreshTimer;
   int _fetchSequence = 0;
   bool _hasLoaded = false;
@@ -96,6 +102,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   Future<void> close() async {
     _refreshTimer?.cancel();
     await _projectionSub?.cancel();
+    await _blockChangesSub?.cancel();
     return super.close();
   }
 
