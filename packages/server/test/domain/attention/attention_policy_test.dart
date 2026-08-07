@@ -250,6 +250,14 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.inviter},
     role: _baseRole.copyWith(beaconId: null),
   ),
+  'trustGivenChanged' => (
+    reasons: const {AttentionRecipientReason.reviewParticipant},
+    role: _baseRole.copyWith(trustDirection: 'up'),
+  ),
+  'trustReceivedChanged' => (
+    reasons: const {AttentionRecipientReason.reviewParticipant},
+    role: _baseRole.copyWith(trustDirection: 'up'),
+  ),
   _ => throw StateError('No policy fixture for $eventName'),
 };
 
@@ -279,5 +287,7 @@ bool _matchesDestination(
     destination == AttentionDestinationKind.beaconRoomMessage,
   'review' => destination == AttentionDestinationKind.review,
   'profile' => destination == AttentionDestinationKind.profile,
+  'received_reviews' =>
+    destination == AttentionDestinationKind.receivedReviews,
   _ => false,
 };
