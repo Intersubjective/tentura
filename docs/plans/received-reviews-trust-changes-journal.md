@@ -39,7 +39,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | A2 | Server: `listFinalizedEvaluationsBetween` port method + `CrossBeaconEvaluationRecord` + Drift impl + `evaluationsWrittenAboutMeBy` use case | §4.2 | done |
 | A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | done |
 | B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | pending |
-| B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | pending |
+| B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | done |
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | pending |
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | pending |
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | pending |
@@ -180,4 +180,34 @@ convention from the recent issue-112 timezone-fix work. `evaluationSummary` fiel
 byte-for-byte untouched in `query_evaluation.dart`. New types/mappers structurally mirror
 the existing `gqlTypeEvaluationSummary`/`evaluationSummaryToGqlMap` pattern.
 
-(Appended chronologically below as units complete.)
+### B2 — AttentionEventType + policy + contract layer (§4.4, §5.3 server mechanism)
+
+**What changed**
+- Added `AttentionEventType.trustGivenChanged` / `trustReceivedChanged` and `AttentionDestinationKind.receivedReviews` (`wireName: 'received_reviews'`).
+- Added `AttentionRecipientRoleFacts.trustDirection` (`String?`) for direction-encoded `_presentationKey` values (`trust_given_changed_up|down|neutral`, `trust_received_changed_up|down|neutral`).
+- Updated all exhaustive `attention_policy.dart` switches; `_presentationKey` now takes `role` and delegates direction via `_trustChangePresentationKey`.
+- Serialized `trustDirection` in `attention_dispatch_repository.dart` `_rolePayload`.
+- Contract: two new `eventTypes[]` rows; both listed in `pendingProducerEventTypes` until B1 (§4.3) adds intent builders.
+- Tests: contract mirrors (server + client), `attention_policy_test.dart` fixtures + `received_reviews` destination matcher.
+- **Deferred per plan:** client `destination_map.dart` branch (later C2 unit); `AttentionIntentCase` builders / call-site wiring (B1).
+
+**Judgement calls**
+- **`trustDirection` values:** `'up'`, `'down'`, `'noChange'` documented on the field; mirrors `EvaluationReceivedTrustTone` naming without importing evaluation types. Null/`noChange`/any other value → `_neutral` presentation key.
+- **`NotificationCategory`:** `connections` for both events (social/relationship signal, same bucket as `mutualConnectionFormed`/`inviteAccepted`).
+- **`AttentionAccessPolicy`:** `beaconContent` for both (per plan — gates `beaconTitle` in payload even though `trustGivenChanged` routes to profile).
+- **Destinations:** `trustGivenChanged` → `profile` + `role.targetEntityId`; `trustReceivedChanged` → `receivedReviews` + `role.beaconId`.
+- **Contract `recipientCategory`:** `review_participant` (matches `AttentionRecipientReason.reviewParticipant` used by B1 builders).
+- **Contract `destinationFamily`:** `profile` / `received_reviews`.
+- **`pendingProducerEventTypes`:** both new types listed — required because `attention_intent_case_test.dart` asserts every non-pending contract type has a migrated fixture, and B1 has not landed yet.
+- **`m0129.dart` finding:** actor-erasure rebuild sets `role_facts` to `{'canReadBeaconContent': ...}` only — `trustDirection` drops like every other non-boolean field; no migration edit needed.
+
+**Commits:** `db6c53ac` (enum/policy/dispatch), `d9af62d1` (contract + mirrors), `6413018e` (policy test fixtures).
+
+**Verification**
+```bash
+cd packages/server && dart run build_runner build -d   # after freezed field
+cd packages/server && dart test test/domain/attention/ test/architecture/  # 70 passed
+cd packages/server && dart analyze   # 0 errors (2191 info-level pre-existing)
+cd packages/client && flutter test test/architecture/updates_event_contract_test.dart  # 1 passed
+./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
+```
