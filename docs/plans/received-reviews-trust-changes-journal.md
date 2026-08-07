@@ -493,3 +493,22 @@ cd packages/client && flutter test test/features/profile_view/   # 23 passed
 ```
 
 **Note:** E1 is the last plan-implementation unit before l10n/version-bump cleanup (F1) and the final verification sweep (F2).
+
+**Overseer review: ACCEPTED.** Independently reran codegen (7 outputs), `flutter analyze`
+targeted at the actual new files (only one trivial info-level "unnecessary import" hint in
+`profile_reviews_about_me_cubit.dart`, zero errors), `flutter test test/features/profile_view/`
+(23 passed), and `check-custom-lints.sh packages/client` (106, still below baseline 111).
+Confirmed D3 compliance directly in the `profile_view_screen.dart` diff:
+`ProfileReviewsAboutMeCubit(profileOwnerId: id)` where `id` is the screen's own route param
+(the profile being viewed), never the JWT-subject viewer — the reverse query is not present
+anywhere. Confirmed the cubit correctly mirrors only the REQUIRED behavior from
+`ProfileSharedBeaconsCubit` (eager `unawaited(fetch())` in the constructor, sequence-guarded
+async to avoid stale overwrites) while deliberately skipping the heavier
+`*Case`+`projectionChanges` real-time-invalidation machinery, with a documented rationale
+(server-finalized rows have no live-convergence dependency) rather than copy-pasting
+unneeded complexity. Confirmed the shared tone-mapping widget was placed under `lib/ui/widget/`
+(a genuinely shared, cross-feature location already used by other widgets this feature
+touches) rather than inside `features/evaluation/`, honoring the unit's no-touch constraint
+on that directory. **This closes out all ten implementation units (A1-A3, B1-B2, C1-C3,
+D1, E1) — every plan section except §6.7 (l10n cleanup)/versioning (F1) and the final
+cross-unit verification sweep (F2) is now built, tested, and independently verified.**
