@@ -19,7 +19,10 @@ const _entryKeys = {
   'coveringTest',
 };
 
-const _pendingProducerEventTypes = <String>[];
+const _pendingProducerEventTypes = <String>[
+  'trustGivenChanged',
+  'trustReceivedChanged',
+];
 
 const _expectedEventTypes = <Map<String, String>>[
   {
@@ -123,6 +126,24 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/invitation_case_test.dart',
+  },
+  {
+    'eventType': 'trustGivenChanged',
+    'producer': 'EvaluationCase.closeNow|AttentionExpirySweepCase.runDue',
+    'recipientCategory': 'review_participant',
+    'destinationFamily': 'profile',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
+  },
+  {
+    'eventType': 'trustReceivedChanged',
+    'producer': 'EvaluationCase.closeNow|AttentionExpirySweepCase.runDue',
+    'recipientCategory': 'review_participant',
+    'destinationFamily': 'received_reviews',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
   },
 ];
 
