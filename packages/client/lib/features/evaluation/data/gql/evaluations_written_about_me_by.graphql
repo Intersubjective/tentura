@@ -1,0 +1,14 @@
+query EvaluationsWrittenAboutMeBy($id: String!) {
+  evaluationsWrittenAboutMeBy(id: $id) {
+    beaconId
+    beaconTitle
+    beaconClosedAt
+    evaluatorId
+    evaluatedUserId
+    value
+    tone
+    reasonTags
+    note
+    occurredAt
+  }
+}

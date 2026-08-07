@@ -1,0 +1,18 @@
+query EvaluationReceived($id: String!) {
+  evaluationReceived(id: $id) {
+    beaconId
+    beaconTitle
+    windowClosed
+    rows {
+      reviewerId
+      reviewerDisplayName
+      reviewerImageId
+      reviewerRole
+      value
+      tone
+      reasonTags
+      note
+      occurredAt
+    }
+  }
+}

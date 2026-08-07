@@ -4266,6 +4266,8 @@ type query_root {
   evaluationDraftParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
+  evaluationReceived(id: String!): v2_EvaluationReceived!
+  evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
   evaluationSummary(id: String!): v2_EvaluationSummary!
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
 
@@ -6540,6 +6542,38 @@ type v2_EvaluationParticipant {
   role: Int!
   userId: String!
   value: Int
+}
+
+type v2_EvaluationReceived {
+  beaconId: String!
+  beaconTitle: String!
+  windowClosed: Boolean!
+  rows: [v2_EvaluationReceivedRow!]!
+}
+
+type v2_EvaluationReceivedRow {
+  note: String!
+  occurredAt: String!
+  reasonTags: [String!]!
+  reviewerDisplayName: String!
+  reviewerId: String!
+  reviewerImageId: String!
+  reviewerRole: Int!
+  tone: String!
+  value: Int!
+}
+
+type v2_EvaluationsWrittenAboutViewerRow {
+  beaconClosedAt: String
+  beaconId: String!
+  beaconTitle: String!
+  evaluatedUserId: String!
+  evaluatorId: String!
+  note: String!
+  occurredAt: String!
+  reasonTags: [String!]!
+  tone: String!
+  value: Int!
 }
 
 type v2_EvaluationSummary {
