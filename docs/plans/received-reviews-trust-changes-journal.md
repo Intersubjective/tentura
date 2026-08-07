@@ -38,7 +38,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | A1 | Server: `evaluationSummary` → `evaluationReceived` rework, drop `noBasis` filter, delete `countDistinctEvaluatorsForEvaluated` + callers/mocks/tests | §4.1 | done |
 | A2 | Server: `listFinalizedEvaluationsBetween` port method + `CrossBeaconEvaluationRecord` + Drift impl + `evaluationsWrittenAboutMeBy` use case | §4.2 | done |
 | A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | done |
-| B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | pending |
+| B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | done |
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | done |
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | pending |
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | pending |
@@ -230,3 +230,34 @@ match the requested `_up`/`_down`/`_neutral` encoding exactly, with a safe defau
 fallback. Confirmed `_rolePayload` and all exhaustive switches were updated. Confirmed
 `destination_map.dart` (client) was correctly left untouched per instruction (route doesn't
 exist yet).
+
+### B1 — Updates events at review finalization (§4.3)
+
+**What changed**
+- Added `ReviewFinalizationResult` / `FinalizedTrustPair` (`review_finalization_result.dart`); widened `ReviewFinalizationPort.closeAndFinalize` return type.
+- Added `beaconTitle` to `ReviewCloseSnapshot`; populated from `beaconRow.title` in `evaluation_repository.closeReviewWindow`.
+- `ReviewFinalizationCase` now returns `didClose`, `beaconTitle`, and `pairs` (bins via `reviewValueToBin`, same skip-null rule as `_recordCommitmentEvidence`).
+- Added `AttentionIntentCase.trustGivenChanged` / `trustReceivedChanged` hand-built builders with inline copy and `trustDirection` on role facts.
+- Wired both builders into `EvaluationCase.closeNow` and `AttentionExpirySweepCase.runDue` after finalization, inside existing attention transactions.
+- Cleared `pendingProducerEventTypes` for both trust events; added `attention_intent_case_test.dart` fixtures; updated contract-test mirrors.
+- Added shared `kPathBeaconView` to `lib/consts.dart` for server action URLs.
+
+**Judgement calls**
+- **`NotificationKind`:** `reviewReady` for both builders (review-lifecycle family; legacy push/outbox only).
+- **`AttentionDispatchIntent.beaconId`:** set on both builders — matches `requestStatusChanged` hand-built pattern (`attention_intent_case.dart:605`).
+- **`trustReceivedChanged` destination field:** confirmed B2 policy reads `role.beaconId` for `AttentionDestinationKind.receivedReviews` `targetEntityId`; set `role.targetEntityId: beaconId` (redundant with beacon id on role, but consistent with other beacon-scoped intents).
+- **`trustGivenChanged` `role.targetEntityId`:** `evaluatedUserId` (counterpart profile routing per policy).
+- **Neutral-bin suppression:** call sites skip `TrustBin.noEffect` pairs (plan §9 Q1 default); B2's three-way presentation keys remain available if product later surfaces neutral cards without policy changes.
+- **`producers[]`:** left unchanged — one row per use-case file convention (`evaluation_case.dart` already has `reviewOpened`; `attention_expiry_sweep_case.dart` has `requestStatusChanged`).
+- **Copy strings:** trust given — title `Trust update`, bodies direction-aware with request title; trust received — titles `Someone trusts you more/less` / `Someone reviewed you`, bodies include D4's "and their network" framing; empty display names fall back to `them`/`Someone`.
+
+**Commits:** `222ffd4d` (return widening), `ac3c61a8` (intent builders), `bcec3e2b` (call sites), `308a9f2b` (contract + fixtures).
+
+**Verification**
+```bash
+cd packages/server && dart run build_runner build -d
+cd packages/server && dart test test/domain/evaluation/ test/domain/use_case/evaluation/ test/domain/attention/ test/architecture/  # 158 passed
+cd packages/server && dart analyze   # 0 errors (2197 info-level pre-existing)
+cd packages/server && dart test test/app/di_smoke_test.dart  # 2 passed
+./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
+```
