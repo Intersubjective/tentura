@@ -144,7 +144,7 @@ is reused for tone mapping, consistent with A1.
 - **`tone` as string:** `EvaluationReceivedTrustTone.name` → `"up"` / `"down"` / `"noChange"` / `"noBasis"` (no GraphQL enum type in this codebase).
 - **`reviewerRole` as int:** matches existing `EvaluationParticipant.role` GraphQL field (`dbValue` 0–3).
 
-**Commit:** (see finish block)
+**Commit:** `52e0145f` — Server: wire evaluationReceived GraphQL API (§4.5).
 
 **Verification**
 ```bash
