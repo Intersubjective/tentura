@@ -42,7 +42,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | done |
 | C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | done |
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | done |
-| C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | pending |
+| C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | done |
 | D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | pending |
 | E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | pending |
 | F1 | Client: l10n keys (en+ru) + `pubspec.yaml` version bump + `MIN_CLIENT_VERSION` decision per `DEV_GUIDELINES.md` | §6.7, versioning rule | pending |
@@ -377,3 +377,30 @@ into this screen. Confirmed scope boundary was honored: `beacon_people_tab_body.
 `beacon_evaluation_hooks.dart`, and `evaluation_summary_card.dart` are untouched, and no
 entry-point CTA was added — the screen exists but is not yet reachable from anywhere in the
 UI, exactly as intended; the next unit (C3) closes that gap.
+
+### C3 — Entry points + retire inline summary card (§6.4, §6.6)
+
+**What changed**
+- **Part 1 (`reviewOpen`):** Added sibling `TenturaCommandButton` in `beacon_operational_header_card.dart` whenever `state.beacon.status == BeaconStatus.reviewOpen`, rendered alongside (not inside) `ReviewWindowBannerHost`. Navigates via `ReceivedReviewsRoute(id: state.beacon.id)`. Not gated by `state.isBeaconMine`.
+- **Part 2 (`closed`):** Added trailing `BeaconHudActionButton` in `closed_request_banner.dart` Row; always shown (no evaluated-in-beacon signal in scope).
+- **Part 3 (retire inline card):** Removed `BeaconEvaluationHooks` block from `beacon_people_tab_body.dart`; deleted `beacon_evaluation_hooks.dart` and `evaluation_summary_card.dart` (no remaining callers).
+- l10n (en+ru): `reviewWindowViewReceivedReviewsAction`, `closedRequestViewMyReviewsAction`.
+- Widget tests: `beacon_operational_header_card_test.dart` — CTA across loading, non-author-with-work, author-waiting, and shrink states; `closed_request_banner_test.dart` — button label present.
+
+**Judgement calls**
+- **Spacing (Part 1):** No extra `SizedBox` between `ReviewWindowBannerHost` and the CTA — the host's internal `_slotPadding` (`top: 10, bottom: 10`) already separates banner content from siblings; adding another gap would double-pad in content states.
+- **Part 2 visibility:** Always show the closed-banner button; target screen's empty state handles never-evaluated viewers.
+- **Dead data-layer chain (finding, not action):** `EvaluationRepository.fetchSummary`, `EvaluationSummary` entity, client `EvaluationCubit.loadAll`, and server `evaluationSummary` GraphQL field remain — `loadAll` is still uncalled from UI; deeper retirement is out of scope (A1 note, plan §9 Q3).
+- **§6.6:** Inline `EvaluationSummaryCard` deleted outright rather than design-system-fixed — entry points + `ReceivedReviewsScreen` supersede it.
+
+**Commits:** `0a3a6343` (l10n), `b172937f` (reviewOpen CTA), `849563eb` (closed CTA), `c91799f4` (retire inline card).
+
+**Verification**
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d
+cd packages/client && flutter analyze lib/features/beacon_view/ lib/features/evaluation/  # 0 new errors (pre-existing info/warnings only)
+cd packages/client && flutter test test/features/beacon_view/ test/features/evaluation/  # 267 passed
+./scripts/check-custom-lints.sh packages/client  # 106, baseline 111 unchanged
+```
+
+**Phase 3 client evaluation feature (plan §6.3/§6.4/§6.6) is now end-to-end reachable** from beacon detail (`reviewOpen` and `closed`) before Updates (D1) or profile (E1) land.
