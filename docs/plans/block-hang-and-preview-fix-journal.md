@@ -130,3 +130,38 @@ Plus each unit's own targeted test path (see plan).
 
 P3 (P3.1 + P3.2) complete. P4 (capped cascade preview copy) and P5 (manager
 regression pass) remain for subsequent workers.
+
+## Manager review — P3 (2026-08-07)
+
+Independently re-ran `flutter test test/features/block/ test/features/profile_view/`
+after accepting P3.1/P3.2's commits (per the operating contract: never trust a
+worker-reported green run without reproducing it). Found a real defect the
+worker's own final report did not catch:
+
+`test/features/block/ui/sheet/block_user_sheet_test.dart` (commit `215387ef`)
+dropped two imports it still needs —
+`package:tentura/features/block/domain/entity/user_block.dart` (for
+`BlockPreview`) and `package:tentura/features/block/domain/use_case/block_case.dart`
+(for `BlockCase`) — while adding the new router/GetIt imports for the P3.1
+navigation test. The file failed to compile (`Type 'BlockCase' not found`,
+`Type 'BlockPreview' not found`), contradicting the worker's self-reported
+"pass (7 tests)". This is exactly the class of defect §6 of the overseer
+skill calls small/local/unambiguous — fixed directly by the manager (no new
+Cursor worker dispatched) by restoring the two import lines.
+
+**Fix commit:** `<pending — see next entry>` — re-add the two dropped imports
+in `block_user_sheet_test.dart`.
+
+**Re-verification after the fix:**
+- `cd packages/client && flutter test test/features/block/ui/sheet/block_user_sheet_test.dart` — pass (7 tests)
+- `cd packages/client && flutter test test/features/block/ test/features/profile_view/` — pass (36 tests)
+- `cd packages/client && flutter analyze` — 762 pre-existing issues, no new errors
+
+The rest of P3.1/P3.2 (production code in `block_user_sheet.dart`,
+`profile_view_cubit.dart`, `profile_view_case.dart`, and the l10n additions)
+was reviewed against the actual diff (not just the worker's description) and
+is accepted as-is — the unfiltered `_blockCase.changes` merge the worker found
+and removed from `ProfileViewCase.projectionChanges` was a real pre-existing
+over-broad-invalidation bug of the same species as P2's, and removing it in
+favor of the id-scoped subscription in the cubit is a correct, in-scope fix
+consistent with this plan's own principle, not scope creep.

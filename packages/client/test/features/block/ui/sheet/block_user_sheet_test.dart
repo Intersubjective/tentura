@@ -6,6 +6,8 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/block/ui/sheet/block_user_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
