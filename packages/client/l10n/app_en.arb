@@ -1096,6 +1096,15 @@
   "@profileSharedBeaconsCoHelpOfferedSection": {
     "context": "Profile — co-helped beacons section header"
   },
+  "profileReviewsFromPersonSectionTitle": "Reviews from {name}",
+  "@profileReviewsFromPersonSectionTitle": {
+    "context": "Profile — reviews the profile owner wrote about the viewer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "showMutualFriends": "Show mutual trust",
   "@showMutualFriends": {
     "context": "Profile"
