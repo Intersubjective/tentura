@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
@@ -14,7 +13,6 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
-import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
@@ -341,13 +339,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (beacon.status == BeaconStatus.closed) ...[
-          BeaconEvaluationHooks(
-            beaconId: beacon.id,
-            status: beacon.status,
-          ),
-          const SizedBox(height: 12),
-        ],
         AccordionExpansionGroup(
           initialExpandedId: requestedSectionId,
           requestedExpandedId: requestedSectionId,
