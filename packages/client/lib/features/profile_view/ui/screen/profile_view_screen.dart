@@ -7,10 +7,12 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
+import '../bloc/profile_reviews_about_me_cubit.dart';
 import '../bloc/profile_shared_beacons_cubit.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../widget/blocked_profile_view_body.dart';
 import '../widget/profile_shared_beacons_sliver.dart';
+import '../widget/reviews_about_me_from_profile_sliver.dart';
 import '../widget/profile_view_app_bar.dart';
 import '../widget/profile_view_body.dart';
 
@@ -35,6 +37,9 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
             meId: GetIt.I<ProfileCubit>().state.profile.id,
             targetId: id,
           ),
+        ),
+        BlocProvider(
+          create: (_) => ProfileReviewsAboutMeCubit(profileOwnerId: id),
         ),
       ],
       child: this,
@@ -66,6 +71,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
           child: RefreshIndicator.adaptive(
             onRefresh: () => Future.wait([
               context.read<ProfileViewCubit>().fetch(),
+              context.read<ProfileReviewsAboutMeCubit>().fetch(),
               context.read<ProfileSharedBeaconsCubit>().fetch(),
             ]),
             child: CustomScrollView(
@@ -75,6 +81,8 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
                   padding: context.tt.cardPadding,
                   sliver: ProfileViewBody(),
                 ),
+
+                ReviewsAboutMeFromProfileSliver(),
 
                 // Shared beacons (forwarded + co-help-offered)
                 ProfileSharedBeaconsSliver(),
