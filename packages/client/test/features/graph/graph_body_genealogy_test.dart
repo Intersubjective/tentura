@@ -8,7 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
-import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -104,7 +104,9 @@ Future<_StubGraphCubit> _pumpGraphBody(
           BlocProvider<GraphCubit>.value(value: cubit),
           BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
         ],
-        child: const Scaffold(body: GraphBody()),
+        child: GraphScaffold(
+          title: const Text('Graph'),
+        ),
       ),
     ),
   );

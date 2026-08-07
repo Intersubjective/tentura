@@ -12,7 +12,7 @@ import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
-import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -133,7 +133,9 @@ Future<GraphCubit> _pumpGraphBody(
           BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
           BlocProvider<ProfileCubit>.value(value: _FakeProfileCubit()),
         ],
-        child: const Scaffold(body: GraphBody()),
+        child: GraphScaffold(
+          title: const Text('Graph'),
+        ),
       ),
     ),
   );
@@ -200,7 +202,7 @@ void main() {
   });
 
   testWidgets(
-    'compact focus keeps expand and nav on one toolbar row',
+    'compact focus exposes expand and home in app bar',
     (tester) async {
       final source = _WidgetTestGraphSource()
         ..pages.addAll({
@@ -215,30 +217,9 @@ void main() {
       await tester.tap(find.byType(GraphNodeWidget).at(1));
       await _settleGraph(tester);
 
-      final expand = find.byKey(TestIds.key(TestIds.graphExpand));
-      final home = find.byTooltip('Reset to me');
-      expect(expand, findsOneWidget);
-      expect(home, findsOneWidget);
-
-      final expandBox = tester.getRect(expand);
-      final homeBox = tester.getRect(home);
-      expect(
-        expandBox.overlaps(homeBox),
-        isFalse,
-        reason: 'Expand and Home must not overlap on compact width',
-      );
-      expect(
-        expandBox.right,
-        lessThanOrEqualTo(homeBox.left),
-        reason: 'Expand sits left of Home in the same toolbar row',
-      );
-      final expandCenterY = expandBox.center.dy;
-      final homeCenterY = homeBox.center.dy;
-      expect(
-        (expandCenterY - homeCenterY).abs(),
-        lessThan(8),
-        reason: 'Expand and Home share the same toolbar row',
-      );
+      expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsOneWidget);
+      expect(find.byTooltip('Reset to me'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 

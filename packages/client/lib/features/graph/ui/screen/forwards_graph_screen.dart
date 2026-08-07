@@ -11,7 +11,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../../domain/entity/graph_edge_colors.dart';
-import '../widget/graph_body.dart';
+import '../widget/graph_scaffold.dart';
 
 @RoutePage()
 class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -55,43 +55,19 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final cubit = context.read<GraphCubit>();
-    final tt = context.tt;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        alignment: TenturaTopBarAlignment.fullWidth,
-        leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-        title: BlocBuilder<GraphCubit, GraphState>(
-          buildWhen: (p, c) =>
-              p.status != c.status ||
-              p.helpOffererViewerRole != c.helpOffererViewerRole,
-          builder: (context, state) =>
-              Text(_titleFor(l10n, state.helpOffererViewerRole)),
-        ),
-        progress: BlocSelector<GraphCubit, GraphState, bool>(
-          selector: (state) => state.isLoading,
-          builder: TenturaTopBar.loadingBar,
-        ),
-        actions: [
-          PopupMenuButton<void>(
-            tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-            icon: const Icon(Icons.more_vert),
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(
-              minWidth: tt.buttonHeight,
-              minHeight: tt.buttonHeight,
-            ),
-            itemBuilder: (_) => <PopupMenuEntry<void>>[
-              PopupMenuItem<void>(
-                onTap: cubit.jumpToEgo,
-                child: Text(l10n.goToEgo),
-              ),
-            ],
-          ),
-        ],
+    return GraphScaffold(
+      leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
+      title: BlocBuilder<GraphCubit, GraphState>(
+        buildWhen: (p, c) =>
+            p.status != c.status ||
+            p.helpOffererViewerRole != c.helpOffererViewerRole,
+        builder: (context, state) =>
+            Text(_titleFor(l10n, state.helpOffererViewerRole)),
       ),
-      body: const TenturaFullBleed(child: GraphBody()),
+      progress: BlocSelector<GraphCubit, GraphState, bool>(
+        selector: (state) => state.isLoading,
+        builder: TenturaTopBar.loadingBar,
+      ),
     );
   }
 

@@ -1,3 +1,8 @@
+## 0.6.2+tentura.2 (Tentura fork)
+
+- Fix `jumpToPosition` / `jumpToNode(resetScale: true)` to center nodes using the
+  same pixel-anchored matrix as `fitToRect`, and sync the viewport after jumps.
+
 ## 0.6.2+tentura.1 (Tentura fork)
 
 - Add `GraphView.layoutTransitionDuration` / `layoutTransitionCurve`: the controller now

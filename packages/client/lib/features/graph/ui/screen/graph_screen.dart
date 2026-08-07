@@ -11,7 +11,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../../domain/entity/graph_edge_colors.dart';
-import '../widget/graph_body.dart';
+import '../widget/graph_scaffold.dart';
 
 @RoutePage()
 class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -37,35 +37,9 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final cubit = context.read<GraphCubit>();
-    final tt = context.tt;
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        alignment: TenturaTopBarAlignment.fullWidth,
-        leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-        title: Text(l10n.graphView),
-        actions: [
-          PopupMenuButton<void>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(
-              minWidth: tt.buttonHeight,
-              minHeight: tt.buttonHeight,
-            ),
-            itemBuilder: (_) => <PopupMenuEntry<void>>[
-              PopupMenuItem<void>(
-                onTap: cubit.jumpToEgo,
-                child: Text(l10n.goToEgo),
-              ),
-            ],
-          ),
-        ],
-      ),
-
-      // Graph
-      body: const TenturaFullBleed(child: GraphBody()),
+    return GraphScaffold(
+      leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
+      title: Text(l10n.graphView),
     );
   }
 }

@@ -13,7 +13,7 @@ import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
-import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -141,7 +141,9 @@ Future<GraphCubit> _pumpGraphBody(
           BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
           BlocProvider<ProfileCubit>.value(value: _FakeProfileCubit()),
         ],
-        child: const Scaffold(body: GraphBody()),
+        child: GraphScaffold(
+          title: const Text('Graph'),
+        ),
       ),
     ),
   );

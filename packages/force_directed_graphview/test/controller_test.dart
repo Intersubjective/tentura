@@ -206,6 +206,77 @@ void main() {
     graphController.dispose();
   });
 
+  testWidgets('jumpToNode centers after zoom and pan', (tester) async {
+    const viewportW = 800.0;
+    const viewportH = 600.0;
+
+    tester.view.physicalSize = const Size(viewportW, viewportH);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final graphController =
+        GraphController<Node<int>, Edge<Node<int>, void>>();
+    const near = Node<int>(data: 1, size: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: viewportW,
+          height: viewportH,
+          child: GraphView<Node<int>, Edge<Node<int>, void>>(
+            controller: graphController,
+            canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
+            layoutAlgorithm: const _CornerFixedLayout(),
+            nodeBuilder: (context, node) => const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    graphController.mutate((m) => m..addNode(near));
+    await tester.pumpAndSettle();
+
+    Offset nodeScreen() {
+      final viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer),
+      );
+      final matrix = viewer.transformationController!.value;
+      final position = graphController.layout.getPosition(near);
+      return MatrixUtils.transformPoint(matrix, position);
+    }
+
+    graphController.zoomBy(2.0);
+    await tester.pump();
+
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    final tc = viewer.transformationController!;
+    tc.value = Matrix4.copy(tc.value)..translate(80.0, -60.0);
+    await tester.pump();
+
+    await graphController.jumpToNode(near);
+    await tester.pump();
+    final keepScale = nodeScreen();
+    expect(keepScale.dx, closeTo(viewportW / 2, 1));
+    expect(keepScale.dy, closeTo(viewportH / 2, 1));
+    expect(graphController.currentScale, greaterThan(1.5));
+
+    graphController.zoomBy(2.0);
+    tc.value = Matrix4.copy(tc.value)..translate(80.0, -60.0);
+    await tester.pump();
+
+    await graphController.jumpToNode(near, resetScale: true);
+    await tester.pump();
+    final resetScale = nodeScreen();
+    expect(resetScale.dx, closeTo(viewportW / 2, 1));
+    expect(resetScale.dy, closeTo(viewportH / 2, 1));
+    expect(graphController.currentScale, closeTo(1.0, 0.001));
+
+    graphController.dispose();
+  });
+
   testWidgets('clear resets layout and allows relayout after mutate',
       (tester) async {
     final graphController =

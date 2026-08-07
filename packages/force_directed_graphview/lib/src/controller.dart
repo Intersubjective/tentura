@@ -103,26 +103,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// When [resetScale] is true, zoom is restored to 1.0 (the default).
   void jumpToPosition(Offset position, {bool resetScale = false}) {
     final controller = _transformationController;
-    final layout = _layout;
-    final viewport = _actualViewport;
-    if (controller == null || layout == null || viewport == null) {
+    final pixel = _viewportPixelSize;
+    if (controller == null || pixel == null) {
       return;
     }
 
-    final oldMatrix = controller.value.clone();
-    final matrixScale =
-        resetScale ? 1.0 : oldMatrix.getMaxScaleOnAxis();
-    final matrixOffset =
-        -Offset(oldMatrix.storage[12], oldMatrix.storage[13]) / matrixScale;
-    final center = viewport.center;
+    final oldScale = controller.value.getMaxScaleOnAxis();
+    final matrixScale = resetScale ? 1.0 : oldScale;
 
     controller.value = Matrix4.identity()
+      ..translate(pixel.width / 2, pixel.height / 2)
       ..scale(matrixScale)
-      ..translate(-position.dx, -position.dy)
-      ..translate(
-        (center.dx - matrixOffset.dx),
-        (center.dy - matrixOffset.dy),
-      );
+      ..translate(-position.dx, -position.dy);
+    _syncActualViewportFromPixelSize();
   }
 
   /// Instantly jumps to the given node placing it in the center of the screen.

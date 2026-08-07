@@ -9,7 +9,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
-import 'package:tentura/features/graph/ui/widget/graph_body.dart';
+import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
@@ -46,24 +46,19 @@ class InviteGenealogyScreen extends StatelessWidget
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final isBetween = !(targetId?.isEmpty ?? true);
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        alignment: TenturaTopBarAlignment.fullWidth,
-        leading: const AutoLeadingWithFallback(fallbackPath: kPathProfile),
-        title: Text(
-          isBetween
-              ? l10n.inviteGenealogyBetweenTitle
-              : l10n.showInviteGenealogy,
-        ),
-        progress: BlocBuilder<GraphCubit, GraphState>(
-          buildWhen: (previous, current) =>
-              previous.isLoading != current.isLoading,
-          builder: (context, state) =>
-              TenturaTopBar.loadingBar(context, state.isLoading),
-        ),
+    return GraphScaffold(
+      leading: const AutoLeadingWithFallback(fallbackPath: kPathProfile),
+      title: Text(
+        isBetween
+            ? l10n.inviteGenealogyBetweenTitle
+            : l10n.showInviteGenealogy,
       ),
-      body: const TenturaFullBleed(child: GraphBody()),
+      progress: BlocBuilder<GraphCubit, GraphState>(
+        buildWhen: (previous, current) =>
+            previous.isLoading != current.isLoading,
+        builder: (context, state) =>
+            TenturaTopBar.loadingBar(context, state.isLoading),
+      ),
     );
   }
 }
