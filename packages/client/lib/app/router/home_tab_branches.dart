@@ -129,6 +129,11 @@ List<AutoRoute> browseDetailChildren({
     page: ReviewContributionsRoute.page,
     path: 'beacon/review/:id',
   ),
+  AutoRoute(
+    usesPathAsKey: true,
+    page: ReceivedReviewsRoute.page,
+    path: 'beacon/reviews-received/:id',
+  ),
   // Profile View — same isMe redirect as the root registration: a full
   // branch URL / browser refresh at e.g. `/home/network/profile/view/:id`
   // never goes through the root redirect, so the check must also live here.
@@ -230,6 +235,7 @@ const _browsePathOwners = <(String, HomeTab)>[
   (kPathBeaconViewAll, HomeTab.work),
   (kPathBeaconInvolvedAll, HomeTab.work),
   (kPathReviewContributions, HomeTab.work),
+  (kPathReceivedReviews, HomeTab.work),
   (kPathForwardsGraph, HomeTab.network),
   (kPathGraph, HomeTab.network),
   (kPathProfileView, HomeTab.network),

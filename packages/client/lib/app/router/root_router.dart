@@ -506,6 +506,23 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
+    AutoRoute(
+      usesPathAsKey: true,
+      page: ReceivedReviewsRoute.page,
+      path: '$kPathReceivedReviews/:id',
+      guards: [
+        AutoRouteGuard.simple(
+          (resolver, _) => _forwardIntoHomeBranch(
+            resolver,
+            owner: HomeTab.work,
+            route: ReceivedReviewsRoute(
+              id: resolver.route.params.getString('id'),
+            ),
+          ),
+        ),
+      ],
+    ),
+
     // Forward Beacon
     AutoRoute(
       keepHistory: false,

@@ -49,6 +49,7 @@ const kPathBeaconViewAll = '/beacon/all';
 const kPathBeaconInvolvedAll = '/beacon/involved';
 const kPathBeaconRoom = '/beacon/room';
 const kPathReviewContributions = '/beacon/review';
+const kPathReceivedReviews = '/beacon/reviews-received';
 const kPathForwardBeacon = '/forward';
 const kPathForwardPerson = '/forward-person';
 const kPathProfileEdit = '/profile/edit';
