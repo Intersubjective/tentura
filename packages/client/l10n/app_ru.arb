@@ -3184,6 +3184,23 @@
   "evaluationRoleAuthor": "Автор",
   "evaluationRoleHelpOfferer": "Помощник",
   "evaluationRoleForwarder": "Переславший",
+  "evaluationRoleFormerCommitter": "Бывший помощник",
+  "evaluationReceivedScreenTitle": "Мои отзывы · {beaconTitle}",
+  "@evaluationReceivedScreenTitle": {
+    "placeholders": {
+      "beaconTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationReceivedScreenTitleGeneric": "Мои отзывы",
+  "evaluationReceivedEmptyWindowOpen": "Отзывы появятся здесь, когда запрос будет завершён.",
+  "evaluationReceivedEmptyNoReviews": "Никто не оставил вам отзыв по этому запросу.",
+  "evaluationReceivedTrustUpLabel": "Доверие выросло",
+  "evaluationReceivedTrustDownLabel": "Доверие снизилось",
+  "evaluationReceivedNeutralLabel": "Существенных изменений нет",
+  "evaluationReceivedNoBasisLabel": "Нет оснований для оценки",
+  "evaluationReceivedSeeReviewWindowStatus": "Статус окна отзывов",
   "evaluationTrustLessSummary": "Меньше",
   "evaluationTrustMoreSummary": "Больше",
   "evaluationTrustNoChangeSummary": "Без изменений",

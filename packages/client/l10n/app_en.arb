@@ -3188,6 +3188,23 @@
   "evaluationRoleAuthor": "Author",
   "evaluationRoleHelpOfferer": "Helper",
   "evaluationRoleForwarder": "Forwarder",
+  "evaluationRoleFormerCommitter": "Former helper",
+  "evaluationReceivedScreenTitle": "My reviews · {beaconTitle}",
+  "@evaluationReceivedScreenTitle": {
+    "placeholders": {
+      "beaconTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationReceivedScreenTitleGeneric": "My reviews",
+  "evaluationReceivedEmptyWindowOpen": "Reviews will appear here once the request finishes.",
+  "evaluationReceivedEmptyNoReviews": "No one left feedback for you on this request.",
+  "evaluationReceivedTrustUpLabel": "Trust increased",
+  "evaluationReceivedTrustDownLabel": "Trust decreased",
+  "evaluationReceivedNeutralLabel": "No significant change",
+  "evaluationReceivedNoBasisLabel": "No basis to judge",
+  "evaluationReceivedSeeReviewWindowStatus": "See review window status",
   "evaluationTrustLessSummary": "Less",
   "evaluationTrustMoreSummary": "More",
   "evaluationTrustNoChangeSummary": "No change",
