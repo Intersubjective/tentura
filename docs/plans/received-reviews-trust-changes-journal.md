@@ -211,3 +211,22 @@ cd packages/server && dart analyze   # 0 errors (2191 info-level pre-existing)
 cd packages/client && flutter test test/architecture/updates_event_contract_test.dart  # 1 passed
 ./scripts/check-custom-lints.sh packages/server  # exit 0, baseline 0
 ```
+
+**Overseer review: ACCEPTED.** Independently reran `test/domain/attention/` + `test/architecture/`
+(70 passed), `dart analyze` (0 error-severity issues), `check-custom-lints.sh packages/server`
+(0, baseline 0), and the client contract mirror (`flutter test
+test/architecture/updates_event_contract_test.dart`, 1 passed). Verified the worker's
+`pendingProducerEventTypes` discovery is real and correctly used: confirmed
+`attention_intent_case_test.dart:299-318` ("every non-pending compact-contract type has a
+migrated fixture") excludes any `eventType` listed in `pendingProducerEventTypes` from
+requiring an `AttentionIntentCase` fixture — exactly the mechanism needed to let this unit
+land cleanly before B1 adds the actual builders. **Action item for B1:** once
+`AttentionIntentCase.trustGivenChanged`/`trustReceivedChanged` builders exist, remove both
+entries from `pendingProducerEventTypes` in `docs/contracts/updates-event-contract.json`
+(both server and any client mirror) and add matching fixtures to
+`attention_intent_case_test.dart`, or that test will not actually exercise the new builders.
+Confirmed `_presentationKey`'s new `role` parameter and `_trustChangePresentationKey` helper
+match the requested `_up`/`_down`/`_neutral` encoding exactly, with a safe default-to-neutral
+fallback. Confirmed `_rolePayload` and all exhaustive switches were updated. Confirmed
+`destination_map.dart` (client) was correctly left untouched per instruction (route doesn't
+exist yet).
