@@ -67,6 +67,9 @@ const kAppTitle = 'Tentura';
 const kPathIcons = '/icons';
 const kPathAppLinkView = '/shared/view';
 
+/// Beacon detail screen (client Auto Route).
+const kPathBeaconView = '/beacon/view';
+
 /// Post-close review contributions screen (client Auto Route).
 const kPathReviewContributions = '/beacon/review';
 const kPathWebSocketEndpoint = '/api/v2/ws';

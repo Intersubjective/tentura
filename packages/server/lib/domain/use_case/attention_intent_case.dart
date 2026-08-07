@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/consts.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
@@ -14,6 +15,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 /// Builds the immutable, recipient-specific snapshot recorded by an attention
 /// producer. Call this inside the producer's unit of work.
@@ -387,6 +389,149 @@ class AttentionIntentCase {
     sourceEventKey: sourceEventKey,
     resolveContext: false,
   );
+
+  /// [NotificationKind.reviewReady] — legacy outbox/push plumbing only; Updates
+  /// cards dispatch on [AttentionEventType] presentation keys.
+  Future<AttentionDispatchIntent> trustGivenChanged({
+    required String beaconId,
+    required String beaconTitle,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required TrustBin bin,
+    required String sourceEventKey,
+  }) async {
+    final evaluated = await _users.getById(evaluatedUserId);
+    final name = evaluated.displayName.trim();
+    final direction = _trustDirectionFor(bin);
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.trustGivenChanged,
+      sourceEventKey: sourceEventKey,
+      actorUserId: evaluatedUserId,
+      priority: NotificationPriority.normal,
+      kind: NotificationKind.reviewReady,
+      title: 'Trust update',
+      body: _trustGivenBody(
+        name: name,
+        beaconTitle: beaconTitle,
+        direction: direction,
+      ),
+      actionUrl:
+          '/#/shared/view?id=${Uri.encodeQueryComponent(evaluatedUserId)}',
+      collapseKey: AttentionCollapseKey.family(
+        'trust_given',
+        [beaconId, evaluatorId, evaluatedUserId],
+      ),
+      beaconId: beaconId,
+      recipients: [
+        AttentionRecipientSnapshot(
+          recipientId: evaluatorId,
+          reasons: const {AttentionRecipientReason.reviewParticipant},
+          role: AttentionRecipientRoleFacts(
+            beaconId: beaconId,
+            canReadBeaconContent: true,
+            beaconTitle: beaconTitle,
+            targetEntityId: evaluatedUserId,
+            actorUserId: evaluatedUserId,
+            trustDirection: direction,
+          ),
+        ),
+      ],
+      targetEntityId: evaluatedUserId,
+    );
+  }
+
+  /// [NotificationKind.reviewReady] — same legacy-kind choice as
+  /// [trustGivenChanged].
+  Future<AttentionDispatchIntent> trustReceivedChanged({
+    required String beaconId,
+    required String beaconTitle,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required TrustBin bin,
+    required String sourceEventKey,
+  }) async {
+    final evaluator = await _users.getById(evaluatorId);
+    final name = evaluator.displayName.trim();
+    final direction = _trustDirectionFor(bin);
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.trustReceivedChanged,
+      sourceEventKey: sourceEventKey,
+      actorUserId: evaluatorId,
+      priority: NotificationPriority.normal,
+      kind: NotificationKind.reviewReady,
+      title: _trustReceivedTitle(direction),
+      body: _trustReceivedBody(
+        name: name,
+        beaconTitle: beaconTitle,
+        direction: direction,
+      ),
+      actionUrl: '/#$kPathBeaconView/$beaconId',
+      collapseKey: AttentionCollapseKey.family(
+        'trust_received',
+        [beaconId, evaluatorId, evaluatedUserId],
+      ),
+      beaconId: beaconId,
+      recipients: [
+        AttentionRecipientSnapshot(
+          recipientId: evaluatedUserId,
+          reasons: const {AttentionRecipientReason.reviewParticipant},
+          role: AttentionRecipientRoleFacts(
+            beaconId: beaconId,
+            canReadBeaconContent: true,
+            beaconTitle: beaconTitle,
+            targetEntityId: beaconId,
+            actorUserId: evaluatorId,
+            trustDirection: direction,
+          ),
+        ),
+      ],
+      targetEntityId: beaconId,
+    );
+  }
+
+  String _trustDirectionFor(TrustBin bin) => switch (bin) {
+    TrustBin.veryBad || TrustBin.bad => 'down',
+    TrustBin.noEffect => 'noChange',
+    TrustBin.good || TrustBin.veryGood => 'up',
+  };
+
+  String _trustGivenBody({
+    required String name,
+    required String beaconTitle,
+    required String direction,
+  }) {
+    final counterpart = name.isEmpty ? 'them' : name;
+    return switch (direction) {
+      'up' =>
+        'Your trust in $counterpart increased after "$beaconTitle".',
+      'down' =>
+        'Your trust in $counterpart decreased after "$beaconTitle".',
+      _ =>
+        'No significant trust change with $counterpart after "$beaconTitle".',
+    };
+  }
+
+  String _trustReceivedTitle(String direction) => switch (direction) {
+    'up' => 'Someone trusts you more',
+    'down' => 'Someone trusts you less',
+    _ => 'Someone reviewed you',
+  };
+
+  String _trustReceivedBody({
+    required String name,
+    required String beaconTitle,
+    required String direction,
+  }) {
+    final reviewer = name.isEmpty ? 'Someone' : name;
+    return switch (direction) {
+      'up' =>
+        '$reviewer now trusts you more after "$beaconTitle" — and their network.',
+      'down' =>
+        '$reviewer now trusts you less after "$beaconTitle" — and their network.',
+      _ =>
+        'No significant trust change from $reviewer after "$beaconTitle" — and their network.',
+    };
+  }
 
   Future<AttentionDispatchIntent> roomMessagePosted({
     required String beaconId,
