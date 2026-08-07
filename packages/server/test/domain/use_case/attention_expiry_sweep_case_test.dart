@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -22,6 +23,10 @@ class _ExpiryRepository extends Fake implements AttentionExpiryRepositoryPort {
 class _ReviewFinalization implements ReviewFinalizationPort {
   final calls = <({String beaconId, String reason, String? actorUserId})>[];
 
+  ReviewFinalizationResult result = const ReviewFinalizationResult(
+    didClose: true,
+  );
+
   @override
   Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
@@ -33,7 +38,7 @@ class _ReviewFinalization implements ReviewFinalizationPort {
       reason: reason,
       actorUserId: actorUserId,
     ));
-    return const ReviewFinalizationResult(didClose: true);
+    return result;
   }
 }
 
@@ -90,5 +95,87 @@ void main() {
     expect(await case_.runDue(), 1);
     expect(finalization.calls, hasLength(1));
     expect(attention.recorded, hasLength(1));
+  });
+
+  test('records trust intents when finalization returns pairs', () async {
+    const evaluatorId = 'Ureviewer';
+    const evaluatedUserId = 'Ureviewed';
+    final expiry = _ExpiryRepository()..due = const [beaconId];
+    final finalization = _ReviewFinalization()
+      ..result = ReviewFinalizationResult(
+        didClose: true,
+        beaconTitle: 'Expired request',
+        pairs: [
+          const FinalizedTrustPair(
+            evaluatorId: evaluatorId,
+            evaluatedUserId: evaluatedUserId,
+            bin: TrustBin.good,
+          ),
+        ],
+      );
+    final attention = TestAttentionHarness();
+    final case_ = AttentionExpirySweepCase(
+      expiry,
+      finalization,
+      attention.intents,
+      attention.transactional,
+    );
+
+    expect(await case_.runDue(now: DateTime.utc(2026)), 1);
+
+    final given = attention.recorded
+        .where((i) => i.eventType == AttentionEventType.trustGivenChanged)
+        .toList();
+    final received = attention.recorded
+        .where((i) => i.eventType == AttentionEventType.trustReceivedChanged)
+        .toList();
+    expect(given, hasLength(1));
+    expect(received, hasLength(1));
+    expect(given.single.recipients.single.recipientId, evaluatorId);
+    expect(received.single.recipients.single.recipientId, evaluatedUserId);
+  });
+
+  test('skips trust intents for noEffect finalized pairs', () async {
+    final expiry = _ExpiryRepository()..due = const [beaconId];
+    final finalization = _ReviewFinalization()
+      ..result = ReviewFinalizationResult(
+        didClose: true,
+        beaconTitle: 'Expired neutral',
+        pairs: [
+          const FinalizedTrustPair(
+            evaluatorId: 'Ureviewer',
+            evaluatedUserId: 'Ureviewed',
+            bin: TrustBin.noEffect,
+          ),
+        ],
+      );
+    final attention = TestAttentionHarness();
+    final case_ = AttentionExpirySweepCase(
+      expiry,
+      finalization,
+      attention.intents,
+      attention.transactional,
+    );
+
+    expect(await case_.runDue(now: DateTime.utc(2026)), 1);
+
+    expect(
+      attention.recorded.where(
+        (i) => i.eventType == AttentionEventType.trustGivenChanged,
+      ),
+      isEmpty,
+    );
+    expect(
+      attention.recorded.where(
+        (i) => i.eventType == AttentionEventType.trustReceivedChanged,
+      ),
+      isEmpty,
+    );
+    expect(
+      attention.recorded.where(
+        (i) => i.eventType == AttentionEventType.requestStatusChanged,
+      ),
+      hasLength(1),
+    );
   });
 }
