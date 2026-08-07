@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -162,6 +163,32 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.trustGivenChanged,
+          legacyKind: 'reviewReady',
+          recipient: actor,
+          build: (intents) => intents.trustGivenChanged(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            evaluatorId: actor,
+            evaluatedUserId: target,
+            bin: TrustBin.good,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
+          eventType: AttentionEventType.trustReceivedChanged,
+          legacyKind: 'reviewReady',
+          recipient: target,
+          build: (intents) => intents.trustReceivedChanged(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            evaluatorId: actor,
+            evaluatedUserId: target,
+            bin: TrustBin.good,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.inviteAccepted,
           legacyKind: 'inviteAccepted',
           recipient: author,
@@ -278,7 +305,13 @@ void main() {
         expect(intent.eventType, fixture.eventType);
         expect(intent.kind.name, fixture.legacyKind);
         expect(intent.sourceEventKey, eventKey);
-        expect(intent.actorUserId, actor);
+        expect(
+          intent.actorUserId,
+          switch (fixture.eventType) {
+            AttentionEventType.trustGivenChanged => target,
+            _ => actor,
+          },
+        );
         expect(intent.title, isNotEmpty);
         expect(intent.body, isNotEmpty);
         expect(intent.actionUrl, isNotEmpty);
@@ -288,9 +321,15 @@ void main() {
         );
         expect(
           intent.collapseKey,
-          fixture.eventType == AttentionEventType.coordinationChanged
-              ? startsWith('v1|coordination_changed|')
-              : startsWith('v1|none|'),
+          switch (fixture.eventType) {
+            AttentionEventType.coordinationChanged =>
+              startsWith('v1|coordination_changed|'),
+            AttentionEventType.trustGivenChanged =>
+              startsWith('v1|trust_given|'),
+            AttentionEventType.trustReceivedChanged =>
+              startsWith('v1|trust_received|'),
+            _ => startsWith('v1|none|'),
+          },
         );
       });
     }

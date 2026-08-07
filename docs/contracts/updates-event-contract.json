@@ -1,9 +1,6 @@
 {
   "schemaVersion": 2,
-  "pendingProducerEventTypes": [
-    "trustGivenChanged",
-    "trustReceivedChanged"
-  ],
+  "pendingProducerEventTypes": [],
   "eventTypes": [
     {
       "eventType": "relayReceived",

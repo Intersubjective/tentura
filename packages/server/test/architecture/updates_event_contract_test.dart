@@ -19,10 +19,7 @@ const _entryKeys = {
   'coveringTest',
 };
 
-const _pendingProducerEventTypes = <String>[
-  'trustGivenChanged',
-  'trustReceivedChanged',
-];
+const _pendingProducerEventTypes = <String>[];
 
 const _expectedEventTypes = <Map<String, String>>[
   {
