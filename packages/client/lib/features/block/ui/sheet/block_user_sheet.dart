@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Confirmation sheet for blocking another user (cascade toggle + impact preview).
 Future<void> showBlockUserSheet(
@@ -100,6 +102,16 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
         cascadeMode: _effectiveCascadeMode,
       );
       if (!mounted) return;
+      final l10n = L10n.of(context)!;
+      showSnackBar(
+        context,
+        text: l10n.blockConfirmedMessage,
+        action: SnackBarAction(
+          label: l10n.blockManageAction,
+          onPressed: () =>
+              GetIt.I<RootRouter>().push(const BlockedUsersRoute()),
+        ),
+      );
       Navigator.of(context).pop();
     } on Object {
       if (!mounted) return;

@@ -4605,6 +4605,14 @@
   ,"@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
   }
+  ,"blockConfirmedMessage": "Пользователь заблокирован"
+  ,"@blockConfirmedMessage": {
+    "description": "Snackbar confirmation after a successful block."
+  }
+  ,"blockManageAction": "Управление"
+  ,"@blockManageAction": {
+    "description": "Snackbar action linking to the Blocked Users management screen."
+  }
   ,"blockedUsersTitle": "Заблокированные"
   ,"@blockedUsersTitle": {
     "description": "App bar title for the blocked-users list screen."

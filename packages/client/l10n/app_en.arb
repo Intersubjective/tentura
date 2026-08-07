@@ -4815,6 +4815,14 @@
   ,"@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
   }
+  ,"blockConfirmedMessage": "Person blocked"
+  ,"@blockConfirmedMessage": {
+    "description": "Snackbar confirmation after a successful block."
+  }
+  ,"blockManageAction": "Manage"
+  ,"@blockManageAction": {
+    "description": "Snackbar action linking to the Blocked Users management screen."
+  }
   ,"blockedUsersTitle": "Blocked users"
   ,"@blockedUsersTitle": {
     "description": "App bar title for the blocked-users list screen."

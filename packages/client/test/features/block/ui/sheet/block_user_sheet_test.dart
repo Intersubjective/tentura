@@ -1,10 +1,11 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/block/domain/entity/user_block.dart';
-import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/block/ui/sheet/block_user_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -118,6 +119,56 @@ void main() {
       expect(find.byIcon(Icons.warning_amber_outlined), findsNothing);
     });
   });
+
+  group('BlockUserSheetBody P3.1', () {
+    testWidgets('successful block shows confirmation snackbar with manage action', (
+      tester,
+    ) async {
+      final fakeCase = FakeBlockCase()
+        ..previewResults = [const BlockPreview()];
+
+      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+      final l10n = lookupL10n(const Locale('en'));
+
+      await tester.tap(find.byKey(const Key('block_confirm_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.text(l10n.blockManageAction), findsOneWidget);
+      expect(fakeCase.blockCalls, [0]);
+    });
+
+    testWidgets('manage action navigates to blocked users screen', (tester) async {
+      final fakeCase = FakeBlockCase()
+        ..previewResults = [const BlockPreview()];
+      final recordingRouter = _RecordingRootRouter();
+      final getIt = GetIt.instance;
+      if (getIt.isRegistered<RootRouter>()) {
+        await getIt.unregister<RootRouter>();
+      }
+      getIt.registerSingleton<RootRouter>(recordingRouter);
+      addTearDown(() {
+        if (getIt.isRegistered<RootRouter>()) {
+          getIt.unregister<RootRouter>();
+        }
+      });
+
+      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+      final l10n = lookupL10n(const Locale('en'));
+
+      await tester.tap(find.byKey(const Key('block_confirm_button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      await tester.tap(find.text(l10n.blockManageAction));
+      await tester.pump();
+
+      expect(recordingRouter.pushedRoutes, hasLength(1));
+      expect(recordingRouter.pushedRoutes.single.routeName, BlockedUsersRoute.name);
+    });
+  });
 }
 
 Future<void> pumpBlockUserSheet(
@@ -136,9 +187,13 @@ Future<void> pumpBlockUserSheet(
       supportedLocales: L10n.supportedLocales,
       home: TenturaResponsiveScope(
         child: Scaffold(
-          body: BlockUserSheetBody(
-            profile: profile,
-            blockCase: fakeCase,
+          body: Navigator(
+            onGenerateRoute: (_) => MaterialPageRoute<void>(
+              builder: (_) => BlockUserSheetBody(
+                profile: profile,
+                blockCase: fakeCase,
+              ),
+            ),
           ),
         ),
       ),
@@ -150,6 +205,15 @@ Future<void> pumpBlockUserSheet(
 class FakeBlockCase implements BlockCase {
   List<BlockPreview> previewResults = [const BlockPreview()];
   final List<int> previewCalls = [];
+  final List<int> blockCalls = [];
+
+  @override
+  Future<void> block({
+    required String objectId,
+    required int cascadeMode,
+  }) async {
+    blockCalls.add(cascadeMode);
+  }
 
   @override
   Future<BlockPreview> preview({
@@ -166,4 +230,17 @@ class FakeBlockCase implements BlockCase {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _RecordingRootRouter extends Fake implements RootRouter {
+  final pushedRoutes = <PageRouteInfo<dynamic>>[];
+
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo<dynamic> route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    pushedRoutes.add(route);
+    return null;
+  }
 }
