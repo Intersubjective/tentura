@@ -80,4 +80,17 @@ cd packages/server && dart test test/domain/evaluation/evaluation_case_test.dart
 ```
 Client untouched (no compile break expected until GraphQL codegen in C1/A3).
 
+**Overseer review: ACCEPTED.** Independently reran the three test files (68 passed) and
+`./scripts/check-custom-lints.sh packages/server` (0, baseline 0) from a clean shell.
+Confirmed zero remaining source references to `countDistinctEvaluatorsForEvaluated`
+(only a stale gitignored compiled binary at `packages/server/bin/tentura` matched, not
+source). Verified `evaluationReceivedTrustToneFromValue` correctly special-cases
+`noBasis` before falling through to `reviewValueToBin`, so D6 holds. Verified
+`evaluationToneFromValues`/`evaluationSummaryAggregates` (the old aggregate helpers,
+now reachable with un-filtered `noBasis` rows via the `evaluationSummary` adapter)
+already `default`/ignore any value outside `neg2..pos2`, so `noBasis` rows still don't
+skew the legacy aggregate tone/counts — no regression there. `buildEvaluationSummaryGraphqlPayload`
+in `evaluation_summary_rules.dart` is pre-existing dead code (only referenced by its own
+test), unrelated to this unit, left alone correctly.
+
 (Appended chronologically below as units complete.)
