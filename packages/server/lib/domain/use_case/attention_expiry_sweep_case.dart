@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/utils/id.dart';
 
 @Singleton(order: 3)
@@ -39,12 +40,34 @@ class AttentionExpirySweepCase {
               actorUserId: null,
               sourceEventKey: 'request_status:${generateId('A')}',
             );
-            final didClose = await _reviewFinalization.closeAndFinalize(
+            final result = await _reviewFinalization.closeAndFinalize(
               beaconId,
               reason: BeaconLifecycleChangeReason.reviewExpired,
             );
-            if (didClose) {
+            if (result.didClose) {
               await transaction.record(intent);
+              final beaconTitle = result.beaconTitle ?? '';
+              for (final pair in result.pairs) {
+                if (pair.bin == TrustBin.noEffect) continue;
+                final given = await _intents.trustGivenChanged(
+                  beaconId: beaconId,
+                  beaconTitle: beaconTitle,
+                  evaluatorId: pair.evaluatorId,
+                  evaluatedUserId: pair.evaluatedUserId,
+                  bin: pair.bin,
+                  sourceEventKey: 'trust_given:${generateId('A')}',
+                );
+                await transaction.record(given);
+                final received = await _intents.trustReceivedChanged(
+                  beaconId: beaconId,
+                  beaconTitle: beaconTitle,
+                  evaluatorId: pair.evaluatorId,
+                  evaluatedUserId: pair.evaluatedUserId,
+                  bin: pair.bin,
+                  sourceEventKey: 'trust_received:${generateId('A')}',
+                );
+                await transaction.record(received);
+              }
               closed++;
             }
           },

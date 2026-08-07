@@ -39,6 +39,7 @@ import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
 import '_use_case_base.dart';
 
 List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
@@ -504,13 +505,37 @@ final class EvaluationCase extends UseCaseBase {
                   actorUserId: userId,
                   sourceEventKey: 'request_status:${generateId('A')}',
                 );
-          await _reviewFinalization!.closeAndFinalize(
+          final result = await _reviewFinalization!.closeAndFinalize(
             beaconId,
             reason: BeaconLifecycleChangeReason.authorCloseNow,
             actorUserId: userId,
           );
           if (intent != null) {
             await transaction!.record(intent);
+          }
+          if (transaction != null && result.didClose) {
+            final beaconTitle = result.beaconTitle ?? beacon.title;
+            for (final pair in result.pairs) {
+              if (pair.bin == TrustBin.noEffect) continue;
+              final given = await _attentionIntents!.trustGivenChanged(
+                beaconId: beaconId,
+                beaconTitle: beaconTitle,
+                evaluatorId: pair.evaluatorId,
+                evaluatedUserId: pair.evaluatedUserId,
+                bin: pair.bin,
+                sourceEventKey: 'trust_given:${generateId('A')}',
+              );
+              await transaction!.record(given);
+              final received = await _attentionIntents!.trustReceivedChanged(
+                beaconId: beaconId,
+                beaconTitle: beaconTitle,
+                evaluatorId: pair.evaluatorId,
+                evaluatedUserId: pair.evaluatedUserId,
+                bin: pair.bin,
+                sourceEventKey: 'trust_received:${generateId('A')}',
+              );
+              await transaction!.record(received);
+            }
           }
           return BeaconCloseReviewResult(
             id: beaconId,
