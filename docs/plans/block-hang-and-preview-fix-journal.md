@@ -90,4 +90,4 @@ Plus each unit's own targeted test path (see plan).
 - `cd packages/client && flutter test test/features/block/block_cache_invalidation_test.dart` — pass (2 tests)
 - `cd packages/client && flutter test test/features/graph/` — pass (132 tests)
 
-**Commit:** (pending — see final entry below)
+**Commit:** `fde73c8b` — fix(client): scope graph cache invalidation on block events (P2)
