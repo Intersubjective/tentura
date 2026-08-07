@@ -66,54 +66,52 @@ class AskComposerFields extends StatelessWidget {
   Widget build(BuildContext context) {
     final preview = messagePreview?.trim();
     final theme = Theme.of(context);
-    return SelectionArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (preview != null && preview.isNotEmpty) ...[
-            Text(
-              l10n.coordinationAskFromMessagePreview,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (preview != null && preview.isNotEmpty) ...[
+          Text(
+            l10n.coordinationAskFromMessagePreview,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: kSpacingSmall),
-            SelectableText(
-              preview,
-              style: theme.textTheme.bodyMedium,
-              maxLines: 6,
-            ),
-            const SizedBox(height: kSpacingSmall),
-          ],
-          TextField(
-            key: TestIds.key(TestIds.coordinationComposerTitle),
-            controller: titleController,
-            onChanged: (_) => onChanged(),
-            maxLines: 2,
-            minLines: 1,
-            decoration: InputDecoration(
-              labelText: l10n.labelTitleOptional,
-            ),
-            textInputAction: TextInputAction.next,
-            enabled: !submitting,
           ),
           const SizedBox(height: kSpacingSmall),
-          TextField(
-            key: TestIds.key(TestIds.coordinationComposerBody),
-            controller: bodyController,
-            onChanged: (_) => onChanged(),
+          SelectableText(
+            preview,
+            style: theme.textTheme.bodyMedium,
             maxLines: 6,
-            minLines: 3,
-            decoration: InputDecoration(
-              labelText: l10n.labelBody,
-            ),
-            textInputAction: TextInputAction.newline,
-            enabled: !submitting,
-            autofocus: preview == null || preview.isEmpty,
           ),
+          const SizedBox(height: kSpacingSmall),
         ],
-      ),
+        TextField(
+          key: TestIds.key(TestIds.coordinationComposerTitle),
+          controller: titleController,
+          onChanged: (_) => onChanged(),
+          maxLines: 2,
+          minLines: 1,
+          decoration: InputDecoration(
+            labelText: l10n.labelTitleOptional,
+          ),
+          textInputAction: TextInputAction.next,
+          enabled: !submitting,
+        ),
+        const SizedBox(height: kSpacingSmall),
+        TextField(
+          key: TestIds.key(TestIds.coordinationComposerBody),
+          controller: bodyController,
+          onChanged: (_) => onChanged(),
+          maxLines: 6,
+          minLines: 3,
+          decoration: InputDecoration(
+            labelText: l10n.labelBody,
+          ),
+          textInputAction: TextInputAction.newline,
+          enabled: !submitting,
+          autofocus: preview == null || preview.isEmpty,
+        ),
+      ],
     );
   }
 }

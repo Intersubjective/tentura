@@ -35,11 +35,11 @@ typedef ChooseLocationMapBuilder =
     );
 
 class ChooseLocationDialog extends StatefulWidget {
-  static Future<Location?> show(BuildContext context, {Coordinates? center}) {
+  static Future<Location?> show(BuildContext context, {Coordinates? center}) async {
     if (!GetIt.I<Env>().isGoogleMapsConfigured) {
       return Future.value();
     }
-    return showAdaptiveDialog<Location>(
+    final result = await showAdaptiveDialog<Location>(
       context: context,
       useSafeArea: false,
       builder: (_) => ChooseLocationDialog(
@@ -48,6 +48,8 @@ class ChooseLocationDialog extends StatefulWidget {
             : Coordinates(lat: center.lat, long: center.long),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
+    return result;
   }
 
   const ChooseLocationDialog({this.center, this.mapBuilder, super.key});

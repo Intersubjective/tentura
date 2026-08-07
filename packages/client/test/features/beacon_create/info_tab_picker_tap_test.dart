@@ -16,6 +16,7 @@ import 'package:tentura/features/geo/data/repository/geo_repository.dart';
 import 'package:tentura/features/geo/data/service/google_geocoding_service.dart';
 import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
@@ -44,6 +45,28 @@ Future<void> _expandLogisticsGroup(WidgetTester tester) async {
   await tester.tap(find.text('Logistics'));
   await tester.pumpAndSettle();
 }
+
+Future<void> _dismissRequirementsSheetUnchanged(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+}
+
+void _expectPrimaryFocusOnScope() {
+  expect(FocusManager.instance.primaryFocus, isA<FocusScopeNode>());
+}
+
+Finder _requirementsInkWell() => find.ancestor(
+  of: find.text('Requirements'),
+  matching: find.byType(InkWell),
+);
+
+Finder _timingFieldInkWell() => find.ancestor(
+  of: find.byKey(const Key('BeaconCreate.TimingField')),
+  matching: find.byType(InkWell),
+);
+
+Finder _descriptionField() => find.byKey(TestIds.key(TestIds.requestDescription));
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
@@ -535,4 +558,76 @@ void main() {
 
     expect(find.byType(DraggableScrollableSheet), findsNothing);
   });
+
+  testWidgets('picker InkWells are not keyboard-focusable', (tester) async {
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<InkWell>(_requirementsInkWell().first).canRequestFocus,
+      isFalse,
+    );
+
+    await tester.tap(find.text('Deadline'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<InkWell>(_timingFieldInkWell().first).canRequestFocus,
+      isFalse,
+    );
+  });
+
+  testWidgets(
+    'requirements dismiss clears stale focus; description accepts keys after one tap',
+    (tester) async {
+      await tester.pumpWidget(_infoTabHarness(cubit));
+      await tester.pumpAndSettle();
+
+      const before = 'before overlay';
+      await tester.enterText(_descriptionField(), before);
+      await tester.pump();
+
+      await _openRequirementsSheet(tester);
+      await _dismissRequirementsSheetUnchanged(tester);
+      _expectPrimaryFocusOnScope();
+
+      const afterOverlay = 'typed after one tap';
+      await tester.tap(_descriptionField());
+      await tester.pump();
+      await tester.enterText(_descriptionField(), afterOverlay);
+      await tester.pump();
+
+      expect(cubit.state.description, afterOverlay);
+    },
+  );
+
+  testWidgets(
+    'date picker dismiss clears stale focus; description accepts keys after one tap',
+    (tester) async {
+      await tester.pumpWidget(_infoTabHarness(cubit));
+      await tester.pumpAndSettle();
+
+      const before = 'before date picker';
+      await tester.enterText(_descriptionField(), before);
+      await tester.pump();
+
+      await tester.tap(find.text('Deadline'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      _expectPrimaryFocusOnScope();
+
+      const afterPicker = 'typed after date picker';
+      await tester.tap(_descriptionField());
+      await tester.pump();
+      await tester.enterText(_descriptionField(), afterPicker);
+      await tester.pump();
+
+      expect(cubit.state.description, afterPicker);
+    },
+  );
 }

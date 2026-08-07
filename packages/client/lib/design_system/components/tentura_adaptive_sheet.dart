@@ -16,10 +16,11 @@ Future<T?> showTenturaAdaptiveSheet<T>({
   bool isDismissible = true,
   double? maxWidth,
   double maxHeightFraction = 0.9,
-}) {
+}) async {
   final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
+  final T? result;
   if (windowClass == WindowClass.compact) {
-    return showModalBottomSheet<T>(
+    result = await showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
       showDragHandle: showDragHandle,
@@ -29,29 +30,31 @@ Future<T?> showTenturaAdaptiveSheet<T>({
       isDismissible: isDismissible,
       builder: builder,
     );
-  }
+  } else {
+    result = await showDialog<T>(
+      context: context,
+      useRootNavigator: useRootNavigator,
+      builder: (dialogContext) {
+        final tt = dialogContext.tt;
+        final size = MediaQuery.sizeOf(dialogContext);
+        final resolvedMaxWidth = maxWidth ?? tt.contentMaxWidth ?? size.width;
+        final maxHeight = size.height * maxHeightFraction;
+        final child = builder(dialogContext);
 
-  return showDialog<T>(
-    context: context,
-    useRootNavigator: useRootNavigator,
-    builder: (dialogContext) {
-      final tt = dialogContext.tt;
-      final size = MediaQuery.sizeOf(dialogContext);
-      final resolvedMaxWidth = maxWidth ?? tt.contentMaxWidth ?? size.width;
-      final maxHeight = size.height * maxHeightFraction;
-      final child = builder(dialogContext);
-
-      return SafeArea(
-        child: Dialog(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: resolvedMaxWidth,
-              maxHeight: maxHeight,
+        return SafeArea(
+          child: Dialog(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: resolvedMaxWidth,
+                maxHeight: maxHeight,
+              ),
+              child: child,
             ),
-            child: child,
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
+  FocusManager.instance.primaryFocus?.unfocus();
+  return result;
 }

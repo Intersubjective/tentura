@@ -72,6 +72,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     super.dispose();
   }
 
+  /// Clears primary focus after an overlay route pops so Navigator restoration
+  /// cannot leave a non-editing target (e.g. picker InkWell) holding focus on web.
+  void _clearFocusAfterOverlay() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   /// Copies in-flight [TextEditingController] text into the cubit so modal sheets
   /// (requirements picker) cannot leave draft state behind if focus/IME did not
   /// flush [TextFormField.onChanged] before the overlay opened.
@@ -310,6 +316,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
+                    canRequestFocus: false,
                     borderRadius: BorderRadius.circular(12),
                     onTap: () => unawaited(_showRequirementsSheet(context)),
                     child: Padding(
@@ -539,6 +546,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        canRequestFocus: false,
         onTap: onTap,
         child: InputDecorator(
           key: key,
@@ -582,6 +590,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       lastDate: lastDate,
       initialEntryMode: DatePickerEntryMode.calendarOnly,
     );
+    _clearFocusAfterOverlay();
     if (picked != null) {
       _cubit.setDeadline(picked);
     }
@@ -619,6 +628,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       initialEntryMode: DatePickerEntryMode.calendarOnly,
       saveText: _l10n.buttonOk,
     );
+    _clearFocusAfterOverlay();
     if (dateRange != null) {
       final sameDay =
           dateRange.start.year == dateRange.end.year &&
