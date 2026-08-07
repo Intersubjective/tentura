@@ -307,3 +307,26 @@ cd packages/client && flutter analyze lib/features/evaluation/   # pre-existing 
 cd packages/client && flutter test test/features/evaluation/   # 53 passed
 ./scripts/check-custom-lints.sh packages/client                # exit 0, baseline 111 unchanged
 ```
+
+**Overseer note on the interruption:** the first two launch attempts for this unit were
+killed by background-task infrastructure within seconds, before any work happened (empty
+logs, clean worktree both times — nothing to preserve). The third attempt ran in the
+background and produced real work (schema.graphql + 2 `.graphql` docs, uncommitted) before
+also being killed mid-session. That partial work was inspected, found well-formed and
+correctly matching the A3 server shapes (alphabetized fields, correct types), and preserved.
+A recovery worker was then launched **in the foreground** (bypassing whatever was killing
+background sessions) with an explicit prompt describing the partial state and continuing
+from GraphQL codegen onward — this is the run captured above.
+
+**Overseer review: ACCEPTED.** Independently reran `dart run build_runner build -d` (0
+outputs — already up to date, confirming the worker's own codegen run was already
+complete and committed correctly), `flutter analyze lib/features/evaluation/` (14 issues,
+all pre-existing/unrelated to this unit's files — verified the one hit inside
+`evaluation_repository.dart` at line 176 predates this unit by diffing against the pre-C1
+commit), `flutter test test/features/evaluation/` (53 passed), and
+`check-custom-lints.sh packages/client` (109, down from baseline 111 — strictly better, not
+a regression). Verified the `DateTime.parse(...)` (no `.toLocal()`) convention against
+`beacon_room_repository.dart`'s existing read paths, confirming the worker's stated
+UTC-handling judgement call was checked against real code. Domain entities correctly avoid
+Flutter/design-system imports per clean-architecture rule. `fetchSummary`/old
+`evaluation_summary.dart` left untouched as instructed.
