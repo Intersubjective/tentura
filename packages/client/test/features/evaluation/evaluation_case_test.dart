@@ -5,7 +5,9 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_received.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluations_written_about_viewer.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
@@ -282,6 +284,13 @@ class FakeEvaluationRepository implements EvaluationRepository {
     tone: '',
     message: '',
   );
+  EvaluationReceived evaluationReceivedResult = const EvaluationReceived(
+    beaconId: '',
+    beaconTitle: '',
+    windowClosed: false,
+  );
+  List<EvaluationsWrittenAboutViewerRow> evaluationsWrittenAboutMeByResult =
+      const [];
   ({ReviewWindowInfo window, List<EvaluationParticipant> participants})
       draftBootstrapResult = (
     window: ReviewWindowInfo(beaconId: '', hasWindow: false),
@@ -303,6 +312,8 @@ class FakeEvaluationRepository implements EvaluationRepository {
   String? lastReviewWindowBeaconId;
   String? lastParticipantsBeaconId;
   String? lastSummaryBeaconId;
+  String? lastEvaluationReceivedBeaconId;
+  String? lastEvaluationsWrittenAboutMeByAuthorId;
   String? lastDraftBootstrapBeaconId;
   String? lastDraftParticipantsBeaconId;
 
@@ -359,6 +370,20 @@ class FakeEvaluationRepository implements EvaluationRepository {
   Future<List<EvaluationParticipant>> fetchParticipants(String beaconId) async {
     lastParticipantsBeaconId = beaconId;
     return participantsResult;
+  }
+
+  @override
+  Future<EvaluationReceived> evaluationReceived(String beaconId) async {
+    lastEvaluationReceivedBeaconId = beaconId;
+    return evaluationReceivedResult;
+  }
+
+  @override
+  Future<List<EvaluationsWrittenAboutViewerRow>> evaluationsWrittenAboutMeBy(
+    String authorOfReviewsId,
+  ) async {
+    lastEvaluationsWrittenAboutMeByAuthorId = authorOfReviewsId;
+    return evaluationsWrittenAboutMeByResult;
   }
 
   @override

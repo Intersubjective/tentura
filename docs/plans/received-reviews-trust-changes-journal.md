@@ -40,7 +40,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | A3 | Server: GraphQL API wiring (`query_evaluation.dart`, `custom_types.dart`, `gql_v2_dto_maps.dart`, `gql_public` DTOs) | §4.5 | done |
 | B1 | Server: widen `closeAndFinalize` return + `ReviewCloseSnapshot.beaconTitle` + `AttentionIntentCase` builders + call sites (`EvaluationCase.closeNow`, `AttentionExpirySweepCase.runDue`) | §4.3 | done |
 | B2 | Server+client: `AttentionEventType` + exhaustive `attention_policy.dart` switches + `AttentionDestinationKind.receivedReviews` + contract JSON (both copies) + `attention_policy_test.dart` fixtures + client `destination_map.dart` wire-name branch | §4.4 | done |
-| C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | pending |
+| C1 | Client: domain entity `evaluation_received.dart`, repository methods + `.graphql` docs, `schema.graphql` update, `build_client.dart` operation names, codegen | §5.1 | done |
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | pending |
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | pending |
 | D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | pending |
@@ -278,3 +278,32 @@ gained real fixtures for both event types (not just contract bookkeeping). Both 
 correctly skip `TrustBin.noEffect` pairs per the Q1 default, and both use fresh
 per-pair-per-direction `sourceEventKey`s. This closes out all server-side work (A1-A3,
 B1-B2) — client units (C1 onward) can now build against a stable GraphQL/Updates surface.
+
+### C1 — Client evaluation domain/data layer (§5.1)
+
+**Recovery note:** This unit recovered from an interrupted prior worker session that had already landed `schema.graphql` and the two `.graphql` documents before infrastructure cut the session off; this continuation ran codegen, entities, routing, and repository methods on top of that work.
+
+**What changed**
+- `packages/client/lib/data/gql/schema.graphql` — added `evaluationReceived` / `evaluationsWrittenAboutMeBy` query fields and `v2_EvaluationReceived` / `v2_EvaluationReceivedRow` / `v2_EvaluationsWrittenAboutViewerRow` types (verified against server A3 shapes).
+- New Ferry documents: `evaluation_received.graphql`, `evaluations_written_about_me_by.graphql`; codegen via `dart run build_runner build -d` (generated `_g/` artifacts gitignored).
+- `build_client.dart` — registered `'EvaluationReceived'` and `'EvaluationsWrittenAboutMeBy'` in `_tenturaDirectOperationNames` for V2 direct routing.
+- New Freezed domain entities: `evaluation_received.dart` (`EvaluationReceivedTrustTone`, `EvaluationReceivedRow`, `EvaluationReceived`) and `evaluations_written_about_viewer.dart` (`EvaluationsWrittenAboutViewerRow`).
+- `evaluation_repository.dart` — added `evaluationReceived(beaconId)` and `evaluationsWrittenAboutMeBy(authorOfReviewsId)` with GraphQL→entity mapping; left `fetchSummary` untouched (C2 migration).
+- Tests: `evaluation_received_trust_tone_test.dart`; extended `FakeEvaluationRepository` in `evaluation_case_test.dart`.
+
+**Judgement calls**
+- **`reviewerRole`:** stored as `int` (0–3) on `EvaluationReceivedRow`, not `EvaluationParticipantRole` — client enum lacks `formerCommitter(3)` (`evaluation_participant.dart` has only author/committer/forwarder); UI layer can map int→label in C2.
+- **`trustTone` wire mapping:** `EvaluationReceivedTrustTone.fromWire(String)` maps server `tone.name` strings (`up`/`down`/`noChange`/`noBasis`); unrecognized values fall back to `noChange` (mirrors B2 `_trustChangePresentationKey` neutral default, distinct from `noBasis`).
+- **DateTime parsing:** `DateTime.parse(raw).toUtc()` for `occurredAt` and `beaconClosedAt` — matches issue-112 UTC convention used server-side (`.toUtc().toIso8601String()`) and client `beacon_room_repository.dart` read paths.
+- **Entity field naming:** domain uses `trustTone` (not server wire `tone`) to keep Flutter/design-system `TenturaTone` mapping at UI layer per clean-architecture rule.
+- **No `EvaluationCase` changes:** deferred — no cubit consumer yet in this unit.
+
+**Commits:** `17b42c96` (schema + `.graphql` docs), `e063728f` (entities + `build_client.dart`), `a70165cf` (repository + tests + journal).
+
+**Verification**
+```bash
+cd packages/client && dart run build_runner build -d
+cd packages/client && flutter analyze lib/features/evaluation/   # pre-existing warnings only; 0 errors in new code
+cd packages/client && flutter test test/features/evaluation/   # 53 passed
+./scripts/check-custom-lints.sh packages/client                # exit 0, baseline 111 unchanged
+```

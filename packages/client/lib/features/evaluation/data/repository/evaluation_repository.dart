@@ -5,7 +5,9 @@ import 'package:tentura/data/service/remote_api_service.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_received.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluations_written_about_viewer.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
@@ -22,6 +24,10 @@ import '../gql/_g/evaluation_participants.data.gql.dart';
 import '../gql/_g/evaluation_participants.req.gql.dart';
 import '../gql/_g/evaluation_skip.req.gql.dart';
 import '../gql/_g/evaluation_submit.req.gql.dart';
+import '../gql/_g/evaluation_received.data.gql.dart';
+import '../gql/_g/evaluation_received.req.gql.dart';
+import '../gql/_g/evaluations_written_about_me_by.data.gql.dart';
+import '../gql/_g/evaluations_written_about_me_by.req.gql.dart';
 import '../gql/_g/evaluation_summary.req.gql.dart';
 import 'package:tentura/features/my_work/data/gql/_g/my_work_review_windows.req.gql.dart';
 import '../gql/_g/review_window_status.req.gql.dart';
@@ -191,6 +197,44 @@ class EvaluationRepository {
     ]);
     return (window: window, participants: participants);
   }
+
+  Future<EvaluationReceived> evaluationReceived(String beaconId) =>
+      _remoteApiService
+          .request(
+            GEvaluationReceivedReq(
+              (b) => b.vars.id = beaconId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final received =
+                r.dataOrThrow(label: _label).evaluationReceived;
+            return EvaluationReceived(
+              beaconId: received.beaconId,
+              beaconTitle: received.beaconTitle,
+              windowClosed: received.windowClosed,
+              rows: received.rows.map(_mapEvaluationReceivedRow).toList(),
+            );
+          });
+
+  Future<List<EvaluationsWrittenAboutViewerRow>> evaluationsWrittenAboutMeBy(
+    String authorOfReviewsId,
+  ) =>
+      _remoteApiService
+          .request(
+            GEvaluationsWrittenAboutMeByReq(
+              (b) => b.vars.id = authorOfReviewsId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final rows =
+                r.dataOrThrow(label: _label).evaluationsWrittenAboutMeBy;
+            if (rows == null) {
+              return <EvaluationsWrittenAboutViewerRow>[];
+            }
+            return rows.map(_mapEvaluationsWrittenAboutViewerRow).toList();
+          });
 
   Future<EvaluationSummary> fetchSummary(String beaconId) =>
       _remoteApiService
@@ -370,6 +414,41 @@ class EvaluationRepository {
             },
           );
 }
+
+EvaluationReceivedRow _mapEvaluationReceivedRow(
+  GEvaluationReceivedData_evaluationReceived_rows row,
+) =>
+    EvaluationReceivedRow(
+      reviewerId: row.reviewerId,
+      reviewerDisplayName: row.reviewerDisplayName,
+      reviewerImageId: row.reviewerImageId,
+      reviewerRole: row.reviewerRole,
+      value: row.value,
+      trustTone: EvaluationReceivedTrustTone.fromWire(row.tone),
+      reasonTags: row.reasonTags.toList(),
+      note: row.note,
+      occurredAt: _parseUtcDateTime(row.occurredAt),
+    );
+
+EvaluationsWrittenAboutViewerRow _mapEvaluationsWrittenAboutViewerRow(
+  GEvaluationsWrittenAboutMeByData_evaluationsWrittenAboutMeBy row,
+) =>
+    EvaluationsWrittenAboutViewerRow(
+      beaconId: row.beaconId,
+      beaconTitle: row.beaconTitle,
+      beaconClosedAt: row.beaconClosedAt == null
+          ? null
+          : _parseUtcDateTime(row.beaconClosedAt!),
+      evaluatorId: row.evaluatorId,
+      evaluatedUserId: row.evaluatedUserId,
+      value: row.value,
+      trustTone: EvaluationReceivedTrustTone.fromWire(row.tone),
+      reasonTags: row.reasonTags.toList(),
+      note: row.note,
+      occurredAt: _parseUtcDateTime(row.occurredAt),
+    );
+
+DateTime _parseUtcDateTime(String raw) => DateTime.parse(raw).toUtc();
 
 EvaluationParticipantRole _roleFromInt(int v) => switch (v) {
       0 => EvaluationParticipantRole.author,
