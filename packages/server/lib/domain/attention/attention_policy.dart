@@ -41,7 +41,7 @@ class AttentionPolicy {
       inAppPreferenceClass: preference,
       accessPolicy: accessPolicy,
       destination: destination,
-      presentationKey: _presentationKey(eventType),
+      presentationKey: _presentationKey(eventType, role),
       presentationPayload: _presentationPayload(eventType, role),
       requiresAction: requiresAction,
       attentionThreadKey: requiresAction
@@ -86,6 +86,8 @@ class AttentionPolicy {
     AttentionEventType.commitmentResolved ||
     AttentionEventType.commitmentCancelled => AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected => AttentionSuppressionClass.mandatory,
+    AttentionEventType.trustGivenChanged ||
+    AttentionEventType.trustReceivedChanged => AttentionSuppressionClass.standard,
   };
 
   bool _isActiveRequestParticipant(AttentionRecipientReason reason) =>
@@ -121,6 +123,8 @@ class AttentionPolicy {
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.coordinationChanged ||
     AttentionEventType.commitmentCancelled => NotificationCategory.coordination,
+    AttentionEventType.trustGivenChanged ||
+    AttentionEventType.trustReceivedChanged => NotificationCategory.connections,
   };
 
   AttentionAccessPolicy _accessPolicy(
@@ -151,7 +155,9 @@ class AttentionPolicy {
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved ||
     AttentionEventType.commitmentCancelled ||
-    AttentionEventType.commitmentRedirected => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.commitmentRedirected ||
+    AttentionEventType.trustGivenChanged ||
+    AttentionEventType.trustReceivedChanged => AttentionAccessPolicy.beaconContent,
   };
 
   AttentionDestination _destination(
@@ -206,6 +212,14 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.profile,
         targetEntityId: role.targetEntityId,
       ),
+      AttentionEventType.trustGivenChanged => AttentionDestination(
+        kind: AttentionDestinationKind.profile,
+        targetEntityId: role.targetEntityId,
+      ),
+      AttentionEventType.trustReceivedChanged => AttentionDestination(
+        kind: AttentionDestinationKind.receivedReviews,
+        targetEntityId: role.beaconId,
+      ),
     };
   }
 
@@ -217,6 +231,8 @@ class AttentionPolicy {
           AttentionPreferenceClass.coordinationChurn,
         AttentionEventType.requestStatusChanged =>
           AttentionPreferenceClass.requestProgress,
+        AttentionEventType.trustGivenChanged ||
+        AttentionEventType.trustReceivedChanged => null,
         _ => null,
       };
 
@@ -235,6 +251,8 @@ class AttentionPolicy {
           reasons.contains(AttentionRecipientReason.targetOfAsk),
     AttentionEventType.commitmentRedirected =>
       reasons.contains(AttentionRecipientReason.targetOfAsk),
+    AttentionEventType.trustGivenChanged ||
+    AttentionEventType.trustReceivedChanged => false,
     _ => false,
   };
 
@@ -256,7 +274,10 @@ class AttentionPolicy {
     ].join('|');
   }
 
-  String _presentationKey(AttentionEventType eventType) => switch (eventType) {
+  String _presentationKey(
+    AttentionEventType eventType,
+    AttentionRecipientRoleFacts role,
+  ) => switch (eventType) {
     AttentionEventType.relayReceived => 'relay_received',
     AttentionEventType.helpOfferSubmitted => 'help_offer_submitted',
     AttentionEventType.offerAccepted => 'offer_accepted',
@@ -279,7 +300,22 @@ class AttentionPolicy {
     AttentionEventType.commitmentResolved => 'commitment_resolved',
     AttentionEventType.commitmentCancelled => 'commitment_cancelled',
     AttentionEventType.commitmentRedirected => 'commitment_redirected',
+    AttentionEventType.trustGivenChanged => _trustChangePresentationKey(
+      'trust_given_changed',
+      role.trustDirection,
+    ),
+    AttentionEventType.trustReceivedChanged => _trustChangePresentationKey(
+      'trust_received_changed',
+      role.trustDirection,
+    ),
   };
+
+  String _trustChangePresentationKey(String prefix, String? trustDirection) =>
+      switch (trustDirection) {
+        'up' => '${prefix}_up',
+        'down' => '${prefix}_down',
+        _ => '${prefix}_neutral',
+      };
 
   Map<String, Object?> _presentationPayload(
     AttentionEventType eventType,

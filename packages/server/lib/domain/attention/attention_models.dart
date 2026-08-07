@@ -29,6 +29,8 @@ enum AttentionEventType {
   commitmentCancelled,
   commitmentRedirected,
   commitmentReleased,
+  trustGivenChanged,
+  trustReceivedChanged,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -115,6 +117,7 @@ enum AttentionDestinationKind {
   beaconRoomMessage,
   review,
   profile,
+  receivedReviews,
   safeTerminal,
 }
 
@@ -126,6 +129,7 @@ extension AttentionDestinationKindWireName on AttentionDestinationKind {
     AttentionDestinationKind.beaconRoomMessage => 'beacon_room_message',
     AttentionDestinationKind.review => 'review',
     AttentionDestinationKind.profile => 'profile',
+    AttentionDestinationKind.receivedReviews => 'received_reviews',
     AttentionDestinationKind.safeTerminal => 'safe_terminal',
   };
 }
@@ -172,6 +176,11 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     String? messageId,
     String? actorUserId,
     String? beaconTitle,
+    /// Trust direction for presentation-key encoding: `up`, `down`, `noChange`.
+    ///
+    /// Mirrors receiver-facing trust tone naming without coupling to evaluation
+    /// domain types. Null and unmapped values fall through to a neutral key.
+    String? trustDirection,
   }) = _AttentionRecipientRoleFacts;
 }
 

@@ -256,6 +256,7 @@ RETURNING id
     'messageId': role.messageId,
     'actorUserId': role.actorUserId,
     'beaconTitle': role.beaconTitle,
+    'trustDirection': role.trustDirection,
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {
