@@ -37,5 +37,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('closed'), findsOneWidget);
+    expect(find.text('View my reviews'), findsOneWidget);
   });
 }

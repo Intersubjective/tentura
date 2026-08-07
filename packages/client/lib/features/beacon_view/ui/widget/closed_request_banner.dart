@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import 'beacon_hud_action_button.dart';
 
 /// Persistent, non-dismissible banner when a request is closed (status 6).
 class ClosedRequestBanner extends StatelessWidget {
@@ -40,6 +43,14 @@ class ClosedRequestBanner extends StatelessWidget {
                 child: Text(
                   l10n.requestClosedBannerMessage,
                   style: TenturaText.bodyMedium(scheme.onSurface),
+                ),
+              ),
+              const SizedBox(width: TenturaSpacing.cardGap),
+              BeaconHudActionButton(
+                icon: Icons.arrow_forward,
+                label: l10n.closedRequestViewMyReviewsAction,
+                onPressed: () => context.router.push(
+                  ReceivedReviewsRoute(id: beacon.id),
                 ),
               ),
             ],
