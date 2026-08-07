@@ -154,4 +154,14 @@ cd packages/server && dart analyze   # no compile errors in changed files; packa
 ```
 No server GraphQL snapshot/introspection test references `evaluationSummary` (grep under `packages/server/test/`).
 
+**Overseer review: ACCEPTED.** Independently reran `test/domain/evaluation/` +
+`test/domain/use_case/evaluation/` (86 passed), `dart analyze` (0 error-severity issues,
+2191 info-level pre-existing debt, same count check-custom-lints already tolerates), and
+`check-custom-lints.sh packages/server` (0, baseline 0). Confirmed `EvaluationParticipantRole.dbValue`
+is a real existing getter (not invented). Confirmed `.toUtc().toIso8601String()` for
+`occurredAt`/`beaconClosedAt` matches the codebase's established UTC-serialization
+convention from the recent issue-112 timezone-fix work. `evaluationSummary` field left
+byte-for-byte untouched in `query_evaluation.dart`. New types/mappers structurally mirror
+the existing `gqlTypeEvaluationSummary`/`evaluationSummaryToGqlMap` pattern.
+
 (Appended chronologically below as units complete.)
