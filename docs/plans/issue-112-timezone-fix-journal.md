@@ -39,7 +39,7 @@ None of these overlap with files this plan's units touch.
 | # | Unit | Files | Status |
 |---|------|-------|--------|
 | 1 | P1 — client wire-format fix (`scheduleDateTimeToIso`, `.toUtc()`) | `packages/client/lib/features/beacon/data/repository/beacon_repository.dart` + new test | complete |
-| 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | pending |
+| 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | complete |
 | 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | pending |
 | 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | pending |
 | 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | pending |
@@ -84,3 +84,21 @@ and `update()` to use it. New unit test
 - `./scripts/check-custom-lints.sh packages/client` — OK (baseline 111)
 
 **Deviations from plan:** None — live code matched plan line numbers and method names; all six occurrences replaced via `replace_all` on the paired `startAt`/`endAt` lines in three methods.
+
+### 2026-08-07 — P2 complete
+
+**Changed:** Replaced `InputFieldDatetime.fromArgs`/`fromArgsNonNullable` in
+`_input_types.dart` to route all parsed values through `_parseAsUtc` /
+`_forceUtc`, ensuring `isUtc == true` and treating offset-less ISO strings as
+UTC digits. New unit test
+`packages/server/test/api/controllers/graphql/input/input_field_datetime_test.dart`
+(created new `input/` subdirectory under `test/api/controllers/graphql/`, as
+planned — sibling `mappers/` already existed).
+
+**Commit:** `4c8d144d` — fix(server): force UTC parsing for InputFieldDatetime (P2)
+
+**Tests:**
+- `cd packages/server && dart analyze lib/api/controllers/graphql/input/_input_types.dart` — pass (no issues)
+- `cd packages/server && dart test test/api/controllers/graphql/input/input_field_datetime_test.dart` — pass (4 tests)
+
+**Deviations from plan:** None — live code matched plan; helpers placed as private instance methods on `InputFieldDatetime` (plan's indentation implied class scope; import path `package:tentura_server/api/controllers/graphql/input/_input_types.dart` matches sibling tests).
