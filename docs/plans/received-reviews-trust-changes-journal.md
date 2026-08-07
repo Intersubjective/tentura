@@ -404,3 +404,22 @@ cd packages/client && flutter test test/features/beacon_view/ test/features/eval
 ```
 
 **Phase 3 client evaluation feature (plan §6.3/§6.4/§6.6) is now end-to-end reachable** from beacon detail (`reviewOpen` and `closed`) before Updates (D1) or profile (E1) land.
+
+**Overseer review: ACCEPTED.** Independently reran `flutter gen-l10n && dart run build_runner
+build -d` (23 outputs regenerated cleanly), `flutter analyze lib/features/beacon_view/
+lib/features/evaluation/` (90 issues total across both features, all pre-existing/unrelated —
+verified neither `beacon_operational_header_card.dart` nor `closed_request_banner.dart`
+appear in the issue list at all), `flutter test test/features/beacon_view/
+test/features/evaluation/` (267 passed), and `check-custom-lints.sh packages/client` (106,
+further improved from 109 — deleting `evaluation_summary_card.dart` retired its own
+pre-existing design-system violations, consistent with plan §2's note that this file already
+had raw `Card`/`EdgeInsets`/`Chip` debt). Confirmed zero remaining references to
+`BeaconEvaluationHooks`/`EvaluationSummaryCard` anywhere in `lib/` or `test/`, and confirmed
+both files were actually deleted (not just unlinked). Confirmed `fetchSummary` and the
+`EvaluationSummary` entity were correctly left alone per instruction (still compile, just
+now only reachable from the already-dead `EvaluationCubit.loadAll`). Read
+`beacon_operational_header_card_test.dart`'s four new test cases directly: each explicitly
+asserts `find.text('See the reviews you receive')` across all four `ReviewWindowBannerHost`
+states (loading, non-author-with-work, author-waiting, shrink) — this is exactly the
+regression the plan was warning about (a CTA appended inside only one branch would vanish in
+the others), and the tests prove it doesn't.
