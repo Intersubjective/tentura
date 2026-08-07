@@ -107,12 +107,38 @@ class InputFieldDatetime {
   final GraphQLFieldInput<String?, String?> fieldNullable;
 
   DateTime? fromArgs(Map<String, dynamic> args) => switch (args[field.name]) {
-    final String field when field.isNotEmpty => DateTime.tryParse(field),
+    final String field when field.isNotEmpty => _parseAsUtc(field),
     _ => null,
   };
 
   DateTime fromArgsNonNullable(Map<String, dynamic> args) =>
-      DateTime.parse(args[field.name]! as String);
+      _forceUtc(DateTime.parse(args[field.name]! as String));
+
+  /// An offset-less ISO string (no trailing `Z`/`+HH:MM`) has no defined
+  /// timezone. Rather than let [DateTime.tryParse] silently interpret it as
+  /// wall-clock time in whatever zone this server process happens to run in
+  /// (issue #112), treat the digits themselves as already being UTC — the
+  /// same effect as if the caller had appended `Z`. This only changes
+  /// behavior for malformed/offset-less input; a correctly UTC-tagged string
+  /// (the only kind any current caller sends, after the client-side fix in
+  /// this same issue) parses identically to before.
+  DateTime? _parseAsUtc(String value) {
+    final parsed = DateTime.tryParse(value);
+    return parsed == null ? null : _forceUtc(parsed);
+  }
+
+  DateTime _forceUtc(DateTime parsed) => parsed.isUtc
+      ? parsed
+      : DateTime.utc(
+          parsed.year,
+          parsed.month,
+          parsed.day,
+          parsed.hour,
+          parsed.minute,
+          parsed.second,
+          parsed.millisecond,
+          parsed.microsecond,
+        );
 }
 
 class InputFieldInt {
