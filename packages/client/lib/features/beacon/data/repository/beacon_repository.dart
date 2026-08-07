@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
@@ -29,6 +30,15 @@ import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 import '../gql/_g/beacons_involved_with_author.req.gql.dart';
+
+/// GraphQL `startAt`/`endAt` inputs must always carry an explicit UTC offset.
+/// [DateTime.toIso8601String] omits any offset entirely for a non-UTC
+/// (local) instance — the picker in `info_tab.dart` intentionally builds
+/// local-midnight values — so every wire write must force UTC first, or the
+/// server has no way to know what instant was meant (issue #112).
+@visibleForTesting
+String? scheduleDateTimeToIso(DateTime? dateTime) =>
+    dateTime?.toUtc().toIso8601String();
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class BeaconRepository implements BeaconWritePort {
@@ -133,8 +143,8 @@ class BeaconRepository implements BeaconWritePort {
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
-        ..startAt = beacon.startAt?.toIso8601String()
-        ..endAt = beacon.endAt?.toIso8601String()
+        ..startAt = scheduleDateTimeToIso(beacon.startAt)
+        ..endAt = scheduleDateTimeToIso(beacon.endAt)
         ..coordinates = beacon.coordinates == null
             ? null
             : (Gv2_CoordinatesBuilder()
@@ -167,8 +177,8 @@ class BeaconRepository implements BeaconWritePort {
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
-        ..startAt = beacon.startAt?.toIso8601String()
-        ..endAt = beacon.endAt?.toIso8601String()
+        ..startAt = scheduleDateTimeToIso(beacon.startAt)
+        ..endAt = scheduleDateTimeToIso(beacon.endAt)
         ..coordinates = beacon.coordinates == null
             ? null
             : (Gv2_CoordinatesBuilder()
@@ -198,8 +208,8 @@ class BeaconRepository implements BeaconWritePort {
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
-        ..startAt = beacon.startAt?.toIso8601String()
-        ..endAt = beacon.endAt?.toIso8601String()
+        ..startAt = scheduleDateTimeToIso(beacon.startAt)
+        ..endAt = scheduleDateTimeToIso(beacon.endAt)
         ..coordinates = beacon.coordinates == null
             ? null
             : (Gv2_CoordinatesBuilder()
