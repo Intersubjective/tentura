@@ -45,7 +45,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | done |
 | D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | done |
 | E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | done |
-| F1 | Client: l10n keys (en+ru) + `pubspec.yaml` version bump + `MIN_CLIENT_VERSION` decision per `DEV_GUIDELINES.md` | §6.7, versioning rule | pending |
+| F1 | Client: l10n keys (en+ru) + `pubspec.yaml` version bump + `MIN_CLIENT_VERSION` decision per `DEV_GUIDELINES.md` | §6.7, versioning rule | done |
 | F2 | Overseer-run: full plan-level verification sweep against §7 acceptance table, gap-fill any missing test coverage, close out | §7 | pending |
 
 Dependencies: A1→A2 (repository file overlap), A2→A3 (needs new types), B1 depends on A1 (evaluation_case.dart churn) landing first to avoid merge pain, B2 depends on B1. C1 depends on A1-A3+B2 (GraphQL schema/contract must be stable before client codegen). C2/C3 depend on C1. D1 depends on B2+C1. E1 depends on A2+C1. F1 last (touches version files), F2 last of all.
@@ -512,3 +512,29 @@ touches) rather than inside `features/evaluation/`, honoring the unit's no-touch
 on that directory. **This closes out all ten implementation units (A1-A3, B1-B2, C1-C3,
 D1, E1) — every plan section except §6.7 (l10n cleanup)/versioning (F1) and the final
 cross-unit verification sweep (F2) is now built, tested, and independently verified.**
+
+### F1 — l10n gap-fill + client version bump (§6.7, versioning)
+
+**What changed**
+- Verified all 14 plan §6.7 l10n keys: 13 present in `app_en.arb` + `app_ru.arb`; no `.arb` edits required.
+- Minor client semver bump: `packages/client/pubspec.yaml` `5.6.54` → `5.7.0` (patch reset to 0).
+- Did **not** touch `packages/server/lib/env.dart` — `kDefaultMinClientVersion` unchanged.
+
+**Judgement calls**
+- **`evaluationReceivedSectionTitle`:** plan-suggested key is **missing and intentionally not added**. Zero references in `packages/client/lib` (`grep -rn evaluationReceivedSectionTitle` → no matches). C2 wired screen titles via `evaluationReceivedScreenTitleGeneric` / `evaluationReceivedScreenTitle(beaconTitle)` in `received_reviews_screen.dart` — ICU-parameterized "My reviews · {beaconTitle}" with a generic fallback; better fit than a static section title. No redundant unused key added.
+- **`MIN_CLIENT_VERSION` not raised:** per `DEV_GUIDELINES.md` minor-bump rule — only raise when old clients cannot work with the new server. A1 kept `evaluationSummary` backward-compatible; A3–E1 only **add** GraphQL fields, `AttentionEventType` values, screens, and widgets — nothing removed/renamed/incompatible. Old clients simply miss the new UI; that is normal minor-release behavior, not breakage.
+
+**Broader l10n sweep**
+- Python cross-check of all `l10n.*` refs under `features/evaluation/`, `features/updates/`, `features/profile_view/` against `app_en.arb`: all 192 identifiers resolve (false positives from import paths excluded). Russian spot-check: all 13 wired keys + `evaluationReceivedScreenTitle*` pairs have human-quality `app_ru.arb` translations matching repo tone.
+
+**Commit:** `af5d0a66` — Client: bump version to 5.7.0 for received-reviews feature release.
+
+**Verification**
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d   # 0 new outputs
+cd packages/client && flutter analyze lib/   # 353 issues, 0 errors (pre-existing info/warnings)
+cd packages/client && flutter test           # +1731 ~14: All tests passed!
+./scripts/check-custom-lints.sh packages/client   # 106, baseline 111 unchanged
+```
+
+**Overseer note:** F1 is the l10n/version cleanup unit; F2 (final §7 verification sweep) remains pending.
