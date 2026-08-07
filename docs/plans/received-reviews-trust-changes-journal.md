@@ -44,7 +44,7 @@ strictly sequentially (one at a time), even where §8 says phases could parallel
 | C2 | Client: `ReceivedReviewsScreen` + `ReceivedReviewTile` + route wiring (`root_router.dart`, `consts.dart`, `home_tab_branches.dart`) + `EvaluationSummaryCard` fix/replace | §6.3, §6.6 | done |
 | C3 | Client: entry points — `ReviewWindowBannerHost`/`beacon_operational_header_card.dart` always-visible CTA + `ClosedRequestBanner` CTA | §6.4 | done |
 | D1 | Client: `TrustChangeReceiptCard` + presentation-key direction threading + `updates_receipt_display_copy.dart` + `updates_screen.dart` dispatch | §5.3, §6.2 | done |
-| E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | pending |
+| E1 | Client: `ProfileReviewsAboutMeCubit` + `reviews_about_me_from_profile_sliver.dart` wiring into `profile_view_screen.dart` | §5.2, §6.5 | done |
 | F1 | Client: l10n keys (en+ru) + `pubspec.yaml` version bump + `MIN_CLIENT_VERSION` decision per `DEV_GUIDELINES.md` | §6.7, versioning rule | pending |
 | F2 | Overseer-run: full plan-level verification sweep against §7 acceptance table, gap-fill any missing test coverage, close out | §7 | pending |
 
@@ -465,3 +465,31 @@ scoped to the received-reviews screen, not a `TrustBin` value this card could ev
 the worker flagged this as a deliberate finding rather than guessing, exactly as instructed.
 Confirmed `UpdatesReceiptCard._iconFor` was correctly left untouched (kind-based, cannot
 distinguish the two trust events) and dispatch happens purely on `presentationKey`.
+
+### E1 — Profile view “Reviews from this person” (§5.2, §6.5)
+
+**What changed**
+- `ProfileReviewsAboutMeCubit` + `ProfileReviewsAboutMeState` — injects `EvaluationRepository` directly; `evaluationsWrittenAboutMeBy(profileOwnerId)` where `profileOwnerId` is `ProfileViewScreen`'s `id` (profile owner, never the viewer).
+- `ReviewsAboutMeFromProfileSliver` — pattern-matched `ProfileSharedBeaconsSliver` (loading `LinearPiActive`, error/empty `SizedBox.shrink()`, section header only when `rows.isNotEmpty`).
+- `evaluation_received_trust_tone_line.dart` — shared `EvaluationTrustToneGlyph` + `EvaluationReceivedTrustToneLine` (third consumer of tone mapping; `ReceivedReviewTile` / `TrustChangeReceiptCard` not refactored to use it — out of E1 scope per no-touch `features/evaluation/` constraint).
+- `profile_view_screen.dart` — third `BlocProvider`, sliver between `ProfileViewBody` and `ProfileSharedBeaconsSliver`, pull-to-refresh `Future.wait` includes `ProfileReviewsAboutMeCubit.fetch()`.
+- l10n: `profileReviewsFromPersonSectionTitle` (en+ru).
+- Widget tests: `reviews_about_me_from_profile_sliver_test.dart` (rows + tone icons, empty shrink, loading).
+
+**Judgement calls**
+- **Thin cubit vs Case + invalidation:** injected `EvaluationRepository` directly (no new use case). Did **not** wire `ProfileSharedBeaconsCase.projectionChanges` / realtime debounce — profile shared-beacons needs live convergence for forwards/help; cross-beacon evaluation rows are server-finalized and not in the shared-beacons invalidation surface; no correctness dependency found on profile-view realtime for this data.
+- **Tone mapping location:** `packages/client/lib/ui/widget/evaluation_received_trust_tone_line.dart` — top-level widgets mirroring `ReceivedReviewTile` glyph/label rules; profile row uses glyph beside tappable title + text-only trust line (no double-icon row).
+- **Request-title tap:** `ScreenCubit.showBeacon(beaconId)` — same pattern as `ProfileSharedBeaconsSliver` beacon cards (`showBeacon`), via `TenturaTextAction` when `beaconId` non-empty.
+- **Display name:** `ProfileViewCubit.state.profile.displayName` (already loaded by profile view); no extra profile fetch.
+
+**Commits:** `d70d3660` (cubit), `e4409f21` (sliver + l10n + shared tone helper), `81a498af` (screen + tests).
+
+**Verification**
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d
+cd packages/client && flutter analyze lib/features/profile_view/
+cd packages/client && flutter test test/features/profile_view/   # 23 passed
+./scripts/check-custom-lints.sh packages/client                  # 106, baseline 111 unchanged
+```
+
+**Note:** E1 is the last plan-implementation unit before l10n/version-bump cleanup (F1) and the final verification sweep (F2).
