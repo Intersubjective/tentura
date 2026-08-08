@@ -106,6 +106,17 @@ abstract final class TestIds {
   static const graphResetToEgo = 'graph.reset_to_ego';
   static const graphCenterView = 'graph.center_view';
 
+  static const graphPersonContextPanel = 'graph.person_context.panel';
+  static const graphPersonContextClose = 'graph.person_context.close';
+  static const graphPersonContextViewProfile =
+      'graph.person_context.view_profile';
+  static const graphPersonContextShowMore = 'graph.person_context.show_more';
+  static const graphPersonContextTrust = 'graph.person_context.trust';
+  static const graphPersonContextSendRequest =
+      'graph.person_context.send_request';
+  static const graphPersonContextRequestOptions =
+      'graph.person_context.request_options';
+
   static const friendsGraph = 'friends.graph';
   static const friendsCreateInvitation = 'friends.create_invitation';
   static const friendsMore = 'friends.more';

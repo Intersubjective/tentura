@@ -49,6 +49,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.iconTextGap,
     required this.avatarTextGap,
     required this.tightGap,
+    required this.graphPersonContextWidth,
+    required this.graphPersonContextCompactMaxHeightFraction,
   });
 
   final Color bg;
@@ -120,6 +122,12 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Hairline nudge between tightly-related stacked lines. Fixed across classes.
   final double tightGap;
 
+  /// Trust-graph person context panel width on regular/expanded layouts.
+  final double graphPersonContextWidth;
+
+  /// Max height fraction for the compact bottom person context card.
+  final double graphPersonContextCompactMaxHeightFraction;
+
   static const TenturaTokens light = TenturaTokens(
     bg: TenturaPalette.bg,
     surface: TenturaPalette.surface,
@@ -159,6 +167,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
     tightGap: TenturaSpacing.tight,
+    graphPersonContextWidth: 320,
+    graphPersonContextCompactMaxHeightFraction: 0.42,
   );
 
   static const TenturaTokens dark = TenturaTokens(
@@ -200,6 +210,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
     tightGap: TenturaSpacing.tight,
+    graphPersonContextWidth: 320,
+    graphPersonContextCompactMaxHeightFraction: 0.42,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -338,6 +350,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? iconTextGap,
     double? avatarTextGap,
     double? tightGap,
+    double? graphPersonContextWidth,
+    double? graphPersonContextCompactMaxHeightFraction,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -380,6 +394,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconTextGap: iconTextGap ?? this.iconTextGap,
       avatarTextGap: avatarTextGap ?? this.avatarTextGap,
       tightGap: tightGap ?? this.tightGap,
+      graphPersonContextWidth:
+          graphPersonContextWidth ?? this.graphPersonContextWidth,
+      graphPersonContextCompactMaxHeightFraction:
+          graphPersonContextCompactMaxHeightFraction ??
+          this.graphPersonContextCompactMaxHeightFraction,
     );
   }
 
@@ -448,6 +467,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconTextGap: lerpDouble(iconTextGap, other.iconTextGap, t)!,
       avatarTextGap: lerpDouble(avatarTextGap, other.avatarTextGap, t)!,
       tightGap: lerpDouble(tightGap, other.tightGap, t)!,
+      graphPersonContextWidth: lerpDouble(
+        graphPersonContextWidth,
+        other.graphPersonContextWidth,
+        t,
+      )!,
+      graphPersonContextCompactMaxHeightFraction: lerpDouble(
+        graphPersonContextCompactMaxHeightFraction,
+        other.graphPersonContextCompactMaxHeightFraction,
+        t,
+      )!,
     );
   }
 }

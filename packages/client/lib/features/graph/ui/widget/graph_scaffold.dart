@@ -11,12 +11,14 @@ class GraphScaffold extends StatefulWidget {
     required this.title,
     this.leading,
     this.progress,
+    this.personContextEnabled = false,
     super.key,
   });
 
   final Widget title;
   final Widget? leading;
   final Widget? progress;
+  final bool personContextEnabled;
 
   @override
   State<GraphScaffold> createState() => _GraphScaffoldState();
@@ -47,6 +49,7 @@ class _GraphScaffoldState extends State<GraphScaffold> {
         child: GraphBody(
           legendExpanded: _legendExpanded,
           onToggleLegend: _toggleLegend,
+          personContextEnabled: widget.personContextEnabled,
         ),
       ),
     );
