@@ -527,3 +527,13 @@ cd ../..
 - Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
 
 **Remaining:** WU6 — Blocked People route ownership.
+
+---
+
+## Manager review — WU5 accepted (2026-08-08)
+
+- Reviewed `96a6b448`: the extracted action group preserves the required compact order (Graph, Create invitation, More), with More ordered Scan invitation QR then Blocked people. Its callback seam keeps Blocked visible for WU6 routing while no WU6 route API exists yet.
+- Confirmed `FriendsScreen` obtains the current `ProfileCubit` account id and calls `ScreenCubit.showGraphFor(id)`; invitation creation and `ConnectBottomSheet.show` remain reachable.
+- Repaired and committed test-only GetIt isolation in `1748556d`: teardown now unregisters only dependencies registered by this test.
+- Independently ran `flutter test test/features/friends/friends_app_bar_actions_test.dart` (4 passed), `./scripts/check-custom-lints.sh packages/client` (OK; 106 vs baseline 111), `git show --check` for `96a6b448`, `e31b11ae`, and `1748556d`, and `git diff --check 9c9fc9dd..HEAD` (clean).
+- **Verdict:** accepted. WU6 may begin; unrelated working-tree entries remain unstaged and untouched.
