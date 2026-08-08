@@ -430,6 +430,48 @@ class GraphCubit extends Cubit<GraphState> {
 
   /// Fits the active path into the viewport. With a trail of one (only the
   /// origin) it fits the origin together with all of its visible neighbours.
+  /// Patches every loaded live-user node for [updated.id] without refetching or
+  /// relayout. Self updates are ignored — ego projection is owned by
+  /// [ProfileCubit].
+  void patchLoadedProfile(Profile updated) {
+    if (updated.id == state.me.id) {
+      assert(
+        false,
+        'Self profile updates belong to ProfileCubit; never patch ego Me projection.',
+      );
+      return;
+    }
+    for (final entry in _nodes.entries) {
+      final node = entry.value;
+      final NodeDetails? replacement = switch (node) {
+        UserNode userNode when userNode.user.id == updated.id => UserNode(
+          user: updated,
+          size: userNode.size,
+          pinned: userNode.pinned,
+          isHelpOfferer: userNode.isHelpOfferer,
+        ),
+        GenealogyUserNode genealogyNode
+            when genealogyNode.user.id == updated.id =>
+          GenealogyUserNode(
+            nodeKey: genealogyNode.nodeKey,
+            user: updated,
+            size: genealogyNode.size,
+            pinned: genealogyNode.pinned,
+          ),
+        _ => null,
+      };
+      if (replacement == null) {
+        continue;
+      }
+      _nodes[entry.key] = replacement;
+      final controllerNode = _controllerNodeById(entry.key);
+      if (controllerNode != null &&
+          graphController.nodes.contains(controllerNode)) {
+        graphController.replaceNode(controllerNode, replacement);
+      }
+    }
+  }
+
   void fitCurrentPath() {
     if (!graphController.canLayout) return;
     var ids = _focusPathIds.toSet();

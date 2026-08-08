@@ -32,6 +32,7 @@ sealed class NodeDetails extends NodeBase {
       id.hashCode ^
       label.hashCode ^
       score.hashCode ^
+      rScore.hashCode ^
       userId.hashCode ^
       hasImage.hashCode;
 
@@ -43,6 +44,7 @@ sealed class NodeDetails extends NodeBase {
           id == other.id &&
           label == other.label &&
           score == other.score &&
+          rScore == other.rScore &&
           userId == other.userId &&
           hasImage == other.hasImage;
 }
@@ -97,13 +99,22 @@ final class UserNode extends NodeDetails {
   );
 
   @override
-  int get hashCode => super.hashCode ^ isHelpOfferer.hashCode;
+  int get hashCode =>
+      super.hashCode ^
+      isHelpOfferer.hashCode ^
+      user.myVote.hashCode ^
+      user.subjectExplicitlyTrustsViewer.hashCode ^
+      user.isMutualFriend.hashCode;
 
   @override
   bool operator ==(Object other) =>
       super == other &&
       other is UserNode &&
-      other.isHelpOfferer == isHelpOfferer;
+      other.isHelpOfferer == isHelpOfferer &&
+      other.user.myVote == user.myVote &&
+      other.user.subjectExplicitlyTrustsViewer ==
+          user.subjectExplicitlyTrustsViewer &&
+      other.user.isMutualFriend == user.isMutualFriend;
 }
 
 final class BeaconNode extends NodeDetails {
@@ -179,6 +190,22 @@ final class GenealogyUserNode extends NodeDetails {
     pinned: isPinned,
     size: size,
   );
+
+  @override
+  int get hashCode =>
+      super.hashCode ^
+      user.myVote.hashCode ^
+      user.subjectExplicitlyTrustsViewer.hashCode ^
+      user.isMutualFriend.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      super == other &&
+      other is GenealogyUserNode &&
+      other.user.myVote == user.myVote &&
+      other.user.subjectExplicitlyTrustsViewer ==
+          user.subjectExplicitlyTrustsViewer &&
+      other.user.isMutualFriend == user.isMutualFriend;
 }
 
 /// Anonymized endpoint after account deletion.
