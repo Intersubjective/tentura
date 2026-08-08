@@ -187,6 +187,12 @@ dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart \
 - The two paths that had been listed as pre-existing dirty work, `packages/server/lib/env.dart` and `packages/server/lib/data/database/table/beacon_commitment_events.dart`, are now clean. The user has explicitly confirmed that they were not user work and directed execution to continue; no restoration is required.
 - Preserve all remaining uncommitted WU1 paths. A fresh recovery worker must audit, complete, test, and split them into focused commits. It must never use reset, checkout, restore, clean, stash, or any mass-reversion command.
 
+## Manager review — WU1 accepted (2026-08-08)
+
+- Reviewed `17635581`, `637d3375`, and `9c8abb87`; diff checks are clean and scope matches WU1.
+- Independently ran `dart test --tags pg test/data/database/person_visibility_migration_pg_test.dart`: all 7 live PostgreSQL proofs passed.
+- **Verdict:** accepted. WU2 may begin.
+
 ---
 
 ## WU1 — canonical visibility boundary — 2026-08-08
