@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/data/repository/app_update_repository.dart';
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
@@ -95,6 +96,10 @@ class LikeRemoteRepositoryMock extends Mock implements LikeRemoteRepository {}
 
 @Injectable(as: ImageRepository, env: [Environment.test], order: 1)
 class ImageRepositoryMock extends Mock implements ImageRepository {}
+
+@Injectable(as: ClipboardImageRepository, env: [Environment.test], order: 1)
+class ClipboardImageRepositoryMock extends Mock
+    implements ClipboardImageRepository {}
 
 @Injectable(as: AppUpdateRepository, env: [Environment.test], order: 1)
 class AppUpdateRepositoryMock extends Mock implements AppUpdateRepository {}
