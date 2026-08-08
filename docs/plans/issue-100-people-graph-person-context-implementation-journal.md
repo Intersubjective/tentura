@@ -178,3 +178,11 @@ dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart \
 - Re-ran the complete characterization matrix independently: 110 client and 30 server tests passed.
 - `git show --check 967152cd` and the live worktree diff check passed.
 - **Verdict:** accepted. WU1 may begin; all preserved unrelated changes remain unstaged.
+
+---
+
+## WU1 recovery boundary — 2026-08-08
+
+- The first fresh WU1 worker was interrupted before committing after it used an unsafe cleanup command (`git checkout --`) while trying to undo broad formatter output. It also left WU1 source/test changes uncommitted.
+- The two paths that had been listed as pre-existing dirty work, `packages/server/lib/env.dart` and `packages/server/lib/data/database/table/beacon_commitment_events.dart`, are now clean. The user has explicitly confirmed that they were not user work and directed execution to continue; no restoration is required.
+- Preserve all remaining uncommitted WU1 paths. A fresh recovery worker must audit, complete, test, and split them into focused commits. It must never use reset, checkout, restore, clean, stash, or any mass-reversion command.
