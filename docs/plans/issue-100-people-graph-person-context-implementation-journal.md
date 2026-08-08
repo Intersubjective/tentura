@@ -789,3 +789,12 @@ bash scripts/check-user-facing-terminology.sh     # ok
 **Preserved worktree:** unchanged by this audit except this journal append. Pre-existing modified/untracked paths match the overseer snapshot (`docs/README.md`, archive docs, room-composer journal, `websocket_realtime_protocol_test.mocks.dart`, untracked keys/plans). No production, generated, test, or plan source files were edited.
 
 **Remaining dependency:** **WU8** — mandatory first human usability check with an unbriefed participant. Automation does not substitute. WU9–WU16 remain blocked behind WU8 (WU15 also behind WU14).
+
+---
+
+## Manager acceptance — reconciliation checkpoint — 2026-08-09
+
+- **Verdict:** accepted. The fresh non-fast Composer reconciliation audit is corroborated by the manager's independent `git diff --check`, source-boundary search, `dart test --exclude-tags pg test/domain/use_case/forward_case_auth_test.dart` (12 passed), and `flutter test test/domain/entity/profile_visibility_test.dart test/ui/model/person_action_policy_test.dart` (48 passed).
+- **Accepted scope:** WU0–WU7 remain accepted at `569071ba`; checkpoint evidence recorded in `efe77534`. The audit made no production, generated, test, or plan-source edits.
+- **Manifest update:** WU8 is now the sole dependency-ready next unit, but it is a mandatory unbriefed-human usability gate. WU9–WU16 must not start until WU8 evidence is recorded. WU15 additionally requires WU14 evidence.
+- **Preservation:** all pre-existing modified and untracked paths remain unstaged and untouched.
