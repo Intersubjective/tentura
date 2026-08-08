@@ -3,6 +3,7 @@
 query InboxFetch($userId: String!) {
   inbox_item(
     order_by: {latest_forward_at: desc}
+    where: {beacon: {can_read_content: {_eq: true}}}
   ) {
     beacon_id
     context
