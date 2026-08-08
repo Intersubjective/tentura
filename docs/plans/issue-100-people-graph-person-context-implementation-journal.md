@@ -45,7 +45,7 @@ Untracked:
 8. **WU7** — policy and Profile hierarchy — **complete** (2026-08-08).
 9. **WU8** — mandatory first human usability check — **complete** (2026-08-09, user-confirmed).
 10. **WU9** — graph profile projection patch and equality — **complete** (2026-08-09).
-11. **WU10** — authoritative Trust and context cubit — pending.
+11. **WU10** — authoritative Trust and context cubit — **complete** (2026-08-09).
 12. **WU11** — Person Context presentation — pending.
 13. **WU12** — accessibility and pointer affordance — pending.
 14. **WU13** — localization — pending.
@@ -877,3 +877,76 @@ cd ../..
 - Confirmed both live-user node classes compare exactly the required relationship fields on top of base `rScore`, and avoid whole-profile/presence/description equality.
 - Independently ran `flutter test test/features/graph/graph_profile_projection_patch_test.dart test/features/graph/node_details_equality_test.dart` (19 passed) and the five existing focused graph suites (73 passed). Client custom lint gate passed.
 - **Verdict:** accepted. WU10 is dependency-ready. The user has additionally confirmed the WU14 human gate, so WU15 may proceed only after WU10–WU13 have been accepted.
+
+---
+
+## WU10 — authoritative Trust and context cubit — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor worker (composer-2.5), WU10 only. Starting HEAD `e2a78efa`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `9787dfd4` | feat(client): authoritative trust refetch and race-safe graph person context |
+| `ba59b1e1` | test(client): cover authoritative trust mutations and context cubit races |
+
+**Actions performed:**
+
+1. Changed `ProfileViewCase._setRelationship` to mutate via `LikeRemoteRepository`, refetch through `ProfileRepositoryPort.fetchById`, apply `ContactsCase` overlay, and return authoritative `Profile` (no synthesized reverse trust or MeritRank).
+2. Added Freezed `GraphPersonContextState` and `GraphPersonContextCubit` with constructor deps `ProfileViewCase` + route-local `GraphCubit` only.
+3. Implemented `selectProfile`, `dismiss`, `trustSelected`, `clearSelection` per plan §16: sequence increments on new person; intentional same-person reselect clears dismissal; graph-driven re-emission of dismissed focus stays dismissed; race-safe trust captures id + sequence, patches graph on success regardless of panel selection, updates panel only when selection still matches.
+4. Added `graph_person_context_cubit_test.dart` with controllable fetch completers for all WU10 race/dismiss cases; extended `profile_view_case_test.dart` and `profile_view_cubit_test.dart` for subject-only→mutual→Send and neither→viewer-only transitions.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+dart format lib/features/profile_view/domain/use_case/profile_view_case.dart \
+  lib/features/graph/ui/bloc/graph_person_context_state.dart \
+  lib/features/graph/ui/bloc/graph_person_context_cubit.dart \
+  test/features/profile_view/profile_view_case_test.dart \
+  test/features/profile_view/profile_view_cubit_test.dart \
+  test/features/graph/graph_person_context_cubit_test.dart
+
+flutter test test/features/profile_view/profile_view_case_test.dart \
+  test/features/profile_view/profile_view_cubit_test.dart \
+  test/features/graph/graph_person_context_cubit_test.dart \
+  test/features/graph/graph_profile_projection_patch_test.dart
+# 00:01 +35: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Files changed:**
+
+- `packages/client/lib/features/profile_view/domain/use_case/profile_view_case.dart`
+- `packages/client/lib/features/graph/ui/bloc/graph_person_context_state.dart` (new)
+- `packages/client/lib/features/graph/ui/bloc/graph_person_context_cubit.dart` (new)
+- `packages/client/test/features/profile_view/profile_view_case_test.dart` (new)
+- `packages/client/test/features/profile_view/profile_view_cubit_test.dart`
+- `packages/client/test/features/graph/graph_person_context_cubit_test.dart` (new)
+
+**Findings:**
+
+- `GraphPersonContextCubit` is not wired into `GraphScreen`/`GraphBody` yet (WU11); cubit/state are ready for panel integration.
+- Freezed output for context state is gitignored (`**.freezed.dart`); generated locally via `build_runner`.
+- Graph cubit tests use a separate graph profile repository fake so graph neighbor fetches do not consume ProfileViewCase authoritative-refetch flags.
+
+**Remaining:** WU11 — Person Context panel presentation and GraphBody integration.
+
+---
+
+## WU10 final entry — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor agent (composer-2.5), WU10 only.
+
+**Summary:** Authoritative trust mutations refetch full viewer-relative profiles; `GraphPersonContextCubit` coordinates selection, dismiss/reselect, and sequence-guarded trust with `GraphCubit.patchLoadedProfile` after success. No WU11 widget wiring, l10n, or version changes.
+
+**Preservation:** pre-existing unrelated modified/untracked paths remain unstaged and untouched.
