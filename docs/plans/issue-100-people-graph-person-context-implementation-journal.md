@@ -169,3 +169,12 @@ dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart \
 - `graph_body_navigation_controls_test.dart` still expects `home recenters without clearing focus trail` (camera-only reset); plan WU4 will replace this when trust Reset calls `resetToEgo()`.
 
 **Remaining:** WU1 — canonical visibility at database and API boundary.
+
+---
+
+## Manager review — WU0 accepted (2026-08-08)
+
+- Inspected `967152cd` and confirmed it contains only the journal.
+- Re-ran the complete characterization matrix independently: 110 client and 30 server tests passed.
+- `git show --check 967152cd` and the live worktree diff check passed.
+- **Verdict:** accepted. WU1 may begin; all preserved unrelated changes remain unstaged.
