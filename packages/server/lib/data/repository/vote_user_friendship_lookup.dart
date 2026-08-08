@@ -11,72 +11,89 @@ class VoteUserFriendshipLookup implements VoteUserFriendshipLookupPort {
 
   final TenturaDb _database;
 
+  @override
+  Future<({Set<String> viewerTrusts, Set<String> trustsViewer})>
+  directionalPositiveTrustPeerIds({
+    required String viewerId,
+    required Iterable<String> peerIds,
+  }) async {
+    if (viewerId.isEmpty) {
+      return (viewerTrusts: <String>{}, trustsViewer: <String>{});
+    }
+    final candidates = peerIds
+        .where((id) => id.isNotEmpty && id != viewerId)
+        .toSet();
+    if (candidates.isEmpty) {
+      return (viewerTrusts: <String>{}, trustsViewer: <String>{});
+    }
+
+    final forward =
+        await (_database.select(_database.voteUsers)..where(
+              (v) =>
+                  v.subject.equals(viewerId) &
+                  v.amount.isBiggerThanValue(0) &
+                  v.object.isIn(candidates),
+            ))
+            .get();
+    final reverse =
+        await (_database.select(_database.voteUsers)..where(
+              (v) =>
+                  v.subject.isIn(candidates) &
+                  v.object.equals(viewerId) &
+                  v.amount.isBiggerThanValue(0),
+            ))
+            .get();
+
+    return (
+      viewerTrusts: forward.map((r) => r.object).toSet(),
+      trustsViewer: reverse.map((r) => r.subject).toSet(),
+    );
+  }
+
   /// Peers in [peerIds] that have `viewerId -> peer` and `peer -> viewer`
   /// with `amount > 0`.
+  @override
   Future<Set<String>> reciprocalPositivePeerIds({
     required String viewerId,
     required Iterable<String> peerIds,
   }) async {
-    final candidates = peerIds
-        .where((id) => id.isNotEmpty && id != viewerId)
-        .toList();
-    if (candidates.isEmpty) {
-      return {};
-    }
-    final forward = await (_database.select(_database.voteUsers)
-          ..where(
-            (v) =>
-                v.subject.equals(viewerId) &
-                v.amount.isBiggerThanValue(0) &
-                v.object.isIn(candidates),
-          ))
-        .get();
-    if (forward.isEmpty) {
-      return {};
-    }
-    final forwardPeers = forward.map((r) => r.object).toSet();
-    final reverse = await (_database.select(_database.voteUsers)
-          ..where(
-            (v) =>
-                v.subject.isIn(forwardPeers) &
-                v.object.equals(viewerId) &
-                v.amount.isBiggerThanValue(0),
-          ))
-        .get();
-    return reverse.map((r) => r.subject).toSet();
+    final directional = await directionalPositiveTrustPeerIds(
+      viewerId: viewerId,
+      peerIds: peerIds,
+    );
+    return directional.viewerTrusts.intersection(directional.trustsViewer);
   }
 
+  @override
   Future<bool> isReciprocalSubscribe({
     required String viewerId,
     required String peerId,
   }) async {
-    if (viewerId == peerId || peerId.isEmpty) {
+    if (viewerId == peerId || peerId.isEmpty || viewerId.isEmpty) {
       return false;
     }
-    final s = await reciprocalPositivePeerIds(
+    final directional = await directionalPositiveTrustPeerIds(
       viewerId: viewerId,
       peerIds: [peerId],
     );
-    return s.contains(peerId);
+    return directional.viewerTrusts.contains(peerId) &&
+        directional.trustsViewer.contains(peerId);
   }
 
   /// Returns true when [viewerId] has a positive trust edge toward [peerId]
   /// (one-way subscription; mutual subscribe is a strict subset).
+  @override
   Future<bool> isSubscribedTo({
     required String viewerId,
     required String peerId,
   }) async {
-    if (viewerId == peerId || peerId.isEmpty) {
+    if (viewerId == peerId || peerId.isEmpty || viewerId.isEmpty) {
       return false;
     }
-    final rows = await (_database.select(_database.voteUsers)
-          ..where(
-            (v) =>
-                v.subject.equals(viewerId) &
-                v.object.equals(peerId) &
-                v.amount.isBiggerThanValue(0),
-          ))
-        .get();
-    return rows.isNotEmpty;
+    final directional = await directionalPositiveTrustPeerIds(
+      viewerId: viewerId,
+      peerIds: [peerId],
+    );
+    return directional.viewerTrusts.contains(peerId);
   }
 }

@@ -15,6 +15,7 @@ class UserPublicRecord {
     this.handle,
     this.myVote,
     this.isMutualFriend = false,
+    this.subjectExplicitlyTrustsViewer = false,
     this.image,
     this.scores = const [],
     this.userPresence,
@@ -32,6 +33,10 @@ class UserPublicRecord {
   /// Reciprocal positive `vote_user` with the viewing user (matches Hasura
   /// `user.is_mutual_friend`).
   final bool isMutualFriend;
+
+  /// Subject has a positive `vote_user` edge toward the viewing user (matches
+  /// Hasura `user.trusts_viewer`).
+  final bool subjectExplicitlyTrustsViewer;
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;

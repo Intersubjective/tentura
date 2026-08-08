@@ -56,7 +56,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
         .get();
 
     final reciprocal = await _voteUserFriendshipLookup
-        .reciprocalPositivePeerIds(
+        .directionalPositiveTrustPeerIds(
           viewerId: aliceId,
           peerIds: rows.map((r) => r.data['id']! as String),
         );
@@ -114,7 +114,10 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           displayName: displayName,
           description: description,
           handle: handle,
-          isMutualFriend: reciprocal.contains(id),
+          isMutualFriend:
+              reciprocal.viewerTrusts.contains(id) &&
+              reciprocal.trustsViewer.contains(id),
+          subjectExplicitlyTrustsViewer: reciprocal.trustsViewer.contains(id),
           image: imageRecord,
           scores: scores,
           userPresence: userPresence,

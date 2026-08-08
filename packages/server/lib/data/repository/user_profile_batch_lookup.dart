@@ -18,14 +18,17 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
   final TenturaDb _database;
 
   @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids) async {
+  Future<Map<String, UserEntity>> userEntitiesByIds(
+    Iterable<String> ids,
+  ) async {
     final idList = _distinctNonEmptyIds(ids);
     if (idList.isEmpty) {
       return {};
     }
 
-    final users =
-        await _database.managers.users.filter((u) => u.id.isIn(idList)).get();
+    final users = await _database.managers.users
+        .filter((u) => u.id.isIn(idList))
+        .get();
     return {for (final u in users) u.id: userModelToEntity(u)};
   }
 
@@ -33,14 +36,16 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
+    Set<String> trustsViewerPeerIds = const {},
   }) async {
     final idList = _distinctNonEmptyIds(ids);
     if (idList.isEmpty) {
       return {};
     }
 
-    final users =
-        await _database.managers.users.filter((u) => u.id.isIn(idList)).get();
+    final users = await _database.managers.users
+        .filter((u) => u.id.isIn(idList))
+        .get();
     if (users.isEmpty) {
       return {};
     }
@@ -54,6 +59,7 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
           user: user,
           image: user.imageId != null ? imageByUuid[user.imageId] : null,
           isMutualFriend: reciprocalPeerIds.contains(user.id),
+          subjectExplicitlyTrustsViewer: trustsViewerPeerIds.contains(user.id),
           presence: presenceByUserId[user.id],
         ),
     };
@@ -77,9 +83,9 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
   Future<Map<String, UserPresenceRecord?>> _presenceByUserId(
     List<String> userIds,
   ) async {
-    final rows = await (_database.select(_database.userPresence)
-          ..where((t) => t.userId.isIn(userIds)))
-        .get();
+    final rows = await (_database.select(
+      _database.userPresence,
+    )..where((t) => t.userId.isIn(userIds))).get();
     return {
       for (final row in rows)
         row.userId: () {
@@ -96,6 +102,7 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
     required User user,
     required Image? image,
     required bool isMutualFriend,
+    required bool subjectExplicitlyTrustsViewer,
     required UserPresenceRecord? presence,
   }) {
     ImagePublicRecord? imageRecord;
@@ -116,6 +123,7 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
       description: user.description,
       handle: (user.handle ?? '').trim().isEmpty ? null : user.handle!.trim(),
       isMutualFriend: isMutualFriend,
+      subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
       image: imageRecord,
       userPresence: presence,
     );

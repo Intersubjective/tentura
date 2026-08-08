@@ -60,6 +60,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
             userPublicToGqlMap: userPublicToGqlMap,
             scoresByUserId: overlay.scores,
             mutualFriendUserIds: overlay.mutualFriends,
+            trustsViewerUserIds: overlay.trustsViewer,
           );
         },
       );
@@ -85,6 +86,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
             userPublicToGqlMap: userPublicToGqlMap,
             scoresByUserId: overlay.scores,
             mutualFriendUserIds: overlay.mutualFriends,
+            trustsViewerUserIds: overlay.trustsViewer,
           );
         },
       );
@@ -154,6 +156,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
         userPublicToGqlMap: userPublicToGqlMap,
         scoresByUserId: overlay.scores,
         mutualFriendUserIds: overlay.mutualFriends,
+        trustsViewerUserIds: overlay.trustsViewer,
       );
     },
   );
@@ -206,6 +209,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
     ({
       Map<String, MutualScoreRecord> scores,
       Set<String> mutualFriends,
+      Set<String> trustsViewer,
     })
   >
   _viewerRelativeOverlay({
@@ -220,14 +224,25 @@ final class QueryInviteGenealogy extends GqlNodeBase {
       return (
         scores: const <String, MutualScoreRecord>{},
         mutualFriends: const <String>{},
+        trustsViewer: const <String>{},
       );
     }
     final scores = await _meritScoreLookup.reciprocalScoresForViewer(
       viewerId: viewerId,
       context: context,
     );
-    final mutualFriends = await _voteUserFriendshipLookup
-        .reciprocalPositivePeerIds(viewerId: viewerId, peerIds: candidateIds);
-    return (scores: scores, mutualFriends: mutualFriends);
+    final directional = await _voteUserFriendshipLookup
+        .directionalPositiveTrustPeerIds(
+          viewerId: viewerId,
+          peerIds: candidateIds,
+        );
+    final mutualFriends = directional.viewerTrusts.intersection(
+      directional.trustsViewer,
+    );
+    return (
+      scores: scores,
+      mutualFriends: mutualFriends,
+      trustsViewer: directional.trustsViewer,
+    );
   }
 }

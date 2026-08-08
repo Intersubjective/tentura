@@ -9,6 +9,7 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
+  Set<String> trustsViewerUserIds = const {},
 }) => {
   'viewer_node_key': graph.viewerNodeKey,
   'target_node_key': graph.targetNodeKey,
@@ -20,6 +21,7 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
         userPublicToGqlMap: userPublicToGqlMap,
         scoresByUserId: scoresByUserId,
         mutualFriendUserIds: mutualFriendUserIds,
+        trustsViewerUserIds: trustsViewerUserIds,
       ),
   ],
   'edges': [
@@ -32,6 +34,7 @@ Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
+  Set<String> trustsViewerUserIds = const {},
 }) => {
   'nodes': [
     for (final node in page.nodes)
@@ -40,6 +43,7 @@ Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
         userPublicToGqlMap: userPublicToGqlMap,
         scoresByUserId: scoresByUserId,
         mutualFriendUserIds: mutualFriendUserIds,
+        trustsViewerUserIds: trustsViewerUserIds,
       ),
   ],
   'edges': [
@@ -52,6 +56,7 @@ Map<String, dynamic> inviteGenealogyNodeToGqlMap(
   required Map<String, dynamic> Function(UserPublicRecord) userPublicToGqlMap,
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
+  Set<String> trustsViewerUserIds = const {},
 }) {
   final user = node.user;
   return {
@@ -65,6 +70,9 @@ Map<String, dynamic> inviteGenealogyNodeToGqlMap(
               user,
               score: scoresByUserId[user.id],
               isMutualFriend: mutualFriendUserIds.contains(user.id),
+              subjectExplicitlyTrustsViewer: trustsViewerUserIds.contains(
+                user.id,
+              ),
             ),
           ),
   };
@@ -87,6 +95,7 @@ Map<String, dynamic> inviteGenealogyEdgeToGqlMap(
 UserPublicRecord _userToPublic(
   UserEntity user, {
   required bool isMutualFriend,
+  required bool subjectExplicitlyTrustsViewer,
   MutualScoreRecord? score,
 }) {
   final image = user.image;
@@ -96,6 +105,7 @@ UserPublicRecord _userToPublic(
     handle: user.handle.trim().isEmpty ? null : user.handle.trim(),
     description: user.description,
     isMutualFriend: isMutualFriend,
+    subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
     scores: score == null ? const [] : [score],
     image: image == null
         ? null

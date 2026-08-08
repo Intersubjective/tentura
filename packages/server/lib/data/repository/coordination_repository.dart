@@ -16,7 +16,6 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import '../database/tentura_db.dart';
 import 'help_offer_admission_repository.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
-import 'user_profile_batch_lookup.dart';
 
 @Injectable(
   as: CoordinationRepositoryPort,
@@ -299,11 +298,15 @@ ORDER BY beacon_id, offer_user_id, seq DESC
 
     final coords = await _coordinationByCommitUserId(beaconId);
     final admissions = await _latestAdmissionByOfferUserId(beaconId);
-    final reciprocal = await _voteUserFriendshipLookup
-        .reciprocalPositivePeerIds(
+    final userIds = rows.map((r) => r.userId).toList();
+    final directional = await _voteUserFriendshipLookup
+        .directionalPositiveTrustPeerIds(
           viewerId: viewerId,
-          peerIds: rows.map((r) => r.userId),
+          peerIds: userIds,
         );
+    final reciprocal = directional.viewerTrusts.intersection(
+      directional.trustsViewer,
+    );
 
     final beaconRow = await _database.managers.beacons
         .filter((e) => e.id.equals(beaconId))
@@ -331,10 +334,10 @@ ORDER BY beacon_id, offer_user_id, seq DESC
       for (final p in participantRows) p.userId: p.roomAccess,
     };
 
-    final userIds = rows.map((r) => r.userId).toList();
     final usersById = await _userProfileBatchLookup.userPublicRecordsByIds(
       ids: userIds,
       reciprocalPeerIds: reciprocal,
+      trustsViewerPeerIds: directional.trustsViewer,
     );
 
     final out = <HelpOfferWithCoordinationRow>[];
@@ -370,8 +373,9 @@ ORDER BY beacon_id, offer_user_id, seq DESC
               : null,
           stakeState: row.stakeState,
           offerKind: row.offerKind,
-          isDirectAuthorForward:
-              directAuthorForwardRecipientIds.contains(row.userId),
+          isDirectAuthorForward: directAuthorForwardRecipientIds.contains(
+            row.userId,
+          ),
         ),
       );
     }

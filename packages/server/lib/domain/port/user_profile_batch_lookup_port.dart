@@ -8,5 +8,6 @@ abstract interface class UserProfileBatchLookup {
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
+    Set<String> trustsViewerPeerIds = const {},
   });
 }

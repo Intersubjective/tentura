@@ -67,6 +67,13 @@ class _FakeMeritScoreLookup implements MeritScoreLookupPort {
 
 class _FakeVoteUserFriendshipLookup implements VoteUserFriendshipLookupPort {
   @override
+  Future<({Set<String> viewerTrusts, Set<String> trustsViewer})>
+  directionalPositiveTrustPeerIds({
+    required String viewerId,
+    required Iterable<String> peerIds,
+  }) async => (viewerTrusts: <String>{}, trustsViewer: <String>{});
+
+  @override
   Future<Set<String>> reciprocalPositivePeerIds({
     required String viewerId,
     required Iterable<String> peerIds,

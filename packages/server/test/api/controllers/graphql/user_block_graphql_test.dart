@@ -31,8 +31,7 @@ final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   Future<T> run<T>({
     required Future<T> Function() action,
     String? actorUserId,
-  }) =>
-      action();
+  }) => action();
 }
 
 final class _RecordingBlockRepository extends Fake
@@ -78,8 +77,7 @@ final class _RecordingBlockRepository extends Fake
   Future<int> countRecentByBlocker({
     required String blockerId,
     required Duration window,
-  }) async =>
-      0;
+  }) async => 0;
 
   @override
   Future<void> applyWithdrawal({
@@ -142,13 +140,13 @@ final class _FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
   Future<List<HelpOfferEntity>> fetchByUserId(String userId) async => [];
 }
 
-final class _FakeForwardEdges extends Fake implements ForwardEdgeRepositoryPort {
+final class _FakeForwardEdges extends Fake
+    implements ForwardEdgeRepositoryPort {
   @override
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) async =>
-      [];
+  }) async => [];
 }
 
 final class _FakeContacts extends Fake implements UserContactRepositoryPort {
@@ -156,8 +154,7 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
   Future<bool> delete({
     required String viewerId,
     required String subjectId,
-  }) async =>
-      false;
+  }) async => false;
 }
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {}
@@ -174,6 +171,7 @@ class _FakeProfileLookup extends Fake implements UserProfileBatchLookup {
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
+    Set<String> trustsViewerPeerIds = const {},
   }) async {
     lastIds = ids;
     return {
@@ -222,20 +220,23 @@ void main() {
       mutation = MutationUserBlock(userBlockCase: _userBlockCase(blocks));
     });
 
-    test('userBlock uses jwt.sub as blocker and defaults cascadeMode to 0', () async {
-      final field = mutation.all.singleWhere((f) => f.name == 'userBlock');
-      expect(
-        await field.resolve!(null, {
-          ...auth,
-          'objectId': 'U2',
-          'blockerId': 'U-ATTACKER',
-        }),
-        isTrue,
-      );
-      expect(blocks.lastBlockerId, 'U1');
-      expect(blocks.lastBlockedId, 'U2');
-      expect(blocks.lastCascadeMode, 0);
-    });
+    test(
+      'userBlock uses jwt.sub as blocker and defaults cascadeMode to 0',
+      () async {
+        final field = mutation.all.singleWhere((f) => f.name == 'userBlock');
+        expect(
+          await field.resolve!(null, {
+            ...auth,
+            'objectId': 'U2',
+            'blockerId': 'U-ATTACKER',
+          }),
+          isTrue,
+        );
+        expect(blocks.lastBlockerId, 'U1');
+        expect(blocks.lastBlockedId, 'U2');
+        expect(blocks.lastCascadeMode, 0);
+      },
+    );
 
     test('userBlock forwards cascadeMode when provided', () async {
       final field = mutation.all.singleWhere((f) => f.name == 'userBlock');
@@ -262,7 +263,9 @@ void main() {
     });
 
     test('userBlockPromote uses jwt.sub as blocker', () async {
-      final field = mutation.all.singleWhere((f) => f.name == 'userBlockPromote');
+      final field = mutation.all.singleWhere(
+        (f) => f.name == 'userBlockPromote',
+      );
       expect(
         await field.resolve!(null, {
           ...auth,
@@ -311,6 +314,7 @@ void main() {
             'description': '',
             'my_vote': null,
             'is_mutual_friend': false,
+            'trusts_viewer': false,
             'image': null,
             'scores': <Map<String, dynamic>>[],
             'user_presence': null,
@@ -323,31 +327,34 @@ void main() {
       ]);
     });
 
-    test('blockInherited returns UserPublic rows for inherited blocks', () async {
-      final repo = _InheritedRepo();
-      final profiles = _FakeProfileLookup({
-        'U3': const UserPublicRecord(
-          id: 'U3',
-          displayName: 'Inherited',
-          description: '',
-        ),
-      });
-      final query = QueryUserBlock(
-        blockRepository: repo,
-        profileLookup: profiles,
-      );
+    test(
+      'blockInherited returns UserPublic rows for inherited blocks',
+      () async {
+        final repo = _InheritedRepo();
+        final profiles = _FakeProfileLookup({
+          'U3': const UserPublicRecord(
+            id: 'U3',
+            displayName: 'Inherited',
+            description: '',
+          ),
+        });
+        final query = QueryUserBlock(
+          blockRepository: repo,
+          profileLookup: profiles,
+        );
 
-      final field = query.all.singleWhere((f) => f.name == 'blockInherited');
-      final result = await field.resolve!(null, {
-        ...auth,
-        'originId': 'U2',
-        'blockerId': 'U-ATTACKER',
-      });
+        final field = query.all.singleWhere((f) => f.name == 'blockInherited');
+        final result = await field.resolve!(null, {
+          ...auth,
+          'originId': 'U2',
+          'blockerId': 'U-ATTACKER',
+        });
 
-      expect(repo.lastBlockerId, 'U1');
-      expect(repo.lastOriginId, 'U2');
-      expect((result as List).single['id'], 'U3');
-    });
+        expect(repo.lastBlockerId, 'U1');
+        expect(repo.lastOriginId, 'U2');
+        expect((result as List).single['id'], 'U3');
+      },
+    );
 
     test('blockPreview maps preview entity and defaults cascadeMode', () async {
       final repo = _PreviewRepo();

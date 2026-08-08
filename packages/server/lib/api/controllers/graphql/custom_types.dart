@@ -334,12 +334,11 @@ final gqlTypeBeaconImageAdded = GraphQLObjectType('BeaconImageAdded', null)
 
 /// `beaconStageImage` result: the staged image is invisible until
 /// `beaconSetMedia` promotes it (§2.3, §3.3).
-final gqlTypeBeaconImageStaged =
-    GraphQLObjectType('BeaconImageStaged', null)
-      ..fields.addAll([
-        field('imageId', graphQLString.nonNullable()),
-        field('beaconId', graphQLString.nonNullable()),
-      ]);
+final gqlTypeBeaconImageStaged = GraphQLObjectType('BeaconImageStaged', null)
+  ..fields.addAll([
+    field('imageId', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+  ]);
 
 /// Per-recipient forward record from the current user's perspective.
 final gqlTypeMyForwardRecipient = GraphQLObjectType('MyForwardRecipient', null)
@@ -461,6 +460,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('description', graphQLString.nonNullable()),
     field('my_vote', graphQLInt),
     field('is_mutual_friend', graphQLBoolean.nonNullable()),
+    field('trusts_viewer', graphQLBoolean.nonNullable()),
     field('image', gqlTypeImagePublic),
     field(
       'scores',

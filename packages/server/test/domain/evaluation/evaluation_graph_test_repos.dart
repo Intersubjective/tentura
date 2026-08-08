@@ -579,6 +579,7 @@ final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
+    Set<String> trustsViewerPeerIds = const {},
   }) async => {
     for (final id in ids)
       id: UserPublicRecord(

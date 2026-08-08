@@ -75,28 +75,36 @@ final class _FakeFriendshipLookup implements VoteUserFriendshipLookupPort {
   final Set<String> _allowed;
 
   @override
+  Future<({Set<String> viewerTrusts, Set<String> trustsViewer})>
+  directionalPositiveTrustPeerIds({
+    required String viewerId,
+    required Iterable<String> peerIds,
+  }) async => (
+    viewerTrusts: _allowed.intersection(peerIds.toSet()),
+    trustsViewer: _allowed.intersection(peerIds.toSet()),
+  );
+
+  @override
   Future<Set<String>> reciprocalPositivePeerIds({
     required String viewerId,
     required Iterable<String> peerIds,
-  }) async =>
-      _allowed.intersection(peerIds.toSet());
+  }) async => _allowed.intersection(peerIds.toSet());
 
   @override
   Future<bool> isReciprocalSubscribe({
     required String viewerId,
     required String peerId,
-  }) async =>
-      _allowed.contains(peerId);
+  }) async => _allowed.contains(peerId);
 
   @override
   Future<bool> isSubscribedTo({
     required String viewerId,
     required String peerId,
-  }) async =>
-      _allowed.contains(peerId);
+  }) async => _allowed.contains(peerId);
 }
 
-final class _FakeCoParticipantLookup implements BeaconRoomCoParticipantLookupPort {
+final class _FakeCoParticipantLookup
+    implements BeaconRoomCoParticipantLookupPort {
   _FakeCoParticipantLookup(this._allowed);
 
   final Set<String> _allowed;
@@ -105,6 +113,5 @@ final class _FakeCoParticipantLookup implements BeaconRoomCoParticipantLookupPor
   Future<Set<String>> coParticipantPeerIds({
     required String viewerId,
     required Iterable<String> peerIds,
-  }) async =>
-      _allowed.intersection(peerIds.toSet());
+  }) async => _allowed.intersection(peerIds.toSet());
 }
