@@ -28,6 +28,8 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart'
 import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i17;
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
     as _i5;
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart'
+    as _i19;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -1280,4 +1282,30 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<List<_i5.FriendContextRow>>);
+}
+
+/// A class which mocks [PersonVisibilityRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockPersonVisibilityRepositoryPort extends _i1.Mock
+    implements _i19.PersonVisibilityRepositoryPort {
+  MockPersonVisibilityRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<Set<String>> mutuallyVisiblePeerIds({
+    required String? viewerId,
+    required Iterable<String>? peerIds,
+    required String? context,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#mutuallyVisiblePeerIds, [], {
+              #viewerId: viewerId,
+              #peerIds: peerIds,
+              #context: context,
+            }),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
 }

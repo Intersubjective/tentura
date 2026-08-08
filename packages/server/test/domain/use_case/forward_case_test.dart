@@ -28,27 +28,26 @@ ForwardEdgeEntity _forwardEdge({
   DateTime? cancelledAt,
   DateTime? recipientReadAt,
   DateTime? createdAt,
-}) =>
-    ForwardEdgeEntity(
-      id: id,
-      beaconId: beaconId,
-      senderId: senderId,
-      recipientId: recipientId,
-      createdAt: createdAt ?? DateTime.utc(2025),
-      cancelledAt: cancelledAt,
-      recipientReadAt: recipientReadAt,
-    );
+}) => ForwardEdgeEntity(
+  id: id,
+  beaconId: beaconId,
+  senderId: senderId,
+  recipientId: recipientId,
+  createdAt: createdAt ?? DateTime.utc(2025),
+  cancelledAt: cancelledAt,
+  recipientReadAt: recipientReadAt,
+);
 
 Matcher _unauthorizedWithDescription(String description) => throwsA(
-      predicate<UnauthorizedException>(
-        (e) =>
-            e.description == description &&
-            e.code.codeNumber ==
-                const AuthExceptionCodes(
-                  AuthExceptionCode.authUnauthorizedException,
-                ).codeNumber,
-      ),
-    );
+  predicate<UnauthorizedException>(
+    (e) =>
+        e.description == description &&
+        e.code.codeNumber ==
+            const AuthExceptionCodes(
+              AuthExceptionCode.authUnauthorizedException,
+            ).codeNumber,
+  ),
+);
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
@@ -57,6 +56,7 @@ void main() {
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
+  late MockPersonVisibilityRepositoryPort personVisibilityRepo;
   late FakeBeaconAccessGuard guard;
   late FakeUserBlockRepository userBlocks;
   late CapabilityCase capabilityCase;
@@ -72,6 +72,7 @@ void main() {
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
+    personVisibilityRepo = MockPersonVisibilityRepositoryPort();
     guard = FakeBeaconAccessGuard();
     userBlocks = FakeUserBlockRepository();
     attention = TestAttentionHarness();
@@ -89,6 +90,7 @@ void main() {
       capabilityCase,
       beaconRepo,
       userBlocks,
+      personVisibilityRepo,
       guard,
       attentionIntents: attention.intents,
       attention: attention.transactional,
@@ -159,8 +161,9 @@ void main() {
     ).thenAnswer((invocation) async {
       final recipientIds =
           invocation.namedArguments[#recipientIds] as List<String>;
-      final onAfter = invocation.namedArguments[#onAfterEdgesInserted]
-          as Future<void> Function()?;
+      final onAfter =
+          invocation.namedArguments[#onAfterEdgesInserted]
+              as Future<void> Function()?;
       await onAfter?.call();
       return recipientIds;
     });
@@ -174,6 +177,17 @@ void main() {
         note: anyNamed('note'),
       ),
     ).thenAnswer((_) async {});
+
+    when(
+      personVisibilityRepo.mutuallyVisiblePeerIds(
+        viewerId: anyNamed('viewerId'),
+        peerIds: anyNamed('peerIds'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((invocation) async {
+      final peerIds = invocation.namedArguments[#peerIds] as Iterable<String>;
+      return peerIds.toSet();
+    });
   });
 
   group('forward — reason routing', () {
@@ -295,30 +309,33 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
-    test('notifyForwardReceived skipped when all recipients are dupes', () async {
-      when(
-        forwardEdgeRepo.createBatch(
-          beaconId: anyNamed('beaconId'),
-          senderId: anyNamed('senderId'),
-          recipientIds: anyNamed('recipientIds'),
-          batchId: anyNamed('batchId'),
-          noteForRecipient: anyNamed('noteForRecipient'),
-          context: anyNamed('context'),
-          parentEdgeId: anyNamed('parentEdgeId'),
-          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
-        ),
-      ).thenAnswer((_) async => []);
+    test(
+      'notifyForwardReceived skipped when all recipients are dupes',
+      () async {
+        when(
+          forwardEdgeRepo.createBatch(
+            beaconId: anyNamed('beaconId'),
+            senderId: anyNamed('senderId'),
+            recipientIds: anyNamed('recipientIds'),
+            batchId: anyNamed('batchId'),
+            noteForRecipient: anyNamed('noteForRecipient'),
+            context: anyNamed('context'),
+            parentEdgeId: anyNamed('parentEdgeId'),
+            onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+          ),
+        ).thenAnswer((_) async => []);
 
-      await case_.forward(
-        senderId: 'U1',
-        beaconId: 'B1',
-        recipientIds: ['R1', 'R2'],
-        sharedReasonSlugs: ['transport'],
-      );
+        await case_.forward(
+          senderId: 'U1',
+          beaconId: 'B1',
+          recipientIds: ['R1', 'R2'],
+          sharedReasonSlugs: ['transport'],
+        );
 
-      expect(attention.recorded, isEmpty);
-      verifyZeroInteractions(capabilityRepo);
-    });
+        expect(attention.recorded, isEmpty);
+        verifyZeroInteractions(capabilityRepo);
+      },
+    );
   });
 
   group('updateForward — eligibility', () {
@@ -437,7 +454,9 @@ void main() {
       when(forwardEdgeRepo.fetchById('E1')).thenAnswer(
         (_) async => _forwardEdge(id: 'E1'),
       );
-      when(forwardEdgeRepo.existsWithParent('E1')).thenAnswer((_) async => false);
+      when(
+        forwardEdgeRepo.existsWithParent('E1'),
+      ).thenAnswer((_) async => false);
       when(forwardEdgeRepo.cancel('E1', 'U1')).thenAnswer((_) async {});
       when(
         inboxRepo.markForwardCancelledForRecipient(
@@ -496,7 +515,9 @@ void main() {
     });
 
     test('returns false when edge has been forwarded onward', () async {
-      when(forwardEdgeRepo.existsWithParent('E1')).thenAnswer((_) async => true);
+      when(
+        forwardEdgeRepo.existsWithParent('E1'),
+      ).thenAnswer((_) async => true);
 
       expect(
         await case_.cancelForward(edgeId: 'E1', senderId: 'U1'),
@@ -573,48 +594,51 @@ void main() {
       ).called(1);
     });
 
-    test('auto-resolves author inbound edge when client parent omitted', () async {
-      when(
-        forwardEdgeRepo.fetchActiveInboundEdges(
+    test(
+      'auto-resolves author inbound edge when client parent omitted',
+      () async {
+        when(
+          forwardEdgeRepo.fetchActiveInboundEdges(
+            beaconId: 'B1',
+            recipientId: 'U1',
+          ),
+        ).thenAnswer(
+          (_) async => [
+            _forwardEdge(
+              id: 'Ehop',
+              senderId: 'Uhop',
+              recipientId: 'U1',
+              createdAt: DateTime.utc(2025, 2, 1),
+            ),
+            _forwardEdge(
+              id: 'Eauthor',
+              senderId: 'Uauthor',
+              recipientId: 'U1',
+              createdAt: DateTime.utc(2025, 1, 1),
+            ),
+          ],
+        );
+
+        await case_.forward(
+          senderId: 'U1',
           beaconId: 'B1',
-          recipientId: 'U1',
-        ),
-      ).thenAnswer(
-        (_) async => [
-          _forwardEdge(
-            id: 'Ehop',
-            senderId: 'Uhop',
-            recipientId: 'U1',
-            createdAt: DateTime.utc(2025, 2, 1),
-          ),
-          _forwardEdge(
-            id: 'Eauthor',
-            senderId: 'Uauthor',
-            recipientId: 'U1',
-            createdAt: DateTime.utc(2025, 1, 1),
-          ),
-        ],
-      );
+          recipientIds: ['R1'],
+        );
 
-      await case_.forward(
-        senderId: 'U1',
-        beaconId: 'B1',
-        recipientIds: ['R1'],
-      );
-
-      verify(
-        forwardEdgeRepo.createBatch(
-          beaconId: anyNamed('beaconId'),
-          senderId: anyNamed('senderId'),
-          recipientIds: anyNamed('recipientIds'),
-          batchId: anyNamed('batchId'),
-          noteForRecipient: anyNamed('noteForRecipient'),
-          context: anyNamed('context'),
-          parentEdgeId: 'Eauthor',
-          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
-        ),
-      ).called(1);
-    });
+        verify(
+          forwardEdgeRepo.createBatch(
+            beaconId: anyNamed('beaconId'),
+            senderId: anyNamed('senderId'),
+            recipientIds: anyNamed('recipientIds'),
+            batchId: anyNamed('batchId'),
+            noteForRecipient: anyNamed('noteForRecipient'),
+            context: anyNamed('context'),
+            parentEdgeId: 'Eauthor',
+            onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+          ),
+        ).called(1);
+      },
+    );
 
     test('rejects invalid client parentEdgeId', () async {
       when(
@@ -729,18 +753,20 @@ void main() {
         recipientIds: ['Rblocked', 'Rok'],
       );
 
-      final captured = verify(
-        forwardEdgeRepo.createBatch(
-          beaconId: 'B1',
-          senderId: 'U1',
-          recipientIds: captureAnyNamed('recipientIds'),
-          batchId: anyNamed('batchId'),
-          noteForRecipient: anyNamed('noteForRecipient'),
-          context: anyNamed('context'),
-          parentEdgeId: anyNamed('parentEdgeId'),
-          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
-        ),
-      ).captured.single as List<String>;
+      final captured =
+          verify(
+                forwardEdgeRepo.createBatch(
+                  beaconId: 'B1',
+                  senderId: 'U1',
+                  recipientIds: captureAnyNamed('recipientIds'),
+                  batchId: anyNamed('batchId'),
+                  noteForRecipient: anyNamed('noteForRecipient'),
+                  context: anyNamed('context'),
+                  parentEdgeId: anyNamed('parentEdgeId'),
+                  onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+                ),
+              ).captured.single
+              as List<String>;
       expect(captured, ['Rok']);
     });
 
@@ -753,18 +779,20 @@ void main() {
         recipientIds: ['Rblocked'],
       );
 
-      final captured = verify(
-        forwardEdgeRepo.createBatch(
-          beaconId: anyNamed('beaconId'),
-          senderId: anyNamed('senderId'),
-          recipientIds: captureAnyNamed('recipientIds'),
-          batchId: anyNamed('batchId'),
-          noteForRecipient: anyNamed('noteForRecipient'),
-          context: anyNamed('context'),
-          parentEdgeId: anyNamed('parentEdgeId'),
-          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
-        ),
-      ).captured.single as List<String>;
+      final captured =
+          verify(
+                forwardEdgeRepo.createBatch(
+                  beaconId: anyNamed('beaconId'),
+                  senderId: anyNamed('senderId'),
+                  recipientIds: captureAnyNamed('recipientIds'),
+                  batchId: anyNamed('batchId'),
+                  noteForRecipient: anyNamed('noteForRecipient'),
+                  context: anyNamed('context'),
+                  parentEdgeId: anyNamed('parentEdgeId'),
+                  onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+                ),
+              ).captured.single
+              as List<String>;
       expect(captured, isEmpty);
     });
   });

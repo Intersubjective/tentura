@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/port/forward_attribution_repository_port.d
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 
 @GenerateMocks([
   BeaconRepositoryPort,
@@ -14,5 +15,6 @@ import 'package:tentura_server/domain/port/person_capability_event_repository_po
   HelpOfferRepositoryPort,
   InboxRepositoryPort,
   PersonCapabilityEventRepositoryPort,
+  PersonVisibilityRepositoryPort,
 ])
 void main() {}

@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/forward_attribution_repository_port.d
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -27,6 +28,7 @@ final class ForwardCase extends UseCaseBase {
     this._capabilityCase,
     this._beaconRepository,
     this._userBlockRepository,
+    this._personVisibilityRepository,
     this._guard, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
@@ -44,6 +46,7 @@ final class ForwardCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final UserBlockRepositoryPort _userBlockRepository;
+  final PersonVisibilityRepositoryPort _personVisibilityRepository;
   final BeaconAccessGuard _guard;
 
   /// Cancel a forward edge (soft-delete).
@@ -143,12 +146,17 @@ final class ForwardCase extends UseCaseBase {
       }
       if (attributionParentEdgeIds.toSet().length !=
           attributionParentEdgeIds.length) {
-        throw ArgumentError('attributionParentEdgeIds must not contain duplicates');
+        throw ArgumentError(
+          'attributionParentEdgeIds must not contain duplicates',
+        );
       }
     }
 
-    final nonSelfRecipients =
-        recipientIds.where((id) => id != senderId).toList();
+    final visibilityContext = context ?? '';
+
+    final nonSelfRecipients = recipientIds
+        .where((id) => id != senderId)
+        .toList();
     if (nonSelfRecipients.isEmpty) {
       throw ArgumentError('recipientIds must not contain only the sender');
     }
@@ -156,8 +164,9 @@ final class ForwardCase extends UseCaseBase {
       viewerId: senderId,
       peerIds: nonSelfRecipients,
     );
-    final recipients =
-        nonSelfRecipients.where((id) => !hidden.contains(id)).toList();
+    final recipients = nonSelfRecipients
+        .where((id) => !hidden.contains(id))
+        .toList();
 
     if (!await _guard.canReadContent(
       beaconId: beaconId,
@@ -185,6 +194,20 @@ final class ForwardCase extends UseCaseBase {
       senderId: senderId,
       authorId: beacon.author.id,
     );
+
+    if (recipients.isNotEmpty) {
+      final mutuallyVisible = await _personVisibilityRepository
+          .mutuallyVisiblePeerIds(
+            viewerId: senderId,
+            peerIds: recipients,
+            context: visibilityContext,
+          );
+      if (recipients.any((id) => !mutuallyVisible.contains(id))) {
+        throw const UnauthorizedException(
+          description: 'Direct request routing requires mutual visibility',
+        );
+      }
+    }
 
     final batchId = generateId('X');
 
