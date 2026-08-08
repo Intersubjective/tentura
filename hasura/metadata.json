@@ -932,6 +932,17 @@
                 }
               },
               {
+                "name": "trusts_viewer",
+                "definition": {
+                  "function": {
+                    "name": "user_get_trusts_viewer",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_row"
+                }
+              },
+              {
                 "name": "hidden_for_viewer",
                 "definition": {
                   "function": {
@@ -960,6 +971,7 @@
                   "computed_fields": [
                     "my_vote",
                     "is_mutual_friend",
+                    "trusts_viewer",
                     "hidden_for_viewer"
                   ],
                   "filter": {
@@ -1829,6 +1841,21 @@
           {
             "function": {
               "name": "graph_edges_between",
+              "schema": "public"
+            },
+            "configuration": {
+              "custom_root_fields": {},
+              "session_argument": "hasura_session"
+            },
+            "permissions": [
+              {
+                "role": "user"
+              }
+            ]
+          },
+          {
+            "function": {
+              "name": "mutually_visible_users",
               "schema": "public"
             },
             "configuration": {
