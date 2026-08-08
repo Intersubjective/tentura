@@ -476,3 +476,12 @@ cd ../..
 - Fit is visible and enabled after `_settleGraph` in widget harness; disabled-until-layout contract is enforced via `onPressed: null` when `!canLayout`.
 
 **Remaining:** manager acceptance of WU4 (`ab6c6ff9`, `7dd1ca29`, `6ba751fc`); then WU5 — People entry points.
+
+---
+
+## Manager review — WU4 accepted (2026-08-08)
+
+- Reviewed `ab6c6ff9` and `6ba751fc`: the `GraphMode` derivation is immutable, focus-path mutations emit the depth with focus, Reset preserves exploration memory, and forwards Center is camera-only.
+- Required availability remediation is present: trust/genealogy Previous and Fit always render with `onPressed: null` at depth 1 / before layout, while forwards deliberately has only Center.
+- Independently ran each required focused WU4 test: 37, 8, 19, 4, and 5 tests passed respectively. `./scripts/check-custom-lints.sh packages/client`, `git diff --check 95f61064..HEAD`, and `git show --check` for implementation/remediation commits all passed.
+- **Verdict:** accepted. WU5 may begin; recorded unrelated worktree paths remain unstaged.
