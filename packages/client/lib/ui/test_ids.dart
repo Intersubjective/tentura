@@ -106,5 +106,9 @@ abstract final class TestIds {
   static const graphResetToEgo = 'graph.reset_to_ego';
   static const graphCenterView = 'graph.center_view';
 
+  static const friendsGraph = 'friends.graph';
+  static const friendsCreateInvitation = 'friends.create_invitation';
+  static const friendsMore = 'friends.more';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

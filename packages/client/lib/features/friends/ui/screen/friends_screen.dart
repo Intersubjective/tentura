@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
@@ -14,13 +15,21 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../bloc/friends_cubit.dart';
+import '../widget/friends_app_bar_actions.dart';
+
+/// Semantic hook for WU6 blocked-people navigation from People.
+void navigateToBlockedPeopleFromFriends(BuildContext context) {
+  // WU6: context.read<ScreenCubit>().showBlockedUsers();
+}
 
 @RoutePage()
 class FriendsScreen extends StatefulWidget {
@@ -70,6 +79,14 @@ class _FriendsScreenState extends State<FriendsScreen>
     _invitesScrollController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
+  }
+
+  void _onOpenGraph(BuildContext context) {
+    final accountId = context.read<ProfileCubit>().state.profile.id;
+    if (accountId.isEmpty) {
+      return;
+    }
+    context.read<ScreenCubit>().showGraphFor(accountId);
   }
 
   Future<void> _onCreateInvitation(BuildContext context) async {
@@ -159,15 +176,13 @@ class _FriendsScreenState extends State<FriendsScreen>
             },
           ),
           actions: [
-            IconButton(
-              tooltip: l10n.friendsCreateInvitation,
-              onPressed: () => unawaited(_onCreateInvitation(context)),
-              icon: const Icon(Icons.person_add_alt_1),
-            ),
-            IconButton(
-              tooltip: l10n.friendsScanInviteCode,
-              onPressed: () => unawaited(ConnectBottomSheet.show(context)),
-              icon: const Icon(Icons.qr_code_scanner),
+            FriendsAppBarActions(
+              onGraph: () => _onOpenGraph(context),
+              onCreateInvitation: () => unawaited(_onCreateInvitation(context)),
+              onScanInvitationQr: () =>
+                  unawaited(ConnectBottomSheet.show(context)),
+              onBlockedPeople: () =>
+                  navigateToBlockedPeopleFromFriends(context),
             ),
           ],
           progress: BlocSelector<InvitationCubit, InvitationState, bool>(

@@ -316,6 +316,18 @@
   "@friendsCreateInvitation": {
     "context": "FriendsScreen"
   },
+  "friendsPeopleGraph": "Граф",
+  "@friendsPeopleGraph": {
+    "context": "FriendsScreen"
+  },
+  "friendsPeopleMore": "Ещё",
+  "@friendsPeopleMore": {
+    "context": "FriendsScreen"
+  },
+  "friendsBlockedPeople": "Заблокированные",
+  "@friendsBlockedPeople": {
+    "context": "FriendsScreen"
+  },
   "friendsInvitesEmptyTitle": "Пока нет приглашений",
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"

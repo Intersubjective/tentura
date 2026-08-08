@@ -316,6 +316,18 @@
   "@friendsCreateInvitation": {
     "context": "FriendsScreen"
   },
+  "friendsPeopleGraph": "Graph",
+  "@friendsPeopleGraph": {
+    "context": "FriendsScreen"
+  },
+  "friendsPeopleMore": "More",
+  "@friendsPeopleMore": {
+    "context": "FriendsScreen"
+  },
+  "friendsBlockedPeople": "Blocked people",
+  "@friendsBlockedPeople": {
+    "context": "FriendsScreen"
+  },
   "friendsInvitesEmptyTitle": "No invitations yet",
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"
