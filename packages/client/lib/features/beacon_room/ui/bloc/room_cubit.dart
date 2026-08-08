@@ -705,13 +705,13 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> sendMessage({
+  Future<bool> sendMessage({
     required String body,
     List<RoomPendingUpload> uploads = const [],
   }) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty && uploads.isEmpty) {
-      return;
+      return false;
     }
     final localId = 'local:${_uuid.v4()}';
     final profile = GetIt.I<ProfileCubit>().state.profile;
@@ -763,6 +763,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (uploads.isNotEmpty) {
         _requestRefresh(scope: _RoomRefreshScope.messages);
       }
+      return true;
     } on Object catch (e) {
       _pendingLocalMessageIds.remove(localId);
       emit(
@@ -778,6 +779,7 @@ class RoomCubit extends Cubit<RoomState> {
         silent: true,
       );
       _showSnackError(e);
+      return false;
     }
   }
 

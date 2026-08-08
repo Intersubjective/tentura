@@ -93,7 +93,7 @@ class BasicChatBody extends StatefulWidget {
   })?
   onVotePoll;
 
-  final Future<void> Function(String body, List<RoomPendingUpload> uploads)?
+  final Future<bool> Function(String body, List<RoomPendingUpload> uploads)?
   onSend;
 
   final Widget? header;
@@ -532,7 +532,7 @@ class BeaconRoomComposer extends StatefulWidget {
 
   final bool isSending;
 
-  final Future<void> Function(String body, List<RoomPendingUpload> uploads)
+  final Future<bool> Function(String body, List<RoomPendingUpload> uploads)
   onSend;
 
   final List<BeaconParticipant> participants;
@@ -899,8 +899,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
     setState(() => _submitting = true);
     try {
-      await widget.onSend(body, uploads);
+      final sent = await widget.onSend(body, uploads);
       if (!mounted) {
+        return;
+      }
+      if (!sent) {
         return;
       }
       _removeOverlay();
