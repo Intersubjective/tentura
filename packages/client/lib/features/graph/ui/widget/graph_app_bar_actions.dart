@@ -178,28 +178,26 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         switch (mode) {
           case GraphMode.trust:
           case GraphMode.genealogy:
-            if (graphState.focusPathDepth > 1) {
-              navActions.add(
-                _navIconButton(
-                  key: TestIds.key(TestIds.graphBack),
-                  tooltip: l10n.graphBack,
-                  onPressed: cubit.popFocus,
-                  icon: Icons.arrow_back,
-                  minSize: tt.buttonHeight,
-                ),
-              );
-            }
-            if (canFit) {
-              navActions.add(
-                _navIconButton(
-                  key: TestIds.key(TestIds.graphFit),
-                  tooltip: l10n.graphFitPath,
-                  onPressed: cubit.fitCurrentPath,
-                  icon: Icons.fit_screen_outlined,
-                  minSize: tt.buttonHeight,
-                ),
-              );
-            }
+            navActions.add(
+              _navIconButton(
+                key: TestIds.key(TestIds.graphBack),
+                tooltip: l10n.graphBack,
+                onPressed: graphState.focusPathDepth > 1
+                    ? cubit.popFocus
+                    : null,
+                icon: Icons.arrow_back,
+                minSize: tt.buttonHeight,
+              ),
+            );
+            navActions.add(
+              _navIconButton(
+                key: TestIds.key(TestIds.graphFit),
+                tooltip: l10n.graphFitPath,
+                onPressed: canFit ? cubit.fitCurrentPath : null,
+                icon: Icons.fit_screen_outlined,
+                minSize: tt.buttonHeight,
+              ),
+            );
             navActions.add(
               _navIconButton(
                 key: TestIds.key(TestIds.graphResetToEgo),

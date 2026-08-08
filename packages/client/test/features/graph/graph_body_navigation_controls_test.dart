@@ -151,9 +151,17 @@ void main() {
   ) async {
     await _pumpGraphBody(tester);
 
-    expect(find.byTooltip('Back'), findsNothing);
+    final backButton = tester.widget<IconButton>(
+      find.byKey(TestIds.key(TestIds.graphBack)),
+    );
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(backButton.onPressed, isNull);
+
+    final fitButton = tester.widget<IconButton>(
+      find.byKey(TestIds.key(TestIds.graphFit)),
+    );
     expect(find.byTooltip('Fit current path'), findsOneWidget);
-    expect(find.byKey(TestIds.key(TestIds.graphFit)), findsOneWidget);
+    expect(fitButton.onPressed, isNotNull);
     expect(find.byTooltip('Reset to me'), findsOneWidget);
     expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsOneWidget);
     expect(find.byTooltip('Show legend'), findsOneWidget);
@@ -201,6 +209,13 @@ void main() {
     expect(cubit.state.focusPathDepth, 1);
     expect(cubit.canPopFocus, isFalse);
     expect(cubit.focusPath, ['Ume']);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(TestIds.key(TestIds.graphBack)))
+          .onPressed,
+      isNull,
+    );
+    expect(find.byKey(TestIds.key(TestIds.graphBack)), findsOneWidget);
   });
 
   testWidgets('previous focus decrements depth without refetch', (
@@ -220,12 +235,24 @@ void main() {
     await tester.tap(find.byType(GraphNodeWidget).at(1));
     await _settleGraph(tester);
     final callsAfterFirstExpand = source.ubFetches;
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(TestIds.key(TestIds.graphBack)))
+          .onPressed,
+      isNotNull,
+    );
 
     await tester.tap(find.byType(GraphNodeWidget).at(2));
     await _settleGraph(tester);
     expect(cubit.state.focusPathDepth, 3);
 
     expect(find.byKey(TestIds.key(TestIds.graphBack)), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(TestIds.key(TestIds.graphBack)))
+          .onPressed,
+      isNotNull,
+    );
     await tester.tap(find.byKey(TestIds.key(TestIds.graphBack)));
     await _settleGraph(tester);
 
