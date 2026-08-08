@@ -293,3 +293,33 @@ cd ../..
 - `app_ru.arb` legend strings not updated (WU13 localization scope).
 
 **Remaining:** WU3 — server enforcement and candidate discovery.
+
+---
+
+## WU2 manager acceptance — 2026-08-08
+
+**Verdict:** accepted.
+
+Manager review confirmed that the tracked schema contains both required fields,
+all four required fragments and their mappers propagate `trusts_viewer`, and
+the `Profile` directional getters preserve the plan's alias semantics. The
+schema-refresh nullability adjustment in `BlockRepository` is scoped and
+null-safe. `git diff --check 80b0e1a2..92c91fcb` was clean.
+
+Independent verification:
+
+```bash
+cd packages/client
+flutter test test/domain/entity/profile_visibility_test.dart \
+  test/ui/widget/contact_badge_legend_test.dart \
+  test/features/beacon/data/additive_graphql_contract_test.dart
+# 00:00 +31: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK
+```
+
+**Accepted commits:** `add0bdc2`, `0b8f9abc`, `92c91fcb`.
+
+**Next:** WU3.
