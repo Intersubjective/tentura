@@ -19,6 +19,7 @@ import 'package:tentura/features/like/data/repository/like_remote_repository.dar
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
+import 'package:tentura/ui/model/person_action_policy.dart';
 
 import '../block/support/controllable_block_case.dart';
 
@@ -172,33 +173,99 @@ void main() {
     });
 
     test(
-      'friend mutations are delegated and keep the contact overlay',
+      'friend mutations refetch authoritative profile and keep overlay',
       () async {
         harness
           ..contactStore.set('U-target', 'Private name')
+          ..profiles.result = _profile(displayName: 'Public', myVote: 0)
+          ..profiles.refetchResult = _profile(displayName: 'Public', myVote: 1)
           ..start();
         await harness.waitFor(() => harness.profiles.fetchCalls == 1);
 
         await harness.cubit.addFriend();
+        expect(harness.likes.amounts, [1]);
+        expect(harness.profiles.fetchCalls, greaterThan(1));
         expect(harness.cubit.state.profile.myVote, 1);
         expect(harness.cubit.state.profile.shownName, 'Private name');
+        harness.profiles.refetchResult = _profile(
+          displayName: 'Public',
+          myVote: 0,
+        );
         await harness.cubit.removeFriend();
 
         expect(harness.likes.amounts, [1, 0]);
         expect(harness.cubit.state.profile.myVote, 0);
       },
     );
+
+    test(
+      'subject-only trust transition enables Send primary in policy',
+      () async {
+        harness
+          ..profiles.result = _profile(rScore: 1)
+          ..profiles.refetchResult = _profile(
+            myVote: 1,
+            rScore: 1,
+            subjectExplicitlyTrustsViewer: true,
+          )
+          ..start(autoFetch: false);
+        harness.cubit.emit(
+          ProfileViewState(profile: _profile(rScore: 1)),
+        );
+
+        await harness.cubit.addFriend();
+
+        final policy = PersonActionPolicy.from(
+          harness.cubit.state.profile,
+          isSelf: false,
+          isBlocked: false,
+        );
+        expect(policy.visibilityState, PersonVisibilityState.mutual);
+        expect(policy.primaryAction, PersonPrimaryAction.sendRequest);
+      },
+    );
+
+    test(
+      'neither trust transition stays viewer-only without Send primary',
+      () async {
+        harness
+          ..profiles.result = _profile()
+          ..profiles.refetchResult = _profile(myVote: 1)
+          ..start(autoFetch: false);
+        harness.cubit.emit(ProfileViewState(profile: _profile()));
+
+        await harness.cubit.addFriend();
+
+        final policy = PersonActionPolicy.from(
+          harness.cubit.state.profile,
+          isSelf: false,
+          isBlocked: false,
+        );
+        expect(policy.visibilityState, PersonVisibilityState.viewerOnly);
+        expect(policy.primaryAction, PersonPrimaryAction.none);
+        expect(policy.canDirectSendRequest, isFalse);
+      },
+    );
   });
 }
 
-Profile _profile({String displayName = 'Target', int myVote = 0}) => Profile(
+Profile _profile({
+  String displayName = 'Target',
+  int myVote = 0,
+  double rScore = 0,
+  bool subjectExplicitlyTrustsViewer = false,
+}) => Profile(
   id: 'U-target',
   displayName: displayName,
   myVote: myVote,
+  rScore: rScore,
+  subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
 );
 
 final class _ProfileViewHarness {
   _ProfileViewHarness() {
+    profiles = _FakeProfileRepository();
+    likes = _FakeLikeRepository(profiles);
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
     realtimeCase = realtime.case_;
@@ -225,8 +292,8 @@ final class _ProfileViewHarness {
   final authLocal = StreamingAuthLocal();
   final contactsRepository = FakeContactsRepository();
   final contactStore = ContactNameStore();
-  final profiles = _FakeProfileRepository();
-  final likes = _FakeLikeRepository();
+  late final _FakeProfileRepository profiles;
+  late final _FakeLikeRepository likes;
   final capabilities = _FakeCapabilityRepository();
   final effects = FakeUiEffectPort();
   final blockCase = ControllableBlockCase();
@@ -240,13 +307,21 @@ final class _ProfileViewHarness {
 
   ProfileViewCubit get cubit => _cubit!;
 
-  void start() {
-    _cubit = ProfileViewCubit(
-      id: 'U-target',
-      profileViewCase: case_,
-      blockCase: blockCase,
-      effects: effects,
-    );
+  void start({bool autoFetch = true}) {
+    _cubit = autoFetch
+        ? ProfileViewCubit(
+            id: 'U-target',
+            profileViewCase: case_,
+            blockCase: blockCase,
+            effects: effects,
+          )
+        : ProfileViewCubit.test(
+            id: 'U-target',
+            profileViewCase: case_,
+            blockCase: blockCase,
+            effects: effects,
+            autoFetch: false,
+          );
   }
 
   Future<void> closeCubit() async {
@@ -279,6 +354,8 @@ final class _ProfileViewHarness {
 final class _FakeProfileRepository implements ProfileRepositoryPort {
   final _changes = StreamController<RepositoryEvent<Profile>>.broadcast();
   Profile result = _profile();
+  Profile? refetchResult;
+  bool authoritativeOnNextFetch = false;
   Object? error;
   int fetchCalls = 0;
   final pending = <Completer<Profile>>[];
@@ -293,6 +370,10 @@ final class _FakeProfileRepository implements ProfileRepositoryPort {
     final failure = error;
     if (failure is Exception) throw failure;
     if (failure is Error) throw failure;
+    if (authoritativeOnNextFetch) {
+      authoritativeOnNextFetch = false;
+      return refetchResult ?? result;
+    }
     return result;
   }
 
@@ -320,6 +401,9 @@ final class _FakeProfileRepository implements ProfileRepositoryPort {
 final class _FakeLikeRepository implements LikeRemoteRepository {
   final _changes = StreamController<RepositoryEvent<Likable>>.broadcast();
   final amounts = <int>[];
+  final _FakeProfileRepository profiles;
+
+  _FakeLikeRepository(this.profiles);
 
   @override
   Stream<RepositoryEvent<Likable>> get changes => _changes.stream;
@@ -327,6 +411,7 @@ final class _FakeLikeRepository implements LikeRemoteRepository {
   @override
   Future<T> setLike<T extends Likable>(T entity, {required int amount}) async {
     amounts.add(amount);
+    profiles.authoritativeOnNextFetch = true;
     return switch (entity) {
           final Profile profile => profile.copyWith(myVote: amount),
           _ => entity,
