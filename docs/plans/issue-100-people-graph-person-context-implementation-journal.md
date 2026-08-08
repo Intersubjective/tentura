@@ -39,7 +39,7 @@ Untracked:
 2. **WU1** — database, Hasura, and V2 visibility boundary — **complete** (2026-08-08).
 3. **WU2** — client profile projection and canonical getters — **complete** (2026-08-08).
 4. **WU3** — server enforcement and candidate discovery — **complete** (2026-08-08).
-5. **WU4** — graph modes and reactive navigation — pending.
+5. **WU4** — graph modes and reactive navigation — **complete** (2026-08-08).
 6. **WU5** — People entry points — pending.
 7. **WU6** — Blocked People route ownership — pending.
 8. **WU7** — policy and Profile hierarchy — pending.
@@ -382,3 +382,52 @@ cd ../..
 - Independently ran `dart test --exclude-tags pg test/domain/use_case/forward_case_auth_test.dart` (12 passed), `dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart` (29 passed), `flutter test test/features/forward/person_forward_case_test.dart` (7 passed), and `flutter test test/features/forward/person_forward_cubit_test.dart` (7 passed).
 - Independently ran `./scripts/check-custom-lints.sh packages/server` (OK) and `./scripts/check-custom-lints.sh packages/client` (OK; 106 versus baseline 111). `git diff --check 7a6c85fa..b63b6af0` passed.
 - **Verdict:** accepted. WU4 may begin; all unrelated working-tree entries remain unstaged and untouched.
+
+---
+
+## WU4 — explicit graph modes and reactive navigation — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor worker (composer-2.5), WU4 only. No process/port/Docker management.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `ab6c6ff9` | feat(client): explicit GraphMode and reactive graph navigation |
+
+**Actions performed:**
+
+1. Added `GraphMode` enum (`trust` / `forwards` / `genealogy`); `GraphCubit.mode` derived once in constructor initializer list from existing flags with preserved mutual-exclusion asserts.
+2. Added `@Default(1) int focusPathDepth` to `GraphState`; every focus-path mutation (`selectNode`, `popFocus`, `resetToEgo`, `setContext`, block reset, genealogy bootstrap) mutates `_focusPathIds` then emits `focus` + `focusPathDepth` together (fixed `selectNode` ordering).
+3. `resetToEgo` preserves `_everFocusedIds`; only `setContext` and genealogy block reset clear session exploration memory.
+4. Rebuilt `GraphAppBarActions` by mode: trust/genealogy Previous (depth > 1), Fit (when layout ready), Reset (`resetToEgo` with genealogy-origin copy); forwards Center view (`jumpToEgo` camera-only); legend all modes; retained trust Profile/Expand context actions.
+5. `GraphBody` legend/layout gating uses `cubit.mode`; added `graphCenterView` / `graphResetGenealogyOrigin` l10n keys and `TestIds.graphFit` / `TestIds.graphCenterView`.
+6. Extended focused graph tests per plan §10 (trust depth/navigation, genealogy cubit/body, forwards center-view stub).
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+dart run build_runner build -d
+flutter gen-l10n
+flutter test test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_cubit_genealogy_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+# 00:02 +73: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Findings:**
+
+- AppBar shows Fit once `graphController.canLayout` is true (not hidden at depth 1); compact layout test updated accordingly.
+- Genealogy `popFocus` at origin clears `focus` to `''` (same empty-focus convention as trust overview), while `focusPathDepth` returns to 1.
+- Accidental `dart format` on unrelated graph layout/repo test files was reverted before commit.
+
+**Remaining:** WU5 — People entry points.
