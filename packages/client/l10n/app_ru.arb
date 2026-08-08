@@ -1153,6 +1153,62 @@
   "@profileSendRequestTo": {
     "context": "ProfileViewBody — open person-forward screen for this user"
   },
+  "trustThisUser": "Доверять этому пользователю",
+  "@trustThisUser": {
+    "context": "ProfileViewBody — primary/secondary trust CTA (#100)"
+  },
+  "profileVisibilityMutual": "Двусторонняя видимость",
+  "@profileVisibilityMutual": {
+    "context": "ProfileViewBody — mutual visibility summary"
+  },
+  "profileVisibilityYouCanSee": "Вы видите {name}",
+  "@profileVisibilityYouCanSee": {
+    "context": "ProfileViewBody — viewer-direction visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityCantSeeYou": "{name} пока не видит вас",
+  "@profileVisibilityCantSeeYou": {
+    "context": "ProfileViewBody — missing reverse visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityTheyCanSeeYou": "{name} видит вас",
+  "@profileVisibilityTheyCanSeeYou": {
+    "context": "ProfileViewBody — subject-direction visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityYouDontSeeThem": "Сейчас вы не видите {name}",
+  "@profileVisibilityYouDontSeeThem": {
+    "context": "ProfileViewBody — missing forward visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityNeither": "Нет двусторонней видимости",
+  "@profileVisibilityNeither": {
+    "context": "ProfileViewBody — neither direction visible"
+  },
+  "profileRequestUnavailable": "Запрос недоступен",
+  "@profileRequestUnavailable": {
+    "context": "ProfileViewBody — direct send blocked for one-way visibility"
+  },
+  "profileRequestOptions": "Варианты отправки запроса",
+  "@profileRequestOptions": {
+    "context": "ProfileViewBody — routing entry to person-forward screen"
+  },
   "trustRelationPrefix": "Доверие:",
   "@trustRelationPrefix": {
     "context": "Profile — prefix before reciprocity class label"

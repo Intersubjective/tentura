@@ -1153,6 +1153,62 @@
   "@profileSendRequestTo": {
     "context": "ProfileViewBody — open person-forward screen for this user"
   },
+  "trustThisUser": "Trust this user",
+  "@trustThisUser": {
+    "context": "ProfileViewBody — primary/secondary trust CTA (#100)"
+  },
+  "profileVisibilityMutual": "Two-way visibility",
+  "@profileVisibilityMutual": {
+    "context": "ProfileViewBody — mutual visibility summary"
+  },
+  "profileVisibilityYouCanSee": "You can see {name}",
+  "@profileVisibilityYouCanSee": {
+    "context": "ProfileViewBody — viewer-direction visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityCantSeeYou": "{name} can't see you yet",
+  "@profileVisibilityCantSeeYou": {
+    "context": "ProfileViewBody — missing reverse visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityTheyCanSeeYou": "{name} can see you",
+  "@profileVisibilityTheyCanSeeYou": {
+    "context": "ProfileViewBody — subject-direction visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityYouDontSeeThem": "You don't currently see {name}",
+  "@profileVisibilityYouDontSeeThem": {
+    "context": "ProfileViewBody — missing forward visibility",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilityNeither": "No two-way visibility",
+  "@profileVisibilityNeither": {
+    "context": "ProfileViewBody — neither direction visible"
+  },
+  "profileRequestUnavailable": "Request unavailable",
+  "@profileRequestUnavailable": {
+    "context": "ProfileViewBody — direct send blocked for one-way visibility"
+  },
+  "profileRequestOptions": "Request options",
+  "@profileRequestOptions": {
+    "context": "ProfileViewBody — routing entry to person-forward screen"
+  },
   "trustRelationPrefix": "Trust:",
   "@trustRelationPrefix": {
     "context": "Profile — prefix before reciprocity class label"
