@@ -195,6 +195,10 @@ void main() {
     late ScreenCubit screenCubit;
     late _MockFriendsCubit friendsCubit;
     late AuthCase authCase;
+    var registeredFriendsCubit = false;
+    var registeredAuthCase = false;
+    var registeredInvitationRepository = false;
+    var registeredUiEffectPort = false;
 
     setUp(() {
       effects = FakeUiEffectPort();
@@ -205,33 +209,38 @@ void main() {
       final getIt = GetIt.I;
       if (!getIt.isRegistered<FriendsCubit>()) {
         getIt.registerSingleton<FriendsCubit>(friendsCubit);
+        registeredFriendsCubit = true;
       }
       if (!getIt.isRegistered<AuthCase>()) {
         getIt.registerSingleton<AuthCase>(authCase);
+        registeredAuthCase = true;
       }
       if (!getIt.isRegistered<InvitationRepository>()) {
         getIt.registerSingleton<InvitationRepository>(
           _FakeInvitationRepository(),
         );
+        registeredInvitationRepository = true;
       }
       if (!getIt.isRegistered<UiEffectPort>()) {
         getIt.registerSingleton<UiEffectPort>(effects);
+        registeredUiEffectPort = true;
       }
     });
 
     tearDown(() async {
       await screenCubit.close();
       final getIt = GetIt.I;
-      if (getIt.isRegistered<FriendsCubit>()) {
+      if (registeredFriendsCubit && getIt.isRegistered<FriendsCubit>()) {
         await getIt.unregister<FriendsCubit>();
       }
-      if (getIt.isRegistered<AuthCase>()) {
+      if (registeredAuthCase && getIt.isRegistered<AuthCase>()) {
         await getIt.unregister<AuthCase>();
       }
-      if (getIt.isRegistered<InvitationRepository>()) {
+      if (registeredInvitationRepository &&
+          getIt.isRegistered<InvitationRepository>()) {
         await getIt.unregister<InvitationRepository>();
       }
-      if (getIt.isRegistered<UiEffectPort>()) {
+      if (registeredUiEffectPort && getIt.isRegistered<UiEffectPort>()) {
         await getIt.unregister<UiEffectPort>();
       }
     });
