@@ -338,7 +338,7 @@ cd ../..
 |---|---|
 | `f425a53f` | feat(server): enforce mutual visibility in ForwardCase via person_visibility_peers |
 | `6f005c0f` | feat(client): discover forward candidates via mutually_visible_users |
-| `2aa24f47` | docs: record WU3 mutual visibility enforcement evidence for issue #100 |
+| `b63b6af0` | docs: record WU3 mutual visibility enforcement evidence for issue #100 |
 
 **Actions performed:**
 
@@ -372,3 +372,13 @@ cd ../..
 - `websocket_realtime_protocol_test.mocks.dart` regenerated collaterally from server `build_runner`; left unstaged (unrelated).
 
 **Remaining:** WU4 — explicit graph modes and reactive navigation.
+
+---
+
+## Manager review — WU3 accepted (2026-08-08)
+
+- Reviewed `f425a53f`, `6f005c0f`, and `b63b6af0`; the server depends on the new narrow domain port and calls the canonical `person_visibility_peers` projection once, while the client maps only `mutually_visible_users` output.
+- Confirmed `ForwardCase.forward()` preserves nullable stored context, normalizes only the visibility lookup context, checks after block hiding and before `createBatch`, and atomically rejects a mixed remaining batch before edge, inbox, attribution, capability, or attention effects.
+- Independently ran `dart test --exclude-tags pg test/domain/use_case/forward_case_auth_test.dart` (12 passed), `dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart` (29 passed), `flutter test test/features/forward/person_forward_case_test.dart` (7 passed), and `flutter test test/features/forward/person_forward_cubit_test.dart` (7 passed).
+- Independently ran `./scripts/check-custom-lints.sh packages/server` (OK) and `./scripts/check-custom-lints.sh packages/client` (OK; 106 versus baseline 111). `git diff --check 7a6c85fa..b63b6af0` passed.
+- **Verdict:** accepted. WU4 may begin; all unrelated working-tree entries remain unstaged and untouched.
