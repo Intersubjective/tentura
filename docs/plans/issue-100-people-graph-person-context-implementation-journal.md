@@ -37,7 +37,7 @@ Untracked:
 
 1. **WU0** — preflight and characterization — **complete** (2026-08-08).
 2. **WU1** — database, Hasura, and V2 visibility boundary — **complete** (2026-08-08).
-3. **WU2** — client profile projection and canonical getters — pending.
+3. **WU2** — client profile projection and canonical getters — **complete** (2026-08-08).
 4. **WU3** — server enforcement and candidate discovery — pending.
 5. **WU4** — graph modes and reactive navigation — pending.
 6. **WU5** — People entry points — pending.
@@ -243,3 +243,53 @@ PG truth table covers all 10 plan rows (all-absent via missing peer row + `perso
 - Blocked-user GraphQL responses rely on default `trusts_viewer: false` (no incoming-trust query).
 
 **Remaining:** WU2 — client profile projection and canonical getters.
+
+---
+
+## WU2 — client profile projection and canonical getters — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor recovery worker (composer-2.5), WU2 only. No process/port/Docker management.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `add0bdc2` | feat(client): canonical Profile visibility and trusts_viewer projection |
+| `0b8f9abc` | test(client): exhaustive Profile visibility getter coverage |
+
+**Actions performed:**
+
+1. Preserved interrupted WU2 partial edits; verified live `schema.graphql` (schema-fetcher result) already exposes `trusts_viewer` and `mutually_visible_users` — no schema re-fetch or service restart required.
+2. Added `subjectExplicitlyTrustsViewer` to `Profile` with canonical getters from plan §4.2; corrected `isMutuallyVisible` and `isSeeingMe` semantics.
+3. Added `trusts_viewer` to `user_model`, `user_public_model`, `help_offers_with_coordination`, and `mutual_friends_fetch` fragments; mapped in `UserModel`, `UserPublicModel`, coordination, and mutual-friends repositories.
+4. Updated `ProfileViewBody` and `NetworkPersonCard` one-way-in labels to use `subjectExplicitlyTrustsViewer` (not `isSeeingMe`).
+5. Updated EN legend copy (`graphLegendEyeOpen`, `graphLegendForwardEligible`) for Trust-or-MeritRank two-way visibility; ran `flutter gen-l10n`.
+6. Ran `dart run build_runner build -d` and formatted WU2-owned paths (generated outputs gitignored per client `.gitignore`).
+7. Collateral fix: `block_repository.dart` nullable list handling after schema refresh (analyzer errors blocked custom-lint gate).
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/domain/entity/profile_visibility_test.dart \
+  test/ui/widget/contact_badge_legend_test.dart \
+  test/features/beacon/data/additive_graphql_contract_test.dart
+# 00:00 +31: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 tentura_lints vs baseline 111)
+```
+
+`profile_visibility_test.dart`: all 16 T→/MR→/T←/MR← combinations; zero/negative score boundaries; explicit-mutual, MR-mutual, mixed cases; one-way eye closed; `isMutualFriend` strict; `isSeeingMe` reverse-MR-only; `isFriend` alias.
+
+**Findings:**
+
+- Prior worker interrupted after schema fetch; uncommitted `schema.graphql` was valid — no `docker compose run schema_fetcher` rerun needed.
+- `build_runner` regenerated gitignored Ferry/Freezed/l10n Dart; committed sources only.
+- Schema refresh made `myBlocks` / `blockInherited` nullable in generated Ferry types; minimal null-safe mapping fix required outside WU2 path list.
+- `app_ru.arb` legend strings not updated (WU13 localization scope).
+
+**Remaining:** WU3 — server enforcement and candidate discovery.
