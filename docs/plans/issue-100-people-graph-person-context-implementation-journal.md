@@ -657,3 +657,12 @@ Policy tests cover all 16 T/MR combinations plus self/blocked, transition regres
 - Confirmed callers emit only `ScreenCubit.showBlockedUsers()` / `NavigateBlockedUsers`, and the dispatcher invokes the public `RootRouter.openBlockedUsers()` boundary; the cold leading fallback goes to `kPathNetwork`.
 - Independently ran all focused suites: router WU6 group (8), block sheet (9), blocked screen (2), and Settings absence (1) — all passed. `./scripts/check-custom-lints.sh packages/client`, terminology, `git show --check`, and `git diff --check 2d8bb3e7..HEAD` passed; no generated files were committed.
 - **Verdict:** accepted. WU7 may begin; preserved unrelated worktree paths remain unstaged and untouched.
+
+---
+
+## Manager review — WU7 accepted (2026-08-08)
+
+- Reviewed `20ff6cdc`, `3b0aa79a`, and `1433a3ab`: the pure UI policy preserves independent explicit-trust and directional-visibility facts, covers all 16 mechanism combinations plus self/blocked, and makes direct Send conditional on mutual visibility only.
+- Confirmed ProfileView renders the required hierarchy, offers at most one normal Filled CTA, routes both Send and Request options through `showForwardToPerson`, and leaves the blocked fallback unblock-only.
+- Independently ran the policy, Profile hierarchy, and blocked-profile suites: 38 tests passed. `git show --check` for all WU7 commits and `git diff --check e2d8ed41..HEAD` passed; no generated files were committed.
+- **Verdict:** accepted. WU8 is now the mandatory unbriefed-human usability gate; no automated worker may substitute for it.
