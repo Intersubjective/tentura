@@ -42,7 +42,7 @@ Untracked:
 5. **WU4** — graph modes and reactive navigation — **complete** (2026-08-08).
 6. **WU5** — People entry points — **complete** (2026-08-08).
 7. **WU6** — Blocked People route ownership — **complete** (2026-08-08).
-8. **WU7** — policy and Profile hierarchy — pending.
+8. **WU7** — policy and Profile hierarchy — **complete** (2026-08-08).
 9. **WU8** — mandatory first human usability check — pending human gate.
 10. **WU9** — graph profile projection patch and equality — pending.
 11. **WU10** — authoritative Trust and context cubit — pending.
@@ -595,6 +595,58 @@ bash scripts/check-user-facing-terminology.sh
 - Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
 
 **Remaining:** WU7 — policy and Profile hierarchy.
+
+---
+
+## WU7 — pure person policy and Profile hierarchy — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor worker (composer-2.5), WU7 only. No process/port/Docker management.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `20ff6cdc` | feat(client): add pure PersonActionPolicy for profile actions |
+| `3b0aa79a` | feat(client): refactor ProfileViewBody with PersonActionPolicy hierarchy |
+| `1433a3ab` | test(client): ProfileViewBody action policy widget coverage |
+
+**Actions performed:**
+
+1. Added `PersonActionPolicy` in `lib/ui/model/person_action_policy.dart` with `PersonPrimaryAction` / `PersonVisibilityState` enums; pure `from(Profile, isSelf, isBlocked)` exposing all plan §4.3 fields.
+2. Policy matrix: self/blocked suppress actions; mutual → Send primary + secondary Trust when outgoing explicit trust absent; non-mutual without outgoing explicit trust → Trust primary + Request options; non-mutual with outgoing explicit trust → no Filled CTA + Request unavailable + Request options.
+3. Refactored `ProfileViewBody` hierarchy (avatar → description/presence → trust relation → directional visibility + eye → primary CTA → secondary actions → capabilities/graph/genealogy/history/mutual); helpers private to `profile_view_body.dart`.
+4. Added EN/RU l10n keys (`trustThisUser`, visibility lines, `profileRequestUnavailable`, `profileRequestOptions`); ran `flutter gen-l10n` (generated output gitignored).
+5. Blocked fallback unchanged (unblock-only); extended blocked widget test to assert no Trust/Send/Request options.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter gen-l10n
+flutter test test/ui/model/person_action_policy_test.dart \
+  test/features/profile_view/profile_view_body_action_policy_test.dart \
+  test/features/profile_view/profile_view_blocked_profile_test.dart
+# 00:01 +38: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+
+bash scripts/check-user-facing-terminology.sh
+# ok
+```
+
+Policy tests cover all 16 T/MR combinations plus self/blocked, transition regressions (subject-only→mutual, neither→viewer-only, viewer-only no misleading Trust, mutual MR + secondary Trust), and reachability-not-implying-explicit-trust.
+
+**Findings:**
+
+- `addToMyField` l10n retained for legacy surfaces; #100 profile CTAs use new `trustThisUser` key per plan (full WU13 localization deferred).
+- `ProfileViewCubit.addFriend()` unchanged; WU10 will make the use case authoritative.
+- Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
+
+**Remaining:** WU8 — mandatory first human usability check (human gate).
 
 ---
 
