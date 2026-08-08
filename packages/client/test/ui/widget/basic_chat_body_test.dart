@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -5,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -18,13 +21,44 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 class _FakeImageRepository extends Fake implements ImageRepository {
+  _FakeImageRepository({this.picks});
+
+  final List<ImagePicked>? picks;
+
   @override
-  Future<List<ImagePicked>> pickMultipleImages() async => [
-    ImagePicked(
-      bytes: Uint8List.fromList([1, 2, 3]),
-      fileName: 'test.png',
-    ),
-  ];
+  Future<List<ImagePicked>> pickMultipleImages() async => picks ??
+      [
+        ImagePicked(
+          bytes: Uint8List.fromList([1, 2, 3]),
+          fileName: 'test.png',
+        ),
+      ];
+}
+
+class _FakeClipboardImageRepository extends Fake
+    implements ClipboardImageRepository {
+  final FutureOr<ClipboardImageReadResult> Function()? _resultFactory;
+  final ClipboardImageReadResult? _result;
+  final void Function()? onRead;
+
+  _FakeClipboardImageRepository.result(
+    ClipboardImageReadResult result, {
+    this.onRead,
+  })  : _result = result,
+        _resultFactory = null;
+
+  _FakeClipboardImageRepository.factory(
+    FutureOr<ClipboardImageReadResult> Function() resultFactory, {
+    this.onRead,
+  })  : _result = null,
+        _resultFactory = resultFactory;
+
+  @override
+  Future<ClipboardImageReadResult> readImage() async {
+    onRead?.call();
+    final result = _resultFactory != null ? await _resultFactory!() : _result!;
+    return result;
+  }
 }
 
 class _TestProfileCubit extends Mock implements ProfileCubit {
@@ -84,6 +118,7 @@ void main() {
                   participants: const [],
                   isLoading: false,
                   imageRepository: ImageRepository(),
+                  clipboardImageRepository: ClipboardImageRepository(),
                   enableComposerAttachments: false,
                   enableParticipantMentions: false,
                   onSend: (_, _) async => true,
@@ -166,6 +201,7 @@ void main() {
                     participants: const [],
                     isLoading: true,
                     imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
                     enableComposerAttachments: false,
                     enableParticipantMentions: false,
                     onSend: (_, _) async => true,
@@ -232,6 +268,7 @@ void main() {
                     participants: const [],
                     isLoading: false,
                     imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
                     enableComposerAttachments: false,
                     enableParticipantMentions: false,
                     onSend: (_, _) async => true,
@@ -288,6 +325,7 @@ void main() {
     )
     onSend,
     ImageRepository? imageRepository,
+    ClipboardImageRepository? clipboardImageRepository,
     double width = 1400,
     bool enableComposerAttachments = true,
   }) async {
@@ -315,6 +353,10 @@ void main() {
                   participants: const [],
                   isLoading: false,
                   imageRepository: imageRepository ?? _FakeImageRepository(),
+                  clipboardImageRepository: clipboardImageRepository ??
+                      _FakeClipboardImageRepository.result(
+                        const ClipboardImageReadResult.notFound(),
+                      ),
                   enableComposerAttachments: enableComposerAttachments,
                   enableParticipantMentions: false,
                   onSend: onSend,
@@ -389,5 +431,122 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty);
+  });
+
+  testWidgets('paste image adds pending attachment via same path as Photos', (
+    tester,
+  ) async {
+    final upload = RoomPendingUpload(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      fileName: 'clipboard.png',
+      mimeType: 'image/png',
+    );
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.result(
+        ClipboardImageReadResult.found(upload),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste image'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('paste image with not found shows message and adds nothing', (
+    tester,
+  ) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.result(
+        const ClipboardImageReadResult.notFound(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste image'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No image on clipboard'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('paste image rejects oversized clipboard image via _tryAdd', (
+    tester,
+  ) async {
+    final oversized = RoomPendingUpload(
+      bytes: Uint8List(kMaxRoomMessageAttachmentBytes + 1),
+      fileName: 'clipboard.png',
+      mimeType: 'image/png',
+    );
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.result(
+        ClipboardImageReadResult.found(oversized),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste image'));
+    await tester.pumpAndSettle();
+
+    const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
+    expect(
+      find.text('Each file must be $mb MB or smaller.'),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('paste image read error shows message without crashing', (
+    tester,
+  ) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.factory(
+        () => throw StateError('permission denied'),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste image'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not read clipboard'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
   });
 }

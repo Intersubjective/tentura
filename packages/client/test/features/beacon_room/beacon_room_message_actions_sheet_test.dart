@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -92,6 +93,9 @@ void main() {
 
     getIt.registerSingleton<ProfileCubit>(profileCubit);
     getIt.registerSingleton<ImageRepository>(ImageRepository());
+    getIt.registerSingleton<ClipboardImageRepository>(
+      ClipboardImageRepository(),
+    );
 
     await tester.binding.setSurfaceSize(Size(width, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -71,6 +72,7 @@ void main() {
                   participants: [_participant('alice'), _participant('bob')],
                   isLoading: false,
                   imageRepository: ImageRepository(),
+                  clipboardImageRepository: ClipboardImageRepository(),
                   enableParticipantMentions: true,
                   onSend: (_, _) async => true,
                 ),
