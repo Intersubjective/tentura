@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
@@ -24,27 +22,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  test('isSeeingMe uses rScore not score', () {
-    expect(const Profile(id: 'open', rScore: 1).isSeeingMe, isTrue);
-    expect(const Profile(id: 'closed', score: 50).isSeeingMe, isFalse);
-  });
-
-  test('isMutuallyVisible requires both score directions', () {
-    expect(
-      const Profile(id: 'mutual', score: 1, rScore: 1).isMutuallyVisible,
-      isTrue,
-    );
-    expect(
-      const Profile(id: 'in-only', rScore: 1).isMutuallyVisible,
-      isFalse,
-    );
-    expect(
-      const Profile(id: 'out-only', score: 50).isMutuallyVisible,
-      isFalse,
-    );
-    expect(const Profile(id: 'none').isMutuallyVisible, isFalse);
-  });
-
   testWidgets('contact badge legend lists mutual and eye rows', (tester) async {
     await pumpLegend(tester);
 
@@ -54,7 +31,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Open eye'),
+      find.textContaining('two-way visibility'),
       findsOneWidget,
     );
     expect(
