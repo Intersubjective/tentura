@@ -950,3 +950,13 @@ cd ../..
 **Summary:** Authoritative trust mutations refetch full viewer-relative profiles; `GraphPersonContextCubit` coordinates selection, dismiss/reselect, and sequence-guarded trust with `GraphCubit.patchLoadedProfile` after success. No WU11 widget wiring, l10n, or version changes.
 
 **Preservation:** pre-existing unrelated modified/untracked paths remain unstaged and untouched.
+
+---
+
+## Manager review — WU10 accepted — 2026-08-09
+
+- Reviewed `9787dfd4`, `ba59b1e1`, and `f57247db`; both commit checks and `git diff --check e2a78efa..HEAD` passed. Only WU10-owned source, tests, and journal paths were committed.
+- Confirmed mutation order is LikeRemoteRepository → `ProfileRepositoryPort.fetchById` → ContactsCase overlay; controller writes use the authoritative projection rather than synthetic reverse-trust/MeritRank state.
+- Confirmed GraphPersonContextCubit has only the intended `ProfileViewCase` and route-local GraphCubit dependencies. It increments the selection sequence for a new person; success patches captured Alice even after switching to Bob; only an unchanged id/sequence can update the panel/error state; `isClosed` prevents post-close emits.
+- Independently ran the four WU10/WU9 suites (35 passed), the WU9 equality/projection suites (19 passed), and `./scripts/check-custom-lints.sh packages/client` (OK, 106 vs baseline 111). Generated Freezed output exists locally and is deliberately ignored by this workspace's generated-file policy.
+- **Verdict:** accepted. WU11 is dependency-ready. WU14 human evidence is user-confirmed; WU15 remains ordered after WU11–WU13 acceptance.
