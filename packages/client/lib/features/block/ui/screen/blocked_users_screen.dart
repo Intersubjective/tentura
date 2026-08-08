@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -33,7 +35,7 @@ class BlockedUsersScreen extends StatelessWidget implements AutoRouteWrapper {
     return Scaffold(
       appBar: TenturaTopBar.of(
         context,
-        leading: const AutoLeadingButton(),
+        leading: const AutoLeadingWithFallback(fallbackPath: kPathNetwork),
         title: Text(l10n.blockedUsersTitle),
       ),
       body: SafeArea(

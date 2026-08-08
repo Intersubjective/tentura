@@ -12,10 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 class _FakeAuthCubit extends Fake implements AuthCubit {
   _FakeAuthCubit({bool bootstrapping = false})
@@ -99,6 +101,38 @@ PageInfo _labelPage(String name, String label) => PageInfo(
   builder: (_) => Text(label, textDirection: TextDirection.ltr),
 );
 
+int _countRoutePages(List<AutoRoute> routes, String pageName) {
+  var count = 0;
+  for (final route in routes) {
+    if (route.page.name == pageName) {
+      count++;
+    }
+    final children = route.children;
+    if (children != null) {
+      count += _countRoutePages(children, pageName);
+    }
+  }
+  return count;
+}
+
+String? _parentSegmentOfRoute(List<AutoRoute> routes, String pageName) {
+  for (final route in routes) {
+    final children = route.children;
+    if (children != null) {
+      for (final child in children) {
+        if (child.page.name == pageName) {
+          return route.path;
+        }
+      }
+      final nested = _parentSegmentOfRoute(children, pageName);
+      if (nested != null) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -115,6 +149,7 @@ void main() {
   late final PageInfo realReviewContributionsPage;
   late final PageInfo realItemDiscussionPage;
   late final PageInfo realInboxRejectedPage;
+  late final PageInfo realBlockedUsersPage;
 
   setUpAll(() {
     realHomePage = HomeRoute.page;
@@ -130,6 +165,7 @@ void main() {
     realReviewContributionsPage = ReviewContributionsRoute.page;
     realItemDiscussionPage = ItemDiscussionRoute.page;
     realInboxRejectedPage = InboxRejectedRoute.page;
+    realBlockedUsersPage = BlockedUsersRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -186,6 +222,18 @@ void main() {
       InboxRejectedRoute.name,
       'inbox-rejected',
     );
+    BlockedUsersRoute.page = PageInfo(
+      BlockedUsersRoute.name,
+      builder: (_) => Scaffold(
+        appBar: AppBar(
+          leading: const AutoLeadingWithFallback(fallbackPath: kPathNetwork),
+          title: const Text(
+            'blocked-users',
+            textDirection: TextDirection.ltr,
+          ),
+        ),
+      ),
+    );
   });
 
   tearDownAll(() {
@@ -202,14 +250,20 @@ void main() {
     ReviewContributionsRoute.page = realReviewContributionsPage;
     ItemDiscussionRoute.page = realItemDiscussionPage;
     InboxRejectedRoute.page = realInboxRejectedPage;
+    BlockedUsersRoute.page = realBlockedUsersPage;
   });
 
   late RootRouter router;
   late _FakeAuthCubit authCubit;
+  var _routerPumped = false;
 
   tearDown(() async {
+    if (!_routerPumped) {
+      return;
+    }
     router.dispose();
     await authCubit.shutDown();
+    _routerPumped = false;
   });
 
   /// Pumps the real [RootRouter] with web-parity parsing
@@ -233,6 +287,7 @@ void main() {
       _FakeSettingsCubit(),
       PostJoinNavigationCubit(),
     );
+    _routerPumped = true;
     if (viaPlatform) {
       tester.binding.platformDispatcher.defaultRouteNameTestValue = initialPath;
       addTearDown(
@@ -772,6 +827,149 @@ void main() {
 
         expect(find.text('profile-view:U2'), findsOneWidget);
         expect(currentUrl(), '/home/network/profile/view/U2');
+      },
+    );
+  });
+
+  group('WU6 — Blocked people route ownership', () {
+    test('registers BlockedUsersRoute once under Network', () async {
+      final localAuth = _FakeAuthCubit();
+      final localRouter = RootRouter(
+        Logger('test'),
+        localAuth,
+        _FakeSettingsCubit(),
+        PostJoinNavigationCubit(),
+      );
+      addTearDown(() async {
+        localRouter.dispose();
+        await localAuth.shutDown();
+      });
+
+      expect(
+        _countRoutePages(localRouter.routes, BlockedUsersRoute.name),
+        1,
+      );
+      expect(
+        _parentSegmentOfRoute(localRouter.routes, BlockedUsersRoute.name),
+        kPathNetwork.split('/').last,
+      );
+    });
+
+    testWidgets('openBlockedUsers from People lands on canonical URL', (
+      tester,
+    ) async {
+      await pumpRouter(tester, initialPath: '/home/network');
+      expect(find.text('friends-root'), findsOneWidget);
+
+      await router.openBlockedUsers();
+      await tester.pumpAndSettle();
+
+      expect(find.text('blocked-users'), findsOneWidget);
+      expect(currentUrl(), kPathBlockedUsers);
+    });
+
+    testWidgets(
+      'openBlockedUsers from another tab activates Network with '
+      '[FriendsRoute, BlockedUsersRoute]',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/work');
+        expect(find.text('my-work-root'), findsOneWidget);
+
+        await router.openBlockedUsers();
+        await tester.pumpAndSettle();
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final networkSpec = HomeTabSpec.forTab(HomeTab.network);
+        final branch = tabsRouter?.stackRouterOfIndex(networkSpec.index);
+        expect(tabsRouter?.activeIndex, networkSpec.index);
+        expect(branch?.stack.map((r) => r.name).toList(), [
+          FriendsRoute.name,
+          BlockedUsersRoute.name,
+        ]);
+        expect(find.text('blocked-users'), findsOneWidget);
+        expect(currentUrl(), kPathBlockedUsers);
+      },
+    );
+
+    testWidgets(
+      'restores blocked users from a full branch URL (browser refresh)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: kPathBlockedUsers);
+
+        expect(find.text('blocked-users'), findsOneWidget);
+        expect(currentUrl(), kPathBlockedUsers);
+      },
+    );
+
+    testWidgets(
+      'restores blocked users from a platform initial route (browser URL bar)',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: kPathBlockedUsers,
+          viaPlatform: true,
+        );
+
+        expect(find.text('blocked-users'), findsOneWidget);
+        expect(currentUrl(), kPathBlockedUsers);
+      },
+    );
+
+    testWidgets('back after openBlockedUsers returns to People root', (
+      tester,
+    ) async {
+      await pumpRouter(tester, initialPath: '/home/network');
+      await router.openBlockedUsers();
+      await tester.pumpAndSettle();
+      expect(find.text('blocked-users'), findsOneWidget);
+
+      await router.maybePopTop();
+      await tester.pumpAndSettle();
+
+      expect(find.text('friends-root'), findsOneWidget);
+      expect(currentUrl(), kPathNetwork);
+    });
+
+    testWidgets(
+      'fallback back after cold refresh on blocked URL navigates to People',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: kPathBlockedUsers,
+          viaPlatform: true,
+        );
+        expect(find.text('blocked-users'), findsOneWidget);
+
+        final branch = router
+            .innerRouterOf<TabsRouter>(HomeRoute.name)
+            ?.stackRouterOfIndex(HomeTabSpec.forTab(HomeTab.network).index);
+        expect(branch, isNotNull);
+        expect(branch!.canPop(), isFalse);
+
+        final blockedAppBar = find.ancestor(
+          of: find.text('blocked-users'),
+          matching: find.byType(AppBar),
+        );
+        await tester.tap(
+          find.descendant(
+            of: blockedAppBar,
+            matching: find.byType(IconButton),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('friends-root'), findsOneWidget);
+        expect(currentUrl(), kPathNetwork);
+      },
+    );
+
+    testWidgets(
+      '/settings/blocked is not registered and follows unknown-route behavior',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/settings/blocked');
+
+        expect(find.text('blocked-users'), findsNothing);
+        expect(currentUrl(), kPathMyWork);
       },
     );
   });

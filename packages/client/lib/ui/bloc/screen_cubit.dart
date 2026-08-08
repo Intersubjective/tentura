@@ -92,6 +92,8 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showSettings() => _navigateTo(kPathSettings);
 
+  void showBlockedUsers() => _effects.emit(const NavigateBlockedUsers());
+
   void showComplaint(String id) => _navigateTo('$kPathComplaint/$id');
 
   void showAccountDeletionRequest(String profileId) => _navigateTo(

@@ -34,6 +34,8 @@ void dispatchUiEffect(
         includePrefixMatches: true,
         onFailure: GetIt.I<Logger>().fine,
       );
+    case NavigateBlockedUsers():
+      unawaited(router.openBlockedUsers());
     case NavigateBack(:final result):
       unawaited(_maybePopOrReplaceWithHome(router, result));
     case NavigateReplace(:final target):

@@ -165,6 +165,7 @@ class RootRouter extends RootStackRouter {
           path: kPathNetwork.split('/').last,
           children: [
             AutoRoute(initial: true, page: FriendsRoute.page, path: ''),
+            AutoRoute(page: BlockedUsersRoute.page, path: 'blocked'),
             ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
@@ -211,17 +212,6 @@ class RootRouter extends RootStackRouter {
     AutoRoute(
       page: NotificationSettingsRoute.page,
       path: kPathNotificationSettings,
-      guards: [
-        AutoRouteGuard.redirect(
-          (_) => _introPending ? const IntroRoute() : null,
-        ),
-        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
-      ],
-    ),
-
-    AutoRoute(
-      page: BlockedUsersRoute.page,
-      path: kPathBlockedUsers,
       guards: [
         AutoRouteGuard.redirect(
           (_) => _introPending ? const IntroRoute() : null,
@@ -827,6 +817,35 @@ class RootRouter extends RootStackRouter {
         attentionDestination(receipt).toString(),
         preferUpdatesBranch: true,
       );
+
+  /// Activates Network, normalizes the branch to [FriendsRoute], then pushes
+  /// [BlockedUsersRoute]. Cold-start (no mounted home tabs) builds
+  /// `HomeRoute → NetworkTabShell → FriendsRoute → BlockedUsersRoute`.
+  Future<void> openBlockedUsers() async {
+    final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
+    if (tabs != null) {
+      final networkSpec = HomeTabSpec.forTab(HomeTab.network);
+      tabs.setActiveIndex(networkSpec.index);
+      final branch = tabs.stackRouterOfIndex(networkSpec.index);
+      if (branch != null) {
+        await branch.replaceAll([FriendsRoute()]);
+        unawaited(branch.push(const BlockedUsersRoute()));
+        return;
+      }
+    }
+    await navigate(
+      HomeRoute(
+        children: [
+          networkTabShell(
+            children: [
+              FriendsRoute(),
+              const BlockedUsersRoute(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Uri _notificationUriFromRaw(String raw) {
     final idx = raw.indexOf('/#/');

@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/block/ui/sheet/block_user_sheet.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../../../ui/effect/fake_ui_effect_port.dart';
 
 void main() {
   group('BlockUserSheetBody C3', () {
@@ -195,19 +198,21 @@ void main() {
       expect(fakeCase.blockCalls, [0]);
     });
 
-    testWidgets('manage action navigates to blocked users screen', (tester) async {
+    testWidgets('manage action emits NavigateBlockedUsers', (tester) async {
       final fakeCase = FakeBlockCase()
         ..previewResults = [const BlockPreview()];
-      final recordingRouter = _RecordingRootRouter();
+      final effects = FakeUiEffectPort();
+      final screenCubit = ScreenCubit.local(effects);
       final getIt = GetIt.instance;
-      if (getIt.isRegistered<RootRouter>()) {
-        await getIt.unregister<RootRouter>();
+      if (getIt.isRegistered<ScreenCubit>()) {
+        await getIt.unregister<ScreenCubit>();
       }
-      getIt.registerSingleton<RootRouter>(recordingRouter);
-      addTearDown(() {
-        if (getIt.isRegistered<RootRouter>()) {
-          getIt.unregister<RootRouter>();
+      getIt.registerSingleton<ScreenCubit>(screenCubit);
+      addTearDown(() async {
+        if (getIt.isRegistered<ScreenCubit>()) {
+          await getIt.unregister<ScreenCubit>();
         }
+        await screenCubit.close();
       });
 
       await pumpBlockUserSheet(tester, fakeCase: fakeCase);
@@ -221,8 +226,7 @@ void main() {
       await tester.tap(find.text(l10n.blockManageAction));
       await tester.pump();
 
-      expect(recordingRouter.pushedRoutes, hasLength(1));
-      expect(recordingRouter.pushedRoutes.single.routeName, BlockedUsersRoute.name);
+      expect(effects.emitted.whereType<NavigateBlockedUsers>(), hasLength(1));
     });
   });
 }
@@ -286,17 +290,4 @@ class FakeBlockCase implements BlockCase {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _RecordingRootRouter extends Fake implements RootRouter {
-  final pushedRoutes = <PageRouteInfo<dynamic>>[];
-
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo<dynamic> route, {
-    OnNavigationFailure? onFailure,
-  }) async {
-    pushedRoutes.add(route);
-    return null;
-  }
 }

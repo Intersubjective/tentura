@@ -12,6 +12,11 @@ final class NavigatePush extends UiEffect {
   final String path;
 }
 
+/// Open Blocked people under the Network tab (semantic navigation).
+final class NavigateBlockedUsers extends UiEffect {
+  const NavigateBlockedUsers();
+}
+
 /// Pop the current route; optional [result] for dialog/fullscreen flows.
 final class NavigateBack extends UiEffect {
   const NavigateBack({this.result});

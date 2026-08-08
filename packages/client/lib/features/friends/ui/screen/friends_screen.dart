@@ -26,9 +26,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import '../bloc/friends_cubit.dart';
 import '../widget/friends_app_bar_actions.dart';
 
-/// Semantic hook for WU6 blocked-people navigation from People.
+/// Semantic hook for blocked-people navigation from People.
 void navigateToBlockedPeopleFromFriends(BuildContext context) {
-  // WU6: context.read<ScreenCubit>().showBlockedUsers();
+  context.read<ScreenCubit>().showBlockedUsers();
 }
 
 @RoutePage()
