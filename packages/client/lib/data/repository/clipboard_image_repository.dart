@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -43,7 +44,7 @@ class _ClipboardImageFormat {
     required this.fallbackFileName,
   });
 
-  final DataFormat<Uint8List> format;
+  final FileFormat format;
   final String mimeType;
   final String fallbackFileName;
 }
@@ -95,10 +96,10 @@ class ClipboardImageRepository {
     final reader = await _readClipboard();
 
     for (final imageFormat in _kImageFormats) {
-      if (!reader.hasValue(imageFormat.format)) {
+      if (!reader.canProvide(imageFormat.format)) {
         continue;
       }
-      final bytes = await reader.readValue<Uint8List>(imageFormat.format);
+      final bytes = await _readFileBytes(reader, imageFormat.format);
       if (bytes == null || bytes.isEmpty) {
         continue;
       }
@@ -117,6 +118,31 @@ class ClipboardImageRepository {
     }
 
     return const ClipboardImageReadResult.notFound();
+  }
+
+  Future<Uint8List?> _readFileBytes(
+    ClipboardReader reader,
+    FileFormat format,
+  ) async {
+    final completer = Completer<Uint8List?>();
+    final progress = reader.getFile(
+      format,
+      (file) async {
+        try {
+          completer.complete(await file.readAll());
+        } catch (error, stackTrace) {
+          completer.completeError(error, stackTrace);
+        }
+      },
+      onError: completer.completeError,
+    );
+    if (progress == null) {
+      if (completer.isCompleted) {
+        return completer.future;
+      }
+      return null;
+    }
+    return completer.future;
   }
 
   String _resolveFileName(String? suggestedName, String fallbackFileName) {

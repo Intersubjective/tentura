@@ -91,7 +91,7 @@ dependencies:
   mockito: ^5.6.4
   google_maps_flutter: ^2.17.1
   pointer_interceptor: ^0.10.1+2
-  super_clipboard: ^0.1.7+6
+  super_clipboard: ^0.9.1
 
 dev_dependencies:
   flutter_test:
@@ -150,3 +150,6 @@ sentry:
 dependency_overrides:
   image_cropper_for_web:
     path: ../image_cropper_for_web
+  # super_native_extensions 0.9.x caps device_info_plus <12 (win32 <6); file_picker
+  # needs win32 ^6.3.0 — override to a release whose win32 range includes 6.x.
+  device_info_plus: ^13.0.0

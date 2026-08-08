@@ -1,9 +1,22 @@
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+
+class _FakeReadProgress extends Fake implements ReadProgress {}
+
+class _FakeDataReaderFile extends Fake implements DataReaderFile {
+  _FakeDataReaderFile(this.bytes);
+
+  final Uint8List bytes;
+
+  @override
+  Future<Uint8List> readAll() async => bytes;
+}
 
 class _FakeClipboardReader extends Fake implements ClipboardReader {
   _FakeClipboardReader({
@@ -20,14 +33,21 @@ class _FakeClipboardReader extends Fake implements ClipboardReader {
   List<ClipboardDataReader> get items => const [];
 
   @override
-  bool hasValue(DataFormat format) => hasPng && format == Formats.png;
+  bool canProvide(DataFormat format) => hasPng && format == Formats.png;
 
   @override
-  Future<T?> readValue<T extends Object>(DataFormat<T> format) async {
-    if (format == Formats.png) {
-      return pngBytes as T?;
+  ReadProgress? getFile(
+    FileFormat? format,
+    AsyncValueChanged<DataReaderFile> onFile, {
+    ValueChanged<Object>? onError,
+    bool allowVirtualFiles = true,
+    bool synthesizeFilesFromURIs = true,
+  }) {
+    if (!hasPng || format != Formats.png || pngBytes == null) {
+      return null;
     }
-    return null;
+    onFile(_FakeDataReaderFile(pngBytes!));
+    return _FakeReadProgress();
   }
 
   @override
@@ -120,13 +140,20 @@ class _ThrowingClipboardReader extends Fake implements ClipboardReader {
   List<ClipboardDataReader> get items => const [];
 
   @override
-  bool hasValue(DataFormat format) => format == Formats.png;
+  bool canProvide(DataFormat format) => format == Formats.png;
 
   @override
   Future<String?> getSuggestedName() async => null;
 
   @override
-  Future<T?> readValue<T extends Object>(DataFormat<T> format) async {
-    throw const FormatException('read failed');
+  ReadProgress? getFile(
+    FileFormat? format,
+    AsyncValueChanged<DataReaderFile> onFile, {
+    ValueChanged<Object>? onError,
+    bool allowVirtualFiles = true,
+    bool synthesizeFilesFromURIs = true,
+  }) {
+    onError?.call(const FormatException('read failed'));
+    return null;
   }
 }

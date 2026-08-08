@@ -172,3 +172,173 @@ review) — workers should not need to invent design decisions.
 - **REMAINING:** none for Unit B. Manual paste verification in browser still
   recommended via `local-debug` skill (not run in this session).
 
+### 2026-08-08 — Unit B: overseer independent review — ACCEPTED
+
+- Confirmed pre-existing unrelated worktree changes untouched — `git status`
+  matches the "Starting state" list exactly (plus this plan's own `-plan.md`
+  file, still intentionally untracked, not part of either unit's commit set).
+- Commits are focused: `189b7683` (dependency + repository + DI, 8 files),
+  `fbe1aa54` (menu wiring + l10n + version bump, 5 files), `d951ee44`
+  (tests + GetIt test fixture + journal, 5 files). No unrelated files
+  touched; `pubspec.lock` correctly committed alongside the dependency add.
+- Read all three diffs directly against the plan's §3–4 acceptance
+  criteria: three-state `ClipboardImageReadResult` (found/notFound/
+  unsupported) with an injectable test seam (`ClipboardImageRepository.withReader`)
+  since the reader type has a private constructor in the resolved package
+  version; deterministic png→jpeg→webp→gif format priority with fallback
+  filenames; read errors propagate uncaught from the repository and are
+  caught at the call site (`_pasteImage()` in `basic_chat_body.dart`) with
+  a distinct "Could not read clipboard" message; "Paste image" routes
+  through the existing `_tryAdd` (same size/count caps as Photos/Files,
+  verified by the oversized-image test); DI propagation mirrors
+  `ImageRepository` exactly through `BeaconRoomBody` → `BasicChatBody` →
+  `BeaconRoomComposer`; the known-risk
+  `beacon_room_message_actions_sheet_test.dart` GetIt gap was fixed by
+  registering a real `ClipboardImageRepository()` alongside
+  `ImageRepository()`. l10n: 4 new keys added to both `app_en.arb` and
+  `app_ru.arb` with real (not placeholder) Russian translations, matching
+  neighboring `beaconRoomAttach*` key naming. Version bump to 5.8.0
+  includes the web cache-buster step per the repo's own recently-added
+  convention (`web/index.html`).
+- **Deviation from plan, correctly handled, not a defect**: `super_clipboard`
+  0.9.1 (assumed by the plan) does not resolve in this repo's dependency
+  graph (`share_plus`/`win32` conflict) — the worker used `0.1.7+6`
+  instead and adapted the API surface accordingly
+  (`ClipboardReader.readClipboard()`/`hasValue()`/`readValue<Uint8List>()`
+  in place of the plan's assumed `SystemClipboard.instance`/`getFile()`).
+  This is exactly the kind of unverifiable-until-implementation detail the
+  three adversarial review rounds flagged as needing confirmation at
+  implementation time — confirmed here by reading the actual repository
+  code and the real `super_clipboard` types referenced in
+  `clipboard_image_repository_test.dart`'s `Fake implements ClipboardReader`,
+  not merely by trusting the worker's prose claim.
+- Independently reran (not trusting worker-reported green):
+  `flutter test test/data/repository/clipboard_image_repository_test.dart
+  test/ui/widget/basic_chat_body_test.dart
+  test/features/beacon_room/beacon_room_message_actions_sheet_test.dart
+  test/ui/widget/mention_suggestions_overlay_test.dart` → 20/20 pass,
+  including all 6 repository-level scenarios (found, fallback filename,
+  not-found, unsupported, two error-propagation cases) and all 5
+  composer-level scenarios (found via same path as Photos, not-found
+  message, oversized rejection via `_tryAdd`, read-error message,
+  Unit A's draft-preservation tests still passing alongside).
+  `flutter test test/features/beacon_room/` (full suite) → 127 passed, 6
+  golden skips — no regression.
+  `./scripts/check-custom-lints.sh packages/client` → 106 issues, baseline
+  111 — no regression. **Correction to the worker's self-report**: it
+  claimed "0 issues"; the actual independently-verified count is 106
+  (same as after Unit A — no new violations introduced by Unit B's code).
+  Still passes the ratchet (106 < 111); noted here for the record per "run
+  targeted checks yourself instead of accepting worker-reported green,"
+  not as a defect requiring remediation.
+- Verdict: **ACCEPTED**. Both plan units complete. Proceeding to
+  plan-level integration verification.
+
+### 2026-08-08 — Plan-level integration verification: DEFECT FOUND
+
+- Per plan §5, the standard web build gate this repo's CI runs includes a
+  real `--wasm` build (`.github/workflows/pipeline.yml:290`), which
+  ordinary widget tests and a JS-only web build do not exercise. Unit B's
+  self-reported `flutter build web --no-wasm-dry-run` does **not** test
+  this — `--no-wasm-dry-run` *disables* the (JS-compilation-time) Wasm
+  dry-run warning check; it does not build Wasm and is not evidence of
+  Wasm compatibility, despite superficially looking like a Wasm-related
+  flag. Ran the real check myself: `flutter build web --wasm` from
+  `packages/client`.
+- **Result: fails to compile.**
+  `../../../../.pub-cache/hosted/pub.dev/irondash_message_channel-0.1.1/lib/src/write_buffer.dart:1:1:
+  Error: 'dart:ffi' can't be imported when compiling to Wasm.`
+- **Root cause, diagnosed directly** (not guessed): `super_clipboard`
+  0.1.7+6's `SystemClipboard`/`ClipboardReader` implementation comes from
+  its dependency `super_native_extensions` 0.1.8+2. That package's
+  `lib/src/clipboard_reader.dart` selects its platform implementation with
+  `import 'native/clipboard_reader.dart' if (dart.library.js)
+  'web/clipboard_reader.dart';` — the **legacy** conditional-import guard
+  for "am I compiling for web" (`dart.library.js`, satisfied under dart2js
+  only). Under `dart2wasm`, `dart.library.js` is **not** defined (only
+  `dart.library.js_interop` is, which is the guard Unit B correctly used
+  for its own new `clipboard_support_web.dart`/`clipboard_support_stub.dart`
+  files) — so under `--wasm` this old package version silently falls
+  through to the **native** implementation, which pulls in
+  `irondash_message_channel`'s FFI code even for a web build.
+- **Why a version bump alone won't fix it**: probed directly (edited
+  `packages/client/pubspec.yaml`, ran `flutter pub get`, reverted after —
+  no lasting change). `super_clipboard >=0.9.1` fails to resolve at all:
+  its `super_native_extensions ^0.9.1` requires `device_info_plus
+  >=10.0.1 <12.0.0`, which requires `win32 >=4.0.0 <6.0.0`; this repo's
+  existing `file_picker ^12.0.0-beta.7` requires `win32 ^6.3.0` — direct
+  conflict (**not** `share_plus`, as Unit B's own findings guessed — the
+  actual conflicting existing dependency is `file_picker`). The solver
+  error trace shows this conflict holds for every `super_clipboard`
+  release from ~0.5.0 (when `super_native_extensions` first started
+  depending on `device_info_plus`) through 0.9.1 — i.e. the entire
+  version range modern enough to plausibly have the `js_interop` guard
+  fix is unresolvable in this repo's dependency graph as-is, and the
+  entire range that *does* resolve (≤0.4.x window) predates Flutter's
+  Wasm target existing, so likely all carry the same legacy-guard bug.
+- **This repo has direct, established precedent for exactly this
+  situation**: root `pubspec_overrides.yaml` already vendors
+  `force_directed_graphview` via `path: packages/force_directed_graphview`
+  with a comment documenting the specific upstream bug being patched, and
+  separately vendors `image_cropper_for_web` under `packages/` for a web
+  implementation gap. Follow this same pattern rather than inventing a new
+  approach.
+- **Not treating this as a reason to reopen scope or distrust Unit B's
+  actual composer/repository code** — that code is correct and well
+  isolated behind the `ClipboardImageRepository` boundary; only the
+  underlying third-party package's Wasm compatibility needs a fix, which
+  can land as a scoped remediation without touching
+  `clipboard_image_repository.dart` or the composer wiring at all.
+- Dispatching a fresh remediation worker (task #10) rather than fixing
+  this myself — it's genuinely cross-cutting (dependency resolution across
+  the whole workspace, plus either a `dependency_overrides` experiment or
+  a new vendored package) and needs real `flutter build web --wasm`
+  iteration to verify, not a one-line change.
+
+### 2026-08-08 — Wasm remediation: implementation started
+
+- Verified journal diagnosis against live code: `super_native_extensions`
+  0.1.8+2 uses `dart.library.js`; `flutter build web --wasm` fails on
+  `irondash_message_channel` / `dart:ffi`.
+- Probed override-only paths before vendoring:
+  - `device_info_plus: ^13.0.0` + `super_clipboard: ^0.9.1` resolves
+    (`win32 ^6.0.0` coexists with `file_picker`'s `^6.3.0`).
+  - Overriding only `super_native_extensions: ^0.9.1` while keeping
+    `super_clipboard 0.1.7+6` fails (cross-package API mismatch).
+  - Vendoring `super_native_extensions 0.1.8+2` with `js_interop` guard
+    patch compiles past FFI but web impl still uses `dart:html` — also
+    fails under wasm.
+- Selected fix: `super_clipboard ^0.9.1` + `device_info_plus: ^13.0.0`
+  override + minimal repository/test updates for 0.9.1 `getFile` API
+  (`FileFormat` / `DataReaderFile.readAll` instead of `readValue`).
+
+### 2026-08-08 — Wasm remediation: complete
+
+- **STATUS:** complete
+- **APPROACH:** `dependency_overrides` only (`device_info_plus: ^13.0.0` in
+  `packages/client/pubspec.yaml`) plus `super_clipboard` bump to `^0.9.1`
+  (not a path vendored package — vendoring 0.1.8+2 was insufficient because
+  its web code is dart:html-based).
+- **TESTS:**
+  - `flutter pub get` (repo root) — pass
+  - `cd packages/client && flutter build web --wasm` — pass (`✓ Built build/web`)
+  - `cd packages/client && flutter build web` (JS target) — pass
+  - `cd packages/client && flutter test test/data/repository/clipboard_image_repository_test.dart test/ui/widget/basic_chat_body_test.dart test/features/beacon_room/beacon_room_message_actions_sheet_test.dart test/ui/widget/mention_suggestions_overlay_test.dart` — 19/19 pass
+  - `cd packages/client && flutter test test/features/beacon_room/` — 127 passed, 6 golden skips
+  - `./scripts/check-custom-lints.sh packages/client` — 106 issues, baseline 111 — no regression
+- **FILES:**
+  - `packages/client/pubspec.yaml` (`super_clipboard ^0.9.1`, `device_info_plus` override)
+  - `pubspec.lock`
+  - `packages/client/lib/data/repository/clipboard_image_repository.dart` (`getFile` / `readAll`)
+  - `packages/client/test/data/repository/clipboard_image_repository_test.dart`
+  - `docs/plans/room-composer-clipboard-paste-implementation-journal.md`
+- **FINDINGS:**
+  - `device_info_plus` 13.x is the key override: it relaxes `win32` to
+    `^6.0.0`, unblocking `super_clipboard`/`super_native_extensions` 0.9.x
+    alongside `file_picker ^12.0.0-beta.7`.
+  - `super_native_extensions` 0.9.1 already has `dart.library.js_interop`
+    guards and `package:web` web implementations (wasm-safe).
+  - Vendoring 0.1.8+2 with guard-only patch is a dead end for wasm because
+    the selected web subtree still imports `dart:html` / `dart:js_util`.
+- **REMAINING:** none. Plan-level integration verification can proceed.
+
