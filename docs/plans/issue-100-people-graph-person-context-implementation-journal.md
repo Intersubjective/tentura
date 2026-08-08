@@ -41,7 +41,7 @@ Untracked:
 4. **WU3** — server enforcement and candidate discovery — **complete** (2026-08-08).
 5. **WU4** — graph modes and reactive navigation — **complete** (2026-08-08).
 6. **WU5** — People entry points — **complete** (2026-08-08).
-7. **WU6** — Blocked People route ownership — pending.
+7. **WU6** — Blocked People route ownership — **complete** (2026-08-08).
 8. **WU7** — policy and Profile hierarchy — pending.
 9. **WU8** — mandatory first human usability check — pending human gate.
 10. **WU9** — graph profile projection patch and equality — pending.
@@ -537,3 +537,61 @@ cd ../..
 - Repaired and committed test-only GetIt isolation in `1748556d`: teardown now unregisters only dependencies registered by this test.
 - Independently ran `flutter test test/features/friends/friends_app_bar_actions_test.dart` (4 passed), `./scripts/check-custom-lints.sh packages/client` (OK; 106 vs baseline 111), `git show --check` for `96a6b448`, `e31b11ae`, and `1748556d`, and `git diff --check 9c9fc9dd..HEAD` (clean).
 - **Verdict:** accepted. WU6 may begin; unrelated working-tree entries remain unstaged and untouched.
+
+---
+
+## WU6 — Blocked People route ownership — 2026-08-08
+
+**Status:** complete
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `76ae90c4` | feat(client): move Blocked people under Network tab routing |
+
+**Root cause (remediation):** `RootRouter.openBlockedUsers` awaited `branch.push(const BlockedUsersRoute())`; AutoRoute push futures resolve on route pop, so router/widget tests hung after normalization.
+
+**Fix:** await Network branch `replaceAll([FriendsRoute()])`, then `unawaited(branch.push(const BlockedUsersRoute()))`; fall through to cold `HomeRoute → NetworkTabShell → FriendsRoute → BlockedUsersRoute` when tabs are mounted but the Network branch router is absent.
+
+**Actions performed:**
+
+1. Canonical path `kPathBlockedUsers = '/home/network/blocked'`; `BlockedUsersRoute` registered once under Network tab shell; removed Settings child route.
+2. `NavigateBlockedUsers` → `dispatchUiEffect` → `RootRouter.openBlockedUsers()`; `ScreenCubit.showBlockedUsers()` for feature callers.
+3. `BlockedUsersScreen` leading: `AutoLeadingWithFallback(fallbackPath: kPathNetwork)`.
+4. Friends More and block-sheet snackbar use `showBlockedUsers()`; Settings tile removed.
+5. Router tests: WU6 group (8 cases); block sheet asserts `NavigateBlockedUsers`; Settings absence test via `MaterialApp.router` + `RootRouter`.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/app/router/home_tab_branch_routing_test.dart --name "WU6"
+# 00:00 +8: All tests passed!
+
+flutter test test/features/block/ui/sheet/block_user_sheet_test.dart
+# 00:01 +9: All tests passed!
+
+flutter test test/features/block/ui/screen/blocked_users_screen_test.dart
+# 00:00 +2: All tests passed!
+
+flutter test test/features/settings/settings_screen_blocked_absence_test.dart
+# 00:00 +1: All tests passed!
+
+dart run build_runner build -d
+# Built with build_runner/aot; wrote 403 outputs (no tracked drift)
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK
+
+bash scripts/check-user-facing-terminology.sh
+# ok
+```
+
+**Findings:**
+
+- Test harness fixes only: conditional router tearDown for route-table unit test; AppBar-scoped back tap for cold-refresh fallback; unknown `/settings/blocked` lands on default tab `kPathMyWork` after wildcard redirect.
+- Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
+
+**Remaining:** WU7 — policy and Profile hierarchy.
