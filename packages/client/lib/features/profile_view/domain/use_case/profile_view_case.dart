@@ -80,7 +80,9 @@ final class ProfileViewCase extends UseCaseBase {
   Future<Profile> _setRelationship(
     Profile profile, {
     required int amount,
-  }) async => applyContactOverlay(
-    await _likes.setLike(profile, amount: amount),
-  );
+  }) async {
+    await _likes.setLike(profile, amount: amount);
+    final refetched = await _profiles.fetchById(profile.id);
+    return applyContactOverlay(refetched);
+  }
 }
