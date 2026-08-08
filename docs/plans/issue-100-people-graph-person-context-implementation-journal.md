@@ -431,3 +431,48 @@ cd ../..
 - Accidental `dart format` on unrelated graph layout/repo test files was reverted before commit.
 
 **Remaining:** WU5 — People entry points.
+
+---
+
+## WU4 remediation — AppBar control availability — 2026-08-08
+
+**Status:** remediation complete (pending manager re-review of `ab6c6ff9` / `7dd1ca29` plus this fix)
+
+**Worker:** fresh Cursor remediation worker (composer-2.5), WU4 nonconformance only.
+
+**Manager finding:** `GraphAppBarActions` omitted Previous at `focusPathDepth == 1` and Fit until controller layout was ready. Plan §10 requires both controls remain visible but disabled when unavailable.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `6ba751fc` | fix(client): keep graph Previous and Fit visible when disabled |
+
+**Actions performed:**
+
+1. Trust/genealogy: always render Previous (`TestIds.graphBack`) and Fit (`TestIds.graphFit`); set `onPressed: null` when `focusPathDepth <= 1` or `!canLayout` respectively.
+2. Preserved forwards Center-only navigation (disabled until layout); no forwards Previous/Fit/Reset; legend always available; trust Profile/Expand unchanged.
+3. Strengthened `graph_body_navigation_controls_test.dart` to assert visible + disabled Previous at depth 1, enabled Previous after exploration, and disabled Previous again after Reset.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_cubit_genealogy_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+# 00:02 +73: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Findings:**
+
+- Forwards mode still omits Previous/Fit/Reset (by design); `graph_body_select_expand_test.dart` unchanged.
+- Fit is visible and enabled after `_settleGraph` in widget harness; disabled-until-layout contract is enforced via `onPressed: null` when `!canLayout`.
+
+**Remaining:** manager acceptance of WU4 (`ab6c6ff9`, `7dd1ca29`, `6ba751fc`); then WU5 — People entry points.
