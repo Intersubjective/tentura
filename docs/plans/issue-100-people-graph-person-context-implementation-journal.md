@@ -798,3 +798,13 @@ bash scripts/check-user-facing-terminology.sh     # ok
 - **Accepted scope:** WU0–WU7 remain accepted at `569071ba`; checkpoint evidence recorded in `efe77534`. The audit made no production, generated, test, or plan-source edits.
 - **Manifest update:** WU8 is now the sole dependency-ready next unit, but it is a mandatory unbriefed-human usability gate. WU9–WU16 must not start until WU8 evidence is recorded. WU15 additionally requires WU14 evidence.
 - **Preservation:** all pre-existing modified and untracked paths remain unstaged and untouched.
+
+---
+
+## WU8 — first manual usability gate — 2026-08-09
+
+**Status:** complete (user-confirmed).
+
+The user reports that the WU8 unbriefed-participant gate passed and the People, Blocked people, and Profile flows were confirmed working well enough. This is the required human evidence for proceeding; automated tests were not used as a substitute.
+
+**Decision:** no corrective WU1–WU7 work is required. WU9 may begin. The separate WU14 compact-and-wide panel-association gate remains mandatory before WU15.
