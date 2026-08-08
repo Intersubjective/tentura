@@ -9,6 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/entity/edge_details.dart';
+import '../../domain/entity/graph_mode.dart';
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_cubit.dart';
 
@@ -78,12 +79,32 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
     }
   }
 
+  IconButton _navIconButton({
+    required Key key,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required double minSize,
+  }) {
+    return IconButton(
+      key: key,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      constraints: BoxConstraints(
+        minWidth: minSize,
+        minHeight: minSize,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<GraphCubit, GraphState>(
       buildWhen: (previous, current) =>
           previous.isLoading != current.isLoading ||
           previous.focus != current.focus ||
+          previous.focusPathDepth != current.focusPathDepth ||
           previous.hiddenNeighborCounts != current.hiddenNeighborCounts,
       builder: (context, graphState) {
         final cubit = context.read<GraphCubit>();
@@ -92,6 +113,7 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
 
         final l10n = L10n.of(context)!;
         final tt = context.tt;
+        final mode = cubit.mode;
 
         NodeDetails? focusedNode;
         final focusId = graphState.focus;
@@ -105,25 +127,26 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         }
 
         final focused = focusedNode;
-        final canExpand = focused != null &&
+        final canExpand =
+            mode == GraphMode.trust &&
+            focused != null &&
             !graphState.isLoading &&
             controller.canLayout &&
             !controller.isLayoutSettling &&
             cubit.canPageMore(focused.id);
 
+        final canFit = controller.canLayout && !controller.isLayoutSettling;
+
         final contextActions = <Widget>[];
         if (focused != null) {
           if (canExpand) {
             contextActions.add(
-              IconButton(
+              _navIconButton(
                 key: TestIds.key(TestIds.graphExpand),
                 tooltip: l10n.inboxProvenanceExpand,
                 onPressed: () => cubit.expandNode(focused),
-                icon: const Icon(Icons.hub_outlined),
-                constraints: BoxConstraints(
-                  minWidth: tt.buttonHeight,
-                  minHeight: tt.buttonHeight,
-                ),
+                icon: Icons.hub_outlined,
+                minSize: tt.buttonHeight,
               ),
             );
           }
@@ -140,34 +163,73 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
           };
           if (openDetails != null) {
             contextActions.add(
-              IconButton(
+              _navIconButton(
                 key: TestIds.key(TestIds.graphOpenDetails),
                 tooltip: openDetails.tooltip,
                 onPressed: () => _openNodeDetails(focused),
-                icon: Icon(openDetails.icon),
-                constraints: BoxConstraints(
-                  minWidth: tt.buttonHeight,
-                  minHeight: tt.buttonHeight,
-                ),
+                icon: openDetails.icon,
+                minSize: tt.buttonHeight,
               ),
             );
           }
+        }
+
+        final navActions = <Widget>[];
+        switch (mode) {
+          case GraphMode.trust:
+          case GraphMode.genealogy:
+            if (graphState.focusPathDepth > 1) {
+              navActions.add(
+                _navIconButton(
+                  key: TestIds.key(TestIds.graphBack),
+                  tooltip: l10n.graphBack,
+                  onPressed: cubit.popFocus,
+                  icon: Icons.arrow_back,
+                  minSize: tt.buttonHeight,
+                ),
+              );
+            }
+            if (canFit) {
+              navActions.add(
+                _navIconButton(
+                  key: TestIds.key(TestIds.graphFit),
+                  tooltip: l10n.graphFitPath,
+                  onPressed: cubit.fitCurrentPath,
+                  icon: Icons.fit_screen_outlined,
+                  minSize: tt.buttonHeight,
+                ),
+              );
+            }
+            navActions.add(
+              _navIconButton(
+                key: TestIds.key(TestIds.graphResetToEgo),
+                tooltip: mode == GraphMode.genealogy
+                    ? l10n.graphResetGenealogyOrigin
+                    : l10n.graphResetToEgo,
+                onPressed: cubit.resetToEgo,
+                icon: Icons.home_outlined,
+                minSize: tt.buttonHeight,
+              ),
+            );
+          case GraphMode.forwards:
+            navActions.add(
+              _navIconButton(
+                key: TestIds.key(TestIds.graphCenterView),
+                tooltip: l10n.graphCenterView,
+                onPressed: canFit
+                    ? () => cubit.jumpToEgo(resetScale: true)
+                    : null,
+                icon: Icons.center_focus_strong_outlined,
+                minSize: tt.buttonHeight,
+              ),
+            );
         }
 
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             ...contextActions,
-            IconButton(
-              key: TestIds.key(TestIds.graphResetToEgo),
-              tooltip: l10n.graphResetToEgo,
-              onPressed: () => cubit.jumpToEgo(resetScale: true),
-              icon: const Icon(Icons.home_outlined),
-              constraints: BoxConstraints(
-                minWidth: tt.buttonHeight,
-                minHeight: tt.buttonHeight,
-              ),
-            ),
+            ...navActions,
             IconButton(
               tooltip: widget.legendExpanded
                   ? l10n.graphLegendClose

@@ -10,6 +10,7 @@ import 'package:tentura/features/graph/data/repository/graph_source_repository.d
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
+import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
@@ -886,6 +887,105 @@ void main() {
       await cubit.close();
     },
   );
+
+  test('genealogy mode derives GraphMode.genealogy', () async {
+    final repo = _FakeInviteGenealogyRepository()
+      ..bootstrapGraph = InviteGenealogyGraph(
+        viewerNodeKey: 'Gviewer',
+        nodes: [_node('Gviewer', _viewer, DateTime.utc(2026))],
+        edges: [],
+      );
+    final cubit = _cubit(repo: repo);
+    await _settleCubitFetch();
+
+    expect(cubit.mode, GraphMode.genealogy);
+
+    await cubit.close();
+  });
+
+  test('genealogy popFocus uses node keys on the focus path', () async {
+    final rootAt = DateTime.utc(2026);
+    final childAt = DateTime.utc(2026, 2);
+    final repo = _FakeInviteGenealogyRepository()
+      ..bootstrapGraph = InviteGenealogyGraph(
+        viewerNodeKey: 'Groot',
+        nodes: [_node('Groot', _viewer, rootAt)],
+        edges: [],
+      )
+      ..childrenPages.add((
+        nodes: [
+          _node('Groot', _viewer, rootAt),
+          _node('Gchild', _friend, childAt),
+        ],
+        edges: [_edge('Groot', 'Gchild', rootAt, childAt)],
+      ));
+    final cubit = _cubit(repo: repo);
+    await _settleCubitFetch();
+
+    final root = cubit.graphController.nodes.singleWhere(
+      (n) => n.id == 'Groot',
+    );
+    cubit.expandNode(root);
+    await _settleCubitFetch();
+    final child = cubit.graphController.nodes.singleWhere(
+      (n) => n.id == 'Gchild',
+    );
+    cubit.selectNode(child);
+    await _settleCubitFetch();
+
+    expect(cubit.state.focus, 'Gchild');
+    expect(cubit.state.focusPathDepth, 2);
+    expect(cubit.focusPath.every((id) => id.startsWith('G')), isTrue);
+
+    cubit.popFocus();
+    await _settleCubitFetch();
+
+    expect(cubit.state.focus, isEmpty);
+    expect(cubit.state.focusPathDepth, 1);
+
+    await cubit.close();
+  });
+
+  test('genealogy resetToEgo returns to viewer node key origin', () async {
+    final rootAt = DateTime.utc(2026);
+    final childAt = DateTime.utc(2026, 2);
+    final repo = _FakeInviteGenealogyRepository()
+      ..bootstrapGraph = InviteGenealogyGraph(
+        viewerNodeKey: 'Groot',
+        nodes: [_node('Groot', _viewer, rootAt)],
+        edges: [],
+      )
+      ..childrenPages.add((
+        nodes: [
+          _node('Groot', _viewer, rootAt),
+          _node('Gchild', _friend, childAt),
+        ],
+        edges: [_edge('Groot', 'Gchild', rootAt, childAt)],
+      ));
+    final cubit = _cubit(repo: repo);
+    await _settleCubitFetch();
+
+    final root = cubit.graphController.nodes.singleWhere(
+      (n) => n.id == 'Groot',
+    );
+    cubit.expandNode(root);
+    await _settleCubitFetch();
+    final child = cubit.graphController.nodes.singleWhere(
+      (n) => n.id == 'Gchild',
+    );
+    cubit.selectNode(child);
+    await _settleCubitFetch();
+
+    cubit.resetToEgo();
+    await _settleCubitFetch();
+
+    expect(cubit.state.egoNodeId, 'Groot');
+    expect(cubit.state.focus, isEmpty);
+    expect(cubit.state.focusPathDepth, 1);
+    expect(cubit.focusPath, ['Groot']);
+
+    await cubit.close();
+  });
 
   test('generic repository fetch adapter fails loudly', () async {
     final remote = RemoteApiService(

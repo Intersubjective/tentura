@@ -152,8 +152,10 @@ void main() {
     await _pumpGraphBody(tester);
 
     expect(find.byTooltip('Back'), findsNothing);
-    expect(find.byTooltip('Fit current path'), findsNothing);
+    expect(find.byTooltip('Fit current path'), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.graphFit)), findsOneWidget);
     expect(find.byTooltip('Reset to me'), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsOneWidget);
     expect(find.byTooltip('Show legend'), findsOneWidget);
   });
 
@@ -174,7 +176,7 @@ void main() {
     expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
   });
 
-  testWidgets('home recenters without clearing focus trail', (tester) async {
+  testWidgets('reset clears trail focus and recenters', (tester) async {
     final source = _WidgetTestGraphSource()
       ..pages.addAll({
         null: {_e('Ume', 'Ub')},
@@ -189,16 +191,66 @@ void main() {
     await tester.tap(find.byType(GraphNodeWidget).at(1));
     await _settleGraph(tester);
 
-    final focusBefore = cubit.state.focus;
-    final pathLenBefore = cubit.focusPath.length;
-    expect(focusBefore, isNotEmpty);
-    expect(pathLenBefore, greaterThan(1));
+    expect(cubit.state.focus, 'Ub');
+    expect(cubit.state.focusPathDepth, greaterThan(1));
 
-    await tester.tap(find.byTooltip('Reset to me'));
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphResetToEgo)));
     await _settleGraph(tester);
 
-    expect(cubit.state.focus, focusBefore);
-    expect(cubit.focusPath.length, pathLenBefore);
+    expect(cubit.state.focus, isEmpty);
+    expect(cubit.state.focusPathDepth, 1);
+    expect(cubit.canPopFocus, isFalse);
+    expect(cubit.focusPath, ['Ume']);
+  });
+
+  testWidgets('previous focus decrements depth without refetch', (
+    tester,
+  ) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = await _pumpGraphBody(
+      tester,
+      size: const Size(360, 800),
+      source: source,
+    );
+
+    await tester.tap(find.byType(GraphNodeWidget).at(1));
+    await _settleGraph(tester);
+    final callsAfterFirstExpand = source.ubFetches;
+
+    await tester.tap(find.byType(GraphNodeWidget).at(2));
+    await _settleGraph(tester);
+    expect(cubit.state.focusPathDepth, 3);
+
+    expect(find.byKey(TestIds.key(TestIds.graphBack)), findsOneWidget);
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphBack)));
+    await _settleGraph(tester);
+
+    expect(cubit.state.focus, 'Ub');
+    expect(cubit.state.focusPathDepth, 2);
+    expect(source.ubFetches, callsAfterFirstExpand);
+  });
+
+  testWidgets('fit current path is available after layout settles', (
+    tester,
+  ) async {
+    final source = _WidgetTestGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+      });
+    await _pumpGraphBody(
+      tester,
+      size: const Size(360, 800),
+      source: source,
+    );
+
+    expect(find.byKey(TestIds.key(TestIds.graphFit)), findsOneWidget);
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphFit)));
+    await _settleGraph(tester);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

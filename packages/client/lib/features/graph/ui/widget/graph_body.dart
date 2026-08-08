@@ -8,6 +8,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/edge_details.dart';
+import '../../domain/entity/graph_mode.dart';
 import '../../domain/entity/node_details.dart';
 import '../utils/animated_highlighted_edge_painter.dart';
 import '../utils/ease_in_out_reynolds.dart';
@@ -50,32 +51,29 @@ class GraphBodyState extends State<GraphBody>
 
   late final _graphCubit = context.read<GraphCubit>();
 
-  GraphLegendMode get _legendMode {
-    if (_graphCubit.genealogyMode) {
-      return GraphLegendMode.genealogy;
-    }
-    if (_graphCubit.forwardsGraphBeaconId != null) {
-      return GraphLegendMode.forwards;
-    }
-    return GraphLegendMode.trust;
-  }
+  GraphLegendMode get _legendMode => switch (_graphCubit.mode) {
+    GraphMode.trust => GraphLegendMode.trust,
+    GraphMode.forwards => GraphLegendMode.forwards,
+    GraphMode.genealogy => GraphLegendMode.genealogy,
+  };
 
   GraphLayoutAlgorithm get _layoutAlgorithm {
-    if (_graphCubit.genealogyMode) {
-      // Genealogy edges run ancestor -> descendant, so the viewer is a leaf,
-      // not a root. Leave [rootIds] empty and let the layout rank from the
-      // in-degree-zero nodes (the topmost ancestors); seeding it with the ego
-      // node reaches nothing and drops every ancestor into one flat row.
-      return const LayeredDagLayoutAlgorithm(rootIds: {});
+    switch (_graphCubit.mode) {
+      case GraphMode.genealogy:
+        // Genealogy edges run ancestor -> descendant, so the viewer is a leaf,
+        // not a root. Leave [rootIds] empty and let the layout rank from the
+        // in-degree-zero nodes (the topmost ancestors); seeding it with the ego
+        // node reaches nothing and drops every ancestor into one flat row.
+        return const LayeredDagLayoutAlgorithm(rootIds: {});
+      case GraphMode.forwards:
+        return LayeredDagLayoutAlgorithm(
+          rootIds: _graphCubit.forwardsRootIds,
+        );
+      case GraphMode.trust:
+        return RadialHopLayoutAlgorithm(
+          rootId: _graphCubit.state.me.id,
+        );
     }
-    if (_graphCubit.forwardsGraphBeaconId != null) {
-      return LayeredDagLayoutAlgorithm(
-        rootIds: _graphCubit.forwardsRootIds,
-      );
-    }
-    return RadialHopLayoutAlgorithm(
-      rootId: _graphCubit.state.me.id,
-    );
   }
 
   void _onNodeTap(NodeDetails node) {
@@ -101,6 +99,7 @@ class GraphBodyState extends State<GraphBody>
     buildWhen: (previous, current) =>
         previous.isLoading != current.isLoading ||
         previous.focus != current.focus ||
+        previous.focusPathDepth != current.focusPathDepth ||
         previous.positiveOnly != current.positiveOnly ||
         previous.hiddenNeighborCounts != current.hiddenNeighborCounts,
     builder: (context, graphState) {
@@ -200,8 +199,7 @@ class GraphBodyState extends State<GraphBody>
               node is GenealogyUserNode &&
               node.id == _graphCubit.state.egoNodeId,
           isOrigin: node.id == _graphCubit.originNodeId,
-          isFocused:
-              graphState.focus.isNotEmpty && node.id == graphState.focus,
+          isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
           onTap: () => _onNodeTap(node),
         ),
       );

@@ -18,20 +18,24 @@ abstract final class TestIds {
   static String myWorkRoomStatus(String beaconId) =>
       'my_work.room_status.$beaconId';
 
-  static String myWorkCloseNow(String beaconId) => 'my_work.close_now.$beaconId';
+  static String myWorkCloseNow(String beaconId) =>
+      'my_work.close_now.$beaconId';
 
   /// Stable Updates feed row identity for integration and WebDriver proofs.
-  static String updatesReceipt(String receiptId) => 'updates-receipt-$receiptId';
+  static String updatesReceipt(String receiptId) =>
+      'updates-receipt-$receiptId';
 
   static const helpOfferSearch = 'help_offer.search';
   static const helpOfferMessage = 'help_offer.message';
   static const helpOfferSubmit = 'help_offer.submit';
   static const helpOfferBrowseCategories = 'help_offer.browse_categories';
   static String capabilityChip(String slug) => 'capability.$slug';
-  static String capabilitySummaryChip(String slug) => 'capability.$slug.summary';
+  static String capabilitySummaryChip(String slug) =>
+      'capability.$slug.summary';
 
   static const roomMessageInput = 'room.message.input';
   static const roomMessageSend = 'room.message.send';
+
   /// Press-scale wrapper around a room message bubble (long-press grow).
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
   static String roomMentionSuggestion(String handle) =>
@@ -98,7 +102,9 @@ abstract final class TestIds {
   static const graphExpand = 'graph.expand';
   static const graphOpenDetails = 'graph.open_details';
   static const graphBack = 'graph.back';
+  static const graphFit = 'graph.fit';
   static const graphResetToEgo = 'graph.reset_to_ego';
+  static const graphCenterView = 'graph.center_view';
 
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

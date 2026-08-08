@@ -228,25 +228,28 @@ void main() {
     await cubit.close();
   });
 
-  test('canPageMore is true only when hidden neighbor count is positive', () async {
-    final source = _FakeGraphSource()
-      ..pages.addAll({
-        null: {_e('Ume', 'Ub')},
-        'Ub': {_e('Ub', 'Ue', srcTotal: 3)},
-      });
-    final cubit = _cubit(source);
-    await _settle();
+  test(
+    'canPageMore is true only when hidden neighbor count is positive',
+    () async {
+      final source = _FakeGraphSource()
+        ..pages.addAll({
+          null: {_e('Ume', 'Ub')},
+          'Ub': {_e('Ub', 'Ue', srcTotal: 3)},
+        });
+      final cubit = _cubit(source);
+      await _settle();
 
-    expect(cubit.canPageMore('Ub'), isFalse);
+      expect(cubit.canPageMore('Ub'), isFalse);
 
-    cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
-    await _settle();
+      cubit.handleNodeTap(_liveNode(cubit, 'Ub'));
+      await _settle();
 
-    expect(cubit.isCurrentFocus('Ub'), isTrue);
-    expect(cubit.canPageMore('Ub'), isTrue);
+      expect(cubit.isCurrentFocus('Ub'), isTrue);
+      expect(cubit.canPageMore('Ub'), isTrue);
 
-    await cubit.close();
-  });
+      await cubit.close();
+    },
+  );
 
   test(
     'rollback tap on ancestor with hidden badge does not fetch',
@@ -936,62 +939,122 @@ void main() {
     final cubit = _cubit(_FakeGraphSource());
     await _settle();
     expect(cubit.canPopFocus, isFalse);
+    expect(cubit.state.focusPathDepth, 1);
     await cubit.close();
   });
 
-  test(
-    'popFocus restores the previous visible edge set without refetching',
-    () async {
-      final source = _FakeGraphSource()
-        ..pages.addAll({
-          null: {_e('Ume', 'Ub')},
-          'Ub': {_e('Ub', 'Ue')},
-        });
-      final cubit = _cubit(source);
-      await _settle();
+  test('constructor mode flags are mutually exclusive', () {
+    expect(
+      () => GraphCubit(
+        me: _me,
+        edgeColors: _edgeColors,
+        genealogyMode: true,
+        forwardsGraphBeaconId: 'B1',
+      ),
+      throwsA(isA<AssertionError>()),
+    );
+    expect(
+      () => GraphCubit(
+        me: _me,
+        edgeColors: _edgeColors,
+        genealogyMode: true,
+        helpOffererFocusUserId: 'U1',
+      ),
+      throwsA(isA<AssertionError>()),
+    );
+  });
 
-      cubit.expandNode(_liveNode(cubit, 'Ub'));
-      await _settle();
-      cubit.expandNode(_liveNode(cubit, 'Ue'));
-      await _settle();
-      final callsAfterExpand = source.calls;
+  test('two-hop exploration emits focus and depth together', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
 
-      cubit.popFocus();
-      await _settle();
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
+    await _settle();
 
-      expect(cubit.state.focus, 'Ub');
-      expect(_edgePairs(cubit), {
+    expect(cubit.state.focus, 'Ub');
+    expect(cubit.state.focusPathDepth, 2);
+    expect(cubit.focusPath, ['Ume', 'Ub']);
+
+    await cubit.close();
+  });
+
+  test('three-hop exploration emits matching focusPathDepth', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+        'Ue': {_e('Ue', 'Uf')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    await _selectAndExpand(cubit, 'Ub');
+    await _selectAndExpand(cubit, 'Ue');
+
+    expect(cubit.state.focus, 'Ue');
+    expect(cubit.state.focusPathDepth, 3);
+    expect(cubit.focusPath, ['Ume', 'Ub', 'Ue']);
+
+    await cubit.close();
+  });
+
+  test('popFocus decrements focusPathDepth without refetching', () async {
+    final source = _FakeGraphSource()
+      ..pages.addAll({
+        null: {_e('Ume', 'Ub')},
+        'Ub': {_e('Ub', 'Ue')},
+      });
+    final cubit = _cubit(source);
+    await _settle();
+
+    cubit.expandNode(_liveNode(cubit, 'Ub'));
+    await _settle();
+    cubit.expandNode(_liveNode(cubit, 'Ue'));
+    await _settle();
+    final callsAfterExpand = source.calls;
+
+    cubit.popFocus();
+    await _settle();
+
+    expect(cubit.state.focus, 'Ub');
+    expect(cubit.state.focusPathDepth, 2);
+    expect(_edgePairs(cubit), {
+      ('Ume', 'Ub'),
+      ('Ub', 'Ue'),
+    });
+    expect(source.calls, callsAfterExpand);
+
+    cubit.popFocus();
+    await _settle();
+
+    expect(cubit.state.focus, isEmpty);
+    expect(cubit.state.focusPathDepth, 1);
+    expect(
+      _edgePairs(cubit),
+      containsAll({
         ('Ume', 'Ub'),
         ('Ub', 'Ue'),
-      });
-      expect(source.calls, callsAfterExpand);
+      }),
+    );
+    expect(source.calls, callsAfterExpand);
 
-      cubit.popFocus();
-      await _settle();
+    cubit.selectNode(_liveNode(cubit, 'Ue'));
+    await _settle();
+    // Ue brings Ub (its neighbour); Ume stays as trail/root — so the
+    // already-known Ume↔Ub chord is drawn between two visible nodes.
+    expect(_edgePairs(cubit), {
+      ('Ume', 'Ub'),
+      ('Ub', 'Ue'),
+    });
+    expect(source.calls, callsAfterExpand);
 
-      expect(cubit.state.focus, isEmpty);
-      expect(
-        _edgePairs(cubit),
-        containsAll({
-          ('Ume', 'Ub'),
-          ('Ub', 'Ue'),
-        }),
-      );
-      expect(source.calls, callsAfterExpand);
-
-      cubit.selectNode(_liveNode(cubit, 'Ue'));
-      await _settle();
-      // Ue brings Ub (its neighbour); Ume stays as trail/root — so the
-      // already-known Ume↔Ub chord is drawn between two visible nodes.
-      expect(_edgePairs(cubit), {
-        ('Ume', 'Ub'),
-        ('Ub', 'Ue'),
-      });
-      expect(source.calls, callsAfterExpand);
-
-      await cubit.close();
-    },
-  );
+    await cubit.close();
+  });
 
   test(
     'resetToEgo clears the trail and does not refetch',
@@ -1014,6 +1077,7 @@ void main() {
       await _settle();
 
       expect(cubit.state.focus, isEmpty);
+      expect(cubit.state.focusPathDepth, 1);
       expect(cubit.canPopFocus, isFalse);
       expect(source.calls, callsAfterExpand);
 

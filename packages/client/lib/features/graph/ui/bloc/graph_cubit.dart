@@ -27,6 +27,7 @@ import '../../data/repository/graph_repository.dart';
 import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/graph_edge_colors.dart';
+import '../../domain/entity/graph_mode.dart';
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/prune_directed_paths.dart';
@@ -82,6 +83,11 @@ class GraphCubit extends Cubit<GraphState> {
        _profileRepository =
            profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
+       mode = forwardsGraphBeaconId != null
+           ? GraphMode.forwards
+           : genealogyMode
+           ? GraphMode.genealogy
+           : GraphMode.trust,
        super(
          GraphState(
            focus: focus ?? '',
@@ -93,7 +99,8 @@ class GraphCubit extends Cubit<GraphState> {
     if (!genealogyMode) {
       _everFocusedIds.add(_egoNode.id);
     }
-    final block = blockCase ??
+    final block =
+        blockCase ??
         (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
     if (block != null) {
       _blockChanges = block.changes.listen(
@@ -103,6 +110,8 @@ class GraphCubit extends Cubit<GraphState> {
     }
     unawaited(_fetch());
   }
+
+  final GraphMode mode;
 
   final GraphSourceRepository _graphSource;
 
@@ -186,8 +195,7 @@ class GraphCubit extends Cubit<GraphState> {
       ? <String, NodeDetails>{}
       : <String, NodeDetails>{_egoNode.id: _egoNode};
 
-  bool get _isTrustGraph =>
-      forwardsGraphBeaconId == null && !genealogyMode;
+  bool get _isTrustGraph => mode == GraphMode.trust;
 
   /// Active help offerers for [forwardsGraphBeaconId] (forwards graph only).
   /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
@@ -195,7 +203,7 @@ class GraphCubit extends Cubit<GraphState> {
 
   /// Focus-path spotlight is shared by the MeritRank connections graph and
   /// invite genealogy. Forwards graph remains additive/static.
-  bool get _usesFocusPathVisibility => forwardsGraphBeaconId == null;
+  bool get _usesFocusPathVisibility => mode != GraphMode.forwards;
 
   String get _focusRootId => genealogyMode ? state.egoNodeId : _egoNode.id;
 
@@ -210,7 +218,7 @@ class GraphCubit extends Cubit<GraphState> {
   }
 
   void _onBlockVisibilityChanged(RepositoryEvent<BlockIntent> event) {
-    if (forwardsGraphBeaconId != null) {
+    if (mode == GraphMode.forwards) {
       return;
     }
     // A block/unblock event for a user that isn't part of anything currently
@@ -225,7 +233,7 @@ class GraphCubit extends Cubit<GraphState> {
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
-    if (genealogyMode) {
+    if (mode == GraphMode.genealogy) {
       _genealogyChildrenCursors.clear();
       _genealogyParentChainNodeIds.clear();
       _nodes.clear();
@@ -234,6 +242,7 @@ class GraphCubit extends Cubit<GraphState> {
       emit(
         state.copyWith(
           focus: '',
+          focusPathDepth: 0,
           hiddenNeighborCounts: const {},
           egoNodeId: '',
           genealogyTargetNodeKey: '',
@@ -249,13 +258,19 @@ class GraphCubit extends Cubit<GraphState> {
       _focusPathIds
         ..clear()
         ..add(_egoNode.id);
-      emit(state.copyWith(focus: '', hiddenNeighborCounts: const {}));
+      emit(
+        state.copyWith(
+          focus: '',
+          focusPathDepth: _focusPathIds.length,
+          hiddenNeighborCounts: const {},
+        ),
+      );
     }
     unawaited(_fetch());
   }
 
   /// True when there is somewhere to go back to.
-  bool get canPopFocus => _focusPathIds.length > 1;
+  bool get canPopFocus => state.focusPathDepth > 1;
 
   /// Exploration trail from origin to the current focus (inclusive).
   List<String> get focusPath => List.unmodifiable(_focusPathIds);
@@ -290,7 +305,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// True when the current focus can page in another neighbourhood window.
   /// Only meaningful for [isCurrentFocus] nodes and the Expand control.
   bool canPageMore(String id) {
-    if (forwardsGraphBeaconId != null) {
+    if (mode == GraphMode.forwards) {
       return false;
     }
     return (state.hiddenNeighborCounts[id] ?? 0) > 0;
@@ -308,15 +323,15 @@ class GraphCubit extends Cubit<GraphState> {
   /// Never pages neighbourhood — use [expandNode]. May request structural
   /// closure among the resulting visible set (trust graph only).
   void selectNode(NodeDetails node, {bool ensureStructuralEdges = true}) {
-    if (genealogyMode) {
+    if (mode == GraphMode.genealogy) {
       _pinGenealogyParentChainNodes();
     }
     if (state.focus == node.id) {
       return;
     }
     _everFocusedIds.add(node.id);
-    emit(state.copyWith(focus: node.id));
     _updateFocusPath(node.id);
+    _emitFocusAndDepth(focus: node.id);
     if (_usesFocusPathVisibility) {
       _syncFocusPathPins();
       _recomputeVisibility();
@@ -329,10 +344,8 @@ class GraphCubit extends Cubit<GraphState> {
   /// Selects [node] when needed, then pages in the next neighbourhood window.
   Future<void> expandNode(NodeDetails node) async {
     final trustOverviewPaging =
-        _isTrustGraph &&
-        state.focus.isEmpty &&
-        node.id == _focusRootId;
-    if (forwardsGraphBeaconId == null) {
+        _isTrustGraph && state.focus.isEmpty && node.id == _focusRootId;
+    if (mode != GraphMode.forwards) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     if (!trustOverviewPaging && state.focus != node.id) {
@@ -342,14 +355,14 @@ class GraphCubit extends Cubit<GraphState> {
     } else {
       _everFocusedIds.add(node.id);
     }
-    if (forwardsGraphBeaconId == null) {
+    if (mode != GraphMode.forwards) {
       await _fetch();
     }
   }
 
   /// Routes a node tap by explore / rollback intent (trust + genealogy).
   void handleNodeTap(NodeDetails node) {
-    if (forwardsGraphBeaconId != null) {
+    if (mode == GraphMode.forwards) {
       selectNode(node);
       return;
     }
@@ -373,7 +386,9 @@ class GraphCubit extends Cubit<GraphState> {
     if (!canPopFocus) return;
     _focusPathIds.removeLast();
     final previous = _focusPathIds.last;
-    emit(state.copyWith(focus: previous == _focusRootId ? '' : previous));
+    _emitFocusAndDepth(
+      focus: previous == _focusRootId ? '' : previous,
+    );
     _syncFocusPathPins();
     _recomputeVisibility();
     unawaited(_ensureVisibleStructuralEdges());
@@ -397,11 +412,20 @@ class GraphCubit extends Cubit<GraphState> {
         _nodes[entry.key] = entry.value.copyWithPinned(false);
       }
     }
-    emit(state.copyWith(focus: ''));
+    _emitFocusAndDepth(focus: '');
     _syncFocusPathPins();
     _recomputeVisibility();
     unawaited(_ensureVisibleStructuralEdges());
     jumpToEgo(resetScale: true);
+  }
+
+  void _emitFocusAndDepth({required String focus}) {
+    emit(
+      state.copyWith(
+        focus: focus,
+        focusPathDepth: _focusPathIds.length,
+      ),
+    );
   }
 
   /// Fits the active path into the viewport. With a trail of one (only the
@@ -593,16 +617,20 @@ class GraphCubit extends Cubit<GraphState> {
   ///
   ///
   Future<void> setContext(String? context) {
-    if (forwardsGraphBeaconId != null || genealogyMode) {
+    if (mode != GraphMode.trust) {
       return Future.value();
     }
     _cacheEpoch++;
     _fetchEpoch++;
     _totalNeighborCounts.clear();
+    _focusPathIds
+      ..clear()
+      ..add(_egoNode.id);
     emit(
       state.copyWith(
         context: context ?? '',
         focus: '',
+        focusPathDepth: _focusPathIds.length,
         hiddenNeighborCounts: const {},
       ),
     );
@@ -613,16 +641,13 @@ class GraphCubit extends Cubit<GraphState> {
     _everFocusedIds
       ..clear()
       ..add(_egoNode.id);
-    _focusPathIds
-      ..clear()
-      ..add(_egoNode.id);
     return _fetch();
   }
 
   ///
   ///
   void togglePositiveOnly() {
-    if (forwardsGraphBeaconId != null || genealogyMode) {
+    if (mode != GraphMode.trust) {
       return;
     }
     emit(state.copyWith(positiveOnly: !state.positiveOnly));
@@ -714,13 +739,14 @@ class GraphCubit extends Cubit<GraphState> {
           );
           if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
           if (state.egoNodeId.isEmpty) {
+            _resetFocusPathRoot(graph.viewerNodeKey);
             emit(
               state.copyWith(
                 egoNodeId: graph.viewerNodeKey,
                 genealogyTargetNodeKey: graph.targetNodeKey ?? '',
+                focusPathDepth: _focusPathIds.length,
               ),
             );
-            _resetFocusPathRoot(graph.viewerNodeKey);
           }
           _genealogyParentChainNodeIds.addAll(
             graph.nodes.map((node) => node.nodeKey),
@@ -901,9 +927,7 @@ class GraphCubit extends Cubit<GraphState> {
   }
 
   bool _fetchStillValid(int cacheEpoch, int fetchEpoch) =>
-      !isClosed &&
-      cacheEpoch == _cacheEpoch &&
-      fetchEpoch == _fetchEpoch;
+      !isClosed && cacheEpoch == _cacheEpoch && fetchEpoch == _fetchEpoch;
 
   Future<void> _resolveEdgeEndpoints(Set<EdgeDirected> edges) async {
     for (final e in edges) {
@@ -1297,7 +1321,7 @@ class GraphCubit extends Cubit<GraphState> {
         e.branch == GenealogyEdgeBranch.ego ||
         e.branch == GenealogyEdgeBranch.target;
     final touchesEgo = egoId.isNotEmpty && (src.id == egoId || dst.id == egoId);
-    final isTrustGraph = forwardsGraphBeaconId == null && !genealogyMode;
+    final isTrustGraph = mode == GraphMode.trust;
     return EdgeDetails<NodeDetails>(
       source: src,
       destination: dst,
@@ -1322,7 +1346,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// single, stable representative so its bidirectional animation stays on
   /// one edge instead of creating overlapping/double-lane geometry.
   bool _shouldRenderEdge((String, String) key) {
-    if (genealogyMode || forwardsGraphBeaconId != null) return true;
+    if (mode != GraphMode.trust) return true;
     if (!_allEdges.containsKey((key.$2, key.$1))) return true;
     return key.$1.compareTo(key.$2) <= 0;
   }

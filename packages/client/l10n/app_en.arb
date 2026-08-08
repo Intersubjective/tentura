@@ -947,6 +947,14 @@
   "@graphFitPath": {
     "context": "GraphScreen"
   },
+  "graphCenterView": "Center view",
+  "@graphCenterView": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphResetGenealogyOrigin": "Reset to origin",
+  "@graphResetGenealogyOrigin": {
+    "context": "InviteGenealogyScreen"
+  },
   "graphLegendToggleNegative": "Show negative connections",
   "@graphLegendToggleNegative": {
     "context": "GraphScreen"

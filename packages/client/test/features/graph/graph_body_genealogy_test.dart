@@ -6,6 +6,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
@@ -29,6 +30,9 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
 
   @override
   final String? forwardsGraphBeaconId = null;
+
+  @override
+  GraphMode get mode => genealogyMode ? GraphMode.genealogy : GraphMode.trust;
 
   @override
   final graphController =
@@ -155,4 +159,11 @@ void main() {
       );
     },
   );
+
+  testWidgets('genealogy reset uses origin copy in app bar', (tester) async {
+    await _pumpGraphBody(tester, genealogyMode: true);
+
+    expect(find.byTooltip('Reset to origin'), findsOneWidget);
+    expect(find.byTooltip('Reset to me'), findsNothing);
+  });
 }

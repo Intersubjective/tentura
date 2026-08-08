@@ -11,6 +11,7 @@ import 'package:tentura/features/graph/data/repository/graph_source_repository.d
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
+import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
@@ -22,6 +23,112 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+
+class _TrackingForwardsCubit extends Cubit<GraphState> implements GraphCubit {
+  _TrackingForwardsCubit()
+    : super(const GraphState(me: _me, focus: '', isAnimated: false));
+
+  @override
+  final bool genealogyMode = false;
+
+  @override
+  final String? forwardsGraphBeaconId = 'Btest';
+
+  @override
+  GraphMode get mode => GraphMode.forwards;
+
+  @override
+  final graphController =
+      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+
+  int jumpToEgoCalls = 0;
+  int resetToEgoCalls = 0;
+  int popFocusCalls = 0;
+  int expandCalls = 0;
+
+  @override
+  bool get canPopFocus => false;
+
+  @override
+  List<String> get focusPath => const [];
+
+  @override
+  Set<String> get forwardsRootIds => const {};
+
+  @override
+  String get originNodeId => _me.id;
+
+  @override
+  void jumpToEgo({bool resetScale = false}) => jumpToEgoCalls += 1;
+
+  @override
+  void popFocus() => popFocusCalls += 1;
+
+  @override
+  void resetToEgo() => resetToEgoCalls += 1;
+
+  @override
+  void fitCurrentPath() {}
+
+  @override
+  void togglePositiveOnly() {}
+
+  @override
+  void selectNode(NodeDetails node, {bool ensureStructuralEdges = true}) {}
+
+  @override
+  Future<void> expandNode(NodeDetails node) async => expandCalls += 1;
+
+  @override
+  bool canExpandNode(String id) => false;
+
+  @override
+  bool canPageMore(String id) => false;
+
+  @override
+  bool isCurrentFocus(String id) => false;
+
+  @override
+  void handleNodeTap(NodeDetails node) {}
+
+  @override
+  bool hasEverFocused(String id) => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+Future<_TrackingForwardsCubit> _pumpForwardsGraphBody(
+  WidgetTester tester,
+) async {
+  await tester.binding.setSurfaceSize(const Size(900, 600));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final cubit = _TrackingForwardsCubit();
+  addTearDown(cubit.close);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<GraphCubit>.value(value: cubit),
+          BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+          BlocProvider<ProfileCubit>.value(value: _FakeProfileCubit()),
+        ],
+        child: GraphScaffold(
+          title: const Text('Forwards'),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await _settleGraph(tester);
+  return cubit;
+}
 
 class _WidgetTestGraphSource extends GraphSourceRepository {
   final pages = <String?, Set<EdgeDirected>>{};
@@ -247,4 +354,30 @@ void main() {
       expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
     },
   );
+
+  testWidgets('forwards mode exposes center view without trust navigation', (
+    tester,
+  ) async {
+    final cubit = await _pumpForwardsGraphBody(tester);
+
+    expect(find.byKey(TestIds.key(TestIds.graphCenterView)), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.graphBack)), findsNothing);
+    expect(find.byKey(TestIds.key(TestIds.graphFit)), findsNothing);
+    expect(find.byKey(TestIds.key(TestIds.graphResetToEgo)), findsNothing);
+    expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
+
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphCenterView)));
+    await _settleGraph(tester);
+
+    expect(cubit.jumpToEgoCalls, 1);
+    expect(cubit.resetToEgoCalls, 0);
+    expect(cubit.popFocusCalls, 0);
+    expect(cubit.expandCalls, 0);
+
+    await tester.tap(find.byKey(TestIds.key(TestIds.graphCenterView)));
+    await _settleGraph(tester);
+
+    expect(cubit.jumpToEgoCalls, 2);
+    expect(cubit.resetToEgoCalls, 0);
+  });
 }

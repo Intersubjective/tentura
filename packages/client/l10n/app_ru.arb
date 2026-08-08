@@ -947,6 +947,14 @@
   "@graphFitPath": {
     "context": "GraphScreen"
   },
+  "graphCenterView": "Центрировать",
+  "@graphCenterView": {
+    "context": "ForwardsGraphScreen"
+  },
+  "graphResetGenealogyOrigin": "Вернуться к началу",
+  "@graphResetGenealogyOrigin": {
+    "context": "InviteGenealogyScreen"
+  },
   "graphLegendToggleNegative": "Показывать отрицательные связи",
   "@graphLegendToggleNegative": {
     "context": "GraphScreen"
