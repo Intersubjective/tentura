@@ -666,3 +666,126 @@ Policy tests cover all 16 T/MR combinations plus self/blocked, transition regres
 - Confirmed ProfileView renders the required hierarchy, offers at most one normal Filled CTA, routes both Send and Request options through `showForwardToPerson`, and leaves the blocked fallback unblock-only.
 - Independently ran the policy, Profile hierarchy, and blocked-profile suites: 38 tests passed. `git show --check` for all WU7 commits and `git diff --check e2d8ed41..HEAD` passed; no generated files were committed.
 - **Verdict:** accepted. WU8 is now the mandatory unbriefed-human usability gate; no automated worker may substitute for it.
+
+---
+
+## Overseer re-entry — 2026-08-09
+
+- **Manager / source:** Codex `cursor-plan-overseer`, re-entered at `569071bab611bd7191b6063945a6c925e22485b5` on `main`.
+- **Live reconciliation:** commits from WU0 through WU7 are ancestors of HEAD; the prior journal records manager acceptance for each. The plan's top-level statement that implementation has not started is stale.
+- **Current preserved worktree:**
+  - Modified: `docs/README.md`, `docs/archive/journals/commitment-truth-rework-journal.md`, `docs/archive/plans/commitment-truth-rework-plan.md`, `docs/audits/room-coordination-audit.md`, `docs/plans/room-composer-clipboard-paste-implementation-journal.md`, `packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.mocks.dart`.
+  - Untracked: `dart-defines`, `docs/plans/graph-navigation-implementation-guide.md`, `docs/plans/graph-navigation-rework-plan.md`, `docs/plans/issue-100-people-graph-person-context-implementation-plan.md`, `docs/plans/received-reviews-trust-changes-plan.md`, `docs/plans/room-composer-clipboard-paste-plan.md`, `graph-ego-neighbors-layout-issue.md`, `key.fb`, `out.key`, `product_testing_compact_buglist.md`, `product_testing_detailed_report.md`.
+- **Preflight rechecked:** one worktree, #86 ancestor `22f9d35d`, issue #86 CLOSED, no matching open PR. Cursor CLI is authenticated and lists non-fast `composer-2.5`.
+- **Manifest:** WU0–WU7 await independent reconciliation audit; WU8 is the next dependency gate and requires an unbriefed human participant. WU9–WU16 remain blocked behind WU8 (and WU15 also behind WU14).
+- **Boundaries:** no generated-file edits; no production/infra deploys; preserve every listed path; do not substitute automated testing for WU8 or WU14.
+
+---
+
+## Independent reconciliation audit — WU0–WU7 — 2026-08-09
+
+**Status:** complete (WU0–WU7 acceptance criteria met at audited HEAD; WU8 not evaluated and not passed)
+
+**Auditor:** fresh read-only reconciliation reviewer (Cursor agent).
+
+**Audited commit:** `569071bab611bd7191b6063945a6c925e22485b5` (`docs: accept issue 100 WU7 evidence`).
+
+**Implementation commits reconciled (production/test sources only):**
+
+| WU | Hashes | Subject |
+|---|---|---|
+| WU0 | — | journal-only (`967152cd`, `a864aa49`); no production edits |
+| WU1 | `17635581`, `637d3375` | m0140 visibility SQL + Hasura; V2 `trusts_viewer` projection |
+| WU2 | `add0bdc2`, `0b8f9abc` | client Profile canonical getters + visibility tests |
+| WU3 | `f425a53f`, `6f005c0f` | server `ForwardCase` enforcement; client `mutually_visible_users` discovery |
+| WU4 | `ab6c6ff9`, `6ba751fc` | `GraphMode`, reactive `focusPathDepth`, mode-specific AppBar |
+| WU5 | `96a6b448`, `1748556d` | `FriendsAppBarActions` + People integration test isolation |
+| WU6 | `76ae90c4` | Network-owned Blocked route + semantic navigation |
+| WU7 | `20ff6cdc`, `3b0aa79a`, `1433a3ab` | `PersonActionPolicy` + `ProfileViewBody` hierarchy + widget tests |
+
+**Paths inspected (source, not generated):**
+
+- Visibility boundary: `packages/server/lib/data/database/migration/m0140.dart`, `hasura/metadata.json`, `packages/server/lib/data/repository/person_visibility_repository.dart`, `packages/server/lib/domain/use_case/forward_case.dart`
+- Client projection: `packages/client/lib/domain/entity/profile.dart`, `packages/client/lib/data/model/user_model.dart`, `packages/client/lib/features/forward/data/repository/forward_repository.dart`
+- Graph modes/navigation: `packages/client/lib/features/graph/domain/entity/graph_mode.dart`, `graph_cubit.dart`, `graph_state.dart`, `graph_app_bar_actions.dart`
+- People/Blocked routing: `packages/client/lib/consts.dart`, `root_router.dart`, `ui_effect.dart`, `screen_cubit.dart`, `friends_app_bar_actions.dart`, `block_user_sheet.dart`, `blocked_users_screen.dart`
+- Policy/Profile: `packages/client/lib/ui/model/person_action_policy.dart`, `profile_view_body.dart`
+
+**Preflight (re-run):**
+
+```bash
+git worktree list --porcelain  # one worktree at 569071ba
+git merge-base --is-ancestor 22f9d35d 569071ba  # exit 0
+```
+
+**Acceptance reconciliation (WU0–WU7):**
+
+| WU | Verdict | Evidence |
+|---|---|---|
+| WU0 | pass | No production diff in WU0 commits; prior 140-test characterization matrix recorded green |
+| WU1 | pass | m0140 four-signal SQL; Hasura `trusts_viewer` + `mutually_visible_users`; V2 mappers; PG truth table 7/7 |
+| WU2 | pass | `subjectExplicitlyTrustsViewer` + canonical getters; fragments/mappers; `profile_visibility_test` exhaustive |
+| WU3 | pass | `mutuallyVisiblePeerIds` via SQL projection; exact rejection message; client discovery without second formula |
+| WU4 | pass | `GraphMode` derived once; `focusPathDepth` emitted with focus; trust Reset=`resetToEgo`; forwards Center camera-only |
+| WU5 | pass | Graph / Create invitation / More (QR, Blocked) compact grammar; Graph uses `ProfileCubit` account id |
+| WU6 | pass | `kPathBlockedUsers=/home/network/blocked`; single Network child route; `NavigateBlockedUsers`/`showBlockedUsers`; no Settings route/tile; `/settings/blocked` unregistered |
+| WU7 | pass | Pure policy matrix + Profile hierarchy; ≤1 Filled CTA; blocked body unblock-only; Send/Request options → `showForwardToPerson` |
+
+**Acceptance gaps (WU0–WU7):** none.
+
+**Tests and lints (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/domain/entity/profile_visibility_test.dart \
+  test/ui/model/person_action_policy_test.dart \
+  test/features/profile_view/profile_view_body_action_policy_test.dart \
+  test/features/profile_view/profile_view_blocked_profile_test.dart \
+  test/features/friends/friends_app_bar_actions_test.dart \
+  test/features/block/ui/sheet/block_user_sheet_test.dart \
+  test/features/block/ui/screen/blocked_users_screen_test.dart \
+  test/features/settings/settings_screen_blocked_absence_test.dart \
+  test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_cubit_genealogy_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart \
+  test/features/forward/person_forward_case_test.dart \
+  test/features/forward/person_forward_cubit_test.dart \
+  test/ui/widget/contact_badge_legend_test.dart
+# 00:07 +167: All tests passed!
+
+flutter test test/app/router/home_tab_branch_routing_test.dart --name "WU6"
+# 00:01 +8: All tests passed!
+
+cd ../server
+dart test --exclude-tags pg test/domain/use_case/forward_case_auth_test.dart \
+  test/domain/use_case/forward_case_test.dart \
+  test/data/repository/vote_user_friendship_lookup_test.dart \
+  test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart
+# 00:01 +51: All tests passed!
+
+dart test --tags pg test/data/database/person_visibility_migration_pg_test.dart
+# 00:39 +7: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client   # OK (106 vs baseline 111)
+./scripts/check-custom-lints.sh packages/server   # OK (0 vs baseline 0)
+bash scripts/check-user-facing-terminology.sh     # ok
+```
+
+**Aggregate:** 233 automated tests passed (175 client + 51 server non-pg + 7 server pg). No required Postgres-backed test was skipped.
+
+**Findings:**
+
+- Canonical four-signal visibility is enforced at SQL (`person_visibility_peers`), server mutation (`ForwardCase.forward`), Hasura candidate query (`mutually_visible_users`), and client `Profile` getters — no stray `score > 0 && rScore > 0` reachability formula in `packages/client/lib` or `packages/server/lib`.
+- `PersonActionPolicy` hierarchy matches plan §4.3; `ProfileViewBody` renders directional visibility before actions and never enables direct Send for one-way visibility.
+- `openBlockedUsers()` awaits branch normalization then `unawaited(push)` — matches WU6 deadlock fix.
+- Trust-mode AppBar Profile/Expand fallbacks intentionally retained (WU14/WU15 gate).
+- EN legend updated in WU2; RU legend parity deferred to WU13 per prior journal entry (not a WU0–WU7 stop-condition miss).
+- Client semver/cache-buster still `5.8.0` — WU16 scope.
+- `scripts/custom-lint-baseline.txt` not ratcheted (informational only).
+
+**Preserved worktree:** unchanged by this audit except this journal append. Pre-existing modified/untracked paths match the overseer snapshot (`docs/README.md`, archive docs, room-composer journal, `websocket_realtime_protocol_test.mocks.dart`, untracked keys/plans). No production, generated, test, or plan source files were edited.
+
+**Remaining dependency:** **WU8** — mandatory first human usability check with an unbriefed participant. Automation does not substitute. WU9–WU16 remain blocked behind WU8 (WU15 also behind WU14).
