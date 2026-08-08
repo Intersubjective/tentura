@@ -46,7 +46,7 @@ Untracked:
 9. **WU8** — mandatory first human usability check — **complete** (2026-08-09, user-confirmed).
 10. **WU9** — graph profile projection patch and equality — **complete** (2026-08-09).
 11. **WU10** — authoritative Trust and context cubit — **complete** (2026-08-09).
-12. **WU11** — Person Context presentation — pending.
+12. **WU11** — Person Context presentation — **complete** (2026-08-09).
 13. **WU12** — accessibility and pointer affordance — pending.
 14. **WU13** — localization — pending.
 15. **WU14** — mandatory visual-association human gate — pending human gate.
@@ -960,3 +960,80 @@ cd ../..
 - Confirmed GraphPersonContextCubit has only the intended `ProfileViewCase` and route-local GraphCubit dependencies. It increments the selection sequence for a new person; success patches captured Alice even after switching to Bob; only an unchanged id/sequence can update the panel/error state; `isClosed` prevents post-close emits.
 - Independently ran the four WU10/WU9 suites (35 passed), the WU9 equality/projection suites (19 passed), and `./scripts/check-custom-lints.sh packages/client` (OK, 106 vs baseline 111). Generated Freezed output exists locally and is deliberately ignored by this workspace's generated-file policy.
 - **Verdict:** accepted. WU11 is dependency-ready. WU14 human evidence is user-confirmed; WU15 remains ordered after WU11–WU13 acceptance.
+
+---
+
+## WU11 — Trust-graph Person Context presentation — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor recovery worker (composer-2.5), WU11 only. Starting HEAD `a987fd5e`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `e8270a0a` | feat(client): trust graph person context panel overlay (issue #100 WU11) |
+| `5bbf408d` | test(client): cover trust graph person context panel and body integration |
+
+**Actions performed:**
+
+1. Recovered interrupted WU11 partial work; retained valid panel/scaffold/screen/token wiring and repaired test hang (compact loop teardown) plus legend overlap measurement.
+2. Added `graphPersonContextWidth` (320) and `graphPersonContextCompactMaxHeightFraction` (0.42) to `TenturaTokens` constructor, light/dark, `copyWith`, and `lerp`; feature UI consumes tokens via `context.tt`.
+3. Provided `GraphPersonContextCubit` only in trust `GraphScreen` (`personContextEnabled: true`); forwards/genealogy `GraphScaffold` defaults keep it off.
+4. `GraphBody` keeps full-size `GraphView` in outer `Stack`; panel is a sibling overlay. Intentional non-self `UserNode` tap calls `selectProfile(..., intentional: true)` beside unchanged `handleNodeTap()`. Focus listener syncs previous/reset/empty/beacon/self/dismiss/reselect without profile refetch.
+5. Fixed context-driven legend reposition rebuild (outer context `BlocBuilder` + inner graph consumer) and compact legend `maxHeight` scroll clipping so legend and bottom panel cannot overlap.
+6. `GraphPersonContextPanel` renders avatar, directional visibility, exact `PersonActionPolicy` hierarchy, Send/Request options/Profile/Show more/Trust/close actions; retains trust AppBar Profile/Expand fallbacks.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/features/graph/graph_person_context_panel_test.dart
+# 00:00 +11: All tests passed!
+
+flutter test test/features/graph/graph_body_person_context_test.dart
+# 00:02 +14: All tests passed!
+
+flutter test test/features/graph/graph_person_context_cubit_test.dart \
+  test/features/graph/graph_profile_projection_patch_test.dart \
+  test/features/graph/node_details_equality_test.dart
+# 00:01 +29: All tests passed!
+
+flutter test test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+# 00:01 +50: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Files changed (WU11-owned):**
+
+- `packages/client/lib/design_system/tentura_tokens.dart`
+- `packages/client/lib/features/graph/ui/screen/graph_screen.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_scaffold.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_body.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart` (new)
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/test/features/graph/graph_person_context_panel_test.dart` (new)
+- `packages/client/test/features/graph/graph_body_person_context_test.dart` (new)
+
+**Findings:**
+
+- Prior worker hang: `graph_body_person_context_test` for-loop reused one tester with manual cubit close + `SizedBox.shrink()` while `AnimationController`/graph layout still ran; split into separate tests and rely on `addTearDown` only.
+- Legend overlap failure was twofold: graph `BlocConsumer` `buildWhen` blocked legend reposition when only context state changed; measuring `GraphLegendPanel` intrinsic height ignored compact scroll clipping (fixed rebuild wiring + viewport-bounds assertion).
+- Off-screen graph nodes at 900×600 require cubit-driven intentional selection in tests (not unreliable `tap` hit tests).
+- Show-more label still uses interim `inboxProvenanceExpand` until WU13 `graphShowMoreConnections` key lands.
+
+**Remaining:** WU12 — accessibility and pointer affordance; WU13 — localization; WU15 — AppBar cleanup after WU14 (user-confirmed) passes formal evidence recording.
+
+---
+
+## WU11 final entry — 2026-08-09
+
+**Status:** complete
+
+**Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched.
