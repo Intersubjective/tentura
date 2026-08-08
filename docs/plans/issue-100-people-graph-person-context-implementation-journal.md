@@ -36,7 +36,7 @@ Untracked:
 ## Ordered manifest
 
 1. **WU0** — preflight and characterization — **complete** (2026-08-08).
-2. **WU1** — database, Hasura, and V2 visibility boundary — pending.
+2. **WU1** — database, Hasura, and V2 visibility boundary — **complete** (2026-08-08).
 3. **WU2** — client profile projection and canonical getters — pending.
 4. **WU3** — server enforcement and candidate discovery — pending.
 5. **WU4** — graph modes and reactive navigation — pending.
@@ -186,3 +186,54 @@ dart test --exclude-tags pg test/domain/use_case/forward_case_test.dart \
 - The first fresh WU1 worker was interrupted before committing after it used an unsafe cleanup command (`git checkout --`) while trying to undo broad formatter output. It also left WU1 source/test changes uncommitted.
 - The two paths that had been listed as pre-existing dirty work, `packages/server/lib/env.dart` and `packages/server/lib/data/database/table/beacon_commitment_events.dart`, are now clean. The user has explicitly confirmed that they were not user work and directed execution to continue; no restoration is required.
 - Preserve all remaining uncommitted WU1 paths. A fresh recovery worker must audit, complete, test, and split them into focused commits. It must never use reset, checkout, restore, clean, stash, or any mass-reversion command.
+
+---
+
+## WU1 — canonical visibility boundary — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor recovery worker (composer-2.5), WU1 only.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `17635581` | feat(server): add m0140 canonical person visibility SQL and Hasura fields |
+| `637d3375` | feat(server): project trusts_viewer through V2 public-user resolvers |
+
+**Actions performed:**
+
+1. Audited and preserved interrupted WU1 partial changes; repaired PG test SQL (`$1` not `\$1` in raw strings), truth-table all-absent row handling, and `mr_edge_in`/`mr_node_score` supplement in m0140 for one-way MeritRank edges missing from `mr_mutual_scores(viewer)`.
+2. Registered `m0140` in `_migrations.dart`; applied migrations locally via `dart run bin/utils/run_migrations_once.dart` and manually re-applied updated `person_visibility_peers` on the already-migrated dev DB.
+3. Hasura metadata: `trusts_viewer` computed field + `mutually_visible_users` query function; `./scripts/hasura_apply_metadata.sh` → `is_consistent: true`.
+4. V2 projection: `gqlTypeUserPublic.trusts_viewer`, `UserPublicRecord.subjectExplicitlyTrustsViewer`, directional `VoteUserFriendshipLookupPort.directionalPositiveTrustPeerIds`, viewer-aware resolvers (coordination, mutual friends, invite genealogy, invitation issuer, blocked users default false).
+5. Fixed stub override in `evaluation_graph_test_repos.dart` and removed WU1-unused import in `coordination_repository.dart`.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/server
+dart test --exclude-tags pg \
+  test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart \
+  test/api/controllers/graphql/user_block_graphql_test.dart \
+  test/api/controllers/graphql/query_invite_genealogy_test.dart \
+  test/api/controllers/websocket/presence_watch_gate_test.dart
+# 00:00 +21: All tests passed!
+
+dart test test/data/repository/vote_user_friendship_lookup_test.dart
+# 00:00 +4: All tests passed!
+
+dart test --tags pg test/data/database/person_visibility_migration_pg_test.dart
+# 00:39 +7: All tests passed!
+```
+
+PG truth table covers all 10 plan rows (all-absent via missing peer row + `person_is_mutually_visible` false), `user_get_trusts_viewer` trust-only semantics, `mutually_visible_users` explicit/MR/mixed mutual cases, blocked/self exclusion, blank viewer, and null/empty context normalization.
+
+**Findings:**
+
+- `mr_mutual_scores(viewer)` alone does not surface peer→viewer-only MeritRank edges; m0140 unions `mr_edgelist` peer discovery with `greatest(mr_mutual_scores, mr_node_score)` directional scores.
+- Re-running `migrateDbSchema` does not replace an already-applied m0140 body on existing dev DBs; fresh installs get the final SQL from git.
+- Blocked-user GraphQL responses rely on default `trusts_viewer: false` (no incoming-trust query).
+
+**Remaining:** WU2 — client profile projection and canonical getters.
