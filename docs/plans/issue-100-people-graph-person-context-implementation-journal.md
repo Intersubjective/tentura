@@ -595,3 +595,13 @@ bash scripts/check-user-facing-terminology.sh
 - Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
 
 **Remaining:** WU7 — policy and Profile hierarchy.
+
+---
+
+## Manager review — WU6 accepted (2026-08-08)
+
+- Reviewed `76ae90c4`: `BlockedUsersRoute` has exactly one Network-child registration at `blocked`; it is absent from Settings and not included through `browseDetailChildren()`.
+- Verified `openBlockedUsers()` awaits Network normalization but deliberately does not await the pushed route, avoiding the AutoRoute pop-future deadlock; a missing mounted Network branch uses the specified cold `HomeRoute → NetworkTabShell → FriendsRoute → BlockedUsersRoute` construction.
+- Confirmed callers emit only `ScreenCubit.showBlockedUsers()` / `NavigateBlockedUsers`, and the dispatcher invokes the public `RootRouter.openBlockedUsers()` boundary; the cold leading fallback goes to `kPathNetwork`.
+- Independently ran all focused suites: router WU6 group (8), block sheet (9), blocked screen (2), and Settings absence (1) — all passed. `./scripts/check-custom-lints.sh packages/client`, terminology, `git show --check`, and `git diff --check 2d8bb3e7..HEAD` passed; no generated files were committed.
+- **Verdict:** accepted. WU7 may begin; preserved unrelated worktree paths remain unstaged and untouched.
