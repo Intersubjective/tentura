@@ -40,7 +40,7 @@ Untracked:
 3. **WU2** — client profile projection and canonical getters — **complete** (2026-08-08).
 4. **WU3** — server enforcement and candidate discovery — **complete** (2026-08-08).
 5. **WU4** — graph modes and reactive navigation — **complete** (2026-08-08).
-6. **WU5** — People entry points — pending.
+6. **WU5** — People entry points — **complete** (2026-08-08).
 7. **WU6** — Blocked People route ownership — pending.
 8. **WU7** — policy and Profile hierarchy — pending.
 9. **WU8** — mandatory first human usability check — pending human gate.
@@ -485,3 +485,45 @@ cd ../..
 - Required availability remediation is present: trust/genealogy Previous and Fit always render with `onPressed: null` at depth 1 / before layout, while forwards deliberately has only Center.
 - Independently ran each required focused WU4 test: 37, 8, 19, 4, and 5 tests passed respectively. `./scripts/check-custom-lints.sh packages/client`, `git diff --check 95f61064..HEAD`, and `git show --check` for implementation/remediation commits all passed.
 - **Verdict:** accepted. WU5 may begin; recorded unrelated worktree paths remain unstaged.
+
+---
+
+## WU5 — People entry points — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor recovery worker (composer-2.5), WU5 only. No process/port/Docker management.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `96a6b448` | feat(client): People top-bar Graph, invitation, and More actions |
+
+**Actions performed:**
+
+1. Added `FriendsAppBarActions` with injected callbacks: Graph, Create invitation, and More (Scan invite code, Blocked people) per plan §11 compact grammar on all widths.
+2. Wired `FriendsScreen` Graph via `ProfileCubit` account id → `ScreenCubit.showGraphFor`; preserved existing invitation and `ConnectBottomSheet` scan flows.
+3. Added `navigateToBlockedPeopleFromFriends` semantic hook (commented `showBlockedUsers()` call site for WU6); More → Blocked invokes the injected callback through that hook — action is visible, not silently dropped.
+4. Added l10n keys (`friendsPeopleGraph`, `friendsPeopleMore`, `friendsBlockedPeople`) and `TestIds` for graph/create/more.
+5. Restored accidental `friend_remove_dialog.dart` formatting-only diff from interrupted prior worker (no behavioral change).
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter gen-l10n
+flutter test test/features/friends/friends_app_bar_actions_test.dart
+# 00:01 +4: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Findings:**
+
+- Widget tests cover 320 px overflow, More menu order (Scan then Blocked), per-action callbacks, and one `FriendsScreen` integration asserting Graph → `NavigatePush('$kPathGraph/$accountId')` via `ProfileCubit` + `ScreenCubit`.
+- Version bump deferred to WU16 per plan §22 (live client still `5.8.0`).
+
+**Remaining:** WU6 — Blocked People route ownership.
