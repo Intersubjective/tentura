@@ -38,7 +38,7 @@ Untracked:
 1. **WU0** — preflight and characterization — **complete** (2026-08-08).
 2. **WU1** — database, Hasura, and V2 visibility boundary — **complete** (2026-08-08).
 3. **WU2** — client profile projection and canonical getters — **complete** (2026-08-08).
-4. **WU3** — server enforcement and candidate discovery — pending.
+4. **WU3** — server enforcement and candidate discovery — **complete** (2026-08-08).
 5. **WU4** — graph modes and reactive navigation — pending.
 6. **WU5** — People entry points — pending.
 7. **WU6** — Blocked People route ownership — pending.
@@ -323,3 +323,52 @@ cd ../..
 **Accepted commits:** `add0bdc2`, `0b8f9abc`, `92c91fcb`.
 
 **Next:** WU3.
+
+---
+
+## WU3 — server enforcement and candidate discovery — 2026-08-08
+
+**Status:** complete
+
+**Worker:** fresh Cursor worker (composer-2.5), WU3 only. No process/port/Docker management.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `f425a53f` | feat(server): enforce mutual visibility in ForwardCase via person_visibility_peers |
+| `6f005c0f` | feat(client): discover forward candidates via mutually_visible_users |
+| `2aa24f47` | docs: record WU3 mutual visibility enforcement evidence for issue #100 |
+
+**Actions performed:**
+
+1. Added `PersonVisibilityRepositoryPort.mutuallyVisiblePeerIds` and `PersonVisibilityRepository` querying `person_visibility_peers(viewerId, context)` once with `is_mutually_visible` + peer filter (no Dart formula).
+2. Injected port into server `ForwardCase`; added `final visibilityContext = context ?? ''` once; mutual-visibility check after block filtering and parent-edge resolution, before `createBatch`; rejects entire batch with exact `Direct request routing requires mutual visibility`.
+3. Switched `forward_candidates_fetch.graphql` to `mutually_visible_users(args: {context: $context}) { ...UserModel }`; updated `ForwardRepository.fetchForwardCandidates` mapping (no second client formula).
+4. Extended `forward_case_mocks.dart` / regenerated mocks; added mandatory server auth tests and client PersonForward / candidate-discovery tests.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/server
+dart run build_runner build -d
+dart test --exclude-tags pg test/domain/use_case/forward_case_auth_test.dart test/domain/use_case/forward_case_test.dart
+# 00:00 +41: All tests passed!
+
+cd ../client
+dart run build_runner build -d
+flutter test test/features/forward/person_forward_case_test.dart test/features/forward/person_forward_cubit_test.dart
+# 00:00 +14: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/server
+./scripts/check-custom-lints.sh packages/client
+# both OK
+```
+
+**Findings:**
+
+- `PersonForwardCase.send` remains a thin repository delegate; cubit/UI `Profile.isMutuallyVisible` guards are defense-in-depth (server is final boundary).
+- `websocket_realtime_protocol_test.mocks.dart` regenerated collaterally from server `build_runner`; left unstaged (unrelated).
+
+**Remaining:** WU4 — explicit graph modes and reactive navigation.
