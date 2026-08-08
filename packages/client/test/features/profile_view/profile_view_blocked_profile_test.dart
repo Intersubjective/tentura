@@ -45,35 +45,41 @@ void main() {
 
     tearDown(() => harness.dispose());
 
-    test('ProfileFetchException with direct block shows stripped profile state', () async {
-      const blocked = Profile(
-        id: 'U-blocked',
-        displayName: 'Blocked Person',
-      );
-      harness
-        ..profiles.error = const ProfileFetchException('U-blocked')
-        ..blockCase.fetchMyBlocksResult = [
-          BlockIntent(blocked: blocked),
-        ]
-        ..start(id: 'U-blocked');
-      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+    test(
+      'ProfileFetchException with direct block shows stripped profile state',
+      () async {
+        const blocked = Profile(
+          id: 'U-blocked',
+          displayName: 'Blocked Person',
+        );
+        harness
+          ..profiles.error = const ProfileFetchException('U-blocked')
+          ..blockCase.fetchMyBlocksResult = [
+            BlockIntent(blocked: blocked),
+          ]
+          ..start(id: 'U-blocked');
+        await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
 
-      expect(harness.cubit.state.blockedProfile, blocked);
-      expect(harness.cubit.state.loadError, isNull);
-      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
-    });
+        expect(harness.cubit.state.blockedProfile, blocked);
+        expect(harness.cubit.state.loadError, isNull);
+        expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+      },
+    );
 
-    test('ProfileFetchException without direct block keeps loadError path', () async {
-      harness
-        ..profiles.error = const ProfileFetchException('U-missing')
-        ..blockCase.fetchMyBlocksResult = const []
-        ..start(id: 'U-missing');
-      await harness.waitFor(() => harness.cubit.state.loadError != null);
+    test(
+      'ProfileFetchException without direct block keeps loadError path',
+      () async {
+        harness
+          ..profiles.error = const ProfileFetchException('U-missing')
+          ..blockCase.fetchMyBlocksResult = const []
+          ..start(id: 'U-missing');
+        await harness.waitFor(() => harness.cubit.state.loadError != null);
 
-      expect(harness.cubit.state.blockedProfile, isNull);
-      expect(harness.cubit.state.loadError, isA<ProfileFetchException>());
-      expect(harness.effects.emitted.whereType<ShowError>(), isNotEmpty);
-    });
+        expect(harness.cubit.state.blockedProfile, isNull);
+        expect(harness.cubit.state.loadError, isA<ProfileFetchException>());
+        expect(harness.effects.emitted.whereType<ShowError>(), isNotEmpty);
+      },
+    );
 
     test('unblock clears blocked fallback and retries fetch', () async {
       const blocked = Profile(
@@ -105,7 +111,9 @@ void main() {
 
     tearDown(() => harness.dispose());
 
-    testWidgets('renders avatar, name, and unblock action only', (tester) async {
+    testWidgets('renders avatar, name, and unblock action only', (
+      tester,
+    ) async {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
@@ -143,9 +151,13 @@ void main() {
       expect(find.text(l10n.unblockUserMenuItem), findsOneWidget);
       expect(find.text(l10n.showConnections), findsNothing);
       expect(find.text(l10n.profileSendRequestTo), findsNothing);
+      expect(find.text(l10n.trustThisUser), findsNothing);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
     });
 
-    testWidgets('unblock button calls cubit.unblockBlockedProfile', (tester) async {
+    testWidgets('unblock button calls cubit.unblockBlockedProfile', (
+      tester,
+    ) async {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
@@ -178,7 +190,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(lookupL10n(const Locale('en')).unblockUserMenuItem));
+      await tester.tap(
+        find.text(lookupL10n(const Locale('en')).unblockUserMenuItem),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
