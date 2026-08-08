@@ -4210,6 +4210,10 @@
   "beaconRoomAttachMenuTooltip": "Attach",
   "beaconRoomAttachPickImages": "Photos",
   "beaconRoomAttachPickFiles": "Files",
+  "beaconRoomAttachPasteImage": "Paste image",
+  "beaconRoomAttachPasteImageNotFound": "No image on clipboard",
+  "beaconRoomAttachPasteImageUnsupported": "Clipboard access isn't available",
+  "beaconRoomAttachPasteImageReadFailed": "Could not read clipboard",
   "beaconRoomAttachmentsTooMany": "You can attach up to {max} files.",
   "@beaconRoomAttachmentsTooMany": {
     "placeholders": {

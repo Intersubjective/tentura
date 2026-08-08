@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -49,6 +50,7 @@ class BasicChatBody extends StatefulWidget {
     this.header,
     this.emptyPlaceholder,
     this.imageRepository,
+    this.clipboardImageRepository,
     this.enableComposerAttachments = true,
     this.enableParticipantMentions = true,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
@@ -101,6 +103,8 @@ class BasicChatBody extends StatefulWidget {
   final Widget? emptyPlaceholder;
 
   final ImageRepository? imageRepository;
+
+  final ClipboardImageRepository? clipboardImageRepository;
 
   final bool enableComposerAttachments;
 
@@ -484,8 +488,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
   Widget _buildComposerRow(BuildContext context) {
     final repo = widget.imageRepository;
+    final clipboardRepo = widget.clipboardImageRepository;
     final onSend = widget.onSend;
-    final canCompose = repo != null && onSend != null;
+    final canCompose =
+        repo != null && clipboardRepo != null && onSend != null;
     final initialLoadInProgress = widget.isLoading && widget.messages.isEmpty;
 
     return SafeArea(
@@ -499,6 +505,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                 child: canCompose
                     ? BeaconRoomComposer(
                         imageRepository: repo,
+                        clipboardImageRepository: clipboardRepo,
                         isSending: initialLoadInProgress,
                         onSend: onSend,
                         participants: widget.participants,
@@ -520,6 +527,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
 class BeaconRoomComposer extends StatefulWidget {
   const BeaconRoomComposer({
     required this.imageRepository,
+    required this.clipboardImageRepository,
     required this.isSending,
     required this.onSend,
     required this.participants,
@@ -529,6 +537,8 @@ class BeaconRoomComposer extends StatefulWidget {
   });
 
   final ImageRepository imageRepository;
+
+  final ClipboardImageRepository clipboardImageRepository;
 
   final bool isSending;
 
@@ -853,6 +863,37 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
   }
 
+  Future<void> _pasteImage() async {
+    if (_remainingSlots <= 0) {
+      _snack(
+        L10n.of(context)!.beaconRoomAttachmentsTooMany(
+          kMaxRoomMessageAttachments,
+        ),
+      );
+      return;
+    }
+    final l10n = L10n.of(context)!;
+    try {
+      final result = await widget.clipboardImageRepository.readImage();
+      if (!mounted) {
+        return;
+      }
+      switch (result.outcome) {
+        case ClipboardImageReadOutcome.found:
+          _tryAdd(result.upload!);
+        case ClipboardImageReadOutcome.notFound:
+          _snack(l10n.beaconRoomAttachPasteImageNotFound);
+        case ClipboardImageReadOutcome.unsupported:
+          _snack(l10n.beaconRoomAttachPasteImageUnsupported);
+      }
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _snack(l10n.beaconRoomAttachPasteImageReadFailed);
+    }
+  }
+
   Future<void> _pickFiles() async {
     if (_remainingSlots <= 0) {
       _snack(
@@ -990,6 +1031,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           await _pickImages();
         } else if (v == 'file') {
           await _pickFiles();
+        } else if (v == 'paste') {
+          await _pasteImage();
         }
       },
       itemBuilder: (ctx) => [
@@ -1000,6 +1043,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         PopupMenuItem(
           value: 'file',
           child: Text(l10n.beaconRoomAttachPickFiles),
+        ),
+        PopupMenuItem(
+          value: 'paste',
+          child: Text(l10n.beaconRoomAttachPasteImage),
         ),
       ],
       icon: Icon(

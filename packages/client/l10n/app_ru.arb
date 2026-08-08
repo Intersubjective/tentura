@@ -4142,6 +4142,10 @@
   "beaconRoomAttachMenuTooltip": "Вложение",
   "beaconRoomAttachPickImages": "Фото",
   "beaconRoomAttachPickFiles": "Файлы",
+  "beaconRoomAttachPasteImage": "Вставить изображение",
+  "beaconRoomAttachPasteImageNotFound": "В буфере обмена нет изображения",
+  "beaconRoomAttachPasteImageUnsupported": "Доступ к буферу обмена недоступен",
+  "beaconRoomAttachPasteImageReadFailed": "Не удалось прочитать буфер обмена",
   "beaconRoomAttachmentsTooMany": "Не больше {max} файлов.",
   "@beaconRoomAttachmentsTooMany": {
     "placeholders": {

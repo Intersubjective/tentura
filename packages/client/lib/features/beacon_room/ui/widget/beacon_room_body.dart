@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -256,6 +257,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   )
                 : null,
             imageRepository: GetIt.I<ImageRepository>(),
+            clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
             onOpenCoordinationItem: widget.onOpenCoordinationItem ??
