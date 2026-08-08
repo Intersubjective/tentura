@@ -18,6 +18,8 @@ Apply the bump in each affected package's `pubspec.yaml` when releasing that pac
 
 Any **user-visible** client change (UI, copy, navigation, client-side behavior) **must** include a semver bump in `packages/client/pubspec.yaml` using the patch/minor/major rules above. Do not merge client feature/fix work without bumping the client version.
 
+**Sync the web cache-buster in the same change.** `packages/client/web/index.html`'s `flutter_bootstrap.js?v=<version>` query string is the browser cache-busting key for the web build; it is a normal git-tracked file (unlike `web/manifest.json`, which is `skip-worktree` and never needs a commit). It only gets rewritten when you actually `flutter run`/`flutter build web` locally (the `hook/build.dart` build hook does it — `build_runner` does not touch it). After bumping `pubspec.yaml`, run the app once and include the resulting `web/index.html` diff in your commit, or verify by hand that `?v=` already matches. If this is skipped, a real fix can ship on the server while browsers keep serving the old cached JS bundle — CI's `dart run tool/verify_web_version_consistency.dart` only checks the fresh **build output**, so it cannot catch a stale committed source file.
+
 ## Client version gate (`MIN_CLIENT_VERSION`)
 
 The server's minimum acceptable client version is **baked into the binary** via `kDefaultMinClientVersion` in `packages/server/lib/env.dart` (currently `5.0.0`). After a client bump, decide whether to raise it using the decision table in **`DEV_GUIDELINES.md` § Client version gate**.
