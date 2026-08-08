@@ -22,6 +22,7 @@ extension type const UserPublicModel(GUserPublicModel i)
       handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,
+      subjectExplicitlyTrustsViewer: i.trusts_viewer,
       isMutualFriend: i.is_mutual_friend,
       image: (i.image as ImageModelV2?)?.asEntity ?? image?.asEntity,
       score: i.scores?.firstOrNull?.dst_score ?? 0,

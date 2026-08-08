@@ -55,6 +55,7 @@ class MutualFriendsRepository {
                     ),
               score: firstScore?.dst_score ?? 0,
               rScore: firstScore?.src_score ?? 0,
+              subjectExplicitlyTrustsViewer: e.trusts_viewer,
               isMutualFriend: e.is_mutual_friend,
               presenceStatus: presenceStatus,
               presenceLastSeenAt: presenceLastSeenAt,

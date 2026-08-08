@@ -21,6 +21,7 @@ extension type const UserModel(GUserModel i) implements GUserModel {
       handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,
+      subjectExplicitlyTrustsViewer: i.trusts_viewer ?? false,
       isMutualFriend: i.is_mutual_friend ?? false,
       image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
       score: i.scores?.firstOrNull?.dst_score ?? 0,

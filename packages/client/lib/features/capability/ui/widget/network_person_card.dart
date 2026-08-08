@@ -48,7 +48,7 @@ class NetworkPersonCard extends StatelessWidget {
   String _trustReciprocityLabel(L10n l10n) {
     if (profile.isMutualFriend) return l10n.classMutual;
     if (profile.isFriend) return l10n.classOneWayOut;
-    if (profile.isSeeingMe) return l10n.classOneWayIn;
+    if (profile.subjectExplicitlyTrustsViewer) return l10n.classOneWayIn;
     return l10n.classNone;
   }
 

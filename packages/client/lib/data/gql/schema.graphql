@@ -13,6 +13,8 @@ directive @cached(
   refresh: Boolean! = false
 ) on QUERY
 
+scalar _text
+
 """
 columns and relationships of "beacon"
 """
@@ -139,11 +141,11 @@ type beacon {
   can_read_content: Boolean
   context: String
   cover_image_id: uuid
+  cover_source: smallint!
 
   """An object relationship"""
   cover_thumb_image: image
   cover_thumb_image_id: uuid
-  cover_source: smallint!
   created_at: timestamptz!
   description: String!
   end_at: timestamptz
@@ -462,6 +464,8 @@ input beacon_bool_exp {
   context: String_comparison_exp
   cover_image_id: uuid_comparison_exp
   cover_source: smallint_comparison_exp
+  cover_thumb_image: image_bool_exp
+  cover_thumb_image_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   end_at: timestamptz_comparison_exp
@@ -698,8 +702,20 @@ type beacon_help_offer {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String!
-  status: smallint!
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: smallint!
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
   stake_state: smallint!
+  status: smallint!
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -765,6 +781,18 @@ input beacon_help_offer_aggregate_order_by {
 
 """aggregate avg on columns"""
 type beacon_help_offer_avg_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -772,6 +800,18 @@ type beacon_help_offer_avg_fields {
 order by avg() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_avg_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
@@ -788,8 +828,9 @@ input beacon_help_offer_bool_exp {
   created_at: timestamptz_comparison_exp
   help_type: String_comparison_exp
   message: String_comparison_exp
-  status: smallint_comparison_exp
+  offer_kind: smallint_comparison_exp
   stake_state: smallint_comparison_exp
+  status: smallint_comparison_exp
   updated_at: timestamptz_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
@@ -922,6 +963,19 @@ type beacon_help_offer_max_fields {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: smallint
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: smallint
   status: smallint
   updated_at: timestamptz
   user_id: String
@@ -940,6 +994,19 @@ input beacon_help_offer_max_order_by {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: order_by
   message: order_by
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
   updated_at: order_by
   user_id: order_by
@@ -956,6 +1023,19 @@ type beacon_help_offer_min_fields {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: smallint
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: smallint
   status: smallint
   updated_at: timestamptz
   user_id: String
@@ -974,6 +1054,19 @@ input beacon_help_offer_min_order_by {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: order_by
   message: order_by
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
   updated_at: order_by
   user_id: order_by
@@ -1010,8 +1103,9 @@ input beacon_help_offer_order_by {
   created_at: order_by
   help_type: order_by
   message: order_by
-  status: order_by
+  offer_kind: order_by
   stake_state: order_by
+  status: order_by
   updated_at: order_by
   user: user_order_by
   user_id: order_by
@@ -1041,10 +1135,13 @@ enum beacon_help_offer_select_column {
   message
 
   """column name"""
-  status
+  offer_kind
 
   """column name"""
   stake_state
+
+  """column name"""
+  status
 
   """column name"""
   updated_at
@@ -1066,6 +1163,18 @@ input beacon_help_offer_set_input {
 
 """aggregate stddev on columns"""
 type beacon_help_offer_stddev_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1073,11 +1182,35 @@ type beacon_help_offer_stddev_fields {
 order by stddev() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_stddev_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
 """aggregate stddev_pop on columns"""
 type beacon_help_offer_stddev_pop_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1085,11 +1218,35 @@ type beacon_help_offer_stddev_pop_fields {
 order by stddev_pop() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_stddev_pop_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
 """aggregate stddev_samp on columns"""
 type beacon_help_offer_stddev_samp_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1097,6 +1254,18 @@ type beacon_help_offer_stddev_samp_fields {
 order by stddev_samp() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_stddev_samp_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
@@ -1119,6 +1288,19 @@ input beacon_help_offer_stream_cursor_value_input {
   """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String
+
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: smallint
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: smallint
   status: smallint
   updated_at: timestamptz
   user_id: String
@@ -1129,6 +1311,18 @@ input beacon_help_offer_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type beacon_help_offer_sum_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: smallint
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: smallint
   status: smallint
 }
 
@@ -1136,6 +1330,18 @@ type beacon_help_offer_sum_fields {
 order by sum() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_sum_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
@@ -1163,6 +1369,18 @@ input beacon_help_offer_updates {
 
 """aggregate var_pop on columns"""
 type beacon_help_offer_var_pop_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1170,11 +1388,35 @@ type beacon_help_offer_var_pop_fields {
 order by var_pop() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_var_pop_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
 """aggregate var_samp on columns"""
 type beacon_help_offer_var_samp_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1182,11 +1424,35 @@ type beacon_help_offer_var_samp_fields {
 order by var_samp() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_var_samp_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
 """aggregate variance on columns"""
 type beacon_help_offer_variance_fields {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: Float
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: Float
   status: Float
 }
 
@@ -1194,6 +1460,18 @@ type beacon_help_offer_variance_fields {
 order by variance() on columns of table "beacon_help_offer"
 """
 input beacon_help_offer_variance_order_by {
+  """
+  0=normal, 1=backup (offered while the
+     request already signalled enough help)
+  """
+  offer_kind: order_by
+
+  """
+  Display-only projection of
+      beacon_commitment_event: 0=none,1=offered,2=acknowledged,3=softened,4=exited,5=released.
+      Never an input for gates (see docs/plans/commitment-truth-rework-plan.md §2.5).
+  """
+  stake_state: order_by
   status: order_by
 }
 
@@ -1365,6 +1643,7 @@ input beacon_max_order_by {
   context: order_by
   cover_image_id: order_by
   cover_source: order_by
+  cover_thumb_image_id: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1396,6 +1675,7 @@ input beacon_min_order_by {
   context: order_by
   cover_image_id: order_by
   cover_source: order_by
+  cover_thumb_image_id: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -1434,6 +1714,8 @@ input beacon_order_by {
   context: order_by
   cover_image_id: order_by
   cover_source: order_by
+  cover_thumb_image: image_order_by
+  cover_thumb_image_id: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -2095,10 +2377,10 @@ enum beacon_select_column {
   cover_image_id
 
   """column name"""
-  cover_thumb_image_id
+  cover_source
 
   """column name"""
-  cover_source
+  cover_thumb_image_id
 
   """column name"""
   created_at
@@ -2298,6 +2580,7 @@ input beacon_stream_cursor_value_input {
   context: String
   cover_image_id: uuid
   cover_source: smallint
+  cover_thumb_image_id: uuid
   created_at: timestamptz
   description: String
   end_at: timestamptz
@@ -2471,12 +2754,6 @@ input edge_stream_cursor_value_input {
 }
 
 scalar float8
-
-"""
-Postgres `text[]` as exposed by Hasura for function arguments.
-Pass a Postgres array literal string, e.g. `{"Ua","Ub"}`.
-"""
-scalar _text
 
 """
 Boolean expression to compare columns of type "float8". All fields are combined with logical 'AND'.
@@ -3084,7 +3361,7 @@ type mutation_root {
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReopen(id: String!): v2_BeaconCloseReviewResult!
   beaconReorderImages(beaconId: String!, imageIds: [String!]): Boolean!
-  beaconSetMedia(coverImageId: String, coverThumbImageId: String, coverSource: Int!, id: String!, imageIds: [String!]): v2_Beacon!
+  beaconSetMedia(coverImageId: String, coverSource: Int!, coverThumbImageId: String, id: String!, imageIds: [String!]): v2_Beacon!
   beaconStageImage(id: String!, image: v2_Upload = {}): v2_BeaconImageStaged!
   beaconUpdate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconUpdateDraft(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
@@ -3097,9 +3374,6 @@ type mutation_root {
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
-  userBlock(cascadeMode: Int, objectId: String!): Boolean!
-  userBlockPromote(objectId: String!): Boolean!
-  userUnblock(objectId: String!): Boolean!
   createDraftAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createDraftBlocker(beaconId: String!, body: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createDraftPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
@@ -3305,9 +3579,9 @@ type mutation_root {
   redirectAsk(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
   redirectPromise(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
   rejectResolution(itemId: String!, reason: String): v2_CoordinationItemRow!
+  releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   resolveAsk(itemId: String!, note: String): v2_CoordinationItemRow!
   resolveBlocker(itemId: String!, note: String): v2_CoordinationItemRow!
   resolvePlanStep(itemId: String!): v2_CoordinationItemRow!
@@ -3426,9 +3700,12 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [vote_beacon_updates!]!
   ): [vote_beacon_mutation_response]
+  userBlock(cascadeMode: Int, objectId: String!): Boolean!
+  userBlockPromote(objectId: String!): Boolean!
   userDelete: Boolean!
   userRecalculateBookkeeping: v2_UserRecalculateBookkeepingResult!
   userSubscribe(objectId: String!): Int!
+  userUnblock(objectId: String!): Boolean!
   userUnsubscribe(objectId: String!): Int!
   userUpdate(description: String, displayName: String, dropImage: Boolean, handle: String, image: v2_Upload = {}): v2_User!
   userVote(amount: Int, objectId: String!): Int!
@@ -3609,6 +3886,10 @@ order by variance() on columns of table "mutual_score"
 input mutual_score_variance_order_by {
   dst_score: order_by
   src_score: order_by
+}
+
+input mutually_visible_users_args {
+  context: String
 }
 
 input my_field_args {
@@ -4240,6 +4521,8 @@ type query_root {
 
   """fetch data from the table: "beacon_steward" using primary key columns"""
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
+  blockInherited(originId: String!): [v2_user!]
+  blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
   coordinationItemsByBeacon(acceptedById: String, beaconId: String!, kind: Int, linkedParentItemId: String, rootOnly: Boolean, status: Int, targetPersonId: String): [v2_CoordinationItemRow!]
   coordinationMyResponsibilityItems(beaconId: String!): [v2_CoordinationItemRow!]
   coordinationResponsibilityBatch(beaconIds: [String!]): [v2_CoordinationResponsibilityBatchRow!]
@@ -4267,8 +4550,8 @@ type query_root {
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationReceived(id: String!): v2_EvaluationReceived!
-  evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
   evaluationSummary(id: String!): v2_EvaluationSummary!
+  evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
 
   """
@@ -4416,9 +4699,6 @@ type query_root {
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
   mutualFriends(id: String!): [v2_user!]
-  myBlocks: [BlockIntent!]!
-  blockInherited(originId: String!): [v2_user!]!
-  blockPreview(cascadeMode: Int, objectId: String!): BlockPreview!
 
   """
   fetch data from the table: "mutual_score"
@@ -4439,6 +4719,32 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
+
+  """
+  execute function "mutually_visible_users" which returns "user"
+  """
+  mutually_visible_users(
+    """
+    input parameters for function "mutually_visible_users"
+    """
+    args: mutually_visible_users_args!
+
+    """distinct select on columns"""
+    distinct_on: [user_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_order_by!]
+
+    """filter the rows returned"""
+    where: user_bool_exp
+  ): [user!]!
+  myBlocks: [v2_BlockIntent!]
   myContacts: [v2_UserContact!]
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
   myWorkCoordinationItemActivity(beaconIds: [String!]): [v2_MyWorkBeaconCoordinationActivityRow!]
@@ -4567,7 +4873,7 @@ type query_root {
     where: mutual_score_bool_exp
   ): [mutual_score!]!
   reviewWindowStatus(id: String!): v2_ReviewWindowStatus!
-  reviewWindowStatuses(beaconIds: [String!]!): [v2_ReviewWindowStatus!]!
+  reviewWindowStatuses(beaconIds: [String!]): [v2_ReviewWindowStatus!]
   roomMessageTarget(beaconId: String!, messageId: String!): v2_RoomMessageRow
 
   """
@@ -5461,6 +5767,31 @@ type subscription_root {
   ): [mutual_score!]!
 
   """
+  execute function "mutually_visible_users" which returns "user"
+  """
+  mutually_visible_users(
+    """
+    input parameters for function "mutually_visible_users"
+    """
+    args: mutually_visible_users_args!
+
+    """distinct select on columns"""
+    distinct_on: [user_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_order_by!]
+
+    """filter the rows returned"""
+    where: user_bool_exp
+  ): [user!]!
+
+  """
   execute function "my_field" which returns "mutual_score"
   """
   my_field(
@@ -5867,6 +6198,11 @@ type user {
   description: String!
   display_name: String!
   handle: String
+
+  """
+  A computed field, executes function "user_hidden_for_viewer"
+  """
+  hidden_for_viewer: Boolean
   id: String!
 
   """An object relationship"""
@@ -5921,6 +6257,11 @@ type user {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]
+
+  """
+  A computed field, executes function "user_get_trusts_viewer"
+  """
+  trusts_viewer: Boolean
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -5994,6 +6335,7 @@ input user_bool_exp {
   description: String_comparison_exp
   display_name: String_comparison_exp
   handle: String_comparison_exp
+  hidden_for_viewer: Boolean_comparison_exp
   id: String_comparison_exp
   image: image_bool_exp
   image_id: uuid_comparison_exp
@@ -6002,6 +6344,7 @@ input user_bool_exp {
   my_vote: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
+  trusts_viewer: Boolean_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_presence: user_presence_bool_exp
   voteUsersBySubject: vote_user_bool_exp
@@ -6115,6 +6458,7 @@ input user_order_by {
   description: order_by
   display_name: order_by
   handle: order_by
+  hidden_for_viewer: order_by
   id: order_by
   image: image_order_by
   image_id: order_by
@@ -6123,6 +6467,7 @@ input user_order_by {
   my_vote: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
+  trusts_viewer: order_by
   updated_at: order_by
   user_presence: user_presence_order_by
   voteUsersBySubject_aggregate: vote_user_aggregate_order_by
@@ -6134,6 +6479,10 @@ input user_order_by {
 columns and relationships of "user_presence"
 """
 type user_presence {
+  """
+  A computed field, executes function "user_presence_hidden_for_viewer"
+  """
+  hidden_for_viewer: Boolean
   last_seen_at: timestamptz!
   status: smallint!
 
@@ -6149,6 +6498,7 @@ input user_presence_bool_exp {
   _and: [user_presence_bool_exp!]
   _not: user_presence_bool_exp
   _or: [user_presence_bool_exp!]
+  hidden_for_viewer: Boolean_comparison_exp
   last_seen_at: timestamptz_comparison_exp
   status: smallint_comparison_exp
   user: user_bool_exp
@@ -6157,6 +6507,7 @@ input user_presence_bool_exp {
 
 """Ordering options when selecting data from "user_presence"."""
 input user_presence_order_by {
+  hidden_for_viewer: order_by
   last_seen_at: order_by
   status: order_by
   user: user_order_by
@@ -6320,8 +6671,8 @@ type v2_AuthResponse {
 type v2_Beacon {
   addressLabel: String
   coverImageId: String
-  coverThumbImageId: String
   coverSource: Int!
+  coverThumbImageId: String
   id: String!
   primaryNeedSlug: String
 }
@@ -6468,6 +6819,21 @@ type v2_BeaconStatusResult {
   statusChangedAt: String
 }
 
+type v2_BlockIntent {
+  blocked: v2_user!
+  cascadeCapped: Boolean!
+  cascadeMode: Int!
+  cascadePending: Boolean!
+  inheritedCount: Int!
+}
+
+type v2_BlockPreview {
+  cascadeCandidateCount: Int!
+  cascadeCapped: Boolean!
+  openCommitmentCount: Int!
+  willWithdrawEdge: Boolean!
+}
+
 input v2_Coordinates {
   lat: Float
   long: Float
@@ -6547,8 +6913,8 @@ type v2_EvaluationParticipant {
 type v2_EvaluationReceived {
   beaconId: String!
   beaconTitle: String!
-  windowClosed: Boolean!
   rows: [v2_EvaluationReceivedRow!]!
+  windowClosed: Boolean!
 }
 
 type v2_EvaluationReceivedRow {
@@ -6559,19 +6925,6 @@ type v2_EvaluationReceivedRow {
   reviewerId: String!
   reviewerImageId: String!
   reviewerRole: Int!
-  tone: String!
-  value: Int!
-}
-
-type v2_EvaluationsWrittenAboutViewerRow {
-  beaconClosedAt: String
-  beaconId: String!
-  beaconTitle: String!
-  evaluatedUserId: String!
-  evaluatorId: String!
-  note: String!
-  occurredAt: String!
-  reasonTags: [String!]!
   tone: String!
   value: Int!
 }
@@ -6587,6 +6940,19 @@ type v2_EvaluationSummary {
   tone: String!
   topReasonTags: [String!]
   zero: Int
+}
+
+type v2_EvaluationsWrittenAboutViewerRow {
+  beaconClosedAt: String
+  beaconId: String!
+  beaconTitle: String!
+  evaluatedUserId: String!
+  evaluatorId: String!
+  note: String!
+  occurredAt: String!
+  reasonTags: [String!]!
+  tone: String!
+  value: Int!
 }
 
 type v2_FcmTestSendResult {
@@ -6632,11 +6998,11 @@ type v2_HelpOfferWithCoordinationRow {
   beaconId: String!
   createdAt: String!
   helpType: String
+  isDirectAuthorForward: Boolean!
   lastDeclineReason: String
   lastRemoveReason: String
   message: String!
   offerKind: Int!
-  isDirectAuthorForward: Boolean!
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String
@@ -6835,6 +7201,7 @@ type v2_user {
   is_mutual_friend: Boolean!
   my_vote: Int
   scores: [v2_mutual_score!]
+  trusts_viewer: Boolean!
   user_presence: v2_user_presence
 }
 
@@ -6846,21 +7213,6 @@ type v2_User {
 type v2_user_presence {
   last_seen_at: String!
   status: Int!
-}
-
-type BlockIntent {
-  blocked: v2_user!
-  cascadeCapped: Boolean!
-  cascadeMode: Int!
-  cascadePending: Boolean!
-  inheritedCount: Int!
-}
-
-type BlockPreview {
-  cascadeCandidateCount: Int!
-  cascadeCapped: Boolean!
-  openCommitmentCount: Int!
-  willWithdrawEdge: Boolean!
 }
 
 type v2_UserContact {

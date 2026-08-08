@@ -71,11 +71,10 @@ class BlockRepository {
       .request(GMyBlocksReq())
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
-        (r) => r
-            .dataOrThrow(label: _label)
-            .myBlocks
-            .map<BlockIntent>(_blockIntentFromGql)
-            .toList(),
+        (r) {
+          final blocks = r.dataOrThrow(label: _label).myBlocks;
+          return blocks?.map<BlockIntent>(_blockIntentFromGql).toList() ?? [];
+        },
       );
 
   Future<List<Profile>> fetchInherited({required String originId}) =>
@@ -85,11 +84,13 @@ class BlockRepository {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .blockInherited
-                .map((row) => (row as UserPublicModel).toEntity())
-                .toList(),
+            (r) {
+              final inherited = r.dataOrThrow(label: _label).blockInherited;
+              return inherited
+                      ?.map((row) => (row as UserPublicModel).toEntity())
+                      .toList() ??
+                  [];
+            },
           );
 
   Future<BlockPreview> preview({

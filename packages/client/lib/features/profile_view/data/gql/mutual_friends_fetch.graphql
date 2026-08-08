@@ -4,6 +4,7 @@ query MutualFriendsFetch($id: String!) {
   mutualFriends(id: $id) {
     id
     displayName
+    trusts_viewer
     is_mutual_friend
     image {
       ...ImageModelV2

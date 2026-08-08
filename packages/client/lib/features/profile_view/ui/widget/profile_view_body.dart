@@ -27,11 +27,12 @@ class ProfileViewBody extends StatelessWidget {
   String _trustReciprocityLabel(L10n l10n, Profile profile) {
     if (profile.isMutualFriend) return l10n.classMutual;
     if (profile.isFriend) return l10n.classOneWayOut;
-    if (profile.isSeeingMe) return l10n.classOneWayIn;
+    if (profile.subjectExplicitlyTrustsViewer) return l10n.classOneWayIn;
     return l10n.classNone;
   }
 
-  Future<void> _showTrustInfoSheet(BuildContext context) => showTenturaAdaptiveSheet<void>(
+  Future<void> _showTrustInfoSheet(BuildContext context) =>
+      showTenturaAdaptiveSheet<void>(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
@@ -147,13 +148,15 @@ class ProfileViewBody extends StatelessWidget {
             ),
 
             // Deduplicated capability strip + edit button (viewer ≠ subject, viewer is friend)
-            BlocSelector<ProfileViewCubit, ProfileViewState,
-                (List<CapabilityWithSource>, bool)>(
+            BlocSelector<
+              ProfileViewCubit,
+              ProfileViewState,
+              (List<CapabilityWithSource>, bool)
+            >(
               selector: (s) => (s.cues.viewerVisible, s.profile.isFriend),
               builder: (context, rec) {
                 final (viewerVisible, isFriend) = rec;
-                final myId =
-                    context.read<ProfileCubit>().state.profile.id;
+                final myId = context.read<ProfileCubit>().state.profile.id;
                 final isSelf = profile.id == myId;
                 if (isSelf || !isFriend) return const SizedBox.shrink();
                 return Column(
@@ -182,8 +185,8 @@ class ProfileViewBody extends StatelessWidget {
                                         .map(
                                           (s) => CapabilityWithSource(
                                             slug: s,
-                                            hasManualLabel:
-                                                !automaticSlugs.contains(s),
+                                            hasManualLabel: !automaticSlugs
+                                                .contains(s),
                                           ),
                                         )
                                         .toList(),

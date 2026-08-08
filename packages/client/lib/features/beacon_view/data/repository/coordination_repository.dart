@@ -251,6 +251,7 @@ Profile _profileFromHelpOfferUser(
     contactName: contactNameOf(user.id),
     description: user.description,
     myVote: user.my_vote ?? 0,
+    subjectExplicitlyTrustsViewer: user.trusts_viewer,
     image: user.image == null ? null : ImageModelV2(user.image!).asEntity,
     isMutualFriend: user.is_mutual_friend,
     presenceStatus: presenceStatus,

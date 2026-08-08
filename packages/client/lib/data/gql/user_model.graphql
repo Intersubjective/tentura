@@ -6,6 +6,7 @@ fragment UserModel on user {
   handle
   description
   my_vote
+  trusts_viewer
   is_mutual_friend
   image {
     ...ImageModel

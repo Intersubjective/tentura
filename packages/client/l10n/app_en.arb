@@ -851,7 +851,7 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — this user can see you and forward requests to you",
+  "graphLegendEyeOpen": "Open eye — you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen"
   },
@@ -931,7 +931,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Open eye means you and this person can see each other and forward requests to each other (positive MeritRank both ways)",
+  "graphLegendForwardEligible": "Open eye means you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen"
   },

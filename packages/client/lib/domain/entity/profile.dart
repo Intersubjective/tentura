@@ -28,6 +28,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(0) double rScore,
     @Default(0) double score,
     @Default(0) int myVote,
+    @Default(false) bool subjectExplicitlyTrustsViewer,
     @Default(false) bool isMutualFriend,
     ImageEntity? image,
     UserPresenceStatus? presenceStatus,
@@ -62,12 +63,24 @@ abstract class Profile with _$Profile implements Likable, Scorable {
 
   bool get isNotFriend => !isFriend;
 
-  /// They have positive MeritRank toward the viewer (one-way).
-  bool get isSeeingMe => rScore > 0;
+  bool get viewerExplicitlyTrustsSubject => myVote > 0;
 
-  /// Bidirectional MeritRank: both score each other positively.
+  bool get forwardMeritRankPositive => score > 0;
+
+  bool get reverseMeritRankPositive => rScore > 0;
+
+  bool get viewerCanSeeSubject =>
+      viewerExplicitlyTrustsSubject || forwardMeritRankPositive;
+
+  bool get subjectCanSeeViewer =>
+      subjectExplicitlyTrustsViewer || reverseMeritRankPositive;
+
+  /// Two-way visibility: each direction is explicit trust or positive MeritRank.
   /// Drives the open/closed eye badge and forward reachability.
-  bool get isMutuallyVisible => score > 0 && rScore > 0;
+  bool get isMutuallyVisible => viewerCanSeeSubject && subjectCanSeeViewer;
+
+  /// Reverse MeritRank only — not incoming explicit trust.
+  bool get isSeeingMe => reverseMeritRankPositive;
 
   bool get needEdit => id.isNotEmpty && displayName.isEmpty;
 
