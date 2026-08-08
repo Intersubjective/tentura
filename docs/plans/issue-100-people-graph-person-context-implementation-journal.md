@@ -43,8 +43,8 @@ Untracked:
 6. **WU5** — People entry points — **complete** (2026-08-08).
 7. **WU6** — Blocked People route ownership — **complete** (2026-08-08).
 8. **WU7** — policy and Profile hierarchy — **complete** (2026-08-08).
-9. **WU8** — mandatory first human usability check — pending human gate.
-10. **WU9** — graph profile projection patch and equality — pending.
+9. **WU8** — mandatory first human usability check — **complete** (2026-08-09, user-confirmed).
+10. **WU9** — graph profile projection patch and equality — **complete** (2026-08-09).
 11. **WU10** — authoritative Trust and context cubit — pending.
 12. **WU11** — Person Context presentation — pending.
 13. **WU12** — accessibility and pointer affordance — pending.
@@ -808,3 +808,62 @@ bash scripts/check-user-facing-terminology.sh     # ok
 The user reports that the WU8 unbriefed-participant gate passed and the People, Blocked people, and Profile flows were confirmed working well enough. This is the required human evidence for proceeding; automated tests were not used as a substitute.
 
 **Decision:** no corrective WU1–WU7 work is required. WU9 may begin. The separate WU14 compact-and-wide panel-association gate remains mandatory before WU15.
+
+---
+
+## WU9 — graph profile projection patch and equality — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor worker (composer-2.5), WU9 only. Starting HEAD `9087ba56`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `0c0f4410` | feat(client): patch graph profile projection and relationship node equality |
+
+**Actions performed:**
+
+1. Added `GraphCubit.patchLoadedProfile(Profile updated)` — updates every `_nodes` `UserNode` / `GenealogyUserNode` matching `updated.id`, preserving size, pin, `isHelpOfferer` (UserNode), and `nodeKey` (genealogy); calls `graphController.replaceNode` when the old instance is on the controller; no fetch, clear, relayout, or unrelated node replacement.
+2. Self patch: debug `assert` with rationale then `return`; ego Me projection (`displayName: Me`, score 2) unchanged.
+3. Updated `NodeDetails` base equality/hash to include `rScore`; `UserNode` and `GenealogyUserNode` additionally compare `myVote`, `subjectExplicitlyTrustsViewer`, `isMutualFriend`; `UserNode` retains `isHelpOfferer`; whole Profile / presence / description not compared.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+dart format lib/features/graph/domain/entity/node_details.dart \
+  lib/features/graph/ui/bloc/graph_cubit.dart \
+  test/features/graph/graph_profile_projection_patch_test.dart \
+  test/features/graph/node_details_equality_test.dart
+
+flutter test test/features/graph/graph_profile_projection_patch_test.dart \
+  test/features/graph/node_details_equality_test.dart
+# 00:00 +19: All tests passed!
+
+flutter test test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_cubit_genealogy_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+# 00:02 +73: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Files changed:**
+
+- `packages/client/lib/features/graph/ui/bloc/graph_cubit.dart`
+- `packages/client/lib/features/graph/domain/entity/node_details.dart`
+- `packages/client/test/features/graph/graph_profile_projection_patch_test.dart` (new)
+- `packages/client/test/features/graph/node_details_equality_test.dart` (new)
+
+**Findings:**
+
+- Edge payload `pinned: true` is overwritten on load by `_resolveEdgeEndpoints` (`copyWithPinned(isFocus)`); patch pin-preservation tests select the node first to establish real pin state.
+- Widget harness for position preservation reuses `GraphScaffold` + `ScreenCubit.local()` from navigation-control tests; `replaceNode` keeps layout offset when `canLayout` is true.
+
+**Remaining:** WU10 — authoritative Trust mutation and race-safe `GraphPersonContextCubit`.
