@@ -129,13 +129,12 @@ class ForwardRepository {
               ..vars.parentEdgeId = parentEdgeId;
             if (attributionParentEdgeIds != null &&
                 attributionParentEdgeIds.isNotEmpty) {
-              r.vars.attributionParentEdgeIds
-                  .addAll(attributionParentEdgeIds);
+              r.vars.attributionParentEdgeIds.addAll(attributionParentEdgeIds);
             }
             r.vars.perRecipientNotes =
-                  perRecipientNotes == null || perRecipientNotes.isEmpty
-                  ? null
-                  : jsonEncode(perRecipientNotes);
+                perRecipientNotes == null || perRecipientNotes.isEmpty
+                ? null
+                : jsonEncode(perRecipientNotes);
             if (recipientReasons != null && recipientReasons.isNotEmpty) {
               r.vars.recipientReasons.addAll(
                 recipientReasons.entries
@@ -185,18 +184,16 @@ class ForwardRepository {
             .toList(),
       );
 
-  /// Users with two-way positive MeritRank scores (Hasura `rating` + filter).
+  /// Users mutually visible to the viewer (Hasura `mutually_visible_users`).
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
       _remoteApiService
           .request(
             GForwardCandidatesFetchReq((r) => r..vars.context = context),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).rating)
+          .then((r) => r.dataOrThrow(label: _label).mutually_visible_users)
           .then(
-            (rows) => rows
-                .where((e) => e.user != null)
-                .map((e) => (e.user! as UserModel).toEntity()),
+            (rows) => rows.map((user) => (user as UserModel).toEntity()),
           );
 
   /// Loads beacon header + forward-screen involvement in parallel.
@@ -304,8 +301,9 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => {
-          for (final row
-              in [...?r.dataOrThrow(label: _label).forwardReasonsByBeacon])
+          for (final row in [
+            ...?r.dataOrThrow(label: _label).forwardReasonsByBeacon,
+          ])
             '${row.senderId}__${row.recipientId}':
                 row.slugs?.toList() ?? const [],
         },

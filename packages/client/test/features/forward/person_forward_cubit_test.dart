@@ -253,6 +253,101 @@ void main() {
       },
     );
 
+    test(
+      'one-way visibility keeps send disabled and skips repository',
+      () async {
+        final harness = await _buildHarness(
+          person: const Profile(
+            id: 'U-target',
+            displayName: 'Target',
+            myVote: 1,
+          ),
+          beacons: [_beacon('B-open')],
+        );
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          await harness.store.dispose();
+        });
+        final cubit = PersonForwardCubit(
+          personId: 'U-target',
+          personForwardCase: harness.case_,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+        await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+        expect(cubit.state.person?.isMutuallyVisible, isFalse);
+        expect(cubit.state.canSend, isFalse);
+        cubit.selectBeacon('B-open');
+        await cubit.send();
+
+        expect(harness.forwardRepo.sent, isEmpty);
+      },
+    );
+
+    test('explicit mutual trust enables successful send', () async {
+      final harness = await _buildHarness(
+        person: const Profile(
+          id: 'U-target',
+          displayName: 'Target',
+          myVote: 1,
+          subjectExplicitlyTrustsViewer: true,
+        ),
+        beacons: [_beacon('B-open')],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final effects = FakeUiEffectPort();
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      expect(cubit.state.canSend, isFalse);
+      cubit.selectBeacon('B-open');
+      expect(cubit.state.canSend, isTrue);
+      await cubit.send();
+
+      expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
+      expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
+    });
+
+    test('mixed trust and MR enables successful send', () async {
+      final harness = await _buildHarness(
+        person: const Profile(
+          id: 'U-target',
+          displayName: 'Target',
+          myVote: 1,
+          rScore: 1,
+        ),
+        beacons: [_beacon('B-open')],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      await cubit.send();
+
+      expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
+    });
+
     test('successful send shows confirmation and navigates back', () async {
       final harness = await _buildHarness(beacons: [_beacon('B-open')]);
       addTearDown(() async {
