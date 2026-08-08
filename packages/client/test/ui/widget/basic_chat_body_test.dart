@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -5,13 +7,25 @@ import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
+
+class _FakeImageRepository extends Fake implements ImageRepository {
+  @override
+  Future<List<ImagePicked>> pickMultipleImages() async => [
+    ImagePicked(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      fileName: 'test.png',
+    ),
+  ];
+}
 
 class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -72,7 +86,7 @@ void main() {
                   imageRepository: ImageRepository(),
                   enableComposerAttachments: false,
                   enableParticipantMentions: false,
-                  onSend: (_, _) async {},
+                  onSend: (_, _) async => true,
                   onToggleReaction: (_, _) async {},
                 ),
               ),
@@ -154,7 +168,7 @@ void main() {
                     imageRepository: ImageRepository(),
                     enableComposerAttachments: false,
                     enableParticipantMentions: false,
-                    onSend: (_, _) async {},
+                    onSend: (_, _) async => true,
                     onToggleReaction: (_, _) async {},
                     onVotePoll: (_, _, _, {score}) async {},
                   ),
@@ -220,7 +234,7 @@ void main() {
                     imageRepository: ImageRepository(),
                     enableComposerAttachments: false,
                     enableParticipantMentions: false,
-                    onSend: (_, _) async {},
+                    onSend: (_, _) async => true,
                     onToggleReaction: (_, _) async {},
                   ),
                 ),
@@ -264,5 +278,116 @@ void main() {
     final after = tester.state<ScrollableState>(listScrollable).position;
     expect(after.pixels, closeTo(after.maxScrollExtent, 1));
     expect(find.textContaining('Just sent by me'), findsOneWidget);
+  });
+
+  Future<void> pumpComposerBody(
+    WidgetTester tester, {
+    required Future<bool> Function(
+      String body,
+      List<RoomPendingUpload> uploads,
+    )
+    onSend,
+    ImageRepository? imageRepository,
+    double width = 1400,
+    bool enableComposerAttachments = true,
+  }) async {
+    await tester.binding.setSurfaceSize(Size(width, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(width, 720)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BasicChatBody(
+                  messages: const [],
+                  myProfile: const Profile(id: 'me', displayName: 'Me'),
+                  participants: const [],
+                  isLoading: false,
+                  imageRepository: imageRepository ?? _FakeImageRepository(),
+                  enableComposerAttachments: enableComposerAttachments,
+                  enableParticipantMentions: false,
+                  onSend: onSend,
+                  onToggleReaction: (_, _) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  testWidgets('composer preserves draft when onSend returns false', (
+    tester,
+  ) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, uploads) async {
+        expect(uploads.length, 1);
+        return false;
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Photos'));
+    await tester.pumpAndSettle();
+
+    const draft = 'draft text to keep';
+    await tester.enterText(find.byType(TextField), draft);
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text(draft), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('composer clears when onSend returns true', (tester) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, uploads) async {
+        expect(uploads.length, 1);
+        return true;
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Photos'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'clear after send');
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('clear after send'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
   });
 }

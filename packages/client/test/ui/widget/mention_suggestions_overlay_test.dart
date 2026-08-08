@@ -72,7 +72,7 @@ void main() {
                   isLoading: false,
                   imageRepository: ImageRepository(),
                   enableParticipantMentions: true,
-                  onSend: (_, _) async {},
+                  onSend: (_, _) async => true,
                 ),
               ),
             ),
