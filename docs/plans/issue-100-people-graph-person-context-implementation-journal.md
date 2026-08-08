@@ -867,3 +867,13 @@ cd ../..
 - Widget harness for position preservation reuses `GraphScaffold` + `ScreenCubit.local()` from navigation-control tests; `replaceNode` keeps layout offset when `canLayout` is true.
 
 **Remaining:** WU10 — authoritative Trust mutation and race-safe `GraphPersonContextCubit`.
+
+---
+
+## Manager review — WU9 accepted — 2026-08-09
+
+- Reviewed `0c0f4410` and journal evidence `009c9135`; `git show --check 0c0f4410` and `git diff --check 9087ba56..HEAD` passed. The worker committed only the four WU9-owned client source/test paths, followed by its evidence journal commit.
+- Confirmed `patchLoadedProfile` updates all matching account projections while preserving per-node metadata and only calls `replaceNode` for a controller-resident old node. It deliberately returns for `state.me.id`; `handleNodeTap` has no behavioral diff.
+- Confirmed both live-user node classes compare exactly the required relationship fields on top of base `rScore`, and avoid whole-profile/presence/description equality.
+- Independently ran `flutter test test/features/graph/graph_profile_projection_patch_test.dart test/features/graph/node_details_equality_test.dart` (19 passed) and the five existing focused graph suites (73 passed). Client custom lint gate passed.
+- **Verdict:** accepted. WU10 is dependency-ready. The user has additionally confirmed the WU14 human gate, so WU15 may proceed only after WU10–WU13 have been accepted.
