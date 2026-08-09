@@ -1466,3 +1466,14 @@ No second reachability formula or direct feature caller routing to Blocked outsi
 **Status:** partial
 
 **Preservation:** unchanged from WU0 preserved-worktree list.
+
+---
+
+## Manager closeout — WU16 and Issue #100 accepted — 2026-08-09
+
+- Reviewed WU16 commits `d40e060b`, `7dc0cf4f`, and `972b8836`; commit checks and aggregate diff checks are clean. Their scope is limited to the 5.9.0 release/cache-buster, required genealogy-test localization plumbing, and WU16 evidence.
+- Independently re-ran `flutter test test/features/graph` (**210 passed**) and the Issue #100 PostgreSQL visibility contract suite. The latter covers the four-signal truth table, incoming explicit trust, explicit/MR/mixed mutual discovery, blocked exclusion, and missing-peer handling. It passed on the local PostgreSQL/MeritRank stack.
+- Independently confirmed client version **5.9.0** equals `flutter_bootstrap.js?v=5.9.0`, the server's `kDefaultMinClientVersion` remains **5.6.38**, Hasura metadata applies consistently, and the preserved unrelated worktree paths remain unstaged.
+- The full PostgreSQL tag suite's 13 failures are confined to pre-existing `beacon_cover_migration_test.dart` and `realtime_notification_migration_test.dart` failures, outside Issue #100. They remain accurately recorded as repository/environment debt, not a green suite claim.
+- **User acceptance:** the user explicitly confirmed the outstanding responsive and usability gates, and accepted the remaining non-Issue-#100 PostgreSQL failures as good enough for this plan. Those gates are therefore non-blocking for Issue #100 closeout.
+- **Verdict:** WU16 accepted. All Issue #100 work units and plan acceptance criteria are complete. No push, deploy, or unrelated-worktree mutation occurred.
