@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -30,8 +32,28 @@ class GraphNodeWidget extends StatelessWidget {
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
+  static String semanticLabel(L10n l10n, NodeDetails details) {
+    return switch (details) {
+      UserNode(:final user) => user.displayLabel(l10n.unknownPerson),
+      GenealogyUserNode(:final user) => user.displayLabel(l10n.unknownPerson),
+      BeaconNode(:final beacon) => _beaconSemanticLabel(l10n, beacon),
+      GenealogyDeletedNode(:final label) =>
+        label.trim().isNotEmpty ? label : l10n.inviteGenealogyAnonymousNode,
+      _ => '',
+    };
+  }
+
+  static String _beaconSemanticLabel(L10n l10n, Beacon beacon) {
+    final title = beacon.title.trim();
+    if (title.isEmpty) {
+      return l10n.beaconViewTitle;
+    }
+    return '${l10n.beaconViewTitle}: $title';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
     final node = switch (nodeDetails) {
       final UserNode userNode => BlocBuilder<ProfileCubit, ProfileState>(
         buildWhen: (p, c) => p.profile.id != c.profile.id,
@@ -106,12 +128,23 @@ class GraphNodeWidget extends StatelessWidget {
         ],
       ),
     );
-    return onTap == null
-        ? widget
-        : GestureDetector(
-            onTap: onTap,
+    if (onTap == null) {
+      return widget;
+    }
+    return GestureDetector(
+      onTap: onTap,
+      child: Semantics(
+        button: true,
+        selected: isFocused,
+        label: semanticLabel(l10n, nodeDetails),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: ExcludeSemantics(
             child: widget,
-          );
+          ),
+        ),
+      ),
+    );
   }
 }
 

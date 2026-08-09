@@ -46,68 +46,78 @@ class GraphPersonContextPanel extends StatelessWidget {
         graphCubit.canPageMore(focusedNode.id) &&
         hiddenCount > 0;
 
-    return Material(
-      key: TestIds.key(TestIds.graphPersonContextPanel),
-      color: scheme.surfaceContainerHigh,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(tt.cardRadius),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: tt.cardPadding,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TenturaAvatar(
-                    profile: profile,
-                    sizeBucket: TenturaAvatarSize.medium,
-                    withContactBadge: true,
-                  ),
-                  SizedBox(width: tt.avatarTextGap),
-                  Expanded(
-                    child: Text(
-                      profile.displayLabel(l10n.unknownPerson),
-                      style: theme.textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Material(
+        key: TestIds.key(TestIds.graphPersonContextPanel),
+        color: scheme.surfaceContainerHigh,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(tt.cardRadius),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: tt.cardPadding,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TenturaAvatar(
+                      profile: profile,
+                      sizeBucket: TenturaAvatarSize.medium,
+                      withContactBadge: true,
+                    ),
+                    SizedBox(width: tt.avatarTextGap),
+                    Expanded(
+                      child: Text(
+                        profile.displayLabel(l10n.unknownPerson),
+                        style: theme.textTheme.titleMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    FocusTraversalOrder(
+                      order: const NumericFocusOrder(5),
+                      child: IconButton(
+                        key: TestIds.key(TestIds.graphPersonContextClose),
+                        tooltip: l10n.buttonClose,
+                        onPressed: contextCubit.dismiss,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: tt.rowGap),
+                _VisibilitySection(
+                  l10n: l10n,
+                  profile: profile,
+                  policy: policy,
+                ),
+                SizedBox(height: tt.sectionGap),
+                ..._buildActions(
+                  context: context,
+                  l10n: l10n,
+                  policy: policy,
+                  canShowMore: canShowMore,
+                  hiddenCount: hiddenCount,
+                  trustLoading: contextState.trustLoading,
+                  focusedNode: focusedNode,
+                  graphCubit: graphCubit,
+                  contextCubit: contextCubit,
+                ),
+                if (contextState.trustError != null) ...[
+                  SizedBox(height: tt.rowGap),
+                  Text(
+                    contextState.trustError.toString(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.error,
                     ),
                   ),
-                  IconButton(
-                    key: TestIds.key(TestIds.graphPersonContextClose),
-                    tooltip: l10n.buttonClose,
-                    onPressed: contextCubit.dismiss,
-                    icon: const Icon(Icons.close),
-                  ),
                 ],
-              ),
-              SizedBox(height: tt.rowGap),
-              _VisibilitySection(l10n: l10n, profile: profile, policy: policy),
-              SizedBox(height: tt.sectionGap),
-              ..._buildActions(
-                context: context,
-                l10n: l10n,
-                policy: policy,
-                canShowMore: canShowMore,
-                hiddenCount: hiddenCount,
-                trustLoading: contextState.trustLoading,
-                focusedNode: focusedNode,
-                graphCubit: graphCubit,
-                contextCubit: contextCubit,
-              ),
-              if (contextState.trustError != null) ...[
-                SizedBox(height: tt.rowGap),
-                Text(
-                  contextState.trustError.toString(),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -138,21 +148,27 @@ class GraphPersonContextPanel extends StatelessWidget {
       case PersonPrimaryAction.sendRequest:
         addGap();
         children.add(
-          FilledButton.icon(
-            key: TestIds.key(TestIds.graphPersonContextSendRequest),
-            onPressed: () => screenCubit.showForwardToPerson(profile.id),
-            icon: const Icon(Icons.send_outlined),
-            label: Text(l10n.profileSendRequestTo),
+          FocusTraversalOrder(
+            order: const NumericFocusOrder(1),
+            child: FilledButton.icon(
+              key: TestIds.key(TestIds.graphPersonContextSendRequest),
+              onPressed: () => screenCubit.showForwardToPerson(profile.id),
+              icon: const Icon(Icons.send_outlined),
+              label: Text(l10n.profileSendRequestTo),
+            ),
           ),
         );
       case PersonPrimaryAction.trust:
         addGap();
         children.add(
-          FilledButton.icon(
-            key: TestIds.key(TestIds.graphPersonContextTrust),
-            onPressed: trustLoading ? null : contextCubit.trustSelected,
-            icon: const Icon(Icons.people),
-            label: Text(l10n.trustThisUser),
+          FocusTraversalOrder(
+            order: const NumericFocusOrder(1),
+            child: FilledButton.icon(
+              key: TestIds.key(TestIds.graphPersonContextTrust),
+              onPressed: trustLoading ? null : contextCubit.trustSelected,
+              icon: const Icon(Icons.people),
+              label: Text(l10n.trustThisUser),
+            ),
           ),
         );
       case PersonPrimaryAction.none:
@@ -172,33 +188,14 @@ class GraphPersonContextPanel extends StatelessWidget {
     if (policy.showRequestOptions) {
       addGap();
       children.add(
-        OutlinedButton.icon(
-          key: TestIds.key(TestIds.graphPersonContextRequestOptions),
-          onPressed: () => screenCubit.showForwardToPerson(profile.id),
-          icon: const Icon(Icons.alt_route_outlined),
-          label: Text(l10n.profileRequestOptions),
-        ),
-      );
-    }
-
-    addGap();
-    children.add(
-      OutlinedButton.icon(
-        key: TestIds.key(TestIds.graphPersonContextViewProfile),
-        onPressed: () => screenCubit.showProfile(profile.id),
-        icon: const Icon(Icons.person_outline),
-        label: Text(l10n.profile),
-      ),
-    );
-
-    if (canShowMore) {
-      addGap();
-      children.add(
-        OutlinedButton.icon(
-          key: TestIds.key(TestIds.graphPersonContextShowMore),
-          onPressed: () => graphCubit.expandNode(focusedNode),
-          icon: const Icon(Icons.hub_outlined),
-          label: Text('${l10n.inboxProvenanceExpand} ($hiddenCount)'),
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(2),
+          child: OutlinedButton.icon(
+            key: TestIds.key(TestIds.graphPersonContextRequestOptions),
+            onPressed: () => screenCubit.showForwardToPerson(profile.id),
+            icon: const Icon(Icons.alt_route_outlined),
+            label: Text(l10n.profileRequestOptions),
+          ),
         ),
       );
     }
@@ -206,11 +203,42 @@ class GraphPersonContextPanel extends StatelessWidget {
     if (policy.showSecondaryTrust) {
       addGap();
       children.add(
-        OutlinedButton.icon(
-          key: TestIds.key(TestIds.graphPersonContextTrust),
-          onPressed: trustLoading ? null : contextCubit.trustSelected,
-          icon: const Icon(Icons.people_outlined),
-          label: Text(l10n.trustThisUser),
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(2),
+          child: OutlinedButton.icon(
+            key: TestIds.key(TestIds.graphPersonContextTrust),
+            onPressed: trustLoading ? null : contextCubit.trustSelected,
+            icon: const Icon(Icons.people_outlined),
+            label: Text(l10n.trustThisUser),
+          ),
+        ),
+      );
+    }
+
+    addGap();
+    children.add(
+      FocusTraversalOrder(
+        order: const NumericFocusOrder(3),
+        child: OutlinedButton.icon(
+          key: TestIds.key(TestIds.graphPersonContextViewProfile),
+          onPressed: () => screenCubit.showProfile(profile.id),
+          icon: const Icon(Icons.person_outline),
+          label: Text(l10n.profile),
+        ),
+      ),
+    );
+
+    if (canShowMore) {
+      addGap();
+      children.add(
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(4),
+          child: OutlinedButton.icon(
+            key: TestIds.key(TestIds.graphPersonContextShowMore),
+            onPressed: () => graphCubit.expandNode(focusedNode),
+            icon: const Icon(Icons.hub_outlined),
+            label: Text('${l10n.inboxProvenanceExpand} ($hiddenCount)'),
+          ),
         ),
       );
     }
