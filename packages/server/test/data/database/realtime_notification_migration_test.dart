@@ -56,9 +56,10 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       // Migrant only applies versions above the highest recorded one, so every
-      // migration appended after this test was written (currently m0132–m0139)
+      // migration appended after this test was written (currently m0132–m0140)
       // must be unwound here as well — otherwise the re-application below is a
       // silent no-op and the m0115–m0120 columns never come back.
+      await _rollBackM0140ForTest(writer);
       await _rollBackM0139ForTest(writer);
       await _rollBackM0138ForTest(writer);
       await _rollBackM0137ForTest(writer);
@@ -1801,6 +1802,26 @@ Future<bool> _canConnect(Env env) async {
     return true;
   } on Object {
     return false;
+  }
+}
+
+Future<void> _rollBackM0140ForTest(Connection connection) async {
+  for (final statement in const [
+    r'''
+DROP FUNCTION IF EXISTS public.mutually_visible_users(text, json)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.person_is_mutually_visible(text, text, text)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.person_visibility_peers(text, text)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.user_get_trusts_viewer(public."user", json)
+''',
+    "DELETE FROM public.schema_version WHERE version = '0140'",
+  ]) {
+    await connection.execute(statement);
   }
 }
 

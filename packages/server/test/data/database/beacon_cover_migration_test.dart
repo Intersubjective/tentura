@@ -117,6 +117,7 @@ ORDER BY indexname
     test(
       'populated m0129 fixture backfills primary, cover, dense positions',
       () async {
+        await _rollBackM0140ForTest(writer);
         await _rollBackM0139ForTest(writer);
         await _rollBackM0138ForTest(writer);
         await _rollBackM0137ForTest(writer);
@@ -285,6 +286,26 @@ VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Ucoverauthor')
       skip: skipReason,
     );
   });
+}
+
+Future<void> _rollBackM0140ForTest(Connection connection) async {
+  for (final statement in const [
+    r'''
+DROP FUNCTION IF EXISTS public.mutually_visible_users(text, json)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.person_is_mutually_visible(text, text, text)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.person_visibility_peers(text, text)
+''',
+    r'''
+DROP FUNCTION IF EXISTS public.user_get_trusts_viewer(public."user", json)
+''',
+    "DELETE FROM public.schema_version WHERE version = '0140'",
+  ]) {
+    await connection.execute(statement);
+  }
 }
 
 Future<void> _rollBackM0139ForTest(Connection connection) async {
