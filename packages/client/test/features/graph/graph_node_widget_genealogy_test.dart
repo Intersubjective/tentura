@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 const _viewer = Profile(
   id: 'Uviewer',
@@ -40,7 +41,10 @@ Future<_BadgeTestGraphCubit> _pumpGraphNode(
   addTearDown(cubit.close);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
       theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
       home: BlocProvider<GraphCubit>.value(
         value: cubit,
         child: child,
