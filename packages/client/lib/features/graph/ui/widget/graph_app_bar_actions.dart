@@ -127,29 +127,10 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         }
 
         final focused = focusedNode;
-        final canExpand =
-            mode == GraphMode.trust &&
-            focused != null &&
-            !graphState.isLoading &&
-            controller.canLayout &&
-            !controller.isLayoutSettling &&
-            cubit.canPageMore(focused.id);
-
         final canFit = controller.canLayout && !controller.isLayoutSettling;
 
         final contextActions = <Widget>[];
-        if (focused != null) {
-          if (canExpand) {
-            contextActions.add(
-              _navIconButton(
-                key: TestIds.key(TestIds.graphExpand),
-                tooltip: l10n.inboxProvenanceExpand,
-                onPressed: () => cubit.expandNode(focused),
-                icon: Icons.hub_outlined,
-                minSize: tt.buttonHeight,
-              ),
-            );
-          }
+        if (focused != null && mode != GraphMode.trust) {
           final openDetails = switch (focused) {
             UserNode() || GenealogyUserNode() => (
               tooltip: l10n.profile,
