@@ -1111,3 +1111,13 @@ cd ../..
 **Status:** complete
 
 **Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched. No WU13 l10n, WU15 AppBar, or WU16 version changes.
+
+---
+
+## Manager review — WU12 accepted — 2026-08-09
+
+- Reviewed `f0dd2fc3`, `ca9627db`, and `867354b2`; each passes `git show --check`, and `git diff --check ecb59116..HEAD` is clean. The worker changed only graph-node semantics, panel traversal, their focused tests, and the journal.
+- Confirmed interactive nodes preserve `GestureDetector` and visible focus ring while exposing click cursor plus button/selected semantics. Labels derive from display labels or localized Request/anonymized text and exclude opaque IDs and keys. `ExcludeSemantics` prevents avatar initials from corrupting the announced label.
+- Confirmed panel traversal is deliberately ordered primary → request options/secondary Trust → profile → show-more → close, while action availability remains driven by `PersonActionPolicy`; no GraphCubit tap behavior changed.
+- Independently reran accessibility/panel tests (20 passed) and WU11/body/navigation/selection regressions (64 passed). Worker-recorded client custom-lint gate is green; the live worktree contains no WU12-owned uncommitted files.
+- **Verdict:** accepted. WU13 localization is dependency-ready; WU15 follows after it, with the user-confirmed WU14 gate now satisfied.
