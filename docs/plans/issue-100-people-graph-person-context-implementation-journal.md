@@ -1477,3 +1477,41 @@ No second reachability formula or direct feature caller routing to Blocked outsi
 - The full PostgreSQL tag suite's 13 failures are confined to pre-existing `beacon_cover_migration_test.dart` and `realtime_notification_migration_test.dart` failures, outside Issue #100. They remain accurately recorded as repository/environment debt, not a green suite claim.
 - **User acceptance:** the user explicitly confirmed the outstanding responsive and usability gates, and accepted the remaining non-Issue-#100 PostgreSQL failures as good enough for this plan. Those gates are therefore non-blocking for Issue #100 closeout.
 - **Verdict:** WU16 accepted. All Issue #100 work units and plan acceptance criteria are complete. No push, deploy, or unrelated-worktree mutation occurred.
+
+---
+
+## Final read-only verifier audit — Issue #100 closeout — 2026-08-09
+
+**Status:** complete (Issue #100 plan acceptance; **not** a claim that `dart test --tags pg` is fully green)
+
+**Auditor:** final read-only verifier (Cursor agent). No production, test, generated, commit, or deploy actions.
+
+**Audited HEAD:** `0a139b4f` (WU16 aggregate after `c573187a`: `d40e060b`, `7dc0cf4f`, `972b8836`, `0a139b4f`).
+
+**Read-only checks:**
+
+```bash
+git log --oneline c573187a..HEAD
+git diff --stat c573187a..HEAD
+git diff --check
+git status --short
+git diff c573187a..HEAD -- packages/client/pubspec.yaml packages/client/web/index.html \
+  packages/client/test/features/graph/graph_node_widget_genealogy_test.dart
+rg "score > 0 && rScore > 0" packages/client/lib packages/server/lib   # no matches
+rg "settings/blocked" packages/client/lib                               # no matches
+rg "kPathBlockedUsers|BlockedUsersRoute|showBlockedUsers" (source inspection)
+```
+
+**Verdict by audit criterion:**
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | GraphMode separation; no trust panel/actions in forwards/genealogy | **pass** — `GraphPersonContextCubit` only in trust `GraphScreen`; `GraphBody` gates panel on `personContextEnabled && mode == GraphMode.trust`; trust AppBar has nav+legend only (WU15); context Profile/Open Request only when `mode != GraphMode.trust`; widget test `forwards and genealogy never show person context panel`. |
+| 2 | Canonical visibility; no alternate reachability formula | **pass** — `Profile` directional getters; `PersonVisibilityRepository` queries `person_visibility_peers`; `ForwardCase` uses port + exact rejection message; client discovery via `mutually_visible_users`; no `score > 0 && rScore > 0` in lib trees. |
+| 3 | Single Network Blocked owner; Settings unsupported | **pass** — `kPathBlockedUsers=/home/network/blocked`; one `BlockedUsersRoute` under Network; feature callers use `showBlockedUsers()`/`NavigateBlockedUsers`; no `settings/blocked` in lib; router test asserts unknown-route behavior. |
+| 4 | #83/#86/#95/#100/#113 → test coverage | **pass** — routing nested-branch tests (`home_tab_branch_routing_test.dart`); graph mode/navigation matrix (WU4–WU15 suites); explore/rollback/`_everFocusedIds` (`graph_focus_path_visibility_test.dart`); #100 visibility/policy/panel/blocked/trust (`profile_visibility_test`, `person_action_policy_test`, `person_visibility_migration_pg_test`, focused WU16 matrix per journal). |
+| 5 | Version/cache and min-client decision | **pass** — `pubspec.yaml` **5.9.0** equals `flutter_bootstrap.js?v=5.9.0`; `kDefaultMinClientVersion` **5.6.38** unchanged (additive release). |
+| 6 | All WUs gated; PG distinction | **pass** — WU0–WU15 manager-accepted; WU16 manager-accepted with user-accepted manual responsive/usability gates and user-accepted 13 non-#100 full-PG failures as non-blocking debt. **Historic full `dart test --tags pg` remains red** (244 passed, 13 failed in `beacon_cover_migration_test` + `realtime_notification_migration_test`); **Issue #100 `person_visibility_migration_pg_test` 7/7 green** per journal/manager evidence — not re-run this session. |
+| 7 | Post-`c573187a` diff scope and worktree | **pass** — four commits touch only version/cache, genealogy L10n test plumbing, and journal docs; worktree shows only pre-existing unrelated modified/untracked paths plus this unstaged audit append. |
+
+**Preservation:** no reset/stash/push/deploy; unrelated paths untouched.
