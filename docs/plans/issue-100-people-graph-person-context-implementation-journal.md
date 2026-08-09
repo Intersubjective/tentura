@@ -1223,7 +1223,7 @@ The user explicitly confirmed that the gate passed and the feature was working w
 |---|---|
 | `a1539eda` | fix(client): issue #100 WU15 remove trust AppBar profile/expand |
 | `6931e0db` | test(client): issue #100 WU15 mode-specific app bar control contracts |
-| `11f2cb95` | docs: record issue #100 WU15 AppBar cleanup evidence |
+| `8e02dba8` | docs: record issue #100 WU15 AppBar cleanup evidence |
 
 **Actions performed:**
 
@@ -1279,3 +1279,12 @@ cd ../..
 **Status:** complete
 
 **Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched. No WU16 version changes.
+
+---
+
+## Manager review — WU15 accepted — 2026-08-09
+
+- Reviewed `a1539eda`, `6931e0db`, and evidence `8e02dba8` (corrected from the worker's superseded pre-amend hash). All commit and aggregate diff checks pass; only the intended app-bar source, graph tests, and journal changed.
+- Confirmed trust mode no longer produces `graphExpand` or `graphOpenDetails`, while its Previous/Fit/Reset/Legend controls remain. The mode gate preserves genealogy live-user Profile and forwards user Profile/Beacon Open Request/Center behavior. No trust Send/Trust controls entered non-trust modes and `GraphCubit.handleNodeTap` remains unchanged.
+- Independently reran the required graph regression matrix (120 passed), including the panel, accessibility, projection, navigation, select/expand, focus, genealogy, forwards, and legend coverage. Worker-recorded custom lint is green.
+- **Verdict:** accepted. WU16 is the final dependency-ready work unit.
