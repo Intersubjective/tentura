@@ -342,3 +342,67 @@ review) — workers should not need to invent design decisions.
     the selected web subtree still imports `dart:html` / `dart:js_util`.
 - **REMAINING:** none. Plan-level integration verification can proceed.
 
+### 2026-08-08 — Wasm remediation: overseer independent review — ACCEPTED
+
+- Confirmed pre-existing unrelated worktree changes still untouched; one
+  focused commit `c094c40a` (5 files: pubspec.yaml, pubspec.lock,
+  repository, its test, journal).
+- Read the diff directly: `device_info_plus: ^13.0.0` added to the
+  existing `dependency_overrides:` block (alongside the pre-existing
+  `image_cropper_for_web` override, unaffected); `super_clipboard` bumped
+  `^0.1.7+6` → `^0.9.1`; `_readFileBytes` correctly wraps the 0.9.1
+  callback-based `getFile(format, onFile, onError:)` API in a `Completer`,
+  handling both the success and error callbacks and a `null`-progress
+  edge case. Confirmed `device_info_plus` has zero direct call sites
+  anywhere in `packages/client/lib` — it is a transitive-only dependency
+  of `super_native_extensions`, so overriding its major version carries
+  no risk to any other feature in this app.
+- Independently reran every check myself (not trusting worker-reported
+  green), including the one that actually matters most here:
+  - **`flutter build web --wasm` (the exact command that was failing) →
+    `✓ Built build/web`.** This is the decisive check for this
+    remediation and it now passes for real, not via a substitute flag.
+  - `flutter build web` (plain JS target) → also builds clean — the wasm
+    fix didn't break the non-wasm path.
+  - `flutter test test/data/repository/clipboard_image_repository_test.dart
+    test/ui/widget/basic_chat_body_test.dart
+    test/features/beacon_room/beacon_room_message_actions_sheet_test.dart
+    test/ui/widget/mention_suggestions_overlay_test.dart` → 19/19 pass.
+  - `flutter test test/features/beacon_room/` (full suite) → 127 passed,
+    6 golden skips — no regression.
+  - `./scripts/check-custom-lints.sh packages/client` → 106 issues,
+    baseline 111 — unchanged, no regression.
+- Worth recording: the worker's diagnosis and remediation process was
+  genuinely good engineering — it tried the cheaper `dependency_overrides`
+  path first, discovered a narrower override alone caused a cross-package
+  API mismatch, escalated to vendoring per the repo's own precedent, then
+  discovered *during* that attempt that the vendored version's web
+  implementation itself predates wasm-safe web APIs (`dart:html`), and
+  correctly abandoned vendoring in favor of getting to a genuinely modern,
+  wasm-safe upstream version instead of shipping a partial fix. This also
+  confirms the original plan's technical description of the 0.9.1 API
+  (`getFile`-based, not `readValue`) was accurate all along — only the
+  dependency *resolution* was blocked, not the plan's API research.
+- Verdict: **ACCEPTED**. Defect fully resolved and independently
+  confirmed. Both plan units plus this remediation are complete.
+
+### 2026-08-10 — Post-ship bug report: clipboard paste unreliable on Linux/Wayland
+
+- User report: on their Linux desktop (Ubuntu GNOME, Wayland session,
+  Chrome via Xwayland), Ctrl+V into the composer inserts a text file path
+  instead of the copied image, and the "Paste image" menu action reports
+  "No image on clipboard" — despite the same clipboard content pasting
+  successfully into WhatsApp Web moments later.
+- Reproduced live against the running local stack via Playwright (not
+  theoretical): writing real `image/png` bytes to the OS clipboard and
+  reading them back through `navigator.clipboard.read()` (the Async
+  Clipboard API `ClipboardImageRepository` uses) returns an item with
+  empty `types` immediately, and `text/plain`-only after ~300ms — the
+  image data degrades in place. Root cause and full analysis recorded in
+  the plan doc, `docs/plans/room-composer-clipboard-paste-plan.md` §7.
+- Decision (user's call, not a code defect in this plan's shipped work):
+  do **not** implement the available fix (a scoped native `paste`-event
+  listener) — it would reopen a global-listener risk this plan's round-1
+  review already rejected once, to fix a bug confirmed to affect only one
+  Linux desktop so far. Logged as a known limitation in the plan doc
+  instead. No code changed as a result of this report.
