@@ -308,7 +308,7 @@ void main() {
     expect(source.calls, 2);
   });
 
-  testWidgets('Expand button pages another fetch for current focus', (
+  testWidgets('Show more paging uses expandNode without app bar expand', (
     tester,
   ) async {
     final source = _WidgetTestGraphSource()
@@ -322,8 +322,12 @@ void main() {
     await _settleGraph(tester);
     expect(source.calls, 2);
     expect(cubit.state.hiddenNeighborCounts['Ub'], greaterThan(0));
+    expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
 
-    await tester.tap(find.byKey(TestIds.key(TestIds.graphExpand)));
+    final ub = cubit.graphController.nodes.whereType<UserNode>().firstWhere(
+      (n) => n.id == 'Ub',
+    );
+    await cubit.expandNode(ub);
     await _settleGraph(tester);
 
     expect(source.calls, 3);
@@ -334,7 +338,7 @@ void main() {
   });
 
   testWidgets(
-    'Profile stays on focus after first expand when nothing left to page',
+    'focused node omits profile from app bar when neighbourhood is fully paged',
     (tester) async {
       // Use Uc — Ub is stubbed as a partial window elsewhere in this file.
       final source = _WidgetTestGraphSource()
@@ -349,8 +353,7 @@ void main() {
 
       expect(cubit.state.focus, 'Uc');
       expect(cubit.canPageMore('Uc'), isFalse);
-      expect(find.byKey(TestIds.key(TestIds.graphOpenDetails)), findsOneWidget);
-      expect(find.byTooltip('Profile'), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.graphOpenDetails)), findsNothing);
       expect(find.byKey(TestIds.key(TestIds.graphExpand)), findsNothing);
     },
   );
