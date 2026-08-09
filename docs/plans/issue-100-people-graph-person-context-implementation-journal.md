@@ -49,8 +49,8 @@ Untracked:
 12. **WU11** — Person Context presentation — **complete** (2026-08-09).
 13. **WU12** — accessibility and pointer affordance — **complete** (2026-08-09).
 14. **WU13** — localization — **complete** (2026-08-09).
-15. **WU14** — mandatory visual-association human gate — pending human gate.
-16. **WU15** — conditional AppBar cleanup after WU14 pass — pending.
+15. **WU14** — mandatory visual-association human gate — **complete** (2026-08-09, user-confirmed).
+16. **WU15** — conditional AppBar cleanup after WU14 pass — **complete** (2026-08-09).
 17. **WU16** — version, compatibility, and full regression — pending.
 
 ## Preflight evidence
@@ -1208,3 +1208,74 @@ bash scripts/check-user-facing-terminology.sh
 The user explicitly confirmed that the gate passed and the feature was working well enough. This authorizes WU15 under the plan's stop condition. The confirmation covers the required compact and wide panel association/visibility/action flows. Exact participant wording, timing, recording reference, and build identifier were not supplied; they are not reconstructed here. Automated tests remain supplemental rather than a substitute for the confirmed human gate.
 
 **Decision:** retain the user-confirmed WU14 result as the human-gate evidence; WU15 may remove the duplicate trust AppBar Profile/Expand actions, subject to its own test and review gates.
+
+---
+
+## WU15 — remove duplicate trust-person AppBar actions — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor agent (composer-2.5), WU15 only. Starting HEAD `84ed9d31`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `a1539eda` | fix(client): issue #100 WU15 remove trust AppBar profile/expand |
+| `6931e0db` | test(client): issue #100 WU15 mode-specific app bar control contracts |
+| `11f2cb95` | docs: record issue #100 WU15 AppBar cleanup evidence |
+
+**Actions performed:**
+
+1. Removed trust-mode `graphExpand` and `graphOpenDetails` from `GraphAppBarActions`; person actions now live only in `GraphPersonContextPanel`.
+2. Retained trust navigation: Previous, Fit, Reset to me, Legend.
+3. Retained genealogy live-user Profile and forwards Profile / Open Request / Center behaviors unchanged.
+4. Restructured `graph_body_navigation_controls_test.dart` into trust/genealogy/forwards groups with exact visible-control assertions (compact and focused states).
+5. Updated `graph_body_select_expand_test.dart` to assert no AppBar expand/profile in trust mode while preserving `expandNode` paging coverage.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+dart format lib/features/graph/ui/widget/graph_app_bar_actions.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+
+flutter test test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart \
+  test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_person_context_test.dart \
+  test/features/graph/graph_person_context_panel_test.dart \
+  test/features/graph/graph_person_context_cubit_test.dart \
+  test/features/graph/graph_profile_projection_patch_test.dart \
+  test/features/graph/graph_node_accessibility_test.dart \
+  test/features/graph/graph_legend_test.dart
+# 00:04 +120: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK
+```
+
+**Files changed (WU15-owned):**
+
+- `packages/client/lib/features/graph/ui/widget/graph_app_bar_actions.dart`
+- `packages/client/test/features/graph/graph_body_navigation_controls_test.dart`
+- `packages/client/test/features/graph/graph_body_select_expand_test.dart`
+
+**Findings:**
+
+- `canExpand` AppBar logic was trust-only; removing it leaves expand/show-more solely in the person context panel (`graphPersonContextShowMore`).
+- Genealogy and forwards context actions remain mode-gated (`mode != GraphMode.trust`) so their distinct grammars are unchanged.
+- No `GraphCubit.handleNodeTap` or WU16 version/deployment changes.
+
+**Remaining:** WU16 — version, deployment compatibility, and full regression.
+
+---
+
+## WU15 final entry — 2026-08-09
+
+**Status:** complete
+
+**Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched. No WU16 version changes.
