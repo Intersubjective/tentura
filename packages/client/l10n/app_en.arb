@@ -865,7 +865,7 @@
   },
   "graphLegendEyeOpen": "Open eye — you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
   "@graphLegendEyeOpen": {
-    "context": "GraphScreen"
+    "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
   "graphLegendEyeClosed": "Closed eye — you and this user cannot see each other and cannot forward requests to each other",
   "@graphLegendEyeClosed": {
@@ -945,11 +945,11 @@
   },
   "graphLegendForwardEligible": "Open eye means you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
   "@graphLegendForwardEligible": {
-    "context": "ForwardsGraphScreen"
+    "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphBack": "Back",
+  "graphBack": "Previous focus",
   "@graphBack": {
-    "context": "GraphScreen"
+    "context": "GraphScreen — pop focus trail (#100)"
   },
   "graphResetToEgo": "Reset to me",
   "@graphResetToEgo": {
@@ -965,7 +965,16 @@
   },
   "graphResetGenealogyOrigin": "Reset to origin",
   "@graphResetGenealogyOrigin": {
-    "context": "InviteGenealogyScreen"
+    "context": "InviteGenealogyScreen — genealogy reset (#100)"
+  },
+  "graphShowMoreConnections": "Show {count} more connections",
+  "@graphShowMoreConnections": {
+    "context": "GraphPersonContextPanel — expand hidden neighbor count (#100)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "graphLegendToggleNegative": "Show negative connections",
   "@graphLegendToggleNegative": {

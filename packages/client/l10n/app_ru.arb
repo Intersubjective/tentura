@@ -863,9 +863,9 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Открытый глаз — этот пользователь может вас видеть и пересылать вам запросы",
+  "graphLegendEyeOpen": "Открытый глаз — у вас с этим человеком двусторонняя видимость, вы можете пересылать друг другу запросы (доверие или MeritRank в каждом направлении)",
   "@graphLegendEyeOpen": {
-    "context": "GraphScreen"
+    "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
   "graphLegendEyeClosed": "Закрытый глаз — вы и этот пользователь не видите друг друга и не можете пересылать друг другу запросы",
   "@graphLegendEyeClosed": {
@@ -943,13 +943,13 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Открытый глаз означает, что вы и этот человек видите друг друга и можете пересылать друг другу запросы (положительный MeritRank в обе стороны)",
+  "graphLegendForwardEligible": "Открытый глаз означает, что у вас с этим человеком двусторонняя видимость, вы можете пересылать друг другу запросы (доверие или MeritRank в каждом направлении)",
   "@graphLegendForwardEligible": {
-    "context": "ForwardsGraphScreen"
+    "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphBack": "Назад",
+  "graphBack": "Предыдущий фокус",
   "@graphBack": {
-    "context": "GraphScreen"
+    "context": "GraphScreen — pop focus trail (#100)"
   },
   "graphResetToEgo": "Вернуться к себе",
   "@graphResetToEgo": {
@@ -965,7 +965,16 @@
   },
   "graphResetGenealogyOrigin": "Вернуться к началу",
   "@graphResetGenealogyOrigin": {
-    "context": "InviteGenealogyScreen"
+    "context": "InviteGenealogyScreen — genealogy reset (#100)"
+  },
+  "graphShowMoreConnections": "Показать ещё связей: {count}",
+  "@graphShowMoreConnections": {
+    "context": "GraphPersonContextPanel — expand hidden neighbor count (#100)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "graphLegendToggleNegative": "Показывать отрицательные связи",
   "@graphLegendToggleNegative": {

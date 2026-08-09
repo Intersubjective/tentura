@@ -237,7 +237,7 @@ class GraphPersonContextPanel extends StatelessWidget {
             key: TestIds.key(TestIds.graphPersonContextShowMore),
             onPressed: () => graphCubit.expandNode(focusedNode),
             icon: const Icon(Icons.hub_outlined),
-            label: Text('${l10n.inboxProvenanceExpand} ($hiddenCount)'),
+            label: Text(l10n.graphShowMoreConnections(hiddenCount)),
           ),
         ),
       );
