@@ -51,7 +51,7 @@ Untracked:
 14. **WU13** — localization — **complete** (2026-08-09).
 15. **WU14** — mandatory visual-association human gate — **complete** (2026-08-09, user-confirmed).
 16. **WU15** — conditional AppBar cleanup after WU14 pass — **complete** (2026-08-09).
-17. **WU16** — version, compatibility, and full regression — pending.
+17. **WU16** — version, compatibility, and full regression — **partial** (2026-08-09).
 
 ## Preflight evidence
 
@@ -1288,3 +1288,181 @@ cd ../..
 - Confirmed trust mode no longer produces `graphExpand` or `graphOpenDetails`, while its Previous/Fit/Reset/Legend controls remain. The mode gate preserves genealogy live-user Profile and forwards user Profile/Beacon Open Request/Center behavior. No trust Send/Trust controls entered non-trust modes and `GraphCubit.handleNodeTap` remains unchanged.
 - Independently reran the required graph regression matrix (120 passed), including the panel, accessibility, projection, navigation, select/expand, focus, genealogy, forwards, and legend coverage. Worker-recorded custom lint is green.
 - **Verdict:** accepted. WU16 is the final dependency-ready work unit.
+
+---
+
+## WU16 — version, deployment compatibility, and full regression — 2026-08-09
+
+**STATUS:** partial
+
+**Worker:** fresh Cursor agent (composer-2.5), WU16 only. Starting HEAD `c573187a`.
+
+**COMMITS:**
+
+| Hash | Subject |
+|---|---|
+| `d40e060b` | chore(client): bump version to 5.9.0 for issue #100 WU16 |
+| `7dc0cf4f` | test(client): issue #100 WU16 wire L10n into genealogy node tests |
+| *(this commit)* | docs: record issue #100 WU16 version/regression evidence |
+
+**Version / deployment compatibility**
+
+| Item | Before | After | Decision |
+|---|---|---|---|
+| `packages/client/pubspec.yaml` | `5.8.0` | `5.9.0` | semver minor per plan §22 |
+| `packages/client/web/index.html` bootstrap | `flutter_bootstrap.js?v=5.8.0` | `flutter_bootstrap.js?v=5.9.0` | hand-verified exact match (no local `flutter run`/`build web` required; values identical) |
+| `kDefaultMinClientVersion` (`packages/server/lib/env.dart`) | `5.6.38` | `5.6.38` (unchanged) | **not raised** — m0140 / Hasura fields / V2 projection are additive; old clients remain structurally compatible per plan §22 |
+
+Deployment order recorded (producers before consumers): PostgreSQL migration → Hasura metadata → server/V2 projection + send enforcement → client/web 5.9.0. No deploy or push performed.
+
+**TESTS (commands and outcomes):**
+
+```bash
+# 1. Focused client matrix (plan §22)
+cd packages/client
+flutter test test/features/graph test/features/profile_view test/features/forward \
+  test/features/friends test/features/block test/app/router/home_tab_branch_routing_test.dart
+# First run (pre-L10n fix): 386 passed, 6 failed — graph_node_widget_genealogy_test.dart (L10n.of null)
+# After 7dc0cf4f: 00:20 +392: All tests passed!
+
+# 2. Server
+cd packages/server
+dart test --exclude-tags pg
+# 00:11 +1311: All tests passed!
+
+dart test --tags pg
+# 00:41 +244 ~2 -13: Some tests failed.
+# Issue #100 visibility suite isolated:
+dart test --tags pg test/data/database/person_visibility_migration_pg_test.dart
+# 00:39 +7: All tests passed!
+# (explicit-mutual, MR-mutual, mixed, one-way, blocked, blank viewer, context normalization)
+
+# 3. Repository gates
+cd packages/tentura_lints && dart test
+# 00:01 +18: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+
+./scripts/check-custom-lints.sh packages/server
+# packages/server OK (0 vs baseline 0)
+
+bash scripts/check-user-facing-terminology.sh
+# ok
+
+cd packages/force_directed_graphview && flutter test
+# 00:01 +17: All tests passed!
+
+cd ../client && flutter test
+# 01:20 +1908 ~14: All tests passed!
+
+cd ../server && dart test --exclude-tags pg
+# 00:08 +1311: All tests passed!
+```
+
+**PG suite failures (unrelated to #100; gate not fully green):**
+
+| Test file | Failing cases (13 total) |
+|---|---|
+| `beacon_cover_migration_test.dart` | m0130 beacon cover migration populated m0129 fixture backfills primary, cover, dense positions |
+| `realtime_notification_migration_test.dart` | m0114–m0120 realtime notification contract (12 sub-tests: acknowledgement hints, evidence invalidation, trigger enumeration, outbox publishers, etc.) |
+
+`person_visibility_migration_pg_test.dart` (issue #100 SQL contract) is **7/7 green** on live disposable compose Postgres + MeritRank.
+
+**Migration / Hasura validation (live checkout):**
+
+```bash
+python3 -m json.tool hasura/metadata.json > /dev/null
+# metadata JSON valid
+
+./scripts/hasura_apply_metadata.sh
+# Hasura metadata applied OK; is_consistent: true; inconsistent_objects: []
+
+# Real GraphQL as QA user Ua6432bd9e599 (local stack: docker compose postgres/hasura/meritrank up; server on :2080)
+curl -s http://127.0.0.1:8080/v1/graphql -H "Authorization: Bearer <JWT>" \
+  -d '{"query":"query { viewer: user_by_pk(id: \"Ua6432bd9e599\") { trusts_viewer my_vote is_mutual_friend scores { src_score dst_score } } mutual: mutually_visible_users(args: {context: \"\"}) { id trusts_viewer my_vote is_mutual_friend scores { src_score dst_score } } }"}'
+# data.viewer: trusts_viewer=false, my_vote=0, is_mutual_friend=false, scores present
+# data.mutual: [ { id: U67b543012fca, trusts_viewer=true, my_vote=1, is_mutual_friend=true, scores {...} } ]
+```
+
+Explicit/MR/mixed/one-way `mutually_visible_users` fixtures exercised at PostgreSQL layer via `person_visibility_migration_pg_test.dart` (not re-seeded on dev DB for live GraphQL enumeration).
+
+**Manual responsive QA (§22):**
+
+- **Verified (prior human gate):** WU14 user-confirmed compact/wide panel association, visibility, and action flows (2026-08-09).
+- **Not re-run this session (endpoint-driven §22 checklist):** 320 px pan/zoom with panel open/closed; tablet/desktop-narrow resize; expanded desktop; Legend + panel coexistence; two-/three-hop Previous/Fit/Reset; repeated Reset; forwards Center; genealogy reset/profile; Trust subject-only→mutual and neither→viewer-only transitions; dismiss/reselect Trust stability; cold refresh `/home/network/blocked` + Back; `/settings/blocked` unsupported; keyboard Tab + desktop hover. Automated tests cover routing/blocked ownership and graph controls but do **not** substitute for these manual items.
+
+**Final diff audit (plan §22):**
+
+```bash
+git diff --check
+# clean (no conflict markers)
+
+git status --short
+# only pre-existing unrelated modified/untracked paths + this journal edit scope
+
+git diff -- packages/client/pubspec.yaml packages/client/web/index.html
+# empty at journal time (version committed in d40e060b)
+
+rg -n "settings/blocked|BlockedUsersRoute" packages/client/lib packages/client/test
+# lib: BlockedUsersRoute registered once under Network (root_router.dart); openBlockedUsers/showBlockedUsers canonical
+# test: WU6 ownership + /settings/blocked unsupported assertion
+
+rg -n "score > 0 && rScore > 0|isMutuallyVisible" packages/client/lib packages/server/lib
+# client: isMutuallyVisible via Profile canonical getters + PersonActionPolicy (no score>0&&rScore>0 formula)
+# server: no matches
+
+rg -n "trusts_viewer|subjectExplicitlyTrustsViewer" packages/client/lib packages/server/lib hasura/metadata.json
+# all hits map Hasura trusts_viewer → Profile.subjectExplicitlyTrustsViewer; m0140 SQL; V2 gql maps; no alternate reachability formula
+```
+
+No second reachability formula or direct feature caller routing to Blocked outside `ScreenCubit.showBlockedUsers()` / `openBlockedUsers()`.
+
+**Acceptance recheck mapping (issues #83, #86, #95, #100, #113):**
+
+| Issue | Evidence |
+|---|---|
+| #83 | `home_tab_branch_routing_test.dart` graph/profile/beacon nested branch restore + legacy paths green |
+| #86 | graph navigation/focus/AppBar mode tests green (WU4–WU15 matrix) |
+| #95 | `graph_focus_path_visibility_test.dart` explore/rollback + `_everFocusedIds` green |
+| #100 | visibility SQL/pg + focused feature matrix + Blocked ownership + panel/policy/trust tests green |
+| #113 | Trust `resetToEgo()` via graph cubit/navigation tests green |
+
+**FILES (WU16-owned):**
+
+- `packages/client/pubspec.yaml`
+- `packages/client/web/index.html`
+- `packages/client/test/features/graph/graph_node_widget_genealogy_test.dart`
+- `docs/plans/issue-100-people-graph-person-context-implementation-journal.md`
+
+**FINDINGS:**
+
+- WU12 `GraphNodeWidget` L10n dependency left `graph_node_widget_genealogy_test.dart` without delegates; 6 focused-matrix failures until WU16 test plumbing fix.
+- Full `dart test --tags pg` is **not** green due to 13 failures in `beacon_cover_migration_test` and `realtime_notification_migration_test` (pre-existing unrelated migration debt on this disposable DB).
+- `kDefaultMinClientVersion` correctly stays at `5.6.38` for additive release.
+
+**REMAINING / gate truth:**
+
+| Gate | Result |
+|---|---|
+| Version 5.9.0 + cache-buster equality | **verified** |
+| `kDefaultMinClientVersion` decision recorded | **verified** (unchanged `5.6.38`) |
+| Focused client matrix | **verified** (392 passed) |
+| Server `--exclude-tags pg` | **verified** (1311 passed) |
+| Server `--tags pg` (full) | **failed** (244 passed, 13 failed unrelated) |
+| Issue #100 `person_visibility_migration_pg_test` | **verified** (7/7) |
+| tentura_lints / custom-lint / terminology / force_directed_graphview / full client / server exclude-pg | **verified** |
+| Hasura metadata + live GraphQL visibility fields | **verified** |
+| Manual §22 responsive QA (full checklist) | **unverified** this session (WU14 subset only) |
+| Overall issue #100 Definition of Done | **partial** — implementation units WU0–WU16 code complete; WU16 full pg suite + manual §22 checklist outstanding |
+
+**Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched (see WU0 list; `websocket_realtime_protocol_test.mocks.dart` still modified, not staged).
+
+---
+
+## WU16 final entry — 2026-08-09
+
+**Status:** partial
+
+**Preservation:** unchanged from WU0 preserved-worktree list.
