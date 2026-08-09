@@ -48,7 +48,7 @@ Untracked:
 11. **WU10** — authoritative Trust and context cubit — **complete** (2026-08-09).
 12. **WU11** — Person Context presentation — **complete** (2026-08-09).
 13. **WU12** — accessibility and pointer affordance — **complete** (2026-08-09).
-14. **WU13** — localization — pending.
+14. **WU13** — localization — **complete** (2026-08-09).
 15. **WU14** — mandatory visual-association human gate — pending human gate.
 16. **WU15** — conditional AppBar cleanup after WU14 pass — pending.
 17. **WU16** — version, compatibility, and full regression — pending.
@@ -1121,3 +1121,71 @@ cd ../..
 - Confirmed panel traversal is deliberately ordered primary → request options/secondary Trust → profile → show-more → close, while action availability remains driven by `PersonActionPolicy`; no GraphCubit tap behavior changed.
 - Independently reran accessibility/panel tests (20 passed) and WU11/body/navigation/selection regressions (64 passed). Worker-recorded client custom-lint gate is green; the live worktree contains no WU12-owned uncommitted files.
 - **Verdict:** accepted. WU13 localization is dependency-ready; WU15 follows after it, with the user-confirmed WU14 gate now satisfied.
+
+---
+
+## WU13 — localization — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor agent (composer-2.5), WU13 only. Starting HEAD `ebdff40d`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `0b5e3ac1` | l10n(client): issue #100 WU13 ARB keys and graph show-more surface |
+| `8ad36d57` | test(client): issue #100 WU13 localization contract and panel copy |
+| `048776ef` | docs: record issue #100 WU13 localization evidence |
+
+**Actions performed:**
+
+1. Added `graphShowMoreConnections` EN/RU with `{count}` placeholder and metadata; replaced WU11 interim `inboxProvenanceExpand` concatenation in `GraphPersonContextPanel`.
+2. Updated `graphBack` to plan copy “Previous focus” / “Предыдущий фокус”.
+3. Aligned RU legend eye strings with EN semantics: two-way visibility via Trust or MeritRank **per direction**; removed RU “положительный MeritRank в обе стороны” from `graphLegendForwardEligible` and one-way-only `graphLegendEyeOpen`.
+4. Confirmed existing WU5/WU7 keys (`friendsPeopleGraph`, visibility lines, trust/request CTAs, navigation) already match plan §19 copy; added/updated metadata where WU13 touched keys.
+5. Ran `flutter gen-l10n` and `dart run build_runner build -d` (generated l10n gitignored).
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter gen-l10n
+dart run build_runner build -d
+flutter test test/l10n/issue_100_wu13_localization_test.dart \
+  test/features/graph/graph_person_context_panel_test.dart \
+  test/ui/widget/contact_badge_legend_test.dart \
+  test/features/profile_view/profile_view_body_action_policy_test.dart \
+  test/features/friends/friends_app_bar_actions_test.dart
+# 00:06 +29: All tests passed!
+
+cd ../..
+bash scripts/check-user-facing-terminology.sh
+# ok
+
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Files changed (WU13-owned):**
+
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart`
+- `packages/client/test/features/graph/graph_person_context_panel_test.dart`
+- `packages/client/test/l10n/issue_100_wu13_localization_test.dart` (new)
+
+**Findings:**
+
+- WU7 already landed most §19 keys; WU13 gap was mainly show-more count, `graphBack` rename, and RU legend parity.
+- No WU15 AppBar or WU16 version changes.
+
+**Remaining:** WU14 formal evidence recording (user-confirmed); WU15 AppBar cleanup; WU16 version/release.
+
+---
+
+## WU13 final entry — 2026-08-09
+
+**Status:** complete
+
+**Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched.
