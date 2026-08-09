@@ -176,7 +176,7 @@ void main() {
         final l10n = lookupL10n(const Locale('en'));
         expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
         expect(find.text(l10n.profile), findsOneWidget);
-        expect(find.text('${l10n.inboxProvenanceExpand} (3)'), findsOneWidget);
+        expect(find.text(l10n.graphShowMoreConnections(3)), findsOneWidget);
         expect(find.text(l10n.trustThisUser), findsOneWidget);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
       },
@@ -470,14 +470,14 @@ void main() {
           ),
           canPageMoreFor: {'U-peer': true},
         );
-      await _pumpPanel(
-        tester,
-        profile: profile,
-        graphState: graphCubit.state,
-        graphCubit: graphCubit,
-      );
+        await _pumpPanel(
+          tester,
+          profile: profile,
+          graphState: graphCubit.state,
+          graphCubit: graphCubit,
+        );
 
-      await _tabToNextFocus(tester);
+        await _tabToNextFocus(tester);
         expect(
           _focusAncestorHasKey(
             tester,
@@ -540,14 +540,14 @@ void main() {
             focus: 'U-peer',
           ),
         );
-      await _pumpPanel(
-        tester,
-        profile: profile,
-        graphState: graphCubit.state,
-        graphCubit: graphCubit,
-      );
+        await _pumpPanel(
+          tester,
+          profile: profile,
+          graphState: graphCubit.state,
+          graphCubit: graphCubit,
+        );
 
-      await _tabToNextFocus(tester);
+        await _tabToNextFocus(tester);
         expect(
           _focusAncestorHasKey(
             tester,
