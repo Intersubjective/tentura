@@ -1037,3 +1037,13 @@ cd ../..
 **Status:** complete
 
 **Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched.
+
+---
+
+## Manager review — WU11 accepted — 2026-08-09
+
+- Reviewed production `e8270a0a`, tests `5bbf408d`, and worker evidence `873df759`; every commit passes `git show --check`, while `git diff --check a987fd5e..HEAD` is clean. The owned diff is restricted to the WU11 graph panel, tokens, screen/scaffold wiring, tests, and this journal.
+- Confirmed `GraphCubit.handleNodeTap` is unchanged. The context cubit is created only by the trust `GraphScreen`; forwards and genealogy retain the default-disabled GraphScaffold path. GraphView remains a full-size Stack sibling of the overlay, and focus synchronization reads a loaded `UserNode` rather than refetching.
+- Confirmed both new tokens are present in the immutable theme constructor, light/dark themes, `copyWith`, and `lerp`; compact and wide positioning consume these values. Trust AppBar Profile/Expand fallbacks remain deliberately intact for WU15.
+- Independently reran: panel widget tests (11 passed), panel/body integration tests (14 passed), WU9/WU10 projection/context tests (29 passed), existing navigation/selection/focus graph tests (50 passed), and the client custom-lint gate. The recovered compact layout test completes without a hang.
+- **Verdict:** accepted. WU12 accessibility/pointer affordance is dependency-ready; WU13 then WU15 remain ordered next. WU14 human evidence is user-confirmed.
