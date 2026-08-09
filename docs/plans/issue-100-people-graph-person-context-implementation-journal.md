@@ -47,7 +47,7 @@ Untracked:
 10. **WU9** — graph profile projection patch and equality — **complete** (2026-08-09).
 11. **WU10** — authoritative Trust and context cubit — **complete** (2026-08-09).
 12. **WU11** — Person Context presentation — **complete** (2026-08-09).
-13. **WU12** — accessibility and pointer affordance — pending.
+13. **WU12** — accessibility and pointer affordance — **complete** (2026-08-09).
 14. **WU13** — localization — pending.
 15. **WU14** — mandatory visual-association human gate — pending human gate.
 16. **WU15** — conditional AppBar cleanup after WU14 pass — pending.
@@ -1047,3 +1047,67 @@ cd ../..
 - Confirmed both new tokens are present in the immutable theme constructor, light/dark themes, `copyWith`, and `lerp`; compact and wide positioning consume these values. Trust AppBar Profile/Expand fallbacks remain deliberately intact for WU15.
 - Independently reran: panel widget tests (11 passed), panel/body integration tests (14 passed), WU9/WU10 projection/context tests (29 passed), existing navigation/selection/focus graph tests (50 passed), and the client custom-lint gate. The recovered compact layout test completes without a hang.
 - **Verdict:** accepted. WU12 accessibility/pointer affordance is dependency-ready; WU13 then WU15 remain ordered next. WU14 human evidence is user-confirmed.
+
+---
+
+## WU12 — accessibility and pointer affordance — 2026-08-09
+
+**Status:** complete
+
+**Worker:** fresh Cursor agent (composer-2.5), WU12 only. Starting HEAD `ecb59116`.
+
+**Commits:**
+
+| Hash | Subject |
+|---|---|
+| `f0dd2fc3` | feat(client): graph node semantics and panel keyboard focus order (issue #100 WU12) |
+| `ca9627db` | test(client): cover graph accessibility semantics and panel tab order (WU12) |
+
+**Actions performed:**
+
+1. `GraphNodeWidget`: interactive nodes wrap visible content with `GestureDetector` → `Semantics(button: true, selected: isFocused, label: …)` → `MouseRegion(cursor: SystemMouseCursors.click)` → `ExcludeSemantics(child: …)`; focus ring and tap behavior unchanged.
+2. Human labels via `GraphNodeWidget.semanticLabel`: live/genealogy users use `Profile.displayLabel(l10n.unknownPerson)`; beacons use `beaconViewTitle: title`; deleted genealogy uses anonymized label (fallback `inviteGenealogyAnonymousNode`); never account IDs or node keys.
+3. `GraphPersonContextPanel`: `FocusTraversalGroup` + `NumericFocusOrder` on primary (1), request options/secondary Trust (2), View profile (3), Show N more (4), Close (5); secondary Trust moved before View profile in source order for WU12 tab contract; WU11 action policy unchanged.
+4. Added `graph_node_accessibility_test.dart`; extended `graph_person_context_panel_test.dart` with Tab-order cases.
+
+**Tests (commands and outcomes):**
+
+```bash
+cd packages/client
+flutter test test/features/graph/graph_node_accessibility_test.dart \
+  test/features/graph/graph_person_context_panel_test.dart
+# 00:01 +20: All tests passed!
+
+flutter test test/features/graph/graph_body_person_context_test.dart \
+  test/features/graph/graph_focus_path_visibility_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart
+# 00:03 +64: All tests passed!
+
+cd ../..
+./scripts/check-custom-lints.sh packages/client
+# packages/client OK (106 vs baseline 111)
+```
+
+**Files changed (WU12-owned):**
+
+- `packages/client/lib/features/graph/ui/widget/graph_node_widget.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart`
+- `packages/client/test/features/graph/graph_node_accessibility_test.dart` (new)
+- `packages/client/test/features/graph/graph_person_context_panel_test.dart`
+
+**Findings:**
+
+- `ExcludeSemantics` on node chrome is required so TenturaAvatar initials do not merge into the graph-node semantics label.
+- Tab tests do not need `ensureSemantics()`; semantics assertions use explicit handle dispose via `_withSemantics` helper.
+- Secondary Trust now precedes View profile in the panel widget tree (WU12 tab order); visual hierarchy shifts slightly for mutual-without-outgoing-trust case only.
+
+**Remaining:** WU13 — localization; WU14 — formal visual-association evidence recording (user-confirmed); WU15 — AppBar cleanup after WU14; WU16 — version/release.
+
+---
+
+## WU12 final entry — 2026-08-09
+
+**Status:** complete
+
+**Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched. No WU13 l10n, WU15 AppBar, or WU16 version changes.
