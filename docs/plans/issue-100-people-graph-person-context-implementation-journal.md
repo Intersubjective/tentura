@@ -1136,7 +1136,7 @@ cd ../..
 |---|---|
 | `0b5e3ac1` | l10n(client): issue #100 WU13 ARB keys and graph show-more surface |
 | `8ad36d57` | test(client): issue #100 WU13 localization contract and panel copy |
-| `048776ef` | docs: record issue #100 WU13 localization evidence |
+| `1259aa46` | docs: record issue #100 WU13 localization evidence |
 
 **Actions performed:**
 
@@ -1189,3 +1189,22 @@ bash scripts/check-user-facing-terminology.sh
 **Status:** complete
 
 **Preservation:** all pre-existing unrelated modified/untracked paths remain unstaged and untouched.
+
+---
+
+## Manager review — WU13 accepted — 2026-08-09
+
+- Reviewed `0b5e3ac1`, `8ad36d57`, and evidence `1259aa46` (corrected from the worker's superseded pre-amend hash); every commit passes `git show --check` and `git diff --check ebdff40d..HEAD` is clean.
+- Confirmed the new count-bearing `graphShowMoreConnections` source ARB key has matching EN/RU placeholder metadata and is the panel's only show-more copy. Existing §19 strings are exercised by a source-ARB and generated-l10n contract test; RU legend text now describes Trust-or-MeritRank in each direction rather than positive MeritRank both ways.
+- Independently reran the localization, graph panel, legend, profile hierarchy, and People actions suite (29 passed) plus `check-user-facing-terminology` (ok). The worker ran `flutter gen-l10n` and `build_runner`; generated localization remains ignored as required.
+- **Verdict:** accepted. No WU13-owned work is uncommitted.
+
+---
+
+## WU14 — mandatory visual-association usability gate — 2026-08-09
+
+**Status:** complete (user-confirmed).
+
+The user explicitly confirmed that the gate passed and the feature was working well enough. This authorizes WU15 under the plan's stop condition. The confirmation covers the required compact and wide panel association/visibility/action flows. Exact participant wording, timing, recording reference, and build identifier were not supplied; they are not reconstructed here. Automated tests remain supplemental rather than a substitute for the confirmed human gate.
+
+**Decision:** retain the user-confirmed WU14 result as the human-gate evidence; WU15 may remove the duplicate trust AppBar Profile/Expand actions, subject to its own test and review gates.
