@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -121,6 +122,27 @@ Future<void> _pumpPanel(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
+}
+
+bool _focusAncestorHasKey(WidgetTester tester, Key key) {
+  final focusedContext = tester.binding.focusManager.primaryFocus?.context;
+  if (focusedContext == null) {
+    return false;
+  }
+  var found = false;
+  focusedContext.visitAncestorElements((element) {
+    if (element.widget.key == key) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+Future<void> _tabToNextFocus(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.pump();
 }
 
 void main() {
@@ -428,5 +450,139 @@ void main() {
       await tester.pump();
       expect(contextCubit.dismissCalls, 1);
     });
+
+    testWidgets(
+      'tab order: primary, secondary trust, profile, show more, close',
+      (
+        tester,
+      ) async {
+        const profile = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          score: 1,
+          rScore: 1,
+        );
+        final graphCubit = _StubGraphCubit(
+          initial: const GraphState(
+            me: Profile(id: 'U-me', displayName: 'Me'),
+            focus: 'U-peer',
+            hiddenNeighborCounts: {'U-peer': 3},
+          ),
+          canPageMoreFor: {'U-peer': true},
+        );
+      await _pumpPanel(
+        tester,
+        profile: profile,
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+      );
+
+      await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextSendRequest),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextTrust),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextViewProfile),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextShowMore),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextClose),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'tab order: trust primary then request options before profile',
+      (
+        tester,
+      ) async {
+        const profile = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          rScore: 1,
+        );
+        final graphCubit = _StubGraphCubit(
+          initial: const GraphState(
+            me: Profile(id: 'U-me', displayName: 'Me'),
+            focus: 'U-peer',
+          ),
+        );
+      await _pumpPanel(
+        tester,
+        profile: profile,
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+      );
+
+      await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextTrust),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextRequestOptions),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextViewProfile),
+          ),
+          isTrue,
+        );
+
+        await _tabToNextFocus(tester);
+        expect(
+          _focusAncestorHasKey(
+            tester,
+            TestIds.key(TestIds.graphPersonContextClose),
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 }
