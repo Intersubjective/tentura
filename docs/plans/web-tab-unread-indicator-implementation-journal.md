@@ -50,7 +50,7 @@ may update before their implementation unit is accepted.
 
 | Unit | Status | Scope and acceptance boundary |
 |---|---|---|
-| P0 | **passed** | Measure hidden-tab unread propagation; gate P1. Record the exact evidence and do not implement P1 if foreground or long-hidden criteria fail. |
+| P0 | **rejected by manager** | Measure hidden-tab unread propagation; gate P1. Record the exact evidence and do not implement P1 if foreground or long-hidden criteria fail. |
 | P1-P2 | pending | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commit. |
 | P3 | pending | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | pending | Scope/controller, title seam, app wiring, cap parity, tests, and focused commit(s). |
@@ -153,3 +153,29 @@ while author victim tab stayed on `/home/updates` in background.
 
 **Decision:** Proceed with P1–P7 implementation per plan; file heartbeat
 supervisor false-pong-timeout fix separately (churn observed, bounded impact only).
+
+### 2026-08-10 — manager P0 review: **REJECTED; P1 remains blocked**
+
+The worker's runtime setup, exact command, fixture creation, and source-scope
+discipline are accepted. The claimed P0 pass is not.
+
+The recorded harness defines `isDocumentHidden` as “the blank WebDriver window
+is active” and checks the Updates badge by *activating the app window*, reading
+the DOM, then restoring the blank window. That activation is a material causal
+input: `LifecycleHandler` listens to `visibilitychange` and calls
+`RealtimeSyncCase.requestCatchUp` on every visible transition. Consequently,
+the 392 ms and 528 ms observations prove only that the unread count is present
+after an app-visible catch-up. They do **not** prove that an unread update was
+delivered and rendered while the app tab stayed hidden, which is P0's hard
+premise.
+
+The WebSocket request-id increases during the dwell are useful diagnostic
+evidence, but cannot repair that causal gap; `pongTimeout` was not observed and
+the harness recorded `qaHeadRefreshLatencyMs: null`.
+
+**Required recovery:** a fresh P0 worker must use a read-only observation path
+that never activates the app tab after triggering the receipt (for example a
+same-browser CDP target/session attached directly to the background page, with
+no WebDriver focus switch), or record the hard gate as blocked and stop for a
+service-worker re-plan. No P1 implementation may begin from `a5887534`'s
+claimed pass.
