@@ -191,10 +191,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         RoomMessageTile(
-          message: _replyMessage(
-            authorId: 'peer',
-            author: const Profile(id: 'peer', displayName: 'Peer'),
-          ),
+          message: _replyMessage(),
           myProfile: const Profile(id: 'viewer', displayName: 'Me'),
           onJumpToReply: (id) => jumped = id,
           onToggleReaction: (_, _) async {},
@@ -204,17 +201,75 @@ void main() {
     await tester.pumpAndSettle();
 
     final semanticsHandle = tester.ensureSemantics();
-    addTearDown(semanticsHandle.dispose);
     expect(
       find.bySemanticsLabel(l10n.beaconRoomReplyQuoteA11yLabel('Anna')),
       findsOneWidget,
     );
+    semanticsHandle.dispose();
 
     await _tapAndSettle(
       tester,
       tester.getCenter(find.byType(RoomMessageReplyQuote)),
     );
     expect(jumped, 'parent-1');
+  });
+
+  testWidgets(
+    'own-message quote tap jumps without double-tap quick-react on the quote',
+    (tester) async {
+      String? jumped;
+      String? reacted;
+
+      await tester.pumpWidget(
+        _harness(
+          RoomMessageTile(
+            message: _replyMessage(body: 'Reply body text'),
+            myProfile: const Profile(id: 'viewer', displayName: 'Me'),
+            onJumpToReply: (id) => jumped = id,
+            onToggleReaction: (_, emoji) async => reacted = emoji,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _tapAndSettle(
+        tester,
+        tester.getCenter(find.byType(RoomMessageReplyQuote)),
+      );
+
+      expect(jumped, 'parent-1');
+      expect(reacted, isNull);
+    },
+  );
+
+  testWidgets('own-message body double-tap still quick-reacts outside the quote', (
+    tester,
+  ) async {
+    String? jumped;
+    String? reacted;
+
+    await tester.pumpWidget(
+      _harness(
+        RoomMessageTile(
+          message: _replyMessage(body: 'Reply body text'),
+          myProfile: const Profile(id: 'viewer', displayName: 'Me'),
+          onJumpToReply: (id) => jumped = id,
+          onToggleReaction: (_, emoji) async => reacted = emoji,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final quoteRect = tester.getRect(find.byType(RoomMessageReplyQuote));
+    final bodyPoint = Offset(quoteRect.center.dx, quoteRect.bottom + 12);
+    await tester.tapAt(bodyPoint);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(bodyPoint);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(reacted, isNotNull);
+    expect(jumped, isNull);
   });
 
   testWidgets('compact width does not overflow with a long quote excerpt', (

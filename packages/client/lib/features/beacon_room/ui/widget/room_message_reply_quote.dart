@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_radii.dart';
@@ -7,6 +8,26 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Accent bar width for reply quote blocks (composer banner uses the same value).
 const double kRoomReplyQuoteAccentWidth = 3.0;
+
+/// Touch/stylus/mouse devices the quote jump tap listens on.
+const Set<PointerDeviceKind> kRoomReplyQuoteTapDevices = {
+  PointerDeviceKind.touch,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.mouse,
+};
+
+/// Accepts on [handleTapDown] so a single tap wins over the bubble's
+/// [DoubleTapGestureRecognizer] (quick-react) and [TapGestureRecognizer]
+/// (open linked item) without waiting for double-tap disambiguation.
+class _EagerTapGestureRecognizer extends TapGestureRecognizer {
+  _EagerTapGestureRecognizer({super.supportedDevices});
+
+  @override
+  void handleTapDown({required PointerDownEvent down}) {
+    super.handleTapDown(down: down);
+    resolve(GestureDisposition.accepted);
+  }
+}
 
 /// Inner padding for the quote inset behind author + excerpt text.
 EdgeInsets roomReplyQuoteInnerPadding(TenturaTokens tt) => EdgeInsets.symmetric(
@@ -127,10 +148,22 @@ class RoomMessageReplyQuote extends StatelessWidget {
         quoteBody = Semantics(
           button: true,
           label: l10n.beaconRoomReplyQuoteA11yLabel(authorName),
-          child: InkWell(
-            onTap: () => onJump(id),
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            child: ExcludeSemantics(child: inset),
+          child: RawGestureDetector(
+            behavior: HitTestBehavior.opaque,
+            gestures: <Type, GestureRecognizerFactory>{
+              _EagerTapGestureRecognizer:
+                  GestureRecognizerFactoryWithHandlers<
+                      _EagerTapGestureRecognizer>(
+                    () => _EagerTapGestureRecognizer(
+                      supportedDevices: kRoomReplyQuoteTapDevices,
+                    ),
+                    (recognizer) => recognizer.onTap = () => onJump(id),
+                  ),
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: ExcludeSemantics(child: inset),
+            ),
           ),
         );
       }
