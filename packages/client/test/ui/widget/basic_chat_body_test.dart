@@ -18,6 +18,8 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 class _FakeImageRepository extends Fake implements ImageRepository {
@@ -549,4 +551,91 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets(
+    'unread divider is placed before firstUnreadMessageId, not a preceding pin',
+    (tester) async {
+      final base = DateTime.utc(2026, 6, 30, 12);
+      final pin = RoomMessage(
+        id: 'historical-pin',
+        beaconId: 'b1',
+        authorId: 'old-peer',
+        author: const Profile(id: 'old-peer', displayName: 'Old'),
+        body: 'Pinned historical row',
+        createdAt: base.subtract(const Duration(hours: 1)),
+      );
+      final firstUnread = RoomMessage(
+        id: 'm1',
+        beaconId: 'b1',
+        authorId: 'peer-1',
+        author: const Profile(id: 'peer-1', displayName: 'Peer'),
+        body: 'First unread body',
+        createdAt: base,
+      );
+      final secondUnread = RoomMessage(
+        id: 'm2',
+        beaconId: 'b1',
+        authorId: 'peer-2',
+        author: const Profile(id: 'peer-2', displayName: 'Peer 2'),
+        body: 'Second unread body',
+        createdAt: base.add(const Duration(minutes: 1)),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(390, 720));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+            BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 720)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BasicChatBody(
+                    messages: [
+                      pin,
+                      firstUnread,
+                      secondUnread,
+                    ],
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
+                    enableComposerAttachments: false,
+                    enableParticipantMentions: false,
+                    onSend: (_, _) async => true,
+                    onToggleReaction: (_, _) async {},
+                    firstUnreadMessageId: 'm1',
+                    unreadCount: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoomUnreadDivider), findsOneWidget);
+
+      final tiles = find.byType(RoomMessageTile);
+      expect(tiles, findsNWidgets(3));
+
+      final dividerY = tester.getTopLeft(find.byType(RoomUnreadDivider)).dy;
+      final pinTileY = tester.getTopLeft(tiles.at(0)).dy;
+      final firstUnreadTileY = tester.getTopLeft(tiles.at(1)).dy;
+
+      expect(dividerY, greaterThan(pinTileY));
+      expect(dividerY, lessThan(firstUnreadTileY));
+    },
+  );
 }

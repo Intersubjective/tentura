@@ -478,7 +478,7 @@ void main() {
           ];
         final offWindow = _roomMsg(
           id: 'historical',
-          createdAt: _kBaseTime.add(const Duration(hours: 1)),
+          createdAt: _kBaseTime.subtract(const Duration(hours: 1)),
           authorId: 'peer-old',
         );
         fakeRoom.fetchMessageTargetsById['historical'] = offWindow;
@@ -487,6 +487,8 @@ void main() {
 
         await awaitRoomCubitLoad(cubit);
         expect(cubit.state.unreadAnchorAt, isNull);
+        expect(cubit.state.firstUnreadMessageId, 'm1');
+        expect(cubit.state.firstUnreadIndex, 0);
 
         final beforeUnreadCount = cubit.state.unreadCount;
         final beforeFirstUnreadId = cubit.state.firstUnreadMessageId;
@@ -497,7 +499,9 @@ void main() {
         expect(cubit.state.unreadCount, beforeUnreadCount);
         expect(cubit.state.firstUnreadMessageId, beforeFirstUnreadId);
         expect(cubit.state.firstUnreadIndex, beforeFirstUnreadIndex);
+        expect(cubit.state.firstUnreadIndex, 0);
         expect(cubit.state.pinnedJumpMessageIds, contains('historical'));
+        expect(cubit.state.messages.first.id, 'historical');
       },
     );
   });

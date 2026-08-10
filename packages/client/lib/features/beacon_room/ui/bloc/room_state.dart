@@ -83,11 +83,24 @@ abstract class RoomState extends StateBase with _$RoomState {
     return n;
   }
 
-  /// `-1` if nothing unread / list empty.
+  /// Logical list position of [firstUnreadMessageId] among rows that participate
+  /// in unread state — [pinnedJumpMessageIds] are navigation-only and omitted.
+  /// Differs from the physical [messages] index when a historical pin precedes
+  /// the first unread row. `-1` if nothing unread / list empty.
   int get firstUnreadIndex {
     final id = firstUnreadMessageId;
     if (id == null) return -1;
-    return messages.indexWhere((m) => m.id == id);
+    var logical = 0;
+    for (final m in messages) {
+      if (pinnedJumpMessageIds.contains(m.id)) {
+        continue;
+      }
+      if (m.id == id) {
+        return logical;
+      }
+      logical++;
+    }
+    return -1;
   }
 
   List<BeaconParticipant> participantsMatchingQuery(String query) {

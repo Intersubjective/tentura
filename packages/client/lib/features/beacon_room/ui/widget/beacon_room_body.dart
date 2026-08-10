@@ -224,6 +224,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             hasError: state.hasError && state.messages.isEmpty,
             errorText: err,
             firstUnreadIndex: state.firstUnreadIndex,
+            firstUnreadMessageId: state.firstUnreadMessageId,
             unreadCount: state.unreadCount,
             onMarkSeenNearBottom: cubit.markReadToBottom,
             onMessageActions: (msg) => _onMessageActionsPressed(

@@ -41,6 +41,7 @@ class BasicChatBody extends StatefulWidget {
     this.hasError = false,
     this.errorText = '',
     this.firstUnreadIndex = -1,
+    this.firstUnreadMessageId,
     this.unreadCount = 0,
     this.onMarkSeenNearBottom,
     this.onMessageActions,
@@ -73,8 +74,14 @@ class BasicChatBody extends StatefulWidget {
 
   final String errorText;
 
-  /// Same semantics as [RoomState.firstUnreadIndex].
+  /// Logical unread-list position (see [RoomState.firstUnreadIndex]); retained for
+  /// callers that still key off an index. Divider placement uses
+  /// [firstUnreadMessageId], not this value.
   final int firstUnreadIndex;
+
+  /// When set with [unreadCount] > 0, the unread divider is rendered immediately
+  /// before this message id in the physical [messages] list (pins may precede it).
+  final String? firstUnreadMessageId;
 
   final int unreadCount;
 
@@ -398,10 +405,12 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                 prev.createdAt,
                                 m.createdAt,
                               );
-                          final idxUnread = widget.firstUnreadIndex;
                           final unreads = widget.unreadCount;
+                          final unreadId = widget.firstUnreadMessageId;
                           final showUnreadBand =
-                              unreads > 0 && idxUnread >= 0 && i == idxUnread;
+                              unreads > 0 &&
+                              unreadId != null &&
+                              m.id == unreadId;
 
                           final toggle = widget.onToggleReaction;
                           final vote = widget.onVotePoll;
