@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,8 +22,8 @@ import 'package:tentura/ui/widget/basic_chat_body.dart';
 /// Test [RoomCubit] that can emit state and record scroll-target clears.
 class RoomBodyHarnessCubit extends Mock implements RoomCubit {
   RoomBodyHarnessCubit(RoomState initial)
-      : _state = initial,
-        _streamController = StreamController<RoomState>.broadcast() {
+    : _state = initial,
+      _streamController = StreamController<RoomState>.broadcast() {
     _streamController.add(_state);
   }
 
