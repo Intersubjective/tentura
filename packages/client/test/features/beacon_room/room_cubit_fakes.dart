@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
@@ -44,10 +45,26 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   Object? addAttachmentError;
   int createMessageCalls = 0;
   int addAttachmentCalls = 0;
+  int fetchMessagesCallCount = 0;
   String? lastReplyToMessageId;
+
+  /// Blocks [createMessage] until completed (stale reply-target race tests).
+  Completer<void>? createMessageGate;
+
+  final Map<String, RoomMessage> fetchMessageTargetsById = {};
+  Object? fetchMessageTargetError;
 
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
+
+  void emitInvalidation(BeaconRoomEntityType entityType) {
+    _roomInvalidations.add(
+      BeaconRoomInvalidation(
+        beaconId: kRoomCubitFakeBeaconId,
+        entityType: entityType,
+      ),
+    );
+  }
 
   @override
   Stream<String> get beaconRoomRefresh => const Stream.empty();
@@ -61,7 +78,24 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
     required String beaconId,
     String? beforeIso,
     String? threadItemId,
-  }) async => messages;
+  }) async {
+    fetchMessagesCallCount++;
+    return messages;
+  }
+
+  @override
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    final error = fetchMessageTargetError;
+    if (error != null) {
+      if (error is Exception) throw error;
+      if (error is Error) throw error;
+      throw StateError(error.toString());
+    }
+    return fetchMessageTargetsById[messageId];
+  }
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
@@ -101,6 +135,10 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   }) async {
     createMessageCalls++;
     lastReplyToMessageId = replyToMessageId;
+    final gate = createMessageGate;
+    if (gate != null) {
+      await gate.future;
+    }
     final error = createMessageError;
     if (error != null) throw error;
     return 'msg-created';
@@ -159,7 +197,10 @@ PresenceRepository roomCubitFakePresenceRepository() => PresenceRepository(
   ),
 );
 
-BeaconRoomCase roomCubitMakeCase(FakeBeaconRoomRepository fakeRoom) =>
+BeaconRoomCase roomCubitMakeCase(
+  FakeBeaconRoomRepository fakeRoom, {
+  RealtimeSyncCase? realtimeSyncCase,
+}) =>
     BeaconRoomCase(
       fakeRoom,
       FakeBeaconFactCardRepository(),
@@ -167,7 +208,7 @@ BeaconRoomCase roomCubitMakeCase(FakeBeaconRoomRepository fakeRoom) =>
       FakeBeaconRoomHintsRepository(),
       RoomReadWatermarkStore.testing(),
       const FakeCoordinationItemCaseForRoom(),
-      buildTestRealtimeSync().case_,
+      realtimeSyncCase ?? buildTestRealtimeSync().case_,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -193,9 +234,13 @@ Future<RoomState> awaitRoomCubitLoad(RoomCubit cubit) =>
 RoomCubit roomCubitForTest(
   FakeBeaconRoomRepository fakeRoom, {
   UiEffectPort? effects,
+  RealtimeSyncCase? realtimeSyncCase,
 }) => RoomCubit(
   beaconId: kRoomCubitFakeBeaconId,
-  beaconRoomCase: roomCubitMakeCase(fakeRoom),
+  beaconRoomCase: roomCubitMakeCase(
+    fakeRoom,
+    realtimeSyncCase: realtimeSyncCase,
+  ),
   coordinationItemRoomSync: CoordinationItemRoomSync(),
   presenceRepository: roomCubitFakePresenceRepository(),
   effects: effects ?? FakeUiEffectPort(),
