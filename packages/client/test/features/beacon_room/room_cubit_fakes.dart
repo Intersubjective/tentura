@@ -8,6 +8,8 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -57,11 +59,19 @@ class FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
 
-  void emitInvalidation(BeaconRoomEntityType entityType) {
+  void emitInvalidation(
+    BeaconRoomEntityType entityType, {
+    RealtimeOperation? operation,
+    String? messageId,
+    RealtimeRoomMessagePaint? paint,
+  }) {
     _roomInvalidations.add(
       BeaconRoomInvalidation(
         beaconId: kRoomCubitFakeBeaconId,
         entityType: entityType,
+        operation: operation,
+        messageId: messageId,
+        paint: paint,
       ),
     );
   }

@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
@@ -256,6 +258,84 @@ void main() {
       expect(await sendFuture, isTrue);
       expect(cubit.state.replyTarget?.id, targetB.id);
     });
+
+    test(
+      'own reply paint defers during send and replaces optimistic quote',
+      () async {
+        registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+        final target = _roomMsg(
+          id: 'parent',
+          createdAt: _kBaseTime,
+          authorId: 'anna',
+          body: 'optimistic parent body',
+          author: const Profile(id: 'anna', displayName: 'Anna'),
+        );
+        final gate = Completer<void>();
+        final fakeRoom =
+            FakeBeaconRoomRepository(userId: kRoomCubitFakeMyUserId)
+              ..messages = [target]
+              ..createMessageGate = gate;
+        final cubit = roomCubitForTest(fakeRoom);
+        addTearDown(cubit.close);
+        addTearDown(fakeRoom.dispose);
+
+        await awaitRoomCubitLoad(cubit);
+        cubit.startReplyTo(target);
+        final send = cubit.sendMessage(body: 'reply body');
+        await _awaitCondition(() => fakeRoom.createMessageCalls == 1);
+
+        final paint = RealtimeRoomMessagePaint(
+          id: 'msg-created',
+          beaconId: kRoomCubitFakeBeaconId,
+          authorId: kRoomCubitFakeMyUserId,
+          body: 'reply body',
+          createdAt: _kBaseTime.add(const Duration(minutes: 1)),
+          replyToMessageId: target.id,
+          replyToAuthorId: 'anna-server',
+          replyToAuthorTitle: 'Anna K.',
+          replyToBodyExcerpt: 'server-resolved excerpt',
+          replyToHasAttachments: true,
+        );
+        fakeRoom.emitInvalidation(
+          BeaconRoomEntityType.roomMessage,
+          operation: RealtimeOperation.insert,
+          messageId: paint.id,
+          paint: paint,
+        );
+        await _awaitCondition(
+          () => cubit.state.messages.any((m) => m.id.startsWith('local:')),
+        );
+
+        final pending = cubit.state.messages
+            .where((m) => m.authorId == kRoomCubitFakeMyUserId)
+            .toList();
+        expect(pending, hasLength(1));
+        expect(pending.single.id, startsWith('local:'));
+        expect(
+          cubit.state.messages.where((m) => m.id == paint.id),
+          isEmpty,
+          reason: 'own insert paint must defer until its mutation resolves',
+        );
+
+        gate.complete();
+        expect(await send, isTrue);
+
+        final reconciled = cubit.state.messages
+            .where((m) => m.authorId == kRoomCubitFakeMyUserId)
+            .toList();
+        expect(reconciled, hasLength(1));
+        expect(reconciled.single.id, paint.id);
+        expect(
+          cubit.state.messages.where((m) => m.id.startsWith('local:')),
+          isEmpty,
+        );
+        expect(reconciled.single.replyToMessageId, target.id);
+        expect(reconciled.single.replyToAuthorId, 'anna-server');
+        expect(reconciled.single.replyToAuthorTitle, 'Anna K.');
+        expect(reconciled.single.replyToBodyExcerpt, 'server-resolved excerpt');
+        expect(reconciled.single.replyToHasAttachments, isTrue);
+      },
+    );
   });
 
   group('RoomCubit.jumpToRepliedMessage', () {
