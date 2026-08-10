@@ -27,6 +27,7 @@ import '../../support/fake_user_block_repository.dart';
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
 const _otherUserId = 'Ubbbbbbbbbbbb';
+const _thirdUserId = 'Ucccccccccccc';
 const _messageId = 'Raaaaaaaaaaaa';
 const _replyMessageId = 'Rbbbbbbbbbbbb';
 const _threadItemId = 'CIaskaaaaaaaa';
@@ -48,6 +49,7 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
 
   String? insertedBody;
   List<String>? insertedMentions;
+  String? insertedReplyToMessageId;
   String? updatedBody;
   List<String>? updatedMentions;
   String? deletedMessageId;
@@ -107,6 +109,7 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   }) async {
     insertedBody = body;
     insertedMentions = mentions;
+    insertedReplyToMessageId = replyToMessageId;
     return BeaconRoomMessageRecord(
       id: _messageId,
       beaconId: beaconId,
@@ -253,10 +256,95 @@ void main() {
         replyToMessageId: _replyMessageId,
       );
 
+      expect(room.insertedReplyToMessageId, _replyMessageId);
       expect(
         attention.recorded.single.recipients.single.recipientId,
         _otherUserId,
       );
+    });
+
+    test(
+      'main-room reply notifies only the parent author, not other participants',
+      () async {
+        room.replyMessage = BeaconRoomMessageRecord(
+          id: _replyMessageId,
+          beaconId: _beaconId,
+          authorId: _otherUserId,
+          body: 'question',
+          createdAt: DateTime.utc(2026),
+        );
+
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: 'answer',
+          replyToMessageId: _replyMessageId,
+        );
+
+        expect(attention.recorded, hasLength(1));
+        final recipientIds = attention.recorded.single.recipients
+            .map((recipient) => recipient.recipientId)
+            .toList();
+        expect(recipientIds, [_otherUserId]);
+        expect(recipientIds, isNot(contains(_thirdUserId)));
+      },
+    );
+
+    test(
+      'thread-mode reply notifies parent author and item target person',
+      () async {
+        items.itemById = testCoordinationItem(
+          id: _threadItemId,
+          beaconId: _beaconId,
+          kind: coordinationItemKindAsk,
+          creatorId: _userId,
+          targetPersonId: _thirdUserId,
+        );
+        room.participant = null;
+        room.replyMessage = BeaconRoomMessageRecord(
+          id: _replyMessageId,
+          beaconId: _beaconId,
+          authorId: _otherUserId,
+          body: 'thread parent',
+          threadItemId: _threadItemId,
+          createdAt: DateTime.utc(2026),
+        );
+
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: 'thread reply',
+          threadItemId: _threadItemId,
+          replyToMessageId: _replyMessageId,
+        );
+
+        expect(attention.recorded, hasLength(1));
+        final recipientIds = attention.recorded.single.recipients
+            .map((recipient) => recipient.recipientId)
+            .toList()
+          ..sort();
+        expect(recipientIds, [_otherUserId, _thirdUserId]);
+      },
+    );
+
+    test('self-reply creates no attention intents', () async {
+      room.replyMessage = BeaconRoomMessageRecord(
+        id: _replyMessageId,
+        beaconId: _beaconId,
+        authorId: _userId,
+        body: 'my own message',
+        createdAt: DateTime.utc(2026),
+      );
+
+      await sut.createMessage(
+        beaconId: _beaconId,
+        userId: _userId,
+        body: 'reply to self',
+        replyToMessageId: _replyMessageId,
+      );
+
+      expect(room.insertedReplyToMessageId, _replyMessageId);
+      expect(attention.recorded, isEmpty);
     });
 
     test('rejects a reply that crosses beacon chat scope', () async {
