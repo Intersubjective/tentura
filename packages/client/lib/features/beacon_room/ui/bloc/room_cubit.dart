@@ -22,6 +22,7 @@ import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/use_case/beacon_room_case.dart';
 import '../message/beacon_room_fact_messages.dart';
+import '../util/room_reply_excerpt.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
 
@@ -101,6 +102,10 @@ class RoomCubit extends Cubit<RoomState> {
   final Set<String> _pendingLocalMessageIds = {};
 
   final Map<String, RoomMessage> _deferredOwnPaintByServerId = {};
+
+  static const _kMaxPinnedOffWindow = 20;
+
+  final _pinnedOffWindowMessages = <String, RoomMessage>{};
 
   bool _markSeenEmittedThisVisit = false;
   bool _initialLoadDone = false;
@@ -274,6 +279,74 @@ class RoomCubit extends Cubit<RoomState> {
     emit(state.copyWith(scrollToMessageId: messageId));
   }
 
+  /// Ineligible when the message has no server id yet.
+  static bool canReplyTo(RoomMessage m) => !m.id.startsWith('local:');
+
+  void startReplyTo(RoomMessage message) {
+    if (!canReplyTo(message)) return;
+    emit(state.copyWith(replyTarget: message));
+  }
+
+  void cancelReply() {
+    if (state.replyTarget != null) {
+      emit(state.copyWith(replyTarget: null));
+    }
+  }
+
+  Future<bool> jumpToRepliedMessage(String messageId) async {
+    final id = messageId.trim();
+    if (id.isEmpty) return false;
+    if (state.messages.any((m) => m.id == id)) {
+      requestScrollToMessage(id);
+      return true;
+    }
+    RoomMessage? target;
+    try {
+      target = await _case.fetchMessageTarget(
+        beaconId: state.beaconId,
+        messageId: id,
+      );
+    } on Object {
+      target = null;
+    }
+    if (isClosed) return false;
+    if (target == null) {
+      _showMessage(const RoomReplyTargetUnavailableMessage());
+      return false;
+    }
+    _pinOffWindow(target);
+    emit(
+      state.copyWith(
+        messages: _mergeMessages(serverRows: state.messages),
+        pinnedJumpMessageIds: _pinnedOffWindowMessages.keys.toList(
+          growable: false,
+        ),
+        scrollToMessageId: id,
+      ),
+    );
+    return true;
+  }
+
+  void _pinOffWindow(RoomMessage target) {
+    if (_pinnedOffWindowMessages.containsKey(target.id)) {
+      _pinnedOffWindowMessages.remove(target.id);
+    } else if (_pinnedOffWindowMessages.length >= _kMaxPinnedOffWindow) {
+      _pinnedOffWindowMessages.remove(_pinnedOffWindowMessages.keys.first);
+    }
+    _pinnedOffWindowMessages[target.id] = target;
+  }
+
+  List<RoomMessage> _mergeMessages({required List<RoomMessage> serverRows}) =>
+      _sortMessages(
+        _dedupeMessages([
+          ..._pinnedOffWindowMessages.values,
+          ...serverRows,
+          ...state.messages.where(
+            (m) => _pendingLocalMessageIds.contains(m.id),
+          ),
+        ]),
+      );
+
   /// Queues scrolling to a coordination item’s room thread after messages load
   /// (or immediately if messages are already present). Cleared when applied.
   void prepareThreadScroll({
@@ -419,13 +492,14 @@ class RoomCubit extends Cubit<RoomState> {
       final coordinationItems = inThread
           ? const <CoordinationItem>[]
           : await _case.fetchCoordinationItems(state.beaconId);
-      final messages = _joinCoordinationCounts(
-        _dedupeMessages([
+      final serverRows = _joinCoordinationCounts(
+        [
           ...rawMessages,
           if (target != null) target,
-        ]),
+        ],
         coordinationItems,
       );
+      final messages = _mergeMessages(serverRows: serverRows);
 
       if (isClosed) return;
 
@@ -527,15 +601,10 @@ class RoomCubit extends Cubit<RoomState> {
           else
             message,
       ];
-      final pendingLocals = state.messages.where(
-        (message) => _pendingLocalMessageIds.contains(message.id),
-      );
       if (!isClosed) {
         emit(
           state.copyWith(
-            messages: _sortMessages(
-              _dedupeMessages([...refreshed, ...pendingLocals]),
-            ),
+            messages: _mergeMessages(serverRows: refreshed),
             loadError: null,
           ),
         );
@@ -713,6 +782,7 @@ class RoomCubit extends Cubit<RoomState> {
     if (trimmed.isEmpty && uploads.isEmpty) {
       return false;
     }
+    final target = state.replyTarget;
     final localId = 'local:${_uuid.v4()}';
     final profile = GetIt.I<ProfileCubit>().state.profile;
     final localMessage = RoomMessage(
@@ -723,6 +793,11 @@ class RoomCubit extends Cubit<RoomState> {
       createdAt: DateTime.now().toUtc(),
       author: profile,
       threadItemId: state.threadItemId,
+      replyToMessageId: target?.id,
+      replyToAuthorId: target?.authorId,
+      replyToAuthorTitle: target?.author.shownName,
+      replyToBodyExcerpt: target != null ? roomReplyExcerpt(target.body) : null,
+      replyToHasAttachments: target?.attachments.isNotEmpty ?? false,
     );
     _pendingLocalMessageIds.add(localId);
     emit(
@@ -737,6 +812,7 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         body: trimmed,
         threadItemId: state.threadItemId,
+        replyToMessageId: target?.id,
         uploads: uploads,
       );
       _pendingLocalMessageIds.remove(localId);
@@ -748,6 +824,7 @@ class RoomCubit extends Cubit<RoomState> {
       final withoutLocal = state.messages
           .where((message) => message.id != localId)
           .toList();
+      final clearReply = state.replyTarget?.id == target?.id;
       emit(
         state.copyWith(
           messages: _sortMessages(
@@ -755,6 +832,7 @@ class RoomCubit extends Cubit<RoomState> {
               _replaceOrAppendMessage(withoutLocal, reconciled),
             ),
           ),
+          replyTarget: clearReply ? null : state.replyTarget,
         ),
       );
       _flushDeferredOwnPaints();
@@ -1003,6 +1081,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
+    _pinnedOffWindowMessages.clear();
     _presenceRepository.unwatch('room:${state.beaconId}');
     await _refreshSub.cancel();
     await _catchUpsSub.cancel();
