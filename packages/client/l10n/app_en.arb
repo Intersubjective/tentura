@@ -4183,8 +4183,30 @@
     "description": "Accessibility label for the who-reacted bottom sheet"
   },
   "beaconRoomActionReply": "Reply",
+  "beaconRoomReplyingTo": "Reply to {name}",
+  "@beaconRoomReplyingTo": {
+    "description": "Composer banner label when replying to a message",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomReplyAttachmentExcerpt": "Attachment",
   "beaconRoomReplyOriginalUnavailable": "Original message is unavailable",
+  "beaconRoomReplyQuoteA11yLabel": "Reply to {name}, opens the original message",
+  "@beaconRoomReplyQuoteA11yLabel": {
+    "description": "Accessibility label for tapping a reply quote in a message bubble",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomReplyTargetNotLoaded": "Original message could not be loaded",
+  "@beaconRoomReplyTargetNotLoaded": {
+    "description": "Snack shown when jump-to-reply cannot fetch the original message"
+  },
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",
   "beaconRoomActionMarkBlocker": "Mark blocker…",

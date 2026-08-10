@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_room/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_text_controller.dart';
 import 'package:tentura/features/beacon_room/ui/widget/participants_matching_mention_query.dart';
@@ -47,6 +48,8 @@ class BasicChatBody extends StatefulWidget {
     this.onMessageActions,
     this.onReply,
     this.onJumpToReply,
+    this.replyTarget,
+    this.onCancelReply,
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
@@ -94,6 +97,10 @@ class BasicChatBody extends StatefulWidget {
   final void Function(RoomMessage message)? onReply;
 
   final void Function(String messageId)? onJumpToReply;
+
+  final RoomMessage? replyTarget;
+
+  final VoidCallback? onCancelReply;
 
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
@@ -529,6 +536,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
                             widget.enableParticipantMentions,
+                        replyTarget: widget.replyTarget,
+                        onCancelReply: widget.onCancelReply,
                       )
                     : const SizedBox.shrink(),
               ),
@@ -550,6 +559,8 @@ class BeaconRoomComposer extends StatefulWidget {
     required this.participants,
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
+    this.replyTarget,
+    this.onCancelReply,
     super.key,
   });
 
@@ -567,6 +578,10 @@ class BeaconRoomComposer extends StatefulWidget {
   final bool enableAttachments;
 
   final bool enableParticipantMentions;
+
+  final RoomMessage? replyTarget;
+
+  final VoidCallback? onCancelReply;
 
   @override
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
@@ -594,20 +609,30 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   KeyEventResult _handleComposerKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent || _overlaySuggestions.isEmpty) {
+    if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      if (_overlaySuggestions.isNotEmpty) {
+        _removeOverlay();
+        return KeyEventResult.handled;
+      }
+      if (widget.replyTarget != null && widget.onCancelReply != null) {
+        widget.onCancelReply!();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (_overlaySuggestions.isEmpty) {
+      return KeyEventResult.ignored;
+    }
     if (key == LogicalKeyboardKey.arrowDown) {
       _moveMentionHighlight(1);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp) {
       _moveMentionHighlight(-1);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.escape) {
-      _removeOverlay();
       return KeyEventResult.handled;
     }
     final isCommit =
@@ -1148,6 +1173,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (widget.replyTarget != null)
+          _ComposerReplyBanner(
+            target: widget.replyTarget!,
+            onCancelReply: widget.onCancelReply,
+          ),
         if (widget.enableAttachments && _pending.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: kSpacingSmall),
@@ -1233,6 +1263,82 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _ComposerReplyBanner extends StatelessWidget {
+  const _ComposerReplyBanner({
+    required this.target,
+    this.onCancelReply,
+  });
+
+  final RoomMessage target;
+
+  final VoidCallback? onCancelReply;
+
+  static const _accentWidth = 3.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt = context.tt;
+    final authorName = target.author.shownName;
+    final excerpt = roomReplyExcerptFor(
+      excerpt: roomReplyExcerpt(target),
+      hasAttachments: target.attachments.isNotEmpty,
+      l10n: l10n,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kSpacingSmall),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
+              ),
+              child: const SizedBox(width: _accentWidth),
+            ),
+            SizedBox(width: tt.iconTextGap),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.beaconRoomReplyingTo(authorName),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    excerpt,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (onCancelReply != null)
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+                onPressed: onCancelReply,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

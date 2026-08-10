@@ -194,7 +194,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.unreadAnchorAt != c.unreadAnchorAt ||
             p.pendingMarkSeen != c.pendingMarkSeen ||
             p.status != c.status ||
-            p.hasError != c.hasError,
+            p.hasError != c.hasError ||
+            p.replyTarget?.id != c.replyTarget?.id,
         builder: (context, state) {
           final cubit = context.read<RoomCubit>();
           final isThreadMode = state.threadItemId != null;
@@ -237,6 +238,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             ),
             onReply: cubit.startReplyTo,
             onJumpToReply: (id) => unawaited(cubit.jumpToRepliedMessage(id)),
+            replyTarget: state.replyTarget,
+            onCancelReply: cubit.cancelReply,
             onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
               messageId: messageId,
               emoji: emoji,
