@@ -151,7 +151,7 @@ void main() {
       expect(sent!.replyToMessageId, target.id);
       expect(sent.replyToAuthorId, target.authorId);
       expect(sent.replyToAuthorTitle, target.author.shownName);
-      expect(sent.replyToBodyExcerpt, roomReplyExcerpt(target.body));
+      expect(sent.replyToBodyExcerpt, roomReplyExcerpt(target));
       expect(sent.replyToHasAttachments, isTrue);
     });
 
@@ -173,7 +173,7 @@ void main() {
         replyToMessageId: grandparent.id,
         replyToAuthorId: grandparent.authorId,
         replyToAuthorTitle: grandparent.author.shownName,
-        replyToBodyExcerpt: roomReplyExcerpt(grandparent.body),
+        replyToBodyExcerpt: roomReplyExcerpt(grandparent),
       );
       final fakeRoom = FakeBeaconRoomRepository(userId: kRoomCubitFakeMyUserId)
         ..messages = [grandparent, parent];
@@ -191,8 +191,8 @@ void main() {
       expect(sent!.replyToMessageId, parent.id);
       expect(sent.replyToAuthorId, parent.authorId);
       expect(sent.replyToAuthorTitle, parent.author.shownName);
-      expect(sent.replyToBodyExcerpt, roomReplyExcerpt(parent.body));
-      expect(sent.replyToBodyExcerpt, isNot(roomReplyExcerpt(grandparent.body)));
+      expect(sent.replyToBodyExcerpt, roomReplyExcerpt(parent));
+      expect(sent.replyToBodyExcerpt, isNot(roomReplyExcerpt(grandparent)));
     });
 
     test('successful send clears reply target', () async {

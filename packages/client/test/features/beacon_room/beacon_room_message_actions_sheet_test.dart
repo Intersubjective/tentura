@@ -72,22 +72,25 @@ void main() {
   Future<void> pumpRoom(
     WidgetTester tester, {
     required double width,
+    List<RoomMessage>? messages,
   }) async {
     final profileCubit = _MockProfileCubit(viewer);
     final presenceCubit = _MockPresenceCubit();
     final state = RoomState(
       beaconId: 'b1',
       myUserId: viewer.id,
-      messages: [
-        RoomMessage(
-          id: 'm1',
-          beaconId: 'b1',
-          authorId: author.id,
-          author: author,
-          body: 'Hello room',
-          createdAt: DateTime.utc(2026, 6, 30, 12),
-        ),
-      ],
+      messages:
+          messages ??
+          [
+            RoomMessage(
+              id: 'm1',
+              beaconId: 'b1',
+              authorId: author.id,
+              author: author,
+              body: 'Hello room',
+              createdAt: DateTime.utc(2026, 6, 30, 12),
+            ),
+          ],
     );
     final roomCubit = _MockRoomCubit(state);
 
@@ -160,5 +163,42 @@ void main() {
     await pumpRoom(tester, width: 700);
 
     expect(await openMessageActionsSheetWidth(tester), 560);
+  });
+
+  testWidgets('message actions sheet shows Reply for server messages', (
+    tester,
+  ) async {
+    await pumpRoom(tester, width: 700);
+    final l10n = lookupL10n(const Locale('en'));
+
+    await tester.longPress(find.byType(RoomMessageTextBody));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.beaconRoomActionReply), findsOneWidget);
+  });
+
+  testWidgets('message actions sheet hides Reply for local pending messages', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await pumpRoom(
+      tester,
+      width: 700,
+      messages: [
+        RoomMessage(
+          id: 'local:pending',
+          beaconId: 'b1',
+          authorId: viewer.id,
+          author: viewer,
+          body: 'Sending…',
+          createdAt: DateTime.utc(2026, 6, 30, 12),
+        ),
+      ],
+    );
+
+    await tester.longPress(find.byType(RoomMessageTextBody));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.beaconRoomActionReply), findsNothing);
   });
 }
