@@ -199,6 +199,11 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
       GraphQLListType(graphQLString.nonNullable()),
     ),
     field('threadItemId', graphQLString),
+    field('replyToMessageId', graphQLString),
+    field('replyToAuthorId', graphQLString),
+    field('replyToAuthorTitle', graphQLString),
+    field('replyToBodyExcerpt', graphQLString),
+    field('replyToHasAttachments', graphQLBoolean),
   ]);
 
 /// `beacon_room_state` row — one per beacon.

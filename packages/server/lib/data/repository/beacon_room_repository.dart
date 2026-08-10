@@ -13,6 +13,7 @@ import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -158,6 +159,17 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       out[messageId] = jsonEncode(items);
     }
     return out;
+  }
+
+  Future<Set<String>> _messageIdsWithAttachments(List<String> ids) async {
+    final filtered = ids.where((id) => id.isNotEmpty).toSet().toList();
+    if (filtered.isEmpty) {
+      return {};
+    }
+    final rows = await (_db.select(_db.beaconRoomMessageAttachments)
+          ..where((a) => a.messageId.isIn(filtered)))
+        .get();
+    return {for (final row in rows) row.messageId};
   }
 
   /// Room messages with author profile projection + reaction aggregates for V2
@@ -344,6 +356,49 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       }
     }
 
+    final parentIds = {
+      for (final m in msgs)
+        if ((m.replyToMessageId ?? '').isNotEmpty) m.replyToMessageId!,
+    }.toList();
+    final parentById = <String, BeaconRoomMessage>{};
+    if (parentIds.isNotEmpty) {
+      Expression<bool> parentThreadFilter($BeaconRoomMessagesTable t) {
+        final tid = threadItemId;
+        if (tid == null) {
+          return t.threadItemId.isNull();
+        }
+        return t.threadItemId.equals(tid);
+      }
+
+      final parents = await (_db.select(_db.beaconRoomMessages)
+            ..where(
+              (t) =>
+                  t.id.isIn(parentIds) &
+                  t.beaconId.equals(beaconId) &
+                  parentThreadFilter(t),
+            ))
+          .get();
+      for (final parent in parents) {
+        parentById[parent.id] = parent;
+      }
+      final missingParentAuthorIds = parents
+          .map((p) => p.authorId)
+          .toSet()
+          .difference(userById.keys.toSet())
+          .toList();
+      if (missingParentAuthorIds.isNotEmpty) {
+        final parentAuthors = await _db.managers.users
+            .filter((u) => u.id.isIn(missingParentAuthorIds))
+            .get();
+        for (final u in parentAuthors) {
+          userById[u.id] = u;
+        }
+      }
+    }
+    final attachmentParentIds = parentIds.isEmpty
+        ? <String>{}
+        : await _messageIdsWithAttachments(parentIds);
+
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];
@@ -359,6 +414,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       final linkedId = m.linkedItemId;
       final linkedRow = linkedId != null
           ? linkedCoordinationItemById[linkedId]
+          : null;
+      final parent = m.replyToMessageId != null
+          ? parentById[m.replyToMessageId]
           : null;
 
       return <String, Object?>{
@@ -410,6 +468,17 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
         'threadItemId': m.threadItemId,
+        'replyToMessageId': m.replyToMessageId,
+        'replyToAuthorId': parent?.authorId,
+        'replyToAuthorTitle': parent != null
+            ? (userById[parent.authorId]?.displayName ?? '')
+            : null,
+        'replyToBodyExcerpt': parent != null
+            ? roomReplyExcerpt(parent.body)
+            : null,
+        'replyToHasAttachments': parent != null
+            ? attachmentParentIds.contains(parent.id)
+            : null,
       };
     }).toList();
   }

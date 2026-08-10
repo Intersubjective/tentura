@@ -102,5 +102,10 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
         'editedAt': snapshot.editedAt?.toUtc().toIso8601String(),
         'mentions': snapshot.mentions,
         'threadItemId': snapshot.threadItemId,
+        'replyToMessageId': snapshot.replyToMessageId,
+        'replyToAuthorId': snapshot.replyToAuthorId,
+        'replyToAuthorTitle': snapshot.replyToAuthorTitle,
+        'replyToBodyExcerpt': snapshot.replyToBodyExcerpt,
+        'replyToHasAttachments': snapshot.replyToHasAttachments,
       };
 }
