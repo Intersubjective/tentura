@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
@@ -100,6 +101,11 @@ void main() {
     Map<String, int> reactionCounts = const {},
     Map<String, List<Profile>> reactors = const {},
     List<RoomMessageAttachment> attachments = const [],
+    String? replyToMessageId,
+    String? replyToAuthorId,
+    String? replyToAuthorTitle,
+    String? replyToBodyExcerpt,
+    bool replyToHasAttachments = false,
   }) => RoomMessage(
     id: id,
     beaconId: 'b1',
@@ -110,6 +116,11 @@ void main() {
     reactionCounts: reactionCounts,
     reactors: reactors,
     attachments: attachments,
+    replyToMessageId: replyToMessageId,
+    replyToAuthorId: replyToAuthorId,
+    replyToAuthorTitle: replyToAuthorTitle,
+    replyToBodyExcerpt: replyToBodyExcerpt,
+    replyToHasAttachments: replyToHasAttachments,
   );
 
   group('room message layout goldens', () {
@@ -209,6 +220,150 @@ void main() {
           ],
         ),
         myProfile: me,
+      );
+    });
+
+    testWidgets('reply_quote_mine_light', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_mine_light',
+        message: textMessage(
+          id: 'm-reply-mine',
+          authorId: 'me',
+          author: me,
+          body: 'Sure, tomorrow works',
+          replyToMessageId: 'parent-1',
+          replyToAuthorId: 'other',
+          replyToAuthorTitle: 'Alex River',
+          replyToBodyExcerpt: 'can you bring the ladder tomorrow morning',
+        ),
+        myProfile: me,
+      );
+    });
+
+    testWidgets('reply_quote_other_light', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'reply_quote_other_light',
+        message: textMessage(
+          id: 'm-reply-other',
+          authorId: 'other',
+          author: other,
+          body: 'Reply body text',
+          replyToMessageId: 'parent-2',
+          replyToAuthorId: 'me',
+          replyToAuthorTitle: 'Me',
+          replyToBodyExcerpt: 'Original message excerpt for golden capture',
+        ),
+        myProfile: me,
+      );
+    });
+
+    testWidgets('reply_quote_mine_dark', (tester) async {
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.dark(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: logicalSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: RepaintBoundary(
+                    key: const Key('golden'),
+                    child: SizedBox(
+                      width: logicalSize.width,
+                      child: RoomMessageTile(
+                        message: textMessage(
+                          id: 'm-reply-mine-dark',
+                          authorId: 'me',
+                          author: me,
+                          body: 'Sure, tomorrow works',
+                          replyToMessageId: 'parent-1',
+                          replyToAuthorId: 'other',
+                          replyToAuthorTitle: 'Alex River',
+                          replyToBodyExcerpt:
+                              'can you bring the ladder tomorrow morning',
+                        ),
+                        myProfile: me,
+                        onToggleReaction: (_, _) async {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/room_message_reply_quote_mine_dark.png'),
+      );
+    });
+
+    testWidgets('reply_quote_other_dark', (tester) async {
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.dark(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: logicalSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: RepaintBoundary(
+                    key: const Key('golden'),
+                    child: SizedBox(
+                      width: logicalSize.width,
+                      child: RoomMessageTile(
+                        message: textMessage(
+                          id: 'm-reply-other-dark',
+                          authorId: 'other',
+                          author: other,
+                          body: 'Reply body text',
+                          replyToMessageId: 'parent-2',
+                          replyToAuthorId: 'me',
+                          replyToAuthorTitle: 'Me',
+                          replyToBodyExcerpt:
+                              'Original message excerpt for golden capture',
+                        ),
+                        myProfile: me,
+                        onToggleReaction: (_, _) async {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/room_message_reply_quote_other_dark.png'),
       );
     });
   }, skip: 'Goldens disabled');
@@ -394,6 +549,139 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('mine reply quote hugs right edge without clipping', (
+      tester,
+    ) async {
+      const compactSize = Size(390, 800);
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.binding.setSurfaceSize(compactSize);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: compactSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: ListView(
+                    children: [
+                      RoomMessageTile(
+                        message: textMessage(
+                          id: 'm-reply-mine-layout',
+                          authorId: 'me',
+                          author: me,
+                          body: 'ok',
+                          replyToMessageId: 'parent-layout',
+                          replyToAuthorId: 'other',
+                          replyToAuthorTitle: 'Alex River',
+                          replyToBodyExcerpt:
+                              'abcdefghijklmnopqrstuvwxyz wider second line quote excerpt',
+                        ),
+                        myProfile: me,
+                        onToggleReaction: (_, _) async {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final quote = tester.renderObject<RenderBox>(
+        find.byType(RoomMessageReplyQuote),
+      );
+      expect(quote.size.width, lessThanOrEqualTo(compactSize.width));
+
+      final bubble = find.descendant(
+        of: find.byType(RoomMessageTile),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).border != null,
+        ),
+      );
+      final rect = tester.getRect(bubble);
+      const farGutter = TenturaSpacing.screenH;
+      expect(compactSize.width - rect.right, closeTo(farGutter, 0.5));
+    });
+
+    testWidgets('other reply quote fits compact width without clipping', (
+      tester,
+    ) async {
+      const compactSize = Size(390, 800);
+      final profileCubit = _GoldenProfileCubit();
+      final presenceCubit = _GoldenPresenceCubit();
+
+      await tester.binding.setSurfaceSize(compactSize);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: profileCubit),
+            BlocProvider<PresenceCubit>.value(value: presenceCubit),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: compactSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: ListView(
+                    children: [
+                      RoomMessageTile(
+                        message: textMessage(
+                          id: 'm-reply-other-layout',
+                          authorId: 'other',
+                          author: other,
+                          body: 'Reply body',
+                          replyToMessageId: 'parent-layout-2',
+                          replyToAuthorId: 'me',
+                          replyToAuthorTitle: 'Me',
+                          replyToBodyExcerpt:
+                              'Long quote excerpt that must ellipsize instead of overflowing',
+                        ),
+                        myProfile: me,
+                        onToggleReaction: (_, _) async {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final quote = tester.renderObject<RenderBox>(
+        find.byType(RoomMessageReplyQuote),
+      );
+      expect(quote.size.width, lessThanOrEqualTo(compactSize.width));
     });
   });
 }

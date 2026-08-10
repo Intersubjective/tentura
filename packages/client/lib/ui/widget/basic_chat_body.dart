@@ -384,6 +384,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
     // Initial viewport (first unread / bottom) owns the first scroll; only
     // auto-follow after that so we don't fight unread targeting.
     if (!_viewportScrollDone) return;
+    if (pending != null) return;
     final oldLen = oldWidget.messages.length;
     final newLen = widget.messages.length;
     if (newLen <= oldLen || newLen == 0) return;

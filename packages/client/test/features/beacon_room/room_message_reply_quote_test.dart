@@ -118,6 +118,67 @@ Future<void> _tapAndSettle(WidgetTester tester, Offset point) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('attachment-only parent shows attachment excerpt in quote', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _harness(
+        RoomMessageTile(
+          message: RoomMessage(
+            id: 'reply-att',
+            beaconId: 'b1',
+            authorId: 'viewer',
+            author: const Profile(id: 'viewer', displayName: 'Me'),
+            body: 'Reply to attachment-only parent',
+            createdAt: _createdAt,
+            replyToMessageId: 'parent-att',
+            replyToAuthorId: 'anna',
+            replyToAuthorTitle: 'Anna',
+            replyToHasAttachments: true,
+          ),
+          myProfile: const Profile(id: 'viewer', displayName: 'Me'),
+          onToggleReaction: (_, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.beaconRoomReplyAttachmentExcerpt), findsOneWidget);
+    expect(find.text('Anna'), findsOneWidget);
+  });
+
+  testWidgets('quote excerpt uses two lines before ellipsis', (tester) async {
+    final longExcerpt =
+        'Line one is shorter. '
+        'Line two is intentionally much wider than line one so the second '
+        'line dominates width and must participate in layout.';
+    await tester.pumpWidget(
+      _harness(
+        RoomMessageTile(
+          message: _replyMessage(
+            body: 'ok',
+            replyToBodyExcerpt: longExcerpt,
+          ),
+          myProfile: const Profile(id: 'viewer', displayName: 'Me'),
+          onToggleReaction: (_, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final excerptFinder = find.descendant(
+      of: find.byType(RoomMessageReplyQuote),
+      matching: find.byWidgetPredicate(
+        (w) => w is Text && (w.data?.contains('Line one') ?? false),
+      ),
+    );
+    expect(excerptFinder, findsOneWidget);
+    final excerptText = tester.widget<Text>(excerptFinder);
+    expect(excerptText.maxLines, 2);
+    expect(excerptText.overflow, TextOverflow.ellipsis);
+  });
+
   testWidgets('renders author and excerpt for a normal reply quote', (
     tester,
   ) async {
