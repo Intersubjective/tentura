@@ -638,4 +638,247 @@ void main() {
       expect(dividerY, lessThan(firstUnreadTileY));
     },
   );
+
+  testWidgets('scrollToMessage sets highlight notifier on the target id', (
+    tester,
+  ) async {
+    final base = DateTime.utc(2026, 6, 30, 12);
+    final messages = [
+      RoomMessage(
+        id: 'm1',
+        beaconId: 'b1',
+        authorId: 'peer-1',
+        author: const Profile(id: 'peer-1', displayName: 'Peer 1'),
+        body: 'First message',
+        createdAt: base,
+      ),
+      RoomMessage(
+        id: 'm2',
+        beaconId: 'b1',
+        authorId: 'peer-2',
+        author: const Profile(id: 'peer-2', displayName: 'Peer 2'),
+        body: 'Second message',
+        createdAt: base.add(const Duration(minutes: 1)),
+      ),
+    ];
+
+    final bodyKey = GlobalKey<BasicChatBodyState>();
+
+    await tester.binding.setSurfaceSize(const Size(390, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(390, 720)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BasicChatBody(
+                  key: bodyKey,
+                  messages: messages,
+                  myProfile: const Profile(id: 'me', displayName: 'Me'),
+                  participants: const [],
+                  isLoading: false,
+                  imageRepository: ImageRepository(),
+                  clipboardImageRepository: ClipboardImageRepository(),
+                  enableComposerAttachments: false,
+                  enableParticipantMentions: false,
+                  onSend: (_, _) async => true,
+                  onToggleReaction: (_, _) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final state = bodyKey.currentState!;
+    state.onRoomDataChangedForViewport(
+      firstUnreadMessageId: null,
+      messagesEmpty: false,
+    );
+    await tester.pumpAndSettle();
+
+    final ok = await state.scrollToMessage('m1');
+    expect(ok, isTrue);
+    expect(state.highlightedMessageId.value, 'm1');
+
+    await state.scrollToMessage('m2');
+    expect(state.highlightedMessageId.value, 'm2');
+
+    await tester.pump(const Duration(milliseconds: 1300));
+    expect(state.highlightedMessageId.value, isNull);
+  });
+
+  testWidgets('successive scroll highlights keep the newer id until timer ends',
+      (tester) async {
+    final base = DateTime.utc(2026, 6, 30, 12);
+    final messages = List.generate(
+      2,
+      (i) => RoomMessage(
+        id: 'm$i',
+        beaconId: 'b1',
+        authorId: 'peer-$i',
+        author: Profile(id: 'peer-$i', displayName: 'Peer $i'),
+        body: 'Message $i',
+        createdAt: base.add(Duration(minutes: i)),
+      ),
+    );
+
+    final bodyKey = GlobalKey<BasicChatBodyState>();
+
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(390, 720)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BasicChatBody(
+                  key: bodyKey,
+                  messages: messages,
+                  myProfile: const Profile(id: 'me', displayName: 'Me'),
+                  participants: const [],
+                  isLoading: false,
+                  imageRepository: ImageRepository(),
+                  clipboardImageRepository: ClipboardImageRepository(),
+                  enableComposerAttachments: false,
+                  enableParticipantMentions: false,
+                  onSend: (_, _) async => true,
+                  onToggleReaction: (_, _) async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final state = bodyKey.currentState!;
+    state.onRoomDataChangedForViewport(
+      firstUnreadMessageId: null,
+      messagesEmpty: false,
+    );
+    await tester.pumpAndSettle();
+
+    await state.scrollToMessage('m0');
+    await tester.pump(const Duration(milliseconds: 600));
+    await state.scrollToMessage('m1');
+    expect(state.highlightedMessageId.value, 'm1');
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(state.highlightedMessageId.value, 'm1');
+
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(state.highlightedMessageId.value, isNull);
+  });
+
+  testWidgets('prunes message keys but retains pending jump target', (
+    tester,
+  ) async {
+    final base = DateTime.utc(2026, 6, 30, 12);
+    final kept = RoomMessage(
+      id: 'kept',
+      beaconId: 'b1',
+      authorId: 'peer',
+      author: const Profile(id: 'peer', displayName: 'Peer'),
+      body: 'Kept row',
+      createdAt: base,
+    );
+    final pending = RoomMessage(
+      id: 'pending-jump',
+      beaconId: 'b1',
+      authorId: 'old',
+      author: const Profile(id: 'old', displayName: 'Old'),
+      body: 'Pending jump row',
+      createdAt: base.subtract(const Duration(hours: 1)),
+    );
+    final removed = RoomMessage(
+      id: 'removed',
+      beaconId: 'b1',
+      authorId: 'gone',
+      author: const Profile(id: 'gone', displayName: 'Gone'),
+      body: 'Removed row',
+      createdAt: base.subtract(const Duration(hours: 2)),
+    );
+
+    final bodyKey = GlobalKey<BasicChatBodyState>();
+
+    Future<void> pumpMessages(List<RoomMessage> messages, {String? pendingId}) {
+      return tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+            BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 720)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BasicChatBody(
+                    key: bodyKey,
+                    messages: messages,
+                    pendingJumpMessageId: pendingId,
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
+                    enableComposerAttachments: false,
+                    enableParticipantMentions: false,
+                    onSend: (_, _) async => true,
+                    onToggleReaction: (_, _) async {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpMessages([pending, removed, kept]);
+    await tester.pumpAndSettle();
+
+    final state = bodyKey.currentState!;
+    expect(
+      await state.scrollToMessage('pending-jump'),
+      isTrue,
+    );
+
+    await pumpMessages([kept], pendingId: 'pending-jump');
+    await tester.pump();
+
+    expect(state.debugHasMessageKey('removed'), isFalse);
+    expect(state.debugHasMessageKey('pending-jump'), isTrue);
+    expect(
+      await state.scrollToMessage('removed'),
+      isFalse,
+    );
+  });
 }

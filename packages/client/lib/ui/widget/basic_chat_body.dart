@@ -64,6 +64,7 @@ class BasicChatBody extends StatefulWidget {
     this.onOpenCoordinationItem,
     this.hideCoordinationLifecycleFooter = false,
     this.pinnedFactForMessage,
+    this.pendingJumpMessageId,
     super.key,
   });
 
@@ -144,6 +145,10 @@ class BasicChatBody extends StatefulWidget {
   /// Active pinned fact originating from a message, if any.
   final BeaconFactCard? Function(RoomMessage message)? pinnedFactForMessage;
 
+  /// When non-null, suppresses pruning of that message's [GlobalKey] during
+  /// an in-flight jump scroll.
+  final String? pendingJumpMessageId;
+
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
 }
@@ -151,9 +156,21 @@ class BasicChatBody extends StatefulWidget {
 class BasicChatBodyState extends State<BasicChatBody> {
   final Map<String, GlobalKey> _messageKeys = {};
   final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<String?> _highlightedMessageId =
+      ValueNotifier<String?>(null);
+
+  static const _highlightDuration = Duration(milliseconds: 1200);
+
+  Timer? _highlightTimer;
 
   bool _showJumpFab = false;
   bool _viewportScrollDone = false;
+
+  /// Exposed for tests verifying per-tile highlight without list [setState].
+  ValueListenable<String?> get highlightedMessageId => _highlightedMessageId;
+
+  @visibleForTesting
+  bool debugHasMessageKey(String id) => _messageKeys.containsKey(id);
 
   GlobalKey _messageKey(String id) =>
       _messageKeys.putIfAbsent(id, GlobalKey.new);
@@ -190,6 +207,13 @@ class BasicChatBodyState extends State<BasicChatBody> {
           curve: Curves.easeOut,
           alignment: 0.12,
         );
+        _highlightTimer?.cancel();
+        _highlightedMessageId.value = id;
+        _highlightTimer = Timer(_highlightDuration, () {
+          if (_highlightedMessageId.value == id) {
+            _highlightedMessageId.value = null;
+          }
+        });
         return true;
       }
 
@@ -350,6 +374,13 @@ class BasicChatBodyState extends State<BasicChatBody> {
   @override
   void didUpdateWidget(covariant BasicChatBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    final currentIds = widget.messages.map((m) => m.id).toSet();
+    final pending = widget.pendingJumpMessageId;
+    _messageKeys.removeWhere(
+      (id, _) => !currentIds.contains(id) && id != pending,
+    );
+
     // Initial viewport (first unread / bottom) owns the first scroll; only
     // auto-follow after that so we don't fight unread targeting.
     if (!_viewportScrollDone) return;
@@ -370,6 +401,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
   @override
   void dispose() {
+    _highlightTimer?.cancel();
+    _highlightedMessageId.dispose();
     _scrollController
       ..removeListener(_onMessageListScroll)
       ..dispose();
@@ -462,6 +495,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                     roomPinnedFactIsVisible(pinnedFact)
                                 ? pinnedFact
                                 : null,
+                            highlightedMessageId: _highlightedMessageId,
                           );
 
                           return Column(

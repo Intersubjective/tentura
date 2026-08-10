@@ -277,6 +277,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           ),
                         )),
             pinnedFactForMessage: state.factForRoomMessage,
+            pendingJumpMessageId: state.scrollToMessageId,
           );
         },
       ),
