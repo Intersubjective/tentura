@@ -174,19 +174,17 @@ ON CONFLICT DO NOTHING
 
   void expectReplyFields(
     Map<String, Object?> row, {
-    String? replyToMessageId,
-    String? replyToAuthorId,
-    String? replyToAuthorTitle,
-    String? replyToBodyExcerpt,
-    bool? replyToHasAttachments,
+    required Object? replyToMessageId,
+    required Object? replyToAuthorId,
+    required Object? replyToAuthorTitle,
+    required Object? replyToBodyExcerpt,
+    required Object? replyToHasAttachments,
   }) {
     expect(row['replyToMessageId'], replyToMessageId);
     expect(row['replyToAuthorId'], replyToAuthorId);
     expect(row['replyToAuthorTitle'], replyToAuthorTitle);
     expect(row['replyToBodyExcerpt'], replyToBodyExcerpt);
-    if (replyToHasAttachments != null) {
-      expect(row['replyToHasAttachments'], replyToHasAttachments);
-    }
+    expect(row['replyToHasAttachments'], replyToHasAttachments);
   }
 
   test(
