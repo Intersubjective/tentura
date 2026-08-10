@@ -316,12 +316,44 @@ class InvalidationService implements RealtimeSyncPort {
     } else if (editedAtRaw != null) {
       return null;
     }
-  final mentions = mentionsRaw is List
+    final mentions = mentionsRaw is List
         ? mentionsRaw.whereType<String>().toList(growable: false)
         : const <String>[];
     final threadItemId = threadItemIdRaw is String && threadItemIdRaw.isNotEmpty
         ? threadItemIdRaw
         : null;
+    final replyToMessageIdRaw = message['replyToMessageId'];
+    final replyToAuthorIdRaw = message['replyToAuthorId'];
+    final replyToAuthorTitleRaw = message['replyToAuthorTitle'];
+    final replyToBodyExcerptRaw = message['replyToBodyExcerpt'];
+    final replyToHasAttachmentsRaw = message['replyToHasAttachments'];
+    String? replyToMessageId;
+    if (replyToMessageIdRaw != null) {
+      if (replyToMessageIdRaw is! String) return null;
+      replyToMessageId =
+          replyToMessageIdRaw.isNotEmpty ? replyToMessageIdRaw : null;
+    }
+    String? replyToAuthorId;
+    if (replyToAuthorIdRaw != null) {
+      if (replyToAuthorIdRaw is! String) return null;
+      replyToAuthorId =
+          replyToAuthorIdRaw.isNotEmpty ? replyToAuthorIdRaw : null;
+    }
+    String? replyToAuthorTitle;
+    if (replyToAuthorTitleRaw != null) {
+      if (replyToAuthorTitleRaw is! String) return null;
+      replyToAuthorTitle = replyToAuthorTitleRaw;
+    }
+    String? replyToBodyExcerpt;
+    if (replyToBodyExcerptRaw != null) {
+      if (replyToBodyExcerptRaw is! String) return null;
+      replyToBodyExcerpt = replyToBodyExcerptRaw;
+    }
+    var replyToHasAttachments = false;
+    if (replyToHasAttachmentsRaw != null) {
+      if (replyToHasAttachmentsRaw is! bool) return null;
+      replyToHasAttachments = replyToHasAttachmentsRaw;
+    }
     return RealtimeRoomMessagePaint(
       id: id,
       beaconId: beaconId,
@@ -331,6 +363,11 @@ class InvalidationService implements RealtimeSyncPort {
       editedAt: editedAt,
       mentions: mentions,
       threadItemId: threadItemId,
+      replyToMessageId: replyToMessageId,
+      replyToAuthorId: replyToAuthorId,
+      replyToAuthorTitle: replyToAuthorTitle,
+      replyToBodyExcerpt: replyToBodyExcerpt,
+      replyToHasAttachments: replyToHasAttachments,
     );
   }
 

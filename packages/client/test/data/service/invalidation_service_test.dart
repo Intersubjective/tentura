@@ -690,6 +690,128 @@ void main() {
       });
     });
 
+    test('parses room_message paint with reply snapshot fields', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Breply',
+            'event': 'insert',
+            'message_id': 'Rreply',
+            'message': {
+              'id': 'Rreply',
+              'beaconId': 'Breply',
+              'authorId': 'Ureply',
+              'body': 'thanks',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'replyToMessageId': 'Rparent',
+              'replyToAuthorId': 'Uparent',
+              'replyToAuthorTitle': 'Anna',
+              'replyToBodyExcerpt': 'bring the ladder',
+              'replyToHasAttachments': true,
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        final paint = received.single.roomMessagePaint;
+        expect(paint?.replyToMessageId, 'Rparent');
+        expect(paint?.replyToAuthorId, 'Uparent');
+        expect(paint?.replyToAuthorTitle, 'Anna');
+        expect(paint?.replyToBodyExcerpt, 'bring the ladder');
+        expect(paint?.replyToHasAttachments, isTrue);
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('old server paint without reply keys parses as non-reply', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bold',
+            'event': 'insert',
+            'message_id': 'Rold',
+            'message': {
+              'id': 'Rold',
+              'beaconId': 'Bold',
+              'authorId': 'Uold',
+              'body': 'legacy',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'futureUnknownField': 'ignored',
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        final paint = received.single.roomMessagePaint;
+        expect(paint?.replyToMessageId, isNull);
+        expect(paint?.replyToHasAttachments, isFalse);
+        unawaited(sub.cancel());
+      });
+    });
+
+    test('wrong-typed reply field rejects the whole paint', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        wsMessages.add({
+          'type': 'subscription',
+          'path': 'entity_changes',
+          'payload': {
+            'entity': 'room_message',
+            'id': 'Bbad',
+            'event': 'insert',
+            'message_id': 'Rbad',
+            'message': {
+              'id': 'Rbad',
+              'beaconId': 'Bbad',
+              'authorId': 'Ubad',
+              'body': 'oops',
+              'createdAt': '2026-07-27T17:00:00.000Z',
+              'replyToMessageId': 42,
+            },
+          },
+        });
+        async.elapse(const Duration(milliseconds: 20));
+
+        expect(received.single.roomMessagePaint, isNull);
+        unawaited(sub.cancel());
+      });
+    });
+
     test('malformed paint is ignored but thin invalidation remains', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();

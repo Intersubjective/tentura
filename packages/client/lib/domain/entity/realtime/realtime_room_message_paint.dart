@@ -14,5 +14,10 @@ abstract class RealtimeRoomMessagePaint with _$RealtimeRoomMessagePaint {
     DateTime? editedAt,
     @Default(<String>[]) List<String> mentions,
     String? threadItemId,
+    String? replyToMessageId,
+    String? replyToAuthorId,
+    String? replyToAuthorTitle,
+    String? replyToBodyExcerpt,
+    @Default(false) bool replyToHasAttachments,
   }) = _RealtimeRoomMessagePaint;
 }

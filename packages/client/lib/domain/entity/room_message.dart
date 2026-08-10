@@ -46,9 +46,21 @@ abstract class RoomMessage with _$RoomMessage {
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
     String? threadItemId,
+    String? replyToMessageId,
+    String? replyToAuthorId,
+    String? replyToAuthorTitle,
+    String? replyToBodyExcerpt,
+    @Default(false) bool replyToHasAttachments,
   }) = _RoomMessage;
 
   const RoomMessage._();
+
+  bool get isReply => (replyToMessageId ?? '').trim().isNotEmpty;
+
+  /// Known to be a reply, but the parent snapshot did not resolve — deleted
+  /// between list and read, or rejected by the server scope filter.
+  bool get replyTargetUnavailable =>
+      isReply && (replyToAuthorId ?? '').trim().isEmpty;
 
   /// Server `beacon_room_message.system_payload`: promote pin line contains
   /// `{"sourceMessageId":"<id>"}` pointing at the in-place linked message.

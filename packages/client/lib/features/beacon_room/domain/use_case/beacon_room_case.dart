@@ -208,6 +208,11 @@ final class BeaconRoomCase extends UseCaseBase {
       author: author,
       mentions: paint.mentions,
       threadItemId: paint.threadItemId,
+      replyToMessageId: paint.replyToMessageId,
+      replyToAuthorId: paint.replyToAuthorId,
+      replyToAuthorTitle: paint.replyToAuthorTitle,
+      replyToBodyExcerpt: paint.replyToBodyExcerpt,
+      replyToHasAttachments: paint.replyToHasAttachments,
     );
   }
 

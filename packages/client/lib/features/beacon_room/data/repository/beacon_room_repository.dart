@@ -208,6 +208,11 @@ class BeaconRoomRepository {
             attachmentsJson: m.attachmentsJson,
             mentions: m.mentions?.toList() ?? const [],
             threadItemId: m.threadItemId,
+            replyToMessageId: m.replyToMessageId,
+            replyToAuthorId: m.replyToAuthorId,
+            replyToAuthorTitle: m.replyToAuthorTitle,
+            replyToBodyExcerpt: m.replyToBodyExcerpt,
+            replyToHasAttachments: m.replyToHasAttachments,
           ),
         )
         .toList();
@@ -271,6 +276,11 @@ class BeaconRoomRepository {
     attachmentsJson: m.attachmentsJson,
     mentions: m.mentions?.toList() ?? const [],
     threadItemId: m.threadItemId,
+    replyToMessageId: m.replyToMessageId,
+    replyToAuthorId: m.replyToAuthorId,
+    replyToAuthorTitle: m.replyToAuthorTitle,
+    replyToBodyExcerpt: m.replyToBodyExcerpt,
+    replyToHasAttachments: m.replyToHasAttachments,
   );
 
   static RoomMessage _toRoomMessageFields({
@@ -310,6 +320,11 @@ class BeaconRoomRepository {
     required String attachmentsJson,
     required List<String> mentions,
     required String? threadItemId,
+    String? replyToMessageId,
+    String? replyToAuthorId,
+    String? replyToAuthorTitle,
+    String? replyToBodyExcerpt,
+    bool? replyToHasAttachments,
   }) {
     final reactionCounts = <String, int>{};
     final rawJson = reactionsJson;
@@ -377,6 +392,11 @@ class BeaconRoomRepository {
       attachments: parseRoomMessageAttachmentsJson(attachmentsJson),
       mentions: mentions,
       threadItemId: threadItemId,
+      replyToMessageId: replyToMessageId,
+      replyToAuthorId: replyToAuthorId,
+      replyToAuthorTitle: replyToAuthorTitle,
+      replyToBodyExcerpt: replyToBodyExcerpt,
+      replyToHasAttachments: replyToHasAttachments ?? false,
     );
   }
 
