@@ -45,6 +45,8 @@ class BasicChatBody extends StatefulWidget {
     this.unreadCount = 0,
     this.onMarkSeenNearBottom,
     this.onMessageActions,
+    this.onReply,
+    this.onJumpToReply,
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
@@ -88,6 +90,10 @@ class BasicChatBody extends StatefulWidget {
   final Future<void> Function()? onMarkSeenNearBottom;
 
   final void Function(RoomMessage message)? onMessageActions;
+
+  final void Function(RoomMessage message)? onReply;
+
+  final void Function(String messageId)? onJumpToReply;
 
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
@@ -425,6 +431,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             nextMessage: next,
                             breakGroupAbove: dateChanged || showUnreadBand,
                             onActionsPressed: widget.onMessageActions,
+                            onReplyPressed: widget.onReply,
+                            onJumpToReply: widget.onJumpToReply,
                             onToggleReaction: toggle ?? ((_, _) async {}),
                             onOpenFileAttachment: widget.onOpenFileAttachment,
                             participants: widget.participants,

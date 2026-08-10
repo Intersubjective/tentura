@@ -4182,6 +4182,9 @@
   "@beaconRoomReactionSendersSheetSemantic": {
     "description": "Accessibility label for the who-reacted bottom sheet"
   },
+  "beaconRoomActionReply": "Reply",
+  "beaconRoomReplyAttachmentExcerpt": "Attachment",
+  "beaconRoomReplyOriginalUnavailable": "Original message is unavailable",
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",
   "beaconRoomActionMarkBlocker": "Mark blocker…",

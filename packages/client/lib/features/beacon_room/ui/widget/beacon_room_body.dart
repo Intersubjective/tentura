@@ -235,6 +235,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               msg,
               isThreadMode: isThreadMode,
             ),
+            onReply: cubit.startReplyTo,
+            onJumpToReply: (id) => unawaited(cubit.jumpToRepliedMessage(id)),
             onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
               messageId: messageId,
               emoji: emoji,
@@ -426,6 +428,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           ],
                         ),
                       ),
+                      if (RoomCubit.canReplyTo(message))
+                        ListTile(
+                          leading: const Icon(Icons.reply_outlined),
+                          title: Text(l10n.beaconRoomActionReply),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            cubit.startReplyTo(message);
+                          },
+                        ),
                       // ── Coordination: turn a plain message into an item … ──
                       if (showTurnInto) ...[
                         Padding(

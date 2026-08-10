@@ -72,6 +72,8 @@ class RoomMessageTile extends StatelessWidget {
     required this.myProfile,
     required this.onToggleReaction,
     this.onActionsPressed,
+    this.onReplyPressed,
+    this.onJumpToReply,
     this.onOpenFileAttachment,
     this.onVotePoll,
     this.previousMessage,
@@ -99,6 +101,12 @@ class RoomMessageTile extends StatelessWidget {
 
   /// Open actions for this message (tap / secondary tap on bubble).
   final void Function(RoomMessage message)? onActionsPressed;
+
+  /// Starts composer reply mode for this message.
+  final void Function(RoomMessage message)? onReplyPressed;
+
+  /// Scrolls to the original message referenced by a reply quote.
+  final void Function(String messageId)? onJumpToReply;
 
   /// Jumps the chat viewport to the source message (promote pin bar).
   final void Function(String messageId)? onScrollToPromoteSource;
@@ -850,6 +858,9 @@ class RoomMessageTile extends StatelessWidget {
     final actionsCb = onActionsPressed == null
         ? null
         : () => onActionsPressed!(message);
+    final replyCb = onReplyPressed != null && RoomCubit.canReplyTo(message)
+        ? () => onReplyPressed!(message)
+        : null;
     // Plain tap opens the linked item/thread (touch only, see
     // [_MessageBubbleInteraction]); quick-react toggles the heart emoji.
     final openItemCb = linkedCoord == null
@@ -1122,6 +1133,7 @@ class RoomMessageTile extends StatelessWidget {
             child: _MessageBubbleInteraction(
               isMine: isMine,
               onActions: actionsCb,
+              onReply: replyCb,
               onOpenItem: openItemCb,
               onQuickReact: quickReactCb,
               child: bubbleChild,
@@ -1936,6 +1948,7 @@ class _MessageBubbleInteraction extends StatefulWidget {
     required this.child,
     required this.isMine,
     required this.onActions,
+    this.onReply,
     required this.onOpenItem,
     required this.onQuickReact,
   });
@@ -1943,6 +1956,7 @@ class _MessageBubbleInteraction extends StatefulWidget {
   final Widget child;
   final bool isMine;
   final VoidCallback? onActions;
+  final VoidCallback? onReply;
   final VoidCallback? onOpenItem;
   final VoidCallback? onQuickReact;
 
@@ -2009,6 +2023,7 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   @override
   Widget build(BuildContext context) {
     final onActions = widget.onActions;
+    final onReply = widget.onReply;
     final onOpenItem = widget.onOpenItem;
     final onQuickReact = widget.onQuickReact;
 
@@ -2065,7 +2080,7 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       );
     }
 
-    if (onActions == null && onQuickReact == null) {
+    if (onActions == null && onQuickReact == null && onReply == null) {
       return content;
     }
 
@@ -2090,6 +2105,7 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
               left: widget.isMine ? 4 : null,
               right: widget.isMine ? null : 4,
               child: _HoverActionToolbar(
+                onReply: onReply,
                 onReact: onQuickReact,
                 onMore: onActions,
               ),
@@ -2102,8 +2118,13 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
 
 /// Desktop hover toolbar: quick-react + more, mirroring Slack/Discord chat rows.
 class _HoverActionToolbar extends StatelessWidget {
-  const _HoverActionToolbar({required this.onReact, required this.onMore});
+  const _HoverActionToolbar({
+    this.onReply,
+    required this.onReact,
+    required this.onMore,
+  });
 
+  final VoidCallback? onReply;
   final VoidCallback? onReact;
   final VoidCallback? onMore;
 
@@ -2118,6 +2139,14 @@ class _HoverActionToolbar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (onReply != null)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              tooltip: l10n.beaconRoomActionReply,
+              icon: const Icon(Icons.reply_outlined),
+              onPressed: onReply,
+            ),
           if (onReact != null)
             IconButton(
               visualDensity: VisualDensity.compact,

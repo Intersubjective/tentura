@@ -796,7 +796,7 @@ class RoomCubit extends Cubit<RoomState> {
       replyToMessageId: target?.id,
       replyToAuthorId: target?.authorId,
       replyToAuthorTitle: target?.author.shownName,
-      replyToBodyExcerpt: target != null ? roomReplyExcerpt(target.body) : null,
+      replyToBodyExcerpt: target != null ? roomReplyExcerpt(target) : null,
       replyToHasAttachments: target?.attachments.isNotEmpty ?? false,
     );
     _pendingLocalMessageIds.add(localId);
