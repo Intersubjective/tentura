@@ -38,6 +38,8 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_reply_quote.dart';
+import 'package:tentura/features/beacon_room/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -84,6 +86,7 @@ class RoomMessageTile extends StatelessWidget {
     this.onOpenCoordinationItem,
     this.hideCoordinationLifecycleFooter = false,
     this.pinnedFact,
+    this.highlightedMessageId,
     super.key,
   });
 
@@ -119,6 +122,9 @@ class RoomMessageTile extends StatelessWidget {
 
   /// Active pinned fact card for this message, when present.
   final BeaconFactCard? pinnedFact;
+
+  /// When set, only this tile's bubble rebuilds for jump-target highlight.
+  final ValueListenable<String?>? highlightedMessageId;
 
   /// Member-only file attachments (download + share flow).
   final Future<void> Function(RoomMessageAttachment attachment)?
@@ -736,6 +742,31 @@ class RoomMessageTile extends StatelessWidget {
             ),
           ),
         ],
+        if (message.isReply) ...[
+          Padding(
+            padding: EdgeInsets.only(
+              top: (showNameHeader || pinnedFact != null) ? tt.rowGap / 2 : 0,
+            ),
+            child: Builder(
+              builder: (context) {
+                final fields = roomReplyQuoteFields(
+                  replyToAuthorTitle: message.replyToAuthorTitle,
+                  replyToBodyExcerpt: message.replyToBodyExcerpt,
+                  replyToHasAttachments: message.replyToHasAttachments,
+                  replyTargetUnavailable: message.replyTargetUnavailable,
+                  l10n: l10n,
+                );
+                return RoomMessageReplyQuote(
+                  authorName: fields.authorName,
+                  excerpt: fields.excerpt,
+                  unavailable: fields.unavailable,
+                  replyToMessageId: message.replyToMessageId,
+                  onJumpToReply: onJumpToReply,
+                );
+              },
+            ),
+          ),
+        ],
         if (semantic.isNotEmpty &&
             !showCoordinationFooter &&
             message.semanticMarker != BeaconRoomSemanticMarker.done)
@@ -876,11 +907,61 @@ class RoomMessageTile extends StatelessWidget {
     final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
     final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
 
-    final bubbleChild = bubbleShell(
-      background: bubbleBg,
-      borderColor: bubbleBorder,
-      child: coreColumn(
-        showNameHeader: !isMine && isGroupStart,
+    final replyQuoteFields = message.isReply
+        ? roomReplyQuoteFields(
+            replyToAuthorTitle: message.replyToAuthorTitle,
+            replyToBodyExcerpt: message.replyToBodyExcerpt,
+            replyToHasAttachments: message.replyToHasAttachments,
+            replyTargetUnavailable: message.replyTargetUnavailable,
+            l10n: l10n,
+          )
+        : null;
+    final replyQuoteNameStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    final replyQuoteExcerptStyle = theme.textTheme.bodySmall?.copyWith(
+      color: message.replyTargetUnavailable ? scheme.onSurfaceVariant : null,
+    );
+
+    Widget wrapBubbleHighlight(Widget bubble) {
+      final listenable = highlightedMessageId;
+      if (listenable == null) {
+        return bubble;
+      }
+      return ValueListenableBuilder<String?>(
+        valueListenable: listenable,
+        builder: (context, highlightedId, child) {
+          final active = highlightedId == message.id;
+          final disableAnimations = MediaQuery.disableAnimationsOf(context);
+          return AnimatedContainer(
+            duration: disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            decoration: active
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(tt.cardRadius),
+                    border: Border.all(
+                      color: tt.attentionHighlight,
+                      width: 2,
+                    ),
+                    color: tt.attentionHighlight.withValues(alpha: 0.08),
+                  )
+                : null,
+            child: child,
+          );
+        },
+        child: bubble,
+      );
+    }
+
+    final bubbleChild = wrapBubbleHighlight(
+      bubbleShell(
+        background: bubbleBg,
+        borderColor: bubbleBorder,
+        child: coreColumn(
+          showNameHeader: !isMine && isGroupStart,
+        ),
       ),
     );
 
@@ -954,6 +1035,23 @@ class RoomMessageTile extends StatelessWidget {
             )..layout();
             if (namePainter.width > tightTextWidth) {
               tightTextWidth = namePainter.width;
+            }
+          }
+
+          if (replyQuoteFields != null) {
+            final quoteWidth = measureRoomReplyQuoteMinContentWidth(
+              authorName: replyQuoteFields.authorName,
+              excerpt: replyQuoteFields.excerpt,
+              availableWidth: contentCap,
+              nameStyle: replyQuoteNameStyle,
+              excerptStyle: replyQuoteExcerptStyle,
+              textDirection: textDirection,
+              textScaler: textScaler,
+              tt: tt,
+              showAuthor: !replyQuoteFields.unavailable,
+            );
+            if (quoteWidth > tightTextWidth) {
+              tightTextWidth = quoteWidth;
             }
           }
 
