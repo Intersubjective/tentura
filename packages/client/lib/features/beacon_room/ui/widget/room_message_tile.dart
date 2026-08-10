@@ -39,7 +39,6 @@ import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_reply_quote.dart';
-import 'package:tentura/features/beacon_room/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
