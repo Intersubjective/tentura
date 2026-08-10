@@ -172,6 +172,14 @@ class BasicChatBodyState extends State<BasicChatBody> {
   @visibleForTesting
   bool debugHasMessageKey(String id) => _messageKeys.containsKey(id);
 
+  final GlobalKey<_BeaconRoomComposerState> _composerKey =
+      GlobalKey<_BeaconRoomComposerState>();
+
+  /// Last [KeyEventResult] returned for Escape while the composer is focused.
+  @visibleForTesting
+  KeyEventResult? get debugLastComposerEscapeKeyResult =>
+      _composerKey.currentState?.debugLastComposerEscapeKeyResult;
+
   GlobalKey _messageKey(String id) =>
       _messageKeys.putIfAbsent(id, GlobalKey.new);
 
@@ -563,6 +571,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
               Expanded(
                 child: canCompose
                     ? BeaconRoomComposer(
+                        key: _composerKey,
                         imageRepository: repo,
                         clipboardImageRepository: clipboardRepo,
                         isSending: initialLoadInProgress,
@@ -623,6 +632,14 @@ class BeaconRoomComposer extends StatefulWidget {
 }
 
 class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
+  @visibleForTesting
+  KeyEventResult? debugLastComposerEscapeKeyResult;
+
+  KeyEventResult _recordComposerEscapeResult(KeyEventResult result) {
+    debugLastComposerEscapeKeyResult = result;
+    return result;
+  }
+
   final _text = MentionTextController();
   late final FocusNode _composerFocus;
   final _composerAnchorKey = GlobalKey();
@@ -651,13 +668,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (key == LogicalKeyboardKey.escape) {
       if (_overlaySuggestions.isNotEmpty) {
         _removeOverlay();
-        return KeyEventResult.handled;
+        return _recordComposerEscapeResult(KeyEventResult.handled);
       }
       if (widget.replyTarget != null && widget.onCancelReply != null) {
         widget.onCancelReply!();
-        return KeyEventResult.handled;
+        return _recordComposerEscapeResult(KeyEventResult.handled);
       }
-      return KeyEventResult.ignored;
+      return _recordComposerEscapeResult(KeyEventResult.ignored);
     }
     if (_overlaySuggestions.isEmpty) {
       return KeyEventResult.ignored;

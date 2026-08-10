@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -14,11 +15,13 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
+import 'support/room_body_harness.dart';
+
 class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-    profile: Profile(id: 'me', displayName: 'Me'),
-  );
+        profile: Profile(id: 'me', displayName: 'Me'),
+      );
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
@@ -41,9 +44,22 @@ ScrollableState _listScrollableState(WidgetTester tester) {
   return tester.state<ScrollableState>(listScrollable);
 }
 
+Future<void> _pumpUntilViewportDone(
+  WidgetTester tester,
+  GlobalKey<BasicChatBodyState> bodyKey, {
+  int maxFrames = 40,
+}) async {
+  for (var i = 0; i < maxFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (bodyKey.currentState?.isViewportScrollDone == true) {
+      return;
+    }
+  }
+}
+
 void main() {
   testWidgets(
-    'pinned jump target survives auto-follow when bottom-scrolled',
+    'pinned jump scrolls to historical target instead of max extent',
     (tester) async {
       final base = DateTime.utc(2026, 6, 30, 12);
       final recentMessages = List<RoomMessage>.generate(
@@ -114,19 +130,17 @@ void main() {
 
       await pumpBody(messages: recentMessages);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
       final state = bodyKey.currentState!;
-      final bottomPosition = _listScrollableState(tester).position;
-      bottomPosition.jumpTo(bottomPosition.maxScrollExtent);
-      await tester.pump();
-
       state.onRoomDataChangedForViewport(
         firstUnreadMessageId: null,
         messagesEmpty: false,
       );
+      await _pumpUntilViewportDone(tester, bodyKey);
+
+      final bottomPosition = _listScrollableState(tester).position;
+      bottomPosition.jumpTo(bottomPosition.maxScrollExtent);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
       expect(state.isViewportScrollDone, isTrue);
       final pinnedBottom = _listScrollableState(tester).position;
@@ -135,17 +149,41 @@ void main() {
         greaterThan(pinnedBottom.maxScrollExtent - 80),
       );
 
+      // Historical row and pending jump id arrive in one widget update.
       await pumpBody(
         messages: [historical, ...recentMessages],
         pendingJumpMessageId: 'historical-parent',
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
       final afterInsert = _listScrollableState(tester).position;
       expect(
         afterInsert.pixels,
         lessThan(afterInsert.maxScrollExtent - 40),
+        reason:
+            'auto-follow must not jump to the new bottom while pendingJumpMessageId is set',
+      );
+
+      final scrolled = await pumpWhileScrolling(
+        tester,
+        state.scrollToMessage('historical-parent'),
+      );
+      expect(scrolled, isTrue);
+
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      final finalPosition = _listScrollableState(tester).position;
+      expect(
+        finalPosition.pixels,
+        lessThan(finalPosition.maxScrollExtent - 40),
+        reason: 'viewport must land on the historical target, not the bottom',
+      );
+      expect(
+        finalPosition.pixels,
+        lessThan(pinnedBottom.pixels - 40),
+        reason: 'scroll must move up from the bottom-scrolled position',
       );
       expect(tester.takeException(), isNull);
     },

@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,17 +19,39 @@ import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/basic_chat_body.dart';
 
-class MockRoomCubit extends Mock implements RoomCubit {
-  MockRoomCubit(this._state);
+/// Test [RoomCubit] that can emit state and record scroll-target clears.
+class RoomBodyHarnessCubit extends Mock implements RoomCubit {
+  RoomBodyHarnessCubit(RoomState initial)
+      : _state = initial,
+        _streamController = StreamController<RoomState>.broadcast() {
+    _streamController.add(_state);
+  }
 
-  final RoomState _state;
+  RoomState _state;
+  final StreamController<RoomState> _streamController;
+
+  var clearScrollTargetInvocations = 0;
 
   @override
   RoomState get state => _state;
 
   @override
-  Stream<RoomState> get stream => Stream<RoomState>.value(_state);
+  Stream<RoomState> get stream => _streamController.stream;
+
+  void emitHarnessState(RoomState next) {
+    _state = next;
+    _streamController.add(next);
+  }
+
+  @override
+  void clearScrollToMessageTarget() {
+    clearScrollTargetInvocations++;
+    if (_state.scrollToMessageId != null) {
+      emitHarnessState(_state.copyWith(scrollToMessageId: null));
+    }
+  }
 
   @override
   Future<void> markReadToBottom() async {}
@@ -52,8 +78,72 @@ class RoomBodyHarnessPresenceCubit extends Mock implements PresenceCubit {
       Stream<Map<String, UserPresenceStatus>>.value(state);
 }
 
+ScrollableState listScrollableState(WidgetTester tester) {
+  final listScrollable = find.descendant(
+    of: find.byType(ListView),
+    matching: find.byType(Scrollable),
+  );
+  return tester.state<ScrollableState>(listScrollable);
+}
+
+Future<void> pumpUntilViewportDone(
+  WidgetTester tester, {
+  int maxFrames = 40,
+}) async {
+  final chatFinder = find.byType(BasicChatBody);
+  final chatState = tester.state<BasicChatBodyState>(chatFinder);
+  if (!chatState.isViewportScrollDone) {
+    chatState.onRoomDataChangedForViewport(
+      firstUnreadMessageId: null,
+      messagesEmpty: false,
+    );
+  }
+  for (var i = 0; i < maxFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (tester.state<BasicChatBodyState>(chatFinder).isViewportScrollDone) {
+      return;
+    }
+  }
+}
+
+Future<void> pumpUntilScrollTargetCleared(
+  WidgetTester tester,
+  RoomBodyHarnessCubit cubit, {
+  int maxFrames = 80,
+}) async {
+  for (var i = 0; i < maxFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (cubit.clearScrollTargetInvocations > 0) {
+      return;
+    }
+  }
+}
+
+/// Pumps frames while [scroll] runs so [Scrollable.ensureVisible] can finish.
+Future<bool> pumpWhileScrolling(
+  WidgetTester tester,
+  Future<bool> scroll, {
+  int maxFrames = 120,
+}) async {
+  var done = false;
+  late bool result;
+  unawaited(
+    scroll.then((value) {
+      done = true;
+      result = value;
+    }),
+  );
+  for (var i = 0; i < maxFrames && !done; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  if (!done) {
+    return false;
+  }
+  return result;
+}
+
 /// Pumps [BeaconRoomBody] under a seeded [RoomCubit] with required GetIt deps.
-Future<void> pumpBeaconRoomBody(
+Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   WidgetTester tester, {
   required RoomState roomState,
   Profile viewer = const Profile(id: 'me', displayName: 'Me'),
@@ -66,7 +156,7 @@ Future<void> pumpBeaconRoomBody(
 
   final profileCubit = RoomBodyHarnessProfileCubit(viewer);
   final presenceCubit = RoomBodyHarnessPresenceCubit();
-  final roomCubit = MockRoomCubit(roomState);
+  final roomCubit = RoomBodyHarnessCubit(roomState);
 
   getIt.registerSingleton<ProfileCubit>(profileCubit);
   getIt.registerSingleton<ImageRepository>(ImageRepository());
@@ -101,6 +191,7 @@ Future<void> pumpBeaconRoomBody(
     ),
   );
   await tester.pump();
+  return roomCubit;
 }
 
 RoomState roomBodyState({

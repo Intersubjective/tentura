@@ -282,56 +282,48 @@ void main() {
     expect(escapeShortcutFired, isFalse);
   });
 
-  testWidgets('idle Escape is ignored and reaches parent shortcut handler', (
-    tester,
-  ) async {
-    var escapeShortcutFired = false;
+  testWidgets('idle Escape with focused composer is ignored and reaches parent',
+      (tester) async {
+    var parentEscapeEvents = 0;
+    final bodyKey = GlobalKey<BasicChatBodyState>();
 
     await tester.binding.setSurfaceSize(const Size(400, 720));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      Shortcuts(
-        shortcuts: const {
-          SingleActivator(LogicalKeyboardKey.escape): ActivateIntent(),
-        },
-        child: Actions(
-          actions: {
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                escapeShortcutFired = true;
-                return null;
-              },
-            ),
-          },
-          child: Focus(
-            autofocus: true,
-            child: MultiBlocProvider(
-              providers: [
-                BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
-                BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
-              ],
-              child: MaterialApp(
-                locale: const Locale('en'),
-                theme: TenturaTheme.light(),
-                localizationsDelegates: L10n.localizationsDelegates,
-                supportedLocales: L10n.supportedLocales,
-                home: MediaQuery(
-                  data: const MediaQueryData(size: Size(400, 720)),
-                  child: TenturaResponsiveScope(
-                    child: Scaffold(
-                      body: BasicChatBody(
-                        messages: const [],
-                        myProfile: const Profile(id: 'me', displayName: 'Me'),
-                        participants: const [],
-                        isLoading: false,
-                        imageRepository: ImageRepository(),
-                        clipboardImageRepository: ClipboardImageRepository(),
-                        enableComposerAttachments: false,
-                        onSend: (_, _) async => true,
-                        onToggleReaction: (_, _) async {},
-                      ),
-                    ),
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(400, 720)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.escape) {
+                      parentEscapeEvents++;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: BasicChatBody(
+                    key: bodyKey,
+                    messages: const [],
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
+                    enableComposerAttachments: false,
+                    onSend: (_, _) async => true,
+                    onToggleReaction: (_, _) async {},
                   ),
                 ),
               ),
@@ -342,11 +334,17 @@ void main() {
     );
     await tester.pump();
 
-    // Composer is not focused — Escape should bubble to the parent shortcut.
+    await focusComposerField(tester);
+    expect(FocusManager.instance.primaryFocus?.hasFocus, isTrue);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
 
-    expect(escapeShortcutFired, isTrue);
+    expect(
+      bodyKey.currentState?.debugLastComposerEscapeKeyResult,
+      KeyEventResult.ignored,
+    );
+    expect(parentEscapeEvents, 1);
   });
 
   testWidgets('Escape dismisses mention overlay before cancelling reply', (
