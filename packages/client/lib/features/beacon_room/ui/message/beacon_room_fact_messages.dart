@@ -69,6 +69,17 @@ final class BeaconFactVisibilitySuccessMessage extends LocalizableMessage {
   String get toRu => 'Видимость факта обновлена.';
 }
 
+/// Shown when a reply quote jump cannot load the original message (P6 wires l10n).
+final class RoomReplyTargetUnavailableMessage extends LocalizableMessage {
+  const RoomReplyTargetUnavailableMessage();
+
+  @override
+  String get toEn => 'Original message could not be loaded';
+
+  @override
+  String get toRu => 'Не удалось загрузить исходное сообщение';
+}
+
 final class BeaconFactCopiedMessage extends LocalizableMessage {
   const BeaconFactCopiedMessage();
 

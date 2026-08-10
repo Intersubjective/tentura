@@ -28,6 +28,12 @@ abstract class RoomState extends StateBase with _$RoomState {
     CoordinationItem? openCoordinationBlocker,
     CoordinationItem? currentCoordinationPlan,
     @Default(StateIsSuccess()) StateStatus status,
+
+    /// Message the composer is replying to; null when reply mode is off.
+    RoomMessage? replyTarget,
+
+    /// Off-window jump targets merged into [messages]; excluded from unread.
+    @Default(<String>[]) List<String> pinnedJumpMessageIds,
     String? scrollToMessageId,
     String? pendingFactsFocusFactId,
 
@@ -44,6 +50,9 @@ abstract class RoomState extends StateBase with _$RoomState {
   bool get hasError => loadError != null;
 
   bool _isUnreadForViewer(RoomMessage m, DateTime? anchor) {
+    if (pinnedJumpMessageIds.contains(m.id)) {
+      return false;
+    }
     if (myUserId.isNotEmpty && m.authorId == myUserId) {
       return false;
     }
