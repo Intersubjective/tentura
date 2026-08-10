@@ -43,6 +43,11 @@ query RoomMessageList(
     reactorsJson
     attachmentsJson
     mentions
+    replyToAuthorId
+    replyToAuthorTitle
+    replyToBodyExcerpt
+    replyToHasAttachments
+    replyToMessageId
     threadItemId
   }
 }

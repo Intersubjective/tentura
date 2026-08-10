@@ -7182,6 +7182,11 @@ type v2_RoomMessageRow {
   pollDataJson: String
   reactionsJson: String
   reactorsJson: String
+  replyToAuthorId: String
+  replyToAuthorTitle: String
+  replyToBodyExcerpt: String
+  replyToHasAttachments: Boolean
+  replyToMessageId: String
   semanticMarker: Int
   systemPayloadJson: String
   threadItemId: String
