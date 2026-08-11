@@ -52,7 +52,7 @@ may update before their implementation unit is accepted.
 |---|---|---|
 | P0 | **passed** | Direct-DOM hidden-tab title probe accepted (rev 3). Gate: `(1) Tentura` while hidden ≤3 s via CDP-only observation. P1 unblocked. |
 | P1-P2 | **passed** | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commits `5cd451e0` (P1), `a1f954c9` (P2). |
-| P3 | pending | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
+| P3 | **passed** | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | pending | Scope/controller, title seam, app wiring, cap parity, tests, and focused commit(s). |
 | P6-P7 | pending | Full client/browser/lint verification, version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
 | Final review | pending | Fresh read-only Cursor review, manager verification, cross-unit acceptance, and closeout. |
@@ -549,3 +549,74 @@ outside design system; no widget/UI layout. **Met.**
 
 **Tests not run in this unit:** full `flutter test`, Chrome platform adapter
 suite, browser build, version bump, terminology check (no user-facing copy).
+
+### 2026-08-11 — P3 recovery checkpoint (interrupted prior worker)
+
+**Worker:** fresh non-fast Composer 2.5 recovery unit for P3 only. P4–P7,
+`app.dart`, `pubspec`, `web/index.html`, backend/Caddy, and all protected
+worktree paths remain out of scope.
+
+**Prior worker failure:** launched VM and Chrome Flutter test commands in
+parallel; interrupted before acceptance. Partial orchestrator-owned files exist
+at the five P3 source/test paths listed in the manifest; treat as unaccepted
+starting material — inspect, retain sound parts, rewrite as needed.
+
+**Command discipline (locked):** run exactly **one** Flutter/Dart
+build/test/analyze/pub command at a time. Never background, `&`, or overlap.
+Required order: (1) VM stub test; (2) Chrome web test; (3)
+`./scripts/check-custom-lints.sh packages/client`; (4) `git diff --check`.
+
+**Scope:** only the five P3 paths plus this journal. Accepted dependencies:
+P0 `3a3d1983`; P1 `5cd451e0`; P2 `a1f954c9`; journal `dd4411db`.
+
+### 2026-08-11 — P3 recovery worker: complete (**PASS**)
+
+**Worker:** fresh non-fast Composer 2.5 recovery unit for P3 only.
+
+**Partial-code recovery:** retained the conditional-export barrel, stub contract,
+and overall web adapter structure from the interrupted worker; fixed
+`package:web` / `dart:js_interop_unsafe` compile errors (`JSObject.has` takes
+`String`; cast `Node` → `Element` for `remove()`; cast `JSBoolean` for QA
+override); repaired the Chrome test harness (valid in-DOM favicon fixture,
+painted-vs-pristine href assertions, removed invalid `JSPromise.resolve` mock).
+
+**Implementation (plan §P3):**
+
+- `tab_attention_indicator.dart` — conditional export mirroring
+  `lifecycle_handler.dart`.
+- `tab_attention_indicator_stub.dart` — `isBackground => false`, empty stream,
+  no-op `apply`/`dispose`.
+- `tab_attention_indicator_web.dart` — synchronous `document.title` via
+  `composeTabTitle`; `visibilitychange` + `pageshow` (`persisted`) background
+  stream and bfcache re-apply; idempotent `#tentura-tab-attention-favicon` with
+  `data-static-href`; canvas dot paint with P2 style colors and title-only
+  fallback; installed-PWA-only Badging with `has('setAppBadge')`, try/catch, and
+  swallowed promise rejection; QA seam (`__tenturaTabAttention`,
+  `__tenturaForceTabBackground`) gated by `kQaIntegrationTestMode`.
+
+**Command discipline:** exactly one Flutter/Dart command at a time — no parallel
+build/test/analyze invocations.
+
+**Verification (sequential):**
+
+```bash
+cd packages/client && flutter test test/app/platform/tab_attention_indicator_stub_test.dart
+# 5 passed
+
+cd packages/client && flutter test --platform chrome \
+  --dart-define=QA_INTEGRATION_TEST_MODE=true \
+  test/app/platform/tab_attention_indicator_web_test.dart
+# 7 passed
+
+./scripts/check-custom-lints.sh packages/client  # exit 0
+git diff --check                                 # exit 0
+```
+
+**Manifest status:**
+
+- **P0, P1-P2:** passed (unchanged).
+- **P3:** **passed** — focused commit in this unit.
+- **P4-P7, Final review:** pending downstream of P3.
+
+**Tests not run in this unit:** full `flutter test`, P4 scope tests, browser
+integration, version bump, manual browser/PWA matrix.
