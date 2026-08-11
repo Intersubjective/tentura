@@ -51,7 +51,7 @@ may update before their implementation unit is accepted.
 | Unit | Status | Scope and acceptance boundary |
 |---|---|---|
 | P0 | **passed** | Direct-DOM hidden-tab title probe accepted (rev 3). Gate: `(1) Tentura` while hidden ≤3 s via CDP-only observation. P1 unblocked. |
-| P1-P2 | pending | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commit. |
+| P1-P2 | **passed** | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commits `5cd451e0` (P1), `a1f954c9` (P2). |
 | P3 | pending | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | pending | Scope/controller, title seam, app wiring, cap parity, tests, and focused commit(s). |
 | P6-P7 | pending | Full client/browser/lint verification, version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
@@ -480,3 +480,72 @@ harness exit 0 on authoritative run.
 **Remaining work:** P1–P7 per rev-3 plan; P6 must repeat hidden-tab CDP check
 against the implemented controller (including >5 min hide); manual browser/PWA
 matrix still unstarted.
+
+### 2026-08-11 — P1-P2 worker checkpoint
+
+**Worker:** fresh non-fast Composer 2.5 unit; P3 onward explicitly out of scope.
+
+**Scope:** P1 pure display policy (`tab_attention_display.dart` + VM tests);
+P2 design-system tab-indicator style (`tentura_tab_indicator.dart`, barrel
+export, VM tests). Journal update only among docs paths.
+
+**Protected worktree:** all pre-existing dirty/untracked paths left untouched,
+including `scripts/run_client_integration_web_local.sh` and the untracked plan
+source.
+
+### 2026-08-11 — P1-P2 worker: complete (**PASS**)
+
+**P1 commit:** `5cd451e0` — `feat(client): add pure tab attention display policy (P1)`
+
+- `packages/client/lib/ui/model/tab_attention_display.dart` — `TabAttentionDisplay`
+  record typedef, `tabAttentionNone`, `kTabAttentionDisplayCap = 99`,
+  `resolveTabAttentionDisplay` (background-only gate), `composeTabTitle`.
+- `packages/client/test/ui/model/tab_attention_display_test.dart` — gate when
+  visible, `N == 0`, verbatim `1..99`, cap at `99+` with raw `count`, cap
+  boundary at 99, `100` vs `101` record trap, `composeTabTitle` for none /
+  `(3) Tentura` / `(99+) Tentura`.
+
+**P1 verification:**
+
+```bash
+cd packages/client && flutter test test/ui/model/tab_attention_display_test.dart  # 11 passed
+./scripts/check-custom-lints.sh packages/client                                   # exit 0
+git diff --check                                                                  # exit 0
+```
+
+**P1 acceptance criteria (plan §P1):** pure Dart, no Flutter import; raw `count`
+plus title-safe `label`; background-only gate; cap 99; `tabAttentionNone`;
+`composeTabTitle`; VM tests for every stated boundary. **Met.**
+
+**P2 commit:** `a1f954c9` — `feat(client): add tab indicator design-system style (P2)`
+
+- `packages/client/lib/design_system/tentura_tab_indicator.dart` —
+  immutable `TenturaTabIndicatorStyle` (`dot`/`halo` Colors), `TenturaTabIndicator.resolve`
+  via `TenturaTheme.light()/dark()` memoized per `Brightness`.
+- `packages/client/lib/design_system/tentura_design_system.dart` — barrel export only.
+- `packages/client/test/design_system/tentura_tab_indicator_test.dart` — light/dark
+  color mapping, memoization, barrel import.
+
+**P2 verification:**
+
+```bash
+cd packages/client && flutter test test/design_system/tentura_tab_indicator_test.dart  # 4 passed
+./scripts/check-custom-lints.sh packages/client                                        # exit 0
+git diff --check                                                                       # exit 0
+```
+
+**P2 acceptance criteria (plan §P2):** immutable style with dot/halo Colors;
+resolved through `TenturaTheme.light()/dark()`; memoized by effective
+`Brightness`; exported from official design-system barrel; no raw color literals
+outside design system; no widget/UI layout. **Met.**
+
+**Manifest status:**
+
+- **P0:** passed (`3a3d1983` journal commit; direct-DOM revalidation).
+- **P1-P2:** **passed** — focused commits `5cd451e0`, `a1f954c9`.
+- **P3:** **pending** — unblocked; platform adapter (conditional export, web
+  DOM/favicon/badge, stub, QA seam) not started.
+- **P4-P7, Final review:** pending downstream of P3.
+
+**Tests not run in this unit:** full `flutter test`, Chrome platform adapter
+suite, browser build, version bump, terminology check (no user-facing copy).
