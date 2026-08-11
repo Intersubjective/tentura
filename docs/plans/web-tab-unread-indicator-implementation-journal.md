@@ -54,9 +54,9 @@ may update before their implementation unit is accepted.
 | P1-P2 | **passed** | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commits `5cd451e0` (P1), `a1f954c9` (P2). |
 | P3 | **passed** | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | **passed** | Scope/controller, channel-apply remediation, app wiring, cap parity; commits `879bac77`, `ed4e8f13`. |
-| P6 | **partial** | Unsafe WebDriver title-sampler / one-off API helpers removed; real no-focus CDP short and >5-minute hidden-title gates passed (244 ms / 901 ms). Safe forced-background adapter QA regression landed; serial full-client/browser/custom-lint suite still manager work. |
-| P7 | pending | Version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
-| Final review | pending | Fresh read-only Cursor review, manager verification, cross-unit acceptance, and closeout. |
+| P6 | **passed** | Raw `document.title` rests only on genuine-hidden no-focus CDP (244 ms / 901 ms after 5m30s). Forced-background IT is apply/clear QA-seam regression only. Manager serial suite + Chrome adapter + lints + IT evidence accepted; Chrome adapter stays developer/pre-merge-only (no CI edit). |
+| P7 | pending | Version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting — blocked by protected unrelated dirty `pubspec` / `index.html` / `docs/README.md`. |
+| Final review | **partial closeout** | Fresh read-only Cursor review after `24f1f3f6`/`bcfe5bb2`: P0–P6 accepted under the disposition below; whole-plan not complete (P7 + manual matrix). |
 
 ## Required verification and constraints
 
@@ -1159,3 +1159,50 @@ here (already recorded).
 - P7 release hygiene (blocked by unrelated dirty `pubspec` / `index.html` /
   `docs/README.md`).
 - Manual browser/PWA matrix; final review closeout.
+
+### 2026-08-11 — Final review (fresh Cursor Auto; post-`24f1f3f6`)
+
+**Verdict:** **ACCEPT** P0–P6 under the disposition below. Whole-plan closeout
+**REJECTED** (P7 blocked; manual browser/PWA matrix pending). No blocker/major
+defect found in reviewed commits `3a3d1983`…`bcfe5bb2`.
+
+**Source-scope result:** Feature commits touch only plan-owned client sources,
+tests, and this journal. Protected dirty/untracked user paths remain untouched
+(`pubspec.yaml` 5.10.1, `web/index.html` cache-buster, `docs/README.md`, plan
+source, room_message_tile, scripts, mocks, etc.). Forced-background commit
+`24f1f3f6` is test+journal only; `e2e_test_helpers.dart` unchanged.
+
+**P6 forced-background test inspection
+(`integration_test/tab_attention_forced_background_test.dart`):**
+
+- No runtime `document.title` read/assertion (comment-only disclaimer).
+- No `Function`/eval, prototype/`defineProperty` interception, or title sampler.
+- No helper/API additions; no protected-path edits.
+- Asserts only `__tenturaTabAttention` apply/clear under
+  `__tenturaForceTabBackground` + synthetic `visibilitychange`.
+
+**Evidence inspected (not re-run):**
+
+| Claim | Evidence |
+|---|---|
+| Genuine-hidden raw title (short) | CDP Gate A: `(1) Tentura` in **244 ms**, `visibilityState=hidden`, 0 violations (`/tmp/p6-web-tab-cdp-evidence-1786470495/results.json`) |
+| Genuine-hidden raw title (long) | 5m30s dwell then Gate B: `(2) Tentura` in **901 ms**, strict increment, 0 violations |
+| Full VM suite | `/tmp/web-tab-client-full-test-20260811.log` — All tests passed; `EXIT_STATUS=0` |
+| Chrome adapter | Manager record + prior journal: 8 passed (`--platform chrome`); **not** in CI |
+| Custom lints | `/tmp/web-tab-client-custom-lints-20260811.log` — **106 ≤ 111** baseline; OK |
+| Forced-background IT | `/tmp/p6-manager-forced-background-it.log` — PASS |
+
+**P6 status:** **passed**, with this hard split:
+- Raw DOM `document.title` while genuinely hidden → **solely** no-focus CDP.
+- Forced-background IT → controller/adapter QA-seam apply/clear regression
+  **only**; not durable raw-title proof.
+
+**CI decision:** Chrome adapter suite is **explicitly developer/pre-merge-only**
+for this plan (plan §P6 CI note). Pipeline not edited; omission is intentional,
+not silent.
+
+**P7 / matrix:** **Blocked / pending.** Unrelated dirty `pubspec.yaml` /
+`web/index.html` / `docs/README.md` prevent scoped next-minor + cache-buster +
+docs-row hygiene. Manual browser/PWA matrix not executed.
+
+**No production remediation.** Journal-only checkpoint.
