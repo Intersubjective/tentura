@@ -25,6 +25,7 @@ export 'tentura_capability_colors.dart';
 export 'tentura_colors.dart';
 export 'tentura_radii.dart';
 export 'tentura_spacing.dart';
+export 'tentura_tab_indicator.dart';
 export 'tentura_text.dart';
 export 'tentura_theme.dart';
 export 'tentura_tokens.dart';
