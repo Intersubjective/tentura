@@ -54,7 +54,7 @@ may update before their implementation unit is accepted.
 | P1-P2 | **passed** | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commits `5cd451e0` (P1), `a1f954c9` (P2). |
 | P3 | **passed** | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | **passed** | Scope/controller, channel-apply remediation, app wiring, cap parity; commits `879bac77`, `ed4e8f13`. |
-| P6 | **partial** | Unsafe WebDriver title-sampler / one-off API helpers removed; real no-focus CDP short and >5-minute hidden-title gates passed (244 ms / 901 ms). Safe forced-background regression and serial full-client checks remain. |
+| P6 | **partial** | Unsafe WebDriver title-sampler / one-off API helpers removed; real no-focus CDP short and >5-minute hidden-title gates passed (244 ms / 901 ms). Safe forced-background adapter QA regression landed; serial full-client/browser/custom-lint suite still manager work. |
 | P7 | pending | Version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
 | Final review | pending | Fresh read-only Cursor review, manager verification, cross-unit acceptance, and closeout. |
 
@@ -1101,3 +1101,61 @@ rejected); full client suite; browser integration suite; P7 release hygiene.
 **P7:** **Blocked** by protected unrelated dirty `pubspec.yaml` / `web/index.html` (and `docs/README.md`); plan next-minor + cache-buster + docs row not landed in feature commits.
 
 **Dirty/untracked user paths:** ignored; not judged as this plan.
+
+### 2026-08-11 — P6 safe forced-background regression (fresh Auto)
+
+**Worker:** fresh Auto; do-not-resume. Sole Cursor worker for this bounded
+remediation. One Flutter/Dart command at a time; no process kill; no P7 or
+protected user paths.
+
+**Goal:** ship one browser integration regression that sets
+`window.__tenturaForceTabBackground` before app init (QA mode), drives a real
+unread receipt via existing fixture/workflow helpers, and asserts only
+`window.__tenturaTabAttention` count/label/title plus clear-on-visible via the
+QA force clear + synthetic `visibilitychange`. No `document.title` read/
+assert/intercept, no Function/eval, no helper/API additions, no edits to
+`e2e_test_helpers.dart` or production sources.
+
+**Ownership:** new
+`packages/client/integration_test/tab_attention_forced_background_test.dart`
+(if robust) + this journal. Direct-CDP raw-title proof remains out of scope
+here (already recorded).
+
+### 2026-08-11 — P6 safe forced-background regression: **complete (unit)**
+
+**STATUS:** complete for this bounded remediation (P6 overall remains
+**partial** until manager serial full-client checks).
+
+**COMMITS:** (this unit’s focused commit of test + journal only)
+
+**TESTS:**
+
+| Command | Result |
+|---|---|
+| `./scripts/run_client_integration_web_local.sh integration_test/tab_attention_forced_background_test.dart` | **PASS** (1 file; log `/tmp/p6-forced-background-it2.log`) |
+| First attempt (`/tmp/p6-forced-background-it.log`) | FAIL — waited for QA state without re-emitting background after receipt; inbox dump was author left on `/home/inbox` with Updates badge `2` |
+| `git diff --check` (owned paths) | clean after EOF blank-line fix |
+
+**FILES:**
+
+- `packages/client/integration_test/tab_attention_forced_background_test.dart` (new)
+- `docs/plans/web-tab-unread-indicator-implementation-journal.md` (this entry)
+
+**FINDINGS:**
+
+- Set `__tenturaForceTabBackground` before `launchApp`; drive real unread via
+  `createAndForwardRequest` + `offerHelpFromInbox` + author re-login.
+- Wait for `AttentionCase.unreadTotal >= 1`, then re-assert force + synthetic
+  `visibilitychange` so the controller re-reads `isBackground` (cached from
+  construction / visibility events). Assert only `__tenturaTabAttention`
+  count/label/title; clear by force=false + `visibilitychange`.
+- No `document.title` read/assert/intercept, no Function/eval, no helper/API
+  edits, no production changes. Forced-background is **not** durable raw DOM
+  title proof — CDP evidence remains authoritative for that.
+
+**REMAINING:**
+
+- P6 manager serial full-client / Chrome adapter / custom-lint verification.
+- P7 release hygiene (blocked by unrelated dirty `pubspec` / `index.html` /
+  `docs/README.md`).
+- Manual browser/PWA matrix; final review closeout.
