@@ -209,9 +209,14 @@ class RoomMessageTile extends StatelessWidget {
     }
 
     final anchor = m.linkedItemLinkedMessageId?.trim();
-    if (anchor == null || anchor.isEmpty) return false;
-    if (m.id == anchor) return false;
-    return ev != CoordinationItemEventKind.created.value;
+    if (anchor != null && anchor.isNotEmpty) {
+      if (m.id == anchor) return false;
+      return ev != CoordinationItemEventKind.created.value;
+    }
+
+    if (ev == CoordinationItemEventKind.created.value) return false;
+    if (m.semanticMarker != null) return false;
+    return m.body.trim().isEmpty;
   }
 
   /// Scroll target for [isCoordinationTimelineNotifyRow] (payload or enrichment).
@@ -494,47 +499,24 @@ class RoomMessageTile extends StatelessWidget {
 
     if (isCoordinationTimelineNotifyRow(message)) {
       final srcId = coordinationTimelineAnchorMessageId(message);
-      if (srcId != null) {
-        final kind =
-            message.linkedCoordinationItem?.kind ??
-            (message.linkedItemKind != null
-                ? CoordinationItemKind.fromInt(message.linkedItemKind!)
-                : null);
-        final eventKind = message.linkedEventKind != null
-            ? CoordinationItemEventKind.fromInt(message.linkedEventKind!)
-            : null;
-        if (eventKind == null) {
-          return const SizedBox.shrink();
-        }
-        final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
-        final isCreated = eventKind == CoordinationItemEventKind.created;
-        // A plan update promoted from a message announces the new plan text
-        // (like a standalone plan update), not a generic "promoted" line — the
-        // pinned plan/status updates alongside it.
-        if (kind == CoordinationItemKind.plan && isCreated) {
-          final title = (message.linkedItemTitle ?? '').trim();
-          return _CenteredTimelineBar(
-            padding: EdgeInsets.fromLTRB(
-              tt.screenHPadding,
-              topPad / 2,
-              tt.screenHPadding,
-              bottomPad / 2,
-            ),
-            icon: Icons.edit_note_outlined,
-            lineBuilder: (authorName) => title.isEmpty
-                ? l10n.beaconRoomPlanAnnounceLine(authorName)
-                : l10n.beaconRoomPlanAnnounceLineWithTitle(authorName, title),
-            author: message.author,
-            onTap: onScrollToPromoteSource == null
-                ? null
-                : () => onScrollToPromoteSource!(srcId),
-            accessibilityHint: l10n.beaconRoomPromotePinAccessibilityHint,
-            borderRadius: tt.cardRadius,
-            scheme: scheme,
-            theme: theme,
-            iconTextGap: tt.iconTextGap,
-          );
-        }
+      final kind =
+          message.linkedCoordinationItem?.kind ??
+          (message.linkedItemKind != null
+              ? CoordinationItemKind.fromInt(message.linkedItemKind!)
+              : null);
+      final eventKind = message.linkedEventKind != null
+          ? CoordinationItemEventKind.fromInt(message.linkedEventKind!)
+          : null;
+      if (eventKind == null) {
+        return const SizedBox.shrink();
+      }
+      final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
+      final isCreated = eventKind == CoordinationItemEventKind.created;
+      // A plan update promoted from a message announces the new plan text
+      // (like a standalone plan update), not a generic "promoted" line — the
+      // pinned plan/status updates alongside it.
+      if (kind == CoordinationItemKind.plan && isCreated) {
+        final title = (message.linkedItemTitle ?? '').trim();
         return _CenteredTimelineBar(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
@@ -542,46 +524,71 @@ class RoomMessageTile extends StatelessWidget {
             tt.screenHPadding,
             bottomPad / 2,
           ),
-          icon: Icons.push_pin_outlined,
-          leadingAvatarTrail: kind != null && kind.hasDirectedParties
-              ? coordinationDirectedAvatarTrailForItem(
-                  creatorId: message.linkedItemCreatorId ?? '',
-                  targetPersonId:
-                      message.linkedItemTargetPersonId ??
-                      message.linkedCoordinationItem?.targetPersonId,
-                  participants: participants,
-                )
-              : null,
-          leading: isCreated
-              ? null
-              : coordinationCompoundEventIcon(
-                  kind: kind ?? CoordinationItemKind.ask,
-                  eventKind: eventKind,
-                  isPlanStep: isPlanStep,
-                  tt: tt,
-                  size: 14,
-                ),
-          lineBuilder: (authorName) {
-            if (eventKind == CoordinationItemEventKind.created) {
-              return l10n.beaconRoomPromotePinLine(
-                authorName,
-                _coordKindShortLabel(l10n, kind),
-              );
-            }
-            if (kind == null) return authorName;
-            return '$authorName · ${coordinationEventTimelineLabel(l10n, kind, eventKind, isPlanStep: isPlanStep)}';
-          },
+          icon: Icons.edit_note_outlined,
+          lineBuilder: (authorName) => title.isEmpty
+              ? l10n.beaconRoomPlanAnnounceLine(authorName)
+              : l10n.beaconRoomPlanAnnounceLineWithTitle(authorName, title),
           author: message.author,
-          onTap: onScrollToPromoteSource == null
+          onTap: srcId == null || onScrollToPromoteSource == null
               ? null
               : () => onScrollToPromoteSource!(srcId),
-          accessibilityHint: l10n.beaconRoomPromotePinAccessibilityHint,
+          accessibilityHint: srcId == null
+              ? null
+              : l10n.beaconRoomPromotePinAccessibilityHint,
           borderRadius: tt.cardRadius,
           scheme: scheme,
           theme: theme,
           iconTextGap: tt.iconTextGap,
         );
       }
+      return _CenteredTimelineBar(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
+        ),
+        icon: Icons.push_pin_outlined,
+        leadingAvatarTrail: kind != null && kind.hasDirectedParties
+            ? coordinationDirectedAvatarTrailForItem(
+                creatorId: message.linkedItemCreatorId ?? '',
+                targetPersonId:
+                    message.linkedItemTargetPersonId ??
+                    message.linkedCoordinationItem?.targetPersonId,
+                participants: participants,
+              )
+            : null,
+        leading: isCreated
+            ? null
+            : coordinationCompoundEventIcon(
+                kind: kind ?? CoordinationItemKind.ask,
+                eventKind: eventKind,
+                isPlanStep: isPlanStep,
+                tt: tt,
+                size: 14,
+              ),
+        lineBuilder: (authorName) {
+          if (eventKind == CoordinationItemEventKind.created) {
+            return l10n.beaconRoomPromotePinLine(
+              authorName,
+              _coordKindShortLabel(l10n, kind),
+            );
+          }
+          if (kind == null) return authorName;
+          return '$authorName · ${coordinationEventTimelineLabel(l10n, kind, eventKind, isPlanStep: isPlanStep)}';
+        },
+        author: message.author,
+        onTap: srcId == null || onScrollToPromoteSource == null
+            ? null
+            : () => onScrollToPromoteSource!(srcId),
+        accessibilityHint: srcId == null
+            ? null
+            : l10n.beaconRoomPromotePinAccessibilityHint,
+        borderRadius: tt.cardRadius,
+        scheme: scheme,
+        theme: theme,
+        iconTextGap: tt.iconTextGap,
+      );
     }
 
     if (isPlanAnnounceBar(message)) {

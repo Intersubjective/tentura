@@ -15,12 +15,13 @@ RoomMessage _msg({
   String? linkedItemCreatorId,
   String? linkedItemTargetPersonId,
   int? semanticMarker,
+  String body = 'hello',
 }) =>
     RoomMessage(
       id: id,
       beaconId: 'b1',
       authorId: 'u1',
-      body: 'hello',
+      body: body,
       createdAt: DateTime.utc(2026),
       linkedItemId: linkedItemId,
       linkedEventKind: linkedEventKind,
@@ -94,6 +95,22 @@ void main() {
       expect(
         RoomMessageTile.coordinationTimelineAnchorMessageId(m),
         'source',
+      );
+    });
+
+    test('unanchored plan superseded is timeline row not footer bubble', () {
+      final m = _msg(
+        id: 'notify',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.superseded.value,
+        linkedItemKind: CoordinationItemKind.plan.value,
+        body: '',
+      );
+      expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isTrue);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isFalse);
+      expect(
+        RoomMessageTile.coordinationTimelineAnchorMessageId(m),
+        isNull,
       );
     });
 
