@@ -1089,3 +1089,15 @@ untracked; journal is the only owned write path).
 
 **Out of scope:** forced-background WebDriver regression (raw-title claim
 rejected); full client suite; browser integration suite; P7 release hygiene.
+
+### 2026-08-11 — Final review (fresh Cursor Auto; read-only)
+
+**Verdict:** closeout **REJECTED**. Implementation P0–P5 accepted; **P6 remains partial**; **P7 blocked**; **manual browser/PWA matrix pending**. No blocker/major code remediation found in committed sources `3a3d1983`…`1bf16023`.
+
+**P0–P5:** Direct-DOM policy, adapter (channel flags, bfcache `pageshow`, PWA badge gate, stub safety), scope throttle/clear/dedupe, app wiring, and `Badge.count(maxCount: 99)` match plan; VM/Chrome/stub tests and manager suite/lint evidence adequate. Domain untouched; HEAD client still `5.10.0` / matching cache-buster.
+
+**P6:** Keep **partial** — no-focus CDP short+5m30s increment `(1)→(2)` accepted (manager + `/tmp/p6-web-tab-cdp-evidence-1786470495/results.json`); do **not** invent a full P6 pass from forced-background QA. Forced-background WebDriver raw-title regression correctly absent; Chrome adapter not in CI (undecided omission).
+
+**P7:** **Blocked** by protected unrelated dirty `pubspec.yaml` / `web/index.html` (and `docs/README.md`); plan next-minor + cache-buster + docs row not landed in feature commits.
+
+**Dirty/untracked user paths:** ignored; not judged as this plan.
