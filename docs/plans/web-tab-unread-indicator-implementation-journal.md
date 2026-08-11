@@ -1126,7 +1126,7 @@ here (already recorded).
 **STATUS:** complete for this bounded remediation (P6 overall remains
 **partial** until manager serial full-client checks).
 
-**COMMITS:** (this unit’s focused commit of test + journal only)
+**COMMITS:** `24f1f3f6` — test + journal (this remediation).
 
 **TESTS:**
 
