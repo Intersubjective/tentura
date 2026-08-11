@@ -7,12 +7,17 @@ class TabAttentionIndicator {
 
   bool get isBackground => false;
 
-  /// Writes all web tab chrome synchronously. Never waits for a Flutter frame.
+  /// Writes selected web tab chrome channels synchronously.
+  /// Never waits for a Flutter frame.
   /// [baseTitle] is the current localized title supplied while the app is visible.
+  /// Named channel flags let callers update title, favicon, and badge independently.
   void apply(
     TabAttentionDisplay display,
     TenturaTabIndicatorStyle style, {
     required String baseTitle,
+    bool applyTitle = true,
+    bool applyFavicon = true,
+    bool applyBadge = true,
   }) {}
 
   void dispose() {}

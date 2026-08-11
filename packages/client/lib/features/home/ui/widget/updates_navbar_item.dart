@@ -20,6 +20,7 @@ class UpdatesNavbarItem extends StatelessWidget {
         identifier: 'updates-unread-count-$unread',
         child: Badge.count(
           count: unread,
+          maxCount: 99,
           isLabelVisible: unread > 0,
           child: Icon(
             selected ? Icons.notifications : Icons.notifications_outlined,

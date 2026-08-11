@@ -147,6 +147,58 @@ void main() {
       );
       expect(web.document.title, '(7) Tentura');
     });
+
+    test(
+      'badge-only apply preserves external title; active and pageshow restore',
+      () {
+        indicator.apply(
+          (count: 100, label: '99+'),
+          style,
+          baseTitle: baseTitle,
+        );
+        expect(web.document.title, '(99+) Tentura');
+
+        const externalTitle = 'EXTERNAL-TITLE-PROBE';
+        web.document.title = externalTitle;
+
+        indicator.apply(
+          (count: 101, label: '99+'),
+          style,
+          baseTitle: baseTitle,
+          applyTitle: false,
+          applyFavicon: false,
+          applyBadge: true,
+        );
+        expect(
+          web.document.title,
+          externalTitle,
+          reason: 'badge-only channel must not overwrite document.title',
+        );
+
+        indicator.apply(
+          (count: 3, label: '3'),
+          style,
+          baseTitle: baseTitle,
+        );
+        expect(
+          web.document.title,
+          '(3) Tentura',
+          reason: 'active title channel must still write directly',
+        );
+
+        web.document.title = externalTitle;
+        final pageshow = web.PageTransitionEvent(
+          'pageshow',
+          web.PageTransitionEventInit(persisted: true),
+        );
+        web.window.dispatchEvent(pageshow);
+        expect(
+          web.document.title,
+          '(3) Tentura',
+          reason: 'bfcache pageshow must force title restoration',
+        );
+      },
+    );
   });
 }
 

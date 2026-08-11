@@ -795,3 +795,89 @@ worktree for manager acceptance of the broader P4-P5 unit.
   (`tab_attention_scope.dart`, `app.dart`, `updates_navbar_item.dart`) and
   any focused production commit still pending outside this repair unit.
 - P6-P7, release hygiene, manual browser/PWA matrix, final review.
+
+### 2026-08-11 — manager-remediation checkpoint (P4 channel-apply)
+
+**Worker:** fresh Auto model selection; do-not-resume. One Cursor worker; one
+Flutter/Dart build/test/lint command at a time; no `--model`; no background
+commands.
+
+**Manager rejection:** P4 tracks title/favicon key `(isBackground,label)` and
+badge key `(isBackground,count)`, but `_applyDisplay` still invokes the
+adapter's one unconditional `apply`, and the web adapter always assigns
+`document.title`. Therefore `100 → 101` (same label `99+`) still writes title,
+violating §2.2: unchanged title/favicon channel must do no work while raw OS
+badge updates.
+
+**Remediation scope (bounded):**
+
+1. Platform adapter + controller per-channel applies (named booleans or equally
+   clear API): title/favicon only when title key changes; badge only when badge
+   key changes. Stub/web contracts identical. Initial apply and clear drive all
+   needed channels. `setBaseTitle` while active remains store-only; while clear
+   sync-writes localized clear title. Direct DOM on accepted active title
+   changes; never Flutter rebuild.
+2. Brightness: effective-brightness change while active repaints favicon even
+   if label unchanged; must not needlessly write title or badge.
+   `WidgetsBindingObserver.didChangePlatformBrightness` only. Adapter favicon
+   dedupe must not suppress that repaint.
+3. bfcache/`pageshow` force-restores relevant title/favicon/badge even when
+   cached keys match.
+4. Focused VM/Chrome tests prove channel contract: recording fake records
+   requested channels; `100→101` is badge-only; Chrome DOM adapter proves
+   badge-only does not overwrite an externally changed `document.title`, while
+   active title changes and forced lifecycle restoration still work.
+5. Review owned P4/P5 production paths; keep `Badge.count(maxCount: 99)`, scope
+   after DI, Reporter under MaterialApp, account-switch clear/latest-wins,
+   clear/disposal. No generated files.
+
+**Ownership for this unit:** `tab_attention_scope.dart`, `app.dart`,
+`updates_navbar_item.dart`, P3 adapter stub/web + focused tests as amended,
+`tab_attention_scope_test.dart`, this journal. Preserve commit `879bac77` test
+architecture. Do not touch unrelated dirty/untracked user work.
+
+**Accepted baseline:** P0 `3a3d1983`; P1 `5cd451e0`; P2 `a1f954c9`; P3
+`9c9718b8` + `fa7a11b6`; harness repair `879bac77`.
+
+### 2026-08-11 — manager-remediation final result (P4 channel-apply)
+
+**STATUS:** complete
+
+**Fix:** Adapter `apply` gained named channel flags `applyTitle` /
+`applyFavicon` / `applyBadge` (stub + web identical). Controller
+`_applyDisplay` requests title+favicon only when `(isBackground,label)`
+changes and badge only when `(isBackground,count)` changes. Brightness
+while active calls favicon-only. Removed web favicon label-only dedupe so
+brightness/bfcache repaints are not suppressed. `pageshow` with
+`persisted` forces all three channels. `setBaseTitle` remains store-only
+while active and sync-applies all channels when clear.
+
+**Verification (serial, one at a time):**
+
+| Command | Result |
+|---|---|
+| `flutter test test/ui/widget/tab_attention_scope_test.dart` | 8 passed |
+| `flutter test test/ui/model/tab_attention_display_test.dart` | 11 passed |
+| `flutter test test/app/platform/tab_attention_indicator_stub_test.dart` | 5 passed |
+| `flutter test --platform chrome --dart-define=QA_INTEGRATION_TEST_MODE=true test/app/platform/tab_attention_indicator_web_test.dart` | 8 passed |
+| `./scripts/check-custom-lints.sh packages/client` | exit 0 |
+| `git diff --check` | exit 0 (owned paths) |
+
+**FILES (owned):**
+
+- `packages/client/lib/ui/widget/tab_attention_scope.dart`
+- `packages/client/lib/app/app.dart`
+- `packages/client/lib/features/home/ui/widget/updates_navbar_item.dart`
+- `packages/client/lib/app/platform/tab_attention_indicator_stub.dart`
+- `packages/client/lib/app/platform/tab_attention_indicator_web.dart`
+- `packages/client/test/ui/widget/tab_attention_scope_test.dart`
+- `packages/client/test/app/platform/tab_attention_indicator_web_test.dart`
+- `docs/plans/web-tab-unread-indicator-implementation-journal.md`
+
+**FINDINGS:** P5 wiring already correct (`Badge.count(maxCount: 99)`, scope
+after DI, Reporter under MaterialApp). Harness architecture from
+`879bac77` preserved; recording fake now also stores channel flags.
+Chrome pageshow force verified via `PageTransitionEvent(persisted: true)`.
+
+**REMAINING:** P6-P7, release hygiene, manual browser/PWA matrix, final
+review. Manager acceptance of this remediation commit.

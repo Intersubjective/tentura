@@ -26,6 +26,8 @@ import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
+import 'package:tentura/ui/widget/tab_attention_scope.dart';
+
 import 'di/di.dart';
 import 'di/globals.dart';
 import 'platform/lifecycle_handler.dart';
@@ -70,7 +72,9 @@ class App extends StatelessWidget {
 
     Widget appWidget = const Globals(
       child: LifecycleHandler(
-        child: App(),
+        child: TabAttentionScope(
+          child: App(),
+        ),
       ),
     );
 
@@ -221,7 +225,9 @@ class App extends StatelessWidget {
                     effects: GetIt.I<UiEffectPort>(),
                     child: TenturaResponsiveScope(
                       child: RealtimeStatusPresenter(
-                        child: AuthRecoveryListener(child: child),
+                        child: TabAttentionBaseTitleReporter(
+                          child: AuthRecoveryListener(child: child),
+                        ),
                       ),
                     ),
                   ),

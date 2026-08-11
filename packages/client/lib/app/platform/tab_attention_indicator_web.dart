@@ -39,7 +39,6 @@ class TabAttentionIndicator {
   var _baseImageLoaded = false;
   String? _pendingFaviconLabel;
   TenturaTabIndicatorStyle? _pendingFaviconStyle;
-  String? _lastFaviconLabel;
 
   TabAttentionDisplay? _lastDisplay;
   TenturaTabIndicatorStyle? _lastStyle;
@@ -52,26 +51,35 @@ class TabAttentionIndicator {
   bool get isBackground =>
       _qaForceBackground || web.document.visibilityState == 'hidden';
 
-  /// Writes all web tab chrome synchronously. Never waits for a Flutter frame.
+  /// Writes selected web tab chrome channels synchronously.
+  /// Never waits for a Flutter frame.
   /// [baseTitle] is the current localized title supplied while the app is visible.
+  /// Named channel flags let callers update title, favicon, and badge independently.
   void apply(
     TabAttentionDisplay display,
     TenturaTabIndicatorStyle style, {
     required String baseTitle,
+    bool applyTitle = true,
+    bool applyFavicon = true,
+    bool applyBadge = true,
   }) {
     _lastDisplay = display;
     _lastStyle = style;
     _lastBaseTitle = baseTitle;
 
     final title = composeTabTitle(baseTitle: baseTitle, display: display);
-    try {
-      web.document.title = title;
-    } catch (_) {
-      // Title is the mandatory channel; swallow only unexpected DOM failures.
+    if (applyTitle) {
+      try {
+        web.document.title = title;
+      } catch (_) {
+        // Title is the mandatory channel; swallow only unexpected DOM failures.
+      }
     }
 
-    _applyFavicon(display, style);
-    final badgeApplied = _applyBadge(display.count);
+    if (applyFavicon) {
+      _applyFavicon(display, style);
+    }
+    final badgeApplied = applyBadge ? _applyBadge(display.count) : false;
     _publishQaState(display, title, badgeApplied);
   }
 
@@ -147,16 +155,14 @@ class TabAttentionIndicator {
   void _applyFavicon(TabAttentionDisplay display, TenturaTabIndicatorStyle style) {
     try {
       if (display.label.isEmpty) {
-        _lastFaviconLabel = null;
         _pendingFaviconLabel = null;
         _pendingFaviconStyle = null;
         _faviconLink.href = _staticHref;
         return;
       }
 
-      if (display.label == _lastFaviconLabel) return;
-      _lastFaviconLabel = display.label;
-
+      // No label-only dedupe: controller owns §2.2 pacing, and brightness /
+      // bfcache reapply must repaint with a new style even when label matches.
       if (!_baseImageLoaded) {
         _pendingFaviconLabel = display.label;
         _pendingFaviconStyle = style;
@@ -260,7 +266,15 @@ class TabAttentionIndicator {
       final style = _lastStyle;
       final baseTitle = _lastBaseTitle;
       if (display != null && style != null && baseTitle != null) {
-        apply(display, style, baseTitle: baseTitle);
+        // Force all channels even when cached keys would match.
+        apply(
+          display,
+          style,
+          baseTitle: baseTitle,
+          applyTitle: true,
+          applyFavicon: true,
+          applyBadge: true,
+        );
       }
     }
   }

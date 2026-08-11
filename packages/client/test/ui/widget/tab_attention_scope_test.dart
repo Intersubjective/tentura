@@ -26,9 +26,12 @@ typedef TabAttentionApplyRecord = ({
   String baseTitle,
   (bool, String) titleKey,
   (bool, int) badgeKey,
+  bool applyTitle,
+  bool applyFavicon,
+  bool applyBadge,
 });
 
-/// Records every [apply] call with channel keys derived from call arguments.
+/// Records every [apply] call with channel keys and requested channels.
 /// Does not skip calls — production controller pacing owns that.
 final class RecordingTabAttentionIndicator extends TabAttentionIndicator {
   RecordingTabAttentionIndicator({bool isBackground = false})
@@ -55,12 +58,18 @@ final class RecordingTabAttentionIndicator extends TabAttentionIndicator {
     TabAttentionDisplay display,
     TenturaTabIndicatorStyle style, {
     required String baseTitle,
+    bool applyTitle = true,
+    bool applyFavicon = true,
+    bool applyBadge = true,
   }) {
     records.add((
       display: display,
       baseTitle: baseTitle,
       titleKey: (_isBackground, display.label),
       badgeKey: (_isBackground, display.count),
+      applyTitle: applyTitle,
+      applyFavicon: applyFavicon,
+      applyBadge: applyBadge,
     ));
   }
 
@@ -259,7 +268,7 @@ void main() {
     );
 
     test(
-      '100→101 calls adapter again after throttle window; badge key changes',
+      '100→101 requests badge-only after throttle window; title key unchanged',
       () async {
         await seedUnread(
           accounts: accounts,
@@ -273,6 +282,9 @@ void main() {
         expect(prior.display, (count: 100, label: '99+'));
         expect(prior.titleKey, (true, '99+'));
         expect(prior.badgeKey, (true, 100));
+        expect(prior.applyTitle, isTrue);
+        expect(prior.applyFavicon, isTrue);
+        expect(prior.applyBadge, isTrue);
 
         await pushUnread(
           repository: repository,
@@ -286,6 +298,21 @@ void main() {
         expect(latest.titleKey, prior.titleKey);
         expect(latest.badgeKey, (true, 101));
         expect(latest.badgeKey, isNot(prior.badgeKey));
+        expect(
+          latest.applyTitle,
+          isFalse,
+          reason: '§2.2: unchanged title/favicon key must not request title',
+        );
+        expect(
+          latest.applyFavicon,
+          isFalse,
+          reason: '§2.2: unchanged title/favicon key must not request favicon',
+        );
+        expect(
+          latest.applyBadge,
+          isTrue,
+          reason: '§2.2: badge key (isBackground,count) must still update',
+        );
       },
     );
 
