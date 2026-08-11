@@ -631,3 +631,167 @@ manager changed the fallback to `getAttribute('data-static-href')`, preserving
 the required pristine-path fallback for malformed retained DOM, then reran the
 Chrome suite and lint gate. The small remediation is recorded in the immediate
 follow-up commit. **P3 accepted.**
+
+### 2026-08-11 — P4-P5 worker checkpoint
+
+**Worker:** fresh non-fast Composer 2.5 unit; P6-P7, release hygiene, and protected
+worktree paths remain out of scope.
+
+**Scope:** `tab_attention_scope.dart`, `tab_attention_scope_test.dart`, `app.dart`
+wiring, `updates_navbar_item.dart` `maxCount: 99`, and this journal only.
+
+**Command discipline (locked):** run exactly **one** Flutter/Dart
+build/test/analyze/lint command at a time. Never background, `&`, or overlap.
+Required order: (1) focused P4/P5 widget tests; (2) any affected P1/P3 targeted
+tests; (3) `./scripts/check-custom-lints.sh packages/client`; (4) `git diff --check`.
+
+**Accepted dependencies:** P0 `3a3d1983`; P1 `5cd451e0`; P2 `a1f954c9`; P3
+`9c9718b8` + manager remediation `fa7a11b6`.
+
+### 2026-08-11 — P4-P5 manager rejection / Cursor capacity block
+
+The first fresh P4-P5 worker was interrupted by Cursor `resource_exhausted`
+after writing partial P4-P5 code, before it ran verification or committed. Two
+fresh recovery sessions then failed with the same Cursor `resource_exhausted`
+condition at startup, before reading or changing files. No P4-P5 result is
+accepted and no P4-P5 commit exists.
+
+The manager ran exactly one Flutter/Dart command, serially and with no other
+build/test/lint command active, to diagnose the preserved partial scope:
+
+```bash
+cd packages/client && flutter test test/ui/widget/tab_attention_scope_test.dart
+# FAILED at compilation; no test body ran.
+```
+
+The current partial test imports private `_Accounts`, `_Repository`, and
+`_feed` from another test library (not visible in Dart); its fake indicator
+infers dynamic tuple keys; and its `RealtimeSyncCase.requestCatchUp` calls omit
+the required argument. Manager source review also found that the partial
+`setBaseTitle` schedules `_forceApply` while attention is active, violating the
+plan's prohibition on title mutation while visible. These partial files remain
+orchestrator-owned but **unaccepted** recovery input; preserve unrelated dirty
+and untracked files. The next fresh worker must repair those issues, run the
+required verification serially, and make a focused commit before P4-P5 can be
+reviewed again.
+
+### 2026-08-11 — P4-P5 recovery checkpoint (fresh Composer 2.5)
+
+**Worker:** fresh non-fast Composer 2.5 recovery unit for P4-P5 only. P6-P7,
+release hygiene, and protected worktree paths remain out of scope.
+
+**Prior state:** interrupted first P4-P5 worker left unaccepted partial files;
+manager serial compile of `tab_attention_scope_test.dart` failed before any
+test body ran (private cross-library imports, dynamic tuple inference,
+`requestCatchUp` arity). `setBaseTitle` incorrectly schedules/forces apply
+while attention is active.
+
+**Recovery intent:** preserve sound wiring in `app.dart` /
+`updates_navbar_item.dart` / scope structure; repair `setBaseTitle` to store
+only while active and sync-apply only when clear; rewrite the widget test with
+local public controllable AttentionCase ports; prove §2.2 throttle/dedupe/clear
+and the active-vs-clear base-title distinction; run the locked serial
+verification; focused commit of the five owned paths only.
+
+**Command discipline (locked):** exactly one Flutter/Dart
+build/test/analyze/lint command at a time. Never background, `&`, or overlap.
+Order: (1) focused P4/P5 widget test; (2) affected P1/P3 targeted tests
+sequentially; (3) `./scripts/check-custom-lints.sh packages/client`; (4)
+`git diff --check`.
+
+**Accepted dependencies:** P0 `3a3d1983`; P1 `5cd451e0`; P2 `a1f954c9`; P3
+`9c9718b8` + manager remediation `fa7a11b6`.
+**Ownership:** `tab_attention_scope.dart`, `tab_attention_scope_test.dart`,
+`app.dart`, `updates_navbar_item.dart`, this journal.
+
+### 2026-08-11 — P4-P5 test-harness repair (fresh Auto worker)
+
+**Worker:** fresh Auto model selection; do-not-resume. Scope limited to
+`packages/client/test/ui/widget/tab_attention_scope_test.dart` + this journal.
+Production P4/P5 code (`tab_attention_scope.dart` `setBaseTitle` store-only
+while active / clear-sync-apply) left untouched. No edits to
+`app.dart` / navbar / P1–P3 / pubspec / web / generated / server / plan source.
+
+**STATUS:** **PASS** — unstable `testWidgets` + FakeAsync harness replaced;
+focused suite green; serial verification green; focused commit of test +
+journal only.
+
+**Root cause of prior stuck runs:** pacing tests drove real `AttentionCase`
+refreshes inside `testWidgets` FakeAsync/`tester.pump` loops (including
+debug 20-pump + prints). That harness does not reliably drain real async
+fetch/Completer sequencing or the real 250 ms `Timer`.
+
+**Repair architecture (exact):**
+
+1. Controller pacing in ordinary `test(...)` (not `testWidgets`).
+   `TestWidgetsFlutterBinding.ensureInitialized()` once. Real `AttentionCase`
+   with local public `ControllableAttentionAccounts` /
+   `ControllableAttentionRepository` matching `updates_feed_cubit_test.dart`.
+   Real async `settle` microtask drain + incomplete `Completer<AttentionFeed>`
+   sequencing. Direct `TabAttentionController` + recording adapter.
+   Throttle waits use real `Future.delayed(300ms)`, never fake widget time.
+2. One minimal `testWidgets` lifecycle/reporter test only: `TabAttentionScope`
+   + MaterialApp/reporter, no attention stream; DI-safe create, localized
+   clear reporter apply, dispose clear + no later brightness apply.
+3. `RecordingTabAttentionIndicator` records every `apply` with derived
+   `(isBackground,label)` / `(isBackground,count)` keys; no fake-channel
+   dedupe.
+
+**Command discipline (serial, one at a time):**
+
+```bash
+cd packages/client && flutter test test/ui/widget/tab_attention_scope_test.dart
+# 8 passed
+
+cd packages/client && flutter test test/ui/model/tab_attention_display_test.dart
+# 11 passed
+
+cd packages/client && flutter test test/app/platform/tab_attention_indicator_stub_test.dart
+# 5 passed
+
+cd packages/client && flutter test --platform chrome \
+  --dart-define=QA_INTEGRATION_TEST_MODE=true \
+  test/app/platform/tab_attention_indicator_web_test.dart
+# 7 passed
+
+./scripts/check-custom-lints.sh packages/client  # exit 0
+git diff --check                                 # exit 0
+```
+
+**TESTS:**
+
+| Command | Result |
+|---|---|
+| focused `tab_attention_scope_test.dart` | 8 passed |
+| P1 `tab_attention_display_test.dart` | 11 passed |
+| P3 stub `tab_attention_indicator_stub_test.dart` | 5 passed |
+| P3 Chrome `tab_attention_indicator_web_test.dart` | 7 passed |
+| `check-custom-lints.sh packages/client` | exit 0 |
+| `git diff --check` | exit 0 |
+
+**FILES:**
+
+- `packages/client/test/ui/widget/tab_attention_scope_test.dart` (rewritten)
+- `docs/plans/web-tab-unread-indicator-implementation-journal.md` (this entry)
+
+**COMMITS:** focused commit of the two paths above only (no production
+source). Pre-existing unaccepted P4/P5 production files remain in the
+worktree for manager acceptance of the broader P4-P5 unit.
+
+**FINDINGS:**
+
+- No production AttentionCase stream defect hypothesized or pursued.
+- Preserved production `setBaseTitle` store-only-while-active contract is
+  covered by ordinary controller test.
+- All §2.2 assertions remain: matching background apply; active base-title
+  store then clear uses stored title; 100→101 second adapter call after
+  throttle window (same title key / different badge key); leading-edge
+  latest-wins; clear cancels pending immediately; account switch cannot
+  repaint queued stale count; dispose clear / brightness observer cleanup.
+
+**REMAINING:**
+
+- Manager acceptance of full P4-P5 production wiring
+  (`tab_attention_scope.dart`, `app.dart`, `updates_navbar_item.dart`) and
+  any focused production commit still pending outside this repair unit.
+- P6-P7, release hygiene, manual browser/PWA matrix, final review.
