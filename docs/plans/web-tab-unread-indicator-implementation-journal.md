@@ -55,8 +55,8 @@ may update before their implementation unit is accepted.
 | P3 | **passed** | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | **passed** | Scope/controller, channel-apply remediation, app wiring, cap parity; commits `879bac77`, `ed4e8f13`. |
 | P6 | **passed** | Raw `document.title` rests only on genuine-hidden no-focus CDP (244 ms / 901 ms after 5m30s). Forced-background IT is apply/clear QA-seam regression only. Manager serial suite + Chrome adapter + lints + IT evidence accepted; Chrome adapter stays developer/pre-merge-only (no CI edit). |
-| P7 | pending | Version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting — blocked by protected unrelated dirty `pubspec` / `index.html` / `docs/README.md`. |
-| Final review | **partial closeout** | Fresh read-only Cursor review after `24f1f3f6`/`bcfe5bb2`: P0–P6 accepted under the disposition below; whole-plan not complete (P7 + manual matrix). |
+| P7 | **passed** | Client `5.11.0` + matching `web/index.html` cache-buster; `docs/README.md` active-plans row + authorized commitment-truth archive merge. Plan source archival deferred (untracked). Manual browser/PWA matrix still pending. |
+| Final review | **partial closeout** | Fresh read-only Cursor review after `24f1f3f6`/`bcfe5bb2`: P0–P6 accepted under the disposition below; whole-plan not complete until post-P7 final review + manual matrix. |
 
 ## Required verification and constraints
 
@@ -1206,3 +1206,44 @@ not silent.
 docs-row hygiene. Manual browser/PWA matrix not executed.
 
 **No production remediation.** Journal-only checkpoint.
+
+### 2026-08-11 — P7 release hygiene
+
+**Worker:** fresh Cursor Auto (no resume). Scope: P7 only.
+
+**Baseline:** `3ace7d79` already shipped unrelated user-owned room fix as client
+`5.10.1` with matching cache-buster. P7 is a new user-visible backward-compatible
+feature → bump **only** `packages/client/pubspec.yaml` `5.10.1` → `5.11.0`.
+`kDefaultMinClientVersion` unchanged (`5.6.38`).
+
+**Authorized docs merge:** preserve existing uncommitted `docs/README.md`
+commitment-truth archive edit (remove active-plans row + archive blurb mention)
+and add active-plans row for
+`docs/plans/web-tab-unread-indicator-plan.md` /
+“Web tab unread indicator (title + favicon dot + Badging API)”.
+
+**Deferred archival:** do **not** move/stage/commit untracked
+`docs/plans/web-tab-unread-indicator-plan.md`. Archive to
+`docs/archive/plans/` only after a separately safe path-scoped decision (plan
+source remains user-owned/untracked).
+
+**Cache-buster:** `flutter build web --release` alone did not rewrite
+`web/index.html` (hooks_runner cache hit / empty FS deps on `pubspec.yaml`;
+cold cache then skipped tentura hook on web). Cleared tentura hook cache and
+rebuilt; still stale. Forced `dart run hook/build.dart --config=…/input.json`
+→ `Web build version: 5.11.0` and source
+`flutter_bootstrap.js?v=5.11.0`. No hand-edit of `index.html`. Did not commit
+`web/manifest.json` (skip-worktree; locally updated to 5.11.0 by hook).
+
+**Verify:** source pubspec/`web/index.html` match `5.11.0`.
+`dart run tool/verify_web_version_consistency.dart` OK on build `index.html` +
+`manifest.json` after post-build rewrite; wasm-preload + SW still `4.0.0`
+because non-wasm `build/web` had no `.wasm` (preload no-op) — not committed.
+
+**Protected paths preserved (untouched / unstaged):** `docs/archive/*`,
+`docs/audits/*`, `scripts/run_client_integration_web_local.sh`, generated
+websocket mocks, other dirty/untracked plans and secrets, untracked plan
+source.
+
+**P7 status:** **passed** for release hygiene. Manual browser/PWA matrix and
+final whole-plan closeout remain.

@@ -42,7 +42,7 @@ Short pointers for agents — read only what your task needs.
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
 | [`plans/profile-request-routing-plan.md`](plans/profile-request-routing-plan.md) | Profile → request-routing surface (issue #83) |
-| [`plans/commitment-truth-rework-plan.md`](plans/commitment-truth-rework-plan.md) | Append-only commitment facts, former committers, admission/withdraw/review gates |
+| [`plans/web-tab-unread-indicator-plan.md`](plans/web-tab-unread-indicator-plan.md) | Web tab unread indicator (title + favicon dot + Badging API) |
 
 ## Audits and analyses
 
@@ -88,7 +88,7 @@ Short pointers for agents — read only what your task needs.
 
 ## Archive
 
-Done and superseded plans live under [`archive/plans/`](archive/plans/) (e.g. Updates tab, adaptive router, issue 73, room split, invite genealogy graph reuse, hidden-neighbor counters, topbar unification, superseded reverse-geocoding). Companion journals under [`archive/journals/`](archive/journals/). Do not implement archived plans without checking for a newer active plan.
+Done and superseded plans live under [`archive/plans/`](archive/plans/) (e.g. commitment-truth rework, Updates tab, adaptive router, issue 73, room split, invite genealogy graph reuse, hidden-neighbor counters, topbar unification, superseded reverse-geocoding). Companion journals under [`archive/journals/`](archive/journals/). Do not implement archived plans without checking for a newer active plan.
 
 ## Maintenance
 
