@@ -50,7 +50,7 @@ may update before their implementation unit is accepted.
 
 | Unit | Status | Scope and acceptance boundary |
 |---|---|---|
-| P0 | **blocked** | Measure hidden-tab unread propagation; gate P1. Record the exact evidence and do not implement P1 if foreground or long-hidden criteria fail. |
+| P0 | **passed** | Direct-DOM hidden-tab title probe accepted (rev 3). Gate: `(1) Tentura` while hidden ≤3 s via CDP-only observation. P1 unblocked. |
 | P1-P2 | pending | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commit. |
 | P3 | pending | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
 | P4-P5 | pending | Scope/controller, title seam, app wiring, cap parity, tests, and focused commit(s). |
@@ -339,8 +339,8 @@ staged or modified by P0. The existing journal is the only persistent P0-owned
 path. At P7, archiving the explicitly selected plan source will be a separate,
 path-scoped release-hygiene decision under the plan itself.
 
-**Revised manifest:** P0 direct-DOM revalidation — in progress; P1-P2 pending
-on success; P3 pending; P4-P5 pending; P6-P7 pending; final review pending.
+**Revised manifest:** P0 direct-DOM revalidation — **passed**; P1-P2 pending;
+P3 pending; P4-P5 pending; P6-P7 pending; final review pending.
 
 ### 2026-08-11 — P0 revalidation interrupted for runtime-scope correction
 
@@ -359,3 +359,124 @@ measurement, artifact result, P0 acceptance, or P1 unblock occurred.
 
 **Manifest correction:** P0 direct-DOM revalidation is **pending**, not in
 progress. P1-P7 remain blocked behind a fresh, explicitly bounded P0 attempt.
+
+### 2026-08-11 — P0 rev-3 worker checkpoint (direct-DOM revalidation)
+
+**Worker:** fresh bounded P0 rev-3 unit only. P1 and all production feature
+implementation remain out of scope.
+
+**Protocol (locked for this run):**
+
+1. Append this checkpoint before any source edit or process spawn.
+2. Add a temporary compile-time QA adapter (`qa_hidden_tab_title_probe*`)
+   invoked from `AttentionCase._emit`; it assigns `document.title` via
+   `package:web` only when `QA_HIDDEN_TAB_TITLE_PROBE=true`.
+3. Run **exactly one** `flutter build web` to a new `/tmp/p0-rev3-*` output
+   directory with QA probe defines. No `flutter run`, `flutter test`, or second
+   build.
+4. Serve that build through an ephemeral same-origin Caddy proxy on an unused
+   port (static file_server + reverse_proxy to existing `127.0.0.1:2080` /
+   `127.0.0.1:8080` API paths). One ephemeral static server only if required;
+   trap-installed cleanup for every spawned PID/process group.
+5. Harness: QA bootstrap + `markAsk`/`acceptAsk` receipt while the victim app
+   tab is hidden (`about:blank` focused). Post-trigger observation is **CDP
+   `Runtime.evaluate` only** on the app page target — no `setAsActive`, focus,
+   navigate, reload, or visibility change on the app target.
+6. Pass gate: `document.title == '(1) Tentura'` while
+   `document.visibilityState == 'hidden'` within 3 s of receipt trigger. No
+   >5-minute long-hide check (deferred to P6).
+7. Restore `AttentionCase` exactly; delete all `qa_hidden_tab_title_probe*`
+   files; prove clean with
+   `git diff --exit-code -- packages/client/lib/domain/attention/attention_case.dart`.
+8. Journal-only commit; do not stage the untracked plan or other paths.
+
+**Runtime budget:** one `flutter build web`; do not touch existing Caddy,
+Flutter dev server, Docker, server, chromedriver, or other pre-existing
+processes.
+
+**Artifacts root:** `/tmp/p0-rev3-direct-dom-artifacts/`
+
+### 2026-08-11 — P0 rev-3 worker: direct-DOM revalidation (**PASS**)
+
+**Temporary probe (reverted before exit):** `qa_hidden_tab_title_probe*`
+conditional export; `AttentionCase._emit` called
+`QaHiddenTabTitleProbe.applyUnreadTotal` when
+`QA_HIDDEN_TAB_TITLE_PROBE=true`. Restoration verified:
+`git diff --exit-code -- packages/client/lib/domain/attention/attention_case.dart`
+→ exit 0; no `qa_hidden_tab_title_probe*` files remain under
+`packages/client/lib/domain/attention/`.
+
+**Build (single `flutter build web` invocation):**
+
+```bash
+cd packages/client && flutter build web \
+  --profile \
+  --output=/tmp/p0-rev3-direct-dom-artifacts/build/web \
+  --dart-define-from-file=env/local-web.env \
+  --dart-define=SERVER_NAME=https://dev.lvh.me:19443 \
+  --dart-define=WS_SERVER_NAME=https://dev.lvh.me:19443 \
+  --dart-define=QA_INTEGRATION_TEST_MODE=true \
+  --dart-define=QA_HIDDEN_TAB_TITLE_PROBE=true
+```
+
+Log: `/tmp/p0-rev3-direct-dom-artifacts/build.log` (exit 0, ~77 s compile).
+
+**Ephemeral same-origin proxy:** copied API routes into
+`/tmp/p0-rev3-direct-dom-artifacts/Caddyfile`; `caddy run --config …` on
+`:19443` serving the profile build with `reverse_proxy` to existing
+`127.0.0.1:2080` / `127.0.0.1:8080`. Trap cleanup on shell exit; no
+pre-existing Caddy/Flutter processes touched. Caddy log:
+`/tmp/p0-rev3-direct-dom-artifacts/caddy.log`.
+
+**Harness (authoritative run):** `/tmp/p0-rev3-direct-dom-artifacts/harness.dart`
+via `QA_AUTH_TOKEN` from `.env` (value not recorded). Pre-existing chromedriver
+`127.0.0.1:4444` used; no new chromedriver spawned. Command:
+
+```bash
+QA_AUTH_TOKEN=<from .env> \
+  dart --packages=/home/vader/MY_SRC/tentura/.dart_tool/package_config.json \
+  /tmp/p0-rev3-direct-dom-artifacts/harness.dart
+```
+
+(Executed inside `run_harness_only.sh` after the one build; harness-only reruns
+reused the same `/tmp/.../build/web` output — no second Flutter command.)
+
+**Fixture:** `runId=p0rev3-1786465576198` → author
+`it-author-p0rev3-1786465576198@test.tentura.local` (`Ue599cb20d152`), helper
+`it-helper-p0rev3-1786465576198@test.tentura.local` (`U6b4cf7f1a3b8`), beacon
+`B7eb83f63817e`. Flow: QA bootstrap → victim login on
+`https://dev.lvh.me:19443` → `/home/updates` → **Mark all seen** (baseline title
+`Tentura`) → hide tab (`about:blank` focused) → `markAsk` + `acceptAsk` via API
+→ CDP `Runtime.evaluate` only (no app-tab activation post-trigger).
+
+| Field | Result |
+|---|---|
+| trigger (UTC) | `2026-08-11T16:26:21.586520Z` |
+| pre-trigger title (hidden) | `Tentura` |
+| post-trigger title (hidden) | `(1) Tentura` |
+| title latency | **443 ms** |
+| visibility violations | **0** (stayed `hidden`) |
+| head refresh latency (QA) | 376 ms (updated post-receipt) |
+| gate ≤3 s | **PASS** |
+
+**Artifacts:** `/tmp/p0-rev3-direct-dom-artifacts/results.json`, `run.log`,
+`build.log`, `caddy.log`, `victim-updates-browser.log`, `harness.dart`,
+`Caddyfile`, `run_p0_rev3.sh`, `run_harness_only.sh`.
+
+**Process cleanup proof:** ephemeral Caddy started with trap `cleanup` on EXIT;
+`pgrep -af 'Caddyfile.*p0-rev3'` empty after script exit. Pre-existing stack
+(`:9443` Caddy, `:8888` Flutter dev, `:2080` server, `:4444` chromedriver)
+untouched.
+
+**P0 status:** **PASSED** — direct `package:web` `document.title` assignment
+from `AttentionCase._emit` reached the hidden tab within 443 ms without
+activating the app target. **P1 is unblocked.**
+
+**P1 status:** pending (not started in this unit).
+
+**Tests/build in this unit:** one `flutter build web` (pass); no `flutter test`;
+harness exit 0 on authoritative run.
+
+**Remaining work:** P1–P7 per rev-3 plan; P6 must repeat hidden-tab CDP check
+against the implemented controller (including >5 min hide); manual browser/PWA
+matrix still unstarted.
