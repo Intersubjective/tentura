@@ -56,7 +56,7 @@ may update before their implementation unit is accepted.
 | P4-P5 | **passed** | Scope/controller, channel-apply remediation, app wiring, cap parity; commits `879bac77`, `ed4e8f13`. |
 | P6 | **passed** | Raw `document.title` rests only on genuine-hidden no-focus CDP (244 ms / 901 ms after 5m30s). Forced-background IT is apply/clear QA-seam regression only. Manager serial suite + Chrome adapter + lints + IT evidence accepted; Chrome adapter stays developer/pre-merge-only (no CI edit). |
 | P7 | **passed** | Client `5.11.0` + matching `web/index.html` cache-buster; `docs/README.md` active-plans row + authorized commitment-truth archive merge. Plan source archival deferred (untracked). Manual browser/PWA matrix still pending. |
-| Final review | **partial closeout** | Fresh read-only Cursor review after `24f1f3f6`/`bcfe5bb2`: P0–P6 accepted under the disposition below; whole-plan not complete until post-P7 final review + manual matrix. |
+| Final review | **accepted with pending manual validation** | P0–P7 accepted. On 2026-08-11 the product owner accepted the remaining external browser/PWA matrix as pending, not passed. |
 
 ## Required verification and constraints
 
@@ -1247,3 +1247,25 @@ source.
 
 **P7 status:** **passed** for release hygiene. Manual browser/PWA matrix and
 final whole-plan closeout remain.
+
+### 2026-08-11 — Product-owner closeout acceptance
+
+**Decision:** The product owner accepted the remaining manual browser/PWA
+matrix as **pending external validation** and authorized committing and pushing
+the delivery to `main`.
+
+**Accepted implementation evidence:** P0–P7, including client `5.11.0` /
+matching web cache-buster (`6bd0a80b`), genuine-hidden no-focus CDP Gate A and
+Gate B, the full client VM suite, Chrome adapter test, custom-lint gate, and
+forced-background integration regression.
+
+**Pending, not passed:** Firefox visible tab title/favicon; installed Chrome
+PWA physical OS badge; PWA plus ordinary-tab race; Safari; logout/no-account;
+light/dark theme dot; and hot restart. These require a suitable external
+browser/PWA or macOS/iOS context. The local Firefox recovery deliberately
+stopped without a claim: the Wayland host could not capture visible browser
+chrome, while post-receipt app-tab activation would invalidate the observation.
+
+**Disposition:** This closes the implementation plan as accepted with pending
+manual validation. Pending rows remain follow-up validation only; they must not
+be reported as passed without direct evidence.

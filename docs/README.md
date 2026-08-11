@@ -42,7 +42,7 @@ Short pointers for agents — read only what your task needs.
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
 | [`plans/profile-request-routing-plan.md`](plans/profile-request-routing-plan.md) | Profile → request-routing surface (issue #83) |
-| [`plans/web-tab-unread-indicator-plan.md`](plans/web-tab-unread-indicator-plan.md) | Web tab unread indicator (title + favicon dot + Badging API) |
+| [`plans/web-tab-unread-indicator-plan.md`](plans/web-tab-unread-indicator-plan.md) | Web tab unread indicator — accepted; external browser/PWA manual validation pending |
 
 ## Audits and analyses
 
