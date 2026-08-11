@@ -620,3 +620,14 @@ git diff --check                                 # exit 0
 
 **Tests not run in this unit:** full `flutter test`, P4 scope tests, browser
 integration, version bump, manual browser/PWA matrix.
+
+### 2026-08-11 — manager P3 acceptance
+
+Manager inspected `9c9718b8` and independently reran the Chrome adapter suite
+and the client custom-lint gate sequentially. The review found one new analyzer
+warning in the hot-restart recovery path: `DOMStringMap` indexing turns a
+missing value into a non-null empty string, making the default dead code. The
+manager changed the fallback to `getAttribute('data-static-href')`, preserving
+the required pristine-path fallback for malformed retained DOM, then reran the
+Chrome suite and lint gate. The small remediation is recorded in the immediate
+follow-up commit. **P3 accepted.**

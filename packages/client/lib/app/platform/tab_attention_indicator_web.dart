@@ -96,7 +96,8 @@ class TabAttentionIndicator {
     final existing = web.document.getElementById(_faviconLinkId);
     if (existing case final web.HTMLLinkElement link) {
       _faviconLink = link;
-      _staticHref = link.dataset['staticHref'] ?? _defaultStaticHref;
+      _staticHref =
+          link.getAttribute('data-static-href') ?? _defaultStaticHref;
       return;
     }
 
