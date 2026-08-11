@@ -53,8 +53,9 @@ may update before their implementation unit is accepted.
 | P0 | **passed** | Direct-DOM hidden-tab title probe accepted (rev 3). Gate: `(1) Tentura` while hidden ≤3 s via CDP-only observation. P1 unblocked. |
 | P1-P2 | **passed** | Pure display policy and exported design-system tab-indicator style, with VM tests and focused commits `5cd451e0` (P1), `a1f954c9` (P2). |
 | P3 | **passed** | Conditional web/native platform adapter, including safe favicon, installed-PWA badge, and QA seam, with Chrome test and focused commit. |
-| P4-P5 | pending | Scope/controller, title seam, app wiring, cap parity, tests, and focused commit(s). |
-| P6-P7 | pending | Full client/browser/lint verification, version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
+| P4-P5 | **passed** | Scope/controller, channel-apply remediation, app wiring, cap parity; commits `879bac77`, `ed4e8f13`. |
+| P6 | **partial** | Unsafe WebDriver title-sampler / one-off API helpers removed; real no-focus CDP short and >5-minute hidden-title gates passed (244 ms / 901 ms). Safe forced-background regression and serial full-client checks remain. |
+| P7 | pending | Version/cache-buster release hygiene, plan docs disposition, and manual matrix accounting. |
 | Final review | pending | Fresh read-only Cursor review, manager verification, cross-unit acceptance, and closeout. |
 
 ## Required verification and constraints
@@ -881,3 +882,210 @@ Chrome pageshow force verified via `PageTransitionEvent(persisted: true)`.
 
 **REMAINING:** P6-P7, release hygiene, manual browser/PWA matrix, final
 review. Manager acceptance of this remediation commit.
+
+### 2026-08-11 — P6 worker checkpoint (fresh Auto)
+
+**Worker:** fresh Auto model selection; do-not-resume. Sole Cursor worker.
+One Flutter/Dart build/test/lint command at a time; no `--model`; no
+background/overlapping Flutter commands.
+
+**Ownership (P6 only):**
+- Add browser integration regression under
+  `packages/client/integration_test/` (+ support helpers if needed).
+- Fresh temporary CDP harness under `/tmp/p6-*` against the **implemented**
+  controller (not P0 `QA_HIDDEN_TAB_TITLE_PROBE` injection).
+- Append journal evidence; focused commit of integration test + journal only
+  after green automated gates (or truthful partial/blocked journal if a hard
+  runtime gate cannot run).
+
+**Out of scope / protected:** P7 paths (`pubspec.yaml`, `web/index.html`,
+`docs/README.md`, plan source); server/docker/Caddy/CI/production; generated
+files; architecture changes; all pre-existing dirty/untracked user work
+(including unrelated `5.10.1` pubspec/index.html). No reset/stash/clean/
+amend/push/PR/deploy.
+
+**Accepted baseline:** P0 `3a3d1983`; P1 `5cd451e0`; P2 `a1f954c9`; P3
+`9c9718b8` + `fa7a11b6`; P4 harness `879bac77`; P4/P5 remediation `ed4e8f13`.
+
+**Protocol:**
+1. Integration: QA bootstrap + real receipt while
+   `window.__tenturaForceTabBackground = true` (and synthetic `visibilitychange`
+   so the controller re-reads the QA override), assert
+   `__tenturaTabAttention` / `document.title` / adapter state without relying on
+   Flutter Updates-badge repaint; run via
+   `scripts/run_client_integration_web_local.sh <single target>`.
+2. CDP: profile build of current sources (no title probe define); ephemeral
+   same-origin proxy; `about:blank` focused; post-receipt observation only via
+   CDP `Runtime.evaluate` on the hidden app target. Short ≤3 s and genuine
+   >5 min → ≤~60 s gates; record visibility/title/reconnect evidence.
+3. Serial verification a→e after final test code.
+4. Commit only owned paths if gates support a non-misleading result.
+
+**Artifacts root (ephemeral):** `/tmp/p6-web-tab-cdp-artifacts/`
+
+### 2026-08-11 — P6 recovery (fresh Auto): unsafe instrumentation removed; **PARTIAL**
+
+**Worker:** fresh Auto model selection; do-not-resume. Bounded recovery of the
+interrupted P6 attempt only. No P7 paths, no protected user dirty/untracked
+work, no process kill, no browser/integration/Flutter test run.
+
+**What the interrupted P6 attempt left (unaccepted):**
+
+- `packages/client/integration_test/tab_attention_forced_background_test.dart`
+  (untracked) — forced-background receipt regression that evolved into asserting
+  `document.title` survival via a global JS title sampler.
+- `packages/client/integration_test/support/e2e_test_helpers.dart` (tracked
+  dirty) — added `Function`/`globalContext` constructor eval,
+  `Document.prototype` / `HTMLDocument.prototype` title descriptor
+  interception, plus one-off GraphQL/cookie-swap helpers (`markAskViaApi`,
+  `acceptAskViaApi`, `setBrowserSessionCookie`, access-token `_postGraphQl`
+  rewrite, `AttentionCase.markAllSeen` wrapper).
+
+**Recovery actions taken:**
+
+1. Restored `e2e_test_helpers.dart` exactly to `HEAD` (pre-P6). Confirmed no
+   residual `Function(` / `globalContext` / prototype title interception /
+   `__tenturaTitle*` / force-background helpers remain in the shared helper.
+2. Deleted the untracked experimental
+   `tab_attention_forced_background_test.dart`. Did **not** rewrite a soft
+   `document.title` pass or keep the setter-interception sampler.
+3. Did **not** re-add shared server/network/auth abstractions for a single
+   forced-background case. Existing UI login/logout helpers cannot keep the
+   author JWT/WS live while a helper mutates, which is why the interrupted
+   attempt invented cookie-swap GraphQL — that path stays rejected here.
+4. Did **not** run `flutter drive` / integration / CDP. Pre-existing
+   `flutter_tester` / chromedriver / server processes were left untouched.
+   No remaining P6 Dart source needed a compile gate.
+
+**Causal distinction (locked for P6):**
+
+| Signal | Forced-background WebDriver QA override | Genuine hidden tab (no-focus CDP) |
+|---|---|---|
+| `window.__tenturaForceTabBackground` | Sets adapter `isBackground`; page stays `visibilityState=visible` | Not used; real `hidden` |
+| `window.__tenturaTabAttention` | **May** prove controller/adapter apply state | Also readable, but not the DoD |
+| Live `document.title` after later Flutter frames | **Cannot** be claimed as proof — Flutter `Title` may overwrite on a still-visible page | **Mandatory** plan gate while `visibilityState==hidden` |
+| Prototype/`Function` title sampler | Forbidden; softens/fakes the contract | N/A |
+
+**P6 status:** **PARTIAL / blocked for automated WebDriver raw-title proof.**
+
+- Unsafe instrumentation and one-off network helpers: **removed**.
+- Forced-background WebDriver regression: **not shipped** (no coherent safe
+  test remains without either forbidden JS interception or new one-off API
+  abstractions).
+- Plan §P6 raw `document.title` while genuinely hidden (short ≤3 s and >5 min
+  → ≤~60 s), plus reconnect evidence: **deferred exclusively** to the planned
+  no-focus direct-CDP harness against the implemented controller
+  (`/tmp/p6-web-tab-cdp-artifacts/` when run). That harness was **not** executed
+  in this recovery unit.
+- No misleading pass commit.
+
+**Verification:**
+
+```bash
+git checkout HEAD -- packages/client/integration_test/support/e2e_test_helpers.dart
+# helpers diff empty vs HEAD
+test ! -e packages/client/integration_test/tab_attention_forced_background_test.dart
+git diff --check  # clean for owned recovery paths (helpers restored)
+```
+
+**FILES (this recovery):**
+
+- `packages/client/integration_test/support/e2e_test_helpers.dart` — restored to HEAD
+- `packages/client/integration_test/tab_attention_forced_background_test.dart` — deleted
+- `docs/plans/web-tab-unread-indicator-implementation-journal.md` — this entry
+
+**COMMITS:** none. Left uncommitted for manager review (partial P6; no green
+automated gate to land).
+
+**REMAINING:**
+
+- Manager review of this recovery.
+- P6 completion = no-focus direct-CDP short + long-hidden title gates against
+  the implemented controller (not QA title-probe injection); optional later
+  forced-background WebDriver case only if limited to `__tenturaTabAttention`
+  with reused safe helpers and no prototype/title interception.
+- P7 release hygiene, manual browser/PWA matrix, final review.
+
+### 2026-08-11 — P6 no-focus direct-CDP evidence (manager-run)
+
+**STATUS:** direct-CDP gate **passed**; P6 remains **partial** because the
+forced-background WebDriver regression was intentionally removed rather than
+shipping a misleading raw-title assertion.
+
+**Method:** current production sources were profile-built once into
+`/tmp/p6-web-tab-cdp-evidence-1786470495/build/web`, with
+`QA_INTEGRATION_TEST_MODE=true` and **without**
+`QA_HIDDEN_TAB_TITLE_PROBE`. The temporary harness used its own Caddy
+(`:19553`) and chromedriver (`:9515`) processes, focused `about:blank`, and
+observed the app target only with read-only CDP `Runtime.evaluate`. No title,
+prototype, `Function`, eval, global-context, or visibility-listener
+instrumentation was present. Temporary artifacts are not committed.
+
+**Causal evidence:**
+
+| Gate | Result |
+|---|---|
+| A — first actual receipt while hidden | `(1) Tentura` after **244 ms**; every observation had `visibilityState: hidden` |
+| dwell | same app target stayed hidden for **330,000 ms** (5m30s), with 22 read-only samples and zero visibility violations |
+| B — second distinct actual receipt after dwell | `(2) Tentura` after **901 ms**; strict increment from `(1)`, with zero visibility violations |
+
+`results.json` records both receipt identifiers, trigger/detection timestamps,
+title/adapter samples, dwell samples, and reconnect-log evidence:
+`/tmp/p6-web-tab-cdp-evidence-1786470495/results.json`.
+
+**Commands:**
+
+```bash
+dart format --output=none /tmp/p6-web-tab-cdp-evidence-1786470495/harness.dart
+/tmp/p6-web-tab-cdp-evidence-1786470495/run_p6.sh
+```
+
+The profile build passed. The protected unrelated `pubspec.yaml`,
+`web/index.html`, and `docs/README.md` hashes were identical before and after
+the build; none was staged or altered by this work.
+
+**REMAINING:**
+
+- A safe integration regression may assert only adapter QA state under the
+  forced-background override; it still cannot claim durable raw
+  `document.title` on a page whose real visibility remains `visible`.
+- P6 serial full-client/browser/custom-lint verification remains manager work.
+- P7 release hygiene is blocked by the user's unrelated uncommitted `5.10.1`
+  `pubspec.yaml` / `web/index.html` work.
+
+
+### 2026-08-11 — P6 direct-CDP evidence checkpoint (fresh Auto)
+
+**Worker:** fresh Auto model selection; do-not-resume. Sole new Cursor worker.
+One Flutter/Dart command at a time; no `--model`; no background Flutter.
+
+**Accepted prior P6 recovery:** unsafe WebDriver title-sampler / one-off helpers
+removed only. Raw hidden `document.title` proof still outstanding — this unit
+attempts that gate against the **implemented** controller (no
+`QA_HIDDEN_TAB_TITLE_PROBE`).
+
+**Protocol (locked):**
+1. Ephemeral harness at `/tmp/p6-web-tab-cdp-evidence-1786470495/` adapted from accepted
+   `/tmp/p0-rev3-direct-dom-artifacts` reference only (never committed).
+2. Exactly one `flutter build web --profile` into `/tmp/p6-web-tab-cdp-evidence-1786470495/build/web`
+   with `QA_INTEGRATION_TEST_MODE=true` for adapter-state reads; **no**
+   `QA_HIDDEN_TAB_TITLE_PROBE`. No title monkey-patch / prototype intercept /
+   Function-eval instrumentation. Post-receipt CDP `Runtime.evaluate` is
+   read-only (`visibilityState`, `document.title`, `__tenturaTabAttention`,
+   reconnect/console samples).
+3. Self-owned ephemeral Caddy HTTPS `:19553` and chromedriver `:9515`. Focus
+   `about:blank` after hide; never activate the app tab post-receipt.
+4. Gate A: hidden title → `(1) Tentura` within 3 s while `visibilityState==hidden`.
+5. Gate B: remain genuinely hidden >5 min, distinct receipt, observe a **strict
+   fresh title increment** within ~60 s; record visibility history, latencies,
+   reconnect evidence.
+6. Journal-only commit only if evidence is coherent and protected P7/user paths
+   stay unstaged/unmutated beyond incidental build side-effects (which must be
+   reported, not reverted).
+
+**Protected-path snapshot (before):** see `/tmp/p6-web-tab-cdp-evidence-1786470495/protected-before.txt`
+(`pubspec`/`index.html` already dirty at unrelated `5.10.1`; plan source
+untracked; journal is the only owned write path).
+
+**Out of scope:** forced-background WebDriver regression (raw-title claim
+rejected); full client suite; browser integration suite; P7 release hygiene.
