@@ -305,3 +305,57 @@ reinterpret the harness.
 3. Only after an accepted P0 pass: proceed with P1–P7 per
    `docs/plans/web-tab-unread-indicator-plan.md`.
 4. Manual browser matrix (plan §P6) remains unstarted.
+
+### 2026-08-11 — manager rebaseline for rev 3 plan
+
+The user explicitly selected the newer untracked
+`docs/plans/web-tab-unread-indicator-plan.md` (mtime 2026-08-11 14:30 CEST),
+whose rev 3 architecture replaces the rejected Flutter-semantics P0 with a
+direct-DOM `document.title` probe. That is a materially different causal
+signal: it is intended to run in the unread callback without waiting for a
+Flutter frame while CDP observes the hidden page without activating it.
+
+The plan cites `/tmp/p0-title-hypothesis-artifacts/results.json` and
+`run.log`, but those artifacts are absent in the current workspace; the
+reverted probe source is also absent. Therefore the historical P0 block cannot
+be treated as an implementation veto for rev 3, but rev 3's claimed pass is
+not independently accepted either. A fresh, bounded P0 revalidation is now
+the first unit. It may create a temporary, compile-time QA direct-DOM probe,
+but must restore all source exactly before it exits. It must keep a non-app
+target focused after receipt and observe the app only via CDP attached to the
+background target. A successful short-hidden direct-title result unblocks P1;
+a failure blocks this plan for redesign, not a fallback Flutter implementation.
+
+**New protected changes discovered at this execution baseline** (in addition
+to every path already listed above):
+
+- `packages/client/lib/features/beacon_room/ui/widget/room_message_tile.dart`
+- `packages/client/pubspec.yaml` (unrelated `5.10.1` version work)
+- `packages/client/test/features/beacon_room/room_message_tile_coordination_test.dart`
+- `packages/client/web/index.html` (unrelated `5.10.1` cache-buster work)
+
+No listed protected path, including the untracked rev 3 plan source, may be
+staged or modified by P0. The existing journal is the only persistent P0-owned
+path. At P7, archiving the explicitly selected plan source will be a separate,
+path-scoped release-hygiene decision under the plan itself.
+
+**Revised manifest:** P0 direct-DOM revalidation — in progress; P1-P2 pending
+on success; P3 pending; P4-P5 pending; P6-P7 pending; final review pending.
+
+### 2026-08-11 — P0 revalidation interrupted for runtime-scope correction
+
+The fresh P0 worker was interrupted by the manager before it produced a gate
+result or journal checkpoint. It had launched one isolated `flutter build web`
+for a compile-time QA probe; it did not launch parallel P0 builds. Two existing
+`flutter_tester` processes were separately observed and were not started,
+stopped, or otherwise touched by this workflow. The worker-created build had
+exited after interruption; no P0 build, Caddy instance, static server, browser,
+or harness process remains.
+
+The temporary `AttentionCase` import/callback and the three
+`qa_hidden_tab_title_probe*` source files have been removed by the manager.
+`git diff` confirms no residual P0 source edit. No receipt trigger, title
+measurement, artifact result, P0 acceptance, or P1 unblock occurred.
+
+**Manifest correction:** P0 direct-DOM revalidation is **pending**, not in
+progress. P1-P7 remain blocked behind a fresh, explicitly bounded P0 attempt.
