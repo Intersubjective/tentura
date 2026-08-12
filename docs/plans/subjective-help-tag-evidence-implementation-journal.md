@@ -2635,7 +2635,7 @@ the main list below the band, not to the capped band strip.
 
 STATUS: complete
 
-COMMITS: (filled after commit)
+COMMITS: feat(server): add fnv1a64 hash for forward-band exploration (D2) (`5aea6288`); feat(server): add ForwardBandCase for evidence band composition (D2) (`373a40a6`); test(server): add ForwardBandCase unit tests and D2 journal (D2) (`ae09b0af`)
 
 TESTS:
 
