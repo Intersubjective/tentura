@@ -31,6 +31,11 @@ class InviteGenealogyRepositoryMock implements InviteGenealogyRepositoryPort {
 
   Map<String, int> childCounts = const {};
 
+  String? inviterForUserId;
+
+  @override
+  Future<String?> inviterOf(String userId) async => inviterForUserId;
+
   @override
   Future<void> recordSignupEdge({
     required String ancestorUserId,

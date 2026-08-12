@@ -65,6 +65,23 @@ class InviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   }
 
   @override
+  Future<String?> inviterOf(String userId) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT ancestor_user_id
+FROM invite_genealogy
+WHERE descendant_user_id = $1
+LIMIT 1
+''',
+          variables: [Variable<String>(userId)],
+          readsFrom: {_database.inviteGenealogy},
+        )
+        .getSingleOrNull();
+    return row?.read<String>('ancestor_user_id');
+  }
+
+  @override
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String userId,
   }) async {

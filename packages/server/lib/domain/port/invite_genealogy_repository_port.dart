@@ -9,6 +9,9 @@ abstract class InviteGenealogyRepositoryPort {
     required String invitationId,
   });
 
+  /// Direct inviter of [userId] from `invite_genealogy`, or null when absent.
+  Future<String?> inviterOf(String userId);
+
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String userId,
   });
