@@ -2,6 +2,7 @@ import 'dart:convert' show jsonDecode;
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -148,7 +149,7 @@ final class EmptyGraphForwardEdgeRepository
   }) => throw UnimplementedError();
 
   @override
-  Future<List<String>> createBatch({
+  Future<List<ForwardEdgeCreated>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
@@ -513,7 +514,7 @@ final class ConfigurableGraphForwardEdgeRepository
       throw UnimplementedError();
 
   @override
-  Future<List<String>> createBatch({
+  Future<List<ForwardEdgeCreated>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
@@ -95,9 +96,9 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   /// [onAfterEdgesInserted] runs inside the same transaction when at least one
   /// edge is inserted (e.g. sender inbox → watching when not committed).
   ///
-  /// Returns recipient ids for which a new active edge was inserted.
+  /// Returns edge/recipient pairs for which a new active edge was inserted.
   @override
-  Future<List<String>> createBatch({
+  Future<List<ForwardEdgeCreated>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
@@ -107,7 +108,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
   }) => _database.withMutatingUser(senderId, () async {
-    final inserted = <String>[];
+    final inserted = <ForwardEdgeCreated>[];
     for (final recipientId in recipientIds) {
       if (await findActiveEdge(
             beaconId: beaconId,
@@ -117,7 +118,9 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           null) {
         continue;
       }
+      final edgeId = ForwardEdgeEntity.newId;
       await _insertActiveEdge(
+        edgeId: edgeId,
         beaconId: beaconId,
         senderId: senderId,
         recipientId: recipientId,
@@ -131,8 +134,10 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         senderId: senderId,
         recipientId: recipientId,
       );
-      if (edge?.batchId == batchId) {
-        inserted.add(recipientId);
+      if (edge?.id == edgeId && edge?.batchId == batchId) {
+        inserted.add(
+          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
+        );
       }
     }
     if (inserted.isNotEmpty) {
@@ -350,6 +355,7 @@ WHERE beacon_id = $1
       });
 
   Future<void> _insertActiveEdge({
+    String? edgeId,
     required String beaconId,
     required String senderId,
     required String recipientId,
@@ -360,6 +366,7 @@ WHERE beacon_id = $1
   }) =>
       _database.into(_database.beaconForwardEdges).insert(
         BeaconForwardEdgesCompanion.insert(
+          id: edgeId == null ? const Value.absent() : Value(edgeId),
           beaconId: beaconId,
           senderId: senderId,
           recipientId: recipientId,

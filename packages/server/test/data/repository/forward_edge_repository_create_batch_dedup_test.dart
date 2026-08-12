@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
@@ -117,7 +118,8 @@ WHERE beacon_id = 'Bfwdedup01'
         batchId: 'batch-fwdedup-1',
         noteForRecipient: (_) => 'first note',
       );
-      expect(firstInserted, [recipient]);
+      expect(firstInserted.length, 1);
+      expect(firstInserted.single.recipientId, recipient);
 
       final firstEdge = await repo.findActiveEdge(
         beaconId: beaconId,
@@ -155,7 +157,8 @@ WHERE beacon_id = 'Bfwdedup01'
         batchId: 'batch-fwdedup-3',
         noteForRecipient: (_) => 'from sender two',
       );
-      expect(thirdPartyInserted, [recipient]);
+      expect(thirdPartyInserted.length, 1);
+      expect(thirdPartyInserted.single.recipientId, recipient);
       expect(await countActiveEdges(senderId: sender2, recipientId: recipient), 1);
     },
     skip: skipReason,

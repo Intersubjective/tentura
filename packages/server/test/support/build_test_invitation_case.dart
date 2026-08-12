@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -78,7 +79,7 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   );
 
   @override
-  Future<List<String>> createBatch({
+  Future<List<ForwardEdgeCreated>> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
