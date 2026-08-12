@@ -203,6 +203,10 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     required String subjectId,
     required List<String> slugs,
   }) => _database.withMutatingUser(observerId, () async {
+    // Serialize complete seed replacements for one (observer, subject) pair
+    // before reading active rows; per-cell locks alone cannot guard disjoint sets.
+    await _lockSeedAttestationPair(observerId, subjectId);
+
     final currentSlugs = await _activeSeedSlugs(
       observerId: observerId,
       subjectId: subjectId,
@@ -302,6 +306,12 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     r"SELECT pg_advisory_xact_lock(hashtextextended('cap:forward:' || $1, 4242))",
     [forwardEdgeId],
   );
+
+  Future<void> _lockSeedAttestationPair(String observerId, String subjectId) =>
+      _database.customStatement(
+        r"SELECT pg_advisory_xact_lock(hashtextextended('cap:seed:' || $1 || chr(31) || $2, 4242))",
+        [observerId, subjectId],
+      );
 
   Future<void> _lockCell(String observer, String subject, String tag) =>
       _database.customStatement(

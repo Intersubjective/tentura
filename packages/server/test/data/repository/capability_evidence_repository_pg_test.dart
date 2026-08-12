@@ -384,6 +384,106 @@ WHERE observer_user_id = 'Ucapb2aobs01'
     );
 
     test(
+      'upsertSeedAttestation serializes disjoint complete replacements via pair lock',
+      () async {
+        final blockerDb = TenturaDb(target.databaseEnv);
+        final repo1Db = TenturaDb(target.databaseEnv);
+        final repo2Db = TenturaDb(target.databaseEnv);
+        final repo1 = CapabilityEvidenceRepository(repo1Db);
+        final repo2 = CapabilityEvidenceRepository(repo2Db);
+
+        const transportTag = 'transport';
+        const petsTag = 'pets';
+
+        final blockerReady = Completer<void>();
+        final releaseBlocker = Completer<void>();
+        final upsert1Done = Completer<void>();
+        final upsert2Done = Completer<void>();
+
+        try {
+          unawaited(
+            blockerDb.transaction(() async {
+              await blockerDb.customStatement(
+                r'SELECT public.cap_cell_lock($1, $2, $3)',
+                [_obs1, _sub, transportTag],
+              );
+              blockerReady.complete();
+              await releaseBlocker.future;
+            }),
+          );
+          await blockerReady.future;
+
+          unawaited(
+            repo1
+                .upsertSeedAttestation(
+                  observerId: _obs1,
+                  subjectId: _sub,
+                  slugs: const [transportTag],
+                )
+                .then((_) => upsert1Done.complete()),
+          );
+
+          await _waitUntil(
+            () async {
+              final rows = await writer.execute(
+                "SELECT 1 FROM pg_locks "
+                "WHERE locktype = 'advisory' AND granted = false",
+              );
+              return rows.isNotEmpty;
+            },
+            timeout: const Duration(seconds: 5),
+          );
+
+          unawaited(
+            repo2
+                .upsertSeedAttestation(
+                  observerId: _obs1,
+                  subjectId: _sub,
+                  slugs: const [petsTag],
+                )
+                .then((_) => upsert2Done.complete()),
+          );
+
+          await _waitUntil(
+            () async {
+              if (upsert2Done.isCompleted) {
+                return false;
+              }
+              await writer.execute('BEGIN');
+              try {
+                final tryPair = await writer.execute(
+                  "SELECT pg_try_advisory_xact_lock("
+                  "hashtextextended('cap:seed:' || '$_obs1' || chr(31) || '$_sub', 4242))",
+                );
+                return tryPair.single.single == false;
+              } finally {
+                await writer.execute('ROLLBACK');
+              }
+            },
+            timeout: const Duration(seconds: 5),
+          );
+
+          releaseBlocker.complete();
+          await upsert1Done.future.timeout(const Duration(seconds: 5));
+          await upsert2Done.future.timeout(const Duration(seconds: 5));
+
+          final ledger = await _activeSeedSlugs(writer);
+          expect(ledger, [petsTag]);
+          expect(await _cellExists(writer, _obs1, _sub, petsTag), isTrue);
+          expect(await _cellExists(writer, _obs1, _sub, transportTag), isFalse);
+        } finally {
+          if (!releaseBlocker.isCompleted) {
+            releaseBlocker.complete();
+          }
+          await blockerDb.close();
+          await repo1Db.close();
+          await repo2Db.close();
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
       'emitOutcomeEvidenceBatch acquires cell locks in lexicographic order',
       () async {
         final blockerDb = TenturaDb(target.databaseEnv);
@@ -588,6 +688,19 @@ INSERT INTO public.beacon_forward_edge (
 )
 ON CONFLICT DO NOTHING
 ''');
+}
+
+Future<List<String>> _activeSeedSlugs(Connection writer) async {
+  final rows = await writer.execute(r'''
+SELECT tag_slug
+FROM public.person_capability_event
+WHERE observer_user_id = 'Ucapb2aobs01'
+  AND subject_user_id = 'Ucapb2asub01'
+  AND source_type = 4
+  AND deleted_at IS NULL
+ORDER BY tag_slug
+''');
+  return rows.map((r) => r[0]! as String).toList();
 }
 
 Future<List<String>> _activeForwardSlugs(Connection writer) async {
