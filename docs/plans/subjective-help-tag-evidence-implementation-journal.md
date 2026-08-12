@@ -78,7 +78,7 @@ any order after F1b. One worker at a time.
 - [x] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
 - [x] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
 - [x] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
-- [ ] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
+- [x] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
 - [ ] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
 - [ ] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
 - [ ] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
@@ -1859,4 +1859,164 @@ claims.
 out UNIT C3 (server half C3a + client half C3b) in full. C4, C5, D0, D3
 remain ready from earlier acceptances; nothing new is unblocked specifically
 by C3b, since nothing in the manifest depends on it directly.
+
+## C4 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- `7e4c82d8` feat(server): add invite_seed_prompt_state schema (C4)
+- `d56771ed` feat(server): add invite seed prompt port and inviter lookup (C4)
+- `aef6e974` feat(server): add invite seed attestation use case (C4)
+- `283a1c63` test(server): prove invite seed attestation policy on Postgres (C4)
+
+TESTS:
+
+```bash
+# sqlite3 hook overlay applied temporarily for dart test, then reverted (pubspec.yaml clean)
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 12s; wrote 355 outputs
+
+cd packages/server && dart test -t pg test/domain/use_case/invite_seed_attestation_pg_test.dart
+→ 00:01 +5: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1356: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ 0 matches
+
+git diff --check
+→ no whitespace errors (C4-owned paths)
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0146.dart`
+- `packages/server/lib/data/database/migration/_migrations.dart`
+- `packages/server/lib/data/database/table/invite_seed_prompt_state.dart`
+- `packages/server/lib/data/database/tentura_db.dart`
+- `packages/server/lib/domain/port/invite_seed_prompt_port.dart`
+- `packages/server/lib/domain/port/invite_genealogy_repository_port.dart` (`inviterOf`)
+- `packages/server/lib/data/repository/invite_seed_prompt_repository.dart`
+- `packages/server/lib/data/repository/invite_genealogy_repository.dart`
+- `packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart`
+- `packages/server/lib/data/repository/mock/invite_genealogy_repository_mock.dart`
+- `packages/server/lib/domain/capability/capability_slug_validation.dart`
+- `packages/server/lib/domain/use_case/invite_seed_attestation_case.dart`
+- `packages/server/lib/data/repository/user_repository.dart`
+- `packages/server/test/domain/use_case/invite_seed_attestation_pg_test.dart`
+- Test harness updates: `user_repository_*_test.dart`, `room_message_reply_readback_pg_test.dart`, `user_delete_attention_pg_test.dart`, `commitment_attention_pg_test.dart`, `invite_genealogy_case_test.dart`, `query_invite_genealogy_test.dart`
+
+FINDINGS:
+
+- **Plan/code discrepancy (`bindFriendship` vs `recordSignupEdge`):** Traced live call graph. `recordSignupEdge` is called only from `UserRepository.createInvited` and `createInvitedWithCredential` (new-account signup). `bindFriendship` belongs to `UserRepository.bindMutual`, used by `InvitationCase.accept` (`true`) and `_acceptBeaconInviteOnly` (`false`) for **existing** users — it never calls `recordSignupEdge`. Beacon-scoped invites **can** be consumed at signup (`createInvited*` has no beacon filter; lines 214–221 / 373–379 still materialize beacon forwards), but signup paths **always** create reciprocal `vote_user` friendship and genealogy — the plan's "beacon-only without friendship" state is reachable only via `_acceptBeaconInviteOnly` for already-friends existing users, which does not create genealogy or prompt rows. **Decision:** insert `pending` unconditionally in both signup paths immediately after `recordSignupEdge`; do **not** hook `bindMutual` / `bindFriendship`.
+- **`InviteRelationPort`:** Added `inviterOf` to existing `InviteGenealogyRepositoryPort` + adapter instead of a separate port/DI binding (same query surface, less plumbing).
+- **Taxonomy size:** `kCapabilitySlugOrder` has **37** slugs (matches plan); `validateCapabilitySlugPayload` rejects payloads longer than `kAllowedCapabilitySlugs.length`.
+- **`withdraw`:** No seed-specific revoke on `CapabilityEvidencePort`; withdrawal is `upsertSeedAttestation` with `[]` (same empty-set semantics as C3a forward reconcile). Prompt state is left unchanged — inviter already engaged.
+- **`setRoutingMute`:** No production caller of `RoutingMutePort.setMute` in server lib (only `RoutingMuteRepository` tests). Deferred validation at the port to E1b; exported `validateCapabilitySlugPayload` for reuse.
+- **Answer atomicity:** `answer` wraps `markAnswered` + `upsertSeedAttestation` in `MutatingUnitOfWorkPort.run(actorUserId: actor)` so pair-level seed locks and prompt transition share one transaction. `skip` calls only `markSkipped` (no attestation write per plan).
+
+REMAINING: none (GraphQL surface deferred to E1b per plan)
+
+---
+
+### Manager verdict: ACCEPTED (after two manager-authored repairs) — 2026-08-12
+
+This was the deepest plan/live-code discrepancy investigation so far,
+alongside B3's. The dispatch prompt for this unit was built from a
+pre-investigation that traced the plan's stated `recordSignupEdge`/
+`bindFriendship` mechanism and found it did not exist as described; the
+worker was asked to independently verify and resolve it rather than
+implement the plan's literal (wrong) text.
+
+**Independently re-traced the discrepancy resolution, not just accepted the
+worker's claim:** confirmed directly that `recordSignupEdge` is called only
+from `UserRepository.createInvited`/`createInvitedWithCredential` (signup),
+neither of which has a `bindFriendship` concept; that `bindMutual` (which
+does have `bindFriendship`) never calls `recordSignupEdge`; and that both
+signup methods unconditionally create genealogy **and** full friendship
+together, with no live code path that creates genealogy without friendship
+for a beacon-only invite. The worker's conclusion — insert `pending`
+unconditionally in both signup paths, since genealogy and friendship are
+never decoupled in reachable states — is the correct resolution given this
+evidence, and the journal entry states the reasoning plainly enough to audit
+without re-deriving it from scratch.
+
+**Port/adapter review (`7e4c82d8`, `d56771ed`):** the migration and
+hand-authored Drift table match the plan's schema exactly, correctly keyed
+on `invitee_user_id` alone (not the pair) as the plan specifies. Folding
+`InviteRelationPort` into the existing `InviteGenealogyRepositoryPort.inviterOf`
+instead of a wholly separate port is a reasonable, lower-plumbing choice
+this review explicitly allowed for. `insertPending`'s `onConflict: DoNothing`
+is correctly idempotent; `markAnswered`/`markSkipped` correctly throw when no
+matching pending row exists, rather than silently no-oping.
+
+**Use case review (`aef6e974`):** `_authorizeInviter` correctly checks
+self-seeding, blocks (reusing the existing block-check port method, not a
+new one), directional inviter match, and prompt-row existence.
+`answer` atomically wraps `markAnswered` + `upsertSeedAttestation` in one
+`MutatingUnitOfWorkPort.run` — correct, since B2a's `upsertSeedAttestation`
+takes its own pair-lock inside that same call and nothing here re-enters it
+awkwardly. `skip` correctly never calls the attestation port. `withdraw`'s
+design (empty-list `upsertSeedAttestation`, prompt state left alone) is a
+reasonable, clearly-documented reading of an underspecified plan section.
+
+**Two defects found and repaired directly (both small, local, and quickly
+verified — handled the same way as B2b's flakiness fix and B3's cascade-
+invalidation gap, not sent back for a third worker turn):**
+
+1. `dba31c5d` — `validateCapabilitySlugPayload`'s "reject payloads longer
+   than the taxonomy" check compared `deduped.length` (the *post*-validation,
+   post-dedup count) against the taxonomy size. Since every element that
+   survives into `deduped` must already be a unique, valid taxonomy member,
+   `deduped.length` can never mathematically exceed the taxonomy size — the
+   check was dead code that could never fire. A payload of many thousands of
+   duplicate valid slugs would sail through undetected, contradicting the
+   plan's explicit requirement and its own stated motivation (preventing "an
+   authenticated client... force[ing] unbounded reconciliation"). Moved the
+   length check to run against the raw input **before** the per-element
+   loop, so it actually rejects oversized payloads and does so cheaply, as a
+   real DoS-shaped guard rather than a no-op.
+2. `32ff45a1` — independently ran every pre-existing PG-tagged test this
+   unit's diff touched or could plausibly affect (found by grepping for
+   every direct `UserRepository(` construction site across `test/` and
+   `lib/`, not just the files the worker's own diff happened to list) and
+   found `user_repository_invite_genealogy_test.dart` genuinely failing:
+   `relation "invite_seed_prompt_state" does not exist`. That test predates
+   this entire plan and connects directly to the shared local `postgres`
+   database (no `migrateDbSchema` call, only a stale table-existence skip
+   gate) — `createInvited`'s new unconditional `insertPending` call now
+   requires schema the shared database was never guaranteed to have. Rather
+   than migrate shared infrastructure (which every unit since B2b has
+   deliberately avoided) or leave a regression in place, moved this test
+   onto the same `_DisposablePgTarget` pattern used throughout the rest of
+   this plan. Reran it 3x independently afterward — stable every time.
+   Cross-checked every other PG-tagged direct `UserRepository` consumer
+   (`commitment_attention_pg_test.dart`,
+   `room_message_reply_readback_pg_test.dart`,
+   `user_repository_link_credential_test.dart`,
+   `user_delete_attention_pg_test.dart`) — all already passed without
+   changes.
+- Reran the worker's own new PG suite (`invite_seed_attestation_pg_test.dart`,
+  5 tests) 3x independently — all green every time, no flakiness.
+- Reran `dart test -x pg` (1356, unchanged), `./scripts/check-custom-lints.sh
+  packages/server` (0, baseline), `git diff --check` (clean), `rg
+  "package:tentura_server/data/repository" packages/server/lib/domain`
+  (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs, including the fixed `user_repository_invite_genealogy_test.dart`:
+  `mr_publish_epoch.epoch` read `0` before and after, no new
+  `tentura_test_*` database left behind by any run (the fixed test's own
+  disposable database is created and dropped cleanly on every run).
+
+**C4 is accepted.** Commits: `7e4c82d8`, `d56771ed`, `aef6e974`, `283a1c63`
+(worker), `dba31c5d`, `32ff45a1` (manager repairs). C5 remains
+dependency-ready (was already ready from B2c); nothing new is unblocked
+specifically by C4, since nothing in the manifest depends on it directly —
+E1b (not yet reached) is the eventual consumer of this unit's ports and use
+case.
 
