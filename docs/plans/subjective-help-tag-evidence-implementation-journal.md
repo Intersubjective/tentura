@@ -5124,3 +5124,72 @@ FINDINGS (manager, beyond what either worker reported):
 authorization) is next — the first API-layer unit, and the first to need
 `schema.graphql` (confirmed absent from the repo as of C5's review) plus
 authorization wiring for every operation in architecture §16.1.
+
+## E1a — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: E1a only — `CapabilityRoutingCase` (all three methods + tests),
+`subjectiveTags` / `forwardContext` / `tagExplanation` query resolvers +
+§16.1 predicates in use cases, `custom_types.dart` additions. No E1b
+mutation resolvers.
+
+PLAN:
+1. `CapabilityRoutingCase` + domain unit tests (negative auth first for revoke block-survival).
+2. Auth-wrapped query methods on `CapabilityProjectionCase` / `ForwardBandCase` (`forwardContext` predicate = `ForwardCase.forward`'s `canReadContent` gate).
+3. `query_capability_projection.dart` + `custom_types.dart` + resolver tests.
+4. `build_runner`, `dart test -x pg`, `check-custom-lints.sh`.
+
+FINDINGS (so far): `ForwardCase.forward` authorizes senders exclusively via
+`BeaconAccessGuard.canReadContent` (not author-id equality nor inbound-edge
+enumeration); `forwardContext` will mirror that exact predicate.
+
+## E1a — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `69206540` feat(server): add CapabilityRoutingCase for routing mute and revoke
+- `0d05333f` feat(server): add §16.1 auth to projection and forward-band query paths
+- `f1c16b84` feat(server): expose subjectiveTags, forwardContext, and tagExplanation queries
+
+TESTS:
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_routing_case_test.dart test/api/controllers/graphql/query_capability_projection_test.dart
+→ 00:00 +11: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1428: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ total: 0 (baseline: 0)
+```
+
+FILES:
+- `packages/server/lib/domain/use_case/capability_routing_case.dart`
+- `packages/server/lib/domain/use_case/capability_projection_case.dart`
+- `packages/server/lib/domain/use_case/forward_band_case.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_capability_projection.dart`
+- `packages/server/lib/api/controllers/graphql/query/_queries_all.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/test/domain/use_case/capability_routing_case_test.dart`
+- `packages/server/test/domain/use_case/capability_routing_case_mocks.dart`
+- `packages/server/test/domain/use_case/capability_routing_case_mocks.mocks.dart`
+- `packages/server/test/api/controllers/graphql/query_capability_projection_test.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.mocks.dart`
+- `packages/server/test/domain/use_case/forward_band_case_test.dart`
+- `packages/server/test/domain/use_case/forward_band_case_mocks.dart`
+- `packages/server/test/domain/use_case/forward_band_case_mocks.mocks.dart`
+- `packages/server/test/domain/capability/model_world.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **`forwardContext` predicate:** matched `ForwardCase.forward` line ~202 — sole gate is `BeaconAccessGuard.canReadContent(beaconId, viewerId: senderId)` throwing `UnauthorizedException('Sender cannot read request content')`; `forwardContext` uses the parallel message `'Viewer cannot read request content'`. No separate author-id or inbound-edge check in Dart — `beacon_can_read_content` SQL owns that distinction.
+- **GraphQL enum representation:** `ProjectionTier` exposed as `graphQLString` via `.name` (existing codebase convention; no `GraphQLEnumType` introduced).
+- **`myRoutingTags` / `setRoutingMute` negative auth:** structurally impossible — API has no target-user parameter; actor is always JWT `sub` passed straight to `RoutingMutePort`. Tests confirm data flows to the actor's own user id only; no meaningful rejection path exists without inventing a fake parameter.
+- **Blocked viewer for reads:** `subjectiveTags` returns `[]`, `tagExplanation` returns `null` without calling `project` — fails closed without leaking tag data.
+- **`revokeAcknowledgement`:** no block check by design (§16.2); port keyed on `observerId: actorId` scopes delete to the actor's own row.
+
+REMAINING: E1b — wire mutation resolvers for `myRoutingTags`, `seedRoutingAttestation`, `revokeAcknowledgement`, `setRoutingMute`, and invite-seed-prompt answer/skip; client schema/routing in F1a.
