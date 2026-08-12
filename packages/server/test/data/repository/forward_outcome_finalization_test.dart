@@ -128,6 +128,7 @@ ON CONFLICT (id) DO NOTHING
           evaluatorId: authorId,
           evaluatedUserId: committerId,
           value: 5,
+          role: 0,
         ),
       ],
     );

@@ -77,11 +77,13 @@ void main() {
           evaluatorId: authorId,
           evaluatedUserId: committerId,
           value: 5,
+          role: 0,
         ),
         const FinalizedEvaluation(
           evaluatorId: committerId,
           evaluatedUserId: authorId,
           value: 4,
+          role: 1,
         ),
       ],
     );
@@ -140,6 +142,7 @@ void main() {
           evaluatorId: authorId,
           evaluatedUserId: committerId,
           value: 5,
+          role: 0,
         ),
       ],
     );

@@ -2,12 +2,14 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -102,11 +104,43 @@ final class RecordingTrustEvidence extends Fake
       forwardAlreadyRecorded;
 }
 
+final class NoopCapabilityEvidence extends Fake implements CapabilityEvidencePort {
+  @override
+  Future<void> emitOutcomeEvidenceBatch({
+    required String beaconId,
+    required List<OutcomeEmission> emissions,
+  }) async {}
+
+  @override
+  Future<void> reconcileForwardReasons({
+    required String forwardEdgeId,
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
+
+  @override
+  Future<void> revokeOutcomeEvidence({
+    required String beaconId,
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) async {}
+
+  @override
+  Future<void> upsertSeedAttestation({
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
+}
+
 ReviewFinalizationCase buildReviewFinalizationCase({
   required EvaluationRepositoryPort evaluationRepo,
   required ForwardEdgeRepositoryPort forwardEdges,
   required HelpOfferRepositoryPort helpOffers,
   required TrustEvidenceRepositoryPort trustEvidence,
+  CapabilityEvidencePort? capabilityEvidence,
   ForwardAttributionRepositoryPort? attribution,
 }) =>
     ReviewFinalizationCase(
@@ -116,6 +150,7 @@ ReviewFinalizationCase buildReviewFinalizationCase({
       attribution ?? FakeAttribution(),
       helpOffers,
       trustEvidence,
+      capabilityEvidence ?? NoopCapabilityEvidence(),
       env: Env(environment: Environment.test),
       logger: Logger('ReviewFinalizationTestSupport'),
     );
