@@ -12,7 +12,12 @@ void main() {
         ..witnessWeight('alice', 'bob', m: 1.0, admitted: true)
         ..witnessWeight('alice', 'sybil1', m: 1.0, admitted: false)
         ..witnessWeight('alice', 'sybil2', m: 1.0, admitted: false)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
         ..outcome(
           witness: 'sybil1',
           subject: 'carol',
@@ -39,11 +44,21 @@ void main() {
     test('W2: higher-m admitted witness contributes more at equal evidence', () async {
       final lowM = ModelWorld()
         ..witnessWeight('alice', 'bob', m: 0.3, admitted: true)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        );
 
       final highM = ModelWorld()
         ..witnessWeight('alice', 'bob', m: 0.9, admitted: true)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        );
 
       expect(
         await highM.standing('alice', 'carol', ModelWorld.transport),
@@ -212,7 +227,7 @@ void main() {
       final scores = <double>[];
       for (final n in [1, 2, 3, 4]) {
         final w = ModelWorld()
-          ..witnessWeight('alice', 'bob', m: 1.0, admitted: true)
+          ..witnessWeight('alice', 'bob', m: 1.2, admitted: true)
           ..outcome(
             witness: 'bob',
             subject: 'carol',
