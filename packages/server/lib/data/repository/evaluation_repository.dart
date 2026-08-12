@@ -514,6 +514,11 @@ ORDER BY e.updated_at DESC
   }) async {
     final now = DateTime.timestamp();
     return _db.transaction(() async {
+      await _db.customStatement(
+        r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
+        [beaconId],
+      );
+
       final window = await _db.managers.beaconReviewWindows
           .filter((e) => e.beaconId.id(beaconId))
           .getSingleOrNull();
@@ -567,10 +572,29 @@ ORDER BY e.updated_at DESC
       final transitioned = await _db
           .customSelect(
             r'''
-UPDATE beacon_evaluation
-SET status = $1, updated_at = now()
-WHERE beacon_id = $2 AND status = $3
-RETURNING evaluator_id, evaluated_user_id, value
+WITH finalized AS (
+  UPDATE public.beacon_evaluation
+  SET status = $1, updated_at = now()
+  WHERE beacon_id = $2 AND status = $3
+  RETURNING evaluator_id, evaluated_user_id, value
+)
+SELECT f.evaluator_id,
+       f.evaluated_user_id,
+       f.value,
+       p.role,
+       coalesce(
+         array_agg(a.tag_slug ORDER BY a.tag_slug)
+           FILTER (WHERE a.tag_slug IS NOT NULL),
+         '{}'
+       ) AS ack_tags
+FROM finalized f
+JOIN public.beacon_evaluation_participant p
+  ON p.beacon_id = $2 AND p.user_id = f.evaluator_id
+LEFT JOIN public.beacon_evaluation_ack_tag a
+  ON a.beacon_id = $2
+ AND a.evaluator_id = f.evaluator_id
+ AND a.subject_id = f.evaluated_user_id
+GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
 ''',
             variables: [
               const Variable<int>(BeaconEvaluationRowStatus.final_),
@@ -586,6 +610,8 @@ RETURNING evaluator_id, evaluated_user_id, value
             evaluatorId: row.read<String>('evaluator_id'),
             evaluatedUserId: row.read<String>('evaluated_user_id'),
             value: row.read<int>('value'),
+            role: row.read<int>('role'),
+            ackTags: row.read<List<dynamic>>('ack_tags').cast<String>(),
           ),
       ];
 

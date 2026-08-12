@@ -8,6 +8,8 @@ abstract class FinalizedEvaluation with _$FinalizedEvaluation {
     required String evaluatorId,
     required String evaluatedUserId,
     required int value,
+    required int role,
+    @Default(<String>[]) List<String> ackTags,
   }) = _FinalizedEvaluation;
 }
 
