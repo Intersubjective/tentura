@@ -31,40 +31,33 @@ const _allIds = [
 ];
 
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = _DisposablePgTarget.fromEnvironment();
+  final reachable = await _canConnect(target.adminEnv);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (skipReason == false) {
-    final env = _testEnv();
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    try {
-      if (!await _meritRankReady(connection)) {
-        skipReason = 'mr_put_edge / person_visibility_peers missing';
-      } else if (!await _hasWitnessWindowTable(connection)) {
-        await connection.execute('SET check_function_bodies = false');
-        await migrateDbSchema(connection);
-      }
-      if (skipReason == false && !await _hasWitnessWindowTable(connection)) {
-        skipReason = 'ego_witness_window missing after migrateDbSchema';
-      }
-    } finally {
-      await connection.close();
-    }
-  }
-
+  late Connection writer;
   late TenturaDb database;
   late WitnessWindowRepository repo;
   late MeritrankRepository meritRank;
 
   if (skipReason == false) {
-    setUp(() async {
-      database = TenturaDb(_testEnv());
+    setUpAll(() async {
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      await migrateDbSchema(writer);
+      database = TenturaDb(target.databaseEnv);
       repo = WitnessWindowRepository(database);
       meritRank = MeritrankRepository(database);
-      await meritRank.init();
+    });
+
+    setUp(() async {
       await _cleanup(database);
       await _resetEpoch(database);
       for (final id in _allIds) {
@@ -74,7 +67,12 @@ Future<void> main() async {
 
     tearDown(() async {
       await _cleanup(database);
+    });
+
+    tearDownAll(() async {
       await database.close();
+      await writer.close();
+      await target.drop();
     });
   }
 
@@ -289,7 +287,17 @@ Future<void> _mrEdge(
   double weight,
 ) => meritRank.putEdge(nodeA: subject, nodeB: object, weight: weight);
 
+Future<void> _clearMrEdge(TenturaDb db, String subject, String object) =>
+    db.customStatement(
+      "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
+    );
+
 Future<void> _cleanup(TenturaDb db) async {
+  for (final id in _allIds) {
+    if (id == _ego) continue;
+    await _clearMrEdge(db, _ego, id);
+    await _clearMrEdge(db, id, _ego);
+  }
   final idList = _allIds.map((id) => "'$id'").join(', ');
   await db.customStatement(
     'DELETE FROM public.ego_witness_window '
@@ -321,40 +329,94 @@ WHERE ego_user_id LIKE 'Ucapb2b%'
   return row.read<int>('c');
 }
 
-Future<bool> _meritRankReady(Connection connection) async {
-  final rows = await connection.execute('''
-SELECT
-  (SELECT count(*) FROM pg_proc WHERE proname = 'mr_put_edge') > 0
-  AND (SELECT count(*) FROM pg_proc WHERE proname = 'person_visibility_peers') > 0
-  AS ready
-''');
-  return rows.single.single! as bool;
-}
-
-Future<bool> _hasWitnessWindowTable(Connection connection) async {
-  final rows = await connection.execute(
-    "SELECT to_regclass('public.ego_witness_window') IS NOT NULL AS ok",
-  );
-  return rows.single.single! as bool;
-}
-
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
+Future<bool> _canConnect(Env env) async {
   try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
+    final connection = await Connection.open(
+      env.pgEndpoint,
+      settings: env.pgEndpointSettings,
+    );
+    await connection.close();
     return true;
-  } catch (_) {
+  } on Object {
     return false;
+  }
+}
+
+class _DisposablePgTarget {
+  const _DisposablePgTarget({
+    required this.adminEnv,
+    required this.databaseEnv,
+    required this.databaseName,
+  });
+
+  factory _DisposablePgTarget.fromEnvironment() {
+    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
+    final port =
+        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
+    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
+    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
+    final adminDatabase =
+        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
+    final databaseName =
+        Platform.environment['TENTURA_WITNESS_WINDOW_REPO_TEST_DB'] ??
+        'tentura_test_witness_window_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
+    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
+        databaseName.length > 63) {
+      throw ArgumentError.value(
+        databaseName,
+        'TENTURA_WITNESS_WINDOW_REPO_TEST_DB',
+        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
+      );
+    }
+
+    Env envFor(String database) => Env(
+      environment: Environment.test,
+      pgHost: host,
+      pgPort: port,
+      pgDatabase: database,
+      pgUsername: username,
+      pgPassword: password,
+      printEnv: false,
+      isDebugModeOn: false,
+    );
+
+    return _DisposablePgTarget(
+      adminEnv: envFor(adminDatabase),
+      databaseEnv: envFor(databaseName),
+      databaseName: databaseName,
+    );
+  }
+
+  final Env adminEnv;
+  final Env databaseEnv;
+  final String databaseName;
+
+  Future<void> recreate() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+      await connection.execute('CREATE DATABASE "$databaseName"');
+    } finally {
+      await connection.close();
+    }
+  }
+
+  Future<void> drop() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+    } finally {
+      await connection.close();
+    }
   }
 }

@@ -70,7 +70,7 @@ any order after F1b. One worker at a time.
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [x] **B2a** — Cell write adapter (depends: B1) — accepted after pair-lock remediation (`c3e81896`)
-- [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
+- [ ] **B2b** — Witness window adapter (depends: B1) — remediation complete 2026-08-12, manager acceptance pending
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [ ] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
@@ -761,3 +761,150 @@ the documented hook user define and used `/usr/lib/x86_64-linux-gnu/libsqlite3.s
 
 REMAINING: B2b/B2c are dependency-ready; C1a/C3a/D3 are now dependency-ready
 after B2a, while C4 remains blocked on B2c.
+
+## B2b — worker self-report (REJECTED by manager) — 2026-08-12
+
+The worker marked this complete. The manager rejected it before B2c/B3 could
+proceed. The worker's original report is preserved below for evidence, followed
+by the manager's rejection rationale and verified findings.
+
+STATUS: complete (worker claim — not accepted)
+
+COMMITS: feat(server): add witness window port adapter and domain policy (B2b) (`44f2c79b`)
+
+TESTS (worker-reported):
+
+```bash
+# Verified from disposable git worktree with pubspec hooks user_defines sqlite3 source:system
+# (main checkout sqlite3 code-assets hook download fails; documented workaround)
+
+cd packages/server && dart test test/domain/capability/witness_window_policy_test.dart
+→ 00:00 +14: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/witness_window_repository_pg_test.dart
+→ 00:07 +7: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:09 +1351: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/domain/capability/witness_window_policy.dart` (created — R_ego, floor, m, admission)
+- `packages/server/lib/data/repository/witness_window_repository.dart` (created — WitnessWindowPort adapter)
+- `packages/server/test/domain/capability/witness_window_policy_test.dart` (created)
+- `packages/server/test/data/repository/witness_window_repository_pg_test.dart` (created)
+
+FINDINGS (worker-reported):
+
+- `make_interval(mins => $n)` requires `::integer` cast when bound via Drift `customSelect`/`customStatement` (bigint bind otherwise).
+- MeritRank `putEdge` weight ≠ `forward_mr` in `person_visibility_peers`; PG topK test asserts structure and `trustedScores` presence, not exact MR magnitudes.
+- PG tests use live `postgres` DB (MeritRank-provisioned) and call `migrateDbSchema` when `ego_witness_window` is absent; disposable-only DBs lack `mr_put_edge`.
+- Main worktree `dart test` blocked by sqlite3 hook GitHub download failure; verification used documented non-mutating worktree + `hooks.user_defines.sqlite3.source: system`.
+
+REMAINING (worker-reported): none (B2c and B3 may proceed per plan)
+
+---
+
+### Manager verdict: REJECTED — 2026-08-12
+
+`44f2c79b` is preserved (not reset). The domain policy and repository split look
+correct (policy stays pure in `domain/capability/witness_window_policy.dart`;
+raw facts/cache mechanics stay in `data/repository/witness_window_repository.dart`).
+The defect is confined to the PG test's fixture setup, not the production code.
+
+**Why rejected:** `test/data/repository/witness_window_repository_pg_test.dart`
+connects to the shared local `postgres` database (`_testEnv()` defaults to
+`pgDatabase: 'postgres'`) rather than an isolated disposable database, then:
+
+- calls `migrateDbSchema(connection)` against that shared database whenever
+  `ego_witness_window` is absent (lines 46–49 at rejection time), permanently
+  mutating shared local infrastructure as a side effect of running tests;
+- unconditionally resets the shared singleton row `mr_publish_epoch` to
+  `epoch = 0` in `setUp` (`_resetEpoch`, formerly line 307), corrupting a
+  value other local processes/tests read as "current";
+- calls `meritRank.init()` (`meritrank_init()`) in `setUp`, which bulk-loads
+  the *shared* database's real `user_trust_edge` (+ polling) rows into the
+  MeritRank engine on every test run.
+
+Manager inspection of the shared local Postgres confirmed the damage was not
+hypothetical: `public.ego_witness_window` now exists (m0142/m0143 were in fact
+applied to the shared database) and `mr_publish_epoch.epoch` reads `0`.
+
+**Additional finding from direct empirical investigation (not previously
+documented anywhere in this repo's tests or docs):** the MeritRank graph itself
+is a single external singleton, not scoped per Postgres database. Verified by:
+creating two disposable databases (`CREATE DATABASE` + `CREATE EXTENSION pgmer2`),
+both report the identical `mr_service_url()` (`tcp://meritrank:8080`), and a
+brand-new, otherwise-empty disposable database's `mr_nodelist()` immediately
+returns real production-looking user IDs. `CREATE EXTENSION pgmer2` itself does
+work per-database (confirmed — it is not in `template1`, but is installable in
+any fresh database on this Postgres cluster), so `_DisposablePgTarget`-style
+isolation *does* fix the shared-schema/shared-epoch problems above. It does
+**not**, by itself, isolate MeritRank graph edges written via `mr_put_edge`
+during the test — those land in the same external graph used by dev/prod and
+persist after the disposable database is dropped. The existing precedent test
+`test/data/database/person_visibility_migration_pg_test.dart` handles this
+correctly today: unique, collision-proof node-ID prefixes (`Upv...`) plus an
+explicit `clearMrEdge` (zero-weight `mr_put_edge`) cleanup for every edge it
+creates. The rejected B2b test already used a unique prefix (`Ucapb2b...`) but
+never cleaned up the MeritRank edges it created via `_mrEdge`/`meritRank.putEdge`
+— a second defect, not previously called out, that also falls under "must never
+mutate persistent shared graph state."
+
+`meritrank_init()` itself is not destructive (it is `mr_bulk_load_edges`, a
+merge/upsert into the external graph, not a preceding `mr_reset()`), so it is
+safe to call against a disposable database's own near-empty `user_trust_edge`
+— but it is unnecessary for this test (which drives `putEdge` directly) and
+should simply be dropped from the remediated fixture.
+
+Remediation dispatched to a fresh `composer-2.5` worker; see the next journal
+entry for its outcome.
+
+## B2b remediation — complete — 2026-08-12
+
+STATUS: complete (manager acceptance pending)
+
+COMMITS: fix(server): isolate witness window PG test fixture (B2b) (`<hash pending commit>`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before commit.
+
+cd packages/server && dart test test/domain/capability/witness_window_policy_test.dart
+→ 00:00 +14: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/witness_window_repository_pg_test.dart
+→ 00:18 +7: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:06 +1351: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/test/data/repository/witness_window_repository_pg_test.dart`
+
+FINDINGS:
+
+- Rewrote fixture to `_DisposablePgTarget` (`tentura_test_witness_window_${pid}_${timestamp}`); `setUpAll` runs `CREATE EXTENSION IF NOT EXISTS pgmer2` then `migrateDbSchema` on the disposable database only.
+- Removed `meritRank.init()` / `meritrank_init()` from fixture — test drives edges via `putEdge` directly.
+- Added `_clearMrEdge` (zero-weight `mr_put_edge`) in `_cleanup` for every ego↔peer pair among `Ucapb2b*` IDs so the shared external MeritRank graph is not left with test edges.
+- Shared `postgres` database untouched by remediation run: `mr_publish_epoch.epoch` before=0, after=0; no new disposable witness-window DB left after suite (`tearDownAll` drops target DB; stale `tentura_test_witness_window_528830_*` from the rejected run predates this remediation).
+
+REMAINING: manager acceptance pending; B2c remains blocked until B2b accepted
