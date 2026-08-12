@@ -1274,3 +1274,77 @@ FINDINGS:
 - `evaluation_case.dart` intentionally untouched (C1b owns `evaluationSubmit` wiring and policy steps 1–6).
 
 REMAINING: none (C1b may begin)
+
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Note on process: the two prior worker launches for this unit died within
+seconds of starting, both times before any file was touched (confirmed via
+`git status`/`git log` — worktree was exactly at B3's HEAD both times), with
+no diagnosable cause (system resources, docker health, and the `cursor-agent`
+CLI itself all checked healthy in between attempts). A third, foreground
+(non-backgrounded) launch of the identical prompt completed normally. The
+manager takes responsibility for this deviation from the skill's default
+backgrounded-monitoring workflow; it was adopted only after confirming the
+worker CLI itself was not the problem, and no repository state was ever at
+risk across any of the attempts.
+
+Independent review of all three feature commits, not a re-run of the
+worker's claims:
+
+- `m0145.dart` matches the plan's `beacon_evaluation_ack_tag` DDL exactly.
+  The hand-authored Drift table (`beacon_evaluation_ack_tags.dart`) follows
+  the same convention as the A2-era tables (`ego_witness_windows.dart`,
+  `capability_routing_mutes.dart`) — confirmed those files exist and use the
+  identical hand-author-then-`build_runner`-generate pattern the worker
+  described; `withoutRowId => true` for this composite-PK, no-surrogate-id
+  table matches several other existing table files (`user_blocks.dart`,
+  `beacons.dart`, `meritrank_edge_tombstones.dart`).
+- `submitEvaluationAtomic` takes the advisory lock as the very first
+  statement inside `_db.transaction(...)`, before any read or write —
+  correct per the plan's "lock must live inside the same operation"
+  requirement. The window re-check (`status != 0` or `closesAt` in the past
+  → `StateError`) reuses the **exact** existing message text and idiom
+  already used elsewhere in this same file (confirmed: `StateError('Review
+  window not open')` already appears at lines 457/483 for
+  `extendReviewWindow`/`deleteReviewScaffoldingForBeacon`, predating this
+  unit) — the worker's claim of matching an existing convention checks out
+  verbatim, not just in spirit. Ack-tag replacement is delete-then-insert,
+  correctly scoped to `(beaconId, evaluatorId, evaluatedUserId)`; an empty
+  `ackTags` list naturally leaves zero rows without any special-casing.
+  Evaluation content is upserted via `BeaconEvaluationsCompanion.insert(...,
+  onConflict: DoUpdate(...))`, correctly replacing `value`/`reasonTags`/
+  `note`/`status` on a second submit.
+- Confirmed `evaluation_case.dart` has a **zero-diff** against B3's HEAD
+  (`git diff 40565bde..HEAD -- .../evaluation_case.dart` is empty) — the
+  worker respected the C1a/C1b scope boundary exactly, including leaving the
+  legacy `recordCloseAcknowledgement` call and its try/catch untouched for
+  C1b to remove.
+- Mock/fake ripple edits (`evaluation_repository_mock.dart`,
+  `evaluation_case_test.dart`'s `_FakeEvaluationRepository`,
+  `coordination_case_revert_test.dart`'s `_TrackingEvaluationRepository`) are
+  mechanical no-op stub additions required by adding a method to
+  `EvaluationRepositoryPort` — not scope creep.
+- PG test suite (5 tests) reran 3x independently, fresh disposable database
+  each time — all green every time. Coverage matches this unit's acceptance
+  slice: first-submit content + ack tags, second-submit full replacement
+  (both ack tags and evaluation content), empty-ack-tags success with zero
+  rows, same-beacon concurrent submits for different evaluators complete
+  without corruption (two genuinely separate `TenturaDb`/connection
+  instances via `Future.wait`, not two futures sharing one connection), and
+  a causally-precise test proving the beacon-scoped lock does **not** block
+  a different beacon (holds beacon1's lock open via a manually-driven
+  transaction + `Completer`, confirms beacon2's `submitEvaluationAtomic`
+  completes without waiting).
+- Reran `dart test -x pg` (1351, unchanged — no new non-pg tests, correctly,
+  since this unit is PG-only), `./scripts/check-custom-lints.sh
+  packages/server` (0, baseline), `git diff --check` (clean), and `rg
+  "package:tentura_server/data/repository" packages/server/lib/domain`
+  (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs: `mr_publish_epoch.epoch` read `0` before and after, and no new
+  `tentura_test_*` database was left behind by any run.
+
+**C1a is accepted.** Commits: `e1f73974`, `20795f6d`, `232e9e79`, `0f04be18`.
+C1b is now dependency-ready.
