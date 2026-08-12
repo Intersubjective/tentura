@@ -152,7 +152,7 @@ ON CONFLICT (id) DO NOTHING
   );
 
   test(
-    'includes commit roles (source 2) for any viewer observing subject',
+    'a third party sees no commit-role slugs (C5: commit-role reads retired)',
     () async {
       await seedFixture();
       await repo.insertCommitRole(
@@ -162,13 +162,27 @@ ON CONFLICT (id) DO NOTHING
         slug: 'reliable',
       );
 
-      final rows = await fetch(viewer: viewerId, subject: subjectId);
+      // viewerId is neither the observer who recorded the commit role nor
+      // the subject -- a third party. commitRole (source_type = 2) writes
+      // still land in the ledger (kept for audit), but no read path may
+      // surface them anymore.
+      expect(await fetch(viewer: viewerId, subject: subjectId), isEmpty);
 
-      expect(rows, [
-        isA<ViewerVisibleCapabilityRow>()
-            .having((r) => r.slug, 'slug', 'reliable')
-            .having((r) => r.hasManualLabel, 'hasManualLabel', isFalse),
-      ]);
+      final ledgerRows = await db.customSelect(
+        '''
+SELECT 1 FROM public.person_capability_event
+WHERE observer_user_id = '$otherId'
+  AND subject_user_id = '$subjectId'
+  AND tag_slug = 'reliable'
+  AND source_type = ${CapabilityEventSource.commitRole.dbValue}
+  AND deleted_at IS NULL
+''',
+      ).get();
+      expect(
+        ledgerRows,
+        isNotEmpty,
+        reason: 'insertCommitRole must still write for audit (plan requirement)',
+      );
     },
     skip: skipReason,
   );
