@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
@@ -185,6 +186,16 @@ final class ForwardCase extends UseCaseBase {
         .map((c) => c.id)
         .toSet();
 
+    var band = const <ForwardBandRow>[];
+    try {
+      band = await GetIt.I<CapabilityRepositoryPort>().fetchForwardContext(
+        beaconId: beaconId,
+        context: context.isEmpty ? null : context,
+      );
+    } catch (_) {
+      // Non-critical: contextual band is best-effort enhancement.
+    }
+
     return ForwardLoad(
       candidates: applyContactOverlayAll(candidates),
       lineageSuggestions: applyContactOverlayAll(lineageSuggestions),
@@ -192,6 +203,7 @@ final class ForwardCase extends UseCaseBase {
       autoSelectIds: autoSelectIds,
       beacon: involvement.beacon,
       hasMyOutgoingForward: involvement.myForwardedRecipientEdgeIds.isNotEmpty,
+      band: band,
     );
   }
 

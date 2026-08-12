@@ -1,3 +1,4 @@
+import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 
 import 'forward_candidate.dart';
@@ -10,6 +11,7 @@ class ForwardLoad {
     required this.autoSelectIds,
     required this.beacon,
     this.hasMyOutgoingForward = false,
+    this.band = const [],
   });
 
   final List<ForwardCandidate> candidates;
@@ -18,4 +20,5 @@ class ForwardLoad {
   final Set<String> autoSelectIds;
   final Beacon beacon;
   final bool hasMyOutgoingForward;
+  final List<ForwardBandRow> band;
 }

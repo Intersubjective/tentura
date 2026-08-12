@@ -208,6 +208,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           droppedPreselectedIds: droppedPreselected,
           note: load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
+          band: load.band,
           candidatesLoad: _candidatesLoadFor(
             candidates: load.candidates,
             lineageSuggestions: load.lineageSuggestions,

@@ -1,3 +1,4 @@
+import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -110,9 +111,12 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     List<String>? editReasons,
     ForwardDeliveryOutcome? lastDeliveryOutcome,
     @Default(false) bool hasMyOutgoingForward,
+    @Default([]) List<ForwardBandRow> band,
   }) = _ForwardState;
 
   const ForwardState._();
+
+  Set<String> get bandMemberIds => band.map((row) => row.userId).toSet();
 
   static int _compareByMr(ForwardCandidate a, ForwardCandidate b) =>
       b.mrScore.compareTo(a.mrScore);
@@ -178,16 +182,19 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   /// visible even when the person also appears in lineage suggestions.
   List<ForwardCandidate> get visibleRecipients {
     final lineageIds = lineageSuggestions.map((c) => c.id).toSet();
+    final bandIds = bandMemberIds;
     final Iterable<ForwardCandidate> picked;
     switch (activeFilter) {
       case ForwardFilter.all:
       case ForwardFilter.bestNext:
         picked = _candidatesBase()
             .where((c) => !lineageIds.contains(c.id))
+            .where((c) => !bandIds.contains(c.id))
             .where((c) => c.canForwardTo);
       case ForwardFilter.unseen:
         picked = _candidatesBase()
             .where((c) => !lineageIds.contains(c.id))
+            .where((c) => !bandIds.contains(c.id))
             .where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
         picked = _mergedCandidatesForInvolvedScope().where(
