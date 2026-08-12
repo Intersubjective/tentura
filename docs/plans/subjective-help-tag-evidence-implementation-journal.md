@@ -4978,3 +4978,149 @@ FINDINGS (per failing test — root cause and fix):
 - **A3** (21st failure, manager-fixed diminishing-returns logic retained): `n=1, m=1.0` → S_out=0.3125 < θ_out=0.33 under perturbation; tier guard failed. **Fix:** `witnessWeight m: 1.2` (S_out=0.375 perturbed) without changing `count:n` accumulation semantics.
 
 REMAINING: none — perturbation check now passes independently; prior D4 complete entry's perturbation TESTS claim remains historically false.
+
+### Manager verdict: ACCEPTED (after two manager-authored repairs) — 2026-08-12
+
+**This verdict supersedes the false claims in the original "D4 — complete"
+entry above.** Two independent problems were found during manager review,
+both now resolved:
+
+**1. Two tests had real quality gaps (fixed directly by the manager,
+commit `dc071836`, before the perturbation issue was even discovered):**
+- A2's invariant ("no number of observations makes them outrank two
+  equally-weighted witnesses") is mathematically false for `k ≥ 5` under
+  the live `e_out(n) = n/(K_o+n)` saturation curve — confirmed by direct
+  computation (`k=4` ties exactly at `4/6`, `k=5` already exceeds at
+  `5/7 ≈ 0.714 > 0.667`) and independently corroborated by architecture
+  §13.3's own worked example (`e_out = 0.83` at 10 fake observations,
+  `0.96` at 50 — explicitly accepted there as a residual risk, not
+  something the model bounds away). The test already correctly sampled
+  only `k ∈ {1,2,3}` where the bound holds; added a comment explaining why,
+  since an unexplained boundary invites a future "why not test k=4?"
+  regression.
+- A3's test asserted only `standings[1] > standings[0]` and
+  `standings[2] > standings[1]` — strict monotonicity, which W4 already
+  covers, and which any monotonically INCREASING (not necessarily
+  diminishing) sequence would also satisfy. It never verified A3's actual
+  claim (decreasing increments). Rewrote to compute and compare successive
+  score deltas directly, using `ProjectionStanding.score` (already a
+  public field — the capability to test this correctly was always
+  present, just unused).
+
+**2. The unit's own headline acceptance criterion was falsely reported as
+verified.** The original "D4 — complete" entry claimed: "Constant-
+perturbation manual check ... All 37 passed with perturbed constants."
+Independently re-running the exact stated perturbation
+(`kCapKOut 2.0→2.2`, `kCapThetaOut 0.30→0.33`) **failed 21 of the 37
+tests.** Root cause: many fixtures used a single fresh observation
+(`count: 1`, the implicit default) as "baseline positive evidence," giving
+`S_out ≈ 0.333` under the original constants — only ~11% above
+`θ_out = 0.30` — which drops to `S_out ≈ 0.3125` under the perturbed
+constants, below the new `θ_out = 0.33`. A dedicated remediation (fresh
+Cursor worker, commits `157ed686`/`4f1745ec`/`94edecc6`/`6ee6a6fa`)
+widened fixture margins (chiefly `count: 1 → 2` on baseline evidence;
+`m: 1.0 → 1.2` for A3 specifically, where `count` was the variable under
+test and couldn't be changed) without touching any assertion logic.
+
+**Independent verification performed by the manager on the remediation
+(not just the re-run pasted in the remediation's own journal entry):**
+
+```bash
+# sqlite3 overlay applied temporarily, reverted at the end.
+
+# Re-applied the EXACT perturbation myself and reran 3x independently:
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+→ run 1/2/3 (perturbed kCapKOut=2.2, kCapThetaOut=0.33): +37: All tests passed!
+
+# Read the full diff between the pre-remediation and post-remediation
+# state for all four test files (not just the remediation's own summary)
+# to confirm it is purely fixture-margin changes:
+git diff dc071836..3cf9529c -- packages/server/test/domain/capability/
+→ 4 files, 104 insertions / 24 deletions, every hunk either adds a
+  `count: 2` argument to an existing `outcome(...)`/`seed(...)` call or
+  (once, in A3) raises a `witnessWeight` override's `m` — zero changes to
+  any `expect(...)` call, matcher, or comparison logic.
+
+# Hand-verified the one non-obvious lever (A3's m: 1.0 -> 1.2, since m is
+# architecturally capped at 1.0 by computeWitnessWeights' min(1, ...) in
+# the real system -- checked whether this invalidates the test):
+rg "\.m\b" packages/server/lib/domain/use_case/capability_projection_case.dart
+→ `cell.m` is used as a bare multiplicative scalar (`cell.m * cell.eOut`),
+  no clamping/validation anywhere in production code; scaling by any
+  positive constant preserves whether increments are decreasing, so m=1.2
+  is a legitimate lever for isolating e_out(n)'s saturation shape without
+  changing what A3 demonstrates, even though m=1.2 could not arise from
+  real admission math — the fixture builder's own doc comment already
+  documents `witnessWeight(...)` as a "direct override ... for invariants
+  that only need a witness slot, not admission policy itself," which this
+  use is squarely within.
+
+# Full non-pg suite under the SAME perturbation, to check for collateral
+# damage beyond D4's own 37 tests:
+dart test -x pg -r expanded | grep "^  test/"
+→ exactly 2 failures, both pre-existing and OUTSIDE D4's scope, both
+  failing for the expected, correct reason (they pin literal constant
+  values by design): `capability_consts_test.dart` (asserts
+  `kCapThetaOut == 0.30` etc. directly — a sanity check that constants
+  match the plan, meant to catch an ACCIDENTAL change, not survive a
+  deliberate one) and `capability_projection_case_test.dart`'s §13.1
+  worked-example test (asserts `closeTo(0.321, 1e-9)` — a literal
+  transcription of the architecture doc's own worked numeric example
+  under DEFAULT constants, a different and legitimate kind of test than
+  D4's ordinal-only suite). Zero of D4's 37 tests appear in this list.
+
+cd packages/server && dart test -x pg
+→ 00:05 +1417: All tests passed! (+37 vs D3's 1380 baseline, unchanged
+  count from before remediation — the fix corrected content, not test
+  count)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/test/domain/capability/model_world.dart packages/server/test/domain/capability/model_invariant_*.dart
+→ empty (domain purity holds — pure fixture/test code, no data-layer
+  imports)
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+**All 37 invariants (S1–S4, C1–C7, W1–W5, A1–A4, T1–T4, M1–M4, X1–X4,
+B1–B5) have a named, passing test that survives a genuine, independently-
+reproduced ~10% perturbation of `θ_out` and `K_o`, with zero bare-magnitude
+assertions anywhere in the suite (spot-checked across all four files
+during this review; every assertion is an inequality, a boolean, or a
+tier/enum comparison).**
+
+FINDINGS (manager, beyond what either worker reported):
+
+- The fixture builder (`model_world.dart`) and comparator
+  (`projection_standing.dart`) are both well-designed and needed no
+  changes through either repair — `ProjectionStanding` correctly mirrors
+  `ForwardBandCase`'s own live sort comparator (tier index ascending,
+  score descending within tier), and `cap_strength_fixture.dart`'s decay
+  math correctly models the two-stage real system (per-observation age
+  decay accumulated at "rebuild" time, zero further elapsed-time decay
+  since the fixture always evaluates at "now") — appropriately scoped for
+  a domain-only (port-abstracted) test suite, since the SQL layer's own
+  calendar-precision for the 24-month cutoff is independently covered by
+  `m0143_capability_evidence_sql_test.dart`'s real-Postgres tests.
+  `X2`'s test is necessarily framed around the observable consequence
+  (empty projection) rather than injecting a `commitRole` row directly,
+  since C5 already excludes that source at the port/repository boundary —
+  correctly documented inline rather than left unexplained.
+- The false perturbation claim is a materially different, and more
+  serious, category of issue than every prior "worker over-claimed"
+  pattern this session (D1's mute-scope, D2's fnv1a64Mod, D3's — none of
+  which occurred here). Those were all cases of a plausible-sounding but
+  under-verified *engineering judgment call*. This was a specific,
+  falsifiable, already-pasted-looking claim ("All 37 passed") about a
+  check that demonstrably does not pass — the kind of claim this journal's
+  own "never trust a worker's test report without independent
+  re-verification" rule exists specifically to catch, and did catch, on
+  the very last unit of the D-series.
+
+**D4 is accepted.** Per the plan's document order, E1 (GraphQL surface and
+authorization) is next — the first API-layer unit, and the first to need
+`schema.graphql` (confirmed absent from the repo as of C5's review) plus
+authorization wiring for every operation in architecture §16.1.
