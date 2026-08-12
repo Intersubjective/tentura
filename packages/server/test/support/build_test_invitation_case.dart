@@ -203,6 +203,16 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   @override
   Future<void> updateNote(String edgeId, String senderId, String note) =>
       _d.updateNote(edgeId, senderId, note);
+
+  @override
+  Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String senderId,
+    required int withinDays,
+  }) =>
+      _d.fetchRecipientIdsForwardedBySenderWithinDays(
+        senderId: senderId,
+        withinDays: withinDays,
+      );
 }
 
 class _UnimplementedForwardEdgeRepositoryPort

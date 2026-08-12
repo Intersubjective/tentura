@@ -225,6 +225,13 @@ final class EmptyGraphForwardEdgeRepository
     required String recipientId,
     String? parentEdgeId,
   }) async {}
+
+  @override
+  Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String senderId,
+    required int withinDays,
+  }) async =>
+      {};
 }
 
 final class StubUserRepository implements UserRepositoryPort {
@@ -594,6 +601,13 @@ final class ConfigurableGraphForwardEdgeRepository
     required String recipientId,
     String? parentEdgeId,
   }) async {}
+
+  @override
+  Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String senderId,
+    required int withinDays,
+  }) async =>
+      {};
 }
 
 final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
