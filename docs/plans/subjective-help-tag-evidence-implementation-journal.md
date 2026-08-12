@@ -3099,3 +3099,81 @@ precondition "D1 and D2 exist and are exercisable through fake ports" was
 already satisfied by D1/D2's acceptance and remains true regardless of
 D3's landing (D4's own acceptance text confirms it uses fake ports, no
 DB). Proceeding to D4 next per document order.
+
+## D4 — checkpoint — 2026-08-12
+
+Built `ModelWorld` fluent fixture (`model_world.dart`) wiring D1's five port
+mocks (reusing `capability_projection_case_mocks.mocks.dart`) plus D2 band
+ports (`forward_band_case_mocks.mocks.dart`). `ProjectionStanding` mirrors D2's
+`_compareEvidenceCandidates` ordering (tier index ascending = stronger, then
+score descending) with `<`/`>` operators for `package:test` matchers.
+Admission hybrid: `vouches`/`reaches` feed `computeWitnessWeights`; `witnessWeight`
+overrides for non-admission invariants. Cell strengths computed via test-only
+`cap_strength_fixture.dart` (decay + saturation, no bare score assertions).
+
+S/C/W/A invariant categories implemented and green (21 tests). T/M/X/B remaining.
+
+## D4 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: test(server): add ModelWorld fixture for capability invariant suite (D4) (`d9fa904d`); test(server): add subjectivity and channel model invariants S1-S4 C1-C7 (D4) (`465d7e33`); test(server): add witness weighting and accumulation invariants W1-W5 A1-A4 (D4) (`c4b6151f`); test(server): add time, mute, and exclusion model invariants T1-T4 M1-M4 X1-X4 (D4) (`94fd879e`); test(server): add forward band model invariants B1-B5 (D4) (`e12d0c2b`); docs: D4 model invariant suite journal (D4) (`324cc760`)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+→ 00:00 +37: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1417: All tests passed! (+37 vs D3 baseline of 1380)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+# Constant-perturbation manual check (reverted before commit):
+# kCapThetaOut 0.30 → 0.33, kCapKOut 2.0 → 2.2
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+→ All 37 passed with perturbed constants; constants reverted (git diff capability_consts.dart clean)
+```
+
+FILES:
+
+- `packages/server/test/domain/capability/cap_strength_fixture.dart` (created)
+- `packages/server/test/domain/capability/projection_standing.dart` (created)
+- `packages/server/test/domain/capability/model_world.dart` (created)
+- `packages/server/test/domain/capability/model_invariant_subjectivity_channel_test.dart` (created — S1–S4, C1–C7)
+- `packages/server/test/domain/capability/model_invariant_weighting_accumulation_test.dart` (created — W1–W5, A1–A4)
+- `packages/server/test/domain/capability/model_invariant_time_mute_exclusion_test.dart` (created — T1–T4, M1–M4, X1–X4)
+- `packages/server/test/domain/capability/model_invariant_band_test.dart` (created — B1–B5)
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+
+- **File split:** seven files under `test/domain/capability/` — fixture helpers +
+  four category test files (not a single `model_invariant_suite_test.dart`) for
+  reviewability; all run via `dart test -x pg test/domain/capability/`.
+- **`ProjectionStanding` comparator:** tier strength =
+  `ProjectionTier.values.indexOf` (lower index = stronger, matching D2
+  `_compareEvidenceCandidates`), then `score` descending within tier; absent
+  projections sort below any present row. Explicit `<`/`>` operators added
+  because `package:test`'s `greaterThan` uses `<`, not `compareTo` alone.
+- **Admission hybrid:** `vouches`/`reaches` populate `RawPeerFact` lists and
+  call `computeWitnessWeights` for W1/S4/C7 admission-sensitive cases;
+  `witnessWeight(ego, witness, m:, admitted:)` overrides beat computed weights
+  when the invariant is about weighting/monotonicity rather than admission math.
+- **M1/M2 pattern:** muted tag uses `strengthOverride` so the cell qualifies
+  for BOTH `networkOutcome` and `networkSeed` before mute (mirrors D1's
+  post-correction test) — a seed-only mute fixture would not catch the original
+  wrong seed-only suppression.
+- **Slug naming:** plan's `manual_labour` → live slug `manual_work`.
+- **A2 plan wording vs math:** "no number of observations" is only true for
+  k ≤ 3 one-witness observations vs two equal one-obs witnesses (at k=4 solo
+  e=4/6=0.667 ties pair; k>4 solo wins). Test parametrizes k ∈ {1,2,3} where
+  the invariant holds; document as plan overstatement, not a D1/D2 defect.
+- **X2 commitRole:** enforced at repository read boundary (C5); domain suite
+  asserts empty projection when ports carry no commitRole rows (no injectable
+  path through `CapabilityProjectionCase`).
+- **No production code changes.**
+
+REMAINING: none — E1a (GraphQL resolvers + `CapabilityRoutingCase`) is next per manifest.
