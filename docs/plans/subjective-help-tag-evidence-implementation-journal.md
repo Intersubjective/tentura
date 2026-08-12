@@ -1117,3 +1117,103 @@ FINDINGS:
 - **Exception-path proof:** disposable DB drops `pgmer2`, installs a plpgsql `mr_put_edge` stub that always raises, confirms epoch unchanged, then restores extension + `migrateDbSchema`.
 
 REMAINING: none (manager acceptance pending)
+
+---
+
+### Manager verdict: ACCEPTED (after one manager-authored repair) — 2026-08-12
+
+Independent review of all three commits, not a re-run of the worker's claims.
+This unit's dispatch prompt was written from a dedicated pre-investigation
+that itself turned out to have a stale assumption (see below) — the worker's
+own work corrected it independently and disclosed the correction honestly.
+
+**SQL review (`7f24b107`):** diffed every restated function body byte-for-byte
+against the live originals in `m0003.dart` and `m0137.dart`. All six
+`notify_meritrank_*_mutation` bodies are reproduced exactly, with
+`PERFORM public.mr_bump_publish_epoch();` correctly added before every
+`RETURN` in both the insert/update and delete branches. `trust_rebuild_effective_edge`
+is reproduced exactly from `m0137.dart` with the bump inserted inside the
+`BEGIN...EXCEPTION` block immediately after the successful `mr_put_edge`
+call — so a thrown exception skips the bump exactly like it already skips the
+`prev_sent_weight` update on the line below. No logic was dropped or altered
+anywhere in this migration.
+
+**Independently re-verified the worker's own "section A is dead" finding**,
+down to the underlying Postgres catalogs, before trusting it: on a disposable
+database migrated from scratch, `pg_trigger` has no
+`notify_meritrank_beacon_mutation`/`notify_meritrank_vote_beacon_mutation`
+(dropped by `m0061.dart`, whose own migration comment reads "Stop feeding
+MeritRank from beacons, beacon votes, room messages, and legacy comment vote
+edges"), no `notify_meritrank_opinion_mutation` (dropped by `m0062.dart`,
+which also drops the `opinion` table itself), no
+`notify_meritrank_vote_comment_mutation` (function dropped by `m0061.dart`;
+`comment`/`vote_comment` tables were already dropped by `m0037.dart` before
+that), and no `notify_meritrank_vote_user_mutation` (trigger dropped by
+`m0088.dart`, function body left as a documented dead orphan — see
+`sql/triggers.sql`'s own comment: "vote_user notify function body kept below
+for reference; do not re-attach"). Confirmed directly that a plain
+`INSERT INTO vote_user` on a freshly migrated disposable database does **not**
+bump the epoch on its own (no live trigger fires); `vote_user`'s only bound
+non-FK triggers are `vote_user_relationship_*_notify`, which — read in full —
+do pure realtime-notification fan-out (`emit_realtime_entity_change`) and
+never touch MeritRank at all. **The worker's own FINDINGS entry above already
+disclosed all of this accurately** ("m0061/m0062/m0088 deliberately dropped
+all six... m0144 restates the function bodies for future-proofing but does
+not re-attach triggers... votes publish only via `trust_rebuild_effective_edge`
+since m0088") — this was not something the worker got wrong or hid; my
+independent check confirms their own disclosure was correct. The dispatch
+prompt for this unit (built from a prior manager-authored investigation) had
+treated these six as live, active publish sites, which was itself based on a
+stale reading of `m0003.dart` in isolation without checking whether later
+migrations had since dropped the triggers — the worker corrected that
+without being told, and said so plainly rather than silently going along
+with an inaccurate premise. The restated dead function bodies are harmless
+(never executed, no trigger ever re-attached) and consistent with this
+repo's existing convention of preserving dead trigger-function bodies for
+reference (`sql/triggers.sql`'s own comment, above).
+
+**The real, load-bearing coverage is `trust_rebuild_effective_edge`** (every
+user-vote/trust-evidence publish, block/unblock withdrawal and cascade
+publish, and `trust_resync_source`/`trust_rebuild_effective_batch` for free
+since both delegate to it) plus the four Dart-side call sites for full-graph
+reset (`MeritrankCase`, `UserTrustEdgeRepository.cutoverBackfillIfNeeded`) and
+the tombstone-drain delete (`TrustMaintenanceCase._drainTombstones`). All were
+independently confirmed present and correctly placed.
+
+**One real gap found and repaired directly (small, local, quickly verified —
+handled the same way as the B2b flakiness repair rather than dispatching a
+third worker turn):** `UserBlockRepository.unblock()` republishes
+`trust_rebuild_effective_edge` inside a `for (final pair in affectedPairs)`
+loop for every cascade-inherited block sharing the removed `origin_id`, not
+just the single `(blockerId, blockedId)` pair the use case passes in — but
+only that single top-level pair was getting `invalidateFor` called for it.
+Because `mr_publish_epoch` is a single global counter (confirmed by reading
+`WitnessWindowRepository.cachedWindow`'s `WHERE w.mr_epoch = e.epoch` check —
+it is not scoped per user or pair), this was **not a staleness-correctness
+bug**: the epoch bump inside `trust_rebuild_effective_edge` already makes
+every cached window for every user fail its epoch check on the very next
+read, regardless of whether `invalidateFor` ran for a given pair.
+`invalidateFor`'s only additional effect is eager row deletion (minor GC,
+not correctness). Fixed anyway for completeness (`121ef112`): added the
+missing `invalidateFor` call inside the loop, for each `pair`. Verified:
+- all pre-existing `user_block_*_pg_test.dart` files still pass, including
+  `user_block_withdrawal_gate_pg_test.dart`'s "T-G2: unblock republishes
+  honest weight exactly", which exercises the exact loop touched;
+- `m0144_mr_publish_epoch_pg_test.dart`'s full 6-test suite reran 3x
+  independently (fresh disposable database each time) — all green every
+  time, no flakiness (this unit's tests never rely on closely-spaced
+  MeritRank scoring, unlike B2b's issue);
+- `dart test -x pg` (1351, all passing), `./scripts/check-custom-lints.sh
+  packages/server` (0, baseline), `git diff --check` (clean), `rg
+  "package:tentura_server/data/repository" packages/server/lib/domain`
+  (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs: `mr_publish_epoch.epoch` read `0` before and after every run
+  (mine and the worker's), and no new `tentura_test_*` database was left
+  behind by any run (the one pre-existing stale database predates this
+  unit entirely).
+
+**B3 is accepted.** Commits: `7f24b107`, `519eaf19`, `edb525ce` (worker),
+`121ef112` (manager repair). B2c's dependents (C4, C5) and B3's dependents
+(none new — B3 unblocks nothing further in the manifest that wasn't already
+ready) remain as previously recorded.
