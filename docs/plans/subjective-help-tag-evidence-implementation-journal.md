@@ -2708,3 +2708,130 @@ FINDINGS:
 
 REMAINING: none — D4 (model invariant suite) is next per manifest; D3 (expiry
 sweep) remains dependency-ready from B2a.
+
+### Manager verdict: ACCEPTED (after one manager-authored repair) — 2026-08-12
+
+**Acceptance criteria mapping** (plan text: "deterministic output on a fixed
+fixture; empty and singleton pools; a candidate with own + networkSeed
+labels only the own tag; no band when no candidate has evidence"):
+
+- Deterministic output on a fixed fixture — present, a 7-candidate fixture
+  pinning exact userIds, ranks, tiers, and labels for all 5 resulting rows.
+- Empty exploration pool — present (`canForwardTo=false` plus a
+  recently-forwarded exclusion jointly empty the pool).
+- Singleton exploration pool — present, pins exactly one row (not a
+  wrapped duplicate).
+- A candidate with own + networkSeed labels only the own tag — present,
+  the exact §8.1 adversarial case ("You worked together on Transport ·
+  Tools" wrongly implying shared work on both) with `ownOutcome` on
+  `transport` and `networkSeed` on `tools`, asserting `labels ==
+  ['transport']`.
+- No band when no candidate has evidence — present, and additionally pins
+  that `recentlyForwardedTo` is never called in that case (proving
+  exploration isn't computed independently of the band, per §9: "On a
+  screen with no band there is nothing to counterbalance").
+
+All four required cases present, plus four more beyond the minimum:
+row-tier reduction correctly favoring `networkOutcome` over the candidate's
+own `ownRouting` tag (the "channel first, then origin" rule, tested with a
+tier the candidate does NOT hold at Tier A — a stronger test than only
+exercising Tier A vs Tier C), `canForwardTo` band-exclusion pinned via a
+captured mock argument (proving exclusion happens before D1 is even
+called, not just filtered from the output), and exploration determinism
+across repeated calls with the same `beaconId`.
+
+**A real defect was found and fixed before this verdict was written** (not
+after, unlike D1 — the lesson from D1's post-acceptance correction was
+applied here proactively): `fnv1a64Mod`'s "unsigned semantics" handling was
+wrong. Details below.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read forward_band_case.dart and forward_band_case_test.dart in full,
+# traced every branch against architecture §8/§8.1/§9 before running anything.
+
+# Computed fnv1a64('a') by hand against the pinned vector to spot-check the
+# "unsigned semantics" claim in the worker's FINDINGS, since D1's post-hoc
+# correction established that a judgment-call finding needs independent
+# arithmetic verification, not just plausibility:
+
+python3 -c "
+h = 0xaf63dc4c8601ec8c
+signed = h - 2**64
+for mod in [3, 7, 10, 1000003]:
+    print(mod, h % mod, signed % mod)
+"
+→ mod=7: true_unsigned=5, dart_signed_percent=3  -- MISMATCH, confirming a
+  real bug: `& 0xFFFFFFFFFFFFFFFF` is a no-op (that literal is -1 in Dart's
+  64-bit two's-complement `int`), and `%` on a negative Dart int computes
+  Euclidean mod of the SIGNED value, not the true unsigned value.
+
+# Reproduced directly against the actual repo code (not just the arithmetic
+# argument) via a throwaway probe script run from packages/server with the
+# sqlite3 overlay applied:
+dart run tool/fnv_probe_scratch.dart
+→ fnv1a64Mod("a", 7) = 3   (confirmed wrong; correct is 5) — probe script
+  deleted after use, never committed.
+
+# Fixed via BigInt.toUnsigned(64) (commit 1d6d36bf). Re-verified:
+
+cd packages/server && dart test -x pg test/domain/capability/fnv1a64_test.dart test/domain/use_case/forward_band_case_test.dart
+→ run 1/2/3: 00:00 +14: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1380: All tests passed! (+14 vs D1's 1366)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/forward_band_case.dart packages/server/lib/domain/capability/fnv1a64.dart
+→ empty (domain purity holds for both files)
+
+grep -n "ForwardBandCase" packages/server/lib/app/di.config.dart
+→ present, singleton-registered
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- **The pre-existing "unsigned semantics" test could not have caught this
+  bug, structurally.** It asserted `fnv1a64Mod(x, 7)` is `inInclusiveRange(0,
+  6)` — a property that holds unconditionally for ANY implementation,
+  buggy or not, because Dart's `%` operator on a positive right operand is
+  *always* non-negative regardless of whether the left operand's
+  conversion to "unsigned" was done correctly. This is the same shape of
+  gap as D1's mute-scope test (a fixture that happens to make the buggy
+  and correct implementations produce the same result) — worth stating
+  explicitly as a pattern to watch for across the rest of this plan: a
+  test that asserts a *property* the correct AND incorrect implementations
+  both satisfy proves nothing about the specific mechanism under test.
+  Replaced with a fixture asserting the exact expected numeric values,
+  cross-checked independently.
+- **The `canForwardTo` band-membership judgment call (documented in D2's
+  own checkpoint) is well-grounded and I independently agree with it**:
+  every band row (evidence or exploration) carries a `[Forward]` action
+  per §8's mock-up, and restricting to `canForwardTo == true` before
+  either ranking or exploration is the only reading that keeps that
+  affordance honest. Re-confirmed this doesn't touch the *main* MR-ordered
+  list (D3/D4's "candidate set unchanged" language governs that list, not
+  the band strip layered above it).
+- **The evidence-cap-vs-exploration-pool exclusion is correct**:
+  `evidencedUserIds` is built from the *full* `projectionsBySubject` key
+  set before `_buildEvidenceRows` truncates to the top `kCapBandEvidenceSlots`
+  — a candidate with real but sub-cutoff evidence is excluded from both
+  the rendered evidence rows AND the exploration pool, never double-counted
+  or wrongly resurfaced as "new to this kind of request." Confirmed by
+  reading the call order in `composeBand` directly, not just trusting the
+  worker's FINDINGS note describing the same fix.
+- No pre-existing test references `ForwardBandCase`, `fnv1a64`/`fnv1a64Mod`,
+  or `ForwardBandRow` construction outside `capability_evidence_models.dart`
+  itself — this unit could not have regressed anything by construction
+  (same purely-additive-plus-one-fix shape as D0 and D1).
+
+**D2 is accepted**, on the corrected `fnv1a64Mod`. D3 (Expiry sweep,
+dependency-ready from B2a) and D4 (Model invariant suite, needing D1+D2
+"exercisable through fake ports" — now satisfied) are both unblocked.
+Proceeding to D3 next per document order.
