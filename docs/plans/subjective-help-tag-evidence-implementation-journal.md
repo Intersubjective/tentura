@@ -277,3 +277,15 @@ FINDINGS:
 - `tentura_db.g.dart` is gitignored under `packages/server/.gitignore`; codegen run locally but generated output not committed per plan rules.
 
 REMAINING: none
+
+### Manager review — remediation required — 2026-08-12
+
+Rejected pending a narrow parity repair. The Dart implementation uses
+`String.trim()`, while PostgreSQL `btrim(text)` (the A2 SQL authority) removes
+ASCII spaces only. A tab-delimited input remains tab-delimited in SQL but not in Dart.
+five-character value whereas Dart currently returns `AbC`; this can split
+canonical context keys across layers. A fresh remediation worker must make the
+Dart implementation exactly match the SQL behavior, add a tab-delimited parity
+case to both pure and pg tests, rerun the focused tests and server custom lint,
+and commit its source/test repair and journal checkpoint separately. No other
+A2 scope is reopened.
