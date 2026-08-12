@@ -161,6 +161,7 @@ SELECT EXISTS (
         ],
         readsFrom: {},
       ).getSingle();
+      await _invalidateWitnessWindows(blockerId, pair);
     }
   });
 
