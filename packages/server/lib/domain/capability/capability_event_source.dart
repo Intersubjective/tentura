@@ -2,7 +2,8 @@ enum CapabilityEventSource {
   privateLabel(0),
   forwardReason(1),
   commitRole(2),
-  closeAcknowledgement(3);
+  closeAcknowledgement(3),
+  seedRoutingAttestation(4);
 
   const CapabilityEventSource(this.dbValue);
 

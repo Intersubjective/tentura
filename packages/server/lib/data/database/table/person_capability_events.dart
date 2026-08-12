@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
+import 'beacon_forward_edges.dart';
 import 'beacons.dart';
+import 'invitations.dart';
 import 'users.dart';
 
 class PersonCapabilityEvents extends Table {
@@ -19,6 +21,14 @@ class PersonCapabilityEvents extends Table {
 
   @ReferenceName('capabilityBeacon')
   late final beaconId = text().nullable().references(Beacons, #id)();
+
+  @ReferenceName('capabilityForwardEdge')
+  late final forwardEdgeId = text()
+      .nullable()
+      .references(BeaconForwardEdges, #id)();
+
+  @ReferenceName('capabilityInvitation')
+  late final invitationId = text().nullable().references(Invitations, #id)();
 
   late final visibility = integer().withDefault(const Constant(0))();
 
