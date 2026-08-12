@@ -5943,3 +5943,95 @@ FINDINGS:
   to raw slug.
 
 REMAINING: none for F2 scope. F3, F4a, F5, F6 remain.
+
+### Manager verdict: ACCEPTED — 2026-08-13
+
+**Acceptance mapping** (plan text: "widget tests per tier, empty-band
+case, exploration divider; `bash scripts/check-user-facing-terminology.sh`
+clean"):
+
+- All four `ProjectionTier` values have a dedicated widget test asserting
+  the correct copy renders, including the two-label join case
+  (`networkOutcome tier renders joined label copy` — "Transport · Tools"
+  substituted into one `{tag}` placeholder, matching architecture §8's
+  literal mock-up rather than inventing a second sentence).
+- Empty-band case: present, and verified at BOTH layers, not just one —
+  the widget itself returns `SizedBox.shrink()` for `band.isEmpty`, AND
+  the parent (`forward_recipient_picker.dart`) additionally gates
+  instantiation entirely via `if (showBandBlock) ForwardBandStrip(...)`
+  (a bare conditional list-literal entry — zero widgets added to the tree
+  when false, not merely an invisible one). Belt-and-suspenders, and
+  correctly so: this is exactly the class of requirement ("byte-identical
+  to today") where relying on only one layer's diligence is risky.
+- Exploration divider: present and tested, with the divider only inserted
+  between evidence and exploration sections (never a leading divider on
+  an all-exploration-or-empty band, which per D2's own contract can never
+  actually occur, but the widget defensively guards it anyway).
+- `check-user-facing-terminology.sh`: clean, independently rerun.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read the ForwardRecipientRow diff first, since it's a SHARED widget also
+# used by the untouched main MR-ordered list -- confirmed every new
+# parameter (tierEvidenceLabel, tierEvidenceTone, showPresenceLine) is
+# optional with a default that reproduces the exact original render path
+# when absent (tierEvidenceLabel: null falls to `else if (showPresenceLine)`,
+# which defaults true and renders the original Wrap(...) unchanged).
+
+# Investigated a coupling that looked suspicious on first read --
+# showBandBlock = showLineageBlock && state.band.isNotEmpty -- why would
+# band visibility depend on a *lineage* flag? Traced showLineageBlock's
+# actual definition:
+grep -n "showLineageBlock" packages/client/lib/features/forward/ui/widget/forward_recipient_picker.dart
+→ showLineageBlock = state.activeFilter != ForwardFilter.alreadyInvolved
+  -- not really "about lineage" at all; it's "not viewing the
+  already-involved filter". Both lineage suggestions and the band are
+  discovery/recommendation UI that make no sense when the user has
+  filtered down to a known, already-involved set of people -- a
+  reasonable, if under-documented (not called out in FINDINGS), product
+  decision, not a bug. Confirmed the OWN explicit acceptance requirement
+  (empty-band byte-identical) still holds regardless of filter state,
+  since `state.band.isNotEmpty` is independently ANDed in.
+
+cd packages/client && flutter test test/features/forward/ui/widget/forward_band_strip_test.dart
+→ run 1/2/3: 00:00 +7: All tests passed! (one per tier x4, empty-band,
+  exploration divider, dedupe -- matches the plan's acceptance list
+  exactly plus the dedupe case)
+
+cd packages/client && flutter test
+→ 01:34 +2021 ~18: All tests passed! (+7 vs F1b's 2014; same 18
+  pre-existing skips; every pre-existing ForwardRecipientRow/
+  ForwardRecipientPicker/ForwardCubit test still passes unchanged,
+  confirming the shared-widget extension is truly backward-compatible)
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111) -- unchanged from F1a/F1b, confirming the
+  new ForwardBandStrip widget introduces zero new no_raw_edge_insets/
+  no_raw_border_radius/no_inline_font_size/pill-widget violations
+
+git diff --check
+→ no whitespace errors
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- The dedupe fix in `ForwardState.visibleRecipients` correctly mirrors
+  the existing `lineageIds` pattern in exactly the two filter branches
+  where it already applied (`all`/`bestNext` and `unseen`), and correctly
+  leaves `alreadyInvolved` untouched — consistent with that filter also
+  never rendering the band at all, so dedup there would be moot.
+- `_candidateFor`'s silent-skip-on-missing-candidate (`if (candidate ==
+  null) return;`) is defensible defensive coding for a case D0/D2's own
+  contract should make unreachable (band members are always drawn from
+  the same candidate pool) — not flagged as a gap, since failing loud
+  here would be strictly worse (a transient client/server data mismatch
+  crashing the whole Forward screen) for no compensating benefit.
+
+**F2 is accepted.** Per the plan's "F2–F5 in any order after F1b" note,
+F3 (Profile projection UI), F4a (Invite prompt receipt), and F5 (Routing
+mute screen) remain unblocked and independent of F2's completion.
+Proceeding to F3 next per document order.
