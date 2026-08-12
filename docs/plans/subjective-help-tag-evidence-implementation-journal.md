@@ -69,7 +69,7 @@ any order after F1b. One worker at a time.
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
-- [~] **B2a** — Cell write adapter (depends: B1) — pair-lock remediation complete; manager acceptance pending
+- [x] **B2a** — Cell write adapter (depends: B1) — accepted after pair-lock remediation (`c3e81896`)
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
@@ -719,3 +719,45 @@ FINDINGS:
 - Local `dart test` required `SQLITE3_USE_SYSTEM_LIB=1` when the sqlite3 hook download failed; Postgres was reachable without extra setup.
 
 REMAINING: manager acceptance pending; B2b/B2c remain blocked
+
+## Manager acceptance — B2a — 2026-08-12
+
+Accepted `c3e81896` after independent source review and verification.
+
+`upsertSeedAttestation` takes its transaction-scoped, namespaced advisory lock
+on `(observer, subject)` before the first active-seed read, then retains the
+lexicographically ordered per-cell locks for the resulting current/desired
+union. This closes the disjoint-replacement stale-read race without weakening
+the established cell write discipline.
+
+The new PostgreSQL test causally holds the first replacement at `transport`,
+observes the competing `pets` replacement blocked by the pair lock, releases
+the first writer, and asserts that the final ledger and derived cells contain
+only `pets`. It is an enforcement-boundary proof, rather than a timing-only
+`Future.wait` assertion.
+
+Independent verification was run from a disposable detached checkout with the
+same commits and the sqlite3 hook configured to use the installed system
+library; the protected working tree was not changed:
+
+```bash
+cd packages/server && dart test -t pg test/data/repository/capability_evidence_repository_pg_test.dart
+→ +11: All tests passed! (expected Drift multi-instance warnings)
+
+cd packages/server && dart test -x pg
+→ +1337: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check c3e81896^ c3e81896
+→ no whitespace errors
+```
+
+The first direct rerun in the protected checkout remained blocked by the
+sqlite3 code-assets hook's failed GitHub download; that was an environmental
+hook failure, not a test result. The disposable checkout avoided it through
+the documented hook user define and used `/usr/lib/x86_64-linux-gnu/libsqlite3.so`.
+
+REMAINING: B2b/B2c are dependency-ready; C1a/C3a/D3 are now dependency-ready
+after B2a, while C4 remains blocked on B2c.
