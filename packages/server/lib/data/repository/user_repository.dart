@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
@@ -36,6 +37,7 @@ class UserRepository implements UserRepositoryPort {
     this._database,
     this._trustEvidenceRepository,
     this._inviteGenealogyRepository,
+    this._inviteSeedPrompt,
   );
 
   final Env _env;
@@ -43,6 +45,7 @@ class UserRepository implements UserRepositoryPort {
   final TenturaDb _database;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final InviteGenealogyRepositoryPort _inviteGenealogyRepository;
+  final InviteSeedPromptPort _inviteSeedPrompt;
 
   //
   //
@@ -192,6 +195,10 @@ class UserRepository implements UserRepositoryPort {
       descendantUserId: user.id,
       descendantUserCreatedAt: user.createdAt.dateTime,
       invitationId: invitationId,
+    );
+    await _inviteSeedPrompt.insertPending(
+      inviterId: invitation.userId,
+      inviteeId: user.id,
     );
 
     await _database.managers.voteUsers.bulkCreate(
@@ -351,6 +358,10 @@ class UserRepository implements UserRepositoryPort {
       descendantUserId: user.id,
       descendantUserCreatedAt: descendantUser.createdAt.dateTime,
       invitationId: invitationId,
+    );
+    await _inviteSeedPrompt.insertPending(
+      inviterId: invitation.userId,
+      inviteeId: user.id,
     );
 
     await _database.managers.voteUsers.bulkCreate(
