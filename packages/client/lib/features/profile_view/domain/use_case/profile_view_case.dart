@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
@@ -14,6 +15,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 typedef ProfileViewSnapshot = ({
   Profile profile,
   PersonCapabilityCues cues,
+  List<TagProjection> subjectiveTags,
 });
 
 /// Owns the authoritative public-profile projection.
@@ -59,9 +61,16 @@ final class ProfileViewCase extends UseCaseBase {
       _profiles.fetchById(profileId),
       _capabilities.fetchCues(profileId),
     ]);
+    var subjectiveTags = <TagProjection>[];
+    try {
+      subjectiveTags = await _capabilities.fetchSubjectiveTags(profileId);
+    } catch (_) {
+      // Non-critical: witness projection is best-effort enhancement.
+    }
     return (
       profile: applyContactOverlay(results[0] as Profile),
       cues: results[1] as PersonCapabilityCues,
+      subjectiveTags: subjectiveTags,
     );
   }
 
