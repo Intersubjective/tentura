@@ -57,15 +57,36 @@ void main() {
   });
 
   group('capability_evidence_models contracts', () {
-    test('ForwardBandRow allows null rowTier and empty labels for exploration', () {
+    test('ForwardBandRow requires explicit rowTier and labels for exploration', () {
       const row = ForwardBandRow(
         userId: 'u1',
+        rowTier: null,
+        labels: [],
         rank: 0,
         isExploration: true,
       );
       expect(row.rowTier, isNull);
       expect(row.labels, isEmpty);
       expect(row.isExploration, isTrue);
+    });
+
+    test('ForwardBandRow requires explicit rowTier and labels for evidence rows', () {
+      const row = ForwardBandRow(
+        userId: 'u1',
+        rowTier: ProjectionTier.networkOutcome,
+        labels: [
+          TagProjection(
+            subjectUserId: 'u1',
+            tagSlug: 'transport',
+            tier: ProjectionTier.networkOutcome,
+          ),
+        ],
+        rank: 1,
+        isExploration: false,
+      );
+      expect(row.rowTier, ProjectionTier.networkOutcome);
+      expect(row.labels, hasLength(1));
+      expect(row.isExploration, isFalse);
     });
 
     test('TagProjection carries tier without score', () {

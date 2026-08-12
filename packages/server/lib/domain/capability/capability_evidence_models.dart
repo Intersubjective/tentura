@@ -108,8 +108,8 @@ abstract class TagProjection with _$TagProjection {
 abstract class ForwardBandRow with _$ForwardBandRow {
   const factory ForwardBandRow({
     required String userId,
-    ProjectionTier? rowTier,
-    @Default(<TagProjection>[]) List<TagProjection> labels,
+    required ProjectionTier? rowTier,
+    required List<TagProjection> labels,
     required int rank,
     required bool isExploration,
   }) = _ForwardBandRow;
