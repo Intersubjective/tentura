@@ -89,7 +89,7 @@ any order after F1b. One worker at a time.
 - [ ] **E1b** — Mutation resolvers + authz (depends: E1a) — `myRoutingTags`, seed, revoke, setMute, prompt answer/skip
 - [x] **F1a** — Client schema + routing (depends: E1b) — `schema.graphql`, `_tenturaDirectOperationNames`
 - [x] **F1b** — Client gql docs + repository (depends: F1a) — `.graphql` documents, repository, client entities
-- [ ] **F2** — Forward band UI (depends: F1b) — forward cubit/state/screen
+- [x] **F2** — Forward band UI (depends: F1b) — forward cubit/state/screen
 - [ ] **F3** — Profile projection UI (depends: F1b) — `profile_view_body.dart` + cubit/state (new field, not `viewerVisible`)
 - [ ] **F4a** — Invite prompt receipt (depends: F1b, C4) — receipt card + prompt state machine
 - [ ] **F4b** — Seed edit/withdraw (depends: F4a) — inviter-side edit path on invitee profile
@@ -5861,3 +5861,85 @@ document order, F2 (Forward band UI), F3 (Profile projection UI), F4a
 (Invite prompt receipt), and F5 (Routing mute screen) are all unblocked
 and may proceed in any order per the plan's own "F2–F5 in any order after
 F1b" note. Proceeding to F2 next.
+
+## F2 — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F2 — Forward band UI in `features/forward/`: state/cubit wiring,
+`ForwardBandStrip`, dedupe in `visibleRecipients`, l10n tier copy, widget
+tests.
+
+PLAN:
+1. Extend `ForwardLoad` / `ForwardCase.loadForwardCandidates` / `ForwardState`
+   / `ForwardCubit` with `band` (best-effort `fetchForwardContext` after main
+   candidate load — mirrors `fetchTopCapabilitiesForCandidates`).
+2. Dedupe band member ids from `visibleRecipients` (same pattern as lineage).
+3. Add `ForwardBandStrip` above `ForwardScopeLinks`; reuse `ForwardRecipientRow`
+   with `tierEvidenceLabel` / `showPresenceLine` overrides for band rows.
+4. Four tier l10n keys + section/exploration divider keys; slug labels via
+   `CapabilityTag.fromSlug(...).labelOf(l10n)`.
+5. Widget tests (per tier, empty band absent, exploration divider, dedupe).
+
+FINDINGS (so far):
+- `fetchForwardContext` placed in a separate best-effort try/catch after the
+  blocking `Future.wait` + lineage path — band is enhancement, not core load.
+- Two-label rows join display names with ` · ` inside the `{tag}` placeholder
+  (architecture §8 mock-up: "Seen helping with Transport · Tools").
+- Empty band: parent omits `ForwardBandStrip` entirely (`showBandBlock`) so
+  picker tree matches pre-F2 when server returns `[]`.
+
+## F2 — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- (pending) feat(client): wire forward band through load pipeline (F2)
+- (pending) feat(client): add forward band strip UI (F2)
+- (pending) test(client): forward band strip widget tests (F2)
+
+TESTS:
+
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d --build-filter="lib/features/forward/**"
+→ Built with build_runner/aot in 33s; wrote 1103 outputs. Exit 0.
+
+cd packages/client && flutter test test/features/forward/ui/widget/forward_band_strip_test.dart
+→ 00:00 +7: All tests passed!
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111)
+→ check-custom-lints: packages/client OK
+```
+
+FILES:
+- `packages/client/lib/features/forward/domain/entity/forward_load.dart`
+- `packages/client/lib/features/forward/domain/use_case/forward_case.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_band_strip.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_recipient_picker.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_recipient_row.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/forward/ui/widget/forward_band_strip_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Fetch placement:** `fetchForwardContext` is best-effort (separate try/catch
+  after blocking candidate/involvement/lineage load), matching the existing
+  `fetchTopCapabilitiesForCandidates` precedent via `GetIt.I<CapabilityRepositoryPort>()`.
+- **Row widget:** Reused `ForwardRecipientRow` with new optional
+  `tierEvidenceLabel` / `tierEvidenceTone` / `showPresenceLine` — avoids
+  duplicating avatar/name/checkbox/reason-edit plumbing.
+- **Second label:** Both same-tier labels appear in tier copy via joined display
+  names (`Transport · Tools`) substituted into one `{tag}` placeholder per tier
+  string — not a second sentence.
+- **Slug → label:** `CapabilityTag.fromSlug(slug)?.labelOf(l10n)` (same as
+  capability chips / `ForwardRecipientRow` hint chips); unknown slugs fall back
+  to raw slug.
+
+REMAINING: none for F2 scope. F3, F4a, F5, F6 remain.
