@@ -4,8 +4,10 @@ library;
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
@@ -16,21 +18,13 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/env.dart';
 
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  var skipReason = postgresReachable ? false : 'local Postgres not reachable';
+  final target = _DisposablePgTarget.fromEnvironment();
+  final reachable = await _canConnect(target.adminEnv);
+  final skipReason = reachable
+      ? false
+      : 'Postgres admin database not reachable for disposable test target';
 
-  if (postgresReachable) {
-    final env = _testEnv();
-    final probe = TenturaDb(env);
-    try {
-      if (!await _hasInviteGenealogyTable(probe)) {
-        skipReason = 'invite_genealogy table missing';
-      }
-    } finally {
-      await probe.close();
-    }
-  }
-
+  late Connection writer;
   late TenturaDb db;
   late UserRepository repo;
   late Env env;
@@ -44,7 +38,14 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      env = _testEnv();
+      await target.recreate();
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer);
+      env = target.databaseEnv;
       db = TenturaDb(env);
       repo = UserRepository(
         env,
@@ -57,6 +58,8 @@ Future<void> main() async {
 
     tearDownAll(() async {
       await db.close();
+      await writer.close();
+      await target.drop();
     });
 
     setUp(() async {
@@ -155,35 +158,95 @@ WHERE invitation_id = '$invitationId'
   }, skip: skipReason);
 }
 
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
-  pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  genealogyNodeKeySecret: 'test-genealogy-secret',
-);
-
-Future<bool> _canConnectPostgres() async {
+Future<bool> _canConnect(Env env) async {
   try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
+    final connection = await Connection.open(
+      env.pgEndpoint,
+      settings: env.pgEndpointSettings,
+    );
+    await connection.close();
     return true;
-  } catch (_) {
+  } on Object {
     return false;
   }
 }
 
-Future<bool> _hasInviteGenealogyTable(TenturaDb db) async {
-  final rows = await db.customSelect(
-    '''
-SELECT 1
-FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = 'invite_genealogy'
-LIMIT 1
-''',
-  ).getSingleOrNull();
-  return rows != null;
+class _DisposablePgTarget {
+  const _DisposablePgTarget({
+    required this.adminEnv,
+    required this.databaseEnv,
+    required this.databaseName,
+  });
+
+  factory _DisposablePgTarget.fromEnvironment() {
+    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
+    final port =
+        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
+    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
+    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
+    final adminDatabase =
+        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
+    final databaseName =
+        Platform.environment['TENTURA_INVITE_GENEALOGY_TEST_DB'] ??
+        'tentura_test_invite_genealogy_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
+    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
+        databaseName.length > 63) {
+      throw ArgumentError.value(
+        databaseName,
+        'TENTURA_INVITE_GENEALOGY_TEST_DB',
+        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
+      );
+    }
+
+    Env envFor(String database) => Env(
+      environment: Environment.test,
+      pgHost: host,
+      pgPort: port,
+      pgDatabase: database,
+      pgUsername: username,
+      pgPassword: password,
+      printEnv: false,
+      isDebugModeOn: false,
+      genealogyNodeKeySecret: 'test-genealogy-secret',
+    );
+
+    return _DisposablePgTarget(
+      adminEnv: envFor(adminDatabase),
+      databaseEnv: envFor(databaseName),
+      databaseName: databaseName,
+    );
+  }
+
+  final Env adminEnv;
+  final Env databaseEnv;
+  final String databaseName;
+
+  Future<void> recreate() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+      await connection.execute('CREATE DATABASE "$databaseName"');
+    } finally {
+      await connection.close();
+    }
+  }
+
+  Future<void> drop() async {
+    final connection = await Connection.open(
+      adminEnv.pgEndpoint,
+      settings: adminEnv.pgEndpointSettings,
+    );
+    try {
+      await connection.execute(
+        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
+      );
+    } finally {
+      await connection.close();
+    }
+  }
 }
