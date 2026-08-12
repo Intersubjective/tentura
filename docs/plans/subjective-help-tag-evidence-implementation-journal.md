@@ -79,7 +79,7 @@ any order after F1b. One worker at a time.
 - [x] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
 - [x] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
 - [x] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
-- [ ] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
+- [x] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
 - [ ] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
 - [ ] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
 - [ ] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
@@ -2019,4 +2019,106 @@ dependency-ready (was already ready from B2c); nothing new is unblocked
 specifically by C4, since nothing in the manifest depends on it directly —
 E1b (not yet reached) is the eventual consumer of this unit's ports and use
 case.
+
+## C5 — complete (manager-completed after an interrupted worker session) — 2026-08-12
+
+STATUS: complete
+
+**Process note:** the dispatched Cursor worker for this unit was killed by
+the same unexplained backgrounded-process infrastructure issue seen once
+before (during C1a — see that entry). Unlike C1a's case, this time the
+worker had already made real, uncommitted progress before being
+interrupted: `fetchCues`'s commit-role query and local variable were
+removed, `fetchDeduplicatedCapabilities`'s `source_type = 2` UNION branch
+was removed, `PersonCapabilityCuesRow.commitRoles` was removed from the
+port DTO, `query_capability.dart`'s resolver was updated to match, and a
+stale doc comment in `custom_types.dart` was caught and fixed. All of it
+verified correct on inspection. Only `fetchTopCapabilitiesBatch`'s
+`source_type = 2` branch remained, plus all tests, verification, and
+commits. Given the small, well-understood remaining scope, the manager
+completed this unit directly rather than discarding the interrupted
+worker's correct partial work or dispatching a fresh worker to redo it.
+
+COMMITS:
+- `cd9da7fa` fix(server): retire commitRole reads across all three leak sites (C5)
+- `4c686aed` test(server): prove commit-role reads are retired, writes still land (C5)
+
+TESTS:
+
+```bash
+# sqlite3 hook overlay applied temporarily, then reverted (pubspec.yaml clean)
+
+cd packages/server && dart test -t pg test/data/repository/person_capability_fetch_deduplicated_test.dart
+→ 00:00 +11: All tests passed! (reran 3x independently, stable every time)
+
+cd packages/server && dart test -t pg test/data/repository/person_capability_friend_contexts_batch_test.dart test/data/repository/person_capability_close_ack_repository_test.dart
+→ 00:00 +2: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:06 +1356: All tests passed! (unchanged from before this unit)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ empty (exit 1)
+
+rg "commitRole" packages/server/lib/data/repository/person_capability_event_repository.dart
+→ exactly one match, line 155, inside insertCommitRole's body (the
+  preserved write path) — acceptance gate satisfied literally, including
+  the "commitRoles" (plural) substring trap the plan's acceptance text
+  warns about, since that field no longer exists anywhere in this file.
+```
+
+FILES:
+
+- `packages/server/lib/data/repository/person_capability_event_repository.dart`
+  (all three read sites removed: `fetchCues`, `fetchDeduplicatedCapabilities`,
+  `fetchTopCapabilitiesBatch`; `insertCommitRole` untouched)
+- `packages/server/lib/domain/port/person_capability_event_repository_port.dart`
+  (`PersonCapabilityCuesRow.commitRoles` field removed)
+- `packages/server/lib/api/controllers/graphql/query/query_capability.dart`
+  (`'commitRoles'` response-map key removed)
+- `packages/server/lib/api/controllers/graphql/custom_types.dart` (stale
+  doc-comment fix, caught by the interrupted worker before it was cut off)
+- `packages/server/test/data/repository/person_capability_fetch_deduplicated_test.dart`
+  (pre-existing test rewritten — see FINDINGS)
+
+FINDINGS:
+
+- **Verified there is no `schema.graphql` in this repo yet** (F1a, a much
+  later unit, hasn't started) — `query_capability.dart`'s response is a
+  loosely-typed JSON map, so removing the `commitRoles` key was low-risk,
+  no typed-schema ripple to chase.
+- **A pre-existing PG test asserted the exact behavior this unit retires:**
+  `person_capability_fetch_deduplicated_test.dart` had a test named
+  "includes commit roles (source 2) for any viewer observing subject" that
+  positively asserted the leak. This is a second instance, after C4's
+  `user_repository_invite_genealogy_test.dart`, of a pre-existing test in
+  this same area breaking (or in this case, becoming actively *wrong*
+  rather than erroring) as a direct, intended consequence of a unit's
+  change — checked for this proactively this time rather than discovering
+  it via a failed `dart test -x pg`/`-t pg` run, by tracing every
+  `PersonCapabilityEventRepository(` construction site in `test/` before
+  declaring the unit done. Rewrote the test to assert the opposite
+  (`viewerId`, already a third party relative to the `otherId` observer who
+  records the commit role in that fixture, sees nothing) plus an explicit
+  ledger-row check proving the write path is untouched — satisfying both
+  halves of the plan's requirement in one test.
+- No other pre-existing test in `packages/server/test/` references
+  `fetchCues`, `fetchDeduplicatedCapabilities`, or `fetchTopCapabilitiesBatch`
+  outside generated mocks (confirmed via a repo-wide grep) — the sweep
+  found exactly one file needing a fix, not more.
+
+REMAINING: none
+
+**C5 is accepted** (self-accepted — the manager both completed and reviewed
+this unit directly, given the unusual circumstances; the verification above
+is the same rigor applied to every worker-completed unit in this journal,
+not a lighter bar). D0 and D3 remain dependency-ready from earlier
+acceptances; D1 still requires C1b (accepted) through C5 (now accepted) —
+D1 is now fully unblocked on the C-series.
 
