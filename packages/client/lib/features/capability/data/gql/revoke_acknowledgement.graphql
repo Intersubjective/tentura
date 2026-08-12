@@ -1,0 +1,11 @@
+mutation RevokeAcknowledgement(
+  $beaconId: String!
+  $subjectId: String!
+  $slug: String!
+) {
+  revokeAcknowledgement(
+    beaconId: $beaconId
+    subjectId: $subjectId
+    slug: $slug
+  )
+}

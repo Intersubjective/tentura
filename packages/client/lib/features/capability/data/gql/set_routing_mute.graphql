@@ -1,0 +1,3 @@
+mutation SetRoutingMute($slug: String!, $muted: Boolean!) {
+  setRoutingMute(slug: $slug, muted: $muted)
+}

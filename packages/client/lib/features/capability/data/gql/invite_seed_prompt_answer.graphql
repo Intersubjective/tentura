@@ -1,0 +1,3 @@
+mutation InviteSeedPromptAnswer($subjectId: String!, $slugs: [String!]) {
+  inviteSeedPromptAnswer(subjectId: $subjectId, slugs: $slugs)
+}

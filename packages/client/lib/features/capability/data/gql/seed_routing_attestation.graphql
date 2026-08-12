@@ -1,0 +1,3 @@
+mutation SeedRoutingAttestation($subjectId: String!, $slugs: [String!]) {
+  seedRoutingAttestation(subjectId: $subjectId, slugs: $slugs)
+}

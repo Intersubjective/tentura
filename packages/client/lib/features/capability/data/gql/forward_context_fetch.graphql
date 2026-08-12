@@ -1,0 +1,13 @@
+query ForwardContext($beaconId: String!, $context: String) {
+  forwardContext(beaconId: $beaconId, context: $context) {
+    userId
+    rowTier
+    labels {
+      subjectUserId
+      tagSlug
+      tier
+    }
+    rank
+    isExploration
+  }
+}

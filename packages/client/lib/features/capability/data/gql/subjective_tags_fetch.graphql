@@ -1,0 +1,7 @@
+query SubjectiveTags($targetId: String!) {
+  subjectiveTags(targetId: $targetId) {
+    subjectUserId
+    tagSlug
+    tier
+  }
+}
