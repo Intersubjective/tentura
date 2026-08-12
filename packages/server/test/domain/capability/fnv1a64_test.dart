@@ -25,10 +25,21 @@ void main() {
   });
 
   group('fnv1a64Mod', () {
-    test('unsigned semantics when sign bit is set', () {
-      const hashWithSignBit = 0x8000000000000001;
-      expect(hashWithSignBit.isNegative, isTrue);
-      expect(fnv1a64Mod('sign-bit-probe', 7), inInclusiveRange(0, 6));
+    test('unsigned semantics against a known negative-signed hash', () {
+      // fnv1a64('a') = 0xaf63dc4c8601ec8c, whose sign bit is set, so the
+      // Dart int is negative (-5808556873153909620). The TRUE unsigned
+      // 64-bit value is 12638187200555641996 (verified independently via
+      // BigInt/Python cross-check); a signed-mod implementation silently
+      // computes a different, wrong result for every modulus here. Pinning
+      // exact expected values, not just "in range", is what actually
+      // exercises the unsigned conversion — a range assertion passes
+      // whether or not the conversion is correct, since Dart's `%` on a
+      // positive modulus is always non-negative regardless.
+      expect(fnv1a64('a'), equals(-5808556873153909620));
+      expect(fnv1a64Mod('a', 3), equals(1));
+      expect(fnv1a64Mod('a', 7), equals(5));
+      expect(fnv1a64Mod('a', 10), equals(6));
+      expect(fnv1a64Mod('a', 1000003), equals(783675));
     });
 
     test('deterministic offset for fixed beacon id', () {
