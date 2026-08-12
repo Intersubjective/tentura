@@ -12,7 +12,12 @@ void main() {
       final w = ModelWorld()
         ..vouches('alice', 'bob')
         ..reaches('eve', 'bob', mr: 0.9)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
         ..seed(witness: 'bob', subject: 'carol', tag: ModelWorld.pets);
 
       expect(
@@ -55,7 +60,12 @@ void main() {
         ..vouches('alice', 'bob')
         ..ownRouting(egoId: 'carol', subject: 'carol', tag: ModelWorld.pets)
         ..ownOutcome(egoId: 'carol', subject: 'carol', tag: ModelWorld.tools)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        );
 
       expect(
         await w.hasProjection('alice', 'carol', ModelWorld.transport),
@@ -80,8 +90,13 @@ void main() {
     test('S4: unreachable witness evidence is invisible', () async {
       final w = ModelWorld()
         ..vouches('alice', 'dave')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
+        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets, count: 2);
 
       expect(
         await w.hasProjection('alice', 'carol', ModelWorld.transport),
@@ -99,7 +114,12 @@ void main() {
       final w = ModelWorld()
         ..vouches('alice', 'bob')
         ..vouches('alice', 'dylan')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
         ..seed(
           witness: 'dylan',
           subject: 'carol',
@@ -117,7 +137,12 @@ void main() {
       final crossTag = ModelWorld()
         ..vouches('alice', 'bob')
         ..vouches('alice', 'dylan')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.tools)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.tools,
+          count: 2,
+        )
         ..seed(
           witness: 'dylan',
           subject: 'carol',
@@ -135,7 +160,12 @@ void main() {
       final w = ModelWorld()
         ..vouches('alice', 'bob')
         ..ownOutcome(egoId: 'alice', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.tools)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.tools,
+          count: 2,
+        )
         ..ownRouting(egoId: 'alice', subject: 'carol', tag: ModelWorld.pets)
         ..seed(witness: 'bob', subject: 'carol', tag: ModelWorld.legalNavigation);
 
@@ -178,6 +208,7 @@ void main() {
           subject: 'carol',
           tag: ModelWorld.transport,
           daysAgo: 10,
+          count: 2,
         )
         ..seed(
           witness: 'dylan',
@@ -248,7 +279,12 @@ void main() {
         ..vouches('alice', 'bob')
         ..vouches('alice', 'dylan')
         ..witnessWeight('alice', 'dylan', m: 0.8, admitted: false)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
         ..seed(witness: 'dylan', subject: 'carol', tag: ModelWorld.manualWork);
 
       expect(
