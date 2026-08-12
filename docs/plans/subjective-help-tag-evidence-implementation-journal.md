@@ -81,7 +81,7 @@ any order after F1b. One worker at a time.
 - [x] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
 - [x] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
 - [x] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
-- [ ] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
+- [x] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
 - [ ] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
 - [ ] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
 - [ ] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
@@ -2331,3 +2331,80 @@ precondition "C1–C5 complete" was satisfied by C5's acceptance, and D2
 additionally requires D0 (now accepted) and D1. D3 (Expiry sweep) remains
 dependency-ready from B2a's earlier acceptance. Proceeding to D1 next per
 document order.
+
+## D1 — checkpoint — 2026-08-12
+
+Started `CapabilityProjectionCase` with Mockito fake-port tests. Algorithm follows
+§5.5 via existing ports only; routing mutes scoped to `networkSeed` summation
+(not `S_out`); block pairs use lexicographic canonical tuples from
+`PairBlockQueryRepository`; profile cap reuses `kCapMaxTagsPerSubjectBeacon`
+per subject; Tier-A score is `double.infinity` (`kCapOwnEvidenceScore`).
+
+## D1 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: feat(server): add CapabilityProjectionCase for tag projection (D1) (`17c80352`); test(server): add CapabilityProjectionCase unit tests (D1) (`928c32fc`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# for sqlite3 code-assets download failure; reverted before commit.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot; wrote outputs (injectable registration for CapabilityProjectionCase)
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart
+→ 00:00 +10: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:06 +1366: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_projection_case.dart
+→ 0 matches
+
+git diff --check pubspec.yaml
+→ no diff (sqlite3 overlay reverted)
+```
+
+FILES:
+
+- `packages/server/lib/domain/use_case/capability_projection_case.dart` (created)
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart` (created)
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.dart` (created)
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.mocks.dart` (generated)
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` (manifest + this entry)
+
+FINDINGS:
+
+- **Routing-mute scope (§5.5 vs §5.4):** `mutedSlugsFor` keys subject→muted slugs
+  and architecture §5.5 places the mute filter on the cells query that feeds both
+  `S_out` and `S_seed`. §5.4 and D22/M-invariants require profiles to show
+  outcome channel only and M2 requires mutes never suppress ego own evidence.
+  Applied mute only when accumulating `S_seed` (Tier C / `networkSeed`); witness
+  outcome cells (`S_out` / `networkOutcome`) ignore subject routing mutes. Own
+  routing (Tier A seed) is unaffected by subject mute per §5.4 matrix.
+- **∞ score representation:** Tier-A rows use `kCapOwnEvidenceScore =
+  double.infinity` so own evidence always sorts above finite network scores in
+  D2 without exposing magnitude through the API.
+- **Profile cap constant:** Reused `kCapMaxTagsPerSubjectBeacon` (value 3) for
+  the profile top-N cap — same numeric bound as beacon-wide finalization (D12)
+  and plan §2; name says per-beacon but it is the repo's single "at most 3 tags"
+  constant. Cap is applied **per subject** in `ProjectionSurface.profile` (matches
+  `subjectiveTags(targetId)` single-target semantics when batched).
+- **Block tuple direction:** `PairBlockQueryRepository` returns
+  `(min(id_a,id_b), max(id_a,id_b))`; membership tests canonicalize both
+  endpoints before lookup (verified against pg test in B2c).
+- **Context normalization:** Caller supplies pre-normalized `normalizedContext`
+  (same boundary as D0 `BandCandidatePort` and B2b `cachedWindow`); D1 does not
+  re-normalize.
+- **§13.1 arithmetic:** Bob+Dave example documents `S_out = 0.448` but
+  `0.321 + 0.5×0.255 = 0.4485`; test uses `closeTo(0.448, 0.001)` against doc
+  rounding.
+
+REMAINING: none — D2 (band composition) is next; requires D1 (this unit) and
+D0 (accepted).
