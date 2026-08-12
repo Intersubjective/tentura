@@ -73,7 +73,7 @@ any order after F1b. One worker at a time.
 - [x] **B2b** — Witness window adapter (depends: B1) — accepted after fixture-isolation remediation + flakiness repair (`81249774`, `88a09c21`)
 - [x] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [x] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
-- [ ] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
+- [x] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
 - [ ] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
 - [ ] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
 - [ ] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
@@ -1217,3 +1217,60 @@ missing `invalidateFor` call inside the loop, for each `pair`. Verified:
 `121ef112` (manager repair). B2c's dependents (C4, C5) and B3's dependents
 (none new — B3 unblocks nothing further in the manifest that wasn't already
 ready) remain as previously recorded.
+
+## C1a — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- feat(server): add beacon_evaluation_ack_tag migration and Drift table (C1a) (`e1f73974`)
+- feat(server): add submitEvaluationAtomic evaluation repository adapter (C1a) (`20795f6d`)
+- test(server): add submitEvaluationAtomic PG proofs (C1a) (`232e9e79`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 13s; wrote outputs (tentura_db.g.dart local only, gitignored)
+
+cd packages/server && dart test -x pg
+→ 00:07 +1351: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/evaluation_repository_submit_atomic_pg_test.dart
+→ 00:02 +5: All tests passed! (expected Drift multi-instance debug warnings)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+
+git diff --check
+→ no whitespace errors (owned paths; protected baseline untouched)
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0145.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart` (part + ordered registration)
+- `packages/server/lib/data/database/table/beacon_evaluation_ack_tags.dart` (created — hand-authored Drift table class)
+- `packages/server/lib/data/database/tentura_db.dart` (import + `@DriftDatabase` registry)
+- `packages/server/lib/domain/port/evaluation_repository_port.dart` (`submitEvaluationAtomic`)
+- `packages/server/lib/data/repository/evaluation_repository.dart` (atomic adapter)
+- `packages/server/lib/data/repository/mock/evaluation_repository_mock.dart` (no-op stub)
+- `packages/server/test/data/repository/evaluation_repository_submit_atomic_pg_test.dart` (created)
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart` (fake stub)
+- `packages/server/test/domain/use_case/coordination_case_revert_test.dart` (fake stub)
+
+FINDINGS:
+
+- **Drift table generation:** Same pattern as A2 (`ego_witness_windows`, `capability_routing_mutes`, etc.): hand-author `packages/server/lib/data/database/table/*.dart`, register the class in `tentura_db.dart` `@DriftDatabase(tables: [...])`, then `dart run build_runner build -d` generates `beaconEvaluationAckTags` getters/`BeaconEvaluationAckTagsCompanion` in gitignored `tentura_db.g.dart`. The SQL migration alone does not produce Drift bindings.
+- **Re-read window:** Translated to the same open-window predicates `evaluationSubmit` uses before writes (`window != null`, `status == 0`, `closesAt` not before `DateTime.timestamp()`), but executed inside the transaction after `pg_advisory_xact_lock(hashtextextended(beaconId, 4242))`. Closed/expired windows throw `StateError` (repository-layer idiom, matching `extendReviewWindow` / `deleteReviewScaffoldingForBeacon`); C1b's `EvaluationException` mapping stays in the use case.
+- **Concurrent-lock test:** Same-beacon serialization uses two `TenturaDb` instances + `Future.wait` on different evaluators (B2a forward-reconcile precedent). Different-beacon non-blocking uses a causal hold: one transaction keeps the beacon1 advisory lock while `submitEvaluationAtomic` on beacon2 completes (blocker transaction pattern from B2a pair-lock tests, adapted to beacon-scoped lock).
+- `evaluation_case.dart` intentionally untouched (C1b owns `evaluationSubmit` wiring and policy steps 1–6).
+
+REMAINING: none (C1b may begin)
