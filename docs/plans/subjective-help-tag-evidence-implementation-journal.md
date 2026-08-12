@@ -65,7 +65,7 @@ Strictly sequential except: B2a/B2b/B2c may run in any order after B1; F2–F5 i
 any order after F1b. One worker at a time.
 
 - [x] **A0** — Journal + baseline (journal only)
-- [ ] **A1** — Ledger extension (depends: A0) — `m0141`; `person_capability_events.dart`; `CapabilityEventSource.seedRoutingAttestation(4)`
+- [x] **A1** — Ledger extension (depends: A0) — `m0141`; `person_capability_events.dart`; `CapabilityEventSource.seedRoutingAttestation(4)`
 - [ ] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [ ] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [ ] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
@@ -183,3 +183,42 @@ Accepted after independent inspection. The final A0 artifact is commit
 and every protected baseline path remains untouched. The A0 worker made two
 local amend attempts while trying to self-reference that commit, then was
 interrupted for scope drift. No unrelated file was staged or committed.
+
+## A1 — complete — 2026-08-12
+
+COMMITS: feat(server): extend person_capability_event ledger for help-tag evidence (A1) (`97b9d6235db9dfef7992de0599ad1ca388994c5b`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 3s; wrote 2 outputs
+
+cd packages/server && dart test -t pg test/data/database/m0141_person_capability_event_ledger_test.dart
+→ 00:01 +2: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1319: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check -- <owned A1 paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0141.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart` (part + ordered registration)
+- `packages/server/lib/data/database/table/person_capability_events.dart` (`forwardEdgeId`, `invitationId`)
+- `packages/server/lib/domain/capability/capability_event_source.dart` (`seedRoutingAttestation(4)`)
+- `packages/server/test/data/database/m0141_person_capability_event_ledger_test.dart` (created)
+
+FINDINGS:
+
+- Preconditions confirmed: m0140 is latest registered migration; `person_capability_event` had no `source_type` CHECK; `invitation.id` is `text` PK — FK enforced as planned.
+- `tentura_db.g.dart` is gitignored under `packages/server/.gitignore`; codegen run locally but generated output not committed per plan rules.
+- Disposable-db pg test pattern (rollback m0141 → seed → re-migrate) mirrors `beacon_cover_migration_test.dart`.
+
+REMAINING: none
