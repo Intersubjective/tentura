@@ -3371,6 +3371,11 @@ type mutation_root {
   cancelPromise(itemId: String!, reason: String): v2_CoordinationItemRow!
   capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
   capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
+  inviteSeedPromptAnswer(subjectId: String!, slugs: [String!]): Boolean!
+  inviteSeedPromptSkip(subjectId: String!): Boolean!
+  revokeAcknowledgement(beaconId: String!, subjectId: String!, slug: String!): Boolean!
+  seedRoutingAttestation(subjectId: String!, slugs: [String!]): Boolean!
+  setRoutingMute(slug: String!, muted: Boolean!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
@@ -4258,6 +4263,7 @@ type query_root {
   beaconEligibleInboundForwards(id: String!): [v2_ForwardInboundEdge!]
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
   beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
+  forwardContext(beaconId: String!, context: String): [v2_ForwardBandRow!]
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
 
@@ -4698,6 +4704,7 @@ type query_root {
   inviteGenealogyBetween(target_id: String!): v2_InviteGenealogy
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
+  inviteSeedPromptState(subjectId: String!): v2_InviteSeedPromptState!
   mutualFriends(id: String!): [v2_user!]
 
   """
@@ -4747,6 +4754,7 @@ type query_root {
   myBlocks: [v2_BlockIntent!]
   myContacts: [v2_UserContact!]
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
+  myRoutingTags: [String!]!
   myWorkCoordinationItemActivity(beaconIds: [String!]): [v2_MyWorkBeaconCoordinationActivityRow!]
   myWorkLastActivityEvent(beaconIds: [String!]): [v2_MyWorkLastActivityEventRow!]
 
@@ -4778,6 +4786,8 @@ type query_root {
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
   personTopCapabilitiesBatch(limit: Int, prioritizeSlugs: [String!], subjectUserIds: [String!]): [v2_v2_PersonTopCapabilities!]
+  subjectiveTags(targetId: String!): [v2_TagProjection!]
+  tagExplanation(targetId: String!, slug: String!): String
 
   """
   fetch data from the table: "polling"
@@ -6988,6 +6998,14 @@ type v2_ForwardInboundEdge {
   senderName: String!
 }
 
+type v2_ForwardBandRow {
+  isExploration: Boolean!
+  labels: [v2_TagProjection!]!
+  rank: Int!
+  rowTier: String
+  userId: String!
+}
+
 input v2_ForwardRecipientReasonInput {
   recipientId: String!
   slugs: [String!]
@@ -7086,6 +7104,12 @@ type v2_InviteGenealogyNode {
   node_key: String!
   user: v2_user
   user_created_at: String
+}
+
+type v2_InviteSeedPromptState {
+  inviterUserId: String!
+  inviteeUserId: String!
+  state: String!
 }
 
 type v2_mutual_score {
@@ -7262,6 +7286,12 @@ type v2_v2_PersonFriendContext {
 type v2_v2_PersonTopCapabilities {
   slugs: [String!]
   subjectId: String!
+}
+
+type v2_TagProjection {
+  subjectUserId: String!
+  tagSlug: String!
+  tier: String!
 }
 
 type v2_v2_TagBeaconRef {
