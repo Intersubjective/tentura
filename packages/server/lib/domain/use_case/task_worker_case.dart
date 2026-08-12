@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
@@ -16,8 +17,10 @@ import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart'
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../entity/task_entity.dart';
@@ -40,6 +43,9 @@ final class TaskWorkerCase extends UseCaseBase {
     TrustMaintenancePort trustMaintenance,
     BlockCascadeCase blockCascade,
     BlockReleaseSweepCase blockReleaseSweep,
+    CapabilityCellExpirySweepCase capabilityCellExpirySweep,
+    WitnessWindowPort witnessWindow,
+    CapabilityCellPort capabilityCellPort,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -53,6 +59,9 @@ final class TaskWorkerCase extends UseCaseBase {
       trustMaintenance: trustMaintenance,
       blockCascade: blockCascade,
       blockReleaseSweep: blockReleaseSweep,
+      capabilityCellExpirySweep: capabilityCellExpirySweep,
+      witnessWindow: witnessWindow,
+      capabilityCellPort: capabilityCellPort,
       env: env,
       logger: logger,
     ),
@@ -70,6 +79,9 @@ final class TaskWorkerCase extends UseCaseBase {
     TrustMaintenancePort? trustMaintenance,
     BlockCascadeCase? blockCascade,
     BlockReleaseSweepCase? blockReleaseSweep,
+    CapabilityCellExpirySweepCase? capabilityCellExpirySweep,
+    WitnessWindowPort? witnessWindow,
+    CapabilityCellPort? capabilityCellPort,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -78,7 +90,10 @@ final class TaskWorkerCase extends UseCaseBase {
        _attentionChannelDelivery = attentionChannelDelivery,
        _trustMaintenance = trustMaintenance,
        _blockCascade = blockCascade,
-       _blockReleaseSweep = blockReleaseSweep;
+       _blockReleaseSweep = blockReleaseSweep,
+       _capabilityCellExpirySweep = capabilityCellExpirySweep,
+       _witnessWindow = witnessWindow,
+       _capabilityCellPort = capabilityCellPort;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -95,6 +110,9 @@ final class TaskWorkerCase extends UseCaseBase {
   final TrustMaintenancePort? _trustMaintenance;
   final BlockCascadeCase? _blockCascade;
   final BlockReleaseSweepCase? _blockReleaseSweep;
+  final CapabilityCellExpirySweepCase? _capabilityCellExpirySweep;
+  final WitnessWindowPort? _witnessWindow;
+  final CapabilityCellPort? _capabilityCellPort;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -112,6 +130,9 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastBlockReleaseSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastImageGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastStageExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastCapCellSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastEwwGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastCapGenGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     () async {
@@ -247,6 +268,33 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastStageExpirySweep = now;
       await _beaconCase!.expireStaleStages(now: now);
+    },
+    // Capability evidence cell expiry sweep (D3): bounded lease claim + rebuild.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastCapCellSweep) < const Duration(minutes: 15)) {
+        return;
+      }
+      _lastCapCellSweep = now;
+      await _capabilityCellExpirySweep?.runDue(now: now);
+    },
+    // Witness-window cache GC: rows past read-time TTL (storage only).
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastEwwGcSweep) < const Duration(hours: 1)) {
+        return;
+      }
+      _lastEwwGcSweep = now;
+      await _witnessWindow?.gcStaleWindows();
+    },
+    // Orphan capability_evidence_generation GC (D3).
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastCapGenGcSweep) < const Duration(hours: 6)) {
+        return;
+      }
+      _lastCapGenGcSweep = now;
+      await _capabilityCellPort?.gcOrphanGenerations();
     },
   ];
 
