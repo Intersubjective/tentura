@@ -68,7 +68,7 @@ any order after F1b. One worker at a time.
 - [x] **A1** — Ledger extension (depends: A0) — `m0141`; `person_capability_events.dart`; `CapabilityEventSource.seedRoutingAttestation(4)`
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
-- [ ] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
+- [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [ ] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
@@ -447,3 +447,50 @@ git diff --check 4b9d7e10..HEAD
 ```
 
 The protected baseline paths remain untouched. B1 is authorized to begin.
+
+## B1 — complete — 2026-08-12
+
+COMMITS: feat(server): add capability evidence domain types and ports (B1) (`86876ad7`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 7s; wrote outputs (capability_evidence_models.freezed.dart generated locally, gitignored)
+
+cd packages/server && dart test -x pg test/domain/capability/capability_consts_test.dart
+→ 00:00 +9: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:09 +1336: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+
+git diff --check -- <owned B1 paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/domain/capability/capability_consts.dart` (created)
+- `packages/server/lib/domain/capability/capability_evidence_models.dart` (created — enums + Freezed entities)
+- `packages/server/lib/domain/port/capability_evidence_port.dart` (created)
+- `packages/server/lib/domain/port/capability_cell_port.dart` (created)
+- `packages/server/lib/domain/port/witness_window_port.dart` (created)
+- `packages/server/lib/domain/port/capability_own_evidence_port.dart` (created)
+- `packages/server/lib/domain/port/routing_mute_port.dart` (created)
+- `packages/server/lib/domain/port/pair_block_query_port.dart` (created)
+- `packages/server/test/domain/capability/capability_consts_test.dart` (created)
+
+FINDINGS:
+
+- Preconditions confirmed: A3 functions present (`m0143`, `sql/triggers.sql` mirror); no prior B1 artifacts in tree.
+- Consolidated B1 Freezed types into `capability_evidence_models.dart` (matches `attention_models.dart` grouping); seven ports in separate `domain/port/*` files per local convention.
+- `capability_evidence_models.freezed.dart` generated locally and gitignored per plan; not staged.
+- `ProjectionTier` declaration order pinned by test; half-life constants asserted at 31536000 / 7776000 seconds.
+
+REMAINING: manager review and acceptance; B2 remains blocked
