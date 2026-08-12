@@ -66,7 +66,7 @@ any order after F1b. One worker at a time.
 
 - [x] **A0** — Journal + baseline (journal only)
 - [x] **A1** — Ledger extension (depends: A0) — `m0141`; `person_capability_events.dart`; `CapabilityEventSource.seedRoutingAttestation(4)`
-- [ ] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
+- [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [ ] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [ ] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [ ] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
@@ -231,3 +231,49 @@ partial indexes, Drift references, and source enum match A1. Independent
 `dart test -t pg test/data/database/m0141_person_capability_event_ledger_test.dart`
 passed, as did `./scripts/check-custom-lints.sh packages/server`. Protected
 baseline paths remain untouched.
+
+## A2 — complete — 2026-08-12
+
+COMMITS: feat(server): add capability evidence derived tables and context normalization (A2) (`0a932540011e84c5a93653c6d3bf0e77f1c08c28`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 11s; wrote 327 outputs
+
+cd packages/server && dart test -t pg test/data/database/m0142_derived_tables_migration_test.dart test/domain/capability/context_normalization_pg_test.dart
+→ 00:01 +9: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:06 +1326: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check -- <owned A2 paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0142.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart` (part + ordered registration)
+- `packages/server/lib/data/database/table/capability_evidence_edges.dart` (created)
+- `packages/server/lib/data/database/table/capability_evidence_generations.dart` (created)
+- `packages/server/lib/data/database/table/ego_witness_windows.dart` (created)
+- `packages/server/lib/data/database/table/capability_routing_mutes.dart` (created)
+- `packages/server/lib/data/database/table/mr_publish_epochs.dart` (created)
+- `packages/server/lib/data/database/tentura_db.dart` (imports + table registry)
+- `packages/server/lib/domain/capability/context_normalization.dart` (created)
+- `packages/server/test/data/database/m0142_derived_tables_migration_test.dart` (created)
+- `packages/server/test/domain/capability/context_normalization_test.dart` (created)
+- `packages/server/test/domain/capability/context_normalization_pg_test.dart` (created)
+
+FINDINGS:
+
+- Drift `int64` defaults require `Constant(BigInt.zero)` (not `const Constant(0)`); regenerated `tentura_db.g.dart` is gitignored.
+- `pg_get_function_identity_argument` unavailable in disposable test Postgres; used `pg_get_functiondef` + `proname` filter instead for MVU normalization assertion.
+- `tentura_db.g.dart` is gitignored under `packages/server/.gitignore`; codegen run locally but generated output not committed per plan rules.
+
+REMAINING: none
