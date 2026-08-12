@@ -29,6 +29,9 @@ class ForwardRecipientRow extends StatelessWidget {
     this.onEditReasons,
     this.onEditForward,
     this.onCancelForward,
+    this.tierEvidenceLabel,
+    this.tierEvidenceTone,
+    this.showPresenceLine = true,
     this.requiredCapabilitySlugs = const {},
     super.key,
   });
@@ -50,6 +53,15 @@ class ForwardRecipientRow extends StatelessWidget {
 
   /// Called when the user wants to cancel an existing forward.
   final VoidCallback? onCancelForward;
+
+  /// When set, replaces the involvement / presence status line (band evidence).
+  final String? tierEvidenceLabel;
+
+  /// Tone for [tierEvidenceLabel]; defaults to info.
+  final TenturaTone? tierEvidenceTone;
+
+  /// When false, hides presence and default relation line (band exploration rows).
+  final bool showPresenceLine;
 
   /// Beacon [`Beacon.needs`] slugs; chips that match are emphasized.
   final Set<String> requiredCapabilitySlugs;
@@ -176,44 +188,51 @@ class ForwardRecipientRow extends StatelessWidget {
                     // Tight before presence / relation (do not use rowGap: a 44px-tall
                     // name+checkbox row was forcing extra empty space under one-line names).
                     SizedBox(height: tt.tightGap),
-                    Wrap(
-                      spacing: tt.iconTextGap,
-                      runSpacing: tt.tightGap,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (presence.isNotEmpty)
-                          Text(
-                            presence,
-                            style: TenturaText.bodySmall(tt.textMuted),
-                          ),
-                        if (forwardedByMeWithNote)
-                          ShowMoreText(
-                            l10n.forwardedByMeWithNote(
-                              candidate.myForwardNote!,
+                    if (tierEvidenceLabel != null)
+                      TenturaStatusText(
+                        tierEvidenceLabel!,
+                        tone: tierEvidenceTone ?? TenturaTone.info,
+                      )
+                    else if (showPresenceLine)
+                      Wrap(
+                        spacing: tt.iconTextGap,
+                        runSpacing: tt.tightGap,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (presence.isNotEmpty)
+                            Text(
+                              presence,
+                              style: TenturaText.bodySmall(tt.textMuted),
                             ),
-                            style: TenturaText.status(
-                              _relationStatusColor(tt),
+                          if (forwardedByMeWithNote)
+                            ShowMoreText(
+                              l10n.forwardedByMeWithNote(
+                                candidate.myForwardNote!,
+                              ),
+                              style: TenturaText.status(
+                                _relationStatusColor(tt),
+                              ),
+                              colorClickableText: theme.colorScheme.primary,
+                              trimLines: 1,
+                              trimCollapsedText: l10n.forwardMyNoteViewMore,
+                              trimExpandedText: l10n.forwardMyNoteShowLess,
+                            )
+                          else
+                            TenturaStatusText(
+                              relationLabel,
+                              tone: _relationTone(),
                             ),
-                            colorClickableText: theme.colorScheme.primary,
-                            trimLines: 1,
-                            trimCollapsedText: l10n.forwardMyNoteViewMore,
-                            trimExpandedText: l10n.forwardMyNoteShowLess,
-                          )
-                        else
-                          TenturaStatusText(
-                            relationLabel,
-                            tone: _relationTone(),
-                          ),
-                        if (candidate.involvement ==
-                            CandidateInvolvement.forwardedByMe)
-                          _ForwardReadReceipt(
-                            readAt: candidate.recipientReadAt,
-                            l10n: l10n,
-                            tt: tt,
-                          ),
-                      ],
-                    ),
-                    if (candidate.topCapabilities.isNotEmpty) ...[
+                          if (candidate.involvement ==
+                              CandidateInvolvement.forwardedByMe)
+                            _ForwardReadReceipt(
+                              readAt: candidate.recipientReadAt,
+                              l10n: l10n,
+                              tt: tt,
+                            ),
+                        ],
+                      ),
+                    if (showPresenceLine &&
+                        candidate.topCapabilities.isNotEmpty) ...[
                       SizedBox(height: tt.tightGap),
                       Wrap(
                         spacing: tt.iconTextGap,

@@ -1937,6 +1937,50 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardBandSectionTitle": "For this request",
+  "@forwardBandSectionTitle": {
+    "context": "Forward band section header above contextual evidence rows"
+  },
+  "forwardBandExplorationDivider": "New to this kind of request",
+  "@forwardBandExplorationDivider": {
+    "context": "Divider label before exploration slots in the forward band"
+  },
+  "forwardBandTierOwnOutcome": "You worked together on {tag}",
+  "@forwardBandTierOwnOutcome": {
+    "context": "Forward band row copy for own-outcome tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierOwnRouting": "You've routed {tag} here",
+  "@forwardBandTierOwnRouting": {
+    "context": "Forward band row copy for own-routing tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierNetworkOutcome": "Seen helping with {tag}",
+  "@forwardBandTierNetworkOutcome": {
+    "context": "Forward band row copy for network-outcome tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierNetworkSeed": "Suggested for {tag}",
+  "@forwardBandTierNetworkSeed": {
+    "context": "Forward band row copy for network-seed tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
   "forwardAttributionTitle": "Which forward prompted you to pass this request on?",
   "@forwardAttributionTitle": {
     "context": "First-forward attribution dialog title"

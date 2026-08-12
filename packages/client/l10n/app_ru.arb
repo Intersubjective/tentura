@@ -1937,6 +1937,50 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardBandSectionTitle": "Для этого запроса",
+  "@forwardBandSectionTitle": {
+    "context": "Forward band section header above contextual evidence rows"
+  },
+  "forwardBandExplorationDivider": "Новые для такого запроса",
+  "@forwardBandExplorationDivider": {
+    "context": "Divider label before exploration slots in the forward band"
+  },
+  "forwardBandTierOwnOutcome": "Вы уже работали вместе: {tag}",
+  "@forwardBandTierOwnOutcome": {
+    "context": "Forward band row copy for own-outcome tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierOwnRouting": "Вы уже направляли сюда: {tag}",
+  "@forwardBandTierOwnRouting": {
+    "context": "Forward band row copy for own-routing tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierNetworkOutcome": "Помогает с: {tag}",
+  "@forwardBandTierNetworkOutcome": {
+    "context": "Forward band row copy for network-outcome tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardBandTierNetworkSeed": "Подходит для: {tag}",
+  "@forwardBandTierNetworkSeed": {
+    "context": "Forward band row copy for network-seed tier evidence",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
   "forwardAttributionTitle": "Чей форвард побудил вас переслать этот запрос?",
   "@forwardAttributionTitle": {
     "context": "First-forward attribution dialog title"

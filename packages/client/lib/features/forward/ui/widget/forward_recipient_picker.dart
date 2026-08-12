@@ -22,6 +22,7 @@ import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import '../bloc/forward_cubit.dart';
 import 'compact_beacon_context_strip.dart';
 import 'forward_attribution_dialog.dart';
+import 'forward_band_strip.dart';
 import 'forward_bottom_composer.dart';
 import 'forward_input_decoration.dart';
 import 'forward_recipient_row.dart';
@@ -354,6 +355,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             final lineage = showLineageBlock
                 ? state.lineageSuggestions
                 : const <ForwardCandidate>[];
+            final showBandBlock =
+                showLineageBlock && state.band.isNotEmpty;
             final counts = state.scopeCounts;
             final listIsEmpty =
                 state.activeFilter == ForwardFilter.alreadyInvolved
@@ -455,6 +458,27 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                           ),
                           SizedBox(height: tt.rowGap),
                         ],
+                        if (showBandBlock)
+                          ForwardBandStrip(
+                            band: state.band,
+                            candidates: state.candidates,
+                            selectedIds: state.selectedIds,
+                            beacon: beacon,
+                            recipientReasons: state.recipientReasons,
+                            personalizedNoteEditorOpenIds:
+                                _personalizedNoteEditorOpenIds,
+                            onToggle: cubit.toggleSelection,
+                            onTogglePersonalizedNoteEditor:
+                                _togglePersonalizedNoteEditor,
+                            onEditReasons: (userId) => unawaited(
+                              _editReasons(
+                                context,
+                                cubit,
+                                userId,
+                                state.recipientReasons[userId] ?? const [],
+                              ),
+                            ),
+                          ),
                         ForwardScopeLinks(
                           activeFilter: state.activeFilter,
                           counts: counts,
