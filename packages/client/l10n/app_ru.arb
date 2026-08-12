@@ -4705,6 +4705,24 @@
   "inviteSeedPromptSubmit": "Отправить",
   "inviteSeedPromptSkip": "Пропустить",
   "inviteSeedPromptLoadError": "Не удалось загрузить подсказку.",
+  "profileSeedSuggestionEditPrompt": "Изменить подсказки по маршрутизации для {name}",
+  "@profileSeedSuggestionEditPrompt": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileSeedSuggestionAddPrompt": "Предложить типы запросов для {name}",
+  "@profileSeedSuggestionAddPrompt": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileSeedSuggestionSave": "Сохранить",
+  "profileSeedSuggestionWithdraw": "Отозвать подсказки",
   "updatesFallbackTitleNeedsMe": "Просьба к вам",
   "updatesFallbackBodyNeedsMe": "Нужно ваше действие по запросу.",
   "updatesFallbackTitleBlockerOpened": "Открыт блокер",

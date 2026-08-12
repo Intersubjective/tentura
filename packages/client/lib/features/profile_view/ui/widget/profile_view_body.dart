@@ -21,6 +21,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/edit_capabilities_dialog.dart';
+import 'edit_seed_suggestion_section.dart';
 import 'mutual_friends_button.dart';
 import 'seen_helping_with_strip.dart';
 
@@ -98,6 +99,7 @@ class ProfileViewBody extends StatelessWidget {
                   ),
                 ],
                 const _SeenHelpingWithSection(),
+                _EditSeedSuggestionSection(profile: profile),
                 _ProfileCapabilitySection(profile: profile),
                 Padding(
                   padding: kPaddingSmallT,
@@ -384,6 +386,21 @@ class _ProfileSecondaryActions extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _EditSeedSuggestionSection extends StatelessWidget {
+  const _EditSeedSuggestionSection({required this.profile});
+
+  final Profile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = context.read<ProfileCubit>().state.profile.id;
+    if (profile.id.isEmpty || profile.id == myId) {
+      return const SizedBox.shrink();
+    }
+    return EditSeedSuggestionSection(profile: profile);
   }
 }
 

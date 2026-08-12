@@ -4934,6 +4934,24 @@
   "inviteSeedPromptSubmit": "Submit",
   "inviteSeedPromptSkip": "Skip",
   "inviteSeedPromptLoadError": "Couldn't load this prompt.",
+  "profileSeedSuggestionEditPrompt": "Edit routing suggestions for {name}",
+  "@profileSeedSuggestionEditPrompt": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileSeedSuggestionAddPrompt": "Suggest request types for {name}",
+  "@profileSeedSuggestionAddPrompt": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileSeedSuggestionSave": "Save",
+  "profileSeedSuggestionWithdraw": "Withdraw suggestions",
   "updatesFallbackTitleNeedsMe": "Asked of you",
   "updatesFallbackBodyNeedsMe": "Action needed on a request.",
   "updatesFallbackTitleBlockerOpened": "Blocker opened",
