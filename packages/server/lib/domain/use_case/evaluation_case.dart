@@ -33,7 +33,6 @@ import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart'
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
 
-import 'capability_case.dart';
 import 'commitment_query_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
@@ -102,7 +101,6 @@ final class EvaluationCase extends UseCaseBase {
     this._userProfileBatchLookup,
     this._participantGraphBuilder,
     this._draftPurger,
-    this._capabilityCase,
     this._commitmentQueryCase,
     this._commitmentRepository,
     this._helpOfferRepository, {
@@ -127,7 +125,6 @@ final class EvaluationCase extends UseCaseBase {
   final ReviewFinalizationPort? _reviewFinalization;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
-  final CapabilityCase _capabilityCase;
   final CommitmentQueryCase _commitmentQueryCase;
   final CommitmentRepositoryPort _commitmentRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -1094,6 +1091,9 @@ final class EvaluationCase extends UseCaseBase {
     }
 
     final parts = await _evaluationRepository.listParticipants(beaconId);
+    final evaluatorRole = EvaluationParticipantRole.fromDb(
+      parts.firstWhere((p) => p.userId == evaluatorId).role,
+    );
     final roleOfEvaluated = EvaluationParticipantRole.fromDb(
       parts.firstWhere((p) => p.userId == evaluatedUserId).role,
     );
@@ -1104,16 +1104,65 @@ final class EvaluationCase extends UseCaseBase {
       evaluatedRole: roleOfEvaluated,
     );
 
-    final csv = reasonTags.join(',');
+    final ackTags = acknowledgedHelpTags ?? const <String>[];
 
-    await _evaluationRepository.upsertEvaluation(
-      beaconId: beaconId,
-      evaluatorId: evaluatorId,
-      evaluatedUserId: evaluatedUserId,
-      value: value,
-      reasonTagsCsv: csv,
-      note: note,
-    );
+    if (ackTags.isNotEmpty) {
+      const eligibleAckRoles = {
+        EvaluationParticipantRole.author,
+        EvaluationParticipantRole.committer,
+        EvaluationParticipantRole.formerCommitter,
+      };
+      if (!eligibleAckRoles.contains(evaluatorRole)) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.ackRoleNotEligible,
+        );
+      }
+
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      final helpTypes = await _helpOfferRepository.fetchActiveHelpTypes(
+        beaconId: beaconId,
+        userId: evaluatedUserId,
+      );
+      final allowedAckSlugs = {...beacon.needs, ...helpTypes};
+      for (final tag in ackTags) {
+        if (!allowedAckSlugs.contains(tag)) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.invalidAckTagSlug,
+            description: 'Acknowledgement tag not in allowed set',
+          );
+        }
+      }
+    }
+
+    try {
+      await _evaluationRepository.submitEvaluationAtomic(
+        beaconId: beaconId,
+        evaluatorId: evaluatorId,
+        evaluatedUserId: evaluatedUserId,
+        value: value,
+        reasonTags: reasonTags,
+        note: note,
+        ackTags: ackTags,
+      );
+    } on StateError catch (e) {
+      final message = e.message;
+      if (message == 'Review window not open') {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+        );
+      }
+      if (message == 'Review window expired') {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
+        );
+      }
+      if (message == 'Ack tag cap exceeded') {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.ackTagCapExceeded,
+        );
+      }
+      rethrow;
+    }
 
     final st = await _evaluationRepository.getReviewUserStatus(
       beaconId,
@@ -1125,20 +1174,6 @@ final class EvaluationCase extends UseCaseBase {
         userId: evaluatorId,
         status: 1,
       );
-    }
-
-    if (acknowledgedHelpTags != null && acknowledgedHelpTags.isNotEmpty) {
-      try {
-        await _capabilityCase.recordCloseAcknowledgement(
-          beaconId: beaconId,
-          observerId: evaluatorId,
-          subjectId: evaluatedUserId,
-          slugs: acknowledgedHelpTags,
-        );
-      } catch (e, st) {
-        logger.warning('recordCloseAcknowledgement failed', e, st);
-        // non-fatal: capability event failure must not block evaluation submission
-      }
     }
 
     return true;

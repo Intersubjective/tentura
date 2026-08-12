@@ -108,6 +108,9 @@ enum EvaluationExceptionCode {
   invalidEvaluationValue,
   invalidReasonTags,
   closeBranchConflict,
+  ackRoleNotEligible,
+  invalidAckTagSlug,
+  ackTagCapExceeded,
 }
 
 class EvaluationExceptionCodes extends ExceptionCodes {
