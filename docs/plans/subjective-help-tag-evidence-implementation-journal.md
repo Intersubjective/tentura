@@ -871,7 +871,7 @@ entry for its outcome.
 
 STATUS: complete (manager acceptance pending)
 
-COMMITS: fix(server): isolate witness window PG test fixture (B2b) (`<hash pending commit>`)
+COMMITS: fix(server): isolate witness window PG test fixture (B2b) (`81249774`)
 
 TESTS:
 
