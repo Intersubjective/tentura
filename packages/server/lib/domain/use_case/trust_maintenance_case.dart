@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart' show TypedValue, Type;
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/_use_case_base.dart';
 
 import '../../data/database/tentura_db.dart';
@@ -14,12 +15,14 @@ base class TrustMaintenanceCase extends UseCaseBase
   TrustMaintenanceCase(
     this._db,
     this._meritrank, {
+    WitnessWindowPort? witnessWindow,
     required super.env,
     required super.logger,
-  });
+  }) : _witnessWindow = witnessWindow;
 
   final TenturaDb _db;
   final MeritrankRepositoryPort _meritrank;
+  final WitnessWindowPort? _witnessWindow;
 
   DateTime? _lastSuccessAt;
   DateTime? _lastFailedAt;
@@ -98,6 +101,7 @@ WHERE subject = $1 AND object = $2
         }
         try {
           await _meritrank.deleteEdge(nodeA: subject, nodeB: object);
+          await _witnessWindow?.bumpMrEpoch();
           await _db.customStatement(
             'DELETE FROM meritrank_edge_tombstone WHERE subject = \$1 AND object = \$2',
             [subject, object],

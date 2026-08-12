@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 
 import '../enum.dart';
 import '../exception.dart';
@@ -12,13 +13,15 @@ final class MeritrankCase extends UseCaseBase {
   MeritrankCase(
     this._userRepository,
     this._meritrankRepository, {
+    WitnessWindowPort? witnessWindow,
     required super.env,
     required super.logger,
-  });
+  }) : _witnessWindow = witnessWindow;
 
   final UserRepositoryPort _userRepository;
 
   final MeritrankRepositoryPort _meritrankRepository;
+  final WitnessWindowPort? _witnessWindow;
 
   Future<int> init({
     required String userId,
@@ -32,6 +35,8 @@ final class MeritrankCase extends UseCaseBase {
       await _meritrankRepository.reset();
 
       final initResult = await _meritrankRepository.init();
+
+      await _witnessWindow?.bumpMrEpoch();
 
       if (forceCalculate ?? false) {
         await _meritrankRepository.calculate(

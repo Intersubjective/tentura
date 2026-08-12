@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 import 'package:tentura_server/domain/trust/trust_context.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
@@ -21,12 +22,14 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
   UserTrustEdgeRepository(
     this._db,
     this._meritrank,
-    this._trustEvidenceRepository,
-  );
+    this._trustEvidenceRepository, {
+    WitnessWindowPort? witnessWindow,
+  }) : _witnessWindow = witnessWindow;
 
   final TenturaDb _db;
   final MeritrankRepositoryPort _meritrank;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
+  final WitnessWindowPort? _witnessWindow;
 
   @override
   Future<void> setVoteAmountAndApplyEvidence({
@@ -130,6 +133,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
 
     await _meritrank.reset();
     await _meritrank.init();
+    await _witnessWindow?.bumpMrEpoch();
   }
 
   Future<void> _setVoteAmountCore({

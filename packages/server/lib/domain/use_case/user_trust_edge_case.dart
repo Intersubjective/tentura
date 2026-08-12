@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -19,16 +20,19 @@ final class UserTrustEdgeCase extends UseCaseBase {
     this._trustMaintenance, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    WitnessWindowPort? witnessWindow,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
-       _attention = attention;
+       _attention = attention,
+       _witnessWindow = witnessWindow;
 
   final UserRepositoryPort _userRepository;
   final UserTrustEdgeRepositoryPort _trustEdgeRepository;
   final TrustMaintenancePort _trustMaintenance;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final WitnessWindowPort? _witnessWindow;
 
   Future<void> setUserVote({
     required String subjectUserId,
@@ -44,6 +48,7 @@ final class UserTrustEdgeCase extends UseCaseBase {
               objectUserId: objectUserId,
               newAmount: amount,
             );
+        await _invalidateWitnessWindows(subjectUserId, objectUserId);
         if (!formed) return;
         await transaction.record(
           await _attentionIntents!.mutualConnectionFormed(
@@ -75,6 +80,16 @@ final class UserTrustEdgeCase extends UseCaseBase {
 
   Future<void> cutoverBackfillIfNeeded() =>
       _trustEdgeRepository.cutoverBackfillIfNeeded();
+
+  Future<void> _invalidateWitnessWindows(
+    String subjectUserId,
+    String objectUserId,
+  ) async {
+    final witnessWindow = _witnessWindow;
+    if (witnessWindow == null) return;
+    await witnessWindow.invalidateFor(userId: subjectUserId);
+    await witnessWindow.invalidateFor(userId: objectUserId);
+  }
 
   Future<void> _ensureMrPrivilege({
     required String userId,

@@ -4,6 +4,7 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/user_block_entity.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -14,10 +15,15 @@ import '../database/tentura_db.dart';
   order: 1,
 )
 class UserBlockRepository implements UserBlockRepositoryPort {
-  UserBlockRepository(this._env, this._db);
+  UserBlockRepository(
+    this._env,
+    this._db, {
+    WitnessWindowPort? witnessWindow,
+  }) : _witnessWindow = witnessWindow;
 
   final Env _env;
   final TenturaDb _db;
+  final WitnessWindowPort? _witnessWindow;
 
   int get _cascadeMaxDepth => _env.blockCascadeMaxDepth;
   int get _cascadeMaxRows => _env.blockCascadeMaxRows;
@@ -87,6 +93,7 @@ SELECT EXISTS (
       ],
       readsFrom: {},
     ).getSingle();
+    await _invalidateWitnessWindows(blockerId, blockedId);
   }
 
   @override
@@ -749,6 +756,7 @@ SELECT EXISTS (
           ],
           readsFrom: {},
         ).getSingle();
+        await _invalidateWitnessWindows(blockerId, blockedId);
       }
 
       return (
@@ -849,4 +857,14 @@ WHERE blocker_id = $1 AND blocked_id = $2
         materializedCount: row.materializedCount,
         createdAt: row.createdAt.dateTime,
       );
+
+  Future<void> _invalidateWitnessWindows(
+    String blockerId,
+    String blockedId,
+  ) async {
+    final witnessWindow = _witnessWindow;
+    if (witnessWindow == null) return;
+    await witnessWindow.invalidateFor(userId: blockerId);
+    await witnessWindow.invalidateFor(userId: blockedId);
+  }
 }
