@@ -87,8 +87,8 @@ any order after F1b. One worker at a time.
 - [x] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
 - [ ] **E1a** — Query resolvers + authz (depends: D2, D3, D4) — `subjectiveTags`, `forwardContext`, `tagExplanation`, `CapabilityRoutingCase` read methods
 - [ ] **E1b** — Mutation resolvers + authz (depends: E1a) — `myRoutingTags`, seed, revoke, setMute, prompt answer/skip
-- [ ] **F1a** — Client schema + routing (depends: E1b) — `schema.graphql`, `_tenturaDirectOperationNames`
-- [ ] **F1b** — Client gql docs + repository (depends: F1a) — `.graphql` documents, repository, client entities
+- [x] **F1a** — Client schema + routing (depends: E1b) — `schema.graphql`, `_tenturaDirectOperationNames`
+- [x] **F1b** — Client gql docs + repository (depends: F1a) — `.graphql` documents, repository, client entities
 - [ ] **F2** — Forward band UI (depends: F1b) — forward cubit/state/screen
 - [ ] **F3** — Profile projection UI (depends: F1b) — `profile_view_body.dart` + cubit/state (new field, not `viewerVisible`)
 - [ ] **F4a** — Invite prompt receipt (depends: F1b, C4) — receipt card + prompt state machine
@@ -5677,4 +5677,95 @@ unit in this journal, not a lighter bar — consistent with how C5 was
 handled earlier in the D-series for the same kind of interruption). F1b
 (the `.graphql` documents, Ferry codegen, repository, and client entities)
 is now unblocked. Proceeding to F1b next.
+
+## F1b — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F1b — ten `.graphql` documents under `features/capability/data/gql/`,
+Ferry codegen, client-domain entities (`TagProjection`, `ForwardBandRow`,
+`InviteSeedPromptState`). Repository port + implementation and tests not yet
+committed.
+
+PLAN:
+1. Add all ten GraphQL documents matching committed `schema.graphql` shapes.
+2. Run `flutter gen-l10n && dart run build_runner build -d`.
+3. Add Freezed domain entities + wire-string enums.
+4. Extend `CapabilityRepositoryPort` / `CapabilityRepository` (ten methods).
+5. Repository tests via `_FixtureRemoteClient` (attention-repository pattern).
+6. Focused commits + final journal entry.
+
+FINDINGS (so far):
+- Codegen succeeded cleanly on first attempt (no sqlite3 overlay needed).
+- `tier` / `rowTier` / invite `state` parsed into client-side
+  `ProjectionTier` and `PromptStateValue` enums with `fromWire()` (matches
+  server camelCase `.name` strings; same pattern as `RealtimeEntityKind.fromWire`
+  — safer for F2 tier copy switches than raw `String` comparison).
+- `CapabilityRepository` constructor now takes `RemoteRequestClient` (not
+  `RemoteApiService` directly) so repository tests can use the same fixture
+  seam as `AttentionRepository`; DI unchanged via existing
+  `modules.dart` `remoteRequestClient(RemoteApiService)` binding.
+
+## F1b — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `d439b5c9` feat(client): add subjective help-tag evidence GraphQL documents (F1b)
+- `dffc4458` feat(client): add tag projection domain entities (F1b)
+- `26b6e09e` feat(client): wire capability routing repository methods (F1b)
+- `8faee6a5` test(client): add capability routing repository mapping tests (F1b)
+
+TESTS:
+
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d
+→ Built with build_runner/aot in 43s; wrote 3458 outputs. Exit 0.
+  (first full run after adding documents + entities; no sqlite3 overlay needed)
+
+cd packages/client && flutter test test/features/capability/capability_repository_routing_evidence_test.dart
+→ 00:00 +4: All tests passed!
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111)
+→ check-custom-lints: packages/client OK
+```
+
+FILES:
+- `packages/client/lib/features/capability/data/gql/subjective_tags_fetch.graphql`
+- `packages/client/lib/features/capability/data/gql/forward_context_fetch.graphql`
+- `packages/client/lib/features/capability/data/gql/my_routing_tags_fetch.graphql`
+- `packages/client/lib/features/capability/data/gql/tag_explanation_fetch.graphql`
+- `packages/client/lib/features/capability/data/gql/seed_routing_attestation.graphql`
+- `packages/client/lib/features/capability/data/gql/revoke_acknowledgement.graphql`
+- `packages/client/lib/features/capability/data/gql/set_routing_mute.graphql`
+- `packages/client/lib/features/capability/data/gql/invite_seed_prompt_fetch.graphql`
+- `packages/client/lib/features/capability/data/gql/invite_seed_prompt_answer.graphql`
+- `packages/client/lib/features/capability/data/gql/invite_seed_prompt_skip.graphql`
+- `packages/client/lib/domain/capability/projection_tier.dart`
+- `packages/client/lib/domain/capability/prompt_state_value.dart`
+- `packages/client/lib/domain/capability/tag_projection.dart`
+- `packages/client/lib/domain/capability/forward_band_row.dart`
+- `packages/client/lib/domain/capability/invite_seed_prompt_state.dart`
+- `packages/client/lib/domain/port/capability_repository_port.dart`
+- `packages/client/lib/features/capability/data/repository/capability_repository.dart`
+- `packages/client/test/features/capability/capability_repository_routing_evidence_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Enum judgment:** `ProjectionTier` and `PromptStateValue` are Dart enums
+  with strict `fromWire(String)` parsers (server sends camelCase enum `.name`
+  values). Chosen over raw `String` because F2–F5 UI will switch on tier/state
+  for copy and prompt gating; mirrors server `capability_evidence_models.dart`
+  names without importing server types. Unknown wire values throw
+  `ArgumentError` at repository boundary (fail loud, not silent mis-render).
+- Nullable outer lists (`subjectiveTags`, `forwardContext`) coerced to `const []`
+  via `?? const []`; `myRoutingTags` uses non-null `BuiltList.toList()` per
+  F1a-verified `[String!]!` shape.
+- `CapabilityRepository` now depends on `RemoteRequestClient` for testability
+  (production DI unchanged).
+
+REMAINING: none for F1b scope. F2 (Forward band UI), F3 (Profile projection
+UI), F4a (Invite prompt receipt), and F5 (Routing mute screen) are unblocked
+and may proceed in any order.
 
