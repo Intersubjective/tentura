@@ -2871,7 +2871,7 @@ Migration number confirmed live: **m0147** (next free after m0146).
 
 STATUS: complete
 
-COMMITS: feat(server): add sweep lease columns on capability evidence edge (D3) (`113de4e8`); feat(server): add CapabilityCellRepository adapter (D3) (`49d200ed`); feat(server): wire capability cell expiry sweep into TaskWorker (D3) (`2d2ce4e7`); test(server): add capability cell PG tests and fix A1-A3 upgrade paths (D3) (`9a4e8c1b`); docs: D3 expiry sweep journal (D3) (`293e1f05`)
+COMMITS: feat(server): add sweep lease columns on capability evidence edge (D3) (`113de4e8`); feat(server): add CapabilityCellRepository adapter (D3) (`49d200ed`); feat(server): wire capability cell expiry sweep into TaskWorker (D3) (`2d2ce4e7`); test(server): add capability cell PG tests and fix A1-A3 upgrade paths (D3) (`9a4e8c1b`); docs: D3 expiry sweep journal (D3) (`4e157419`)
 
 TESTS:
 
