@@ -35,6 +35,7 @@ import 'table/beacon_commitment_events.dart';
 import 'table/beacon_help_offer_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
 import 'table/beacon_evaluation_visibility.dart';
+import 'table/beacon_evaluation_ack_tags.dart';
 import 'table/beacon_evaluations.dart';
 import 'table/beacon_activity_events.dart';
 import 'table/beacon_fact_cards.dart';
@@ -99,6 +100,7 @@ part 'tentura_db.g.dart';
     BeaconHelpOfferCoordinations,
     BeaconEvaluationParticipants,
     BeaconEvaluationVisibility,
+    BeaconEvaluationAckTags,
     BeaconEvaluations,
     BeaconActivityEvents,
     BeaconFactCards,
