@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
+import 'package:tentura_server/domain/use_case/capability_routing_case.dart';
 import 'package:tentura_server/domain/use_case/forward_band_case.dart';
 
 import '../custom_types.dart';
@@ -10,12 +11,16 @@ final class QueryCapabilityProjection extends GqlNodeBase {
   QueryCapabilityProjection({
     CapabilityProjectionCase? capabilityProjectionCase,
     ForwardBandCase? forwardBandCase,
+    CapabilityRoutingCase? capabilityRoutingCase,
   })  : _capabilityProjectionCase =
             capabilityProjectionCase ?? GetIt.I<CapabilityProjectionCase>(),
-        _forwardBandCase = forwardBandCase ?? GetIt.I<ForwardBandCase>();
+        _forwardBandCase = forwardBandCase ?? GetIt.I<ForwardBandCase>(),
+        _capabilityRoutingCase =
+            capabilityRoutingCase ?? GetIt.I<CapabilityRoutingCase>();
 
   final CapabilityProjectionCase _capabilityProjectionCase;
   final ForwardBandCase _forwardBandCase;
+  final CapabilityRoutingCase _capabilityRoutingCase;
 
   static final _targetId = InputFieldString(fieldName: 'targetId');
   static final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -26,6 +31,7 @@ final class QueryCapabilityProjection extends GqlNodeBase {
         subjectiveTags,
         forwardContext,
         tagExplanation,
+        myRoutingTags,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get subjectiveTags =>
@@ -73,6 +79,25 @@ final class QueryCapabilityProjection extends GqlNodeBase {
           );
         },
       );
+
+  GraphQLObjectField<dynamic, dynamic> get myRoutingTags =>
+      GraphQLObjectField(
+        'myRoutingTags',
+        GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          final muted = await _capabilityRoutingCase.myRoutingTags(
+            actorId: jwt.sub,
+          );
+          return muted.toList(growable: false);
+        },
+      );
+
+  static Map<String, dynamic> promptStateToGql(PromptState state) => {
+        'inviterUserId': state.inviterUserId,
+        'inviteeUserId': state.inviteeUserId,
+        'state': state.state.name,
+      };
 
   static Map<String, dynamic> _tagProjectionToGql(TagProjection row) => {
         'subjectUserId': row.subjectUserId,

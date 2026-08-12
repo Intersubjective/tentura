@@ -57,6 +57,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonFriendContext,
   gqlTypeTagProjection,
   gqlTypeForwardBandRow,
+  gqlTypeInviteSeedPromptState,
   gqlTypeCoordinationItemRow,
   gqlTypeCoordinationResponsibilityBatchRow,
   gqlTypeBeaconItemsSeenResult,
@@ -833,6 +834,14 @@ final gqlTypeForwardBandRow = GraphQLObjectType('v2_ForwardBandRow', null)
     field('rank', graphQLInt.nonNullable()),
     field('isExploration', graphQLBoolean.nonNullable()),
   ]);
+
+final gqlTypeInviteSeedPromptState =
+    GraphQLObjectType('v2_InviteSeedPromptState', null)
+      ..fields.addAll([
+        field('inviterUserId', graphQLString.nonNullable()),
+        field('inviteeUserId', graphQLString.nonNullable()),
+        field('state', graphQLString.nonNullable()),
+      ]);
 
 /// Forward-reason slugs for one (sender, recipient) pair on a beacon.
 final gqlTypeForwardReasonRow = GraphQLObjectType('v2_ForwardReasonRow', null)
