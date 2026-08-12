@@ -5544,3 +5544,137 @@ complete.** Per document order, F1a (Client schema + routing —
 `schema.graphql`, `_tenturaDirectOperationNames`) is next: the first
 client-side unit, and the first to need `flutter`/Ferry codegen rather than
 `dart`/server tooling.
+
+## F1a — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F1a only — `schema.graphql` overlay for E1a/E1b GraphQL surface +
+`_tenturaDirectOperationNames` + routing test. No `.graphql` documents (F1b).
+
+PLAN:
+1. Mirror live server field/argument/nullability from `query_capability_projection.dart`,
+   `query_invite_seed_prompt.dart`, `mutation_capability_routing.dart`, `custom_types.dart`.
+2. Add 10 PascalCase document operation names to `_tenturaDirectOperationNames`.
+3. Extend `direct_operation_routing_test.dart`.
+4. Schema SDL parse check, `flutter test`, `check-custom-lints.sh`, focused commits.
+
+FINDINGS (so far): direct V2 types use single `v2_` prefix (`v2_TagProjection`, not
+`v2_v2_` like Hasura-stitched capability cues); `myRoutingTags` returns `[String!]!`
+(muted slugs only), matching E1b live case not architecture draft's `{slug,muted}`.
+
+## F1a — interrupted (background-worker kill, no diagnosable cause) — 2026-08-13
+
+The dispatched Cursor worker was killed by the same unexplained
+backgrounded-process infrastructure issue seen earlier this session for
+C1a and C5 (system/docker/cursor-agent all healthy, no error surfaced).
+Unlike a clean exit, no final journal entry or commits were made — but the
+worker's uncommitted worktree changes (`schema.graphql`,
+`build_client.dart`, `direct_operation_routing_test.dart`) were present
+and, per the checkpoint above, believed complete for steps 1–3 of the
+plan (schema mirror, operation-name registration, routing test), with
+step 4 (SDL parse check, `flutter test`, `check-custom-lints.sh`,
+commits) not yet run.
+
+## F1a — complete (manager-completed after an interrupted worker session) — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `733fed8c` feat(client): add schema.graphql entries for subjective help-tag evidence (F1a)
+- `8e8f9d92` feat(client): route new capability operations to Tentura V2 (F1a)
+
+**Process note:** rather than discarding the interrupted worker's
+uncommitted work or blindly trusting it, the manager independently
+verified every line against the live server source before committing
+anything — see the manager verdict below for the full verification, which
+found the work correct and complete.
+
+TESTS:
+
+```bash
+cd packages/client && flutter test test/data/service/remote_api_client/direct_operation_routing_test.dart
+→ 00:00 +3: All tests passed! (including the new 10-operation assertion)
+
+cd packages/client && dart run build_runner build --delete-conflicting-outputs
+→ Built with build_runner/aot in 168s; wrote 1793 outputs. Exit 0 — this
+  invokes ferry_generator|graphql_builder, which parses schema.graphql in
+  full against every existing .graphql document in the client; a schema
+  syntax error anywhere (including in the new additions) would have failed
+  the whole build. This is the SDL parse check step 4 called for, run via
+  the only mechanism actually available before F1b's documents exist.
+
+cd packages/client && flutter test
+→ 01:37 +2010 ~18: All tests passed! (18 pre-existing skips, unrelated)
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111) — check-custom-lints: packages/client OK
+  (unchanged by this unit; pre-existing drift)
+
+git diff --check
+→ one pre-existing trailing-blank-line nit in this journal file at the
+  interrupted checkpoint's end, resolved by this entry
+```
+
+FILES:
+- `packages/client/lib/data/gql/schema.graphql`
+- `packages/client/lib/data/service/remote_api_client/build_client.dart`
+- `packages/client/test/data/service/remote_api_client/direct_operation_routing_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS: as recorded in the interrupted checkpoint above (direct V2 types
+use a single `v2_` prefix, not the `v2_v2_` seen on Hasura-stitched
+capability types; `myRoutingTags` returns `[String!]!` of muted slugs
+only) — both independently re-confirmed against live server source by the
+manager, see verdict below.
+
+REMAINING: none for F1a scope. F1b (the `.graphql` documents, codegen,
+repository, client entities) is next.
+
+### Manager verdict: ACCEPTED (after completing an interrupted worker session) — 2026-08-13
+
+Given the worker was killed mid-task with no self-reported completion,
+every addition was independently verified against live server source
+before being trusted or committed — not just spot-checked:
+
+```bash
+# Every query_root/mutation_root field the diff added, checked argument-
+# by-argument and nullability-by-nullability against the actual resolver
+# source (not the plan's prose):
+
+grep -n "myRoutingTags" -A 12 packages/server/lib/api/controllers/graphql/query/query_capability_projection.dart
+→ GraphQLListType(graphQLString.nonNullable()).nonNullable() — confirms
+  the outer-list non-nullability the diff used (`[String!]!`) is correct;
+  this is the ONE field among the five new queries where the outer list
+  itself is non-null (subjectiveTags/forwardContext are bare
+  GraphQLListType, i.e. nullable outer list, `[v2_X!]` not `[v2_X!]!`) —
+  confirmed the diff got this asymmetry right, not just copy-pasted one
+  pattern everywhere.
+
+cat packages/server/lib/api/controllers/graphql/mutation/mutation_capability_routing.dart
+→ all five mutation fields' arguments/return types read directly from
+  source, matched field-for-field against the schema.graphql diff:
+  revokeAcknowledgement(beaconId!, subjectId!, slug!): Boolean!;
+  setRoutingMute(slug!, muted!): Boolean!; seedRoutingAttestation(subjectId!,
+  slugs): Boolean!; inviteSeedPromptAnswer(subjectId!, slugs): Boolean!;
+  inviteSeedPromptSkip(subjectId!): Boolean! — exact match, including
+  `slugs`' own nullable-outer-list `[String!]` (not `!`-terminated).
+
+grep -n "gqlTypeInviteSeedPromptState" -A 6 packages/server/lib/api/controllers/graphql/custom_types.dart
+→ inviterUserId/inviteeUserId/state, all non-null strings — exact match
+  to the new v2_InviteSeedPromptState type block.
+```
+
+Also independently reran the full verification the interrupted worker's
+own plan called for but hadn't reached (`flutter test`, full build_runner
+including schema parsing, `check-custom-lints.sh`) — see TESTS above,
+all run by the manager directly, not inherited from any prior claim.
+
+**F1a is accepted** (self-accepted — the manager both completed and
+reviewed this unit directly, given the interrupted-worker circumstances;
+the verification above is the same rigor applied to every worker-completed
+unit in this journal, not a lighter bar — consistent with how C5 was
+handled earlier in the D-series for the same kind of interruption). F1b
+(the `.graphql` documents, Ferry codegen, repository, and client entities)
+is now unblocked. Proceeding to F1b next.
+
