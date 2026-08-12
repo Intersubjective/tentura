@@ -50,10 +50,14 @@ final class ModelWorld {
       MockCapabilityOwnEvidencePort();
   late final MockRoutingMutePort _routingMute = MockRoutingMutePort();
   late final MockPairBlockQueryPort _pairBlockQuery = MockPairBlockQueryPort();
+  late final MockPersonVisibilityRepositoryPort _personVisibility =
+      MockPersonVisibilityRepositoryPort();
+  late final MockUserBlockRepositoryPort _userBlock = MockUserBlockRepositoryPort();
   late final MockBandCandidatePort _bandCandidatePort =
       MockBandCandidatePort();
   late final MockBeaconRepositoryPort _beaconRepositoryPort =
       MockBeaconRepositoryPort();
+  late final MockBeaconAccessGuard _guard = MockBeaconAccessGuard();
 
   late final CapabilityProjectionCase _projectionCase = CapabilityProjectionCase(
     _witnessWindow,
@@ -61,6 +65,8 @@ final class ModelWorld {
     _ownEvidencePort,
     _routingMute,
     _pairBlockQuery,
+    _personVisibility,
+    _userBlock,
     env: Env(environment: Environment.test),
     logger: Logger('ModelWorldProjection'),
   );
@@ -69,6 +75,7 @@ final class ModelWorld {
     _bandCandidatePort,
     _beaconRepositoryPort,
     _projectionCase,
+    _guard,
     env: Env(environment: Environment.test),
     logger: Logger('ModelWorldBand'),
   );
@@ -514,6 +521,37 @@ final class ModelWorld {
           if (_mutes.containsKey(subject)) subject: _mutes[subject]!,
       };
     });
+
+    when(
+      _userBlock.isBlockedPair(a: anyNamed('a'), b: anyNamed('b')),
+    ).thenAnswer((invocation) async {
+      final a = invocation.namedArguments[#a] as String;
+      final b = invocation.namedArguments[#b] as String;
+      return _blocks.contains(_canonicalPair(a, b));
+    });
+    when(
+      _personVisibility.mutuallyVisiblePeerIds(
+        viewerId: anyNamed('viewerId'),
+        peerIds: anyNamed('peerIds'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((invocation) async {
+      final viewer = invocation.namedArguments[#viewerId] as String;
+      final peers = invocation.namedArguments[#peerIds] as Iterable<String>;
+      return peers
+          .where(
+            (peer) =>
+                peer == viewer ||
+                !_blocks.contains(_canonicalPair(viewer, peer)),
+          )
+          .toSet();
+    });
+    when(
+      _guard.canReadContent(
+        beaconId: anyNamed('beaconId'),
+        viewerId: anyNamed('viewerId'),
+      ),
+    ).thenAnswer((_) async => true);
 
     if (forBand && beaconId != null && _beacon != null) {
       when(

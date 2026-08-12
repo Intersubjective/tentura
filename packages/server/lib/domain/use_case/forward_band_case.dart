@@ -2,8 +2,11 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+import 'package:tentura_server/domain/capability/context_normalization.dart';
 import 'package:tentura_server/domain/capability/fnv1a64.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/band_candidate_port.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
 
@@ -16,7 +19,8 @@ final class ForwardBandCase extends UseCaseBase {
   ForwardBandCase(
     this._bandCandidatePort,
     this._beaconRepositoryPort,
-    this._capabilityProjectionCase, {
+    this._capabilityProjectionCase,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -24,6 +28,28 @@ final class ForwardBandCase extends UseCaseBase {
   final BandCandidatePort _bandCandidatePort;
   final BeaconRepositoryPort _beaconRepositoryPort;
   final CapabilityProjectionCase _capabilityProjectionCase;
+  final BeaconAccessGuard _guard;
+
+  /// Composed forward band for an authorized viewer (§16.1).
+  Future<List<ForwardBandRow>> forwardContext({
+    required String actorId,
+    required String beaconId,
+    required String rawContext,
+  }) async {
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: actorId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read request content',
+      );
+    }
+    return composeBand(
+      egoId: actorId,
+      beaconId: beaconId,
+      normalizedContext: capNormalizeContext(rawContext),
+    );
+  }
 
   Future<List<ForwardBandRow>> composeBand({
     required String egoId,

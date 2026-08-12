@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/capability/capability_evidence_models.dart
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i4;
 import 'package:tentura_server/domain/port/band_candidate_port.dart' as _i5;
+import 'package:tentura_server/domain/port/beacon_access_guard.dart' as _i11;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 
 // ignore_for_file: type=lint
@@ -561,4 +562,55 @@ class MockBeaconRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+}
+
+/// A class which mocks [BeaconAccessGuard].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockBeaconAccessGuard extends _i1.Mock implements _i11.BeaconAccessGuard {
+  MockBeaconAccessGuard() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<bool> canReadContent({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#canReadContent, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> canReadInvolvement({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#canReadInvolvement, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> canReadTombstone({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#canReadTombstone, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
 }

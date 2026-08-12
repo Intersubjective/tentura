@@ -2,10 +2,13 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/capability_own_evidence_port.dart';
 import 'package:tentura_server/domain/port/pair_block_query_port.dart';
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/routing_mute_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 
 import '_use_case_base.dart';
@@ -20,7 +23,9 @@ final class CapabilityProjectionCase extends UseCaseBase {
     this._cellPort,
     this._ownEvidencePort,
     this._routingMute,
-    this._pairBlockQuery, {
+    this._pairBlockQuery,
+    this._personVisibility,
+    this._userBlock, {
     required super.env,
     required super.logger,
   });
@@ -30,6 +35,8 @@ final class CapabilityProjectionCase extends UseCaseBase {
   final CapabilityOwnEvidencePort _ownEvidencePort;
   final RoutingMutePort _routingMute;
   final PairBlockQueryPort _pairBlockQuery;
+  final PersonVisibilityRepositoryPort _personVisibility;
+  final UserBlockRepositoryPort _userBlock;
 
   Future<List<ScoredProjection>> project({
     required String egoId,
@@ -137,6 +144,75 @@ final class CapabilityProjectionCase extends UseCaseBase {
     var results = merged.values.toList(growable: false);
     results = _applySurfaceFilter(results, surface);
     return results;
+  }
+
+  /// Profile projection for a single target (§16.1 / D24 default context).
+  Future<List<TagProjection>> subjectiveTags({
+    required String actorId,
+    required String targetId,
+  }) async {
+    if (!await _canViewSubject(actorId: actorId, targetId: targetId)) {
+      return const [];
+    }
+    final scored = await project(
+      egoId: actorId,
+      subjectIds: [targetId],
+      tagSlugs: kCapabilitySlugOrder,
+      normalizedContext: '',
+      surface: ProjectionSurface.profile,
+    );
+    return scored
+        .map(
+          (row) => TagProjection(
+            subjectUserId: row.subjectUserId,
+            tagSlug: row.tagSlug,
+            tier: row.tier,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  /// Tier-only explanation for one tag (forwardBand surface — all four tiers).
+  Future<String?> tagExplanation({
+    required String actorId,
+    required String targetId,
+    required String slug,
+  }) async {
+    if (!await _canViewSubject(actorId: actorId, targetId: targetId)) {
+      return null;
+    }
+    if (!kAllowedCapabilitySlugs.contains(slug)) {
+      return null;
+    }
+    final scored = await project(
+      egoId: actorId,
+      subjectIds: [targetId],
+      tagSlugs: [slug],
+      normalizedContext: '',
+      surface: ProjectionSurface.forwardBand,
+    );
+    if (scored.isEmpty) {
+      return null;
+    }
+    return scored.first.tier.name;
+  }
+
+  Future<bool> _canViewSubject({
+    required String actorId,
+    required String targetId,
+  }) async {
+    if (await _userBlock.isBlockedPair(a: actorId, b: targetId)) {
+      return false;
+    }
+    if (actorId == targetId) {
+      return true;
+    }
+    final visible = await _personVisibility.mutuallyVisiblePeerIds(
+      viewerId: actorId,
+      peerIds: [targetId],
+      context: '',
+    );
+    return visible.contains(targetId);
   }
 
   Map<(String, String), ScoredProjection> _aggregateNetworkProjections({

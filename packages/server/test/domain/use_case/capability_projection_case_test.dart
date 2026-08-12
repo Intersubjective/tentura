@@ -16,6 +16,8 @@ void main() {
   late MockCapabilityOwnEvidencePort ownEvidencePort;
   late MockRoutingMutePort routingMute;
   late MockPairBlockQueryPort pairBlockQuery;
+  late MockPersonVisibilityRepositoryPort personVisibility;
+  late MockUserBlockRepositoryPort userBlock;
   late CapabilityProjectionCase case_;
 
   const ego = 'alice';
@@ -28,9 +30,27 @@ void main() {
         ownEvidencePort,
         routingMute,
         pairBlockQuery,
+        personVisibility,
+        userBlock,
         env: Env(environment: Environment.test),
         logger: Logger('CapabilityProjectionCaseTest'),
       );
+
+  void stubPermissiveTargetAuth() {
+    when(
+      userBlock.isBlockedPair(a: anyNamed('a'), b: anyNamed('b')),
+    ).thenAnswer((_) async => false);
+    when(
+      personVisibility.mutuallyVisiblePeerIds(
+        viewerId: anyNamed('viewerId'),
+        peerIds: anyNamed('peerIds'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((invocation) async {
+      final peers = invocation.namedArguments[#peerIds] as Iterable<String>;
+      return peers.toSet();
+    });
+  }
 
   void stubEmptyOwnAndTombstones() {
     when(
@@ -63,9 +83,12 @@ void main() {
     ownEvidencePort = MockCapabilityOwnEvidencePort();
     routingMute = MockRoutingMutePort();
     pairBlockQuery = MockPairBlockQueryPort();
+    personVisibility = MockPersonVisibilityRepositoryPort();
+    userBlock = MockUserBlockRepositoryPort();
     case_ = buildCase();
     stubEmptyOwnAndTombstones();
     stubNoBlocksAndMutes();
+    stubPermissiveTargetAuth();
   });
 
   group('§13.1 worked example', () {

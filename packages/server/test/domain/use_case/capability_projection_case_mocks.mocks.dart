@@ -3,17 +3,22 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart'
     as _i2;
-import 'package:tentura_server/domain/port/capability_cell_port.dart' as _i5;
+import 'package:tentura_server/domain/entity/user_block_entity.dart' as _i3;
+import 'package:tentura_server/domain/port/capability_cell_port.dart' as _i6;
 import 'package:tentura_server/domain/port/capability_own_evidence_port.dart'
-    as _i6;
-import 'package:tentura_server/domain/port/pair_block_query_port.dart' as _i8;
-import 'package:tentura_server/domain/port/routing_mute_port.dart' as _i7;
-import 'package:tentura_server/domain/port/witness_window_port.dart' as _i3;
+    as _i7;
+import 'package:tentura_server/domain/port/pair_block_query_port.dart' as _i9;
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart'
+    as _i10;
+import 'package:tentura_server/domain/port/routing_mute_port.dart' as _i8;
+import 'package:tentura_server/domain/port/user_block_repository_port.dart'
+    as _i11;
+import 'package:tentura_server/domain/port/witness_window_port.dart' as _i4;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -36,16 +41,22 @@ class _FakeRawWindowFacts_0 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
+class _FakeBlockPreviewEntity_1 extends _i1.SmartFake
+    implements _i3.BlockPreviewEntity {
+  _FakeBlockPreviewEntity_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [WitnessWindowPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
+class MockWitnessWindowPort extends _i1.Mock implements _i4.WitnessWindowPort {
   MockWitnessWindowPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.RawWindowFacts> rawWindowFacts({
+  _i5.Future<_i2.RawWindowFacts> rawWindowFacts({
     required String? egoId,
     required String? normalizedContext,
     required int? topK,
@@ -56,7 +67,7 @@ class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
               #normalizedContext: normalizedContext,
               #topK: topK,
             }),
-            returnValue: _i4.Future<_i2.RawWindowFacts>.value(
+            returnValue: _i5.Future<_i2.RawWindowFacts>.value(
               _FakeRawWindowFacts_0(
                 this,
                 Invocation.method(#rawWindowFacts, [], {
@@ -67,10 +78,10 @@ class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
               ),
             ),
           )
-          as _i4.Future<_i2.RawWindowFacts>);
+          as _i5.Future<_i2.RawWindowFacts>);
 
   @override
-  _i4.Future<void> storeWindow({
+  _i5.Future<void> storeWindow({
     required String? egoId,
     required String? normalizedContext,
     required List<_i2.WitnessWeight>? weights,
@@ -81,13 +92,13 @@ class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
               #normalizedContext: normalizedContext,
               #weights: weights,
             }),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<List<_i2.WitnessWeight>> cachedWindow({
+  _i5.Future<List<_i2.WitnessWeight>> cachedWindow({
     required String? egoId,
     required String? normalizedContext,
   }) =>
@@ -96,50 +107,50 @@ class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
               #egoId: egoId,
               #normalizedContext: normalizedContext,
             }),
-            returnValue: _i4.Future<List<_i2.WitnessWeight>>.value(
+            returnValue: _i5.Future<List<_i2.WitnessWeight>>.value(
               <_i2.WitnessWeight>[],
             ),
           )
-          as _i4.Future<List<_i2.WitnessWeight>>);
+          as _i5.Future<List<_i2.WitnessWeight>>);
 
   @override
-  _i4.Future<void> invalidateFor({required String? userId}) =>
+  _i5.Future<void> invalidateFor({required String? userId}) =>
       (super.noSuchMethod(
             Invocation.method(#invalidateFor, [], {#userId: userId}),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> bumpMrEpoch() =>
+  _i5.Future<void> bumpMrEpoch() =>
       (super.noSuchMethod(
             Invocation.method(#bumpMrEpoch, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<int> gcStaleWindows() =>
+  _i5.Future<int> gcStaleWindows() =>
       (super.noSuchMethod(
             Invocation.method(#gcStaleWindows, []),
-            returnValue: _i4.Future<int>.value(0),
+            returnValue: _i5.Future<int>.value(0),
           )
-          as _i4.Future<int>);
+          as _i5.Future<int>);
 }
 
 /// A class which mocks [CapabilityCellPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockCapabilityCellPort extends _i1.Mock
-    implements _i5.CapabilityCellPort {
+    implements _i6.CapabilityCellPort {
   MockCapabilityCellPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<List<_i2.WitnessCellRow>> fetchCells({
+  _i5.Future<List<_i2.WitnessCellRow>> fetchCells({
     required List<String>? subjectIds,
     required List<String>? tagSlugs,
     required List<_i2.WitnessWeight>? admittedWitnesses,
@@ -150,23 +161,23 @@ class MockCapabilityCellPort extends _i1.Mock
               #tagSlugs: tagSlugs,
               #admittedWitnesses: admittedWitnesses,
             }),
-            returnValue: _i4.Future<List<_i2.WitnessCellRow>>.value(
+            returnValue: _i5.Future<List<_i2.WitnessCellRow>>.value(
               <_i2.WitnessCellRow>[],
             ),
           )
-          as _i4.Future<List<_i2.WitnessCellRow>>);
+          as _i5.Future<List<_i2.WitnessCellRow>>);
 
   @override
-  _i4.Future<void> rebuildCell(_i2.CellRef? ref) =>
+  _i5.Future<void> rebuildCell(_i2.CellRef? ref) =>
       (super.noSuchMethod(
             Invocation.method(#rebuildCell, [ref]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<List<_i2.CellRef>> claimExpiredCells({
+  _i5.Future<List<_i2.CellRef>> claimExpiredCells({
     required int? limit,
     required String? leaseOwner,
   }) =>
@@ -175,12 +186,12 @@ class MockCapabilityCellPort extends _i1.Mock
               #limit: limit,
               #leaseOwner: leaseOwner,
             }),
-            returnValue: _i4.Future<List<_i2.CellRef>>.value(<_i2.CellRef>[]),
+            returnValue: _i5.Future<List<_i2.CellRef>>.value(<_i2.CellRef>[]),
           )
-          as _i4.Future<List<_i2.CellRef>>);
+          as _i5.Future<List<_i2.CellRef>>);
 
   @override
-  _i4.Future<void> releaseSweepLease({
+  _i5.Future<void> releaseSweepLease({
     required _i2.CellRef? ref,
     required String? leaseOwner,
   }) =>
@@ -189,39 +200,39 @@ class MockCapabilityCellPort extends _i1.Mock
               #ref: ref,
               #leaseOwner: leaseOwner,
             }),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<int> gcOrphanGenerations({int? limit = 100}) =>
+  _i5.Future<int> gcOrphanGenerations({int? limit = 100}) =>
       (super.noSuchMethod(
             Invocation.method(#gcOrphanGenerations, [], {#limit: limit}),
-            returnValue: _i4.Future<int>.value(0),
+            returnValue: _i5.Future<int>.value(0),
           )
-          as _i4.Future<int>);
+          as _i5.Future<int>);
 
   @override
-  _i4.Future<DateTime?> nextExpiryAt(_i2.CellRef? ref) =>
+  _i5.Future<DateTime?> nextExpiryAt(_i2.CellRef? ref) =>
       (super.noSuchMethod(
             Invocation.method(#nextExpiryAt, [ref]),
-            returnValue: _i4.Future<DateTime?>.value(),
+            returnValue: _i5.Future<DateTime?>.value(),
           )
-          as _i4.Future<DateTime?>);
+          as _i5.Future<DateTime?>);
 }
 
 /// A class which mocks [CapabilityOwnEvidencePort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockCapabilityOwnEvidencePort extends _i1.Mock
-    implements _i6.CapabilityOwnEvidencePort {
+    implements _i7.CapabilityOwnEvidencePort {
   MockCapabilityOwnEvidencePort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<List<_i2.OwnEvidenceRow>> fetchOwnEvidence({
+  _i5.Future<List<_i2.OwnEvidenceRow>> fetchOwnEvidence({
     required String? egoId,
     required List<String>? subjectIds,
     required List<String>? tagSlugs,
@@ -232,14 +243,14 @@ class MockCapabilityOwnEvidencePort extends _i1.Mock
               #subjectIds: subjectIds,
               #tagSlugs: tagSlugs,
             }),
-            returnValue: _i4.Future<List<_i2.OwnEvidenceRow>>.value(
+            returnValue: _i5.Future<List<_i2.OwnEvidenceRow>>.value(
               <_i2.OwnEvidenceRow>[],
             ),
           )
-          as _i4.Future<List<_i2.OwnEvidenceRow>>);
+          as _i5.Future<List<_i2.OwnEvidenceRow>>);
 
   @override
-  _i4.Future<List<_i2.TombstoneRef>> fetchTombstones({
+  _i5.Future<List<_i2.TombstoneRef>> fetchTombstones({
     required String? egoId,
     required List<String>? subjectIds,
   }) =>
@@ -248,43 +259,43 @@ class MockCapabilityOwnEvidencePort extends _i1.Mock
               #egoId: egoId,
               #subjectIds: subjectIds,
             }),
-            returnValue: _i4.Future<List<_i2.TombstoneRef>>.value(
+            returnValue: _i5.Future<List<_i2.TombstoneRef>>.value(
               <_i2.TombstoneRef>[],
             ),
           )
-          as _i4.Future<List<_i2.TombstoneRef>>);
+          as _i5.Future<List<_i2.TombstoneRef>>);
 }
 
 /// A class which mocks [RoutingMutePort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockRoutingMutePort extends _i1.Mock implements _i7.RoutingMutePort {
+class MockRoutingMutePort extends _i1.Mock implements _i8.RoutingMutePort {
   MockRoutingMutePort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<Map<String, Set<String>>> mutedSlugsFor({
+  _i5.Future<Map<String, Set<String>>> mutedSlugsFor({
     required List<String>? subjectIds,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#mutedSlugsFor, [], {#subjectIds: subjectIds}),
-            returnValue: _i4.Future<Map<String, Set<String>>>.value(
+            returnValue: _i5.Future<Map<String, Set<String>>>.value(
               <String, Set<String>>{},
             ),
           )
-          as _i4.Future<Map<String, Set<String>>>);
+          as _i5.Future<Map<String, Set<String>>>);
 
   @override
-  _i4.Future<Set<String>> mutedSlugsForUser(String? userId) =>
+  _i5.Future<Set<String>> mutedSlugsForUser(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#mutedSlugsForUser, [userId]),
-            returnValue: _i4.Future<Set<String>>.value(<String>{}),
+            returnValue: _i5.Future<Set<String>>.value(<String>{}),
           )
-          as _i4.Future<Set<String>>);
+          as _i5.Future<Set<String>>);
 
   @override
-  _i4.Future<void> setMute({
+  _i5.Future<void> setMute({
     required String? userId,
     required String? tagSlug,
     required bool? muted,
@@ -295,30 +306,298 @@ class MockRoutingMutePort extends _i1.Mock implements _i7.RoutingMutePort {
               #tagSlug: tagSlug,
               #muted: muted,
             }),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 }
 
 /// A class which mocks [PairBlockQueryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockPairBlockQueryPort extends _i1.Mock
-    implements _i8.PairBlockQueryPort {
+    implements _i9.PairBlockQueryPort {
   MockPairBlockQueryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<Set<(String, String)>> blockedPairsAmong({
+  _i5.Future<Set<(String, String)>> blockedPairsAmong({
     required Set<String>? userIds,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#blockedPairsAmong, [], {#userIds: userIds}),
-            returnValue: _i4.Future<Set<(String, String)>>.value(
+            returnValue: _i5.Future<Set<(String, String)>>.value(
               <(String, String)>{},
             ),
           )
-          as _i4.Future<Set<(String, String)>>);
+          as _i5.Future<Set<(String, String)>>);
+}
+
+/// A class which mocks [PersonVisibilityRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockPersonVisibilityRepositoryPort extends _i1.Mock
+    implements _i10.PersonVisibilityRepositoryPort {
+  MockPersonVisibilityRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<Set<String>> mutuallyVisiblePeerIds({
+    required String? viewerId,
+    required Iterable<String>? peerIds,
+    required String? context,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#mutuallyVisiblePeerIds, [], {
+              #viewerId: viewerId,
+              #peerIds: peerIds,
+              #context: context,
+            }),
+            returnValue: _i5.Future<Set<String>>.value(<String>{}),
+          )
+          as _i5.Future<Set<String>>);
+}
+
+/// A class which mocks [UserBlockRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockUserBlockRepositoryPort extends _i1.Mock
+    implements _i11.UserBlockRepositoryPort {
+  MockUserBlockRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<void> block({
+    required String? blockerId,
+    required String? blockedId,
+    required int? cascadeMode,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#block, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+              #cascadeMode: cascadeMode,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> unblock({
+    required String? blockerId,
+    required String? blockedId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#unblock, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<int> countRecentByBlocker({
+    required String? blockerId,
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countRecentByBlocker, [], {
+              #blockerId: blockerId,
+              #window: window,
+            }),
+            returnValue: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
+
+  @override
+  _i5.Future<void> promoteToDirect({
+    required String? blockerId,
+    required String? blockedId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#promoteToDirect, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i3.UserBlockIntentEntity>> listIntents(String? blockerId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listIntents, [blockerId]),
+            returnValue: _i5.Future<List<_i3.UserBlockIntentEntity>>.value(
+              <_i3.UserBlockIntentEntity>[],
+            ),
+          )
+          as _i5.Future<List<_i3.UserBlockIntentEntity>>);
+
+  @override
+  _i5.Future<List<_i3.UserBlockEntity>> listInherited({
+    required String? blockerId,
+    required String? originId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#listInherited, [], {
+              #blockerId: blockerId,
+              #originId: originId,
+            }),
+            returnValue: _i5.Future<List<_i3.UserBlockEntity>>.value(
+              <_i3.UserBlockEntity>[],
+            ),
+          )
+          as _i5.Future<List<_i3.UserBlockEntity>>);
+
+  @override
+  _i5.Future<_i3.BlockPreviewEntity> preview({
+    required String? blockerId,
+    required String? blockedId,
+    required int? cascadeMode,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#preview, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+              #cascadeMode: cascadeMode,
+            }),
+            returnValue: _i5.Future<_i3.BlockPreviewEntity>.value(
+              _FakeBlockPreviewEntity_1(
+                this,
+                Invocation.method(#preview, [], {
+                  #blockerId: blockerId,
+                  #blockedId: blockedId,
+                  #cascadeMode: cascadeMode,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.BlockPreviewEntity>);
+
+  @override
+  _i5.Future<bool> isBlockedPair({required String? a, required String? b}) =>
+      (super.noSuchMethod(
+            Invocation.method(#isBlockedPair, [], {#a: a, #b: b}),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
+  _i5.Future<Set<String>> hiddenPeerIds({
+    required String? viewerId,
+    required Iterable<String>? peerIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#hiddenPeerIds, [], {
+              #viewerId: viewerId,
+              #peerIds: peerIds,
+            }),
+            returnValue: _i5.Future<Set<String>>.value(<String>{}),
+          )
+          as _i5.Future<Set<String>>);
+
+  @override
+  _i5.Future<void> applyWithdrawal({
+    required String? blockerId,
+    required String? blockedId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#applyWithdrawal, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i3.UserBlockIntentEntity>> claimPendingCascades({
+    required int? limit,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#claimPendingCascades, [], {#limit: limit}),
+            returnValue: _i5.Future<List<_i3.UserBlockIntentEntity>>.value(
+              <_i3.UserBlockIntentEntity>[],
+            ),
+          )
+          as _i5.Future<List<_i3.UserBlockIntentEntity>>);
+
+  @override
+  _i5.Future<int> materializeCascadeBatch({
+    required String? blockerId,
+    required String? blockedId,
+    required int? limit,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#materializeCascadeBatch, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+              #limit: limit,
+            }),
+            returnValue: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
+
+  @override
+  _i5.Future<int> catchUpCascadeIntent({
+    required String? blockerId,
+    required String? blockedId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#catchUpCascadeIntent, [], {
+              #blockerId: blockerId,
+              #blockedId: blockedId,
+            }),
+            returnValue: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
+
+  @override
+  _i5.Future<
+    ({
+      int deletedCount,
+      ({String blockedId, String blockerId, String originId})?
+      lastExaminedCandidate,
+      bool reachedTail,
+    })
+  >
+  runReleaseSweep({
+    required int? limit,
+    ({String blockedId, String blockerId, String originId})? afterCursor,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#runReleaseSweep, [], {
+              #limit: limit,
+              #afterCursor: afterCursor,
+            }),
+            returnValue:
+                _i5.Future<
+                  ({
+                    int deletedCount,
+                    ({String blockedId, String blockerId, String originId})?
+                    lastExaminedCandidate,
+                    bool reachedTail,
+                  })
+                >.value((
+                  deletedCount: 0,
+                  lastExaminedCandidate: null,
+                  reachedTail: false,
+                )),
+          )
+          as _i5.Future<
+            ({
+              int deletedCount,
+              ({String blockedId, String blockerId, String originId})?
+              lastExaminedCandidate,
+              bool reachedTail,
+            })
+          >);
 }

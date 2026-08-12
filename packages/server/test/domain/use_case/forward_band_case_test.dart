@@ -16,13 +16,16 @@ import 'capability_projection_case_mocks.mocks.dart';
 import 'forward_band_case_mocks.mocks.dart';
 
 void main() {
-  late MockBandCandidatePort bandCandidatePort;
-  late MockBeaconRepositoryPort beaconRepositoryPort;
   late MockWitnessWindowPort witnessWindow;
   late MockCapabilityCellPort cellPort;
   late MockCapabilityOwnEvidencePort ownEvidencePort;
   late MockRoutingMutePort routingMute;
   late MockPairBlockQueryPort pairBlockQuery;
+  late MockPersonVisibilityRepositoryPort personVisibility;
+  late MockUserBlockRepositoryPort userBlock;
+  late MockBandCandidatePort bandCandidatePort;
+  late MockBeaconRepositoryPort beaconRepositoryPort;
+  late MockBeaconAccessGuard guard;
   late CapabilityProjectionCase projectionCase;
   late ForwardBandCase case_;
 
@@ -39,6 +42,7 @@ void main() {
         bandCandidatePort,
         beaconRepositoryPort,
         projectionCase,
+        guard,
         env: Env(environment: Environment.test),
         logger: Logger('ForwardBandCaseTest'),
       );
@@ -49,6 +53,8 @@ void main() {
         ownEvidencePort,
         routingMute,
         pairBlockQuery,
+        personVisibility,
+        userBlock,
         env: Env(environment: Environment.test),
         logger: Logger('ForwardBandCaseProjectionTest'),
       );
@@ -180,7 +186,29 @@ void main() {
     ownEvidencePort = MockCapabilityOwnEvidencePort();
     routingMute = MockRoutingMutePort();
     pairBlockQuery = MockPairBlockQueryPort();
+    personVisibility = MockPersonVisibilityRepositoryPort();
+    userBlock = MockUserBlockRepositoryPort();
+    guard = MockBeaconAccessGuard();
     capturedSubjectIds = null;
+    when(
+      userBlock.isBlockedPair(a: anyNamed('a'), b: anyNamed('b')),
+    ).thenAnswer((_) async => false);
+    when(
+      personVisibility.mutuallyVisiblePeerIds(
+        viewerId: anyNamed('viewerId'),
+        peerIds: anyNamed('peerIds'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((invocation) async {
+      final peers = invocation.namedArguments[#peerIds] as Iterable<String>;
+      return peers.toSet();
+    });
+    when(
+      guard.canReadContent(
+        beaconId: anyNamed('beaconId'),
+        viewerId: anyNamed('viewerId'),
+      ),
+    ).thenAnswer((_) async => true);
     projectionCase = buildProjectionCase();
     case_ = buildCase();
   });
