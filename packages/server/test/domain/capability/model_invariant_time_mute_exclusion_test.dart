@@ -16,6 +16,7 @@ void main() {
           subject: 'carol',
           tag: ModelWorld.transport,
           daysAgo: 10,
+          count: 2,
         );
 
       final stale = ModelWorld()
@@ -42,6 +43,7 @@ void main() {
           subject: 'carol',
           tag: ModelWorld.transport,
           daysAgo: 40,
+          count: 2,
         )
         ..seed(
           witness: 'dylan',
@@ -65,6 +67,7 @@ void main() {
           subject: 'carol',
           tag: ModelWorld.transport,
           daysAgo: 70,
+          count: 2,
         )
         ..seed(
           witness: 'dylan',
@@ -114,6 +117,7 @@ void main() {
           subject: 'carol',
           tag: ModelWorld.transport,
           daysAgo: 80,
+          count: 2,
         )
         ..seed(
           witness: 'dylan',
@@ -200,9 +204,19 @@ void main() {
     test('M3: mute is per (subject, tag) pair', () async {
       final w = ModelWorld()
         ..vouches('alice', 'bob')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'alex', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
+        ..outcome(
+          witness: 'bob',
+          subject: 'alex',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
+        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets, count: 2)
         ..mute('carol', ModelWorld.transport);
 
       expect(
@@ -224,7 +238,7 @@ void main() {
         ..vouches('alice', 'bob')
         ..vouches('eve', 'bob')
         ..ownOutcome(egoId: 'alice', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets)
+        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets, count: 2)
         ..tombstone(egoId: 'alice', subject: 'carol', tag: ModelWorld.transport);
 
       expect(
@@ -275,7 +289,7 @@ void main() {
       final w = ModelWorld()
         ..vouches('alice', 'bob')
         ..ownRouting(egoId: 'bob', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets);
+        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets, count: 2);
 
       expect(
         await w.hasProjection('bob', 'carol', ModelWorld.transport),
@@ -297,7 +311,7 @@ void main() {
         ..vouches('alice', 'dave')
         ..block('alice', 'bob')
         ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets);
+        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets, count: 2);
 
       expect(
         await egoWitness.hasProjection('alice', 'carol', ModelWorld.transport),
@@ -313,8 +327,8 @@ void main() {
         ..vouches('alice', 'dave')
         ..block('bob', 'carol')
         ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'other', tag: ModelWorld.tools)
-        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets);
+        ..outcome(witness: 'bob', subject: 'other', tag: ModelWorld.tools, count: 2)
+        ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.pets, count: 2);
 
       expect(
         await witnessSubject.hasProjection('alice', 'carol', ModelWorld.transport),
