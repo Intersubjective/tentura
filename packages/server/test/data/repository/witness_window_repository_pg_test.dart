@@ -80,10 +80,14 @@ Future<void> main() async {
     test(
       'rawWindowFacts limits topPeers by topK but trustedScores are unbounded',
       () async {
+        // Weights are deliberately far apart (not e.g. 0.9/0.8/0.7): MeritRank's
+        // forward_mr is a randomized-walk score, not a linear function of the
+        // raw put_edge weight, and closely-spaced inputs can invert rank order
+        // between repeated reads of the same, unmodified graph state.
         await _mrEdge(meritRank, _ego, 'Ucapb2bp01', 0.9);
-        await _mrEdge(meritRank, _ego, 'Ucapb2bp02', 0.8);
-        await _mrEdge(meritRank, _ego, 'Ucapb2bp03', 0.7);
-        await _mrEdge(meritRank, _ego, 'Ucapb2bp04', 0.05);
+        await _mrEdge(meritRank, _ego, 'Ucapb2bp02', 0.5);
+        await _mrEdge(meritRank, _ego, 'Ucapb2bp03', 0.1);
+        await _mrEdge(meritRank, _ego, 'Ucapb2bp04', 0.02);
         await _trustEdge(database, _ego, 'Ucapb2bp04');
 
         final facts = await repo.rawWindowFacts(
