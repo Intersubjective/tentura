@@ -155,7 +155,7 @@ REMAINING: <concrete unfinished work or "none">
 
 ## A0 — complete — 2026-08-12
 
-COMMITS: `d0262a30d6daf74fc5d26963493857aee0ab5671` docs: initialize subjective help-tag evidence implementation journal (A0)
+COMMITS: docs: initialize subjective help-tag evidence implementation journal (A0) (`1d15bcb2b0ada46a4237141a9a1b56bf10244a59`)
 
 TESTS:
 
@@ -175,3 +175,11 @@ FINDINGS:
 - Plan and architecture files exist untracked at expected paths; left unstaged per A0 scope.
 
 REMAINING: none
+
+### Manager acceptance — 2026-08-12
+
+Accepted after independent inspection. The final A0 artifact is commit
+`1d15bcb2b0ada46a4237141a9a1b56bf10244a59`; scoped `git diff --check` passed
+and every protected baseline path remains untouched. The A0 worker made two
+local amend attempts while trying to self-reference that commit, then was
+interrupted for scope drift. No unrelated file was staged or committed.
