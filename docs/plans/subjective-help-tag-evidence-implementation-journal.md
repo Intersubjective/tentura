@@ -2942,3 +2942,160 @@ REMAINING: none for D3 scope. Twelve PG failures in
 `beacon_cover_migration_test.dart` / `realtime_notification_migration_test.dart`
 remain (partial rollback vs migrant-head); not introduced by m0147 column adds.
 
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+**Acceptance criteria mapping** (plan text: "a cell whose only row is 25
+months old rebuilds to zero and is deleted; sweep is idempotent; two
+concurrent sweeps do not process the same row; a generation-stale cell is
+rebuilt on read"):
+
+- 25-month-old cell rebuilds to zero and is deleted — present
+  (`rebuildCell deletes a cell whose only ledger row is beyond the window`),
+  and correctly attributes this to `cap_cell_rebuild`'s own existing
+  self-delete branch (already built by an earlier unit) rather than
+  reimplementing it — D3's job here is only calling it from a lease-claimed
+  sweep, which the test proves end-to-end.
+- Sweep idempotent — present (`sweep is idempotent across consecutive
+  runs`: first `runDue()` processes 1, second processes 0).
+- Two concurrent sweeps do not process the same row — present, and
+  genuinely tested against real concurrent Postgres sessions (two separate
+  `TenturaDb`/connection instances racing `claimExpiredCells` via
+  `Future.wait`), not simulated.
+- Generation-stale cell rebuilt on read — present (`generation-stale cell
+  is rebuilt on fetchCells before values are returned`), verified both by
+  the returned `eOut`/`eSeed` values and by confirming `built_from_gen`
+  now matches the live generation afterward.
+
+All four required cases present, plus five more: basic `fetchCells`
+correctness against real Postgres data (previously **completely
+untested** — D1's tests all used Mockito fakes, so this is the first proof
+`fetchCells`' SQL actually works), full lease lifecycle (claim sets
+columns; an active lease blocks reclaim; an expired lease is reclaimable),
+and both GC passes (`ego_witness_window` TTL deletion keeping fresh rows;
+`capability_evidence_generation` orphan deletion keeping rows with either
+a live ledger entry or a live cell).
+
+**A significant, correctly-identified scope gap was found and closed**:
+`CapabilityCellPort` (the port D1 and D2 already depend on and were
+already accepted against) had **zero implementations anywhere in the
+codebase** before this unit — not stubbed, simply absent, meaning
+`CapabilityProjectionCase`/`ForwardBandCase` had a dangling, unregistered
+DI dependency until now. This was flagged in the dispatch prompt (based on
+a pre-dispatch investigation, not left for the worker to discover cold),
+and the worker's own checkpoint independently confirmed the same finding
+before writing any code. This is not a defect in D1/D2 — their stated
+preconditions never included D3, and both were explicitly accepted on
+"unit tests, fake ports, no DB" per the plan's own words — it is the
+normal, intentional shape of building a Clean Architecture port ahead of
+its concrete adapter. D3 supplies that adapter now; DI resolution for
+`CapabilityCellPort` is confirmed live (see verification below).
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read m0147.dart, capability_cell_repository.dart,
+# capability_cell_expiry_sweep_case.dart, the task_worker_case.dart and
+# witness_window_port.dart/repository.dart diffs, and the full PG test file
+# line by line before running anything.
+
+# Spot-checked one unusual-looking SQL clause order directly against live
+# Postgres before trusting it (ORDER BY ... FOR UPDATE SKIP LOCKED LIMIT —
+# FOR UPDATE appearing before LIMIT looked suspicious on first read):
+docker exec postgres psql -c "EXPLAIN WITH due AS (SELECT id FROM public.mr_publish_epoch WHERE true ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1) SELECT * FROM due;"
+→ valid plan (Limit → LockRows → Index Scan) — confirmed this is legal
+  Postgres syntax with the intended semantics, not a defect.
+
+# sqlite3 hook overlay applied temporarily, then reverted.
+
+cd packages/server && dart test -t pg test/data/repository/capability_cell_repository_pg_test.dart
+→ run 1/2/3: 00:01 +9: All tests passed! (benign Drift "multiple TenturaDb
+  instances" warning on stderr each run — expected and intentional, the
+  concurrency test deliberately opens two separate connections; does not
+  affect test outcome, debug-build-only per Drift's own message)
+
+cd packages/server && dart test -x pg
+→ 00:06 +1380: All tests passed! (unchanged from D2 — correct, D3 added
+  only PG-tagged tests)
+
+cd packages/server && dart test -t pg -r expanded
+→ Independently re-derived the full failing-test list (not just trusted
+  the worker's "12 remaining, unrelated" summary): ONLY
+  beacon_cover_migration_test.dart (1 test) and
+  realtime_notification_migration_test.dart (3 tests) still fail.
+  m0141/m0142/m0143's own upgrade-path tests — all three failing during
+  D0's review earlier this session — are now clean. This exactly matches
+  and confirms the worker's claim.
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_cell_expiry_sweep_case.dart
+→ empty
+
+grep -n "CapabilityCellRepository\|CapabilityCellExpirySweepCase" packages/server/lib/app/di.config.dart
+→ both registered; CapabilityCellRepository resolves as CapabilityCellPort
+  via TenturaDb — confirms the dangling-dependency gap above is closed.
+
+docker exec postgres psql -c "SELECT * FROM public.mr_publish_epoch;" / tentura_test% listing
+→ epoch = 0, same 4 pre-existing residual databases as throughout this
+  session, no growth.
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- **The A1-A3 migration-upgrade-test fix independently confirms this
+  session's earlier D0-era root-cause analysis of the
+  beacon_cover/realtime_notification failures**, via a completely
+  different path (the worker hit this by adding a new migration above the
+  existing head, not by running the full suite for its own sake). Both
+  investigations converged on the same mechanism: `migrant`'s `upgrade()`
+  only applies migrations above the highest **recorded** version, so a
+  test that manually deletes only its own `schema_version` row (to
+  simulate "pre-this-migration" state) before calling
+  `migrateDbSchema(writer)` again silently no-ops once ANY higher-numbered
+  migration exists and remains recorded. The fix — re-executing the
+  specific migration's own `.statements` directly plus a manual
+  `schema_version` insert, bypassing `migrant`'s max-version gate entirely
+  — is exactly correct and was applied consistently to all three affected
+  files (m0141, m0142, m0143). `beacon_cover_migration_test.dart` and
+  `realtime_notification_migration_test.dart` have the identical latent
+  bug but are unrelated features (beacon cover images, realtime
+  notifications) outside this plan's scope — correctly left untouched by
+  both this unit and D0's review.
+- **The concurrent-claim test's assertion (`totalClaimed == 1`) would also
+  hold under plain blocking `FOR UPDATE` (no `SKIP LOCKED`), not only
+  under the specific non-blocking `SKIP LOCKED` semantics** — Postgres's
+  READ COMMITTED re-check of a blocked row's WHERE-clause after lock
+  acquisition would also prevent a double-claim, just via blocking instead
+  of skipping. The test still correctly proves the plan's literal
+  acceptance criterion ("two concurrent sweeps do not process the same
+  row") against genuine concurrent Postgres sessions; it just doesn't
+  specifically pin `SKIP LOCKED`'s non-blocking behavior as distinct from
+  plain `FOR UPDATE`. Not a defect — the SQL itself correctly uses `SKIP
+  LOCKED` (matching the plan's own sketch and the `ImageObjectGcRepository`
+  precedent, both chosen so a sweep worker never stalls on contention) —
+  just a note that a maximally rigorous test would additionally assert on
+  timing (one claimant returning without waiting) to distinguish the two
+  mechanisms, which wasn't required and isn't necessary for correctness.
+- Read-through staleness race-safety (checkpoint's own framing: "a
+  concurrent writer may bump generation between (1) and (2) — worst case
+  an extra rebuild, never a stale read after (3)") independently verified
+  by tracing the code: phase 3's final SELECT is unconditional and always
+  reads current table state after any phase-2 rebuilds, so even a
+  generation bump landing between phases 2 and 3 only costs the *next*
+  call an extra rebuild — it can never cause `fetchCells` to return a
+  value staler than what phase 3 actually read.
+- `TaskWorkerCase`'s diff is purely additive (three new optional
+  constructor fields + three new closures) — every pre-existing task in
+  `_tasks` is untouched, confirmed by reading the full diff, not just the
+  new lines.
+
+**D3 is accepted.** D4 (Model invariant suite) is now unblocked — its
+precondition "D1 and D2 exist and are exercisable through fake ports" was
+already satisfied by D1/D2's acceptance and remains true regardless of
+D3's landing (D4's own acceptance text confirms it uses fake ports, no
+DB). Proceeding to D4 next per document order.
