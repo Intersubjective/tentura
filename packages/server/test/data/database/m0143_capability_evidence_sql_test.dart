@@ -73,7 +73,14 @@ Future<void> main() async {
         await _rollBackM0143ForTest(writer);
         await _expectA3FunctionsAbsent(writer);
 
-        await migrateDbSchema(writer);
+        for (final statement in m0143.statements) {
+          await writer.execute(statement);
+        }
+        await writer.execute(
+          "INSERT INTO public.schema_version (version, applied_at) "
+          "VALUES ('0143', now()) "
+          'ON CONFLICT DO NOTHING',
+        );
         await _expectA3Functions(writer);
 
         final bump1 = await writer.execute(

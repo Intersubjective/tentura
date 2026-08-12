@@ -103,7 +103,14 @@ INSERT INTO public.person_capability_event (
 )
 ''');
 
-        await migrateDbSchema(writer);
+        for (final statement in m0141.statements) {
+          await writer.execute(statement);
+        }
+        await writer.execute(
+          "INSERT INTO public.schema_version (version, applied_at) "
+          "VALUES ('0141', now()) "
+          'ON CONFLICT DO NOTHING',
+        );
 
         final hasCheck = await writer.execute(r'''
 SELECT count(*)::int

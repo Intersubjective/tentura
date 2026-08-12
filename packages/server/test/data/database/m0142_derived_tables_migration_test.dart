@@ -51,7 +51,14 @@ Future<void> main() async {
 
         await _seedFixture(writer);
 
-        await migrateDbSchema(writer);
+        for (final statement in m0142.statements) {
+          await writer.execute(statement);
+        }
+        await writer.execute(
+          "INSERT INTO public.schema_version (version, applied_at) "
+          "VALUES ('0142', now()) "
+          'ON CONFLICT DO NOTHING',
+        );
         await _expectA2Schema(writer);
 
         await expectLater(

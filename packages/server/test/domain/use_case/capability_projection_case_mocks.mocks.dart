@@ -119,6 +119,14 @@ class MockWitnessWindowPort extends _i1.Mock implements _i3.WitnessWindowPort {
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
           as _i4.Future<void>);
+
+  @override
+  _i4.Future<int> gcStaleWindows() =>
+      (super.noSuchMethod(
+            Invocation.method(#gcStaleWindows, []),
+            returnValue: _i4.Future<int>.value(0),
+          )
+          as _i4.Future<int>);
 }
 
 /// A class which mocks [CapabilityCellPort].
@@ -170,6 +178,37 @@ class MockCapabilityCellPort extends _i1.Mock
             returnValue: _i4.Future<List<_i2.CellRef>>.value(<_i2.CellRef>[]),
           )
           as _i4.Future<List<_i2.CellRef>>);
+
+  @override
+  _i4.Future<void> releaseSweepLease({
+    required _i2.CellRef? ref,
+    required String? leaseOwner,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#releaseSweepLease, [], {
+              #ref: ref,
+              #leaseOwner: leaseOwner,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<int> gcOrphanGenerations({int? limit = 100}) =>
+      (super.noSuchMethod(
+            Invocation.method(#gcOrphanGenerations, [], {#limit: limit}),
+            returnValue: _i4.Future<int>.value(0),
+          )
+          as _i4.Future<int>);
+
+  @override
+  _i4.Future<DateTime?> nextExpiryAt(_i2.CellRef? ref) =>
+      (super.noSuchMethod(
+            Invocation.method(#nextExpiryAt, [ref]),
+            returnValue: _i4.Future<DateTime?>.value(),
+          )
+          as _i4.Future<DateTime?>);
 }
 
 /// A class which mocks [CapabilityOwnEvidencePort].
