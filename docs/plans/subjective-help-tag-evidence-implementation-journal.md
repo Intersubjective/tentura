@@ -80,7 +80,7 @@ any order after F1b. One worker at a time.
 - [x] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
 - [x] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
 - [x] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
-- [ ] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
+- [x] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
 - [ ] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
 - [ ] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
 - [ ] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
@@ -2122,3 +2122,212 @@ not a lighter bar). D0 and D3 remain dependency-ready from earlier
 acceptances; D1 still requires C1b (accepted) through C5 (now accepted) —
 D1 is now fully unblocked on the C-series.
 
+## D0 — checkpoint — 2026-08-12
+
+Started implementation: `BandCandidatePort` + `BandCandidateRepository` adapter;
+reusing `ForwardEdgeRepositoryPort`, `HelpOfferRepositoryPort`, and
+`InboxRepositoryPort` for beacon involvement facts (same sources as
+`BeaconInvolvementCase`, without depending on the use case). Added
+`fetchRecipientIdsForwardedBySenderWithinDays` to `ForwardEdgeRepositoryPort`
+for historical recent-forward lookup.
+
+**Judgment call (list vs flag):** peers excluded from the returned list entirely
+are **author**, **declined**, **already-forwarded-by-ego** (`forwardedByMe`),
+and **blocked** (via `block_hides` + `is_mutually_visible`, matching
+`mutually_visible_users` — raw `person_visibility_peers` alone does not apply
+`block_hides`). Peers with `helpOffered` / `withdrawn` involvement remain in
+the list with `canForwardTo = false`; `watching`, onward/`forwardedTo`, and
+`unseen` remain with `canForwardTo = true` per client
+`ForwardCandidate.canForwardTo`. `alreadyForwarded` is set from ego-scoped active
+edges but those peers are list-excluded, so it is always `false` on returned rows
+today.
+
+## D0 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: feat(server): add BandCandidatePort adapter for forward band facts (D0) (`eb032720`); test(server): add BandCandidatePort PG tests and port stubs (D0) (`54f56af5`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# for sqlite3 code-assets download failure; reverted before commit.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot; wrote outputs (injectable registration for BandCandidateRepository)
+
+cd packages/server && dart test -x pg
+→ 00:06 +1356: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/band_candidate_repository_pg_test.dart
+→ 00:17 +3: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/band_candidate_repository_pg_test.dart test/data/repository/witness_window_repository_pg_test.dart test/domain/use_case/forward_reason_reconciliation_pg_test.dart test/data/repository/forward_edge_repository_path_chain_cancel_test.dart test/data/database/m0144_mr_publish_epoch_pg_test.dart
+→ 00:18 +30: All tests passed!
+# Note: forward_edge_repository_create_batch_dedup_test.dart flakes when run in
+# parallel with disposable-DB suites (passes in isolation); pre-existing shared-DB
+# contention, not introduced by D0.
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+
+git diff --check
+→ no whitespace errors (pubspec overlay reverted)
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/band_candidate_port.dart` (created)
+- `packages/server/lib/data/repository/band_candidate_repository.dart` (created)
+- `packages/server/lib/domain/port/forward_edge_repository_port.dart` (`fetchRecipientIdsForwardedBySenderWithinDays`)
+- `packages/server/lib/data/repository/forward_edge_repository.dart` (historical recent-forward SQL)
+- `packages/server/test/data/repository/band_candidate_repository_pg_test.dart` (created)
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart` (port stub)
+- `packages/server/test/support/build_test_invitation_case.dart` (port delegate stub)
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` (manifest + this entry)
+
+FINDINGS:
+
+- **Plan/B2b wording vs live SQL:** `person_visibility_peers` does **not** filter
+  `block_hides`; only `mutually_visible_users` does. D0 query therefore adds
+  `is_mutually_visible` and `NOT block_hides(viewer, peer)` on top of
+  `forward_mr > 0`, matching the Forward screen's `mutually_visible_users` pool
+  while supplying `forward_mr` for D2 ordering.
+- **Ports reused vs added:** involvement facts via existing
+  `fetchByBeaconId`, `fetchAllByBeaconId`, `fetchAllByBeaconId` (help offers),
+  `fetchRejectedUserIdsByBeacon`; beacon author via `TenturaDb.managers.beacons`.
+  New port method: `ForwardEdgeRepositoryPort.fetchRecipientIdsForwardedBySenderWithinDays`
+  (all edges, no `cancelled_at` filter, `created_at` window).
+- **List-exclusion judgment:** author / declined / ego-forwarded / blocked are
+  omitted from results; helpOffered / withdrawn appear with `canForwardTo=false`;
+  watching / onward-forwarded / unseen stay eligible (`canForwardTo=true`).
+- Mockito-generated `ForwardEdgeRepositoryPort` mocks regenerated by build_runner;
+  hand-written stubs updated in `evaluation_graph_test_repos.dart` and
+  `build_test_invitation_case.dart` only (Fake subclasses rely on `noSuchMethod`).
+
+REMAINING: none — D1 is unblocked pending manager acceptance of D0
+
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+**Acceptance criteria mapping** (plan text: "the returned set matches what
+the Forward screen's own candidate query yields for the same ego and
+context; a blocked peer is absent; `recentlyForwardedTo` respects the day
+window"):
+
+- *Matches Forward screen's candidate semantics* — `candidatesFor` mirrors
+  `mutually_visible_users`'s pool (`person_visibility_peers` joined with an
+  explicit `is_mutually_visible AND NOT block_hides(...)` check — see
+  FINDINGS below) and reproduces the client's `computeInvolvement` +
+  `canForwardTo` precedence: author/rejected/ego-forwarded fully excluded
+  from the list; helpOffered/withdrawn present with `canForwardTo=false`;
+  watching/onward-forwarded/unseen present with `canForwardTo=true`. Test 1
+  covers all nine involvement categories in one fixture.
+- *Blocked peer absent* — Test 2 isolates block-exclusion independently of
+  the involvement fixture.
+- *`recentlyForwardedTo` respects the day window* — Test 3 proves the
+  window boundary and, per the port's explicit contract, that cancelled and
+  historical edges are still included (an active-only implementation would
+  silently disable D2's exploration exclusion).
+
+All three acceptance criteria are met.
+
+**Independent verification performed by the manager** (not just re-running
+what the worker reported):
+
+```bash
+# sqlite3 hook overlay applied temporarily, then reverted (pubspec.yaml clean — confirmed via git diff)
+
+cd packages/server && dart test -t pg test/data/repository/band_candidate_repository_pg_test.dart
+→ run 1: 00:16 +3: All tests passed!
+→ run 2: 00:17 +3: All tests passed!
+→ run 3: 00:13 +3: All tests passed!
+
+cd packages/server && dart test -t pg   # full pg suite, all files, default concurrency — run 3x
+→ each run: band_candidate_repository_pg_test.dart passes cleanly; NOT present
+  in any failure list (see FINDINGS — this refutes the worker's own flakiness
+  claim about a different file)
+
+cd packages/server && dart test -x pg
+→ 00:04 +1356: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0 (baseline: 0)
+
+git diff --check / git diff --cached --check
+→ no whitespace errors
+
+rg "package:tentura_server/data/" packages/server/lib/domain
+→ empty (domain purity holds for band_candidate_port.dart)
+
+docker exec postgres psql -c "SELECT * FROM public.mr_publish_epoch;"
+→ epoch = 0, unchanged across the whole D0 review
+
+docker exec postgres psql -c "SELECT datname FROM pg_database WHERE datname LIKE 'tentura_test%';"
+→ same 4 pre-existing residual databases as throughout this session
+  (tentura_test_rt_2224493_..., tentura_test_diag_2517100,
+  tentura_test_diag_2517577, tentura_test_witness_window_528830_...) —
+  no growth, D0's disposable database was created and dropped cleanly
+  each of the 6 runs above.
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- **The worker's dispatch-prompt assumption was wrong, and the worker
+  caught it, not me.** I had told the worker `person_visibility_peers`
+  "already excludes blocked pairs — confirmed in B2b's own review." I
+  independently re-checked this via `pg_get_functiondef` before accepting
+  their correction: `person_visibility_peers` has zero `block` references;
+  only `mutually_visible_users` (which wraps it) adds `NOT
+  block_hides(...)`. The worker found this discrepancy themselves and
+  added the correct filter. This is not a defect in already-accepted B2b —
+  block-filtering for witnesses is deliberately deferred there to D1 via
+  B2c's `PairBlockQueryPort`; D0 targets a different, block-aware use case
+  (the Forward screen's actual candidate pool) and correctly needs its own
+  check.
+- **The worker's flakiness claim does not hold up.** Their journal note
+  claims `forward_edge_repository_create_batch_dedup_test.dart` "flakes
+  when run in parallel with disposable-DB suites... pre-existing shared-DB
+  contention, not introduced by D0." I ran the complete `-t pg` suite
+  (every pg-tagged file, default concurrency) three times specifically to
+  test this claim: that file passed cleanly in all three runs and never
+  appeared in any failure list. Its test also does not use
+  `_DisposablePgTarget` (it connects directly to shared postgres with
+  fixed, non-colliding row IDs), so "contention with disposable-DB suites"
+  was not a plausible mechanism to begin with.
+- **A real, but unrelated and pre-existing, set of failures was found
+  instead.** The same full-suite runs deterministically fail (100% of the
+  time, even in complete single-file isolation — not flaky) on
+  `beacon_cover_migration_test.dart`, `m0141_person_capability_event_ledger_test.dart`,
+  `m0142_derived_tables_migration_test.dart`, `m0143_capability_evidence_sql_test.dart`,
+  and `realtime_notification_migration_test.dart`. Root cause: these tests
+  manually unwind `public.schema_version` rows down to their own migration
+  number to re-test upgrade-from-a-prior-version behavior (e.g.
+  `_rollBackM0130ForTest` deletes only the `'0130'`/`'0131'` rows), but
+  `migrant`'s `upgrade()` only applies migrations above the *highest*
+  recorded version — so as soon as any migration is added *above* the
+  test's hardcoded rollback ceiling, the leftover higher-numbered
+  `schema_version` rows pin the max and the second `migrateDbSchema` call
+  becomes a silent no-op. Confirmed this predates this session and is
+  unrelated to D0/B3/C1a/C4: `m0141`'s own test has the identical
+  single-version rollback pattern (`_rollBackM0141ForTest` deletes only
+  `'0141'`), and `m0142`/`m0143` already existed before this session
+  started — so this was already broken the moment `m0142` was created,
+  well before any unit in this plan touched the migration chain. Out of
+  scope for subjective-help-tag-evidence (unrelated features: beacon cover
+  images, realtime notifications); not caused by this plan's units; not
+  fixed as part of this review.
+- Reviewed `_canForwardTo`'s dead-code author/rejected/myForwarded branches
+  (unreachable given `_excludeFromCandidateList` already filtered those
+  candidates out of the result set before `_canForwardTo` runs) — harmless,
+  unlike C4's dead-code bug, since no functional gap results from it.
+
+**D0 is accepted.** D1 (Projection use case) is now fully unblocked — its
+precondition "C1–C5 complete" was satisfied by C5's acceptance, and D2
+additionally requires D0 (now accepted) and D1. D3 (Expiry sweep) remains
+dependency-ready from B2a's earlier acceptance. Proceeding to D1 next per
+document order.
