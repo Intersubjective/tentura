@@ -74,7 +74,7 @@ any order after F1b. One worker at a time.
 - [x] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [x] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [x] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
-- [ ] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
+- [x] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
 - [ ] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
 - [ ] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
 - [ ] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
@@ -1348,3 +1348,65 @@ worker's claims:
 
 **C1a is accepted.** Commits: `e1f73974`, `20795f6d`, `232e9e79`, `0f04be18`.
 C1b is now dependency-ready.
+
+## C1b — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- feat(server): add typed active help-offer port method (C1b) (`8e0a71ff`)
+- feat(server): enforce per-evaluator ack tag cap in submitEvaluationAtomic (C1b) (`7e29061d`)
+- feat(server): wire evaluationSubmit acknowledgement policy (C1b) (`7759a363`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in ~10s; wrote outputs (di.config.dart local only, gitignored)
+
+cd packages/server && dart test -x pg
+→ 00:04 +1355: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/evaluation_repository_submit_atomic_pg_test.dart test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart
+→ 00:02 +9: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check -- <owned C1b paths>
+→ no whitespace errors
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/help_offer_repository_port.dart`
+- `packages/server/lib/data/repository/help_offer_repository.dart`
+- `packages/server/lib/domain/exception_codes.dart` (`ackRoleNotEligible`, `invalidAckTagSlug`, `ackTagCapExceeded` appended)
+- `packages/server/lib/data/repository/evaluation_repository.dart` (cap check inside lock)
+- `packages/server/lib/domain/use_case/evaluation_case.dart` (`evaluationSubmit` policy; removed `CapabilityCase` + `recordCloseAcknowledgement`)
+- `packages/server/test/data/repository/evaluation_repository_submit_atomic_pg_test.dart`
+- `packages/server/test/domain/use_case/evaluation_submit_ack_policy_pg_test.dart` (created)
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart`
+- `packages/server/test/support/commitment_gates_harness.dart`
+- `packages/server/test/domain/use_case/help_offer_case_mocks.mocks.dart`
+- `packages/server/test/domain/use_case/forward_case_mocks.mocks.dart`
+
+FINDINGS:
+
+- **Reconciled ack set:** `acknowledgedHelpTags ?? const []` — null and empty both mean no acknowledgements; forwarders may submit evaluations with an empty ack set.
+- **MutatingUnitOfWorkPort not injected:** C1a's `submitEvaluationAtomic` already wraps evaluation upsert + ack replacement in `_db.transaction` with the beacon advisory lock. `setReviewUserStatus` remains a separate post-atomic call, matching pre-C1b behavior (not transactional with the evaluation write). No extra UoW port needed.
+- **Cap check placement:** `ackTags.length > kCapMaxTagsPerSubjectBeacon` inside `submitEvaluationAtomic` after window re-check and before delete-then-insert. Full replace semantics mean incoming set size is the correct guard (not old+new count).
+- **Slug union:** `beacon.needs ∪ fetchActiveHelpTypes(beacon, subject)` with JSON decoded in `HelpOfferRepository`.
+- **Concurrent submit vs close:** deferred to C2 — `closeReviewWindow` does not yet take `pg_advisory_xact_lock(hashtextextended(beaconId, 4242))`, so a serialization PG test against the real close path would not prove the acceptance criterion until C2 lands the shared lock.
+- **Exception mapping:** repository cap/window failures use `StateError` messages mapped in `evaluationSubmit` to `EvaluationExceptionCode` (C1a idiom preserved).
+
+REMAINING: none (C2 may begin)
+
