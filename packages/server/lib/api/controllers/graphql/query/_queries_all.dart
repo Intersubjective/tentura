@@ -5,6 +5,7 @@ import 'query_attention.dart';
 import 'query_beacon_involvement.dart';
 import 'query_beacon_room.dart';
 import 'query_capability.dart';
+import 'query_capability_projection.dart';
 import 'query_contact.dart';
 import 'query_help_offerer_forward_path.dart';
 import 'query_coordination.dart';
@@ -30,6 +31,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryBeaconInvolvement().all,
   ...QueryBeaconRoom().all,
   ...QueryCapability().all,
+  ...QueryCapabilityProjection().all,
   ...QueryContact().all,
   ...QueryHelpOffererForwardPath().all,
   ...QueryCoordination().all,

@@ -55,6 +55,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReasonRow,
   gqlTypePersonTopCapabilities,
   gqlTypePersonFriendContext,
+  gqlTypeTagProjection,
+  gqlTypeForwardBandRow,
   gqlTypeCoordinationItemRow,
   gqlTypeCoordinationResponsibilityBatchRow,
   gqlTypeBeaconItemsSeenResult,
@@ -812,6 +814,25 @@ final gqlTypePersonFriendContext =
         field('activeForwardsToCount', graphQLInt.nonNullable()),
         field('coInvolvedBeaconsCount', graphQLInt.nonNullable()),
       ]);
+
+final gqlTypeTagProjection = GraphQLObjectType('v2_TagProjection', null)
+  ..fields.addAll([
+    field('subjectUserId', graphQLString.nonNullable()),
+    field('tagSlug', graphQLString.nonNullable()),
+    field('tier', graphQLString.nonNullable()),
+  ]);
+
+final gqlTypeForwardBandRow = GraphQLObjectType('v2_ForwardBandRow', null)
+  ..fields.addAll([
+    field('userId', graphQLString.nonNullable()),
+    field('rowTier', graphQLString),
+    field(
+      'labels',
+      GraphQLListType(gqlTypeTagProjection.nonNullable()).nonNullable(),
+    ),
+    field('rank', graphQLInt.nonNullable()),
+    field('isExploration', graphQLBoolean.nonNullable()),
+  ]);
 
 /// Forward-reason slugs for one (sender, recipient) pair on a beacon.
 final gqlTypeForwardReasonRow = GraphQLObjectType('v2_ForwardReasonRow', null)
