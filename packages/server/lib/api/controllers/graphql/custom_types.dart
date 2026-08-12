@@ -840,7 +840,7 @@ final gqlTypeTagCount = GraphQLObjectType('v2_TagCount', null)
     field('lastSeenAt', graphQLString.nonNullable()),
   ]);
 
-/// Slug + beacon reference for commit-role or close-ack cues.
+/// Slug + beacon reference for close-ack cues.
 final gqlTypeTagBeaconRef = GraphQLObjectType('v2_TagBeaconRef', null)
   ..fields.addAll([
     field('slug', graphQLString.nonNullable()),

@@ -99,14 +99,12 @@ class PersonCapabilityCuesRow {
   const PersonCapabilityCuesRow({
     required this.privateLabels,
     required this.forwardReasonsByMe,
-    required this.commitRoles,
     required this.closeAckByMe,
     required this.closeAckAboutMe,
   });
 
   final List<String> privateLabels;
   final List<TagCountRow> forwardReasonsByMe;
-  final List<TagBeaconRefRow> commitRoles;
   final List<TagBeaconRefRow> closeAckByMe;
   final List<TagBeaconRefRow> closeAckAboutMe;
 }

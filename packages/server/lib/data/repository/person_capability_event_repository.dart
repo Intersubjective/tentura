@@ -254,35 +254,6 @@ class PersonCapabilityEventRepository
         )
         .toList();
 
-    // Commit roles (beacon-scoped — readable by any viewer)
-    final commitRows = await _database
-        .customSelect(
-          r'''
-          SELECT pce.tag_slug, pce.beacon_id, b.title, pce.created_at::text AS ts
-          FROM public.person_capability_event pce
-          JOIN public.beacon b ON b.id = pce.beacon_id
-          WHERE pce.subject_user_id = $1
-            AND pce.source_type = $2
-            AND pce.deleted_at IS NULL
-          ORDER BY pce.created_at DESC
-          ''',
-          variables: [
-            Variable.withString(subjectId),
-            Variable.withInt(CapabilityEventSource.commitRole.dbValue),
-          ],
-        )
-        .get();
-    final commitRoles = commitRows
-        .map(
-          (r) => TagBeaconRefRow(
-            slug: r.read<String>('tag_slug'),
-            beaconId: r.read<String>('beacon_id'),
-            beaconTitle: r.read<String>('title'),
-            createdAt: r.read<String>('ts'),
-          ),
-        )
-        .toList();
-
     // Close acks written by viewer about subject
     final closeByMeRows = await _database
         .customSelect(
@@ -353,7 +324,6 @@ class PersonCapabilityEventRepository
     return PersonCapabilityCuesRow(
       privateLabels: privateLabels,
       forwardReasonsByMe: forwardReasonsByMe,
-      commitRoles: commitRoles,
       closeAckByMe: closeAckByMe,
       closeAckAboutMe: closeAckAboutMe,
     );
@@ -441,15 +411,6 @@ class PersonCapabilityEventRepository
 
             SELECT tag_slug, false AS has_manual_label
             FROM public.person_capability_event
-            WHERE subject_user_id = \$2
-              AND source_type     = 2
-              AND is_negative     = false
-              AND deleted_at IS NULL
-
-            UNION ALL
-
-            SELECT tag_slug, false AS has_manual_label
-            FROM public.person_capability_event
             WHERE observer_user_id = \$1
               AND subject_user_id  = \$2
               AND source_type      = 3
@@ -500,7 +461,7 @@ class PersonCapabilityEventRepository
 
     // Build IN-list placeholders: $2, $3, ... for subject IDs; limit; prioritize array.
     // Paired with fetchDeduplicatedCapabilities source-type semantics:
-    //   source 0,1,3: observer-scoped; source 2: subject-only (commit roles).
+    //   sources 0, 1, 3: observer-scoped positive signals.
     final sp = List.generate(subjectIds.length, (i) => '\$${i + 2}').join(', ');
     final limitPos = subjectIds.length + 2;
     final prioPos = subjectIds.length + 3;
@@ -522,11 +483,6 @@ class PersonCapabilityEventRepository
             WHERE observer_user_id = \$1
               AND subject_user_id IN ($sp)
               AND source_type = 1 AND is_negative = false AND deleted_at IS NULL
-            UNION ALL
-            SELECT subject_user_id, tag_slug
-            FROM public.person_capability_event
-            WHERE subject_user_id IN ($sp)
-              AND source_type = 2 AND is_negative = false AND deleted_at IS NULL
             UNION ALL
             SELECT subject_user_id, tag_slug
             FROM public.person_capability_event

@@ -69,16 +69,6 @@ final class QueryCapability extends GqlNodeBase {
                   },
                 )
                 .toList(),
-            'commitRoles': cues.commitRoles
-                .map(
-                  (e) => {
-                    'slug': e.slug,
-                    'beaconId': e.beaconId,
-                    'beaconTitle': e.beaconTitle,
-                    'createdAt': e.createdAt,
-                  },
-                )
-                .toList(),
             'closeAckByMe': cues.closeAckByMe
                 .map(
                   (e) => {
