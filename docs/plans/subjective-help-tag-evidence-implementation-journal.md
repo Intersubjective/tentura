@@ -84,7 +84,7 @@ any order after F1b. One worker at a time.
 - [x] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
 - [x] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
 - [x] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
-- [ ] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
+- [x] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
 - [ ] **E1a** — Query resolvers + authz (depends: D2, D3, D4) — `subjectiveTags`, `forwardContext`, `tagExplanation`, `CapabilityRoutingCase` read methods
 - [ ] **E1b** — Mutation resolvers + authz (depends: E1a) — `myRoutingTags`, seed, revoke, setMute, prompt answer/skip
 - [ ] **F1a** — Client schema + routing (depends: E1b) — `schema.graphql`, `_tenturaDirectOperationNames`
@@ -3177,3 +3177,1804 @@ FINDINGS:
 - **No production code changes.**
 
 REMAINING: none — E1a (GraphQL resolvers + `CapabilityRoutingCase`) is next per manifest.
+
+## D4 — remediation checkpoint — 2026-08-12
+
+Manager rejected the prior D4 "complete" perturbation claim: independently
+re-running `kCapKOut 2.0→2.2` and `kCapThetaOut 0.30→0.33` fails 21/37
+invariant tests. Root cause confirmed: fixtures used `count:1` fresh outcome
+observations as baseline positive evidence, giving S_out≈0.333 under original
+constants (~11% above θ_out=0.30) but S_out≈0.3125 under perturbed constants
+(below θ_out=0.33). This remediation adjusts fixture margins only — no assertion
+logic or production constant changes.
+
+## D4 — remediation complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: test(server): widen S/C invariant fixture margins for θ_out gate (D4 remediation) (`157ed686`); test(server): widen W invariant margins; A3 uses m headroom (D4 remediation) (`4f1745ec`); test(server): widen T/M/X invariant fixture margins for θ_out gate (D4 remediation) (`94edecc6`); test(server): widen B invariant fixture margins for θ_out gate (D4 remediation) (`6ee6a6fa`); docs: D4 perturbation remediation journal (D4 remediation) (`ef1b6860`)
+
+This supersedes the false perturbation claim in the prior `D4 — complete`
+entry (2026-08-12); that entry is preserved for audit trail only.
+
+TESTS:
+
+```bash
+# Perturbed constants (kCapKOut 2.0→2.2, kCapThetaOut 0.30→0.33); reverted after run
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+Running build hooks...Running build hooks...00:00 +0: loading test/domain/capability/model_invariant_band_test.dart
+00:00 +0: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:00 +1: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +2: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +3: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +4: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +5: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +6: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +7: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +8: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +9: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +10: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +11: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +12: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +13: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +14: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +15: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +16: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +17: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +18: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +19: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +20: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M1: subject mute suppresses network tiers for every ego
+00:00 +21: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M1: subject mute suppresses network tiers for every ego
+00:00 +22: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W2: higher-m admitted witness contributes more at equal evidence
+00:00 +23: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M2: subject mute never suppresses ego own evidence
+00:00 +24: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +25: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +26: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M4: ego tombstone suppresses all tiers for that ego only
+00:00 +27: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +28: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +29: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X2: commitRole contributes nothing to anyone
+00:00 +30: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W5: revoking an observation never increases standing
+00:00 +31: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X3: private label only on author own tier
+00:00 +32: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A1: k one-obs witnesses beat one witness with k observations
+00:00 +33: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X4: blocks remove witness contribution in both directions
+00:00 +34: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A2: one witness cannot outrank two equal one-obs witnesses
+00:00 +35: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:00 +36: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:00 +37: All tests passed!
+
+git diff packages/server/lib/domain/capability/capability_consts.dart
+→ (no diff — constants reverted)
+
+# Unperturbed stability run 1/3
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+Running build hooks...Running build hooks...00:00 +0: loading test/domain/capability/model_invariant_band_test.dart
+00:00 +0: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:00 +1: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +2: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +3: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +4: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +5: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +6: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +7: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +8: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +9: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +10: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +11: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +12: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +13: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +14: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +15: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +16: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +17: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +18: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +19: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +20: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +21: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M1: subject mute suppresses network tiers for every ego
+00:00 +22: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W2: higher-m admitted witness contributes more at equal evidence
+00:00 +23: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M2: subject mute never suppresses ego own evidence
+00:00 +24: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +25: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +26: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M4: ego tombstone suppresses all tiers for that ego only
+00:00 +27: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +28: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +29: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X2: commitRole contributes nothing to anyone
+00:00 +30: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W5: revoking an observation never increases standing
+00:00 +31: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X3: private label only on author own tier
+00:00 +32: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A1: k one-obs witnesses beat one witness with k observations
+00:00 +33: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A1: k one-obs witnesses beat one witness with k observations
+00:00 +34: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A2: one witness cannot outrank two equal one-obs witnesses
+00:00 +35: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:00 +36: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:00 +37: All tests passed!
+
+# Unperturbed stability run 2/3
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+Running build hooks...Running build hooks...00:00 +0: loading test/domain/capability/model_invariant_band_test.dart
+00:00 +0: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:00 +1: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +2: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +3: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +4: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +5: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +6: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +7: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +8: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +9: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +10: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +11: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +12: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +13: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +14: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +15: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +16: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +17: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +18: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +19: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +20: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +21: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +22: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +23: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M3: mute is per (subject, tag) pair
+00:00 +24: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W2: higher-m admitted witness contributes more at equal evidence
+00:00 +25: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M4: ego tombstone suppresses all tiers for that ego only
+00:00 +26: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +27: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +28: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X2: commitRole contributes nothing to anyone
+00:00 +29: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +30: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X3: private label only on author own tier
+00:00 +31: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W5: revoking an observation never increases standing
+00:00 +32: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X4: blocks remove witness contribution in both directions
+00:00 +33: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A1: k one-obs witnesses beat one witness with k observations
+00:00 +34: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A2: one witness cannot outrank two equal one-obs witnesses
+00:00 +35: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:00 +36: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:00 +37: All tests passed!
+
+# Unperturbed stability run 3/3
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+Running build hooks...Running build hooks...00:00 +0: loading test/domain/capability/model_invariant_band_test.dart
+00:00 +0: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:00 +1: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +2: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:00 +3: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +4: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +5: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +6: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +7: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +8: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +9: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +10: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +11: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T1: more recent identical evidence outranks older
+00:00 +12: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +13: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +14: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +15: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +16: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +17: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +18: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +19: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +20: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +21: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:00 +22: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M2: subject mute never suppresses ego own evidence
+00:00 +23: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W2: higher-m admitted witness contributes more at equal evidence
+00:00 +24: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: M — Mute and tombstone M3: mute is per (subject, tag) pair
+00:00 +25: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +26: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:00 +27: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X1: self-witnessed evidence contributes nothing
+00:00 +28: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:00 +29: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X2: commitRole contributes nothing to anyone
+00:00 +30: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W5: revoking an observation never increases standing
+00:00 +31: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X3: private label only on author own tier
+00:00 +32: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A1: k one-obs witnesses beat one witness with k observations
+00:00 +33: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X4: blocks remove witness contribution in both directions
+00:00 +34: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A2: one witness cannot outrank two equal one-obs witnesses
+00:00 +35: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:00 +36: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:00 +37: All tests passed!
+
+# Full non-pg server suite (unperturbed)
+cd packages/server && dart test -x pg
+Running build hooks...Running build hooks...00:00 +0: loading test/consts/beacon_fact_card_consts_test.dart
+00:00 +0: test/consts/beacon_fact_card_consts_test.dart: BeaconFactCardVisibilityBits defines public and room visibility
+00:00 +1: test/consts/beacon_fact_card_consts_test.dart: BeaconFactCardStatusBits defines fact card lifecycle states
+00:00 +2: test/consts/user_handle_consts_test.dart: isValidUserHandleFormat accepts valid lowercase handles
+00:00 +3: test/consts/user_handle_consts_test.dart: isValidUserHandleFormat accepts valid lowercase handles
+00:00 +4: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType includes coordination semantic range 100-499
+00:00 +5: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType includes coordination semantic range 100-499
+00:00 +6: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType includes coordination semantic range 100-499
+00:00 +7: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType includes coordination semantic range 100-499
+00:00 +8: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType includes beaconPublished and legacy milestones
+00:00 +9: test/consts/beacon_activity_event_consts_test.dart: isCoordinationLogEventType excludes unrelated types
+00:00 +10: test/consts/beacon_room_consts_test.dart: BeaconRoomSemanticMarker assigns stable marker ids
+00:00 +11: test/consts/beacon_room_consts_test.dart: room attachment limits caps attachments and bytes per message
+00:00 +12: test/consts/beacon_room_consts_test.dart: RoomAccessBits defines ordered access states
+00:00 +13: test/domain/coordination_stale_rules_test.dart: validateStaleAfterDays null defaults to 3
+00:00 +14: test/domain/coordination_stale_rules_test.dart: validateStaleAfterDays 0 means no deadline
+00:00 +15: test/domain/coordination_stale_rules_test.dart: validateStaleAfterDays rejects out of range
+00:00 +16: test/domain/coordination_stale_rules_test.dart: computeStaleAt zero days returns null
+00:00 +17: test/domain/coordination_stale_rules_test.dart: computeStaleAt adds days
+00:00 +18: test/domain/coordination_stale_rules_test.dart: resolveResponsibleUserId open ask targets recipient
+00:00 +19: test/domain/coordination_stale_rules_test.dart: resolveResponsibleUserId accepted ask uses acceptedById
+00:00 +20: test/domain/coordination_stale_rules_test.dart: resolveResponsibleUserId open promise targets recipient
+00:00 +21: test/domain/coordination_stale_rules_test.dart: resolveResponsibleUserId accepted promise targets creator
+00:00 +22: test/domain/coordination_stale_rules_test.dart: resolveResponsibleUserId blocker without target uses creator
+00:00 +23: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +24: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +25: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +26: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +27: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +28: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +29: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +30: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive is stable and opaque
+00:00 +31: test/domain/notification/notification_excerpt_test.dart: notificationExcerpt truncates with ellipsis when over limit
+00:00 +32: test/domain/invite_genealogy/invite_genealogy_node_key_test.dart: derive differs per user id
+00:00 +33: test/domain/notification/beacon_notification_recipient_resolver_test.dart: needsMe notifies target and excludes actor
+00:00 +34: test/domain/notification/beacon_notification_recipient_resolver_test.dart: promiseMade notifies author, stewards, and affected participant
+00:00 +35: test/domain/notification/beacon_notification_recipient_resolver_test.dart: coordinationChanged notifies author, admitted members, and active participants
+00:00 +36: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +37: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +38: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +39: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +40: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +41: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +42: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +43: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +44: test/domain/notification/notification_category_test.dart: categoryOf maps every kind to a category
+00:00 +45: test/domain/notification/notification_category_test.dart: categoryOf asksOfMe groups the highest-stakes kinds
+00:00 +46: test/domain/notification/notification_category_test.dart: categoryOf unblocksMe groups resolutions
+00:00 +47: test/domain/notification/notification_category_test.dart: categoryOf coordination groups awareness kinds
+00:00 +48: test/domain/notification/notification_category_test.dart: categoryOf ambient groups the background hum
+00:00 +49: test/domain/notification/notification_category_test.dart: categoryOf roomMention maps to coordination
+00:00 +50: test/domain/notification/notification_category_test.dart: notificationCategoryFromName round-trips every category name
+00:00 +51: test/domain/notification/notification_category_test.dart: notificationCategoryFromName returns null for unknown name
+00:00 +52: test/domain/notification/beacon_notification_batch_aggregator_test.dart: roomMention is actionable and has a plural body
+00:00 +53: test/domain/notification/notification_preference_gate_test.dart: allowsChannel allows when category is enabled for the channel
+00:00 +54: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +55: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +56: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +57: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +58: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +59: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +60: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +61: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +62: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +63: test/domain/notification/beacon_notification_copy_builder_test.dart: needsMe uses excerpt body and room deep link
+00:00 +64: test/domain/notification/notification_preference_gate_test.dart: decideEmail present user with delivered push gets no immediate email
+00:00 +65: test/domain/notification/beacon_notification_copy_builder_test.dart: promiseMade withdrawn uses withdrawal copy
+00:00 +66: test/domain/notification/notification_preference_gate_test.dart: decideEmail non-asksOfMe never immediate; digests when cadence on
+00:00 +67: test/domain/notification/beacon_notification_copy_builder_test.dart: newRelay falls back when excerpt is empty
+00:00 +68: test/domain/notification/notification_preference_gate_test.dart: decideEmail quiet hours defers an otherwise-immediate email to digest
+00:00 +69: test/domain/notification/beacon_notification_copy_builder_test.dart: reviewReady uses beacon title and review route
+00:00 +70: test/domain/notification/notification_preference_gate_test.dart: decideEmail snooze suppresses email entirely
+00:00 +71: test/domain/notification/beacon_notification_copy_builder_test.dart: empty actor display name becomes Someone in commitment copy
+00:00 +72: test/domain/notification/notification_preference_gate_test.dart: defaults daily digest, coordination email, ambient push off
+00:00 +73: test/domain/notification/notification_preference_gate_test.dart: defaults daily digest, coordination email, ambient push off
+00:00 +74: test/domain/notification/notification_preference_gate_test.dart: defaults daily digest, coordination email, ambient push off
+00:00 +75: test/domain/notification/beacon_notification_copy_builder_test.dart: commitmentAccepted distinguishes ask and promise nouns
+00:00 +76: test/domain/notification/beacon_notification_copy_builder_test.dart: commitment copy includes request title when provided
+00:00 +77: test/domain/notification/beacon_notification_copy_builder_test.dart: every NotificationKind yields non-empty copy without raw ids
+00:00 +78: test/domain/notification/beacon_notification_copy_builder_test.dart: truncates long excerpt in body
+00:00 +79: test/domain/notification/beacon_notification_copy_builder_test.dart: lockScreenSafe redacts excerpt and actor while keeping the deep link
+00:00 +80: test/domain/beacon_lineage_visibility_test.dart: assertBeaconLineageSourceVisible passes when guard allows content read
+00:00 +81: test/domain/beacon_lineage_visibility_test.dart: assertBeaconLineageSourceVisible passes when guard allows content read
+00:00 +82: test/domain/beacon_lineage_visibility_test.dart: assertBeaconLineageSourceVisible throws when guard denies content read
+00:00 +83: test/domain/use_case/oidc_case_test.dart: existing credential login without invite
+00:00 +84: test/domain/use_case/oidc_case_test.dart: new account without invite on invite-only server is rejected
+00:00 +85: test/domain/use_case/oidc_case_test.dart: new account with invite creates invited credential account
+00:00 +86: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage inserts trimmed body and resolved mentions for admitted member
+00:00 +87: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage inserts trimmed body and resolved mentions for admitted member
+00:00 +88: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage inserts trimmed body and resolved mentions for admitted member
+00:00 +89: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage inserts trimmed body and resolved mentions for admitted member
+00:00 +90: test/domain/use_case/beacon_room_attachment_upload_test.dart: file attachment stores Cyrillic displayName and hash storage key
+00:00 +91: test/domain/use_case/beacon_room_attachment_upload_test.dart: file attachment stores Cyrillic displayName and hash storage key
+00:00 +92: test/domain/use_case/beacon_room_attachment_upload_test.dart: file attachment stores Cyrillic displayName and hash storage key
+00:00 +93: test/domain/use_case/beacon_room_attachment_upload_test.dart: file attachment stores Cyrillic displayName and hash storage key
+00:00 +94: test/domain/use_case/beacon_room_attachment_upload_test.dart: file attachment stores Cyrillic displayName and hash storage key
+00:00 +95: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage thread-mode reply notifies parent author and item target person
+00:00 +96: test/domain/use_case/beacon_room_attachment_upload_test.dart: image attachment stores Cyrillic displayName in image pipeline
+00:00 +97: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage self-reply creates no attention intents
+00:00 +98: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage rejects a reply that crosses beacon chat scope
+00:00 +99: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage throws UnauthorizedException when caller lacks room access
+00:00 +100: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage throws BeaconCreateException when body and attachment are empty
+00:00 +101: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage throws BeaconCreateException when body exceeds max length
+00:00 +102: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage allows ask item thread when caller is item participant
+00:00 +103: test/domain/use_case/beacon_room_case_message_mutations_test.dart: createMessage directed item target receives exact thread message receipt
+00:00 +104: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +105: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +106: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +107: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +108: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +109: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +110: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +111: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +112: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +113: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +114: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +115: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +116: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +117: test/domain/use_case/user_bookkeeping_case_test.dart: repairs admitted offers missing coordination
+00:00 +118: test/domain/use_case/user_block_case_test.dart: self-block throws ArgumentError before unit of work
+00:00 +119: test/domain/use_case/user_block_case_test.dart: self-block throws ArgumentError before unit of work
+00:00 +120: test/domain/use_case/user_block_case_test.dart: self-block throws ArgumentError before unit of work
+00:00 +121: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +122: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +123: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +124: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +125: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +126: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +127: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +128: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +129: test/domain/use_case/beacon_case_cancel_test.dart: beaconCancel author cancels open beacon with no committers
+00:00 +130: test/domain/use_case/polling_case_test.dart: create throws when poll not found
+00:00 +131: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +132: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +133: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +134: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +135: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +136: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +137: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +138: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +139: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +140: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +141: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +142: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +143: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +144: test/domain/use_case/user_case_test.dart: UserCase.getProfile delegates to the user repository
+00:00 +145: test/domain/use_case/beacon_case_fork_media_test.dart: copies images in order and maps the cover to the new copy
+00:00 +146: test/domain/use_case/beacon_case_fork_media_test.dart: copies images in order and maps the cover to the new copy
+00:00 +147: test/domain/use_case/beacon_case_fork_media_test.dart: copies images in order and maps the cover to the new copy
+00:00 +148: test/domain/use_case/beacon_case_fork_media_test.dart: copies images in order and maps the cover to the new copy
+00:00 +149: test/domain/use_case/beacon_case_fork_media_test.dart: copies images in order and maps the cover to the new copy
+00:00 +150: test/domain/use_case/user_case_test.dart: UserCase.updateProfile handle validation skips validation when setHandle is false
+00:00 +151: test/domain/use_case/beacon_case_fork_media_test.dart: a viewer who is not the author never copies source images
+00:00 +152: test/domain/use_case/user_case_test.dart: UserCase.updateProfile handle validation skips validation when handle is empty after trim
+00:00 +153: test/domain/use_case/beacon_case_fork_media_test.dart: a mid-copy remote failure compensates every already-copied image and rethrows
+00:00 +154: test/domain/use_case/beacon_case_fork_media_test.dart: a mid-copy remote failure compensates every already-copied image and rethrows
+00:00 +155: test/domain/use_case/user_case_test.dart: UserCase.updateProfile image updates does not delete when the user has no image and dropImage is false
+00:00 +156: test/domain/use_case/beacon_case_fork_media_test.dart: a final createBeacon failure after all copies compensates every copy
+00:00 +157: test/domain/use_case/user_case_test.dart: UserCase.updateProfile image updates uploads bytes, schedules hash task, and passes imageId
+00:00 +158: test/domain/use_case/user_case_test.dart: UserCase.updateProfile image updates uploads bytes, schedules hash task, and passes imageId
+00:00 +159: test/domain/use_case/user_case_test.dart: UserCase.updateProfile image updates replaces an existing image by deleting old bytes first
+00:00 +160: test/domain/use_case/user_case_test.dart: UserCase.updateProfile returns the refreshed user from the repository
+00:00 +161: test/domain/use_case/user_case_test.dart: UserCase.deleteById deletes the user and all of their images
+00:00 +162: test/domain/use_case/beacon_room_admission_matrix_test.dart: room admission matrix (COV-051) BeaconRoomCase.admit — actor matrix author admits participant and notifies
+00:00 +163: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +164: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +165: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +166: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +167: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +168: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +169: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +170: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +171: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer records acknowledged after successful accept
+00:00 +172: test/domain/use_case/mutual_friends_case_test.dart: MutualFriendsCase.fetchMutualFriends delegates to the repository with the same arguments
+00:00 +173: test/domain/use_case/beacon_room_admission_matrix_test.dart: room admission matrix (COV-051) CoordinationCase admission actions outsider cannot accept
+00:00 +174: test/domain/use_case/beacon_room_admission_matrix_test.dart: room admission matrix (COV-051) CoordinationCase admission actions outsider cannot accept
+00:00 +175: test/domain/use_case/coordination_case_commitment_events_test.dart: acceptHelpOffer does not duplicate acknowledged on repeated accept
+00:00 +176: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +177: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +178: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +179: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +180: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +181: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +182: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +183: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +184: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +185: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +186: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +187: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +188: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +189: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +190: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +191: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +192: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +193: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +194: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +195: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +196: test/domain/use_case/coordination_case_revert_test.dart: requestStatusChanged producer snapshots active and watcher audiences with recipient policy
+00:00 +197: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) rejects an unauthorized caller before uploading
+00:00 +198: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) rejects an unauthorized caller before uploading
+00:00 +199: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help on wrapping up downgrades review and sets needsMoreHelp status
+00:00 +200: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) rejects at the cap and compensates the upload
+00:00 +201: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help on open only sets needsMoreHelp status
+00:00 +202: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) attaches and sets the cover when none is selected
+00:00 +203: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) attaches and sets the cover when none is selected
+00:00 +204: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help rejects outsider on wrapping up revert
+00:00 +205: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help rejects outsider on wrapping up revert
+00:00 +206: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.addImage (legacy) succeeds even when post-commit hash scheduling fails (non-fatal)
+00:00 +207: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help throws when review window is not open on wrapping up revert
+00:00 +208: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus more help throws when review window is not open on wrapping up revert
+00:00 +209: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconStageImage rejects at the cap and compensates the upload
+00:00 +210: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus enough help from open sets enoughHelp status
+00:00 +211: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconStageImage rejects when the uploaded image is not owned under the lock and compensates
+00:00 +212: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus enough help from needsMoreHelp sets enoughHelp status
+00:00 +213: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconStageImage stages an invisible image without touching attachments
+00:00 +214: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconStageImage stages an invisible image without touching attachments
+00:00 +215: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus enough help noop when already enoughHelp
+00:00 +216: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconStageImage succeeds even when post-commit hash scheduling fails (non-fatal)
+00:00 +217: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus enough help steward may set enoughHelp
+00:00 +218: test/domain/use_case/beacon_case_media_test.dart: BeaconCase.beaconSetMedia rejects an unauthorized caller
+00:00 +219: test/domain/use_case/coordination_case_revert_test.dart: setBeaconStatus enough help rejects outsider
+00:00 +220: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +221: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +222: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +223: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +224: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +225: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +226: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +227: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +228: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +229: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +230: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +231: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +232: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +233: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +234: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +235: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +236: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +237: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +238: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +239: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +240: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +241: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +242: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +243: test/domain/use_case/email_test_case_test.dart: sendTestEmail returns no_email when missing contact
+00:00 +244: test/domain/use_case/beacon_forward_graph_case_test.dart: authorization unauthorized viewer throws UnauthorizedException
+00:00 +245: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +246: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +247: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +248: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +249: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +250: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +251: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +252: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +253: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +254: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +255: test/domain/use_case/contact_case_test.dart: ContactCase.set trims the name and upserts
+00:00 +256: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +257: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +258: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +259: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +260: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +261: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+00:00 +262: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) classify G1–G4, auto-select G1+G3 only, newest note
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +263: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +263: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) sorts suggestions G1 → G2 → G3 → G4
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +264: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +264: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) higher-priority group wins when the same user matches multiple facts
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +265: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +265: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) G2 excludes negative evaluations
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +266: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +266: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) G2 excludes neutral evaluations
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +267: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +267: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: policy classification (ADR 0004) G2 excludes no basis evaluations
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +268: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +268: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G1 without pushback is suggested
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +269: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +269: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G1 single pushback de-prioritizes (one beacon)
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +270: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote uses transactional vote mutation when no reciprocal connection forms
+00:00 +271: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +271: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G1 double pushback suppresses (two beacons)
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +272: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +272: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G2 single pushback de-prioritizes reviewed user
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +273: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +273: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G3 single pushback de-prioritizes routed user
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +274: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +274: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: pushback de-prioritize and suppress (ADR 0004) G4 single pushback de-prioritizes private-tag recipient
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +275: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +275: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: non-fork beacon returns empty suggestions even with private tags
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +276: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +277: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +277: test/domain/use_case/beacon_lineage_suggestions_case_test.dart: private tag scope G4 only suggests lineage forward recipients
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:00 +278: test/domain/use_case/block_cascade_case_test.dart: runDue drains materializeCascadeBatch until zero
+00:00 +279: test/domain/use_case/user_trust_edge_case_test.dart: UserTrustEdgeCase.setUserVote unilateral and negative vote changes are non-producing
+00:00 +280: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +281: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +282: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +283: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +284: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +285: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +286: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +287: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +288: test/domain/use_case/beacon_room_case_last_activity_batch_test.dart: myWorkLastActivityEventsByBeaconIds caps and delegates to room repo
+00:00 +289: test/domain/use_case/credential_auth_case_test.dart: existing email credential logs in and soft-attaches contacts
+00:00 +290: test/domain/use_case/credential_auth_case_test.dart: new email credential with invite creates invited account
+00:00 +291: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +292: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +293: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +294: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +295: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +296: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +297: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +298: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +299: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +300: test/domain/use_case/capability_case_test.dart: upsertPrivateLabel rejects self-labelling
+00:00 +301: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +302: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +303: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +304: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +305: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +306: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +307: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +308: test/domain/use_case/coordination_case_release_test.dart: release without acknowledgement throws commitmentNotAcknowledged
+00:00 +309: test/domain/use_case/evaluation/review_finalization_case_test.dart: closeAndFinalize records commitment and forward evidence
+00:00 +310: test/domain/use_case/evaluation/review_finalization_case_test.dart: closeAndFinalize records commitment and forward evidence
+00:00 +311: test/domain/use_case/evaluation/review_finalization_case_test.dart: closeAndFinalize records commitment and forward evidence
+00:01 +312: test/domain/use_case/evaluation/review_finalization_case_test.dart: re-close is idempotent when forward episode already exists
+00:01 +313: test/domain/use_case/evaluation/review_finalization_case_test.dart: returns false when review window already closed
+00:01 +314: test/domain/use_case/beacon_room_case_plan_thread_test.dart: createMessage rejects plan item thread
+00:01 +315: test/domain/use_case/beacon_case_create_media_cleanup_test.dart: a database failure after upload compensates the orphaned image in a new transaction
+00:01 +316: test/domain/use_case/beacon_case_create_media_cleanup_test.dart: a database failure after upload compensates the orphaned image in a new transaction
+00:01 +317: test/domain/use_case/beacon_room_case_plan_thread_test.dart: markBeaconRoomSeen rejects plan item thread
+00:01 +318: test/domain/use_case/beacon_case_create_media_cleanup_test.dart: rethrows the original database failure, not a compensation error
+00:01 +319: test/domain/use_case/beacon_room_case_plan_thread_test.dart: createMessage throws RateLimitedException at the per-user cap
+00:01 +320: test/domain/use_case/beacon_case_create_media_cleanup_test.dart: a rate-limited create never uploads or compensates
+00:01 +321: test/domain/use_case/beacon_case_create_media_cleanup_test.dart: a rate-limited create never uploads or compensates
+00:01 +322: test/domain/use_case/beacon_room_case_plan_thread_test.dart: roomMessageTarget returns only the exact authorized message
+00:01 +323: test/domain/use_case/beacon_room_case_plan_thread_test.dart: roomMessageTarget rejects a non-member
+00:01 +324: test/domain/use_case/beacon_room_case_mark_seen_test.dart: markBeaconRoomSeen returns persisted seenAt and clamps to latest message
+00:01 +325: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase empty beaconIds returns empty list
+00:01 +326: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase empty beaconIds returns empty list
+00:01 +327: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase empty beaconIds returns empty list
+00:01 +328: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows beacon author
+00:01 +329: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows beacon author
+00:01 +330: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows beacon author
+00:01 +331: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows beacon author
+00:01 +332: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows beacon author
+00:01 +333: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase participant resolves coordination tier
+00:01 +334: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase participant resolves coordination tier
+00:01 +335: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin allows admitted participant
+00:01 +336: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase wires hasUnreviewedOffers into offersAwaitingAuthor
+00:01 +337: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin denies user without room access
+00:01 +338: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin denies user without room access
+00:01 +339: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access pin denies user without room access
+00:01 +340: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase reviewOpen fetches review window closesAt
+00:01 +341: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase reviewOpen fetches review window closesAt
+00:01 +342: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access remove denies user without room access
+00:01 +343: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase output matches deriveBeaconDisplayStatus for assembled inputs
+00:01 +344: test/domain/use_case/beacon_fact_card_case_test.dart: BeaconFactCardCase room access setVisibility denies user without room access
+00:01 +345: test/domain/use_case/beacon_display_case_test.dart: BeaconDisplayCase P8.1 commitment gate fields author with no acknowledged committers can cancel and delete
+00:01 +346: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +347: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +348: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +349: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +350: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +351: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +352: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +353: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +354: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +355: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +356: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +357: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +358: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +359: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +360: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +361: test/domain/use_case/beacon_room_attachment_quota_test.dart: file attachment over the daily cap throws RateLimitedException
+00:01 +362: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview anonymous caller, available code -> accept-as-new
+00:01 +363: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview caller is the inviter -> is-inviter / self (blocked)
+00:01 +364: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview already-friends caller
+00:01 +365: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview existing non-friend user -> accept-as-existing
+00:01 +366: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview consumed code (already accepted)
+00:01 +367: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview expired code
+00:01 +368: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview beacon-forward invite surfaces beacon in JSON
+00:01 +369: test/domain/use_case/invitation_case_test.dart: InvitationCase.create / update — addressee name create trims and stores the addressee name
+00:01 +370: test/domain/use_case/invitation_case_test.dart: InvitationCase.create / update — addressee name create rejects a too-short addressee name
+00:01 +371: test/domain/use_case/invitation_case_test.dart: InvitationCase.create / update — addressee name update normalizes the name and delegates
+00:01 +372: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview — subjective inviter name signed-in caller sees the inviter under their contact name
+00:01 +373: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview — subjective inviter name anonymous caller sees the objective name, no contact lookup
+00:01 +374: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview — subjective inviter name inviter previewing their own code keeps their objective name
+00:01 +375: test/domain/use_case/invitation_case_test.dart: InvitationCase.preview — subjective inviter name preview JSON never leaks the addressee name (privacy guard)
+00:01 +376: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:01 +377: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:01 +378: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:01 +379: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +380: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +381: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +382: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +383: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +384: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +385: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +386: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +387: test/domain/use_case/complaint_case_test.dart: ComplaintCase.create returns true and persists entity with mapped type
+00:02 +388: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +389: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +390: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +391: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +392: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +393: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +394: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 1 (viewer = author): viewerId == authorId in result
+00:02 +395: test/domain/use_case/beacon_help_offerer_forward_path_case_test.dart: viewer roles case 2 (viewer = involved-other): viewerId is the involved user
+00:02 +396: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +397: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +398: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +399: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +400: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +401: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +402: test/domain/use_case/coordination_item/update_plan_case_test.dart: rejects plan text longer than kBeaconRoomCurrentLineMaxLength
+00:02 +403: test/domain/use_case/coordination_item/resolution_case_test.dart: CreateResolutionCase creates resolution with trimmed title and body
+00:02 +404: test/domain/use_case/coordination_item/resolution_case_test.dart: CreateResolutionCase rejects empty title
+00:02 +405: test/domain/use_case/coordination_item/resolution_case_test.dart: CreateResolutionCase rejects inactive beacon
+00:02 +406: test/domain/use_case/coordination_item/resolution_case_test.dart: CreateResolutionCase records needsMe for target item owner
+00:02 +407: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +408: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +409: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +410: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +411: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +412: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +413: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +414: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +415: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +416: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +417: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +418: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +419: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +420: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: creator can update open published blocker
+00:02 +421: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: beacon author can update item they did not create
+00:02 +422: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: denies non-creator non-author
+00:02 +423: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: rejects resolved item
+00:02 +424: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: rejects draft (unpublished) item
+00:02 +425: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: records coordinationChanged when title or body changes
+00:02 +426: test/domain/use_case/coordination_item/update_coordination_item_case_test.dart: no-op edit does not record attention
+00:02 +427: test/domain/use_case/coordination_item/resolve_promise_case_test.dart: resolves open promise
+00:02 +428: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +429: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +430: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +431: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +432: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +433: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +434: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +435: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +436: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +437: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +438: test/domain/use_case/coordination_item/plan_step_case_test.dart: AddPlanStepCase adds step under plan parent
+00:02 +439: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +440: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +441: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +442: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +443: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +444: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +445: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +446: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +447: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +448: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +449: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +450: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +451: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +452: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +453: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +454: test/domain/use_case/coordination_item/draft_blocker_case_test.dart: CreateDraftBlockerCase owner can create draft
+00:02 +455: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +456: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +457: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +458: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +459: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +460: test/domain/use_case/coordination_item/draft_promise_case_test.dart: CreateDraftPromiseCase owner can create draft
+00:02 +461: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +462: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +463: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +464: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +465: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +466: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +467: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +468: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +469: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +470: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +471: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +472: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +473: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +474: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +475: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +476: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +477: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +478: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +479: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch dedupes beacon ids and caps at 80
+00:02 +480: test/domain/use_case/coordination_item/draft_promise_case_test.dart: DeleteDraftPromiseCase non-creator rejected
+00:02 +481: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch skips unauthorized beacon ids without throwing
+00:02 +482: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: batch skips unauthorized beacon ids without throwing
+00:02 +483: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: myItems returns rows matching per-kind open counts for fixture beacons
+00:02 +484: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: markSeen delegates to port with viewer and beacon ids
+00:02 +485: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: myItems still rejects unauthorized beacon ids
+00:02 +486: test/domain/use_case/coordination_item/coordination_responsibility_case_test.dart: markSeen still rejects unauthorized beacon ids
+00:02 +487: test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart: MarkBlockerCase marks blocker on open beacon
+00:02 +488: test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart: MarkBlockerCase marks blocker on open beacon
+00:02 +489: test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart: MarkBlockerCase marks blocker on open beacon
+00:02 +490: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +491: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +492: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +493: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +494: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +495: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +496: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +497: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +498: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +499: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +500: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +501: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +502: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +503: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +504: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +505: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +506: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +507: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +508: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +509: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +510: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +511: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +512: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: creator can redirect open promise
+00:02 +513: test/domain/use_case/coordination_item/cancel_promise_case_test.dart: rejects already cancelled
+00:02 +514: test/domain/use_case/coordination_item/redirect_promise_case_test.dart: records redirected_to and redirected_from events
+00:02 +515: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +516: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +517: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +518: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +519: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +520: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +521: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +522: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +523: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase owner can create draft
+00:02 +524: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase admitted non-owner can create draft
+00:02 +525: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase non-participant rejected
+00:02 +526: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: CreateDraftAskCase empty body rejected
+00:02 +527: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +528: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +529: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +530: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +531: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +532: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +533: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +534: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +535: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +536: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +537: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +538: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +539: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +540: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +541: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: sends push when claim succeeds
+00:02 +542: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: MarkAskCase rejects self-target
+00:02 +543: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: rejects responsible person reminding themselves
+00:02 +544: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: rejects responsible person reminding themselves
+00:02 +545: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: ResolveAskCase records commitmentResolved for counterpart when creator resolves
+00:02 +546: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: ResolveAskCase records commitmentResolved for counterpart when creator resolves
+00:02 +547: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: rejects plan items
+00:02 +548: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: ResolveAskCase records commitmentResolved for creator when target resolves
+00:02 +549: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: throttle when claim returns null
+00:02 +550: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: ResolveAskCase resolves accepted ask
+00:02 +551: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: concurrent remind allows at most one push
+00:02 +552: test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart: concurrent remind allows at most one push
+00:02 +553: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +554: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +555: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +556: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +557: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +558: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +559: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +560: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +561: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +562: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +563: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +564: test/domain/use_case/email_digest_case_test.dart: sends digest with eligible items and marks them emailed
+00:02 +565: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase empty body rejected
+00:02 +566: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase empty body rejected
+00:02 +567: test/domain/use_case/email_digest_case_test.dart: not due hour → no send
+00:02 +568: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase not found rejected
+00:02 +569: test/domain/use_case/email_digest_case_test.dart: only email-enabled categories are included
+00:02 +570: test/domain/use_case/email_digest_case_test.dart: only email-enabled categories are included
+00:02 +571: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase non-creator rejected
+00:02 +572: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase inactive beacon rejected
+00:02 +573: test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart: UpdateDraftAskCase rejects self-target when updating target
+00:02 +574: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +575: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +576: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +577: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +578: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +579: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +580: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +581: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +582: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +583: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +584: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +585: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +586: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +587: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +588: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +589: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +590: test/domain/use_case/forward_case_auth_test.dart: denies forward when sender cannot read beacon content
+00:02 +591: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns public-only rows when caller lacks room access
+00:02 +592: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns public-only rows when caller lacks room access
+00:02 +593: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns public-only rows when caller lacks room access
+00:02 +594: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns public-only rows when caller lacks room access
+00:02 +595: test/domain/use_case/forward_case_auth_test.dart: forward — mutual visibility authorization one-way incoming trust rejects
+00:02 +596: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns all rows for admitted room member
+00:02 +597: test/domain/use_case/beacon_room_case_activity_events_test.dart: listActivityEvents returns all rows for admitted room member
+00:02 +598: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update parses valid push and email category names
+00:02 +599: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update parses valid push and email category names
+00:02 +600: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update parses valid push and email category names
+00:02 +601: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update parses valid push and email category names
+00:02 +602: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update parses valid push and email category names
+00:02 +603: test/domain/use_case/forward_case_auth_test.dart: forward — mutual visibility authorization authorization uses context coalesced to empty string
+00:02 +604: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update silently drops invalid category strings
+00:02 +605: test/domain/use_case/forward_case_auth_test.dart: forward — mutual visibility authorization blocked recipients stay hidden without leaking relationship state
+00:02 +606: test/domain/use_case/forward_case_auth_test.dart: forward — mutual visibility authorization blocked recipients stay hidden without leaking relationship state
+00:02 +607: test/domain/use_case/forward_case_auth_test.dart: forward — mutual visibility authorization blocked recipients stay hidden without leaking relationship state
+00:02 +608: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update quiet hours accepts valid minute-of-day values
+00:02 +609: test/domain/use_case/notification_preference_case_test.dart: NotificationPreferenceCase.update quiet hours rejects minute below zero
+00:02 +610: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +611: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +612: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +613: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +614: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +615: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +616: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +617: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +618: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +619: test/domain/use_case/forward_band_case_test.dart: deterministic band composition orders evidence rows and exploration on a fixed fixture
+00:02 +620: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +621: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +622: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +623: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +624: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +625: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +626: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +627: test/domain/use_case/credential_case_test.dart: list returns the account credentials
+00:02 +628: test/domain/use_case/session_case_test.dart: resolveAccountId returns null for empty token
+00:02 +629: test/domain/use_case/credential_case_test.dart: linkDevice verifies the auth-request and links the device key
+00:02 +630: test/domain/use_case/credential_case_test.dart: linkDevice verifies the auth-request and links the device key
+00:02 +630: test/domain/use_case/block_release_sweep_case_test.dart: runDue advances cursor across batches and resets at tail
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:02 +631: test/domain/use_case/credential_case_test.dart: linkDevice verifies the auth-request and links the device key
+00:02 +632: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +633: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +634: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +635: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +636: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +637: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +638: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +639: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +640: test/domain/use_case/session_case_test.dart: accessTokenForAccount delegates to AuthCase.issueAccessToken
+00:02 +641: test/domain/use_case/beacon_case_delete_test.dart: deleteById hard-deletes draft beacon and removes images
+00:02 +642: test/domain/use_case/beacon_case_delete_test.dart: deleteById transitions open beacon to deleted when no committer
+00:02 +643: test/domain/use_case/beacon_case_delete_test.dart: deleteById rejects when a committer was ever acknowledged
+00:02 +644: test/domain/use_case/beacon_case_delete_test.dart: deleteById rejects after accept then withdraw when commitment history remains
+00:02 +645: test/domain/use_case/beacon_case_delete_test.dart: deleteById rejects disallowed status transition
+00:02 +646: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +647: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +648: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +649: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +650: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +651: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +652: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +653: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +654: test/domain/use_case/auth_case_test.dart: signIn resolves the account via the ed25519_device credential
+00:02 +655: test/domain/use_case/auth_case_test.dart: signUpWithInvite creates the invited account and issues a session
+00:02 +656: test/domain/use_case/auth_case_test.dart: signUp with an auth-request invite emits inviteAccepted
+00:03 +657: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.processImage square image uses max components on both axes
+00:03 +658: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.processImage portrait image uses min x and max y components
+00:03 +659: test/domain/use_case/attention_expiry_sweep_case_test.dart: closes and records each expired window with an actor-null intent
+00:03 +660: test/domain/use_case/attention_expiry_sweep_case_test.dart: closes and records each expired window with an actor-null intent
+00:03 +661: test/domain/use_case/attention_expiry_sweep_case_test.dart: closes and records each expired window with an actor-null intent
+00:03 +662: test/domain/use_case/unsubscribe_case_test.dart: UnsubscribeCase.peek returns payload for valid token without mutating prefs
+00:03 +663: test/domain/use_case/unsubscribe_case_test.dart: UnsubscribeCase.peek returns payload for valid token without mutating prefs
+00:03 +664: test/domain/use_case/unsubscribe_case_test.dart: UnsubscribeCase.peek returns payload for valid token without mutating prefs
+00:03 +665: test/domain/use_case/unsubscribe_case_test.dart: UnsubscribeCase.peek returns payload for valid token without mutating prefs
+00:03 +666: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke processes calculate-image-hash task and updates image metadata
+00:03 +667: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke processes calculate-image-hash task and updates image metadata
+00:03 +668: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke processes calculate-image-hash task and updates image metadata
+00:03 +669: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke processes calculate-image-hash task and updates image metadata
+00:03 +670: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke processes calculate-image-hash task and updates image metadata
+00:03 +671: test/domain/use_case/beacon_involvement_case_test.dart: BeaconInvolvementCase.asMap guard deny -> UnauthorizedException
+00:03 +672: test/domain/use_case/beacon_involvement_case_test.dart: BeaconInvolvementCase.asMap guard deny -> UnauthorizedException
+00:03 +673: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +674: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +675: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +676: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +677: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +678: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +679: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke marks task failed when image bytes cannot be decoded
+00:03 +680: test/domain/use_case/task_worker_case_test.dart: TaskWorkerCase.run smoke throttles digest and retention sweeps within their windows
+00:03 +681: test/domain/use_case/email_auth_case_test.dart: start persists attemptId as transaction id when tx is created
+00:03 +682: test/domain/use_case/email_auth_case_test.dart: start persists attemptId as transaction id when tx is created
+00:03 +683: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +684: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +685: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +686: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +687: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +688: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +689: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +690: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +691: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +692: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +693: test/domain/use_case/meritrank_case_test.dart: MeritrankCase.init admin role bypasses privilege lookup
+00:03 +694: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +695: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +696: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +697: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +698: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +699: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +700: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +701: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +702: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +703: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects CLOSED (1)
+00:03 +704: test/domain/use_case/capability_projection_case_test.dart: §13.1 worked example Bob-only S_out = 0.321 yields networkOutcome
+00:03 +705: test/domain/use_case/capability_projection_case_test.dart: §13.1 worked example Bob-only S_out = 0.321 yields networkOutcome
+00:03 +706: test/domain/use_case/capability_projection_case_test.dart: §13.1 worked example Bob-only S_out = 0.321 yields networkOutcome
+00:03 +707: test/domain/use_case/capability_projection_case_test.dart: §13.1 worked example Bob-only S_out = 0.321 yields networkOutcome
+00:03 +708: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle rejects WRAPPING UP (reviewOpen)
+00:03 +709: test/domain/use_case/capability_projection_case_test.dart: §13.1 worked example Bob + Dave S_out = 0.448 still networkOutcome
+00:03 +710: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +711: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +712: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +713: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +714: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +715: test/domain/use_case/help_offer_case_test.dart: withdraw lifecycle allows OPEN (0)
+00:03 +716: test/domain/use_case/capability_projection_case_test.dart: own outcome evidence overrides network outcome on same tag
+00:03 +717: test/domain/use_case/capability_projection_case_test.dart: ego↔witness block removes witness contribution
+00:03 +718: test/domain/use_case/help_offer_case_test.dart: offerHelp rejects when beacon not OPEN
+00:03 +719: test/domain/use_case/capability_projection_case_test.dart: witness↔subject block drops cells for that subject only
+00:03 +720: test/domain/use_case/help_offer_case_test.dart: offerHelp rejects author on initial offer
+00:03 +721: test/domain/use_case/help_offer_case_test.dart: offerHelp allows upsert when already offered help (update note)
+00:03 +722: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) enoughHelp beacon persists offerKind 1
+00:03 +723: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) open beacon persists offerKind 0
+00:03 +724: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) needsMoreHelp beacon persists offerKind 0
+00:03 +725: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) enoughHelp notification uses backup-offer copy
+00:03 +726: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) open notification uses standard help-offer copy
+00:03 +727: test/domain/use_case/help_offer_case_test.dart: offerHelp — offerKind assignment (P6) re-upsert preserves original offerKind when beacon status changed
+00:03 +728: test/domain/use_case/help_offer_case_test.dart: direct author forward recipient offer (P5 — no auto-admit) does not write coordination response or acknowledged commitment event
+00:03 +729: test/domain/use_case/help_offer_case_test.dart: offerHelp — author notification notifies author on initial help offer
+00:03 +730: test/domain/use_case/help_offer_case_test.dart: offerHelp — author notification does NOT notify author on help offer update (hasActive=true)
+00:03 +731: test/domain/use_case/help_offer_case_test.dart: offerHelp — blocked author/offerer pair (E4, covered by S6 canReadContent) rejects when author blocked offerer
+00:03 +732: test/domain/use_case/help_offer_case_test.dart: offerHelp — blocked author/offerer pair (E4, covered by S6 canReadContent) rejects when offerer blocked author
+00:03 +733: test/domain/use_case/beacon_case_publish_draft_test.dart: publishDraft delegates to repository for valid draft
+00:03 +734: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Cancel gate 1 — offer without response allows Cancel
+00:03 +735: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +736: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +737: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +738: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +739: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +740: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +741: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +742: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +743: test/domain/use_case/forward_case_test.dart: forward — reason routing no reasons: capability evidence is not reconciled
+00:03 +744: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Delete gate 5 — accept then withdraw after 30h forbids Delete
+00:03 +745: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Delete gate 5 — accept then withdraw after 30h forbids Delete
+00:03 +746: test/domain/use_case/forward_case_test.dart: forward — reason routing shared reasons fan out to every recipient
+00:03 +747: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Delete gate 6 — accept then user-block cleanup forbids Delete
+00:03 +748: test/domain/use_case/forward_case_test.dart: forward — reason routing per-recipient reasons override shared for that recipient
+00:03 +749: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Coordination invariants 7 — decline after accept throws commitmentAlreadyAcknowledged
+00:03 +750: test/domain/use_case/forward_case_test.dart: forward — reason routing recipient with empty per-recipient override clears reasons
+00:03 +751: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Coordination invariants 8 — setCoordinationResponse(notSuitable) after accept throws commitmentAlreadyAcknowledged
+00:03 +752: test/domain/use_case/forward_case_test.dart: forward — push notifications notifyForwardReceived is called after successful forward
+00:03 +753: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Coordination invariants 9 — notSuitable with inviteToRoom throws admissionRequiresAcknowledgement
+00:03 +754: test/domain/use_case/forward_case_test.dart: forward — push notifications beacon fetch failure during validation propagates
+00:03 +755: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close and review window 10 — accept then withdraw after 30h opens review window on Close
+00:03 +756: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close and review window 10 — accept then withdraw after 30h opens review window on Close
+00:03 +757: test/domain/use_case/forward_case_test.dart: updateForward — eligibility returns false when edge is not found
+00:03 +758: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close and review window 11 — departed helper appears as formerCommitter in review composition
+00:03 +759: test/domain/use_case/forward_case_test.dart: updateForward — eligibility returns false when sender does not own edge
+00:03 +760: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios closeNow 12 — incomplete formerCommitter review does not block closeNow
+00:03 +761: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios closeNow 12 — incomplete formerCommitter review does not block closeNow
+00:03 +762: test/domain/use_case/forward_case_test.dart: updateForward — eligibility updates note and returns true
+00:03 +763: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios closeNow 13 — incomplete current committer review blocks closeNow
+00:04 +764: test/domain/use_case/forward_case_test.dart: updateForward — eligibility reconciles reason slugs when provided
+00:04 +765: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Reopen limit 14 — second reopen throws reopen limit error
+00:04 +766: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Reopen limit 14 — second reopen throws reopen limit error
+00:04 +767: test/domain/use_case/forward_case_test.dart: updateForward — eligibility reason reconciliation failure propagates
+00:04 +768: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Withdraw in Wrapping up 15 — beaconWithdraw in reviewOpen throws beaconWithdrawForbidden
+00:04 +769: test/domain/use_case/forward_case_test.dart: cancelForward — eligibility returns false when edge is not found
+00:04 +770: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios D13 release reversibility 16 — release then setCoordinationResponse(useful) restores current stake
+00:04 +771: test/domain/use_case/forward_case_test.dart: cancelForward — eligibility returns false when sender does not own edge
+00:04 +772: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close branch alignment (P3.11) 17 — Close after accept→withdraw(30h) with client-shaped expected does not throw closeBranchConflict
+00:04 +773: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close branch alignment (P3.11) 17 — Close after accept→withdraw(30h) with client-shaped expected does not throw closeBranchConflict
+00:04 +774: test/domain/use_case/forward_case_test.dart: cancelForward — eligibility returns false when recipient has read the forward
+00:04 +775: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close branch alignment (P3.11) 18 — scenario-17 composition gives formerCommitter visibility per P3.3
+00:04 +776: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close branch alignment (P3.11) 18 — scenario-17 composition gives formerCommitter visibility per P3.3
+00:04 +777: test/domain/use_case/commitment_gates_test.dart: P3.12 commitment gate scenarios Close branch alignment (P3.11) 18 — scenario-17 composition gives formerCommitter visibility per P3.3
+00:04 +778: test/domain/evaluation/acknowledged_committer_test.dart: isAcknowledgedCommitterResponse accepts useful and needCoordination
+00:04 +779: test/domain/evaluation/acknowledged_committer_test.dart: isAcknowledgedCommitterResponse accepts useful and needCoordination
+00:04 +780: test/domain/evaluation/acknowledged_committer_test.dart: isAcknowledgedCommitterResponse accepts useful and needCoordination
+00:04 +781: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +782: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +783: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +784: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +785: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +786: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +787: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +788: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +789: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +790: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when already finalized (2)
+00:04 +791: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize returns true without updating status when user skipped (3)
+00:04 +792: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize sets status to 2 when user was in progress (1)
+00:04 +793: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize sets status to 2 when user never saved a rating (0)
+00:04 +794: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize throws notEligible when user has no review row
+00:04 +795: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize throws reviewWindowExpired when window is missing
+00:04 +796: test/domain/evaluation/evaluation_case_test.dart: evaluationFinalize throws reviewWindowExpired when window already closed (status 1)
+00:04 +797: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit throws reviewWindowExpired when review deadline has passed
+00:04 +798: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit first submit moves review user status from 0 to 1
+00:04 +799: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit does not set review user status when already past first submit (1)
+00:04 +800: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit forwarder with empty ack tags succeeds via submitEvaluationAtomic
+00:04 +801: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit forwarder with ack tags is rejected
+00:04 +802: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit invalid ack slug is rejected before atomic submit
+00:04 +803: test/domain/evaluation/evaluation_case_test.dart: evaluationSubmit maps ack tag cap StateError to EvaluationException
+00:04 +804: test/domain/evaluation/evaluation_received_trust_tone_test.dart: evaluationReceivedTrustToneFromValue noBasis maps to noBasis sentinel, not noChange
+00:04 +805: test/domain/evaluation/evaluation_received_trust_tone_test.dart: evaluationReceivedTrustToneFromValue noBasis maps to noBasis sentinel, not noChange
+00:04 +806: test/domain/evaluation/evaluation_received_trust_tone_test.dart: evaluationReceivedTrustToneFromValue noBasis maps to noBasis sentinel, not noChange
+00:04 +807: test/domain/evaluation/evaluation_case_test.dart: reopenFromReview downgrades submitted reviews and clears scaffolding only
+00:04 +808: test/domain/evaluation/evaluation_case_test.dart: reopenFromReview downgrades submitted reviews and clears scaffolding only
+00:04 +809: test/domain/evaluation/evaluation_case_test.dart: reopenFromReview downgrades submitted reviews and clears scaffolding only
+00:04 +810: test/domain/evaluation/evaluation_received_trust_tone_test.dart: evaluationReceivedTrustToneFromValue negative values map to down
+00:04 +811: test/domain/evaluation/evaluation_case_test.dart: reopenFromReview throws when reopen limit reached
+00:04 +812: test/domain/evaluation/evaluation_case_test.dart: beaconClose review cycle reset resets stale scaffolding instead of throwing review exists
+00:04 +813: test/domain/evaluation/beacon_state_range_rule_test.dart: beacon status domain range allows all persisted BeaconStatus smallints including open-family 7, 8
+00:04 +814: test/domain/evaluation/beacon_state_range_rule_test.dart: beacon status domain range allows all persisted BeaconStatus smallints including open-family 7, 8
+00:04 +815: test/domain/evaluation/evaluation_case_test.dart: beaconClose review-open path opens review window when committers exist
+00:04 +816: test/domain/evaluation/evaluation_case_test.dart: beaconClose review-open path opens review window when committers exist
+00:04 +817: test/domain/evaluation/evaluation_case_test.dart: beaconClose validation throws closeBranchConflict when expected review flag is stale
+00:04 +818: test/domain/evaluation/evaluation_case_test.dart: beaconClose validation throws notEligible when caller is not the author
+00:04 +819: test/domain/evaluation/evaluation_case_test.dart: beaconClose validation throws beaconNotClosable when beacon is not in open family
+00:04 +820: test/domain/evaluation/evaluation_case_test.dart: beaconClose everHadCommitter review window opens review window when helper withdrew after grace without current committer
+00:04 +821: test/domain/evaluation/beacon_evaluation_value_test.dart: BeaconEvaluationValue requiresReasonTag for extremes
+00:04 +822: test/domain/evaluation/beacon_evaluation_value_test.dart: BeaconEvaluationValue requiresReasonTag for extremes
+00:04 +823: test/domain/evaluation/beacon_evaluation_value_test.dart: BeaconEvaluationValue requiresReasonTag for extremes
+00:04 +824: test/domain/evaluation/beacon_evaluation_value_test.dart: BeaconEvaluationValue requiresReasonTag for extremes
+00:04 +825: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +826: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +827: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +828: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +829: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +830: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +831: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +832: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +833: test/domain/evaluation/evaluation_visibility_rules_test.dart: author evaluates all non-self; committers evaluate author and each other
+00:04 +834: test/domain/evaluation/evaluation_case_test.dart: closeNow records trustGivenChanged and trustReceivedChanged for author, committer, and forwarder pairs
+00:04 +835: test/domain/evaluation/evaluation_case_test.dart: closeNow records trustGivenChanged and trustReceivedChanged for author, committer, and forwarder pairs
+00:04 +836: test/domain/evaluation/evaluation_visibility_rules_test.dart: committer may evaluate forwarder on path when forwarder is not author
+00:04 +837: test/domain/evaluation/evaluation_visibility_rules_test.dart: committer may evaluate forwarder on path when forwarder is not author
+00:04 +838: test/domain/evaluation/evaluation_case_test.dart: closeNow records trust intents for each non-neutral pair in a mixed close
+00:04 +839: test/domain/evaluation/evaluation_case_test.dart: closeNow records trust intents for each non-neutral pair in a mixed close
+00:04 +840: test/domain/evaluation/evaluation_case_test.dart: closeNow records trust intents for each non-neutral pair in a mixed close
+00:04 +841: test/domain/evaluation/evaluation_case_test.dart: reviewWindowStatuses empty list returns empty
+00:04 +842: test/domain/evaluation/evaluation_case_test.dart: reviewWindowStatuses returns canCloseNow for accessible reviewOpen beacon
+00:04 +843: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived returns windowClosed false while review window open
+00:04 +844: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived returns named rows with reviewer role and tone when closed
+00:04 +845: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived returns row when author reviewed committer
+00:04 +846: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived returns row when committer reviewed author
+00:04 +847: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived includes noBasis rows with distinct tone
+00:04 +848: test/domain/evaluation/evaluation_case_test.dart: evaluationReceived evaluationSummary adapter is not suppressed for one reviewer
+00:04 +849: test/domain/evaluation/evaluation_case_test.dart: evaluationsWrittenAboutMeBy returns empty when repository has no rows
+00:04 +850: test/domain/evaluation/evaluation_case_test.dart: evaluationsWrittenAboutMeBy maps finalized rows with trust tone including noBasis
+00:04 +851: test/domain/evaluation/evaluation_case_test.dart: evaluationsWrittenAboutMeBy scopes query to author and viewer pair
+00:04 +852: test/domain/evaluation/evaluation_case_test.dart: closeNow idempotency second closeNow throws after window already finalized
+00:04 +853: test/domain/evaluation/beacon_evaluation_row_status_test.dart: countsTowardSummary true for submitted and final rows
+00:04 +854: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign author positive tags exclude negative tags
+00:04 +855: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign author positive tags exclude negative tags
+00:04 +856: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign author positive tags exclude negative tags
+00:04 +857: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign author positive tags exclude negative tags
+00:04 +858: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign committer negative tags exclude positive tags
+00:04 +859: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign former committer tags match current committer
+00:04 +860: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedForRoleAndSign forwarder positive tags are role-specific
+00:04 +861: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedUnionForRole includes both positive and negative tags for role
+00:04 +862: test/domain/evaluation/evaluation_reason_tags_test.dart: allowedUnionForRole former committer union matches committer
+00:04 +863: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationToneFromValues positive when sum > 0
+00:04 +864: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationToneFromValues negative when sum < 0
+00:04 +865: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationToneFromValues mixed when sum == 0
+00:04 +866: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationToneFromValues ignores noBasis and unknown values
+00:04 +867: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationSummaryAggregates counts value buckets and top tags by frequency
+00:04 +868: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationSummaryAggregates top tags ordered by frequency; ties unspecified
+00:04 +869: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationRoleSummaryLine empty when no role
+00:04 +870: test/domain/evaluation/evaluation_summary_rules_test.dart: evaluationRoleSummaryLine maps role and tone
+00:04 +871: test/domain/evaluation/evaluation_summary_rules_test.dart: buildEvaluationSummaryGraphqlPayload wrong beacon state
+00:04 +872: test/domain/evaluation/evaluation_summary_rules_test.dart: buildEvaluationSummaryGraphqlPayload empty rows
+00:04 +873: test/domain/evaluation/evaluation_summary_rules_test.dart: buildEvaluationSummaryGraphqlPayload privacy when fewer than 3 evaluators
+00:04 +874: test/domain/evaluation/evaluation_summary_rules_test.dart: buildEvaluationSummaryGraphqlPayload full detail when enough evaluators
+00:04 +875: test/domain/entity/jwt_entity_test.dart: JwtEntity.validate should not throw when sub is valid
+00:04 +876: test/domain/capability/capability_consts_test.dart: capability_consts half-lives are in seconds, not days
+00:04 +877: test/domain/capability/capability_consts_test.dart: capability_consts half-lives are in seconds, not days
+00:04 +878: test/domain/capability/capability_consts_test.dart: capability_consts half-lives are in seconds, not days
+00:04 +879: test/domain/capability/capability_consts_test.dart: capability_consts half-lives are in seconds, not days
+00:04 +880: test/domain/capability/capability_consts_test.dart: capability_consts half-lives are in seconds, not days
+00:04 +881: test/domain/evaluation/evaluation_participant_graph_builder_test.dart: EvaluationParticipantGraphBuilder active acknowledged helper remains committer
+00:04 +882: test/domain/evaluation/evaluation_participant_graph_builder_test.dart: EvaluationParticipantGraphBuilder active acknowledged helper remains committer
+00:04 +883: test/domain/capability/capability_consts_test.dart: ProjectionTier precedence declaration order is channel-first precedence
+00:04 +884: test/domain/capability/capability_consts_test.dart: ProjectionTier precedence declaration order is channel-first precedence
+00:04 +885: test/domain/evaluation/evaluation_participant_graph_builder_test.dart: EvaluationParticipantGraphBuilder helper who withdrew within grace is absent from composition
+00:04 +886: test/domain/capability/capability_consts_test.dart: ProjectionTier precedence index reflects strict ordering for D2 row-tier reduction
+00:04 +887: test/domain/evaluation/evaluation_participant_graph_builder_test.dart: EvaluationParticipantGraphBuilder former committer summary and hint end with participation ended marker
+00:04 +888: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts ForwardBandRow requires explicit rowTier and labels for exploration
+00:04 +889: test/domain/evaluation/evaluation_participant_graph_builder_test.dart: EvaluationParticipantGraphBuilder forwarders are included when recipient is a former committer
+00:04 +890: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts ForwardBandRow requires explicit rowTier and labels for evidence rows
+00:04 +891: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts TagProjection carries tier without score
+00:04 +892: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts WitnessCellRow exposes effective strengths only
+00:04 +893: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts EvidenceChannel distinguishes outcome vs seed
+00:04 +894: test/domain/capability/capability_consts_test.dart: capability_evidence_models contracts PromptStateValue wire order for invite seed prompt
+00:04 +895: test/domain/capability/fnv1a64_test.dart: fnv1a64 pinned empty string vector
+00:04 +896: test/domain/capability/fnv1a64_test.dart: fnv1a64 pinned single-byte vector
+00:04 +897: test/domain/capability/fnv1a64_test.dart: fnv1a64 pinned foobar vector
+00:04 +898: test/domain/capability/fnv1a64_test.dart: fnv1a64 longer arbitrary string catches byte-loop off-by-one
+00:04 +899: test/domain/capability/fnv1a64_test.dart: fnv1a64Mod unsigned semantics against a known negative-signed hash
+00:04 +900: test/domain/capability/fnv1a64_test.dart: fnv1a64Mod deterministic offset for fixed beacon id
+00:04 +901: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +902: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +903: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +904: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +905: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +906: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +907: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +908: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +909: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +910: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B1: zero-evidence candidate remains in exploration pool
+00:04 +911: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T2: seed decays faster than outcome
+00:04 +912: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B2: band size is bounded regardless of evidence volume
+00:04 +913: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T3: out-of-window evidence contributes nothing
+00:04 +914: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B3: only request needs appear in band labels
+00:04 +915: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: T — Time T4: fresh seed does not outrank stale in-window outcome
+00:04 +916: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +917: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +918: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +919: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +920: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +921: test/domain/capability/witness_window_policy_test.dart: computeFloor empty trusted vote list yields no floor
+00:04 +922: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +923: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +924: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +925: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +926: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +927: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +928: test/domain/capability/model_invariant_band_test.dart: B — Band behaviour B5: band ordering is deterministic across runs
+00:04 +929: test/domain/capability/witness_window_policy_test.dart: computeREgo outlier trio 0.5/0.02/0.015 yields r_ego = 0.02
+00:04 +930: test/domain/capability/model_invariant_time_mute_exclusion_test.dart: X — Exclusions X4: blocks remove witness contribution in both directions
+00:04 +931: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +932: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +933: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +934: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +935: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +936: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +937: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +938: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +939: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +940: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +941: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +942: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +943: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +944: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +945: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +946: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +947: test/domain/capability/model_invariant_subjectivity_channel_test.dart: S — Subjectivity S1: two egos with different admitted sets see different tag sets
+00:04 +948: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +949: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +950: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +951: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +952: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +953: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +954: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +955: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +956: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +957: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +958: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W1: one admitted witness beats any quantity from inadmissible
+00:04 +959: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W2: higher-m admitted witness contributes more at equal evidence
+00:04 +960: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W3: adding a witness never decreases standing (D23)
+00:04 +961: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W4: adding an observation never decreases standing
+00:04 +962: test/domain/capability/model_invariant_weighting_accumulation_test.dart: W — Witness weighting and monotonicity W5: revoking an observation never increases standing
+00:04 +963: test/domain/beacon_access_guard_test.dart: BeaconAccessGuard equivalence (COV-060) port predicates align with BeaconVisibility static methods
+00:04 +964: test/domain/beacon_access_guard_test.dart: BeaconAccessGuard equivalence (COV-060) port predicates align with BeaconVisibility static methods
+00:04 +965: test/domain/commitment/commitment_state_test.dart: everAcknowledged 1. empty list
+00:04 +966: test/domain/commitment/commitment_state_test.dart: everAcknowledged 1. empty list
+00:04 +967: test/domain/commitment/commitment_state_test.dart: everAcknowledged 1. empty list
+00:04 +968: test/domain/commitment/commitment_state_test.dart: everAcknowledged 1. empty list
+00:04 +969: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:04 +970: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A3: diminishing returns per witness
+00:04 +971: test/domain/beacon_access_guard_test.dart: BeaconAccessRepository (thin SQL delegate) canReadContent calls beacon_can_read_content with ids
+00:04 +972: test/domain/beacon_access_guard_test.dart: BeaconAccessRepository (thin SQL delegate) canReadContent calls beacon_can_read_content with ids
+00:04 +973: test/domain/beacon_access_guard_test.dart: BeaconAccessRepository (thin SQL delegate) canReadContent calls beacon_can_read_content with ids
+00:04 +974: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:04 +975: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:04 +976: test/domain/capability/model_invariant_weighting_accumulation_test.dart: A — Accumulation shape A4: two one-obs witnesses beat one one-obs witness
+00:04 +977: test/domain/commitment/commitment_state_test.dart: everAcknowledged 6. acknowledged then softened
+00:04 +978: test/domain/beacon_access_guard_test.dart: BeaconAccessRepository (thin SQL delegate) canReadTombstone calls beacon_can_read_tombstone with ids
+00:04 +979: test/domain/commitment/commitment_state_test.dart: everAcknowledged 7. acknowledged then removedFromChat keeps stake
+00:04 +980: test/domain/commitment/commitment_state_test.dart: everAcknowledged 8. acknowledged then releasedByAuthor
+00:04 +981: test/domain/commitment/commitment_state_test.dart: everAcknowledged 9. acknowledged then blockedCleanup
+00:04 +982: test/domain/commitment/commitment_state_test.dart: everAcknowledged 10. grace withdraw then re-ack then late withdraw
+00:04 +983: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +984: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +985: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +986: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +987: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +988: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +989: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt maps known response type values
+00:04 +990: test/domain/coordination/coordination_response_type_test.dart: CoordinationResponseType.tryFromInt returns null for unknown values
+00:04 +991: test/domain/coordination/resolve_forward_parent_edge_test.dart: resolveForwardParentEdgeId returns null when sender has no inbound edges
+00:04 +992: test/domain/coordination/resolve_forward_parent_edge_test.dart: resolveForwardParentEdgeId prefers direct author inbound edge
+00:04 +993: test/domain/coordination/resolve_forward_parent_edge_test.dart: resolveForwardParentEdgeId uses most recent inbound edge when no author hop
+00:04 +994: test/domain/coordination/resolve_forward_parent_edge_test.dart: resolveForwardParentEdgeId validates client parent edge belongs to sender
+00:04 +995: test/domain/coordination/resolve_forward_parent_edge_test.dart: resolveForwardParentEdgeId rejects invalid client parent edge
+00:04 +996: test/domain/coordination/help_type_test.dart: isAllowedHelpType accepts null and empty
+00:04 +997: test/domain/coordination/help_type_test.dart: isAllowedHelpType accepts allowed capability slugs
+00:04 +998: test/domain/coordination/help_type_test.dart: isAllowedHelpType rejects unknown slugs
+00:04 +999: test/domain/coordination/help_type_test.dart: isAllowedHelpType every allowed slug passes validation
+00:04 +1000: test/domain/coordination/withdraw_reason_test.dart: isAllowedWithdrawReason accepts known reason keys
+00:04 +1001: test/domain/coordination/withdraw_reason_test.dart: isAllowedWithdrawReason rejects null, empty, and unknown reasons
+00:04 +1002: test/domain/coordination/derive_beacon_display_status_test.dart: deriveBeaconDisplayStatus draft phase
+00:04 +1003: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1004: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1005: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1006: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1007: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1008: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns null for null, empty, and whitespace-only input
+00:04 +1009: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt collapses whitespace runs to single spaces
+00:04 +1010: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt returns body unchanged at exactly 160 runes
+00:04 +1011: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt truncates at 161 runes with ellipsis
+00:04 +1012: test/domain/util/room_reply_excerpt_test.dart: roomReplyExcerpt does not split a surrogate pair at the boundary
+00:04 +1013: test/domain/util/room_attachment_storage_key_test.dart: roomAttachmentStorageKey is content-addressed under room_attachments
+00:04 +1014: test/domain/util/debug_send_rate_limiter_test.dart: first acquire allowed, second within window denied
+00:04 +1015: test/domain/util/attachment_filename_test.dart: attachmentDisplayName preserves Cyrillic and extension
+00:04 +1016: test/domain/util/attachment_filename_test.dart: attachmentDisplayName preserves Cyrillic and extension
+00:04 +1017: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1018: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1019: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1020: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1021: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1022: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1023: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1024: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1025: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1026: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1027: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1028: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1029: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1030: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1031: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1032: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1033: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1034: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1035: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1036: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1037: test/domain/util/debug_send_rate_limiter_test.dart: allowed again after cooldown
+00:04 +1038: test/domain/trust/forward_outcome_finalizer_test.dart: noBasis-only evaluations yield empty forward result
+00:04 +1039: test/domain/trust/forward_request_consolidator_test.dart: accumulates per-cell support without collapsing bins
+00:04 +1040: test/domain/trust/forward_request_consolidator_test.dart: accumulates per-cell support without collapsing bins
+00:04 +1041: test/domain/trust/forward_request_consolidator_test.dart: accumulates per-cell support without collapsing bins
+00:04 +1042: test/domain/trust/forward_outcome_finalizer_test.dart: observed pairs are excluded from unsuccessful set
+00:04 +1043: test/domain/trust/forward_outcome_finalizer_test.dart: observed pairs are excluded from unsuccessful set
+00:04 +1044: test/domain/trust/forward_request_consolidator_test.dart: normalizePerSender budgets sum to 1 per sender
+00:04 +1045: test/domain/trust/forward_outcome_finalizer_test.dart: per-sender budget sums to 1
+00:04 +1046: test/domain/trust/forward_request_consolidator_test.dart: Z = 0 yields empty deltas
+00:04 +1047: test/domain/trust/forward_outcome_finalizer_test.dart: §3 mapping table values 1-5
+00:04 +1048: test/domain/trust/forward_mass_propagator_test.dart: terminal seeding splits unit mass equally across distinct senders
+00:04 +1049: test/domain/trust/forward_mass_propagator_test.dart: explicit attribution overrides equal fallback
+00:04 +1050: test/domain/trust/forward_mass_propagator_test.dart: masses stay within [0, 1]
+00:04 +1051: test/domain/trust/forward_causal_graph_builder_test.dart: linear chain reaches committer
+00:04 +1052: test/domain/trust/forward_causal_graph_builder_test.dart: diamond merge keeps both paths to committer
+00:04 +1053: test/domain/trust/forward_causal_graph_builder_test.dart: shared stem with split then merge
+00:04 +1054: test/domain/trust/forward_causal_graph_builder_test.dart: rootless non-author edge is rejected and counted in BuildStats
+00:04 +1055: test/domain/trust/forward_causal_graph_builder_test.dart: late edge at or after commitment is ignored
+00:04 +1056: test/domain/trust/forward_causal_graph_builder_test.dart: cancelled before commitment is ignored
+00:04 +1057: test/domain/trust/forward_causal_graph_builder_test.dart: parent recipient mismatch rejects child edge
+00:04 +1058: test/domain/trust/forward_causal_graph_builder_test.dart: temporal order violation rejects child edge
+00:04 +1059: test/domain/trust/forward_causal_graph_builder_test.dart: synthetic cycle throws ForwardGraphIntegrityException
+00:04 +1060: test/domain/trust/forward_outcome_policy_test.dart: mapAuthorEvaluationToForwardOutcome noBasis returns null
+00:04 +1061: test/domain/trust/forward_outcome_policy_test.dart: mapAuthorEvaluationToForwardOutcome negative evaluations map to negativeRoute no_effect
+00:04 +1062: test/domain/trust/forward_outcome_policy_test.dart: mapAuthorEvaluationToForwardOutcome non-negative bins preserve evaluated provenance
+00:04 +1063: test/domain/trust/forward_local_normalizer_test.dart: per-sender shares sum to 1
+00:04 +1064: test/domain/trust/forward_local_normalizer_test.dart: zero-sum sender is omitted
+00:04 +1065: test/domain/trust/trust_math_test.dart: mappers vote amount maps to mild bins
+00:04 +1066: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent author reads own draft/open/reviewOpen/closed/cancelled
+00:04 +1067: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent author reads own draft/open/reviewOpen/closed/cancelled
+00:04 +1068: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent author cannot read deleted content via content predicate
+00:04 +1069: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent non-author cannot read draft or deleted
+00:04 +1070: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent active forward recipient reads open/closed/cancelled
+00:04 +1071: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent sender-only forward edge does not grant content
+00:04 +1072: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent vote-mutual friendship alone does not grant content
+00:04 +1073: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent active help-offerer reads content
+00:04 +1074: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent withdrawn help offer alone does not grant content
+00:04 +1075: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent room-admitted participant or steward reads content
+00:04 +1076: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadContent requested/invited room access alone does not grant content
+00:04 +1077: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadInvolvement forward recipient sees involvement
+00:04 +1078: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadInvolvement deleted beacon returns no involvement graph
+00:04 +1079: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadInvolvement content-invisible viewer never sees involvement
+00:04 +1080: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadTombstone non-deleted beacon never tombstones
+00:04 +1081: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadTombstone deleted beacon tombstone for author and durable rows
+00:04 +1082: test/domain/beacon_visibility_test.dart: BeaconVisibility.canReadTombstone deleted beacon with no durable row returns false
+00:04 +1083: test/domain/beacon_visibility_test.dart: BeaconVisibility.canPreviewInvite valid beacon invite preview
+00:04 +1084: test/domain/beacon_visibility_test.dart: BeaconVisibility.canPreviewInvite consumed/expired/missing beacon invite denied
+00:04 +1085: test/domain/beacon_visibility_test.dart: BeaconVisibility.canPreviewInvite draft/deleted/closed beacon invite denied
+00:04 +1086: test/domain/beacon_visibility_test.dart: BeaconVisibility.canPreviewInvite issuer without read/forward rights denied
+00:05 +1087: test/domain/attention/legacy_canonical_compat_fixture_test.dart: resolver preserves legacy fallback fields and emits null new identity
+00:05 +1088: test/domain/attention/legacy_canonical_compat_fixture_test.dart: resolver exposes canonical identity alongside the same fallback fields
+00:05 +1089: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection relayReceived
+00:05 +1090: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection helpOfferSubmitted
+00:05 +1091: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection offerAccepted
+00:05 +1092: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection offerDeclined
+00:05 +1093: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection offerRemoved
+00:05 +1094: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection commitmentReleased
+00:05 +1095: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection roomMessagePosted
+00:05 +1096: test/domain/attention/attention_intent_case_test.dart: migrated producer intent projection requestStatusChanged
+00:05 +1097: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1098: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1099: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1100: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1101: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1102: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1103: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1104: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1105: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1106: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1107: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1108: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1109: test/domain/attention/attention_policy_test.dart: compact contract projection policy relayReceived has a recipient-specific projection
+00:05 +1110: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1111: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1112: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1113: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1114: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1115: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1116: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1117: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1118: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1119: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1120: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1121: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1122: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1123: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1124: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1125: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1126: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1127: test/domain/unsubscribe/unsubscribe_token_test.dart: round-trips a signed token
+00:05 +1128: test/domain/attention/attention_policy_test.dart: watcher-only request progress is noisy and mutable
+00:05 +1129: test/domain/attention/attention_intent_case_test.dart: actor-null status transition keeps a null receipt actor
+00:05 +1130: test/domain/unsubscribe/unsubscribe_token_test.dart: rejects a tampered signature
+00:05 +1131: test/domain/attention/attention_policy_test.dart: terminal offer response survives access loss with sanitized policy
+00:05 +1132: test/domain/attention/attention_intent_case_test.dart: E8 attention recipient block filtering fromBeaconNotification hub excludes candidate when actor blocked them
+00:05 +1133: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1134: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1135: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1136: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1137: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1138: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1139: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1140: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1141: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1142: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1143: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1144: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1145: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1146: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1147: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1148: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1149: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1150: test/data/database/m0100_dedup_test.dart: m0100 dedup SQL cancels duplicates and adds partial unique index
+00:05 +1151: test/data/database/m0100_dedup_test.dart: m0100 provenance excludes cancelled forward edges
+00:05 +1152: test/data/database/m0103_provenance_test.dart: m0103 provenance excludes self and null-context invite edges
+00:05 +1153: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.roomBodyForCreatedItem uses title only when body empty
+00:05 +1154: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.roomBodyForCreatedItem joins title and body when both present
+00:05 +1155: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.roomBodyForCreatedItem uses body only when title empty
+00:05 +1156: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.mergeSystemPayload preserves existing keys when patching lastStatusEvent
+00:05 +1157: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.mergeSystemPayload deep-merges nested lastStatusEvent without dropping sibling maps
+00:05 +1158: test/data/repository/coordination_item_system_payload_test.dart: CoordinationItemRepository.mergeSystemPayload notify row payload shape for anchored status event
+00:05 +1159: test/data/repository/fcm_remote_repository_prune_test.dart: sendChatNotification prunes token on FcmTokenNotFoundException
+00:05 +1160: test/data/repository/attention_dispatch_telemetry_test.dart: receipt_created telemetry uses marker and omits recipient ids
+00:05 +1161: test/data/repository/fcm_remote_repository_send_batch_test.dart: FcmMessageRejectedException for one token does not abort the rest of the batch
+00:05 +1162: test/data/repository/fcm_remote_repository_send_batch_test.dart: FcmMessageRejectedException for one token does not abort the rest of the batch
+00:05 +1163: test/data/repository/fcm_remote_repository_send_batch_test.dart: an unexpected exception for one token does not abort the batch
+00:05 +1164: test/data/repository/fcm_remote_repository_send_batch_test.dart: FcmUnauthorizedException aborts the rest of the batch
+00:05 +1165: test/data/service/file_sink_email_sender_test.dart: writes verify URL as JSON named by sanitized address
+00:05 +1166: test/data/service/file_sink_email_sender_test.dart: overwrites with the latest link for the same address
+00:05 +1167: test/data/service/file_sink_email_sender_test.dart: creates the sink directory when missing
+00:05 +1168: test/data/service/file_sink_email_sender_test.dart: debug sink alone makes email auth configured
+00:05 +1169: test/data/service/file_sink_email_sender_test.dart: QA auth enabled alone makes email auth configured
+00:05 +1170: test/data/service/file_sink_email_sender_test.dart: sanitizeEmailForFileName strips path-hostile characters
+00:05 +1171: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1172: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1173: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1174: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1175: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1176: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1177: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1178: test/data/service/oidc/google_oidc_service_test.dart: GoogleOidcService.buildGoogleAuthorizeUri includes prompt=select_account for account chooser
+00:05 +1179: test/data/service/pg_notification_service_test.dart: PgNotificationService forwards LISTEN payloads and emits no recovery at startup
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:05 +1180: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1180: test/data/service/pg_notification_service_test.dart: PgNotificationService emits one recovery after error and onDone from the same gap
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:05 +1181: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1181: test/data/service/pg_notification_service_test.dart: PgNotificationService notify delegates only to the active replacement connection
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:05 +1182: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1183: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1184: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1185: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1186: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1187: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1188: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1189: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1190: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1191: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1192: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1193: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1194: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1195: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1196: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1197: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1198: test/data/repository/vote_user_friendship_lookup_test.dart: directionalPositiveTrustPeerIds returns independent viewer/outgoing sets
+00:05 +1199: test/data/repository/vote_user_friendship_lookup_test.dart: reciprocalPositivePeerIds is intersection of directional sets
+00:05 +1200: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1201: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1202: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1203: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1204: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1205: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1206: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1207: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1208: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1209: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1210: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1211: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1212: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1213: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1214: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1215: test/data/repository/vote_user_friendship_lookup_test.dart: isSubscribedTo and isReciprocalSubscribe derive from directional lookup
+00:05 +1216: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1217: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1218: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1219: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1220: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1221: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1222: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1223: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1224: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1225: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1226: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1227: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1228: test/app/sentry_request_context_test.dart: SentryRequestContext capture scopes user id to the request hub only
+00:05 +1229: test/app/sentry_trace_continuation_test.dart: applyIncomingTraceToHub continues inbound trace id and parent span on request hub
+00:05 +1230: test/app/sentry_trace_continuation_test.dart: applyIncomingTraceToHub continues inbound trace id and parent span on request hub
+00:05 +1231: test/app/sentry_trace_continuation_test.dart: applyIncomingTraceToHub continues inbound trace id and parent span on request hub
+00:05 +1232: test/architecture/realtime_entity_contract_test.dart: realtime manifest maps every kind to a live server publisher
+00:05 +1233: test/architecture/realtime_entity_contract_test.dart: realtime manifest maps every kind to a live server publisher
+00:05 +1234: test/architecture/realtime_entity_contract_test.dart: realtime manifest maps every kind to a live server publisher
+00:06 +1235: test/api/graphql_review_extension_type_test.dart: review extension has its own response contract
+00:06 +1236: test/api/http/auth_invite_required_page_test.dart: publicLandingUrl ensures trailing slash
+00:06 +1237: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1238: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1239: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1240: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1241: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1242: test/api/http/cookies_test.dart: parseCookies reads multiple cookies
+00:06 +1243: test/api/http/oauth_warmup_interstitial_test.dart: renderOAuthWarmupInterstitial embeds redirect and asset URLs
+00:06 +1244: test/api/http/oauth_warmup_interstitial_test.dart: renderOAuthWarmupInterstitial embeds redirect and asset URLs
+00:06 +1245: test/api/http/cookies_test.dart: buildSetCookie enforces __Host- rules
+00:06 +1246: test/api/http/cookies_test.dart: withSetCookie appends multiple Set-Cookie headers
+00:06 +1247: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1248: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1249: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1250: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1251: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1252: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1253: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1254: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1255: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1256: test/api/http/oauth_state_codec_test.dart: round-trip encodes authAttemptId
+00:06 +1257: test/api/controllers/session_controller_test.dart: fromBearer ignores invalid attempt header for auth
+00:06 +1258: test/api/controllers/session_controller_test.dart: fromBearer ignores invalid attempt header for auth
+00:06 +1259: test/api/controllers/session_controller_test.dart: fromBearer ignores invalid attempt header for auth
+00:06 +1260: test/api/controllers/session_controller_test.dart: fromBearer ignores invalid attempt header for auth
+00:06 +1261: test/api/controllers/graphql/attention_graphql_test.dart: attentionFeed scopes the query and returns an opaque cursor
+00:06 +1262: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1263: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1264: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1265: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1266: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1267: test/api/controllers/session_controller_test.dart: fromBearer accepts valid attempt header metadata
+00:06 +1268: test/api/controllers/graphql/attention_graphql_test.dart: attentionSettle scopes a user-resolvable live obligation
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1269: test/api/controllers/graphql/attention_graphql_test.dart: attentionSettle rejects non-user settlement kinds
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1270: test/api/controllers/graphql/attention_graphql_test.dart: attention operations require authentication
+00:06 +1271: test/api/controllers/graphql/mappers/help_offer_with_coordination_gql_map_test.dart: helpOfferWithCoordinationToGqlMap includes stakeState and offerKind
+00:06 +1272: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: numeric error codes (§3.5) the five new beacon codes are exact and additive (1304-1308)
+00:06 +1273: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: numeric error codes (§3.5) the five new beacon codes are exact and additive (1304-1308)
+00:06 +1274: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: numeric error codes (§3.5) the five new beacon codes are exact and additive (1304-1308)
+00:06 +1275: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: numeric error codes (§3.5) the five new beacon codes are exact and additive (1304-1308)
+00:06 +1276: test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart: userPublicToGqlMap maps trusts_viewer from subjectExplicitlyTrustsViewer
+00:06 +1277: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: new payload types (§2.3, §3.6) BeaconImageAdded and BeaconImageStaged are registered
+00:06 +1278: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: new payload types (§2.3, §3.6) BeaconImageAdded and BeaconImageStaged are registered
+00:06 +1279: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: new payload types (§2.3, §3.6) BeaconImageAdded and BeaconImageStaged are registered
+00:06 +1280: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: new payload types (§2.3, §3.6) Beacon exposes the additive cover/primary fields
+00:06 +1281: test/api/controllers/graphql/mutation_beacon_media_graphql_test.dart: new payload types (§2.3, §3.6) mutation.all exposes the new stage/media fields alongside legacy ones
+00:06 +1282: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1283: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1284: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1285: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1286: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1287: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1288: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1289: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1290: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1291: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only created_at
+00:06 +1292: test/api/controllers/graphql/input/input_field_datetime_test.dart: InputFieldDatetime offset-less input is treated as UTC digits, not server-local
+00:06 +1293: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only node key
+00:06 +1294: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects a cursor with only node key
+00:06 +1295: test/api/controllers/graphql/input/input_field_datetime_test.dart: InputFieldDatetime fromArgsNonNullable also forces UTC
+00:06 +1296: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildren rejects malformed or empty cursor values
+00:06 +1297: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildCounts validates every node key
+00:06 +1298: test/api/controllers/graphql/query_invite_genealogy_test.dart: inviteGenealogyChildCounts returns rows for requested node keys
+00:06 +1299: test/api/controllers/graphql/query_attention_payload_test.dart: maps payload with every allowed key including beaconTitle
+00:06 +1300: test/api/controllers/graphql/user_block_graphql_test.dart: schema registration mutations and queries expose user-block operations
+00:06 +1301: test/api/controllers/graphql/user_block_graphql_test.dart: schema registration mutations and queries expose user-block operations
+00:06 +1302: test/api/controllers/graphql/user_block_graphql_test.dart: schema registration mutations and queries expose user-block operations
+00:06 +1303: test/api/controllers/graphql/user_block_graphql_test.dart: schema registration mutations and queries expose user-block operations
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1304: test/api/controllers/graphql/user_block_graphql_test.dart: mutations scope actor from JWT only userBlock uses jwt.sub as blocker and defaults cascadeMode to 0
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1305: test/api/controllers/graphql/user_block_graphql_test.dart: mutations scope actor from JWT only userBlock forwards cascadeMode when provided
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1306: test/api/controllers/graphql/user_block_graphql_test.dart: mutations scope actor from JWT only userUnblock uses jwt.sub as blocker
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1307: test/api/controllers/graphql/user_block_graphql_test.dart: mutations scope actor from JWT only userBlockPromote uses jwt.sub as blocker
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1308: test/api/controllers/graphql/user_block_graphql_test.dart: mutations scope actor from JWT only mutations require authentication
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1309: test/api/controllers/graphql/user_block_graphql_test.dart: queries scope viewer from JWT only myBlocks enriches intents with blocked profiles
+00:06 +1310: test/api/controllers/qa_email_sink_controller_test.dart: is disabled when QA auth is not explicitly enabled
+00:06 +1311: test/api/controllers/qa_email_sink_controller_test.dart: is disabled when QA auth is not explicitly enabled
+00:06 +1312: test/api/controllers/qa_email_sink_controller_test.dart: is disabled when QA auth is not explicitly enabled
+00:06 +1313: test/api/controllers/qa_email_sink_controller_test.dart: is disabled when QA auth is not explicitly enabled
+00:06 +1314: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1315: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1316: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1317: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1318: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1319: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1320: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1321: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1322: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1323: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1324: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1325: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1326: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1327: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1328: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1329: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1330: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1331: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1332: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol compatibility mode filters actor but preserves metadata
+00:06 +1333: test/api/controllers/firebase_sw_controller_test.dart: generated service worker always displays its own notification
+00:06 +1333: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol enabled actor echo reaches actor and other affected sessions
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1334: test/api/controllers/firebase_sw_controller_test.dart: generated service worker always displays its own notification
+00:06 +1334: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol malformed payload is not delivered
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1335: test/api/controllers/firebase_sw_controller_test.dart: generated service worker always displays its own notification
+00:06 +1335: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol pong is unconditional for an authenticated session
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1336: test/api/controllers/firebase_sw_controller_test.dart: generated service worker always displays its own notification
+00:06 +1336: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol PG recovery broadcasts one catch-up to authenticated sessions
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1337: test/api/controllers/auth_email_controller_test.dart: GET verify renders confirm without consuming token
+00:06 +1338: test/api/controllers/auth_email_controller_test.dart: GET verify renders confirm without consuming token
+00:06 +1339: test/api/controllers/auth_email_controller_test.dart: GET verify renders confirm without consuming token
+00:06 +1339: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol independent worker listeners both fan out and recover isolate-locally
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1340: test/api/controllers/auth_email_controller_test.dart: GET verify renders confirm without consuming token
+00:06 +1340: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol eligible room_message insert includes paint snapshot
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1341: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol eligible room_message insert includes paint snapshot
+00:06 +1342: test/api/controllers/auth_email_controller_test.dart: POST verify sets session cookie and redirects
+00:06 +1342: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol empty sessions skip snapshot lookup
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1343: test/api/controllers/auth_email_controller_test.dart: POST verify sets session cookie and redirects
+00:06 +1343: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol lookup null still delivers thin frame with message_id
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1344: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1345: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1345: test/api/controllers/websocket/websocket_realtime_protocol_test.dart: realtime websocket protocol update forwards message_id without paint lookup
+Debug Mode: [true]
+Need Invitation: [false]
+Invitation TTL: [168]
+00:06 +1346: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1347: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1348: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1349: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1350: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1351: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1352: test/api/controllers/account_profile_controller_test.dart: GET returns id and displayName for resolved account
+00:06 +1353: test/api/controllers/session_logout_test.dart: logout with garbage cookie clears cookie and revokes hash
+00:06 +1354: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1355: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1356: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1357: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1358: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1359: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1360: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1361: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1362: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1363: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1364: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1365: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1366: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1367: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1368: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1369: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1370: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1371: test/api/controllers/auth_google_controller_link_test.dart: linkIntent returns a signed link/start URL
+00:06 +1372: test/api/controllers/qa_send_fcm_controller_test.dart: accepts bearer token auth
+00:06 +1373: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1374: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1375: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1376: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1377: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1378: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1379: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1380: test/api/controllers/auth_google_controller_link_test.dart: link callback strict-links without minting a session cookie
+00:06 +1381: test/api/controllers/qa_send_fcm_controller_test.dart: reports rejected-message errors and counts them as not sent
+00:06 +1382: test/api/controllers/auth_google_controller_link_test.dart: login callback shows invite-required page for new user without invite
+00:06 +1383: test/api/controllers/auth_google_controller_link_test.dart: login callback shows invite-required page for new user without invite
+00:06 +1384: test/api/controllers/auth_google_controller_link_test.dart: linkStart rejects when session account mismatches lt
+00:06 +1385: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1386: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1387: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1388: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1389: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1390: test/api/graphql_upload_type_test.dart: server registers Upload unprefixed; Hasura stitches it to v2_Upload
+00:06 +1391: test/env_test.dart: isFcmConfigured false when all three server creds are empty
+00:06 +1392: test/env_test.dart: isFcmConfigured false when all three server creds are empty
+00:06 +1393: test/env_test.dart: isFcmConfigured false when all three server creds are empty
+00:07 +1394: test/env_test.dart: isFcmConfigured true when all three server creds are set
+00:07 +1395: test/env_test.dart: isFcmConfigured false when only project id is set
+00:07 +1396: test/env_test.dart: isFcmConfigured false when project id is whitespace only
+00:07 +1397: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit rejects streams over limit
+00:07 +1398: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit rejects streams over limit
+00:07 +1399: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit rejects streams over limit
+00:07 +1400: test/utils/jwt_test.dart: Read keys from PEM Read PEM
+00:07 +1401: test/utils/room_mention_utils_test.dart: extractMentionHandleTokens extracts valid handles and lowercases them
+00:07 +1402: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit returns concatenated bytes
+00:07 +1403: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit returns concatenated bytes
+00:07 +1404: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit returns concatenated bytes
+00:07 +1405: test/utils/read_uint8_stream_with_limit_test.dart: readUint8StreamWithLimit returns concatenated bytes
+00:07 +1406: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1407: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1408: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1409: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1410: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1411: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1412: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1413: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1414: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1415: test/utils/jwt_test.dart: Test of JWT utils issue / verify AuthRequest
+00:07 +1416: test/utils/jwt_test.dart: Test of JWT utils verifyAuthRequest rejects non-EdDSA tokens
+00:07 +1417: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0 (baseline: 0)
+```
+
+FILES:
+
+- `packages/server/test/domain/capability/model_invariant_subjectivity_channel_test.dart`
+- `packages/server/test/domain/capability/model_invariant_weighting_accumulation_test.dart`
+- `packages/server/test/domain/capability/model_invariant_time_mute_exclusion_test.dart`
+- `packages/server/test/domain/capability/model_invariant_band_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS (per failing test — root cause and fix):
+
+- **S1:** `count:1` bob→carol transport gave S_out=0.333 (11% above θ_out); perturbed S_out=0.3125 < 0.33 → no `networkOutcome`. **Fix:** `count: 2` on transport outcome (S_out≈0.476 perturbed).
+- **S3:** Same razor-margin baseline for bob transport. **Fix:** `count: 2`.
+- **S4:** `count:1` dave→carol pets failed perturbed gate for alice's admitted witness. **Fix:** `count: 2` on pets outcome.
+- **C1:** `count:1` bob outcomes on transport/tools failed `networkOutcome` tier under perturbation (cross-tag case showed seed winning). **Fix:** `count: 2` on transport and tools outcomes.
+- **C2:** `count:1` bob→tools networkOutcome below perturbed θ_out broke tier ordering chain. **Fix:** `count: 2` on tools outcome.
+- **C4:** `daysAgo:10, count:1` transport → e_out≈0.326 perturbed < 0.33. **Fix:** `count: 2`.
+- **C7:** `count:1` bob transport baseline. **Fix:** `count: 2`.
+- **W1:** `count:1` admitted bob transport. **Fix:** `count: 2`.
+- **W2:** `count:1` at m=0.3/0.9 — highM marginal, lowM absent; comparison still meaningful but highM needed margin. **Fix:** `count: 2` on both fixtures.
+- **T1:** `daysAgo:10, count:1` recent outcome below perturbed gate (stale at 200d correctly absent). **Fix:** `count: 2` on recent fixture only.
+- **T2:** `daysAgo:40/70, count:1` outcomes below perturbed gate in both midAge and later scenarios. **Fix:** `count: 2` on both outcome fixtures.
+- **T4:** `daysAgo:80, count:1` stale in-window outcome below perturbed gate. **Fix:** `count: 2`.
+- **M3:** three `count:1` positive-control outcomes (carol transport, alex transport, carol pets). **Fix:** `count: 2` on each.
+- **M4:** `count:1` bob→pets network tier for alice/eve checks. **Fix:** `count: 2`.
+- **X3:** `count:1` bob→pets for alice visibility of network tier. **Fix:** `count: 2`.
+- **X4:** `count:1` dave→pets and bob→tools positive controls. **Fix:** `count: 2` on each.
+- **B1:** downstream cascade — carol lacked `networkOutcome` so band evidence/exploration split wrong (`empty_peer` exploration assertion failed). **Fix:** carol transport `count: 2` (same root cause as S/C).
+- **B3:** cascade — carol absent from band (`firstWhere` Bad state). **Fix:** carol transport `count: 2`.
+- **B4:** cascade — zero exploration rows because evidence pool composition broke. **Fix:** carol transport `count: 2`.
+- **B5:** cascade — alex `count:1` transport below gate dropped an evidence-ranked row (ranks `[0..3]` vs `[0..4]`). **Fix:** alex transport `count: 2`.
+- **A3** (21st failure, manager-fixed diminishing-returns logic retained): `n=1, m=1.0` → S_out=0.3125 < θ_out=0.33 under perturbation; tier guard failed. **Fix:** `witnessWeight m: 1.2` (S_out=0.375 perturbed) without changing `count:n` accumulation semantics.
+
+REMAINING: none — perturbation check now passes independently; prior D4 complete entry's perturbation TESTS claim remains historically false.
