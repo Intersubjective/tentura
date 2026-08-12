@@ -28,6 +28,9 @@ import 'table/account_sessions.dart';
 import 'table/email_auth_transactions.dart';
 import 'table/beacon_help_offers.dart';
 import 'table/beacon_help_offer_admission_events.dart';
+import 'table/capability_evidence_edges.dart';
+import 'table/capability_evidence_generations.dart';
+import 'table/capability_routing_mutes.dart';
 import 'table/beacon_commitment_events.dart';
 import 'table/beacon_help_offer_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
@@ -45,6 +48,7 @@ import 'table/beacon_participants.dart';
 import 'table/beacon_room_message_attachments.dart';
 import 'table/beacon_room_message_reactions.dart';
 import 'table/coordination_items.dart';
+import 'table/ego_witness_windows.dart';
 import 'table/beacon_room_messages.dart';
 import 'table/beacon_items_seen.dart';
 import 'table/beacon_room_seen.dart';
@@ -68,6 +72,7 @@ import 'table/user_presence.dart';
 import 'table/users.dart';
 import 'table/forward_decision_attributions.dart';
 import 'table/meritrank_edge_tombstones.dart';
+import 'table/mr_publish_epochs.dart';
 import 'table/trust_evidence_events.dart';
 import 'table/user_trust_source_edges.dart';
 import 'table/user_trust_edges.dart';
@@ -88,6 +93,9 @@ part 'tentura_db.g.dart';
     BeaconHelpOffers,
     BeaconHelpOfferAdmissionEvents,
     BeaconCommitmentEvents,
+    CapabilityEvidenceEdges,
+    CapabilityEvidenceGenerations,
+    CapabilityRoutingMutes,
     BeaconHelpOfferCoordinations,
     BeaconEvaluationParticipants,
     BeaconEvaluationVisibility,
@@ -104,6 +112,7 @@ part 'tentura_db.g.dart';
     BeaconRoomMessageAttachments,
     BeaconRoomMessageReactions,
     CoordinationItems,
+    EgoWitnessWindows,
     BeaconRoomMessages,
     BeaconRoomSeen,
     BeaconItemsSeen,
@@ -118,6 +127,7 @@ part 'tentura_db.g.dart';
     InviteGenealogy,
     Invitations,
     MeritrankEdgeTombstones,
+    MrPublishEpochs,
     PersonCapabilityEvents,
     Pollings,
     PollingActs,
