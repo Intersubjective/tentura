@@ -72,7 +72,7 @@ any order after F1b. One worker at a time.
 - [x] **B2a** — Cell write adapter (depends: B1) — accepted after pair-lock remediation (`c3e81896`)
 - [x] **B2b** — Witness window adapter (depends: B1) — accepted after fixture-isolation remediation + flakiness repair (`81249774`, `88a09c21`)
 - [x] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
-- [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
+- [x] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [ ] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
 - [ ] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
 - [ ] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
@@ -1064,3 +1064,56 @@ not a re-run of the worker's own claims:
 
 **B2c is accepted.** C4 and C5 are now dependency-ready (both depended on
 B2c). B3, C1a, C3a, D0, D3 remain independently ready from earlier acceptances.
+
+## B3 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- feat(server): bump mr_publish_epoch at MeritRank publish sites (B3) (`7f24b107`)
+- feat(server): wire witness window invalidation and full-reset epoch bumps (B3) (`519eaf19`)
+- test(server): add MR publish epoch ownership PG proofs (B3) (`edb525ce`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart test -t pg test/data/database/m0144_mr_publish_epoch_pg_test.dart
+→ 00:04 +6: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1351: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+
+git diff --check -- <owned B3 paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0144.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart` (part + ordered registration)
+- `packages/server/lib/domain/use_case/user_block_case.dart`
+- `packages/server/lib/domain/use_case/user_trust_edge_case.dart`
+- `packages/server/lib/domain/use_case/meritrank_case.dart`
+- `packages/server/lib/domain/use_case/trust_maintenance_case.dart`
+- `packages/server/lib/data/repository/user_block_repository.dart`
+- `packages/server/lib/data/repository/user_trust_edge_repository.dart`
+- `packages/server/test/data/database/m0144_mr_publish_epoch_pg_test.dart` (created)
+
+FINDINGS:
+
+- **Section A trigger reality:** m0061/m0062/m0088 deliberately dropped all six `notify_meritrank_*` table triggers (and several functions) from live schema; m0144 `CREATE OR REPLACE`s the function bodies for future-proofing but does **not** re-attach triggers. User votes publish only via `trust_rebuild_effective_edge` since m0088. PG proof wires an ephemeral `vote_user` trigger in the disposable test DB to exercise the updated function body.
+- **Epoch bump placement:** `mr_bump_publish_epoch()` helper; one bump per trigger branch after all put/delete calls; inside `trust_rebuild_effective_edge`'s exception-guarded block immediately after successful `mr_put_edge`.
+- **Dart invalidation:** `WitnessWindowPort` optional injection on `UserBlockCase`, `UserTrustEdgeCase`, `UserBlockRepository` (cascade/release paths via `applyWithdrawal`/`runReleaseSweep`), `MeritrankCase`, `TrustMaintenanceCase`, `UserTrustEdgeRepository.cutoverBackfillIfNeeded`. `invalidateFor` runs outside the attention UoW transaction — acceptable: worst case is one extra cache miss.
+- **Exception-path proof:** disposable DB drops `pgmer2`, installs a plpgsql `mr_put_edge` stub that always raises, confirms epoch unchanged, then restores extension + `migrateDbSchema`.
+
+REMAINING: none (manager acceptance pending)
