@@ -9,10 +9,13 @@ import 'package:tentura_server/domain/capability/capability_evidence_models.dart
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
+import 'package:tentura_server/domain/use_case/capability_routing_case.dart';
 import 'package:tentura_server/domain/use_case/forward_band_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../domain/use_case/capability_projection_case_mocks.mocks.dart';
+import '../../../domain/use_case/capability_routing_case_mocks.mocks.dart'
+    hide MockRoutingMutePort;
 import '../../../domain/use_case/forward_band_case_mocks.mocks.dart';
 
 void main() {
@@ -26,8 +29,10 @@ void main() {
   late MockBandCandidatePort bandCandidatePort;
   late MockBeaconRepositoryPort beaconRepositoryPort;
   late MockBeaconAccessGuard guard;
+  late MockCapabilityEvidencePort capabilityEvidence;
   late CapabilityProjectionCase projectionCase;
   late ForwardBandCase forwardBandCase;
+  late CapabilityRoutingCase routingCase;
   late QueryCapabilityProjection query;
 
   const actor = 'alice';
@@ -57,6 +62,7 @@ void main() {
     bandCandidatePort = MockBandCandidatePort();
     beaconRepositoryPort = MockBeaconRepositoryPort();
     guard = MockBeaconAccessGuard();
+    capabilityEvidence = MockCapabilityEvidencePort();
     projectionCase = buildProjectionCase();
     forwardBandCase = ForwardBandCase(
       bandCandidatePort,
@@ -66,9 +72,16 @@ void main() {
       env: Env(environment: Environment.test),
       logger: Logger('QueryCapabilityProjectionBandTest'),
     );
+    routingCase = CapabilityRoutingCase(
+      capabilityEvidence,
+      routingMute,
+      env: Env(environment: Environment.test),
+      logger: Logger('QueryCapabilityProjectionRoutingTest'),
+    );
     query = QueryCapabilityProjection(
       capabilityProjectionCase: projectionCase,
       forwardBandCase: forwardBandCase,
+      capabilityRoutingCase: routingCase,
     );
 
     when(
