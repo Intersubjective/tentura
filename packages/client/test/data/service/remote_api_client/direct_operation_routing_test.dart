@@ -14,5 +14,23 @@ void main() {
       expect(isTenturaDirectOperation('BeaconSetCover'), isFalse);
       expect(isTenturaDirectOperation('beaconSetCover'), isFalse);
     });
+
+    test('subjective-help tag evidence operations route to Tentura V2', () {
+      const operationNames = [
+        'SubjectiveTags',
+        'ForwardContext',
+        'MyRoutingTags',
+        'TagExplanation',
+        'SeedRoutingAttestation',
+        'RevokeAcknowledgement',
+        'SetRoutingMute',
+        'InviteSeedPromptState',
+        'InviteSeedPromptAnswer',
+        'InviteSeedPromptSkip',
+      ];
+      for (final name in operationNames) {
+        expect(isTenturaDirectOperation(name), isTrue, reason: name);
+      }
+    });
   });
 }
