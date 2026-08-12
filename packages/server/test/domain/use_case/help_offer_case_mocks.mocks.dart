@@ -1126,6 +1126,21 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  _i3.Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String? senderId,
+    required int? withinDays,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #fetchRecipientIdsForwardedBySenderWithinDays,
+              [],
+              {#senderId: senderId, #withinDays: withinDays},
+            ),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
 }
 
 /// A class which mocks [InboxRepositoryPort].
