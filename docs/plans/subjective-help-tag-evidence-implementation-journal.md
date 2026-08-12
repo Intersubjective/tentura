@@ -1803,3 +1803,60 @@ FINDINGS:
 
 REMAINING: none (manager acceptance pending)
 
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Independent review of both feature commits, not a re-run of the worker's
+claims.
+
+- **The fix itself (`778c0b80`) is minimal and precise** — exactly the three
+  lines this needed: `editReasons` changed from `@Default(<String>[])
+  List<String>` to a bare `List<String>?` in `ForwardState`,
+  `startEditForward` now sets it to `null` instead of `const []`, and
+  `saveForwardEdit` passes `state.editReasons` straight through with the
+  `.isEmpty ? null : ...` collapsing removed entirely. No unrelated changes.
+- **My own claim in the dispatch prompt that this unit "does not need
+  Postgres or the sqlite3-hook workaround" was wrong**, and the worker
+  correctly ignored it rather than following bad guidance: the sqlite3
+  code-assets download failure is a workspace-root `pubspec.yaml` issue
+  (confirmed myself — a plain `flutter test` from `packages/client` hits the
+  identical `HttpException` the server units hit), not something scoped to
+  `packages/server`. The worker applied the same documented overlay
+  workaround anyway and reverted it correctly (confirmed `pubspec.yaml` has
+  no diff after their run, and none after mine either).
+- **Verified the "mutation resolver already correct" claim directly**,
+  independent of the worker's own confirmation: `forward_repository.dart`'s
+  `updateForward` does map Dart `null` to an omitted GraphQL variable and
+  `const []` to an empty `BuiltList`, exactly as both this unit's dispatch
+  prompt and the worker's FINDINGS state. No client repository change was
+  needed, and none was made.
+- **The `editReasons`-consumer sweep and the create-path secondary finding
+  are accurate** — spot-checked `ForwardEditPanel`
+  (`forward_recipient_picker.dart`) myself: it is genuinely a note-only
+  editor today with no reason-editing control wired in, so this fix is
+  correctly aimed at a dormant-but-real contract rather than something with
+  no current callers at all (`setEditReasons`/`saveForwardEdit` are called
+  from tests now, proving the mechanism, even though no live widget drives
+  `setEditReasons` yet). The create-path finding (no "shared reasons"
+  representable on the client today, so the server's per-recipient-opt-out-
+  of-shared distinction can't be exercised from this client) is a genuine,
+  useful discovery for whoever eventually builds that UI — correctly left
+  as a documented finding rather than turned into unscoped extra work.
+- Reran the new test file (`forward_cubit_edit_reasons_test.dart`, 4 tests)
+  3x independently — all green every time. Also reran the full
+  `test/features/forward/` suite (84 tests total) — all green, no
+  regressions from the `editReasons` type change rippling into any other
+  forward-feature test.
+- Reran `flutter analyze --no-fatal-warnings --no-fatal-infos` (exit 0, only
+  pre-existing findings unrelated to `features/forward/`) and
+  `./scripts/check-custom-lints.sh packages/client` myself — confirmed the
+  worker's own reported figures exactly: **106 findings against baseline
+  111** (an actual improvement, not just "no regression" — the removed
+  ternary reduced lint surface slightly). `git diff --check` clean.
+
+**C3b is accepted.** Commits: `778c0b80`, `427c7b03`, `c8ac3d78`. This closes
+out UNIT C3 (server half C3a + client half C3b) in full. C4, C5, D0, D3
+remain ready from earlier acceptances; nothing new is unblocked specifically
+by C3b, since nothing in the manifest depends on it directly.
+
