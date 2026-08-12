@@ -149,6 +149,7 @@ part 'm0143.dart';
 part 'm0144.dart';
 part 'm0145.dart';
 part 'm0146.dart';
+part 'm0147.dart';
 
 Future<void> migrateDbSchema(Connection connection) =>
     Database(PostgreSQLGateway(connection)).upgrade(
@@ -299,5 +300,6 @@ Future<void> migrateDbSchema(Connection connection) =>
         m0144,
         m0145,
         m0146,
+        m0147,
       ]),
     );
