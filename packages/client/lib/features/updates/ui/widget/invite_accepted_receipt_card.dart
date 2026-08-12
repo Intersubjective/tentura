@@ -218,11 +218,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
               )
             else if (_phase == _PromptLoadPhase.error)
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  tt.screenHPadding,
-                  0,
-                  tt.screenHPadding,
-                  tt.cardPadding.bottom,
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  bottom: tt.cardPadding.bottom,
                 ),
                 child: Text(
                   l10n.inviteSeedPromptLoadError,
@@ -231,11 +230,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
               )
             else if (showPicker)
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  tt.screenHPadding,
-                  0,
-                  tt.screenHPadding,
-                  tt.cardPadding.bottom,
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  bottom: tt.cardPadding.bottom,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
