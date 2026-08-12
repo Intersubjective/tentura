@@ -69,7 +69,7 @@ any order after F1b. One worker at a time.
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
-- [~] **B2a** — Cell write adapter (depends: B1) — remediation required: seed-pair replacement serialization
+- [~] **B2a** — Cell write adapter (depends: B1) — pair-lock remediation complete; manager acceptance pending
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
@@ -683,3 +683,39 @@ manager's concrete causal finding above.
 
 REMAINING: fresh B2a remediation and manager acceptance; B2b/B2c remain
 blocked.
+
+## B2a remediation (pair lock) — complete — 2026-08-12
+
+STATUS: complete (manager acceptance pending)
+
+COMMITS: fix(server): serialize seed attestation pair replacements (B2a) (`c3e81896`)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/data/repository/capability_evidence_repository_pg_test.dart
+→ 00:02 +11: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1337: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/repository/capability_evidence_repository.dart` (`_lockSeedAttestationPair` before `_activeSeedSlugs`)
+- `packages/server/test/data/repository/capability_evidence_repository_pg_test.dart` (causal pair-lock concurrency test)
+
+FINDINGS:
+
+- Manager defect confirmed on `8283570a`: `upsertSeedAttestation` read active seed rows before any lock serializing the full `(observer, subject)` replacement; disjoint concurrent sets could union or soft-delete without generation bump/rebuild.
+- Pair lock uses `pg_advisory_xact_lock(hashtextextended('cap:seed:' || observer || chr(31) || subject, 4242))` — prefix plus `chr(31)` separator matches project idiom and avoids naive concatenation collisions.
+- Causal PG test: hold `transport` cell lock → start `[transport]` upsert (waits at cell lock while holding pair lock) → start `[pets]` upsert (blocks on pair lock, verified via `pg_try_advisory_xact_lock`) → release blocker → final ledger exactly `[pets]` with only `pets` cell present. Would fail on `8283570a` (union or stale delete).
+- Local `dart test` required `SQLITE3_USE_SYSTEM_LIB=1` when the sqlite3 hook download failed; Postgres was reachable without extra setup.
+
+REMAINING: manager acceptance pending; B2b/B2c remain blocked
