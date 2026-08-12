@@ -6398,3 +6398,81 @@ FINDINGS (manager, beyond what the worker reported):
 invitee's profile) is now unblocked, and F5 (Routing mute screen) remains
 independently unblocked from F1b. Proceeding to F4b next per document
 order.
+
+## F4b — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F4b — inviter-side edit/withdraw on invitee profile via
+`EditSeedSuggestionSection`, wired into `profile_view_body.dart` after
+`_SeenHelpingWithSection`, widget tests, l10n.
+
+PLAN:
+1. `EditSeedSuggestionSection` — speculative `fetchInviteSeedPromptState`,
+   hide on error/pending, `seedRoutingAttestation` for save/withdraw.
+2. Insert `_EditSeedSuggestionSection` sibling in profile body Column.
+3. l10n (en/ru), widget tests, verify lints flat at 106.
+
+FINDINGS (so far):
+- **Pending-state judgment:** restrict to `answered`/`skipped` only — F4a owns
+  `pending`; profile path uses `seedRoutingAttestation` (no prompt-state
+  mutation), so handling `pending` here would orphan prompt state and duplicate
+  F4a's Updates-feed entry point. `skipped` gets add-only copy (no withdraw
+  until a save in-session).
+- **Pre-fill:** `InviteSeedPromptState` / `inviteSeedPromptState` GraphQL
+  expose no slug list; no per-subject seed read API exists — picker starts
+  empty; documented, not silently worked around.
+
+## F4b — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `0a64ae57` feat(client): add edit seed suggestion section on invitee profile (F4b)
+- `4fba3214` test(client): add edit seed suggestion section widget tests (F4b)
+- `2d7d8964` docs: journal F4b invite seed edit/withdraw on profile
+
+TESTS:
+
+```bash
+cd packages/client && flutter gen-l10n
+→ ok
+
+cd packages/client && flutter test test/features/profile_view/edit_seed_suggestion_section_test.dart
+→ 00:00 +5: All tests passed!
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111)
+→ check-custom-lints: packages/client OK
+```
+
+FILES:
+- `packages/client/lib/features/profile_view/ui/widget/edit_seed_suggestion_section.dart`
+- `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/profile_view/edit_seed_suggestion_section_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Pending-state judgment (answered/skipped only):** F4a owns the `pending`
+  prompt state machine on the Updates receipt; F4b uses `seedRoutingAttestation`
+  which deliberately does not mutate prompt state. Showing `pending` here would
+  let an inviter seed without closing the prompt loop (F4a card would still
+  show) and duplicates architecture §11's asynchronous Updates-feed entry point.
+  `skipped` is in scope with add-only copy; `answered` gets edit + withdraw.
+- **Pre-fill gap:** no client API returns the inviter's current seed slug
+  selection for a subject — `InviteSeedPromptState` carries only
+  `(inviterId, inviteeId, state)`; `myRoutingTags` is self-scoped. Edit picker
+  starts empty; inviter must re-select tags to replace (server
+  `replaceAttestation` is set-replacement semantics).
+- **Withdraw visibility:** shown when prompt state is `answered` or after a
+  successful in-session save (covers skipped → save path where state stays
+  `skipped` but attestation exists).
+- **EdgeInsets:** used `EdgeInsets.only(left:, right:, top:, bottom:)` with
+  token args only — no F4a-style literal `0` in `fromLTRB`.
+
+REMAINING: F5 (Routing mute screen), F6 (Client release checks).
