@@ -5435,3 +5435,112 @@ FINDINGS:
 REMAINING: F1a — `schema.graphql`, `_tenturaDirectOperationNames`, then F1b
 client `.graphql` documents and repository.
 
+
+### Manager verdict: ACCEPTED — 2026-08-13
+
+**Acceptance mapping** (E1b's own scope: `myRoutingTags`, `seedRoutingAttestation`,
+`revokeAcknowledgement`, `setRoutingMute`, invite-seed-prompt answer/skip/state):
+
+- **Operation-mapping resolution verified correct**: `inviteSeedPromptAnswer`
+  → `answer()` (marks answered + upserts, atomic); `inviteSeedPromptSkip` →
+  `skip()`; `inviteSeedPromptState` → `promptStateFor()`;
+  `seedRoutingAttestation` → the new `replaceAttestation()` (non-empty
+  slugs) / `withdraw()` (empty slugs), **neither of which touches prompt
+  state**. Pinned by a resolver test that explicitly
+  `verifyNever(promptPort.markAnswered(...))` on the `seedRoutingAttestation`
+  path — the exact assertion needed to prove this isn't quietly reusing
+  `answer()` and re-triggering a state transition it shouldn't.
+- **"non-inviter cannot seed"** (the plan's own explicit five-scenario
+  wording, E1b's share of it): present for both `inviteSeedPromptAnswer`
+  and `seedRoutingAttestation`, propagating `_authorizeInviter`'s
+  `UnauthorizedException`.
+- `revokeAcknowledgement`/`setRoutingMute`/`myRoutingTags`: correct
+  pass-through tests proving `jwt.sub` (never a client-supplied parameter)
+  becomes the case's `actorId`; `myRoutingTags`/`setRoutingMute` again
+  correctly identified as structurally untestable for a negative case
+  (matches E1a's own identical finding — consistent, not repeated
+  hand-waving).
+
+**A second, larger scope expansion onto already-accepted code**: this unit
+added a new public method, `replaceAttestation`, to C4's already-accepted
+`InviteSeedAttestationCase`, and refactored `withdraw()` to delegate to it.
+Reviewed with the same rigor as E1a's D1/D2 modifications:
+
+**Independent verification performed by the manager:**
+
+```bash
+# Confirmed the refactor is behavior-preserving for withdraw(): the new
+# validateCapabilitySlugPayload(const []) call it now goes through returns
+# [] without throwing (traced the function's own logic -- length check
+# 0 > 37 is false, empty-list loop is a no-op) -- no regression risk from
+# the added validation call on an always-empty input.
+
+# sqlite3 overlay applied temporarily, then reverted.
+
+cd packages/server && dart test -t pg test/domain/use_case/invite_seed_attestation_pg_test.dart
+→ run 1/2/3: 00:01 +5: All tests passed! (C4's original 5 PG tests, all
+  still pass unchanged after the withdraw()->replaceAttestation refactor)
+
+cd packages/server && dart test -x pg test/api/controllers/graphql/mutation_capability_routing_test.dart test/api/controllers/graphql/query_capability_routing_test.dart test/api/controllers/graphql/query_capability_projection_test.dart
+→ run 1/2/3: 00:00 +15: All tests passed! (E1b's own 15 tests, including
+  E1a's original resolver tests re-passing unchanged against
+  QueryCapabilityProjection's new third constructor param)
+
+cd packages/server && dart test -x pg
+→ 00:06 +1438: All tests passed! (+10 vs E1a's 1428)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/invite_seed_attestation_case.dart packages/server/lib/api/controllers/graphql/query/query_invite_seed_prompt.dart packages/server/lib/api/controllers/graphql/mutation/mutation_capability_routing.dart
+→ empty (domain purity holds)
+
+grep -n "MutationCapabilityRouting\|QueryInviteSeedPrompt" packages/server/lib/api/controllers/graphql/mutation/_mutations_all.dart packages/server/lib/api/controllers/graphql/query/_queries_all.dart
+→ both registered
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+**Investigated a suspicious-looking detail before accepting it**: the new
+`inviteSeedPromptState` resolver does `_inviteSeedAttestationCase
+.promptStateFor(...)` then immediately force-unwraps the nullable result
+(`state!`) into a non-nullable GraphQL field — normally a real null-safety
+risk. Traced `promptStateFor`'s full body (pre-existing C4 code, untouched
+by E1b) and found it calls `_authorizeInviter` first, which **itself**
+calls the same `InviteSeedPromptPort.stateFor` and explicitly throws
+`UnauthorizedException('No invite-seed prompt for this pair')` when that
+call returns null — meaning by the time `promptStateFor`'s own body makes
+its own (second, redundant) `stateFor` call, non-null is already
+guaranteed. This also explains the test's `.called(2)` verification, which
+looked like a bug on first read but is a real, pre-existing (not
+introduced by E1b), harmless double-query in already-accepted C4 code —
+correctly out of scope for E1b to fix, noted here for whoever next touches
+`InviteSeedAttestationCase`.
+
+FINDINGS (manager, beyond what the worker reported):
+
+- `replaceAttestation` has no direct unit or PG-level test in isolation —
+  its three composed pieces (`_authorizeInviter`, `validateCapabilitySlugPayload`,
+  `upsertSeedAttestation`) are each independently well-tested elsewhere
+  (C4's PG suite, capability slug validation unit tests, B2a's evidence
+  repository PG suite), and the *composition*'s call sequence is verified
+  at the mocked-port resolver level (`seedRoutingAttestation`'s two tests),
+  but there is no test proving the full chain against real Postgres. Not
+  blocking — every individual piece is independently proven correct and
+  the composition is thin — but worth a follow-up PG test if this method
+  gains more logic later.
+- `CapabilityRoutingCase.setRoutingMute`'s inline slug-validation (noted at
+  E1a's acceptance) still duplicates rather than reuses
+  `validateCapabilitySlugPayload`, and that shared function's own doc
+  comment literally says "E1b should call this before
+  `RoutingMutePort.setMute`" — a stale forward-reference from whenever it
+  was written, now doubly unaddressed across two units. Still not a
+  functional defect (both paths correctly reject invalid slugs), flagged
+  again for whoever next touches either file.
+
+**E1b is accepted. All of E1 (GraphQL surface and authorization) is now
+complete.** Per document order, F1a (Client schema + routing —
+`schema.graphql`, `_tenturaDirectOperationNames`) is next: the first
+client-side unit, and the first to need `flutter`/Ferry codegen rather than
+`dart`/server tooling.
