@@ -12,6 +12,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 
+import '../widget/invite_accepted_receipt_card.dart';
 import '../widget/trust_change_receipt_card.dart';
 import '../widget/updates_receipt_card.dart';
 import '../widget/updates_refresh_error_banner.dart';
@@ -177,6 +178,16 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                               receipt.presentationKey,
                             )) {
                               return TrustChangeReceiptCard(
+                                receipt: receipt,
+                                onTap: onTap,
+                                onMarkSeen: onMarkSeen,
+                                onSettle: onSettle,
+                              );
+                            }
+                            if (isInviteAcceptedPresentationKey(
+                              receipt.presentationKey,
+                            )) {
+                              return InviteAcceptedReceiptCard(
                                 receipt: receipt,
                                 onTap: onTap,
                                 onMarkSeen: onMarkSeen,

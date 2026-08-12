@@ -17,6 +17,10 @@ bool isTrustChangePresentationKey(String? presentationKey) =>
     presentationKey != null &&
     trustChangePresentationKeys.contains(presentationKey);
 
+/// Whether [presentationKey] is an invite-accepted Updates card (seed prompt host).
+bool isInviteAcceptedPresentationKey(String? presentationKey) =>
+    presentationKey == 'invite_accepted';
+
 enum TrustChangeDirection { up, down, neutral }
 
 /// Direction suffix parsed from a trust-change [presentationKey].

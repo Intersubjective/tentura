@@ -4923,6 +4923,17 @@
   "updatesFallbackBodyMutualConnectionFormed": "You are now connected on Tentura.",
   "updatesFallbackTitleInviteAccepted": "Invitation accepted",
   "updatesFallbackBodyInviteAccepted": "Someone joined via your invitation.",
+  "inviteSeedPromptQuestion": "What kinds of requests would you feel comfortable sending {name}?",
+  "@inviteSeedPromptQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteSeedPromptSubmit": "Submit",
+  "inviteSeedPromptSkip": "Skip",
+  "inviteSeedPromptLoadError": "Couldn't load this prompt.",
   "updatesFallbackTitleNeedsMe": "Asked of you",
   "updatesFallbackBodyNeedsMe": "Action needed on a request.",
   "updatesFallbackTitleBlockerOpened": "Blocker opened",

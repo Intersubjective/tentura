@@ -4694,6 +4694,17 @@
   "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Tentura.",
   "updatesFallbackTitleInviteAccepted": "Приглашение принято",
   "updatesFallbackBodyInviteAccepted": "Кто-то присоединился по вашему приглашению.",
+  "inviteSeedPromptQuestion": "Какие запросы вам было бы комфортно отправлять {name}?",
+  "@inviteSeedPromptQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteSeedPromptSubmit": "Отправить",
+  "inviteSeedPromptSkip": "Пропустить",
+  "inviteSeedPromptLoadError": "Не удалось загрузить подсказку.",
   "updatesFallbackTitleNeedsMe": "Просьба к вам",
   "updatesFallbackBodyNeedsMe": "Нужно ваше действие по запросу.",
   "updatesFallbackTitleBlockerOpened": "Открыт блокер",
