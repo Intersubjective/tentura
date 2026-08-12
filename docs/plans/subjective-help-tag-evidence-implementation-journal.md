@@ -5769,3 +5769,95 @@ REMAINING: none for F1b scope. F2 (Forward band UI), F3 (Profile projection
 UI), F4a (Invite prompt receipt), and F5 (Routing mute screen) are unblocked
 and may proceed in any order.
 
+
+### Manager verdict: ACCEPTED — 2026-08-13
+
+**Acceptance mapping** (plan's F1 combined text: "codegen clean; `flutter
+test` green; a test asserting each new operation name is present in
+`_tenturaDirectOperationNames`" — the operation-name test was F1a's own
+share, already accepted; F1b's share is the rest):
+
+- Ten `.graphql` documents present, each field selection matching
+  `schema.graphql`'s already-committed `query_root`/`mutation_root`/`v2_*`
+  definitions exactly (spot-checked `ForwardContext`,
+  `SeedRoutingAttestation`, `InviteSeedPromptState` directly against
+  source; all three field-for-field correct).
+- Codegen clean: `flutter gen-l10n && dart run build_runner build -d`
+  succeeded (3458 outputs, no sqlite3 overlay needed this run).
+- `flutter test` green, full suite, no regressions.
+
+**A second wide-blast-radius change reviewed with full rigor**:
+`CapabilityRepository`'s constructor was changed from a concrete
+`RemoteApiService` dependency to the narrower `RemoteRequestClient`
+interface — this class **pre-dates the entire plan** (built for the
+original private-label/viewer-visible feature, long before this session),
+so its consumer surface is much wider than anything modified in E1a/E1b.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Confirmed this is NOT an invented pattern: RemoteRequestClient is a real,
+# already-established, deliberately narrow seam (one method, explicit doc
+# comment explaining why), already used by AttentionRepository (initially
+# grepped the wrong file path and found nothing -- re-checked at the
+# correct path before concluding anything, given how much this session's
+# discipline has depended on not trusting a first, convenient search
+# result):
+cat packages/client/lib/data/service/remote_api_client/remote_request_client.dart
+→ abstract interface class RemoteRequestClient { Stream<...> request<TData,TVars>(...); }
+  -- "repositories must not depend on authentication or realtime lifecycle
+  methods just to issue a request"
+grep -n "RemoteRequestClient" packages/client/lib/data/repository/attention_repository.dart
+→ final RemoteRequestClient _remoteClient; -- confirms the precedent is real.
+
+# Confirmed "production DI unchanged" is accurate, not just asserted:
+grep -n "remoteRequestClient" packages/client/lib/app/di/modules.dart
+→ RemoteRequestClient remoteRequestClient(RemoteApiService service) => service;
+  -- the SAME RemoteApiService singleton is returned, just through the
+  narrower static type. Zero runtime behavior change.
+
+cd packages/client && flutter test test/features/capability/capability_repository_routing_evidence_test.dart
+→ run 1/2/3: 00:00 +4: All tests passed!
+
+cd packages/client && flutter test
+→ 01:23 +2014 ~18: All tests passed! (+4 vs F1a's 2010; same 18 pre-existing
+  skips; every pre-existing CapabilityRepository consumer -- private
+  labels, viewer-visible, cues, friend-context, top-capabilities batch --
+  still passes unchanged, confirming the constructor refactor is truly
+  behavior-preserving)
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111) -- unchanged from F1a, no new lint debt
+
+git diff --check
+→ no whitespace errors
+
+git show --stat d439b5c9
+→ confirms only the 10 .graphql source documents were committed, no
+  generated _g/ output -- checked packages/client/.gitignore (`**_g/`,
+  `**.g.dart`) to confirm this is the established, correct convention for
+  EVERY feature in this codebase, not a gap specific to this commit.
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- The `_forwardBandRowFromGql` mapper correctly guards the nullable
+  `rowTier` before parsing (`row.rowTier == null ? null :
+  ProjectionTier.fromWire(row.rowTier!)`) — the one place a naive
+  implementation could have force-unwrapped a genuinely-nullable field
+  (exploration rows have no tier) and crashed; verified by reading the
+  mapper body directly, not just trusting the passing test.
+- `ProjectionTier`'s Dart enum declaration order matches the server's
+  exactly (`ownOutcome, networkOutcome, ownRouting, networkSeed`) even
+  though the client has no current use for ordinal tier-strength
+  comparison (only switch-on-tier for copy text) — good hygiene, reduces
+  future confusion if a client-side ordering need ever arises.
+- No gaps found in the port/implementation pairing — all ten new methods
+  present and signature-matched in both `CapabilityRepositoryPort` and
+  `CapabilityRepository`.
+
+**F1b is accepted. All of F1 (Client data layer) is now complete.** Per
+document order, F2 (Forward band UI), F3 (Profile projection UI), F4a
+(Invite prompt receipt), and F5 (Routing mute screen) are all unblocked
+and may proceed in any order per the plan's own "F2–F5 in any order after
+F1b" note. Proceeding to F2 next.
