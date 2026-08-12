@@ -6117,3 +6117,107 @@ FINDINGS:
 - **viewerVisible untouched:** existing editable capability dialog path unchanged.
 
 REMAINING: none for F3 scope. F4a, F5, F6 remain.
+
+### Manager verdict: ACCEPTED (after one manager-authored repair) — 2026-08-13
+
+**Acceptance mapping** (plan text: "a profile with only seed evidence
+shows no section; one with outcome evidence shows ≤ 3 tags; existing
+profile golden updated intentionally"):
+
+- Seed-only / empty case: present and tested (`hides strip when
+  subjectiveTags is empty`) — correctly reasoned that the server already
+  filters seed-only evidence out of the profile surface (D1's own
+  `ProjectionSurface.profile` restriction, accepted long before this
+  unit), so an empty-list client fixture is the right and sufficient way
+  to prove the client's half of this requirement.
+- Outcome evidence / ≤3 tags: present and tested.
+- Golden clause: **correctly identified as vacuous** — independently
+  reconfirmed (see below) there is no existing profile golden test
+  anywhere in this codebase; the plan's wording assumed one that was
+  never built. No new golden test was fabricated to satisfy the literal
+  words, which would have been a materially larger, unrequested scope
+  addition — the right call, not a shortcut.
+
+**A real display defect was found and fixed before this verdict was
+written**: `SeenHelpingWithStrip` rendered raw capability slugs (e.g.
+`"legal_navigation"`) directly in user-facing text instead of proper
+display labels. The worker's own journal reasoning — "matches
+`CapabilityCueStrip`'s convention" — was checked and found accurate as a
+description of that OTHER, pre-existing widget's behavior, but wrong as a
+justification: `CapabilityCueStrip` predates this entire plan and its
+raw-slug display is a separate, out-of-scope, pre-existing matter, not a
+pattern this brand-new widget was obligated to replicate — especially
+given architecture §10's own literal mock-up ("Seen helping with /
+Transport · Pets · Legal") shows capitalized display text, and F2's
+`ForwardBandStrip` (built and accepted mere hours earlier in this same
+session) already established the correct conversion
+(`CapabilityTag.fromSlug(slug)?.labelOf(l10n)`) for exactly this
+situation. Confirmed via the test file itself, which had been written to
+assert the wrong behavior was correct (`expect(find.text(...
+'transport · pets · legal_navigation' ...)), findsOneWidget)`) — a green
+test proving the defect, not catching it. Fixed directly (commit
+`eccdd4b1`): `SeenHelpingWithStrip` now uses the same
+`CapabilityTag.fromSlug(...).labelOf(l10n)` conversion as `ForwardBandStrip`,
+and the test now asserts the real localized labels.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Confirmed the raw-slug taxonomy claim directly (not assumed): every
+# CapabilityTag enum value's `slug` is genuine lowercase snake_case
+# ("legal_navigation", "pickup_delivery", "medical_navigation", ...),
+# clearly not end-user-ready text, and `labelOf(l10n)` maps each to a
+# dedicated localized getter (l10n.capabilityTagTransport, etc.) --
+# confirming this is a real, visible defect, not a stylistic nitpick.
+cat packages/client/lib/domain/capability/capability_tag.dart
+grep -n "labelOf" -A 8 packages/client/lib/domain/capability/capability_tag.dart
+
+# sqlite3 overlay applied temporarily, then reverted.
+
+cd packages/client && flutter test test/features/profile_view/profile_view_body_seen_helping_with_strip_test.dart
+→ 00:00 +2: All tests passed! (after the fix; both now assert real
+  localized display labels, not raw slugs)
+
+cd packages/client && flutter test
+→ 01:22 +2016 ~18: All tests passed! (reconciles exactly: 2021 from F2,
+  minus 7 removed dead-getter test cases (strongestNetworkCueSlugs'
+  5 + profileBeaconCueSlugs' 2), plus 2 new strip tests = 2016; same 18
+  pre-existing skips)
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111) -- unchanged, no new lint debt
+
+git diff --check
+→ no whitespace errors
+
+git diff 712d31906..fd067467 -- packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart
+→ confirmed _SeenHelpingWithSection sits in the top-level Column before
+  _ProfileCapabilitySection with NO friend/self gate wrapping it, matching
+  the "trust server authorization, don't re-gate client-side" instruction;
+  the empty case returns a bare SizedBox.shrink() with no padding wrapper,
+  so no space is reserved when the strip has nothing to show.
+
+git diff 712d31906..8d9b6e03 -- packages/client/lib/domain/capability/person_capability_cues.dart packages/client/test/domain/capability/person_capability_cues_test.dart
+→ confirmed clean, complete removal of both dead getters and their
+  corresponding test groups, no orphaned references left behind.
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- The "no profile golden" finding was itself independently reverified
+  (not just trusted from the checkpoint) before accepting it as the basis
+  for treating that acceptance clause as vacuous — worth the extra check
+  given how much this session's other findings have hinged on exactly
+  this kind of claim being either confirmed or refuted through direct
+  investigation rather than repetition.
+- The best-effort `fetchSubjectiveTags` fetch (separate try/catch after
+  the blocking `Future.wait`, mirroring F2's `fetchForwardContext`
+  precedent exactly) is correctly reasoned: a profile should still load
+  successfully even if the witness-projection enhancement fails.
+
+**F3 is accepted.** Per the plan's "F2–F5 in any order after F1b" note,
+F4a (Invite prompt receipt) and F5 (Routing mute screen) remain unblocked.
+Proceeding to F4a next per document order.
