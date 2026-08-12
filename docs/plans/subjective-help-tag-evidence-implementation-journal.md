@@ -71,7 +71,7 @@ any order after F1b. One worker at a time.
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [x] **B2a** — Cell write adapter (depends: B1) — accepted after pair-lock remediation (`c3e81896`)
 - [x] **B2b** — Witness window adapter (depends: B1) — accepted after fixture-isolation remediation + flakiness repair (`81249774`, `88a09c21`)
-- [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
+- [x] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [ ] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
 - [ ] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
@@ -969,3 +969,98 @@ the fix.
 `81249774` (isolation fix), `aca3df07` (journal checkpoint), `88a09c21`
 (manager flakiness repair). B2c, C1a, C3a, D3 are dependency-ready; B3 and D0
 are now unblocked (both depended on accepted B2b).
+
+## B2c — complete — 2026-08-12
+
+STATUS: complete (manager acceptance pending)
+
+COMMITS:
+- feat(server): add capability own evidence read repository (B2c) (`998a1b2f`)
+- feat(server): add routing mute repository (B2c) (`c9ffb32f`)
+- feat(server): add pair block query repository and B2c pg tests (`a8854faa`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 5s; wrote outputs (di.config.dart local only)
+
+cd packages/server && dart test -x pg
+→ 00:07 +1351: All tests passed!
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ 00:03 +10: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors (owned paths only; protected baseline untouched)
+```
+
+FILES:
+
+- `packages/server/lib/data/repository/capability_own_evidence_repository.dart` (created)
+- `packages/server/lib/data/repository/routing_mute_repository.dart` (created)
+- `packages/server/lib/data/repository/pair_block_query_repository.dart` (created)
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart` (created)
+
+FINDINGS:
+
+- **source_type → EvidenceChannel:** Matches `cap_cell_rebuild` in `m0143.dart` exactly — `source_type = 3` (`closeAcknowledgement`) → `EvidenceChannel.outcome`; `source_type IN (1, 4)` (`forwardReason`, `seedRoutingAttestation`) → `EvidenceChannel.seed`; `privateLabel(0)` and `commitRole(2)` excluded from `fetchOwnEvidence` SQL filter (`source_type IN (1, 3, 4)`), aligning with aggregation and C5's commitRole retirement intent.
+- **Tombstones:** `fetchTombstones` keys on `is_negative = true AND deleted_at IS NULL` per `pce_tombstone_uq`; no `source_type` filter (tombstone rows use `source_type = 0` at insert time but the index is only on `is_negative`).
+- **Routing mute:** `mutedSlugsFor(subjectIds)` batches `capability_routing_mute` by `user_id` (the subject who set the mute); map omits subjects with no rows (equivalent to empty set for anti-join). `setMute` upserts on conflict / deletes — idempotent.
+- **blockedPairsAmong pair shape:** Returns lexicographically ordered `(min, max)` tuples for every `user_block` row whose `blocker_id` and `blocked_id` are both in the caller's batch. This mirrors `block_hides`' symmetric semantics without duplicating rows: a single stored `A→B` block yields `(A, B)` when `A < B` lexicographically, so callers can membership-test `blocked.contains((a, b))` after normalizing with the same ordering. Pairs with only one endpoint in the batch are excluded (batch-scoped, not global).
+- PG tests use `_DisposablePgTarget` (`tentura_test_cap_read_${pid}_${ts}`); no MeritRank/pgmer2 needed (read-only SQL only).
+
+REMAINING: manager acceptance pending; C4 and C5 are now dependency-ready after B2c
+
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Independent review of all three commits (`998a1b2f`, `c9ffb32f`, `a8854faa`),
+not a re-run of the worker's own claims:
+
+- `fetchOwnEvidence` filters `source_type IN (1, 3, 4)` and maps 3→outcome,
+  {1,4}→seed via a `switch`, matching `cap_cell_rebuild` (`m0143.dart`)
+  exactly; `commitRole`(2) and `privateLabel`(0) are correctly excluded,
+  consistent with C5's retirement intent. `fetchTombstones` filters
+  `is_negative = true AND deleted_at IS NULL` with no `source_type`
+  constraint, matching the `pce_tombstone_uq` partial index precisely.
+- `RoutingMuteRepository` returns a genuinely subject-keyed map (not a flat
+  set — the port's documented reason for that shape is respected), and
+  `setMute` is a correct upsert/delete pair.
+- `PairBlockQueryRepository.blockedPairsAmong` requires both endpoints of a
+  `user_block` row to be in the caller's batch (`blocker_id = ANY($1) AND
+  blocked_id = ANY($1)`) and normalizes to lexicographic `(min, max)` tuples,
+  a reasonable, self-consistent shape given the port had no existing call
+  site to match against.
+- Confirmed `personCapabilityEvents`, `capabilityRoutingMutes`, `userBlocks`
+  (used in each repository's `readsFrom`) are real generated Drift table
+  getters (`tentura_db.g.dart`), not typos that happened to compile.
+- Reran `dart test -t pg test/data/repository/capability_read_ports_pg_test.dart`
+  three times independently (fresh disposable database each time, via a
+  temporary `hooks.user_defines.sqlite3.source: system` pubspec overlay,
+  reverted before this entry — confirmed via `git status` showing no diff on
+  `pubspec.yaml`): all 10 tests green every time, no flakiness (this unit
+  never touches MeritRank/pgmer2, so it doesn't carry B2b's randomized-walk
+  risk). Also reran `dart test -x pg` (1351, all passing),
+  `./scripts/check-custom-lints.sh packages/server` (0, baseline), `git diff
+  --check` (clean), and `rg "package:tentura_server/data/repository"
+  packages/server/lib/domain` (empty — B1's domain-purity acceptance line
+  still holds).
+- Confirmed shared local Postgres untouched across all three of my
+  independent PG-test runs: `mr_publish_epoch.epoch` read `0` before and
+  after, and no new `tentura_test_*` database was left behind (the one
+  pre-existing stale database predates this unit entirely).
+- `di.config.dart` (regenerated by the worker's `build_runner build -d`) is
+  confirmed gitignored (`packages/server/.gitignore:5`), consistent with the
+  worker's claim that it was skipped from commits.
+
+**B2c is accepted.** C4 and C5 are now dependency-ready (both depended on
+B2c). B3, C1a, C3a, D0, D3 remain independently ready from earlier acceptances.
