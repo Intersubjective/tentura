@@ -2541,3 +2541,71 @@ and it separately depends on D0 (accepted). Proceeding to D2 next per
 document order. D3 (Expiry sweep) and D4 (Model invariant suite, which
 additionally needs D1+D2 "exercisable through fake ports") remain queued
 behind D2.
+
+## D1 — manager correction — 2026-08-12
+
+While building D2's dispatch prompt (which needed architecture §8/§8.1/§9 in
+full), a full re-read of §12 surfaced a direct, explicit contradiction of a
+finding accepted in D1's verdict above: **"Muting suppresses Tier B and Tier
+C for all viewers"** (§12.2, verbatim). D1 was accepted on the finding that
+mute suppresses only `networkSeed` (Tier C), reasoning from §5.4's
+source-by-surface matrix — which is a different question (which surface a
+*source* may render on) than mute *scope* (which *tier* a mute suppresses).
+
+Checked for a fourth time before touching code, since this reverses a
+verdict already committed: **D4** (top-level decision table, line 41,
+"Muting suppresses third-party projection only" — B and C are both
+third-party/network-derived, only A is first-hand), **§5.5**'s pseudocode
+(the `(subject, tag) NOT IN <routing mutes>` predicate filters the single
+`cells` CTE that both `S_out` and `S_seed` are summed from — there is no
+separate unmuted-for-outcome path), and **§14**'s SQL projection sketch
+(`AND NOT EXISTS (routing mute on ...)` in the one `WHERE` clause feeding
+both `sum(win.m * e_out(c))` and `sum(win.m * e_seed(c))`) all independently
+and unambiguously confirm the same thing. Four sources, zero support for the
+seed-only reading anywhere in the document. The original finding was wrong.
+
+**Fixed directly** (small, local, mechanical, quick to verify — no fresh
+worker needed): moved the mute check in `_aggregateNetworkProjections` to
+`continue` before either `outSums` or `seedSums` accumulation, instead of
+only guarding `seedSums`. Commit `9d13624d`.
+
+**The existing test for this had a fixture gap that let the bug hide.** The
+"routing mute suppresses networkSeed only, not networkOutcome" test used a
+muted tag (`pets`) with `eOut: 0` — meaning it had no outcome evidence to
+suppress in the first place, so the old (wrong) implementation and the
+corrected one produced an identical result on that fixture. Rewrote the
+fixture so the muted tag qualifies for **both** tiers (`eOut: 0.35, eSeed:
+0.30`, both above their thresholds) and asserts it now produces **no** row
+at all, while an unmuted tag on the same subject is untouched. This is
+exactly the class of gap this journal's "never trust a green test without
+checking what it actually exercises" discipline exists to catch — in this
+case caught one step later than ideal (after acceptance, not during it),
+which is itself the finding worth recording: a plan-prose cross-check
+(§5.4 vs §12.2 vs §5.5 vs §14) needs to run before accepting a *judgment
+call* finding, not only before accepting a *port/type* finding, since this
+session's established sweep discipline (checking pre-existing tests, port
+signatures, DI wiring) had no step that would have caught a same-document
+internal contradiction on its own.
+
+Re-verified after the fix, same rigor as initial acceptance:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart
+→ run 1/2/3: 00:00 +10: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1366: All tests passed! (unchanged count — same file, corrected fixture)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_projection_case.dart
+→ empty
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted, pubspec.yaml clean)
+```
+
+**D1 remains accepted**, now on the corrected implementation. D2 was not
+yet dispatched when this was found, so no downstream unit inherited the
+defect. Proceeding to D2 next, as originally planned.
