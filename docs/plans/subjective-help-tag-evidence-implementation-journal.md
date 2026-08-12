@@ -416,3 +416,34 @@ FINDINGS:
 - `m0143.dart` and `sql/triggers.sql` unchanged (SQL semantics already correct).
 
 REMAINING: manager review and acceptance; B1 remains blocked
+
+### Manager acceptance — 2026-08-12
+
+Accepted after independent review of A3 (`4dab460b`) and the remediation
+(`e05a2fbb`). The installed migration test proves both calendar discontinuities
+at frozen reference instants: `2024-02-29 + 24 months` and
+`2024-01-31 + 1 month` are expired while their prohibited inverse-cutoff forms
+would still be eligible. It also inspects the installed `cap_cell_rebuild` with
+`pg_get_functiondef`, rejecting both `now() -` and `_cutoff`, and proves that
+two `cap_generation_bump` calls retain one authoritative row at generation 2.
+
+Manager comparison of `m0143.dart` and `sql/triggers.sql` found the four SQL
+function bodies identical after removing the Dart raw-string delimiters and
+blank wrapping. Registration and upgrade behavior are covered by the fresh
+migration test. Independent verification passed:
+
+```bash
+cd packages/server && dart test -t pg test/data/database/m0143_capability_evidence_sql_test.dart
+→ +9: All tests passed!
+
+cd packages/server && dart test -x pg
+→ +1327: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check 4b9d7e10..HEAD
+→ no whitespace errors
+```
+
+The protected baseline paths remain untouched. B1 is authorized to begin.
