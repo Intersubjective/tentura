@@ -158,6 +158,33 @@ ORDER BY tag_slug
     );
 
     test(
+      'emitOutcomeEvidenceBatch rejects without ambient mutating UoW',
+      () async {
+        await expectLater(
+          repo.emitOutcomeEvidenceBatch(
+            beaconId: _beaconId,
+            emissions: const [
+              OutcomeEmission(
+                observerUserId: _obs1,
+                subjectUserId: _sub,
+                tagSlug: 'transport',
+              ),
+            ],
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(await _activeOutcomeCount(writer), 0);
+        expect(await _generation(writer, _obs1, _sub, 'transport'), 0);
+        expect(
+          await _cellExists(writer, _obs1, _sub, 'transport'),
+          isFalse,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
       'emitOutcomeEvidenceBatch writes source-3 ledger and rebuilds outcome cell',
       () async {
         await unitOfWork.run(
@@ -275,8 +302,8 @@ WHERE observer_user_id = 'Ucapb2aobs01'
           await _effectiveOutStrength(writer, _obs1, _sub, 'transport'),
           closeTo(strengthAfterFirst, 1e-9),
         );
-        expect(await _generation(writer, _obs1, _sub, 'transport'), 2);
-        expect(await _generation(writer, _obs2, _sub, 'transport'), 2);
+        expect(await _generation(writer, _obs1, _sub, 'transport'), 1);
+        expect(await _generation(writer, _obs2, _sub, 'transport'), 1);
       },
       skip: skipReason,
     );
@@ -312,6 +339,137 @@ WHERE observer_user_id = 'Ucapb2aobs01'
           await _effectiveOutStrength(writer, _obs2, _sub, 'pets'),
           closeTo(1 / 3, 1e-4),
         );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'reconcileForwardReasons serializes competing replacements',
+      () async {
+        final db1 = TenturaDb(target.databaseEnv);
+        final db2 = TenturaDb(target.databaseEnv);
+        final repo1 = CapabilityEvidenceRepository(db1);
+        final repo2 = CapabilityEvidenceRepository(db2);
+
+        try {
+          await Future.wait([
+            repo1.reconcileForwardReasons(
+              forwardEdgeId: _edgeId,
+              observerId: _obs1,
+              subjectId: _sub,
+              slugs: const ['transport'],
+            ),
+            repo2.reconcileForwardReasons(
+              forwardEdgeId: _edgeId,
+              observerId: _obs1,
+              subjectId: _sub,
+              slugs: const ['pets'],
+            ),
+          ]);
+
+          final ledger = await _activeForwardSlugs(writer);
+          expect(ledger, hasLength(1));
+          expect(ledger.first, anyOf('transport', 'pets'));
+
+          final winner = ledger.single;
+          final loser = winner == 'transport' ? 'pets' : 'transport';
+          expect(await _cellExists(writer, _obs1, _sub, winner), isTrue);
+          expect(await _cellExists(writer, _obs1, _sub, loser), isFalse);
+        } finally {
+          await db1.close();
+          await db2.close();
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'emitOutcomeEvidenceBatch acquires cell locks in lexicographic order',
+      () async {
+        final blockerDb = TenturaDb(target.databaseEnv);
+        final batchDb = TenturaDb(target.databaseEnv);
+        final batchRepo = CapabilityEvidenceRepository(batchDb);
+        final batchUow = MutatingUnitOfWork(batchDb);
+
+        final blockerReady = Completer<void>();
+        final releaseBlocker = Completer<void>();
+        final batchDone = Completer<void>();
+
+        const minObserver = _obs1;
+        const minTag = 'transport';
+        const maxObserver = _obs2;
+        const maxTag = 'pets';
+
+        try {
+          unawaited(
+            blockerDb.transaction(() async {
+              await blockerDb.customStatement(
+                r'SELECT public.cap_cell_lock($1, $2, $3)',
+                [minObserver, _sub, minTag],
+              );
+              blockerReady.complete();
+              await releaseBlocker.future;
+            }),
+          );
+          await blockerReady.future;
+
+          unawaited(
+            batchUow
+                .run(
+                  actorUserId: _auth,
+                  action: () => batchRepo.emitOutcomeEvidenceBatch(
+                    beaconId: _beaconId,
+                    emissions: const [
+                      OutcomeEmission(
+                        observerUserId: maxObserver,
+                        subjectUserId: _sub,
+                        tagSlug: maxTag,
+                      ),
+                      OutcomeEmission(
+                        observerUserId: minObserver,
+                        subjectUserId: _sub,
+                        tagSlug: minTag,
+                      ),
+                    ],
+                  ),
+                )
+                .then((_) => batchDone.complete()),
+          );
+
+          await _waitUntil(
+            () async {
+              final rows = await writer.execute(
+                "SELECT pid FROM pg_locks "
+                "WHERE locktype = 'advisory' AND granted = false",
+              );
+              return rows.isNotEmpty;
+            },
+            timeout: const Duration(seconds: 5),
+          );
+
+          await writer.execute('BEGIN');
+          try {
+            final tryMax = await writer.execute(
+              "SELECT pg_try_advisory_xact_lock("
+              "hashtextextended('$maxObserver' || chr(31) || '$_sub' || "
+              "chr(31) || '$maxTag', 4242))",
+            );
+            expect(tryMax.single.single, isTrue);
+          } finally {
+            await writer.execute('ROLLBACK');
+          }
+
+          releaseBlocker.complete();
+          await batchDone.future.timeout(const Duration(seconds: 5));
+
+          expect(await _activeOutcomeCount(writer), 2);
+        } finally {
+          if (!releaseBlocker.isCompleted) {
+            releaseBlocker.complete();
+          }
+          await blockerDb.close();
+          await batchDb.close();
+        }
       },
       skip: skipReason,
     );
@@ -386,6 +544,21 @@ WHERE observer_user_id = 'Ucapb2aobs01'
       skip: skipReason,
     );
   });
+}
+
+Future<void> _waitUntil(
+  Future<bool> Function() predicate, {
+  required Duration timeout,
+  Duration interval = const Duration(milliseconds: 25),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (await predicate()) {
+      return;
+    }
+    await Future<void>.delayed(interval);
+  }
+  throw TimeoutException('predicate not satisfied', timeout);
 }
 
 Future<void> _seedFixture(Connection writer) async {

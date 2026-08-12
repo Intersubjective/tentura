@@ -31,10 +31,11 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     required String subjectId,
     required List<String> slugs,
   }) => _database.withMutatingUser(observerId, () async {
-    final affectedSlugs = await _unionForwardSlugs(
-      forwardEdgeId: forwardEdgeId,
-      desiredSlugs: slugs,
-    );
+    await _lockForwardEdge(forwardEdgeId);
+
+    final currentSlugs = await _activeForwardSlugs(forwardEdgeId);
+    final desiredSlugs = slugs.toSet();
+    final affectedSlugs = {...currentSlugs, ...desiredSlugs};
 
     final triples = _sortedUniqueTriples(
       affectedSlugs.map(
@@ -49,6 +50,13 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
 
     await _withCellWriteDiscipline(
       triples,
+      () => _forwardChangingTriples(
+        forwardEdgeId: forwardEdgeId,
+        observerId: observerId,
+        subjectId: subjectId,
+        currentSlugs: currentSlugs,
+        desiredSlugs: desiredSlugs,
+      ),
       () async {
         await _database.customStatement(
           r'''
@@ -104,6 +112,11 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     if (emissions.isEmpty) {
       return;
     }
+    if (!_database.isInAmbientMutatingTransaction) {
+      throw StateError(
+        'emitOutcomeEvidenceBatch requires an ambient mutating unit of work',
+      );
+    }
 
     final triples = _sortedUniqueTriples(
       emissions.map(
@@ -117,6 +130,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
 
     await _withCellWriteDiscipline(
       triples,
+      () => _outcomeChangingTriples(beaconId: beaconId, emissions: emissions),
       () async {
         for (final emission in emissions) {
           await _database.customStatement(
@@ -149,8 +163,18 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     required String subjectId,
     required String slug,
   }) => _database.withMutatingUser(observerId, () async {
+    final triple = (observer: observerId, subject: subjectId, tag: slug);
     await _withCellWriteDiscipline(
-      [(observer: observerId, subject: subjectId, tag: slug)],
+      [triple],
+      () async {
+        final hasActive = await _hasActiveOutcomeEvidence(
+          beaconId: beaconId,
+          observerId: observerId,
+          subjectId: subjectId,
+          slug: slug,
+        );
+        return hasActive ? {triple} : <({String observer, String subject, String tag})>{};
+      },
       () => _database.customStatement(
         r'''
         UPDATE public.person_capability_event
@@ -179,11 +203,12 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     required String subjectId,
     required List<String> slugs,
   }) => _database.withMutatingUser(observerId, () async {
-    final affectedSlugs = await _unionSeedSlugs(
+    final currentSlugs = await _activeSeedSlugs(
       observerId: observerId,
       subjectId: subjectId,
-      desiredSlugs: slugs,
     );
+    final desiredSlugs = slugs.toSet();
+    final affectedSlugs = {...currentSlugs, ...desiredSlugs};
 
     final triples = _sortedUniqueTriples(
       affectedSlugs.map(
@@ -196,6 +221,12 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
 
     await _withCellWriteDiscipline(
       triples,
+      () => _seedChangingTriples(
+        observerId: observerId,
+        subjectId: subjectId,
+        currentSlugs: currentSlugs,
+        desiredSlugs: desiredSlugs,
+      ),
       () async {
         await _database.customStatement(
           r'''
@@ -244,20 +275,33 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
   });
 
   Future<void> _withCellWriteDiscipline(
-    List<({String observer, String subject, String tag})> triples,
+    List<({String observer, String subject, String tag})> lockTriples,
+    Future<Set<({String observer, String subject, String tag})>> Function()
+    resolveChangingTriples,
     Future<void> Function() mutateLedger,
   ) async {
-    for (final triple in triples) {
+    for (final triple in lockTriples) {
       await _lockCell(triple.observer, triple.subject, triple.tag);
     }
-    for (final triple in triples) {
+
+    final changing = _sortedUniqueTriples(await resolveChangingTriples());
+    if (changing.isEmpty) {
+      return;
+    }
+
+    for (final triple in changing) {
       await _bumpGeneration(triple.observer, triple.subject, triple.tag);
     }
     await mutateLedger();
-    for (final triple in triples) {
+    for (final triple in changing) {
       await _rebuildCell(triple.observer, triple.subject, triple.tag);
     }
   }
+
+  Future<void> _lockForwardEdge(String forwardEdgeId) => _database.customStatement(
+    r"SELECT pg_advisory_xact_lock(hashtextextended('cap:forward:' || $1, 4242))",
+    [forwardEdgeId],
+  );
 
   Future<void> _lockCell(String observer, String subject, String tag) =>
       _database.customStatement(
@@ -281,10 +325,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
         [observer, subject, tag, kCapWindowMonths, _hlOut, _hlSeed],
       );
 
-  Future<List<String>> _unionForwardSlugs({
-    required String forwardEdgeId,
-    required List<String> desiredSlugs,
-  }) async {
+  Future<Set<String>> _activeForwardSlugs(String forwardEdgeId) async {
     final rows = await _database
         .customSelect(
           r'''
@@ -300,16 +341,12 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           ],
         )
         .get();
-    return {
-      ...rows.map((row) => row.read<String>('tag_slug')),
-      ...desiredSlugs,
-    }.toList();
+    return rows.map((row) => row.read<String>('tag_slug')).toSet();
   }
 
-  Future<List<String>> _unionSeedSlugs({
+  Future<Set<String>> _activeSeedSlugs({
     required String observerId,
     required String subjectId,
-    required List<String> desiredSlugs,
   }) async {
     final rows = await _database
         .customSelect(
@@ -328,10 +365,146 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           ],
         )
         .get();
-    return {
-      ...rows.map((row) => row.read<String>('tag_slug')),
-      ...desiredSlugs,
-    }.toList();
+    return rows.map((row) => row.read<String>('tag_slug')).toSet();
+  }
+
+  Future<bool> _hasActiveOutcomeEvidence({
+    required String beaconId,
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+          SELECT 1
+          FROM public.person_capability_event
+          WHERE observer_user_id = $1
+            AND subject_user_id = $2
+            AND tag_slug = $3
+            AND beacon_id = $4
+            AND source_type = $5
+            AND deleted_at IS NULL
+          LIMIT 1
+          ''',
+          variables: [
+            Variable.withString(observerId),
+            Variable.withString(subjectId),
+            Variable.withString(slug),
+            Variable.withString(beaconId),
+            Variable.withInt(CapabilityEventSource.closeAcknowledgement.dbValue),
+          ],
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<bool> _hasActiveTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+          SELECT 1
+          FROM public.person_capability_event
+          WHERE observer_user_id = $1
+            AND subject_user_id = $2
+            AND tag_slug = $3
+            AND is_negative = true
+            AND deleted_at IS NULL
+          LIMIT 1
+          ''',
+          variables: [
+            Variable.withString(observerId),
+            Variable.withString(subjectId),
+            Variable.withString(slug),
+          ],
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<Set<({String observer, String subject, String tag})>>
+  _forwardChangingTriples({
+    required String forwardEdgeId,
+    required String observerId,
+    required String subjectId,
+    required Set<String> currentSlugs,
+    required Set<String> desiredSlugs,
+  }) async {
+    final changing = <({String observer, String subject, String tag})>{};
+    for (final slug in {...currentSlugs, ...desiredSlugs}) {
+      final triple = (observer: observerId, subject: subjectId, tag: slug);
+      final inCurrent = currentSlugs.contains(slug);
+      final inDesired = desiredSlugs.contains(slug);
+      if (inCurrent != inDesired) {
+        changing.add(triple);
+        continue;
+      }
+      if (inDesired &&
+          await _hasActiveTombstone(
+            observerId: observerId,
+            subjectId: subjectId,
+            slug: slug,
+          )) {
+        changing.add(triple);
+      }
+    }
+    return changing;
+  }
+
+  Future<Set<({String observer, String subject, String tag})>>
+  _seedChangingTriples({
+    required String observerId,
+    required String subjectId,
+    required Set<String> currentSlugs,
+    required Set<String> desiredSlugs,
+  }) async {
+    final changing = <({String observer, String subject, String tag})>{};
+    for (final slug in {...currentSlugs, ...desiredSlugs}) {
+      final triple = (observer: observerId, subject: subjectId, tag: slug);
+      final inCurrent = currentSlugs.contains(slug);
+      final inDesired = desiredSlugs.contains(slug);
+      if (inCurrent != inDesired) {
+        changing.add(triple);
+        continue;
+      }
+      if (inDesired &&
+          await _hasActiveTombstone(
+            observerId: observerId,
+            subjectId: subjectId,
+            slug: slug,
+          )) {
+        changing.add(triple);
+      }
+    }
+    return changing;
+  }
+
+  Future<Set<({String observer, String subject, String tag})>>
+  _outcomeChangingTriples({
+    required String beaconId,
+    required List<OutcomeEmission> emissions,
+  }) async {
+    final changing = <({String observer, String subject, String tag})>{};
+    for (final emission in emissions) {
+      final triple = (
+        observer: emission.observerUserId,
+        subject: emission.subjectUserId,
+        tag: emission.tagSlug,
+      );
+      if (!await _hasActiveOutcomeEvidence(
+        beaconId: beaconId,
+        observerId: emission.observerUserId,
+        subjectId: emission.subjectUserId,
+        slug: emission.tagSlug,
+      )) {
+        changing.add(triple);
+      }
+    }
+    return changing;
   }
 
   Future<String?> _forwardEdgeBeaconId(String forwardEdgeId) async {

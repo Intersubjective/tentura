@@ -164,6 +164,13 @@ class TenturaDb extends _$TenturaDb {
   @override
   int get schemaVersion => 1;
 
+  /// Whether [action] is running inside [withMutatingUser] or
+  /// [withMutatingSystem] on this database (including nested re-entry).
+  bool get isInAmbientMutatingTransaction {
+    final current = Zone.current[_mutatingTransactionZoneKey];
+    return current is _MutatingTransactionContext && identical(current.db, this);
+  }
+
   /// Runs [action] in a transaction with `tentura.mutating_user_id` set to
   /// [userId]. Realtime publishers attach this actor context to invalidations;
   /// router compatibility policy, not this transaction boundary, decides
