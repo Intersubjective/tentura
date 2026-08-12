@@ -61,6 +61,7 @@ import 'table/images.dart';
 import 'table/image_object_gcs.dart';
 import 'table/inbox_items.dart';
 import 'table/invite_genealogy.dart';
+import 'table/invite_seed_prompt_state.dart';
 import 'table/invitations.dart';
 import 'table/pollings.dart';
 import 'table/polling_acts.dart';
@@ -127,6 +128,7 @@ part 'tentura_db.g.dart';
     ImageObjectGcs,
     InboxItems,
     InviteGenealogy,
+    InviteSeedPromptStates,
     Invitations,
     MeritrankEdgeTombstones,
     MrPublishEpochs,
