@@ -6221,3 +6221,180 @@ FINDINGS (manager, beyond what the worker reported):
 **F3 is accepted.** Per the plan's "F2–F5 in any order after F1b" note,
 F4a (Invite prompt receipt) and F5 (Routing mute screen) remain unblocked.
 Proceeding to F4a next per document order.
+
+## F4a — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F4a — `InviteAcceptedReceiptCard` on `invite_accepted` Updates receipts:
+profile lookup for invitee display name, `fetchInviteSeedPromptState` local state
+machine, `CapabilityChipSet` picker when `pending`, Submit/Skip actions, widget
+tests, l10n.
+
+PLAN:
+1. Resolve display-name gap via `ProfileRepositoryPort.fetchById(actorUserId)`
+   → `Profile.displayLabel(l10n.unknownPerson)` (not title parsing).
+2. Add `isInviteAcceptedPresentationKey` + `updates_screen` branch.
+3. Build `InviteAcceptedReceiptCard` (`StatefulWidget`, GetIt repos, no cubit).
+4. l10n question + Submit/Skip + load-error keys (en/ru).
+5. Widget tests with GetIt fakes; terminology + custom-lints clean.
+
+FINDINGS (so far):
+- Dispatch key is `presentationKey == 'invite_accepted'` (wire from
+  `NotificationKind.inviteAccepted`; `kind` on receipt is `inviteAccepted`).
+- `actorUserId` and `targetEntityId` both hold invitee id for this receipt kind.
+- Answered/skipped: base receipt only — no extra status line (minimal/terse).
+
+## F4a — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `9b97c63c` feat(client): add invite accepted receipt card with seed prompt (F4a)
+- `9276506c` fix(client): avoid raw EdgeInsets literal in invite-accepted card (F4a) [manager]
+- `a984e9fb` test(client): add invite accepted receipt card widget tests (F4a)
+
+**Process note:** this worker session was killed by the same unexplained
+backgrounded-process infrastructure issue seen repeatedly this session
+(C1a, C5, F1a). A first F4a attempt was killed almost immediately with
+only a trivial, harmless fragment (one presentation-key helper) and was
+discarded outright — not worth completing. This second attempt reached
+its own self-reported "complete" checkpoint, including a full TESTS run,
+but was killed before committing the test file or finalizing this journal
+entry (hence the commit hashes above were originally recorded as
+"(pending)"). The manager independently verified the interrupted work
+before trusting or finishing it — see the verdict below, which found one
+real defect the worker's own report did not catch.
+
+TESTS:
+
+```bash
+cd packages/client && flutter gen-l10n
+→ ok
+
+cd packages/client && flutter test test/features/updates/invite_accepted_receipt_card_test.dart
+→ 00:01 +5: All tests passed!
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ exit 0 (baseline unchanged)
+```
+
+FILES:
+- `packages/client/lib/features/updates/updates_receipt_display_copy.dart`
+- `packages/client/lib/features/updates/ui/widget/invite_accepted_receipt_card.dart`
+- `packages/client/lib/features/updates/ui/screen/updates_screen.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/updates/invite_accepted_receipt_card_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Display name:** `ProfileRepositoryPort.fetchById(subjectId)` in parallel with
+  prompt fetch; `Profile.displayLabel(l10n.unknownPerson)` prefers contact name,
+  then display name, then @handle, then localized unknown-person label. Profile
+  fetch errors are swallowed (empty `Profile(id: subjectId)`) so a failed/deleted
+  lookup still shows the prompt with the unknown-person fallback; prompt-state
+  fetch failure shows `inviteSeedPromptLoadError` on the card.
+- **Answered/skipped UI:** receipt ListTile only — picker suppressed, no added
+  “you answered/skipped” copy (matches terse feed card style).
+- **Dispatch:** `isInviteAcceptedPresentationKey` on `presentationKey ==
+  'invite_accepted'`.
+- **Selection cap:** `CapabilityChipSet(maxSelection: 3)` aligned with server
+  seed attestation limit.
+
+REMAINING: F4b (inviter edit/withdraw on invitee profile), F5, F6.
+
+### Manager verdict: ACCEPTED (after one manager-authored repair) — 2026-08-13
+
+**Acceptance mapping** (F4a's own share of the plan's combined text:
+"answered and skipped states each suppress re-prompting" — the
+"withdrawing clears the attestation" clause is F4b's, not this unit's):
+
+- Answered/skipped suppress re-prompting: present and tested for both
+  terminal states, including proof the picker disappears **immediately**
+  after a successful submit/skip via local state update, without
+  requiring a feed reload — matching "render pending only" precisely.
+- The display-name gap flagged before dispatch was resolved soundly: a
+  parallel `ProfileRepositoryPort.fetchById(subjectId)` lookup (not
+  title-parsing), with a graceful `catchError` fallback to an empty
+  `Profile(id: subjectId)` whose `displayLabel(l10n.unknownPerson)` still
+  produces a grammatical sentence for a failed/deleted-account lookup.
+- Required wording present verbatim: "What kinds of requests would you
+  feel comfortable sending {name}?" — no "skills"/"endorse"/"good at."
+
+**A real, if minor, defect was found and fixed before this verdict was
+written**: the new card's lint run genuinely regressed
+(`no_raw_edge_insets` 74→76, total 106→108) — still under the 111
+baseline so `check-custom-lints.sh` still exited 0, but every other unit
+this session (F1a/F1b/F2/F3) held the count exactly flat, and the
+worker's own TESTS section reported "baseline unchanged," which was
+imprecise — 108 is not unchanged from 106, it merely still clears the
+gate. Traced to two `EdgeInsets.fromLTRB(tt.screenHPadding, 0,
+tt.screenHPadding, tt.cardPadding.bottom)` calls — the literal `0` (not a
+design token) is what the lint actually flags, not the presence of
+`EdgeInsets.fromLTRB` itself (F2's `ForwardBandStrip` already uses that
+constructor safely with all-token arguments). Fixed by switching to
+`EdgeInsets.only(left:, right:, bottom:)`, which has no top inset to
+specify and therefore needs no literal at all — restored the count to
+106.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read the full card widget, test file, screen-wiring diff, and both ARB
+# diffs in full before running anything.
+
+# sqlite3 overlay applied temporarily, then reverted.
+
+cd packages/client && flutter test test/features/updates/invite_accepted_receipt_card_test.dart
+→ run 1/2/3 (before the EdgeInsets fix): 00:00 +5: All tests passed!
+→ rerun after the fix: 00:00 +5: All tests passed! (unaffected, as expected
+  for a pure-styling change)
+
+cd packages/client && flutter test
+→ 01:21 +2021 ~18: All tests passed! (+5 vs F3's 2016; same 18 pre-existing
+  skips)
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ before fix: total 108 (baseline 111) -- OK but NOT flat vs. 106
+→ after fix: total 106 (baseline 111) -- OK and flat, matching every
+  other unit this session
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+
+grep -n "EdgeInsets\." packages/client/lib/features/updates/ui/widget/invite_accepted_receipt_card.dart
+→ confirms exactly 3 EdgeInsets constructions total (one .symmetric,
+  already token-only; the two .fromLTRB now replaced with .only)
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- The Submit button is disabled for zero chip selections, meaning the
+  server-side `answer(slugs: [])`-with-zero-tags path (proven by C4's own
+  "answered with zero tags still marks answered and clears ledger" PG
+  test) is unreachable from this card's UI — considered this deliberately,
+  not an oversight: architecture §11 frames Skip as the first-class
+  "declined to answer" outcome, and a redundant third "submit nothing"
+  path would only confuse the two. F4b's `withdraw()` (a distinct method,
+  not `answer([])`) is the intended path for clearing an existing answer
+  later — so this zero-tag server capability is likely defensive
+  completeness at the use-case layer, not a path any client is expected
+  to exercise. Not flagged as a gap.
+- Confirmed the killed session's own journal checkpoint and final "so
+  far" FINDINGS were accurate on every substantive point checked (dispatch
+  key, actorUserId/targetEntityId semantics, answered/skipped rendering
+  choice) — the interruption cost only the final commit/write step, not
+  correctness of the work itself, consistent with this session's C5/F1a
+  precedents for recovering cleanly from this exact infrastructure issue.
+
+**F4a is accepted.** F4b (Seed edit/withdraw, the inviter-side path on the
+invitee's profile) is now unblocked, and F5 (Routing mute screen) remains
+independently unblocked from F1b. Proceeding to F4b next per document
+order.
