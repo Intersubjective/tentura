@@ -56,21 +56,6 @@ abstract class PersonCapabilityCues with _$PersonCapabilityCues {
       .map((c) => c.slug)
       .toSet();
 
-  /// Network card cue line: strongest tier only
-  /// (closeAck > commitRole > forwardReason > privateLabel).
-  List<String> get strongestNetworkCueSlugs {
-    if (closeAckSlugs.isNotEmpty) return closeAckSlugs;
-    if (commitRoleSlugs.isNotEmpty) return commitRoleSlugs;
-    if (forwardedForSlugs.isNotEmpty) return forwardedForSlugs;
-    return List<String>.from(privateLabels);
-  }
-
-  /// Profile beacon-scoped strip: closeAckAboutMe beats commitRoles.
-  List<String> get profileBeaconCueSlugs {
-    if (closeAckAboutMeSlugs.isNotEmpty) return closeAckAboutMeSlugs;
-    return commitRoleSlugs;
-  }
-
   /// Unique slugs from beacon-scoped refs, preserving first-seen order.
   static List<String> slugsFromBeaconRefs(Iterable<TagBeaconRef> refs) {
     final seen = <String>{};

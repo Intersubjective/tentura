@@ -57,67 +57,6 @@ void main() {
     });
   });
 
-  group('strongestNetworkCueSlugs', () {
-    test('prefers closeAck over commit, forward, and private labels', () {
-      final cues = _cues(
-        privateLabels: ['pets'],
-        forwardReasonsByMe: const [
-          TagCount(slug: 'money', count: 2, lastSeenAt: '2026-01-01'),
-        ],
-        commitRoles: [_ref('transport')],
-        closeAckByMe: [_ref('food')],
-      );
-      expect(cues.strongestNetworkCueSlugs, ['food']);
-    });
-
-    test('prefers commitRole over forward and private labels', () {
-      final cues = _cues(
-        privateLabels: ['pets'],
-        forwardReasonsByMe: const [
-          TagCount(slug: 'money', count: 2, lastSeenAt: '2026-01-01'),
-        ],
-        commitRoles: [_ref('transport')],
-      );
-      expect(cues.strongestNetworkCueSlugs, ['transport']);
-    });
-
-    test('prefers forwardReason over private labels', () {
-      final cues = _cues(
-        privateLabels: ['pets'],
-        forwardReasonsByMe: const [
-          TagCount(slug: 'money', count: 2, lastSeenAt: '2026-01-01'),
-        ],
-      );
-      expect(cues.strongestNetworkCueSlugs, ['money']);
-    });
-
-    test('falls back to private labels', () {
-      final cues = _cues(privateLabels: ['pets', 'food']);
-      expect(cues.strongestNetworkCueSlugs, ['pets', 'food']);
-    });
-
-    test('returns empty when all cue tiers are empty', () {
-      expect(_cues().strongestNetworkCueSlugs, isEmpty);
-    });
-  });
-
-  group('profileBeaconCueSlugs', () {
-    test('prefers closeAckAboutMe over commitRoles', () {
-      final cues = _cues(
-        closeAckAboutMe: [_ref('food')],
-        commitRoles: [_ref('transport')],
-      );
-      expect(cues.profileBeaconCueSlugs, ['food']);
-    });
-
-    test('falls back to commitRoles when closeAckAboutMe is empty', () {
-      final cues = _cues(
-        commitRoles: [_ref('transport'), _ref('transport', beaconId: 'B2')],
-      );
-      expect(cues.profileBeaconCueSlugs, ['transport']);
-    });
-  });
-
   group('automaticViewerVisibleSlugs', () {
     test('includes only non-manual viewer-visible slugs', () {
       final cues = _cues(
