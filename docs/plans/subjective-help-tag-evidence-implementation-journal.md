@@ -5714,7 +5714,7 @@ COMMITS:
 - `d439b5c9` feat(client): add subjective help-tag evidence GraphQL documents (F1b)
 - `dffc4458` feat(client): add tag projection domain entities (F1b)
 - `26b6e09e` feat(client): wire capability routing repository methods (F1b)
-- `8faee6a5` test(client): add capability routing repository mapping tests (F1b)
+- `bb1acb23` test(client): add capability routing repository mapping tests (F1b)
 
 TESTS:
 
