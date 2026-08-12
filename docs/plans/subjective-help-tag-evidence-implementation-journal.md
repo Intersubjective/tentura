@@ -76,7 +76,7 @@ any order after F1b. One worker at a time.
 - [x] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
 - [x] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
 - [x] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
-- [ ] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
+- [x] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
 - [ ] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
 - [ ] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
 - [ ] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
@@ -1617,4 +1617,70 @@ worker's claims:
 were already dependency-ready from earlier acceptances; this unit's proactive
 lock addition also fully closes C1b's deferred serialization concern with no
 further action needed there.
+
+## C3a — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- feat(server): return ForwardEdgeCreated from createBatch (C3a) (`5ec2ebc3`)
+- feat(server): reconcile forward reasons via CapabilityEvidencePort (C3a) (`4a3c2e8f`)
+- test(server): add forward reason reconciliation PG proofs (C3a) (`9fcc437a`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart run build_runner build -d
+→ Built successfully
+
+cd packages/server && dart test -x pg
+→ 00:06 +1356: All tests passed!
+
+cd packages/server && dart test -t pg test/domain/use_case/forward_reason_reconciliation_pg_test.dart
+→ 00:01 +6: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ check-custom-lints: packages/server OK; tentura_lints total: 0 (baseline: 0)
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ 0 matches (exit 1 — expected empty)
+
+git diff --check -- <owned C3a paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/domain/entity/forward_edge_created.dart` (created)
+- `packages/server/lib/domain/port/forward_edge_repository_port.dart`
+- `packages/server/lib/data/repository/forward_edge_repository.dart`
+- `packages/server/lib/domain/use_case/forward_case.dart`
+- `packages/server/lib/domain/use_case/user_block_case.dart`
+- `packages/server/test/domain/use_case/forward_reason_reconciliation_pg_test.dart` (created)
+- `packages/server/test/domain/use_case/forward_case_test.dart`
+- `packages/server/test/domain/use_case/forward_case_auth_test.dart`
+- `packages/server/test/domain/use_case/forward_case_mocks.dart`
+- `packages/server/test/data/repository/forward_edge_repository_create_batch_dedup_test.dart`
+- `packages/server/test/support/build_test_invitation_case.dart`
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart`
+- `packages/server/test/domain/use_case/user_block_case_test.dart`
+- `packages/server/test/data/database/m0144_mr_publish_epoch_pg_test.dart`
+- `packages/server/test/api/controllers/graphql/user_block_graphql_test.dart`
+- `packages/server/test/support/commitment_gates_harness.dart`
+- `packages/server/test/domain/use_case/forward_case_mocks.mocks.dart`
+- `packages/server/test/domain/use_case/help_offer_case_mocks.mocks.dart`
+
+FINDINGS:
+
+- **Two-path framing confirmed:** `CapabilityCase.recordForwardReasons` (`capability_case.dart:~65`) calls `PersonCapabilityEventRepositoryPort.insertForwardReasons` — append-only, no advisory lock, no cell rebuild. `CapabilityEvidenceRepository.reconcileForwardReasons` (`capability_evidence_repository.dart:~28`) is the B2a primitive: `_lockForwardEdge`, diff active slugs, `_withCellWriteDiscipline`. `ForwardCase` was on the legacy path inside best-effort try/catch; C3a switches all three server paths to the port.
+- **Block-cleanup path:** `UserBlockCase._cancelEdgesFromSenderToRecipient` (`user_block_case.dart:~247`) — called from `_cancelForwardEdgesBetween` during `_cleanupDirectPair` inside `block()`'s UoW. Previously cancelled edges without touching reason rows; now calls `reconcileForwardReasons(..., slugs: const [])` atomically with `cancel` inside the existing `_unitOfWork.run`.
+- **Null-vs-empty on `forward()` create path:** resolved slug = `perRecipientReasonSlugs?[id] ?? sharedReasonSlugs`; `null` skips `reconcileForwardReasons` entirely (optimization — new edges have no prior set); explicit `[]` still calls reconcile (uniform with update path, no-op at DB when nothing to delete). Domain validates non-empty slug lists before reconcile (mirrors removed `CapabilityCase._validateSlugs`) so invalid slugs roll back the whole `runAction` including edge rows.
+- **`updateForward` / `cancelForward` transactionality:** both now use `_attention!.runAction` like `forward()`, nesting into `createBatch`/`reconcileForwardReasons`'s `withMutatingUser` re-entry on the same actor without a second transaction.
+- Removed unused `CapabilityCase` dependency from `ForwardCase` (same pattern as C1b's `EvaluationCase` cleanup).
+
+REMAINING: none (C3b may begin after manager acceptance)
 
