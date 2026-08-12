@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -32,7 +33,8 @@ final class UserBlockCase extends UseCaseBase {
     this._users,
     this._beacons,
     this._commitmentRepository,
-    this._inbox, {
+    this._inbox,
+    this._capabilityEvidence, {
     AttentionIntentCase? attentionIntents,
     AttentionDispatchPort? attentionDispatch,
     WitnessWindowPort? witnessWindow,
@@ -51,6 +53,7 @@ final class UserBlockCase extends UseCaseBase {
   final BeaconRepositoryPort _beacons;
   final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inbox;
+  final CapabilityEvidencePort _capabilityEvidence;
   final AttentionIntentCase? _attentionIntents;
   final AttentionDispatchPort? _attentionDispatch;
   final WitnessWindowPort? _witnessWindow;
@@ -252,6 +255,12 @@ final class UserBlockCase extends UseCaseBase {
     for (final edge in inbound) {
       if (edge.senderId != senderId || edge.cancelledAt != null) continue;
       await _forwardEdges.cancel(edge.id, senderId);
+      await _capabilityEvidence.reconcileForwardReasons(
+        forwardEdgeId: edge.id,
+        observerId: senderId,
+        subjectId: edge.recipientId,
+        slugs: const [],
+      );
       await _inbox.markForwardCancelledForRecipient(
         beaconId: edge.beaconId,
         recipientId: edge.recipientId,

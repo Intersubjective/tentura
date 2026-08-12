@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/forward/forward_constants.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -14,8 +15,9 @@ import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/capability/capability_tag.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 
-import 'capability_case.dart';
 import '_use_case_base.dart';
 
 @Singleton(order: 2)
@@ -25,7 +27,7 @@ final class ForwardCase extends UseCaseBase {
     this._forwardAttributionRepository,
     this._helpOfferRepository,
     this._inboxRepository,
-    this._capabilityCase,
+    this._capabilityEvidence,
     this._beaconRepository,
     this._userBlockRepository,
     this._personVisibilityRepository,
@@ -41,13 +43,26 @@ final class ForwardCase extends UseCaseBase {
   final ForwardAttributionRepositoryPort _forwardAttributionRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
-  final CapabilityCase _capabilityCase;
+  final CapabilityEvidencePort _capabilityEvidence;
   final BeaconRepositoryPort _beaconRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final UserBlockRepositoryPort _userBlockRepository;
   final PersonVisibilityRepositoryPort _personVisibilityRepository;
   final BeaconAccessGuard _guard;
+
+  void _validateReasonSlugs(List<String> slugs) {
+    for (final slug in slugs) {
+      if (!kAllowedCapabilitySlugs.contains(slug)) {
+        throw ExceptionBase(
+          code: const CapabilityExceptionCodes(
+            CapabilityExceptionCode.invalidSlug,
+          ),
+          description: 'Unknown capability slug: $slug',
+        );
+      }
+    }
+  }
 
   /// Cancel a forward edge (soft-delete).
   ///
@@ -72,18 +87,31 @@ final class ForwardCase extends UseCaseBase {
     );
     if (hasOffer) return false;
 
-    await _forwardEdgeRepository.cancel(edgeId, senderId);
-    await _inboxRepository.markForwardCancelledForRecipient(
-      beaconId: edge.beaconId,
-      recipientId: edge.recipientId,
+    return _attention!.runAction(
+      actorUserId: senderId,
+      action: (_) async {
+        await _forwardEdgeRepository.cancel(edgeId, senderId);
+        await _capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: edgeId,
+          observerId: senderId,
+          subjectId: edge.recipientId,
+          slugs: const [],
+        );
+        await _inboxRepository.markForwardCancelledForRecipient(
+          beaconId: edge.beaconId,
+          recipientId: edge.recipientId,
+        );
+        return true;
+      },
     );
-    return true;
   }
 
   /// Update the note on an existing forward edge.
   ///
-  /// If [reasonSlugs] is non-empty the forward-reason capability events are
-  /// re-recorded (appended — capability events are immutable log entries).
+  /// When [reasonSlugs] is `null`, the existing reason set is left unchanged.
+  /// When [reasonSlugs] is non-null (including `const []`), the reason set is
+  /// reconciled to that exact list.
+  ///
   /// Returns false when the edge is not found, not owned by [senderId], or
   /// has already been cancelled.
   Future<bool> updateForward({
@@ -96,30 +124,33 @@ final class ForwardCase extends UseCaseBase {
     if (edge == null || edge.senderId != senderId) return false;
     if (edge.cancelledAt != null) return false;
 
-    await _forwardEdgeRepository.updateNote(edgeId, senderId, note);
+    return _attention!.runAction(
+      actorUserId: senderId,
+      action: (_) async {
+        await _forwardEdgeRepository.updateNote(edgeId, senderId, note);
 
-    if (reasonSlugs != null && reasonSlugs.isNotEmpty) {
-      try {
-        await _capabilityCase.recordForwardReasons(
-          observerId: senderId,
-          subjectId: edge.recipientId,
-          beaconId: edge.beaconId,
-          slugs: reasonSlugs,
-        );
-      } catch (e) {
-        logger.warning(
-          'ForwardCase.updateForward: failed to record reasons for ${edge.recipientId}: $e',
-        );
-      }
-    }
-    return true;
+        if (reasonSlugs != null) {
+          if (reasonSlugs.isNotEmpty) {
+            _validateReasonSlugs(reasonSlugs);
+          }
+          await _capabilityEvidence.reconcileForwardReasons(
+            forwardEdgeId: edgeId,
+            observerId: senderId,
+            subjectId: edge.recipientId,
+            slugs: reasonSlugs,
+          );
+        }
+        return true;
+      },
+    );
   }
 
   /// Forward a beacon to one or more recipients atomically.
   ///
   /// [sharedReasonSlugs] applies the same reason slugs to every recipient.
   /// [perRecipientReasonSlugs] overrides reasons for specific recipients
-  /// (keyed by recipientId). Reason recording never throws — errors are logged.
+  /// (keyed by recipientId). Omitting reasons (`null`) leaves each new edge's
+  /// reason set untouched; an explicit empty list clears it.
   ///
   /// Returns the batch_id used for this forward action.
   Future<String> forward({
@@ -214,7 +245,7 @@ final class ForwardCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: senderId,
       action: (transaction) async {
-        final insertedRecipientIds = await _forwardEdgeRepository.createBatch(
+        final createdEdges = await _forwardEdgeRepository.createBatch(
           beaconId: beaconId,
           senderId: senderId,
           recipientIds: recipients,
@@ -236,25 +267,26 @@ final class ForwardCase extends UseCaseBase {
           },
         );
 
-        for (final recipientId in insertedRecipientIds) {
+        for (final created in createdEdges) {
           final slugs =
-              perRecipientReasonSlugs?[recipientId] ?? sharedReasonSlugs ?? [];
-          if (slugs.isEmpty) continue;
-          try {
-            await _capabilityCase.recordForwardReasons(
-              observerId: senderId,
-              subjectId: recipientId,
-              beaconId: beaconId,
-              slugs: slugs,
-            );
-          } catch (e) {
-            logger.warning(
-              'ForwardCase: failed to record forward reasons for $recipientId: $e',
-            );
+              perRecipientReasonSlugs?[created.recipientId] ??
+              sharedReasonSlugs;
+          if (slugs == null) continue;
+          if (slugs.isNotEmpty) {
+            _validateReasonSlugs(slugs);
           }
+          await _capabilityEvidence.reconcileForwardReasons(
+            forwardEdgeId: created.edgeId,
+            observerId: senderId,
+            subjectId: created.recipientId,
+            slugs: slugs,
+          );
         }
 
-        if (insertedRecipientIds.isNotEmpty) {
+        if (createdEdges.isNotEmpty) {
+          final insertedRecipientIds = createdEdges
+              .map((edge) => edge.recipientId)
+              .toList();
           await _recordAttributionIfEligible(
             beaconId: beaconId,
             senderId: senderId,
