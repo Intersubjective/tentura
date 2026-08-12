@@ -6035,3 +6035,85 @@ FINDINGS (manager, beyond what the worker reported):
 F3 (Profile projection UI), F4a (Invite prompt receipt), and F5 (Routing
 mute screen) remain unblocked and independent of F2's completion.
 Proceeding to F3 next per document order.
+
+## F3 — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F3 — profile projection UI: `fetchSubjectiveTags` through
+`ProfileViewCase`/`ProfileViewState`/`ProfileViewCubit`, `SeenHelpingWithStrip`,
+body insertion outside `_ProfileCapabilitySection` friend-gate, dead getter
+cleanup, widget tests.
+
+PLAN:
+1. Wire load pipeline (best-effort `fetchSubjectiveTags`, matching F2).
+2. Add strip widget + l10n + `profile_view_body` section.
+3. Delete `strongestNetworkCueSlugs` / `profileBeaconCueSlugs` + tests.
+4. Widget tests; `flutter gen-l10n`, `build_runner` for state, verify.
+
+FINDINGS (so far):
+- **No profile golden:** confirmed — zero `matchesGoldenFile` under
+  `profile_view` or profile-related tests; plan clause vacuously satisfied.
+- **Slug display:** `CapabilityCueStrip` passes raw slugs into l10n; F3 strip
+  matches that (not `CapabilityTag.labelOf` used by `ForwardBandStrip`).
+- **Fetch:** best-effort separate try/catch after blocking profile+cues wait
+  (F2 `fetchForwardContext` precedent).
+
+## F3 — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `34ba7822` feat(client): wire subjective tags through profile view load (F3)
+- `fd067467` feat(client): add seen helping with profile strip UI (F3)
+- `8d9b6e03` chore(client): remove dead person capability cue getters (F3)
+- `baedc5f3` test(client): add profile seen helping with strip tests (F3)
+
+TESTS:
+
+```bash
+cd packages/client && flutter gen-l10n && dart run build_runner build -d --build-filter="lib/features/profile_view/**"
+→ Built with build_runner/aot in 34s; wrote 1103 outputs. Exit 0.
+
+cd packages/client && flutter test test/features/profile_view/profile_view_body_seen_helping_with_strip_test.dart
+→ 00:00 +2: All tests passed!
+
+cd packages/client && flutter test test/features/profile_view/ test/domain/capability/person_capability_cues_test.dart
+→ 00:04 +46: All tests passed!
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111)
+→ check-custom-lints: packages/client OK
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+```
+
+FILES:
+- `packages/client/lib/features/profile_view/domain/use_case/profile_view_case.dart`
+- `packages/client/lib/features/profile_view/ui/bloc/profile_view_state.dart`
+- `packages/client/lib/features/profile_view/ui/bloc/profile_view_cubit.dart`
+- `packages/client/lib/features/profile_view/ui/widget/seen_helping_with_strip.dart`
+- `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
+- `packages/client/lib/domain/capability/person_capability_cues.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/profile_view/profile_view_body_seen_helping_with_strip_test.dart`
+- `packages/client/test/features/profile_view/profile_view_*_test.dart` (fake `fetchSubjectiveTags`)
+- `packages/client/test/domain/capability/person_capability_cues_test.dart`
+
+FINDINGS:
+- **No profile golden:** exhaustive grep + `profile_view` test directory listing
+  confirmed zero `matchesGoldenFile` / `goldenFileComparator` usage for profile
+  viewing; plan acceptance clause vacuously satisfied — no golden created.
+- **Best-effort fetch:** `fetchSubjectiveTags` runs in a separate try/catch after
+  the blocking `Future.wait` for profile + cues (F2 `fetchForwardContext`
+  precedent). A projection failure must not block the core profile load.
+- **Slug display:** `CapabilityCueStrip` joins **raw slugs** into l10n
+  (`slugs.join(' · ')`); F3 strip matches that convention, not
+  `CapabilityTag.fromSlug()?.labelOf(l10n)` used by `ForwardBandStrip`.
+- **Placement:** `_SeenHelpingWithSection` sits in the top-level `Column` before
+  `_ProfileCapabilitySection`, with no friend/self gate — server authz only.
+- **viewerVisible untouched:** existing editable capability dialog path unchanged.
+
+REMAINING: none for F3 scope. F4a, F5, F6 remain.
