@@ -222,3 +222,12 @@ FINDINGS:
 - Disposable-db pg test pattern (rollback m0141 → seed → re-migrate) mirrors `beacon_cover_migration_test.dart`.
 
 REMAINING: none
+
+### Manager acceptance — 2026-08-12
+
+Accepted after independent review of `97b9d623`: migration registration is
+contiguous in both the part list and ordered `InMemory` list; SQL constraints,
+partial indexes, Drift references, and source enum match A1. Independent
+`dart test -t pg test/data/database/m0141_person_capability_event_ledger_test.dart`
+passed, as did `./scripts/check-custom-lints.sh packages/server`. Protected
+baseline paths remain untouched.
