@@ -598,3 +598,40 @@ FINDINGS:
 - Concurrent deadlock test opens two `TenturaDb` instances on the same pool (Drift debug warning only); both transactions complete with lexicographic lock order.
 
 REMAINING: manager review and acceptance; B2b/B2c remain blocked
+
+## B2a remediation — complete — 2026-08-12
+
+STATUS: complete (manager acceptance pending)
+
+COMMITS: fix(server): harden capability evidence write repository (B2a) (`8283570a`)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/data/repository/capability_evidence_repository_pg_test.dart
+→ 00:01 +10: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:08 +1337: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check -- packages/server/lib/data/database/tentura_db.dart packages/server/lib/data/repository/capability_evidence_repository.dart packages/server/test/data/repository/capability_evidence_repository_pg_test.dart
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/database/tentura_db.dart` (`isInAmbientMutatingTransaction`)
+- `packages/server/lib/data/repository/capability_evidence_repository.dart` (UoW guard, change detection, forward-edge lock)
+- `packages/server/test/data/repository/capability_evidence_repository_pg_test.dart` (rejection, idempotency, forward concurrency, causal lock-order)
+
+FINDINGS:
+
+- Review of `3ee294bf` confirmed four enforcement gaps: ambient UoW not enforced on batch emit; generation bumped on no-op retries; forward reconcile read-before-lock race; concurrent test did not prove lexicographic lock order.
+- `TenturaDb.isInAmbientMutatingTransaction` inspects the existing zone-scoped mutating transaction context (actor or system); no per-observer `withMutatingUser` re-entry.
+- Forward-edge serialization uses `pg_advisory_xact_lock(hashtextextended('cap:forward:' || edgeId, 4242))` before slug discovery; cell locks remain lexicographic on `(observer, subject, tag)`.
+- Idempotent retries skip bump/rebuild when ledger state already matches desired outcome/forward/seed/revoke inputs.
+
+REMAINING: manager acceptance pending; B2b/B2c remain blocked
