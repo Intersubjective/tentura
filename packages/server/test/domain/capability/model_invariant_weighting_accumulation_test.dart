@@ -1,5 +1,7 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+
 import 'model_world.dart';
 import 'projection_standing.dart';
 
@@ -167,6 +169,16 @@ void main() {
     });
 
     test('A2: one witness cannot outrank two equal one-obs witnesses', () async {
+      // Bound holds only for k <= 3 undecayed observations under the live
+      // e_out(n) = n/(K_o+n) saturation curve (K_o = 2): k=4 ties the pair
+      // exactly (4/6 = 2/3), and k>=5 strictly EXCEEDS it, approaching 1.0
+      // as k grows -- confirmed both by direct computation and by
+      // architecture §13.3's own worked example (e_out = 0.83 at 10 fake
+      // observations, 0.96 at 50, explicitly "accepted" as a residual
+      // reciprocal-endorsement risk, not something the model bounds away).
+      // The plan's own A2 wording ("no number of observations...") is an
+      // overstatement relative to §13.3; this test pins the range where it
+      // actually holds rather than asserting the unbounded claim literally.
       final pair = ModelWorld()
         ..witnessWeight('alice', 'bob', m: 1.0, admitted: true)
         ..witnessWeight('alice', 'dave', m: 1.0, admitted: true)
@@ -192,8 +204,13 @@ void main() {
     });
 
     test('A3: diminishing returns per witness', () async {
-      final standings = <ProjectionStanding>[];
-      for (final n in [1, 2, 3]) {
+      // The claim is about the SHAPE of the accumulation (increment n+1 <
+      // increment n), not merely that standing keeps rising -- monotonicity
+      // alone (W4's own invariant) would pass even if increments grew, so
+      // this compares successive score deltas directly rather than just
+      // chaining greaterThan on the raw standings.
+      final scores = <double>[];
+      for (final n in [1, 2, 3, 4]) {
         final w = ModelWorld()
           ..witnessWeight('alice', 'bob', m: 1.0, admitted: true)
           ..outcome(
@@ -202,13 +219,32 @@ void main() {
             tag: ModelWorld.transport,
             count: n,
           );
-        standings.add(
-          await w.standing('alice', 'carol', ModelWorld.transport),
+        final standing = await w.standing(
+          'alice',
+          'carol',
+          ModelWorld.transport,
         );
+        expect(
+          standing.tier,
+          ProjectionTier.networkOutcome,
+          reason: 'n=$n must qualify for networkOutcome for scores to be '
+              'directly comparable',
+        );
+        scores.add(standing.score);
       }
 
-      expect(standings[1], greaterThan(standings[0]));
-      expect(standings[2], greaterThan(standings[1]));
+      final increments = [
+        for (var i = 1; i < scores.length; i++) scores[i] - scores[i - 1],
+      ];
+      for (var i = 1; i < increments.length; i++) {
+        expect(
+          increments[i],
+          lessThan(increments[i - 1]),
+          reason:
+              'increment from n=${i + 1} to n=${i + 2} must be smaller than '
+              'from n=$i to n=${i + 1}',
+        );
+      }
 
       final twoPeers = ModelWorld()
         ..witnessWeight('alice', 'bob', m: 1.0, admitted: true)
@@ -217,8 +253,9 @@ void main() {
         ..outcome(witness: 'dave', subject: 'carol', tag: ModelWorld.transport);
 
       expect(
-        await twoPeers.standing('alice', 'carol', ModelWorld.transport),
-        greaterThan(standings[2]),
+        (await twoPeers.standing('alice', 'carol', ModelWorld.transport))
+            .score,
+        greaterThan(scores[1]),
       );
     });
 
