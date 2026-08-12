@@ -229,6 +229,74 @@ WHERE beacon_id = 'Bcapc1abcn01'
     );
 
     test(
+      'rejects more than three ack tags inside the advisory lock',
+      () async {
+        expect(
+          () => repo.submitEvaluationAtomic(
+            beaconId: _beacon1,
+            evaluatorId: _eval1,
+            evaluatedUserId: _subject,
+            value: 4,
+            reasonTags: const ['ok'],
+            note: 'cap',
+            ackTags: const [
+              'transport',
+              'pets',
+              'manual_labour',
+              'overflow',
+            ],
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'Ack tag cap exceeded',
+            ),
+          ),
+        );
+        expect(
+          await _ackTagCount(writer, _beacon1, _eval1, _subject),
+          0,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'allows different evaluators each to submit three ack tags for same subject',
+      () async {
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+          value: 4,
+          reasonTags: const ['e1'],
+          note: 'n1',
+          ackTags: const ['transport', 'pets', 'manual_labour'],
+        );
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon1,
+          evaluatorId: _eval2,
+          evaluatedUserId: _subject,
+          value: 5,
+          reasonTags: const ['e2'],
+          note: 'n2',
+          ackTags: const ['transport', 'pets', 'manual_labour'],
+        );
+
+        expect(
+          await _ackTagCount(writer, _beacon1, _eval1, _subject),
+          3,
+        );
+        expect(
+          await _ackTagCount(writer, _beacon1, _eval2, _subject),
+          3,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
       'beacon advisory lock does not block concurrent submits on different beacons',
       () async {
         final blockerDb = TenturaDb(target.databaseEnv);

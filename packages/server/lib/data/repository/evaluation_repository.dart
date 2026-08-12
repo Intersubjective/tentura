@@ -3,6 +3,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
@@ -12,6 +13,8 @@ import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/evaluation_mapper.dart';
+
+const _ackTagCapExceededMessage = 'Ack tag cap exceeded';
 
 @Injectable(
   as: EvaluationRepositoryPort,
@@ -244,6 +247,10 @@ class EvaluationRepository implements EvaluationRepositoryPort {
       final now = DateTime.timestamp();
       if (window.closesAt.dateTime.isBefore(now)) {
         throw StateError('Review window expired');
+      }
+
+      if (ackTags.length > kCapMaxTagsPerSubjectBeacon) {
+        throw StateError(_ackTagCapExceededMessage);
       }
 
       await _db
