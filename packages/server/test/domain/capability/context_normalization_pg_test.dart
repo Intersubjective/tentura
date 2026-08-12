@@ -76,6 +76,7 @@ const _parityCases = [
   _ParityCase('whitespace', '  ', ''),
   _ParityCase('two chars', 'ab', ''),
   _ParityCase('trimmed case', ' AbC ', 'AbC'),
+  _ParityCase('tab delimiters', '\tAbC\t', '\tAbC\t'),
   _ParityCase('32 chars', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
   _ParityCase('33 chars', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ''),
 ];

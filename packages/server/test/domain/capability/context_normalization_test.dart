@@ -24,6 +24,10 @@ void main() {
       expect(capNormalizeContext(' AbC '), 'AbC');
     });
 
+    test('preserves tab delimiters (btrim parity)', () {
+      expect(capNormalizeContext('\tAbC\t'), '\tAbC\t');
+    });
+
     test('32 characters is accepted', () {
       final value = 'a' * 32;
       expect(capNormalizeContext(value), value);
