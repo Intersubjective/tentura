@@ -26,4 +26,7 @@ abstract interface class WitnessWindowPort {
   Future<void> invalidateFor({required String userId});
 
   Future<void> bumpMrEpoch();
+
+  /// Deletes witness-window cache rows past the read-time freshness TTL.
+  Future<int> gcStaleWindows();
 }

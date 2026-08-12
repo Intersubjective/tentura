@@ -164,6 +164,16 @@ WHERE id = true
 ''',
   );
 
+  @override
+  Future<int> gcStaleWindows() => _database.customUpdate(
+    r'''
+DELETE FROM public.ego_witness_window
+WHERE computed_at < now() - make_interval(mins => $1::integer)
+''',
+    variables: [Variable<int>(kCapWindowTtlMinutes)],
+    updateKind: UpdateKind.delete,
+  );
+
   Future<BigInt> _currentEpoch() async {
     final row = await _database
         .customSelect(

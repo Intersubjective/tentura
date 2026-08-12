@@ -13,4 +13,15 @@ abstract interface class CapabilityCellPort {
     required int limit,
     required String leaseOwner,
   });
+
+  Future<void> releaseSweepLease({
+    required CellRef ref,
+    required String leaseOwner,
+  });
+
+  /// Deletes generation rows with no live ledger row and no cached cell.
+  /// Takes [cap_cell_lock] per candidate before delete.
+  Future<int> gcOrphanGenerations({int limit = 100});
+
+  Future<DateTime?> nextExpiryAt(CellRef ref);
 }
