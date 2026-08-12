@@ -106,4 +106,11 @@ abstract class ForwardEdgeRepositoryPort {
     required String recipientId,
     String? parentEdgeId,
   });
+
+  /// Recipient ids [senderId] forwarded to within the trailing [withinDays],
+  /// including cancelled edges. Keyed on edge `created_at`.
+  Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String senderId,
+    required int withinDays,
+  });
 }

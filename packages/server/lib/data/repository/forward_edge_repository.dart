@@ -354,6 +354,28 @@ WHERE beacon_id = $1
         );
       });
 
+  @override
+  Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
+    required String senderId,
+    required int withinDays,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT DISTINCT recipient_id
+FROM beacon_forward_edge
+WHERE sender_id = $1
+  AND created_at >= now() - make_interval(days => $2::integer)
+''',
+          variables: [
+            Variable.withString(senderId),
+            Variable<int>(withinDays),
+          ],
+        )
+        .get();
+    return rows.map((r) => r.read<String>('recipient_id')).toSet();
+  }
+
   Future<void> _insertActiveEdge({
     String? edgeId,
     required String beaconId,
