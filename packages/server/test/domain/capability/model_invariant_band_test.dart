@@ -17,7 +17,12 @@ void main() {
         ..bandCandidate(userId: 'carol', forwardMr: 0.9)
         ..bandCandidate(userId: 'empty_peer', forwardMr: 0.5)
         ..vouches(ego, 'bob')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        );
 
       final band = await w.composeBand(egoId: ego);
       expect(band.any((row) => row.userId == 'empty_peer'), isTrue);
@@ -55,7 +60,12 @@ void main() {
         )
         ..bandCandidate(userId: 'carol', forwardMr: 0.9)
         ..vouches(ego, 'bob')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport)
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        )
         ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.pets);
 
       final band = await w.composeBand(egoId: ego);
@@ -74,7 +84,12 @@ void main() {
         ..bandCandidate(userId: 'explore_a', forwardMr: 0.6)
         ..bandCandidate(userId: 'explore_b', forwardMr: 0.5)
         ..vouches(ego, 'bob')
-        ..outcome(witness: 'bob', subject: 'carol', tag: ModelWorld.transport);
+        ..outcome(
+          witness: 'bob',
+          subject: 'carol',
+          tag: ModelWorld.transport,
+          count: 2,
+        );
 
       final band = await w.composeBand(egoId: ego);
       final exploration = band.where((row) => row.isExploration).toList();
@@ -98,7 +113,7 @@ void main() {
         ..bandCandidate(userId: 'frank', forwardMr: 0.44)
         ..vouches(ego, 'bob')
         ..ownOutcome(egoId: ego, subject: 'carol', tag: ModelWorld.transport)
-        ..outcome(witness: 'bob', subject: 'alex', tag: ModelWorld.transport)
+        ..outcome(witness: 'bob', subject: 'alex', tag: ModelWorld.transport, count: 2)
         ..seed(witness: 'bob', subject: 'dave', tag: ModelWorld.tools);
 
       final first = await w.composeBand(egoId: ego);
