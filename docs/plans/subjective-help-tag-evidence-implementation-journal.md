@@ -2408,3 +2408,136 @@ FINDINGS:
 
 REMAINING: none — D2 (band composition) is next; requires D1 (this unit) and
 D0 (accepted).
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+**Acceptance criteria mapping** (plan text: "the §13.1 example → networkOutcome;
+Sybil case → nothing; an ineligible coalition summing 0.9 → nothing; muted →
+nothing; tombstoned → nothing including own; profile surface drops a seed-only
+tag that the band surface shows" plus "a 4-tag fixture asserting exactly 3
+come back in [ownOutcome-first, networkOutcome-by-score-desc, tagSlug-asc]
+order"):
+
+- §13.1 Bob-only (`S_out = 0.321`) and Bob+Dave (`S_out = 0.448`) →
+  `networkOutcome`, exact scores asserted — both present, both correct.
+- Sybil farm (no admitted witnesses) → empty — present.
+- Ineligible coalition (2 non-admitted witnesses) → empty, **and** pins via
+  `verify(...)` that `fetchCells` is called with `admittedWitnesses: const []`
+  — stronger than the plan's bare "→ nothing", since it proves the D15
+  exclusion happens before the cell fetch, not just that the final output
+  is empty (which a differently-broken implementation could also produce).
+- Muted → the muted tag produces no row while an unmuted outcome tag for the
+  same subject is unaffected — present, matches the routing-mute scope
+  finding below.
+- Tombstoned → empty even with both qualifying network AND own evidence
+  present for the pair — present, exact match to spec wording "nothing
+  including own".
+- Profile surface drops a seed-only tag the band surface shows — present,
+  and the fixture is a 5-tag case (exceeds the plan's 4-tag minimum): one
+  own-outcome tag plus four network-outcome tags at descending scores plus
+  one network-seed tag plus one own-routing tag are all supplied; profile
+  returns exactly `['own_tag', 'alpha', 'beta']` (ownOutcome first, then the
+  two highest-scoring networkOutcome tags, `gamma`/`delta` correctly cut by
+  the cap), `routing_tag` (ownRouting) and `seed_only` (networkSeed) are
+  absent from profile output and confirmed present in the same fixture's
+  forwardBand-surface output.
+
+All six required cases and the mandatory profile-cap fixture are present.
+Two more cases beyond the plan's bare minimum are also covered: own-evidence
+overriding network evidence on the same tag (§5.5's "(A, ∞) overrides B/C"
+line), and both rows of the §16.2 block matrix that are D1's responsibility
+(ego↔witness and witness↔subject, the latter proven scoped to the specific
+blocked subject and not the witness's other cells).
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read capability_projection_case.dart and capability_projection_case_test.dart
+# in full and traced every branch against architecture §5.2.2/§5.3/§5.4/§5.5/§16.2
+# before running anything.
+
+# sqlite3 hook overlay applied temporarily, then reverted (git diff pubspec.yaml clean)
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart
+→ run 1: 00:00 +10: All tests passed!
+→ run 2: 00:00 +10: All tests passed!
+→ run 3: 00:00 +10: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1366: All tests passed! (+10 vs D0's baseline of 1356, matches the new file exactly)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0 (baseline: 0)
+
+git diff --check
+→ no whitespace errors
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_projection_case.dart
+→ empty (domain purity holds)
+
+git diff 6df6cd52..f592386f --stat
+→ purely additive: journal (+79/-1), capability_projection_case.dart (new,
+  260 lines), test file (new, 644 lines), mocks source + generated mocks
+  (new) — no pre-existing file touched, confirming no collateral-damage
+  risk to sweep for (unlike C4/C5, which each modified shared read paths).
+
+grep -n "CapabilityProjectionCase" packages/server/lib/app/di.config.dart
+→ present, singleton-registered
+
+grep -n "@Singleton(order: 2)" packages/server/lib/domain/use_case/*.dart | wc -l
+→ CapabilityProjectionCase uses the same order:2 convention as every other
+  use case in this directory (forward_inbound_query_case.dart, user_case.dart,
+  polling_case.dart, etc.) — no DI-ordering anomaly introduced.
+
+cat packages/server/lib/data/repository/pair_block_query_repository.dart
+→ confirms the worker's block-tuple-direction finding exactly: the SQL emits
+  CASE WHEN blocker_id < blocked_id THEN blocker_id ELSE blocked_id END (and
+  the symmetric max), i.e. (min, max) by text comparison — matching D1's
+  `_canonicalPair`'s `a.compareTo(b) <= 0 ? (a, b) : (b, a)` exactly.
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- **Routing-mute scope resolution is correct and traced to the actual code
+  path, not just asserted.** `_aggregateNetworkProjections` accumulates
+  `outSums[key]` unconditionally for every cell (line before the mute
+  check), and only guards the `seedSums[key]` accumulation with the mute
+  lookup. This means an outcome-qualifying cell on a muted tag slug would
+  still cross `θ_out` and render — exactly the "mutes never suppress ego
+  own evidence" / "profiles render outcome channel only, regardless of
+  mute" reading of §5.4 the worker chose. The test as written proves the
+  mechanism using two *different* tags (transport unmuted/outcome, pets
+  muted/seed) rather than one tag with both qualifying outcome and seed
+  evidence simultaneously — a marginally weaker fixture than ideal, but the
+  code path itself is unconditional per-tier (not tag-dependent), so this
+  gap doesn't hide a real defect; noted for a future unit that touches this
+  method to prefer the stronger same-tag fixture if convenient.
+- **Profile cap is applied per-subject, not globally across a batched
+  `subjectIds` call.** This is the correct reading: `subjectiveTags(target)`
+  (architecture §16.1) is single-target, so a global cross-subject cap would
+  produce nonsensical results if `profile` surface is ever called with a
+  batch of subjects (at most 3 tags *total* across 5 different people's
+  profiles makes no sense for a profile view). Confirmed by reading
+  `_applyProfileCap`'s `bySubject` grouping before the take(3). This should
+  be re-confirmed against E1a's resolver when it's built, to make sure the
+  API layer calls `project()` with exactly one subject per profile request
+  and doesn't accidentally rely on a global-cap assumption.
+- **`kCapOwnEvidenceScore = double.infinity`** is a new top-level constant
+  in the use-case file itself, not `capability_consts.dart` — reasonable
+  scoping choice since it's an internal sentinel for this file's own sort
+  ordering, not a tunable calibration constant like the `kCap*` values in
+  the shared consts file; does not need to move.
+- No pre-existing test anywhere references `CapabilityProjectionCase`,
+  `ScoredProjection` construction outside `capability_evidence_models.dart`
+  itself, or any of the five consumed ports' method signatures in a way D1
+  could have broken — confirmed via the purely-additive diff stat above,
+  so the "sweep every affected pre-existing test" discipline (required
+  since C4/C5) has nothing to check here; this unit could not have
+  regressed anything by construction.
+
+**D1 is accepted.** D2 (Band composition) is now unblocked — its
+preconditions were "D1 exists and returns `ScoredProjection`" (satisfied)
+and it separately depends on D0 (accepted). Proceeding to D2 next per
+document order. D3 (Expiry sweep) and D4 (Model invariant suite, which
+additionally needs D1+D2 "exercisable through fake ports") remain queued
+behind D2.
