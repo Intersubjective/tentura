@@ -498,6 +498,17 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
   }) async {}
+
+  @override
+  Future<void> submitEvaluationAtomic({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required List<String> reasonTags,
+    required String note,
+    required List<String> ackTags,
+  }) async {}
 }
 
 class _FakeReviewFinalization implements ReviewFinalizationPort {

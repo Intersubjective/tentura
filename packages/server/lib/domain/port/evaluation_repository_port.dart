@@ -74,6 +74,16 @@ abstract class EvaluationRepositoryPort {
     int status = BeaconEvaluationRowStatus.submitted,
   });
 
+  Future<void> submitEvaluationAtomic({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required List<String> reasonTags,
+    required String note,
+    required List<String> ackTags,
+  });
+
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,

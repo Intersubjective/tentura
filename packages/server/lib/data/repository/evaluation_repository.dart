@@ -218,6 +218,80 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
+  Future<void> submitEvaluationAtomic({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required List<String> reasonTags,
+    required String note,
+    required List<String> ackTags,
+  }) async {
+    final reasonTagsCsv = reasonTags.join(',');
+    await _db.transaction(() async {
+      await _db.customStatement(
+        r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
+        [beaconId],
+      );
+
+      final window = await _db.managers.beaconReviewWindows
+          .filter((e) => e.beaconId.id(beaconId))
+          .getSingleOrNull();
+      if (window == null || window.status != 0) {
+        throw StateError('Review window not open');
+      }
+      final now = DateTime.timestamp();
+      if (window.closesAt.dateTime.isBefore(now)) {
+        throw StateError('Review window expired');
+      }
+
+      await _db
+          .into(_db.beaconEvaluations)
+          .insert(
+            BeaconEvaluationsCompanion.insert(
+              beaconId: beaconId,
+              evaluatorId: evaluatorId,
+              evaluatedUserId: evaluatedUserId,
+              value: value,
+              reasonTags: Value(reasonTagsCsv),
+              note: Value(note),
+              status: const Value(BeaconEvaluationRowStatus.submitted),
+            ),
+            onConflict: DoUpdate(
+              (_) => BeaconEvaluationsCompanion(
+                value: Value(value),
+                reasonTags: Value(reasonTagsCsv),
+                note: Value(note),
+                status: const Value(BeaconEvaluationRowStatus.submitted),
+                updatedAt: Value(PgDateTime(now)),
+              ),
+            ),
+          );
+
+      await _db.customStatement(
+        r'''
+        DELETE FROM public.beacon_evaluation_ack_tag
+        WHERE beacon_id = $1
+          AND evaluator_id = $2
+          AND subject_id = $3
+        ''',
+        [beaconId, evaluatorId, evaluatedUserId],
+      );
+
+      for (final tagSlug in ackTags) {
+        await _db.into(_db.beaconEvaluationAckTags).insert(
+          BeaconEvaluationAckTagsCompanion.insert(
+            beaconId: beaconId,
+            evaluatorId: evaluatorId,
+            subjectId: evaluatedUserId,
+            tagSlug: tagSlug,
+          ),
+        );
+      }
+    });
+  }
+
   /// Submitted or finalized evaluations written about [evaluatedUserId].
   @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
