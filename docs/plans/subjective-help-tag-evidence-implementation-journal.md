@@ -69,7 +69,7 @@ any order after F1b. One worker at a time.
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
-- [ ] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
+- [x] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
@@ -560,3 +560,41 @@ FINDINGS:
 - The prior B1 journal entry's "seven ports" wording was a documentation/count typo. The B1 implementation contains the six plan ports: `CapabilityEvidencePort`, `CapabilityCellPort`, `WitnessWindowPort`, `CapabilityOwnEvidencePort`, `RoutingMutePort`, `PairBlockQueryPort`.
 
 REMAINING: manager review and acceptance; B2 remains blocked
+
+## B2a — complete — 2026-08-12
+
+COMMITS: feat(server): add capability evidence write repository (B2a) (`3ee294bf`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 4s; wrote 6 outputs (CapabilityEvidencePort Injectable registration in local di.config.dart, not committed)
+
+cd packages/server && dart test -t pg test/data/repository/capability_evidence_repository_pg_test.dart
+→ 00:01 +7: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1337: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check -- packages/server/lib/data/repository/capability_evidence_repository.dart packages/server/test/data/repository/capability_evidence_repository_pg_test.dart
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/repository/capability_evidence_repository.dart` (created)
+- `packages/server/test/data/repository/capability_evidence_repository_pg_test.dart` (created)
+
+FINDINGS:
+
+- Preconditions confirmed: B1 ports and A3 SQL functions present; no prior `CapabilityEvidencePort` adapter in tree.
+- `cap_cell_rebuild` fourth argument must be cast `$4::integer` when invoked via Drift `customStatement`; bare Dart `int` binds as `bigint` and Postgres rejects the call.
+- `emitOutcomeEvidenceBatch` intentionally skips `withMutatingUser` so C2 finalization can call it inside one actor/system UoW; other write methods wrap in `withMutatingUser(observerId)` with same-actor nesting safe.
+- `CapabilityCellPort` not registered per plan — `claimExpiredCells` awaits D3/m0147 lease columns; read/expiry adapter is B2b/D3 scope.
+- Concurrent deadlock test opens two `TenturaDb` instances on the same pool (Drift debug warning only); both transactions complete with lexicographic lock order.
+
+REMAINING: manager review and acceptance; B2b/B2c remain blocked
