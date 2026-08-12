@@ -283,8 +283,7 @@ REMAINING: none
 Rejected pending a narrow parity repair. The Dart implementation uses
 `String.trim()`, while PostgreSQL `btrim(text)` (the A2 SQL authority) removes
 ASCII spaces only. A tab-delimited input remains tab-delimited in SQL but not in Dart,
-which can split
-canonical context keys across layers. A fresh remediation worker must make the
+which can split canonical context keys across layers. A fresh remediation worker must make the
 Dart implementation exactly match the SQL behavior, add a tab-delimited parity
 case to both pure and pg tests, rerun the focused tests and server custom lint,
 and commit its source/test repair and journal checkpoint separately. No other
@@ -322,3 +321,29 @@ FINDINGS:
 - Repair: private `_btrimAsciiSpaces` helper; no migration/SQL changes.
 
 REMAINING: none (A2 remediation scope complete; manager re-review pending)
+
+### Manager acceptance — 2026-08-12
+
+Accepted after independent review of the A2 implementation and the focused
+remediation. `m0142` is registered contiguously, its five tables/indexes and
+singleton/check constraints match the plan, and `mutually_visible_users`
+preserves the prior block and visibility predicates while passing normalized
+context to `person_visibility_peers`. The original Dart/SQL whitespace mismatch
+is closed by `cdbf9b35`: only U+0020 is trimmed, while tab-delimited context
+remains unchanged in both layers. Independent evidence passed:
+
+```bash
+cd packages/server && dart test test/domain/capability/context_normalization_test.dart
+→ 00:00 +8: All tests passed!
+
+cd packages/server && dart test -t pg test/data/database/m0142_derived_tables_migration_test.dart test/domain/capability/context_normalization_pg_test.dart
+→ 00:01 +10: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0 (tentura_lints total: 0)
+
+git diff --check cdbf9b35^ cdbf9b35
+→ no whitespace errors
+```
+
+Protected baseline paths remain untouched. A3 may now begin.
