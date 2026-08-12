@@ -289,3 +289,36 @@ Dart implementation exactly match the SQL behavior, add a tab-delimited parity
 case to both pure and pg tests, rerun the focused tests and server custom lint,
 and commit its source/test repair and journal checkpoint separately. No other
 A2 scope is reopened.
+
+## A2 remediation — complete — 2026-08-12
+
+COMMITS: fix(server): match capNormalizeContext to PostgreSQL btrim (A2 parity) (`cdbf9b35a40cc26d17b40808766562ca8029c1e1`)
+
+TESTS:
+
+```bash
+cd packages/server && dart test test/domain/capability/context_normalization_test.dart
+→ 00:00 +8: All tests passed!
+
+cd packages/server && dart test -t pg test/data/database/m0142_derived_tables_migration_test.dart test/domain/capability/context_normalization_pg_test.dart
+→ 00:01 +10: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check -- packages/server/lib/domain/capability/context_normalization.dart packages/server/test/domain/capability/context_normalization_test.dart packages/server/test/domain/capability/context_normalization_pg_test.dart
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/domain/capability/context_normalization.dart` (replaced `String.trim()` with `_btrimAsciiSpaces` matching PostgreSQL `btrim(text)`)
+- `packages/server/test/domain/capability/context_normalization_test.dart` (tab-delimited valid case)
+- `packages/server/test/domain/capability/context_normalization_pg_test.dart` (tab-delimited parity case)
+
+FINDINGS:
+
+- Manager defect confirmed: `String.trim()` strips tabs; PostgreSQL `btrim(text)` removes only ASCII U+0020 spaces. Input `'\tAbC\t'` normalizes to `'\tAbC\t'` in SQL but was `AbC` in Dart.
+- Repair: private `_btrimAsciiSpaces` helper; no migration/SQL changes.
+
+REMAINING: none (A2 remediation scope complete; manager re-review pending)
