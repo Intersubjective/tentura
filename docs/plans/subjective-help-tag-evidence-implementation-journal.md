@@ -67,7 +67,7 @@ any order after F1b. One worker at a time.
 - [x] **A0** — Journal + baseline (journal only)
 - [x] **A1** — Ledger extension (depends: A0) — `m0141`; `person_capability_events.dart`; `CapabilityEventSource.seedRoutingAttestation(4)`
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
-- [ ] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
+- [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [ ] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [ ] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
@@ -347,3 +347,39 @@ git diff --check cdbf9b35^ cdbf9b35
 ```
 
 Protected baseline paths remain untouched. A3 may now begin.
+
+## A3 — complete — 2026-08-12
+
+COMMITS: feat(server): add capability evidence SQL functions (A3) (`4dab460b41557c61268e4751f817265de8431692`)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/data/database/m0143_capability_evidence_sql_test.dart
+→ 00:02 +9: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:09 +1335: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check -- packages/server/lib/data/database/migration/m0143.dart packages/server/lib/data/database/migration/_migrations.dart sql/triggers.sql packages/server/test/data/database/m0143_capability_evidence_sql_test.dart
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0143.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart` (part + ordered registration)
+- `sql/triggers.sql` (A3 function mirror only)
+- `packages/server/test/data/database/m0143_capability_evidence_sql_test.dart` (created)
+
+FINDINGS:
+
+- Preconditions confirmed: `m0142` registered; A3 functions absent before this unit.
+- Local Postgres does not accept `SET TRANSACTION TIMESTAMP`; boundary and half-life proofs use literal expired `created_at` values (calendar now is past 2026-02-29 + 24 months) and transaction-scoped `now() - interval` inside `BEGIN` for exact 365-day decay.
+- `provolatile` from `pg_proc` returns `UndecodedBytes` in the dart postgres driver; stability checked via `provolatile = 's'` in SQL instead.
+- `cap_cell_rebuild` deletes the cell when both accumulators are zero; generation rows are not bumped inside rebuild (later units own write transactions).
+
+REMAINING: none (B1 may begin)
