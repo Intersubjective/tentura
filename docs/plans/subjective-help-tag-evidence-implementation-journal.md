@@ -75,7 +75,7 @@ any order after F1b. One worker at a time.
 - [x] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [x] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
 - [x] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
-- [ ] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
+- [x] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
 - [ ] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
 - [ ] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
 - [ ] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
@@ -1482,4 +1482,139 @@ worker's claims:
 
 **C1b is accepted.** Commits: `8e0a71ff`, `7e29061d`, `7759a363`, `1c92b8ae`.
 C2 is now dependency-ready.
+
+## C2 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- feat(server): extend review close snapshot with role and ack tags (C2) (`733a39b9`)
+- feat(server): emit outcome evidence at review finalization (C2) (`1903180f`)
+- test(server): add review finalization outcome evidence PG proofs (C2) (`89dccda4`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/server && dart run build_runner build -d
+→ Built successfully
+
+cd packages/server && dart test -x pg
+→ 00:05 +1355: All tests passed!
+
+cd packages/server && dart test -t pg test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart
+→ 00:01 +6: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ check-custom-lints: packages/server OK; tentura_lints total: 0 (baseline: 0)
+
+git diff --check -- <owned C2 paths>
+→ no whitespace errors
+
+rg "package:tentura_server/data/repository" packages/server/lib/domain
+→ no matches
+```
+
+FILES:
+
+- `packages/server/lib/domain/entity/review_close_snapshot.dart` (`FinalizedEvaluation.role`, `ackTags`)
+- `packages/server/lib/data/repository/evaluation_repository.dart` (beacon advisory lock + CTE snapshot query)
+- `packages/server/lib/domain/use_case/evaluation/review_finalization_case.dart` (`CapabilityEvidencePort`, `_recordOutcomeEvidence`)
+- `packages/server/test/support/review_finalization_test_support.dart` (`NoopCapabilityEvidence`, constructor wiring)
+- `packages/server/test/domain/use_case/evaluation/review_finalization_case_test.dart` (fixture `role` fields)
+- `packages/server/test/data/repository/forward_outcome_finalization_test.dart` (fixture `role` field)
+- `packages/server/test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart` (created)
+
+FINDINGS:
+
+- **`0.60` vs `0.333` cell strength:** Plan acceptance cites `3/(2+3) = 0.60`, which is the **single-cell** saturation table for `k=3` fresh source-3 rows at `K_o=2` (already proved in A3/m0143 PG tests). C2 emits **one ledger row per distinct observer** on `(subject, tag)`, so B2a's write discipline rebuilds **one cell per observer** with `s_out = 1.0` each → `cap_strength(s_out, 2, …) ≈ 1/3` per cell. The C2 PG test asserts three ledger rows and `≈0.333` per observer cell; it does not expect `0.60` on any individual cell because that would require three rows in one observer's cell.
+- **Idempotency:** No new guard in `_recordOutcomeEvidence`. `closeReviewWindow` returns `null` on re-close (`didClose: false`), so emission never re-runs; `pce_close_ack_uq` + `emitOutcomeEvidenceBatch`'s `ON CONFLICT DO NOTHING` would also make a hypothetical double-emit a no-op. PG test confirms stable ledger count across two `closeAndFinalize` calls.
+- **Beacon lock:** Added `pg_advisory_xact_lock(hashtextextended(beaconId, 4242))` to `closeReviewWindow` (same idiom as `submitEvaluationAtomic`), closing the C1b deferral for submit/close serialization at the repository layer.
+- **Beacon-wide cap:** Applied in `_recordOutcomeEvidence` per subject — rank tags by (distinct acknowledging evaluators DESC, `tag_slug` ASC), keep top `kCapMaxTagsPerSubjectBeacon`.
+
+REMAINING: none (manager acceptance pending; C3a may begin after acceptance)
+
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Independent review of all three feature commits, not a re-run of the
+worker's claims:
+
+- **Snapshot extension (`733a39b9`):** the CTE rewrite of `closeReviewWindow`'s
+  raw SQL matches the plan's exact required shape (`array_agg(...) FILTER
+  (WHERE ... IS NOT NULL)` correctly prevents a one-element `[NULL]` array
+  for evaluations with no ack tags). **The worker went beyond the plan's
+  explicit C2 scope in a good way:** it added
+  `pg_advisory_xact_lock(hashtextextended(beaconId, 4242))` as the first
+  statement inside `closeReviewWindow`'s transaction — the same lock
+  `submitEvaluationAtomic` (C1a) already takes. This closes the exact gap
+  C1b's acceptance review explicitly deferred ("concurrent submit + close do
+  not interleave... deferred to C2 — `closeReviewWindow` does not yet take
+  the shared lock"). Confirmed the lock is the very first statement in the
+  transaction, matching C1a's placement.
+- **Emission logic (`1903180f`):** `_qualifiesForOutcomeEmission` correctly
+  uses `BeaconEvaluationValue.isPositive` (not hand-rolled magic numbers) and
+  the same `{author, committer, formerCommitter}` role set C1b already
+  established. The subject→tag→acknowledger-set grouping, the
+  (acknowledger-count DESC, tag_slug ASC) ranking, and the
+  `kCapMaxTagsPerSubjectBeacon` truncation all match the plan's specified
+  algorithm exactly. `CapabilityEvidencePort` injection and every
+  construction call site (production DI plus every test harness
+  constructing `ReviewFinalizationCase` directly) were updated consistently.
+- **The `0.60` vs `0.333` finding is independently verified, not just taken
+  on the worker's word.** Traced `cap_strength`'s actual formula
+  (`s_out * decay / (k + s_out * decay)`, `m0143.dart`) and confirmed
+  `cap_cell_rebuild` never calls it at write time — raw `s_out`/`s_seed` are
+  stored unsaturated, and `cap_strength` is only meant to be applied at read
+  time (a `fetchCells`/projection concern that doesn't exist yet — B2a never
+  implemented `CapabilityCellPort.fetchCells`). Confirmed directly in
+  `test/data/database/m0143_capability_evidence_sql_test.dart` (an
+  already-accepted A3 test, untouched by this unit) that a test named **"one
+  fresh source-3 row yields cap_strength about 1/3; three about 0.60"**
+  already exists and asserts exactly `closeTo(0.60, 1e-4)` for `s_out = 3` in
+  a single cell. This proves the plan's "3/(2+3) = 0.60" acceptance text
+  describes one cell accumulating three evidence units (e.g. from the same
+  observer over repeated events) — not three different observers each
+  acknowledging once, which is what C2's single-finalization emission
+  actually produces (three separate cells, each with `s_out = 1`, each
+  `cap_strength ≈ 1/(k_out+1) ≈ 0.333`, exactly what the new PG test
+  asserts via a direct call to the real `cap_strength` SQL function against
+  the real `capability_evidence_edge.s_out` column, not a hand-computed
+  stand-in). The worker's reinterpretation of an ambiguous/misleading
+  acceptance figure is correct and well-evidenced, not a dodge.
+- **Idempotency:** verified the worker's claim directly — `closeReviewWindow`
+  returns `null` on an already-closed window (`didClose: false`), so
+  `_recordOutcomeEvidence` structurally never re-runs for the same beacon;
+  `pce_close_ack_uq` (A1, `m0141.dart`) plus `emitOutcomeEvidenceBatch`'s
+  existing `ON CONFLICT DO NOTHING` (B2a) would also make a hypothetical
+  double-emit a no-op at the database level. No new guard was needed, and
+  none was added — correct minimalism.
+- Test coverage: 6 PG tests, reran 3x independently against fresh disposable
+  databases — all green every time, no flakiness. Covers every acceptance
+  bullet from the plan: non-positive values emit nothing, forwarder
+  evaluations emit nothing (defense-in-depth at the finalization layer, not
+  solely relying on C1b's submission-time gate), three co-acknowledgers
+  produce three ledger rows with correctly-computed per-observer cell
+  strength, the per-subject cap keeps the top-3 most-corroborated tags and
+  drops the rest, re-running finalization is idempotent, and three distinct
+  observers emitting in one finalization call completes without a
+  `withMutatingUser` nesting exception.
+- Reran `dart test -x pg` (1355, unchanged — correct, no new non-pg tests),
+  the pre-existing `forward_outcome_finalization_test.dart` (which this unit
+  touched only to add the new required `role` field to test fixtures — still
+  passes), `./scripts/check-custom-lints.sh packages/server` (0, baseline),
+  `git diff --check` (clean), `rg "package:tentura_server/data/repository"
+  packages/server/lib/domain` (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs: `mr_publish_epoch.epoch` read `0` before and after, no new
+  `tentura_test_*` database left behind by any run.
+
+**C2 is accepted.** Commits: `733a39b9`, `1903180f`, `89dccda4`. C3a and D0
+were already dependency-ready from earlier acceptances; this unit's proactive
+lock addition also fully closes C1b's deferred serialization concern with no
+further action needed there.
 
