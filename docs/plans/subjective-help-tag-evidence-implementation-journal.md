@@ -83,7 +83,7 @@ any order after F1b. One worker at a time.
 - [x] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
 - [x] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
 - [x] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
-- [ ] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
+- [x] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
 - [ ] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
 - [ ] **E1a** — Query resolvers + authz (depends: D2, D3, D4) — `subjectiveTags`, `forwardContext`, `tagExplanation`, `CapabilityRoutingCase` read methods
 - [ ] **E1b** — Mutation resolvers + authz (depends: E1a) — `myRoutingTags`, seed, revoke, setMute, prompt answer/skip
@@ -2835,3 +2835,110 @@ FINDINGS (manager, beyond what the worker reported):
 dependency-ready from B2a) and D4 (Model invariant suite, needing D1+D2
 "exercisable through fake ports" — now satisfied) are both unblocked.
 Proceeding to D3 next per document order.
+
+## D3 — checkpoint — 2026-08-12
+
+Started `CapabilityCellRepository` (`@Injectable(as: CapabilityCellPort)`),
+the first concrete adapter for the port D1/D2 already depend on. Plan prose
+undersells this unit: there was zero `implements CapabilityCellPort` in the
+tree — D3 builds `fetchCells`, `rebuildCell`, and `claimExpiredCells` from
+scratch, not just a sweep on an existing adapter.
+
+**`fetchCells` read-through staleness (two-phase):** (1) SELECT matching
+`capability_evidence_edge` rows joined to live `capability_evidence_generation`,
+flagging rows where `built_from_gen <> coalesce(generation,0)` OR
+`next_expiry_at <= now()`; (2) `cap_cell_rebuild` each stale triple
+(reentrant lock inside SQL); (3) re-SELECT the requested set with
+`cap_strength` applied and map `m` from caller-supplied `admittedWitnesses`.
+Race-safe because a concurrent writer may bump generation between (1) and (2)
+— worst case an extra rebuild, never a stale read after (3). `cap_cell_rebuild`
+already self-deletes zero-evidence cells and takes `cap_cell_lock` internally.
+
+**Claim/lease:** single-statement CTE
+`SELECT … FOR UPDATE SKIP LOCKED LIMIT` + `UPDATE … SET sweep_lease_*`
+(matching `ImageObjectGcRepository`), not `AttentionExpirySweepCase`'s
+unbounded, lease-less pattern.
+
+**GC:** `WitnessWindowPort.gcStaleWindows()` deletes
+`computed_at < now() - kCapWindowTtlMinutes` (15m, same as read-time TTL);
+`CapabilityCellPort.gcOrphanGenerations()` deletes generation rows with no
+*non-deleted* ledger row and no cell, under `cap_cell_lock` per triple.
+TaskWorker intervals: cell sweep 15m; EWW GC 1h; generation GC 6h.
+
+Migration number confirmed live: **m0147** (next free after m0146).
+
+## D3 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: feat(server): add sweep lease columns on capability evidence edge (D3) (`113de4e8`); feat(server): add CapabilityCellRepository adapter (D3) (`49d200ed`); feat(server): wire capability cell expiry sweep into TaskWorker (D3) (`2d2ce4e7`); test(server): add capability cell PG tests and fix A1-A3 upgrade paths (D3) (`9a4e8c1b`); docs: D3 expiry sweep journal (D3) (`293e1f05`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot; wrote outputs (CapabilityCellRepository,
+  CapabilityCellExpirySweepCase, TaskWorkerCase DI)
+
+cd packages/server && dart test -t pg test/data/repository/capability_cell_repository_pg_test.dart
+→ run 1/2/3: 00:01 +9: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:13 +1380: All tests passed!
+
+cd packages/server && dart test -t pg
+→ 00:44 +349 ~2 -12: Some tests failed (12 remaining failures, all in
+  beacon_cover_migration_test.dart and realtime_notification_migration_test.dart
+  — partial schema_version rollback + migrateDbSchema head-at-m0147 class;
+  unrelated to capability_evidence_edge columns; A1–A3 upgrade tests repaired)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_cell_expiry_sweep_case.dart
+→ empty
+```
+
+FILES:
+
+- `packages/server/lib/data/database/migration/m0147.dart` (created)
+- `packages/server/lib/data/database/migration/_migrations.dart`
+- `packages/server/lib/data/repository/capability_cell_repository.dart` (created)
+- `packages/server/lib/data/repository/witness_window_repository.dart`
+- `packages/server/lib/domain/port/capability_cell_port.dart`
+- `packages/server/lib/domain/port/witness_window_port.dart`
+- `packages/server/lib/domain/use_case/capability_cell_expiry_sweep_case.dart` (created)
+- `packages/server/lib/domain/use_case/task_worker_case.dart`
+- `packages/server/test/data/repository/capability_cell_repository_pg_test.dart` (created)
+- `packages/server/test/data/database/m0141_person_capability_event_ledger_test.dart`
+- `packages/server/test/data/database/m0142_derived_tables_migration_test.dart`
+- `packages/server/test/data/database/m0143_capability_evidence_sql_test.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.mocks.dart` (generated)
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+
+- **Plan undersold D3 scope:** `CapabilityCellPort` had no adapter anywhere;
+  D3 delivers the full PG-backed repository D1/D2 inject, including first
+  real-Postgres proof of `fetchCells`.
+- **`fetchCells` staleness:** two-phase select→rebuild stale triples→re-select
+  (see checkpoint); safe under concurrent generation bumps / rebuilds.
+- **`next_expiry_at` Drift read:** `read<DateTime>` mis-decodes Postgres
+  `timestamptz`; parse via `DateTime.parse(row.read<String>(…)).toUtc()` like
+  `attention_dispatch_repository.dart`.
+- **Migration upgrade tests vs migrant head:** deleting only
+  `schema_version='0143'` then calling `migrateDbSchema` no longer re-applies
+  m0143 when head is m0147 (`getNext(current)` stops at head). Fixed A1–A3
+  upgrade tests to re-execute that migration's `statements` directly + insert
+  `(version, applied_at)` row. Same root cause likely explains 12 pre-existing
+  failures in older beacon/notification migration tests (not touched further —
+  out of D3 scope, unrelated to new columns).
+- **GC predicates:** EWW TTL = `kCapWindowTtlMinutes` (15m); generation GC uses
+  zero *non-deleted* ledger rows (generation tracks live ledger↔cell drift) AND
+  no cell row, with `cap_cell_lock` before delete.
+- **Migration number used:** **m0147** (verified free in `_migrations.dart`).
+
+REMAINING: none for D3 scope. Twelve PG failures in
+`beacon_cover_migration_test.dart` / `realtime_notification_migration_test.dart`
+remain (partial rollback vs migrant-head); not introduced by m0147 column adds.
+
