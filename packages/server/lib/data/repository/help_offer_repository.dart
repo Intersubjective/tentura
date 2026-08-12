@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonEncode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
@@ -109,6 +109,33 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         )
         .getSingleOrNull();
     return row != null;
+  }
+
+  @override
+  Future<List<String>> fetchActiveHelpTypes({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final row = await _database.managers.beaconHelpOffers
+        .filter(
+          (e) => e.beaconId.id(beaconId) & e.userId.id(userId) & e.status.equals(0),
+        )
+        .getSingleOrNull();
+    if (row == null) {
+      return const [];
+    }
+    return _decodeHelpTypes(row.helpType);
+  }
+
+  static List<String> _decodeHelpTypes(String? helpTypeJson) {
+    if (helpTypeJson == null || helpTypeJson.isEmpty) {
+      return const [];
+    }
+    final decoded = jsonDecode(helpTypeJson);
+    if (decoded is! List) {
+      return const [];
+    }
+    return [for (final item in decoded) item.toString()];
   }
 
   static HelpOfferEntity _toEntity(BeaconHelpOffer row) =>

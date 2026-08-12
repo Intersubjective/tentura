@@ -27,4 +27,10 @@ abstract class HelpOfferRepositoryPort {
     required String beaconId,
     required String userId,
   });
+
+  /// Decoded help-type slugs from the subject's active offer on [beaconId].
+  Future<List<String>> fetchActiveHelpTypes({
+    required String beaconId,
+    required String userId,
+  });
 }

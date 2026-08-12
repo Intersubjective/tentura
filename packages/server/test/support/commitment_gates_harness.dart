@@ -119,6 +119,22 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     required String userId,
   }) async =>
       _offers[_key(beaconId, userId)]?.isActive ?? false;
+
+  @override
+  Future<List<String>> fetchActiveHelpTypes({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final offer = _offers[_key(beaconId, userId)];
+    if (offer == null || !offer.isActive) {
+      return const [];
+    }
+    final raw = offer.helpType;
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
+    return [raw];
+  }
 }
 
 /// Beacon repo that mutates status on lifecycle transitions.
@@ -553,11 +569,6 @@ final class CommitmentGatesHarness {
       StubUserProfileBatchLookup('User'),
       graphBuilder,
       EvaluationDraftPurger(evalRepo),
-      CapabilityCase(
-        NoOpPersonCapabilityEventRepository(),
-        env: Env(environment: Environment.test),
-        logger: Logger(_logName),
-      ),
       commitmentQueryCase,
       commitmentRepo,
       helpOfferRepo,

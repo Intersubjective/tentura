@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonDecode;
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
@@ -104,6 +106,12 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
     required String beaconId,
     required String userId,
   }) => throw UnimplementedError();
+
+  @override
+  Future<List<String>> fetchActiveHelpTypes({
+    required String beaconId,
+    required String userId,
+  }) async => [];
 }
 
 final class EmptyGraphForwardEdgeRepository
@@ -436,6 +444,30 @@ final class ConfigurableGraphHelpOfferRepository
     required String userId,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<List<String>> fetchActiveHelpTypes({
+    required String beaconId,
+    required String userId,
+  }) async {
+    for (final offer in _offers) {
+      if (offer.beaconId != beaconId ||
+          offer.userId != userId ||
+          !offer.isActive) {
+        continue;
+      }
+      final raw = offer.helpType;
+      if (raw == null || raw.isEmpty) {
+        return const [];
+      }
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const [];
+      }
+      return [for (final item in decoded) item.toString()];
+    }
+    return const [];
+  }
 }
 
 final class ConfigurableGraphForwardEdgeRepository

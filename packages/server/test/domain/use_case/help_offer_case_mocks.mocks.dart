@@ -642,6 +642,20 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<String>> fetchActiveHelpTypes({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchActiveHelpTypes, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
 }
 
 /// A class which mocks [CoordinationRepositoryPort].
