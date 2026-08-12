@@ -1684,3 +1684,77 @@ FINDINGS:
 
 REMAINING: none (C3b may begin after manager acceptance)
 
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Independent review of all three feature commits, not a re-run of the
+worker's claims. This unit's dispatch prompt was built from a pre-investigation
+that found `ForwardCase` was calling a legacy, non-reconciling capability-
+evidence path instead of the correct primitive B2a had already built; the
+worker was asked to verify that framing itself before trusting it.
+
+- **Verified the "two parallel write paths" framing independently, not just
+  via the worker's own confirmation:** read both `CapabilityCase.recordForwardReasons`
+  (legacy, `PersonCapabilityEventRepositoryPort.insertForwardReasons`,
+  append-only, unlocked) and `CapabilityEvidenceRepository.reconcileForwardReasons`
+  (the B2a primitive: `_lockForwardEdge`, current-vs-desired diff,
+  `_withCellWriteDiscipline`) directly. The framing was correct, and the
+  worker's own FINDINGS entry independently confirms the same reading —
+  consistent evidence, not just an echo.
+- **`createBatch` return-shape change (`5ec2ebc3`):** `ForwardEdgeCreated`
+  is a minimal, correct Freezed entity. The concrete `createBatch`
+  implementation generates the edge ID upfront and only reports a pair as
+  created when the specific inserted row is confirmed found
+  (`edge?.id == edgeId && edge?.batchId == batchId`), not merely "some
+  active edge exists" — correct, avoids a subtle false-positive if a
+  differently-batched edge already existed for that recipient. Every real
+  call site (production + 4 test files) was updated; the diff is otherwise
+  entirely mechanical mock/import regeneration.
+- **`forward_case.dart` rewrite (`4a3c2e8f`):** `_capabilityCase` →
+  `_capabilityEvidence` swap confirmed clean (no leftover references). The
+  worker caught something this review's dispatch prompt didn't explicitly
+  call out: `CapabilityCase.recordForwardReasons` used to call
+  `_validateSlugs` internally, so removing that call path would have
+  silently dropped slug validation — the worker added an equivalent
+  `_validateReasonSlugs` directly in `ForwardCase`, preserving the existing
+  allowlist check. `cancelForward` and `updateForward` are now both wrapped
+  in `_attention!.runAction(...)`, matching `forward()`'s existing
+  atomicity. Null-vs-empty is correct in both directions: `updateForward`
+  changed from `!= null && isNotEmpty` (collapsing null and empty) to
+  `!= null` (call whenever non-null, including empty) — exactly the fix the
+  plan required; `forward()`'s create-path resolution
+  (`perRecipientReasonSlugs?[id] ?? sharedReasonSlugs`, no more `?? []`
+  fallback) correctly treats "genuinely absent" as null-and-skip while
+  still reconciling an explicitly-empty list.
+- **Block-cleanup path (`4a3c2e8f`, `user_block_case.dart`):** confirmed
+  directly — `_cancelEdgesFromSenderToRecipient` (called from
+  `_cancelForwardEdgesBetween`, both directions, inside `block()`'s existing
+  UoW) now calls `reconcileForwardReasons(..., slugs: const [])`
+  immediately after `cancel`, before the inbox notification — the same
+  ordering `ForwardCase.cancelForward` uses. This is the plan's "also owned
+  by C3" block-cleanup requirement, correctly located and fixed; it does
+  not conflict with B3's earlier, unrelated `WitnessWindowPort` optional-
+  dependency addition to the same constructor.
+- **Rollback proof (`9fcc437a`):** the "invalid reason slug rolls back edge
+  creation" test is the one that matters most for this unit's correctness
+  claim, and it proves the right thing — not just that an exception is
+  thrown, but that `findActiveEdge` returns `null` and the forward-reason
+  row count is `0` afterward, confirming edge creation and reason
+  reconciliation genuinely share one transaction.
+- Reran the new PG suite (`forward_reason_reconciliation_pg_test.dart`, 6
+  tests) 3x independently against fresh disposable databases — all green
+  every time, no flakiness. Also reran the two pre-existing PG test files
+  this unit touched (`forward_edge_repository_create_batch_dedup_test.dart`,
+  `m0144_mr_publish_epoch_pg_test.dart`) — both still pass.
+- Reran `dart test -x pg` (1356, up by one from C3a's own mocked tests),
+  `./scripts/check-custom-lints.sh packages/server` (0, baseline), `git diff
+  --check` (clean), `rg "package:tentura_server/data/repository"
+  packages/server/lib/domain` (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs: `mr_publish_epoch.epoch` read `0` before and after, no new
+  `tentura_test_*` database left behind by any run.
+
+**C3a is accepted.** Commits: `5ec2ebc3`, `4a3c2e8f`, `9fcc437a`, `796b3505`.
+C3b (client-side null-vs-empty semantics) is now dependency-ready.
+
