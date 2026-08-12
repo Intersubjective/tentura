@@ -318,7 +318,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       state.copyWith(
         editingRecipientId: recipientId,
         editNote: candidate.myForwardNote ?? '',
-        editReasons: const [],
+        editReasons: null,
       ),
     );
   }
@@ -343,7 +343,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       await forwardCase.updateForward(
         edgeId: edgeId,
         note: state.editNote.trim().isEmpty ? null : state.editNote.trim(),
-        reasonSlugs: state.editReasons.isEmpty ? null : state.editReasons,
+        reasonSlugs: state.editReasons,
       );
       emit(state.copyWith(editingRecipientId: null));
       await _loadCandidates();

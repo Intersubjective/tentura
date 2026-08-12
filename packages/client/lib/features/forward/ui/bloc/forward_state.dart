@@ -107,7 +107,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(ForwardCandidatesLoading()) ForwardCandidatesLoad candidatesLoad,
     String? editingRecipientId,
     @Default('') String editNote,
-    @Default(<String>[]) List<String> editReasons,
+    List<String>? editReasons,
     ForwardDeliveryOutcome? lastDeliveryOutcome,
     @Default(false) bool hasMyOutgoingForward,
   }) = _ForwardState;
