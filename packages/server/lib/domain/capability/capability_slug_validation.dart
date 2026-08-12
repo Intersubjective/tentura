@@ -7,6 +7,16 @@ import 'package:tentura_server/domain/exception_codes.dart';
 /// Reject unknown slugs and payloads longer than the canonical taxonomy.
 /// E1b should call this before [RoutingMutePort.setMute].
 List<String> validateCapabilitySlugPayload(List<String> slugs) {
+  if (slugs.length > kAllowedCapabilitySlugs.length) {
+    throw ExceptionBase(
+      code: const CapabilityExceptionCodes(
+        CapabilityExceptionCode.invalidSlug,
+      ),
+      description:
+          'Capability slug payload exceeds taxonomy size '
+          '(${kAllowedCapabilitySlugs.length})',
+    );
+  }
   final seen = <String>{};
   final deduped = <String>[];
   for (final slug in slugs) {
@@ -22,16 +32,6 @@ List<String> validateCapabilitySlugPayload(List<String> slugs) {
       );
     }
     deduped.add(slug);
-  }
-  if (deduped.length > kAllowedCapabilitySlugs.length) {
-    throw ExceptionBase(
-      code: const CapabilityExceptionCodes(
-        CapabilityExceptionCode.invalidSlug,
-      ),
-      description:
-          'Capability slug payload exceeds taxonomy size '
-          '(${kAllowedCapabilitySlugs.length})',
-    );
   }
   return deduped;
 }
