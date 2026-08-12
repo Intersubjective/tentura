@@ -76,10 +76,28 @@ Future<void> main() async {
         await migrateDbSchema(writer);
         await _expectA3Functions(writer);
 
-        final bump = await writer.execute(
+        final bump1 = await writer.execute(
           "SELECT public.cap_generation_bump('$_obs', '$_sub', '$_tag')",
         );
-        expect(bump.single.single, 1);
+        expect(bump1.single.single, 1);
+
+        final bump2 = await writer.execute(
+          "SELECT public.cap_generation_bump('$_obs', '$_sub', '$_tag')",
+        );
+        expect(bump2.single.single, 2);
+
+        final genRows = await writer.execute(r'''
+SELECT observer_user_id, subject_user_id, tag_slug, generation
+FROM public.capability_evidence_generation
+WHERE observer_user_id = 'Um0143obs1'
+  AND subject_user_id = 'Um0143sub1'
+  AND tag_slug = 'transport'
+''');
+        expect(genRows.length, 1);
+        expect(genRows.single[0], 'Um0143obs1');
+        expect(genRows.single[1], 'Um0143sub1');
+        expect(genRows.single[2], 'transport');
+        expect(genRows.single[3], 2);
       },
       skip: skipReason,
     );
@@ -222,21 +240,32 @@ INSERT INTO public.person_capability_event (
     );
 
     test(
-      '2024-02-29 + 24 months eligibility excludes expired row from rebuild',
+      'leap-day window uses created_at + months, not inverse cutoff',
       () async {
-        final eligibility = await writer.execute(r'''
-SELECT (
-  '2024-02-29T00:00:00Z'::timestamptz
-    + make_interval(months => 24)
-) > now()
-''');
-        expect(eligibility.single.single, isFalse);
+        const createdAt = '2024-02-29T00:00:00Z';
+        const referenceNow = '2026-02-28T00:00:00Z';
+        const windowMonths = 24;
+
+        final intended = await writer.execute(
+          "SELECT ("
+          "'$createdAt'::timestamptz "
+          "+ make_interval(months => $windowMonths)) "
+          "> '$referenceNow'::timestamptz",
+        );
+        final flawed = await writer.execute(
+          "SELECT ("
+          "'$createdAt'::timestamptz) "
+          "> ('$referenceNow'::timestamptz "
+          "- make_interval(months => $windowMonths))",
+        );
+        expect(intended.single.single, isFalse);
+        expect(flawed.single.single, isTrue);
 
         await _insertEvent(
           writer,
           id: 'Um0143leap',
           sourceType: 3,
-          createdAt: '2024-02-29T00:00:00Z',
+          createdAt: createdAt,
         );
         await _rebuild(writer);
 
@@ -253,21 +282,32 @@ WHERE observer_user_id = 'Um0143obs1'
     );
 
     test(
-      '31st-of-month eligibility uses the same month-addition expression',
+      '31st-of-month window uses created_at + months, not inverse cutoff',
       () async {
-        final eligibility = await writer.execute(r'''
-SELECT (
-  '2024-01-31T00:00:00Z'::timestamptz
-    + make_interval(months => 24)
-) > now()
-''');
-        expect(eligibility.single.single, isFalse);
+        const createdAt = '2024-01-31T00:00:00Z';
+        const referenceNow = '2024-02-29T00:00:00Z';
+        const windowMonths = 1;
+
+        final intended = await writer.execute(
+          "SELECT ("
+          "'$createdAt'::timestamptz "
+          "+ make_interval(months => $windowMonths)) "
+          "> '$referenceNow'::timestamptz",
+        );
+        final flawed = await writer.execute(
+          "SELECT ("
+          "'$createdAt'::timestamptz) "
+          "> ('$referenceNow'::timestamptz "
+          "- make_interval(months => $windowMonths))",
+        );
+        expect(intended.single.single, isFalse);
+        expect(flawed.single.single, isTrue);
 
         await _insertEvent(
           writer,
           id: 'Um014331st',
           sourceType: 3,
-          createdAt: '2024-01-31T00:00:00Z',
+          createdAt: createdAt,
         );
         await _rebuild(writer);
 
@@ -438,6 +478,30 @@ WHERE n.nspname = 'public'
   );
   await writer.execute(
     "SELECT public.cap_cell_lock('$_obs', '$_sub', '$_tag')",
+  );
+
+  final rebuildDef = await writer.execute(r'''
+SELECT pg_get_functiondef(p.oid)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname = 'cap_cell_rebuild'
+''');
+  final def = rebuildDef.single.single as String;
+  expect(
+    def.contains('e.created_at + make_interval(months => _window_months) > now()'),
+    isTrue,
+    reason: 'installed cap_cell_rebuild must use forward month addition eligibility',
+  );
+  expect(
+    def.contains('now() -'),
+    isFalse,
+    reason: 'installed cap_cell_rebuild must not use inverse now()-interval cutoff',
+  );
+  expect(
+    def.contains('_cutoff'),
+    isFalse,
+    reason: 'installed cap_cell_rebuild must not use a _cutoff variable',
   );
 }
 
