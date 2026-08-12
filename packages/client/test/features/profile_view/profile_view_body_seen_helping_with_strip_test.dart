@@ -140,7 +140,9 @@ void main() {
 
       expect(
         find.text(l10n.capabilityCueSeenHelpingWith(
-          'transport · pets · legal_navigation',
+          '${l10n.capabilityTagTransport} · '
+          '${l10n.capabilityTagPets} · '
+          '${l10n.capabilityTagLegalNavigation}',
         )),
         findsOneWidget,
       );
