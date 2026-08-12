@@ -1410,3 +1410,76 @@ FINDINGS:
 
 REMAINING: none (C2 may begin)
 
+---
+
+### Manager verdict: ACCEPTED — 2026-08-12
+
+Independent review of all three feature commits, not a re-run of the
+worker's claims:
+
+- **Typed help-offer port (`8e0a71ff`):** `fetchActiveHelpTypes` mirrors the
+  exact existing `hasActiveHelpOffer` query shape (`getSingleOrNull()` on
+  `beaconId`+`userId`+`status.equals(0)`), correctly decodes the JSON-array
+  `helpType` string via `jsonDecode`. The one thing that looked wrong at
+  first read — `commitment_gates_harness.dart`'s in-memory fake returning
+  `[raw]` instead of decoding JSON — is actually correct: that harness's own
+  pre-existing `upsert()` (line 79, untouched by this unit) already collapses
+  `helpTypes` down to a single plain string (`helpTypes!.first`), never
+  JSON-encodes it, so `[raw]` matches that harness's existing (already
+  lossy, pre-C1b) data model rather than being a new bug.
+- **Cap check (`7e29061d`):** placed inside `submitEvaluationAtomic`'s
+  transaction, after the window re-check, before any write —
+  `ackTags.length > kCapMaxTagsPerSubjectBeacon`, correct given full-replace
+  (not append) semantics. Verified via a PG test that a 4-tag submission
+  throws and leaves **zero** ack rows (full transaction rollback, not a
+  partial write), and a separate test that two different evaluators can each
+  independently submit 3 tags for the same subject (proving the cap is
+  per-evaluator, not beacon-wide, per the plan's explicit requirement).
+- **`evaluationSubmit` rewiring (`7759a363`):** the evaluator's own role is
+  now looked up separately from the evaluated user's role (the pre-existing
+  `roleOfEvaluated` lookup was for a different purpose — reason-tag
+  validation — and does not double as the ack-eligibility check; this unit
+  correctly added a second, distinct lookup). Role gate only applies when
+  `ackTags` is non-empty, matching "forwarder with empty ack set must still
+  succeed." Slug validation unions `beacon.needs` with the new typed
+  help-offer port. New `EvaluationExceptionCode` values
+  (`ackRoleNotEligible`, `invalidAckTagSlug`, `ackTagCapExceeded`) are
+  appended after the existing `closeBranchConflict` — confirmed directly in
+  the file that no existing code's ordinal shifted, preserving wire
+  compatibility. `_capabilityCase`/`CapabilityCase` is fully removed from
+  `EvaluationCase` (constructor, field, import) with zero remaining
+  references anywhere in the file (confirmed via grep) — not a partial
+  cleanup. The legacy `recordCloseAcknowledgement` call and its try/catch are
+  gone.
+- **Scope boundary:** the worker's own reasoning for *not* injecting a
+  `MutatingUnitOfWorkPort` (C1a's `submitEvaluationAtomic` already owns the
+  transaction; `setReviewUserStatus` staying non-transactional matches
+  pre-existing behavior, not a regression) is sound and matches what's
+  actually in the code.
+- **Honest deferral:** the "concurrent submit + close do not interleave"
+  acceptance criterion is explicitly recorded as untestable until C2 gives
+  `closeReviewWindow` the same beacon-scoped advisory lock — the worker did
+  not fabricate a test against a lock that doesn't exist yet on the close
+  path. Correct call; this is now C2's problem to close out, not silently
+  dropped.
+- Test coverage confirmed at both levels: PG-tagged (`evaluation_repository_submit_atomic_pg_test.dart`,
+  `evaluation_submit_ack_policy_pg_test.dart` — 9 tests total, reran 3x
+  independently against fresh disposable databases, all green every time,
+  no flakiness) and mocked unit-level (`evaluation_case_test.dart` — located
+  and read the four specific new tests: "forwarder with empty ack tags
+  succeeds", "forwarder with ack tags is rejected" →
+  `ackRoleNotEligible`, a slug-rejection test → `invalidAckTagSlug`, a
+  cap-rejection test → `ackTagCapExceeded`).
+- Reran `dart test -x pg` (1355, up from 1351 by exactly the 4 new mocked
+  ack-policy tests — correct, no new PG-only behavior leaked into the
+  non-pg suite), `./scripts/check-custom-lints.sh packages/server` (0,
+  baseline), `git diff --check` (clean), `rg
+  "package:tentura_server/data/repository" packages/server/lib/domain`
+  (empty — domain purity holds).
+- Shared local Postgres confirmed untouched across every one of my test
+  runs: `mr_publish_epoch.epoch` read `0` before and after, no new
+  `tentura_test_*` database left behind by any run.
+
+**C1b is accepted.** Commits: `8e0a71ff`, `7e29061d`, `7759a363`, `1c92b8ae`.
+C2 is now dependency-ready.
+
