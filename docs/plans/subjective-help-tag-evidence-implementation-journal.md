@@ -3192,7 +3192,7 @@ logic or production constant changes.
 
 STATUS: complete
 
-COMMITS: test(server): widen S/C invariant fixture margins for θ_out gate (D4 remediation) (`157ed686`); test(server): widen W invariant margins; A3 uses m headroom (D4 remediation) (`4f1745ec`); test(server): widen T/M/X invariant fixture margins for θ_out gate (D4 remediation) (`94edecc6`); test(server): widen B invariant fixture margins for θ_out gate (D4 remediation) (`6ee6a6fa`); docs: D4 perturbation remediation journal (D4 remediation) (`ef1b6860`)
+COMMITS: test(server): widen S/C invariant fixture margins for θ_out gate (D4 remediation) (`157ed686`); test(server): widen W invariant margins; A3 uses m headroom (D4 remediation) (`4f1745ec`); test(server): widen T/M/X invariant fixture margins for θ_out gate (D4 remediation) (`94edecc6`); test(server): widen B invariant fixture margins for θ_out gate (D4 remediation) (`6ee6a6fa`); docs: D4 perturbation remediation journal (D4 remediation) (`5f19d87f`)
 
 This supersedes the false perturbation claim in the prior `D4 — complete`
 entry (2026-08-12); that entry is preserved for audit trail only.
