@@ -494,3 +494,35 @@ FINDINGS:
 - `ProjectionTier` declaration order pinned by test; half-life constants asserted at 31536000 / 7776000 seconds.
 
 REMAINING: manager review and acceptance; B2 remains blocked
+
+## B1 remediation — complete — 2026-08-12
+
+COMMITS: fix(server): require explicit ForwardBandRow tier and labels (B1) (`53bec447`)
+
+TESTS:
+
+```bash
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot in 2s; wrote 14 outputs
+
+cd packages/server && dart test -x pg test/domain/capability/capability_consts_test.dart
+→ 00:00 +10: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check -- packages/server/lib/domain/capability/capability_evidence_models.dart packages/server/test/domain/capability/capability_consts_test.dart
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/lib/domain/capability/capability_evidence_models.dart` (`ForwardBandRow.rowTier` and `labels` now `required`)
+- `packages/server/test/domain/capability/capability_consts_test.dart` (explicit exploration and evidence construction)
+
+FINDINGS:
+
+- Manager defect confirmed: `ForwardBandRow` had optional/defaulted `rowTier` and `labels`, violating the B1 plan's required-field contract. Repair makes both explicit required inputs while retaining nullable `rowTier` for exploration rows.
+- The prior B1 journal entry's "seven ports" wording was a documentation/count typo. The B1 implementation contains the six plan ports: `CapabilityEvidencePort`, `CapabilityCellPort`, `WitnessWindowPort`, `CapabilityOwnEvidencePort`, `RoutingMutePort`, `PairBlockQueryPort`.
+
+REMAINING: manager review and acceptance; B2 remains blocked
