@@ -495,6 +495,40 @@ FINDINGS:
 
 REMAINING: manager review and acceptance; B2 remains blocked
 
+### Manager acceptance — 2026-08-12
+
+Accepted after independent review of B1 (`86876ad7`) and its required-field
+remediation (`53bec447`). The source contains all thirteen planned value types,
+the four enum contracts, and the six plan ports (the earlier "seven ports" text
+was only a worker-entry count typo). Every port signature matches B1: batching
+and pair provenance are preserved, witness-window facts remain raw/domain-owned,
+mutes stay subject-keyed, and blocks remain a set-wide pair query.
+
+`ForwardBandRow` now requires an explicit nullable `rowTier` and explicit
+`labels`; exploration must therefore be constructed intentionally with
+`rowTier: null, labels: []`. `WitnessCellRow` exposes only SQL-computed
+strengths, `TagProjection` has no score, and the channel-first tier order is
+pinned by tests. No data-layer imports occur under server `lib/domain`.
+
+Independent verification passed:
+
+```bash
+cd packages/server && dart test -x pg test/domain/capability/capability_consts_test.dart
+→ +10: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/(repository|)" packages/server/lib/domain
+→ no matches
+
+git diff --check 432d2fed..HEAD
+→ no whitespace errors
+```
+
+The protected baseline paths remain untouched. B2a, B2b, and B2c are each
+authorized to begin sequentially; start only one at a time.
+
 ## B1 remediation — complete — 2026-08-12
 
 COMMITS: fix(server): require explicit ForwardBandRow tier and labels (B1) (`53bec447`)
