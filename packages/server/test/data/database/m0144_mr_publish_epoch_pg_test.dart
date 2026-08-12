@@ -28,6 +28,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
@@ -110,6 +111,7 @@ Future<void> main() async {
         _FakeBeacons(),
         NoOpCommitmentRepository(),
         _FakeInbox(),
+        _NoopCapabilityEvidence(),
         witnessWindow: witnessWindow,
         env: target.databaseEnv,
         logger: Logger('mr_publish_epoch_pg_test'),
@@ -559,6 +561,17 @@ final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
         updatedAt: DateTime.utc(2026),
         status: BeaconStatus.open,
       );
+}
+
+final class _NoopCapabilityEvidence extends Fake
+    implements CapabilityEvidencePort {
+  @override
+  Future<void> reconcileForwardReasons({
+    required String forwardEdgeId,
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
 }
 
 final class _FakeInbox extends Fake implements InboxRepositoryPort {

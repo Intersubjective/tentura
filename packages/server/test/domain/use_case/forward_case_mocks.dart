@@ -1,5 +1,6 @@
 import 'package:mockito/annotations.dart';
 
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
@@ -10,11 +11,11 @@ import 'package:tentura_server/domain/port/person_visibility_repository_port.dar
 
 @GenerateMocks([
   BeaconRepositoryPort,
+  CapabilityEvidencePort,
   ForwardAttributionRepositoryPort,
   ForwardEdgeRepositoryPort,
   HelpOfferRepositoryPort,
   InboxRepositoryPort,
-  PersonCapabilityEventRepositoryPort,
   PersonVisibilityRepositoryPort,
 ])
 void main() {}

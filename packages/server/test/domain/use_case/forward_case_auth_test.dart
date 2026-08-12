@@ -4,11 +4,11 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
-import 'package:tentura_server/domain/use_case/capability_case.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
@@ -20,12 +20,11 @@ void main() {
   late MockForwardAttributionRepositoryPort forwardAttributionRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockInboxRepositoryPort inboxRepo;
-  late MockPersonCapabilityEventRepositoryPort capabilityRepo;
+  late MockCapabilityEvidencePort capabilityEvidence;
   late MockBeaconRepositoryPort beaconRepo;
   late MockPersonVisibilityRepositoryPort personVisibilityRepo;
   late FakeBeaconAccessGuard guard;
   late FakeUserBlockRepository userBlocks;
-  late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
   late ForwardCase case_;
 
@@ -36,24 +35,19 @@ void main() {
     forwardAttributionRepo = MockForwardAttributionRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
-    capabilityRepo = MockPersonCapabilityEventRepositoryPort();
+    capabilityEvidence = MockCapabilityEvidencePort();
     beaconRepo = MockBeaconRepositoryPort();
     personVisibilityRepo = MockPersonVisibilityRepositoryPort();
     guard = FakeBeaconAccessGuard();
     userBlocks = FakeUserBlockRepository();
     attention = TestAttentionHarness();
 
-    capabilityCase = CapabilityCase(
-      capabilityRepo,
-      env: Env(environment: Environment.test),
-      logger: Logger('CapabilityCaseTest'),
-    );
     case_ = ForwardCase(
       forwardEdgeRepo,
       forwardAttributionRepo,
       helpOfferRepo,
       inboxRepo,
-      capabilityCase,
+      capabilityEvidence,
       beaconRepo,
       userBlocks,
       personVisibilityRepo,
@@ -121,7 +115,13 @@ void main() {
     ).thenAnswer((invocation) async {
       final recipientIds =
           invocation.namedArguments[#recipientIds] as List<String>;
-      return recipientIds;
+      return [
+        for (var i = 0; i < recipientIds.length; i++)
+          ForwardEdgeCreated(
+            edgeId: 'E${i + 1}',
+            recipientId: recipientIds[i],
+          ),
+      ];
     });
     when(
       personVisibilityRepo.mutuallyVisiblePeerIds(
@@ -242,7 +242,7 @@ void main() {
         ),
       );
       verifyZeroInteractions(forwardAttributionRepo);
-      verifyZeroInteractions(capabilityRepo);
+      verifyZeroInteractions(capabilityEvidence);
       expect(attention.recorded, isEmpty);
     });
 

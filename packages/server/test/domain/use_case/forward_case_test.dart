@@ -6,11 +6,12 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/domain/use_case/capability_case.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
@@ -54,12 +55,11 @@ void main() {
   late MockForwardAttributionRepositoryPort forwardAttributionRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockInboxRepositoryPort inboxRepo;
-  late MockPersonCapabilityEventRepositoryPort capabilityRepo;
+  late MockCapabilityEvidencePort capabilityEvidence;
   late MockBeaconRepositoryPort beaconRepo;
   late MockPersonVisibilityRepositoryPort personVisibilityRepo;
   late FakeBeaconAccessGuard guard;
   late FakeUserBlockRepository userBlocks;
-  late CapabilityCase capabilityCase;
   late TestAttentionHarness attention;
   late ForwardCase case_;
 
@@ -70,24 +70,19 @@ void main() {
     forwardAttributionRepo = MockForwardAttributionRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
-    capabilityRepo = MockPersonCapabilityEventRepositoryPort();
+    capabilityEvidence = MockCapabilityEvidencePort();
     beaconRepo = MockBeaconRepositoryPort();
     personVisibilityRepo = MockPersonVisibilityRepositoryPort();
     guard = FakeBeaconAccessGuard();
     userBlocks = FakeUserBlockRepository();
     attention = TestAttentionHarness();
 
-    capabilityCase = CapabilityCase(
-      capabilityRepo,
-      env: Env(environment: Environment.test),
-      logger: Logger('CapabilityCaseTest'),
-    );
     case_ = ForwardCase(
       forwardEdgeRepo,
       forwardAttributionRepo,
       helpOfferRepo,
       inboxRepo,
-      capabilityCase,
+      capabilityEvidence,
       beaconRepo,
       userBlocks,
       personVisibilityRepo,
@@ -165,16 +160,21 @@ void main() {
           invocation.namedArguments[#onAfterEdgesInserted]
               as Future<void> Function()?;
       await onAfter?.call();
-      return recipientIds;
+      return [
+        for (var i = 0; i < recipientIds.length; i++)
+          ForwardEdgeCreated(
+            edgeId: 'E${i + 1}',
+            recipientId: recipientIds[i],
+          ),
+      ];
     });
 
     when(
-      capabilityRepo.insertForwardReasons(
+      capabilityEvidence.reconcileForwardReasons(
+        forwardEdgeId: anyNamed('forwardEdgeId'),
         observerId: anyNamed('observerId'),
         subjectId: anyNamed('subjectId'),
-        beaconId: anyNamed('beaconId'),
         slugs: anyNamed('slugs'),
-        note: anyNamed('note'),
       ),
     ).thenAnswer((_) async {});
 
@@ -191,13 +191,13 @@ void main() {
   });
 
   group('forward — reason routing', () {
-    test('no reasons: capability repo is not called', () async {
+    test('no reasons: capability evidence is not reconciled', () async {
       await case_.forward(
         senderId: 'U1',
         beaconId: 'B1',
         recipientIds: ['R1', 'R2'],
       );
-      verifyZeroInteractions(capabilityRepo);
+      verifyZeroInteractions(capabilityEvidence);
     });
 
     test('shared reasons fan out to every recipient', () async {
@@ -209,22 +209,22 @@ void main() {
       );
 
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
           observerId: 'U1',
           subjectId: 'R1',
-          beaconId: 'B1',
           slugs: ['transport', 'tools'],
         ),
       ).called(1);
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E2',
           observerId: 'U1',
           subjectId: 'R2',
-          beaconId: 'B1',
           slugs: ['transport', 'tools'],
         ),
       ).called(1);
-      verifyNoMoreInteractions(capabilityRepo);
+      verifyNoMoreInteractions(capabilityEvidence);
     });
 
     test('per-recipient reasons override shared for that recipient', () async {
@@ -239,25 +239,25 @@ void main() {
       );
 
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
           observerId: 'U1',
           subjectId: 'R1',
-          beaconId: 'B1',
           slugs: ['calls', 'translation'],
         ),
       ).called(1);
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E2',
           observerId: 'U1',
           subjectId: 'R2',
-          beaconId: 'B1',
           slugs: ['transport'],
         ),
       ).called(1);
-      verifyNoMoreInteractions(capabilityRepo);
+      verifyNoMoreInteractions(capabilityEvidence);
     });
 
-    test('recipient with empty per-recipient override is skipped', () async {
+    test('recipient with empty per-recipient override clears reasons', () async {
       await case_.forward(
         senderId: 'U1',
         beaconId: 'B1',
@@ -268,16 +268,23 @@ void main() {
         },
       );
 
-      // R1 was overridden with empty list → no event for R1.
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
+          observerId: 'U1',
+          subjectId: 'R1',
+          slugs: const [],
+        ),
+      ).called(1);
+      verify(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E2',
           observerId: 'U1',
           subjectId: 'R2',
-          beaconId: 'B1',
           slugs: ['transport'],
         ),
       ).called(1);
-      verifyNoMoreInteractions(capabilityRepo);
+      verifyNoMoreInteractions(capabilityEvidence);
     });
   });
 
@@ -333,7 +340,7 @@ void main() {
         );
 
         expect(attention.recorded, isEmpty);
-        verifyZeroInteractions(capabilityRepo);
+        verifyZeroInteractions(capabilityEvidence);
       },
     );
   });
@@ -405,7 +412,7 @@ void main() {
       verify(forwardEdgeRepo.updateNote('E1', 'U1', 'updated note')).called(1);
     });
 
-    test('records reason slugs when provided', () async {
+    test('reconciles reason slugs when provided', () async {
       expect(
         await case_.updateForward(
           edgeId: 'E1',
@@ -416,36 +423,53 @@ void main() {
         isTrue,
       );
       verify(
-        capabilityRepo.insertForwardReasons(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
           observerId: 'U1',
           subjectId: 'R1',
-          beaconId: 'B1',
           slugs: ['transport', 'tools'],
         ),
       ).called(1);
     });
 
-    test('still returns true when reason recording fails', () async {
-      when(
-        capabilityRepo.insertForwardReasons(
-          observerId: anyNamed('observerId'),
-          subjectId: anyNamed('subjectId'),
-          beaconId: anyNamed('beaconId'),
-          slugs: anyNamed('slugs'),
-          note: anyNamed('note'),
-        ),
-      ).thenThrow(Exception('capability DB error'));
-
+    test('null reasonSlugs skips reconciliation', () async {
       expect(
         await case_.updateForward(
           edgeId: 'E1',
           senderId: 'U1',
           note: 'updated note',
-          reasonSlugs: ['transport'],
         ),
         isTrue,
       );
-      verify(forwardEdgeRepo.updateNote('E1', 'U1', 'updated note')).called(1);
+      verifyNever(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: anyNamed('forwardEdgeId'),
+          observerId: anyNamed('observerId'),
+          subjectId: anyNamed('subjectId'),
+          slugs: anyNamed('slugs'),
+        ),
+      );
+    });
+
+    test('reason reconciliation failure propagates', () async {
+      when(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: anyNamed('forwardEdgeId'),
+          observerId: anyNamed('observerId'),
+          subjectId: anyNamed('subjectId'),
+          slugs: anyNamed('slugs'),
+        ),
+      ).thenThrow(Exception('capability DB error'));
+
+      await expectLater(
+        case_.updateForward(
+          edgeId: 'E1',
+          senderId: 'U1',
+          note: 'updated note',
+          reasonSlugs: ['transport'],
+        ),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 

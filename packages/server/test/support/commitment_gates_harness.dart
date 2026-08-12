@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.da
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
@@ -548,6 +549,7 @@ final class CommitmentGatesHarness {
       beaconRepo,
       commitmentRepo,
       _inboxRepo,
+      _NoopCapabilityEvidence(),
       env: Env(environment: Environment.test),
       logger: Logger(_logName),
     );
@@ -760,6 +762,16 @@ class _FakeImageRepository extends Fake implements ImageRepositoryPort {}
 class _FakeImageObjectGc extends Fake implements ImageObjectGcPort {}
 
 class _FakeTaskRepository extends Fake implements TaskRepositoryPort {}
+
+class _NoopCapabilityEvidence extends Fake implements CapabilityEvidencePort {
+  @override
+  Future<void> reconcileForwardReasons({
+    required String forwardEdgeId,
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
+}
 
 class _FakeForwardEdgeRepository extends Fake
     implements ForwardEdgeRepositoryPort {

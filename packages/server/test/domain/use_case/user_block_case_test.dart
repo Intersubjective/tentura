@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -23,6 +24,17 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/recording_commitment_repository.dart';
+
+final class _NoopCapabilityEvidence extends Fake
+    implements CapabilityEvidencePort {
+  @override
+  Future<void> reconcileForwardReasons({
+    required String forwardEdgeId,
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
+}
 
 final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
@@ -251,6 +263,7 @@ UserBlockCase _buildCase({
       beacons ?? _FakeBeacons(),
       commitment ?? RecordingCommitmentRepository(),
       inbox ?? _RecordingInbox(),
+      _NoopCapabilityEvidence(),
       env: Env(
         environment: Environment.test,
         blockRateLimitPerDay: blockRateLimitPerDay,
