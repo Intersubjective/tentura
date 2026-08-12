@@ -5894,9 +5894,9 @@ FINDINGS (so far):
 STATUS: complete
 
 COMMITS:
-- (pending) feat(client): wire forward band through load pipeline (F2)
-- (pending) feat(client): add forward band strip UI (F2)
-- (pending) test(client): forward band strip widget tests (F2)
+- `2c970329` feat(client): wire forward band through load pipeline (F2)
+- `40b86461` feat(client): add forward band strip UI and tier copy (F2)
+- `376afc31` test(client): add forward band strip widget tests (F2)
 
 TESTS:
 
