@@ -383,3 +383,36 @@ FINDINGS:
 - `cap_cell_rebuild` deletes the cell when both accumulators are zero; generation rows are not bumped inside rebuild (later units own write transactions).
 
 REMAINING: none (B1 may begin)
+
+## A3 remediation — complete — 2026-08-12
+
+COMMITS: (pending local commits for test remediation and journal)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/data/database/m0143_capability_evidence_sql_test.dart
+→ 00:02 +9: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0
+
+git diff --check
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/server/test/data/database/m0143_capability_evidence_sql_test.dart`
+
+FINDINGS:
+
+- Manager rejection confirmed: prior boundary tests compared 2024 literals to live `now()`, so they would pass with the prohibited inverse cutoff `created_at > (now() - make_interval(months => …))` once calendar time crossed the expiry boundary.
+- Causal discriminator at frozen reference instants (intended=false, flawed=true):
+  - `2024-02-29 + 24 months` vs reference `2026-02-28T00:00:00Z`;
+  - `2024-01-31 + 1 month` vs reference `2024-02-29T00:00:00Z`.
+- `pg_get_functiondef(cap_cell_rebuild)` now asserted in the PG test: contains `e.created_at + make_interval(months => _window_months) > now()`; excludes `now() -` and `_cutoff`.
+- Upgrade test extended: `cap_generation_bump` returns 1 then 2 for one triple; exactly one `capability_evidence_generation` row with generation 2.
+- `m0143.dart` and `sql/triggers.sql` unchanged (SQL semantics already correct).
+
+REMAINING: manager review and acceptance; B1 remains blocked
