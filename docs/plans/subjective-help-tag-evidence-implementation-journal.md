@@ -77,7 +77,7 @@ any order after F1b. One worker at a time.
 - [x] **C1b** — Ack use-case policy (depends: C1a) — `evaluationSubmit` role/slug/cap policy; typed help-offer port
 - [x] **C2** — Finalization emission (depends: C1b) — `ReviewCloseSnapshot`, finalization CTE, batch emission
 - [x] **C3a** — Forward server paths (depends: B2a) — forward-edge port return shape; create/update/cancel + reconciliation
-- [ ] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
+- [x] **C3b** — Forward client semantics (depends: C3a) — `forward_cubit.dart` null-vs-empty; mutation resolver
 - [ ] **C4** — Invite seed attestation (depends: B2a, B2c) — `m0146`; `invite_seed_prompt_state`; prompt-state port + use case
 - [ ] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
 - [ ] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
@@ -1757,4 +1757,49 @@ worker was asked to verify that framing itself before trusting it.
 
 **C3a is accepted.** Commits: `5ec2ebc3`, `4a3c2e8f`, `9fcc437a`, `796b3505`.
 C3b (client-side null-vs-empty semantics) is now dependency-ready.
+
+## C3b — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS:
+- fix(client): distinguish untouched vs cleared forward edit reasons (C3b) (`778c0b80`)
+- test(client): add forward cubit edit reason slug semantics tests (C3b) (`427c7b03`)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# (sqlite3 code-assets GitHub download fails in main worktree); overlay reverted
+# before exit — confirmed pubspec.yaml has no diff.
+
+cd packages/client && dart run build_runner build -d
+→ Built with build_runner/aot in 29s; wrote 1231 outputs
+
+cd packages/client && flutter test --dart-define=ENV=test test/features/forward/forward_cubit_edit_reasons_test.dart
+→ 00:00 +4: All tests passed!
+
+cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos
+→ exit 0
+
+./scripts/check-custom-lints.sh packages/client
+→ check-custom-lints: packages/client OK; tentura_lints total: 106 (baseline: 111)
+
+git diff --check -- <owned C3b paths>
+→ no whitespace errors
+```
+
+FILES:
+
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart` (`editReasons`: `List<String>?`, no default)
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart` (`startEditForward` → `null`; `saveForwardEdit` passthrough)
+- `packages/client/test/features/forward/forward_cubit_edit_reasons_test.dart` (created)
+
+FINDINGS:
+
+- **Mutation resolver already correct:** confirmed `ForwardRepository.updateForward` maps Dart `null` → omitted GraphQL `reasons` variable and Dart `const []` → empty `BuiltList`; no repository change needed.
+- **`editReasons` consumers:** only `forward_cubit.dart` and `forward_state.dart` read/write `state.editReasons`. `ForwardEditPanel` has no reason editor wired today; `forward_recipient_picker.dart`'s `_editReasons` method is the create-path per-recipient reason picker (uses `recipientReasons`, not `editReasons`).
+- **Create-path (`recipientReasons`) secondary question:** client has no shared-reason-slugs field — only a per-recipient `Map<String, List<String>>`. `setRecipientReasons` removes the map entry when slugs become empty, and `forward_repository.forwardBeacon` additionally filters out empty slug lists before GraphQL. For *new* edges this is equivalent to "no reasons" (server skips reconcile when absent). The server's `perRecipient ?? shared` distinction for explicitly opting one recipient out of a shared set is **not representable** on the current client create UI (no shared-reason concept); flag for a future F2/band-UI unit if product needs per-recipient opt-out from a shared set — out of C3b scope.
+
+REMAINING: none (manager acceptance pending)
 
