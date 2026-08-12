@@ -4309,6 +4309,14 @@
       }
     }
   },
+  "capabilityCueSeenHelpingWith": "Замечена помощь с: {tags}",
+  "@capabilityCueSeenHelpingWith": {
+    "placeholders": {
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "capabilityGroupLogistics": "Логистика",
   "capabilityGroupCommunication": "Коммуникация",
   "capabilityGroupKnowledge": "Знания",

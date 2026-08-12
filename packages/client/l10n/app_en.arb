@@ -4396,6 +4396,14 @@
       }
     }
   },
+  "capabilityCueSeenHelpingWith": "Seen helping with: {tags}",
+  "@capabilityCueSeenHelpingWith": {
+    "placeholders": {
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "capabilityGroupLogistics": "Logistics",
   "capabilityGroupCommunication": "Communication",
   "capabilityGroupKnowledge": "Knowledge",

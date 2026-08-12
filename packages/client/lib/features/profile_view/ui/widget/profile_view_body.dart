@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -21,6 +22,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/edit_capabilities_dialog.dart';
 import 'mutual_friends_button.dart';
+import 'seen_helping_with_strip.dart';
 
 class ProfileViewBody extends StatelessWidget {
   const ProfileViewBody({super.key});
@@ -95,6 +97,7 @@ class ProfileViewBody extends StatelessWidget {
                     policy: policy,
                   ),
                 ],
+                const _SeenHelpingWithSection(),
                 _ProfileCapabilitySection(profile: profile),
                 Padding(
                   padding: kPaddingSmallT,
@@ -380,6 +383,27 @@ class _ProfileSecondaryActions extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SeenHelpingWithSection extends StatelessWidget {
+  const _SeenHelpingWithSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocSelector<ProfileViewCubit, ProfileViewState, bool>(
+      selector: (state) => state.subjectiveTags.isNotEmpty,
+      builder: (context, showStrip) {
+        if (!showStrip) return const SizedBox.shrink();
+        return BlocSelector<ProfileViewCubit, ProfileViewState, List<TagProjection>>(
+          selector: (state) => state.subjectiveTags,
+          builder: (context, subjectiveTags) => Padding(
+            padding: kPaddingSmallT,
+            child: SeenHelpingWithStrip(projections: subjectiveTags),
+          ),
+        );
+      },
     );
   }
 }
