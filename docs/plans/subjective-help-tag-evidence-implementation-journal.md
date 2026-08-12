@@ -386,7 +386,7 @@ REMAINING: none (B1 may begin)
 
 ## A3 remediation — complete — 2026-08-12
 
-COMMITS: (pending local commits for test remediation and journal)
+COMMITS: test(server): prove A3 month-window eligibility discriminator in PG (`e05a2fbb`); docs: record A3 eligibility test remediation pending manager acceptance (`33717598`)
 
 TESTS:
 
