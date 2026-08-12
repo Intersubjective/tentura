@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
@@ -122,6 +123,10 @@ final class _StubCapabilityRepository implements CapabilityRepositoryPort {
   @override
   Future<PersonCapabilityCues> fetchCues(String subjectId) async =>
       PersonCapabilityCues.empty;
+
+  @override
+  Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async =>
+      const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();

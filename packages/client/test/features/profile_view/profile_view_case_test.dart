@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -260,6 +261,10 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   @override
   Future<PersonCapabilityCues> fetchCues(String subjectId) async =>
       PersonCapabilityCues.empty;
+
+  @override
+  Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async =>
+      const [];
 
   @override
   Future<void> dispose() => _changes.close();

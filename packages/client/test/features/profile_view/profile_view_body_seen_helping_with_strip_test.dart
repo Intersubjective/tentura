@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/projection_tier.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
@@ -36,13 +37,13 @@ import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 
 void main() {
-  group('ProfileViewBody action policy hierarchy', () {
-    late _ProfileViewBodyHarness harness;
+  group('ProfileViewBody seen helping with strip', () {
+    late _Harness harness;
     late FakeUiEffectPort effects;
     late ScreenCubit screenCubit;
 
     setUp(() {
-      harness = _ProfileViewBodyHarness();
+      harness = _Harness();
       effects = FakeUiEffectPort();
       screenCubit = ScreenCubit(effects);
     });
@@ -56,9 +57,10 @@ void main() {
       WidgetTester tester, {
       required Profile subject,
       required Profile viewer,
+      required ProfileViewState viewState,
     }) async {
       harness.start(id: subject.id, autoFetch: false);
-      harness.cubit.emit(ProfileViewState(profile: subject));
+      harness.cubit.emit(viewState.copyWith(profile: subject));
 
       await tester.pumpWidget(
         MaterialApp(
@@ -90,164 +92,57 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    int countFilledButtons(WidgetTester tester) =>
-        tester.widgetList<FilledButton>(find.byType(FilledButton)).length;
-
-    testWidgets('self profile hides policy actions', (tester) async {
-      const viewer = Profile(id: 'U-self', displayName: 'Self');
-      await pumpBody(tester, subject: viewer, viewer: viewer);
-
-      final l10n = lookupL10n(const Locale('en'));
-      expect(countFilledButtons(tester), 0);
-      expect(find.text(l10n.trustThisUser), findsNothing);
-      expect(find.text(l10n.profileSendRequestTo), findsNothing);
-      expect(find.text(l10n.profileRequestOptions), findsNothing);
-    });
-
-    testWidgets(
-      'mutual MR without outgoing trust: Send primary + secondary Trust',
-      (
-        tester,
-      ) async {
-        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-        const subject = Profile(
-          id: 'U-peer',
-          displayName: 'Peer',
-          score: 1,
-          rScore: 1,
-        );
-        await pumpBody(tester, subject: subject, viewer: viewer);
-
-        final l10n = lookupL10n(const Locale('en'));
-        expect(countFilledButtons(tester), 1);
-        expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
-        expect(find.text(l10n.profileRequestOptions), findsNothing);
-        expect(find.text(l10n.profileVisibilityMutual), findsOneWidget);
-      },
-    );
-
-    testWidgets('mutual with outgoing trust: Send only, no secondary Trust', (
-      tester,
-    ) async {
+    testWidgets('hides strip when subjectiveTags is empty', (tester) async {
       const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      const subject = Profile(
-        id: 'U-peer',
-        displayName: 'Peer',
-        myVote: 1,
-        subjectExplicitlyTrustsViewer: true,
+      const subject = Profile(id: 'U-peer', displayName: 'Peer', myVote: 1);
+      final l10n = lookupL10n(const Locale('en'));
+
+      await pumpBody(
+        tester,
+        subject: subject,
+        viewer: viewer,
+        viewState: const ProfileViewState(subjectiveTags: []),
       );
-      await pumpBody(tester, subject: subject, viewer: viewer);
 
-      final l10n = lookupL10n(const Locale('en'));
-      expect(countFilledButtons(tester), 1);
-      expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      expect(find.text(l10n.trustThisUser), findsNothing);
-      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(find.text(l10n.capabilityCueSeenHelpingWith('')), findsNothing);
     });
 
-    testWidgets(
-      'subject-only without outgoing trust: Trust primary + Request options',
-      (
-        tester,
-      ) async {
-        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-        const subject = Profile(
-          id: 'U-peer',
-          displayName: 'Peer',
-          rScore: 1,
-        );
-        await pumpBody(tester, subject: subject, viewer: viewer);
-
-        final l10n = lookupL10n(const Locale('en'));
-        expect(countFilledButtons(tester), 1);
-        expect(find.text(l10n.trustThisUser), findsOneWidget);
-        expect(find.text(l10n.profileRequestOptions), findsOneWidget);
-        expect(find.text(l10n.profileSendRequestTo), findsNothing);
-        expect(
-          find.text(l10n.profileVisibilityTheyCanSeeYou('Peer')),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets('neither visibility: Trust primary + Request options', (
+    testWidgets('shows strip with up to three subjective tag slugs', (
       tester,
     ) async {
       const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      const subject = Profile(id: 'U-peer', displayName: 'Peer');
-      await pumpBody(tester, subject: subject, viewer: viewer);
-
+      const subject = Profile(id: 'U-peer', displayName: 'Peer', myVote: 1);
       final l10n = lookupL10n(const Locale('en'));
-      expect(countFilledButtons(tester), 1);
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsOneWidget);
-      expect(find.text(l10n.profileVisibilityNeither), findsOneWidget);
-    });
+      const tags = [
+        TagProjection(
+          subjectUserId: 'U-peer',
+          tagSlug: 'transport',
+          tier: ProjectionTier.networkOutcome,
+        ),
+        TagProjection(
+          subjectUserId: 'U-peer',
+          tagSlug: 'pets',
+          tier: ProjectionTier.ownOutcome,
+        ),
+        TagProjection(
+          subjectUserId: 'U-peer',
+          tagSlug: 'legal_navigation',
+          tier: ProjectionTier.networkOutcome,
+        ),
+      ];
 
-    testWidgets(
-      'viewer-only with outgoing trust: no Filled CTA, unavailable + options',
-      (
+      await pumpBody(
         tester,
-      ) async {
-        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-        const subject = Profile(
-          id: 'U-peer',
-          displayName: 'Peer',
-          myVote: 1,
-          score: 1,
-        );
-        await pumpBody(tester, subject: subject, viewer: viewer);
-
-        final l10n = lookupL10n(const Locale('en'));
-        expect(countFilledButtons(tester), 0);
-        expect(find.text(l10n.trustThisUser), findsNothing);
-        expect(find.text(l10n.profileSendRequestTo), findsNothing);
-        expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
-        expect(find.text(l10n.profileRequestOptions), findsOneWidget);
-        expect(
-          find.text(l10n.profileVisibilityYouCanSee('Peer')),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets('Send primary navigates to person-forward route', (
-      tester,
-    ) async {
-      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      const subject = Profile(
-        id: 'U-peer',
-        displayName: 'Peer',
-        score: 1,
-        rScore: 1,
+        subject: subject,
+        viewer: viewer,
+        viewState: const ProfileViewState(subjectiveTags: tags),
       );
-      await pumpBody(tester, subject: subject, viewer: viewer);
-
-      final l10n = lookupL10n(const Locale('en'));
-      await tester.tap(find.text(l10n.profileSendRequestTo));
-      await tester.pump();
 
       expect(
-        effects.emitted.whereType<NavigatePush>().map((e) => e.path).toList(),
-        ['$kPathForwardPerson/U-peer'],
-      );
-    });
-
-    testWidgets('Request options navigates to person-forward route', (
-      tester,
-    ) async {
-      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      const subject = Profile(id: 'U-peer', displayName: 'Peer');
-      await pumpBody(tester, subject: subject, viewer: viewer);
-
-      final l10n = lookupL10n(const Locale('en'));
-      await tester.tap(find.text(l10n.profileRequestOptions));
-      await tester.pump();
-
-      expect(
-        effects.emitted.whereType<NavigatePush>().map((e) => e.path).toList(),
-        ['$kPathForwardPerson/U-peer'],
+        find.text(l10n.capabilityCueSeenHelpingWith(
+          'transport · pets · legal_navigation',
+        )),
+        findsOneWidget,
       );
     });
   });
@@ -271,8 +166,8 @@ class _FakeProfileCubit implements ProfileCubit {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _ProfileViewBodyHarness {
-  _ProfileViewBodyHarness() {
+class _Harness {
+  _Harness() {
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
     realtimeCase = realtime.case_;
@@ -314,20 +209,13 @@ class _ProfileViewBodyHarness {
   ProfileViewCubit get cubit => _cubit!;
 
   void start({required String id, bool autoFetch = true}) {
-    _cubit = autoFetch
-        ? ProfileViewCubit(
-            id: id,
-            profileViewCase: case_,
-            blockCase: blockCase,
-            effects: FakeUiEffectPort(),
-          )
-        : ProfileViewCubit.test(
-            id: id,
-            profileViewCase: case_,
-            blockCase: blockCase,
-            effects: FakeUiEffectPort(),
-            autoFetch: false,
-          );
+    _cubit = ProfileViewCubit.test(
+      id: id,
+      profileViewCase: case_,
+      blockCase: blockCase,
+      effects: FakeUiEffectPort(),
+      autoFetch: autoFetch,
+    );
   }
 
   Future<void> dispose() async {
@@ -387,6 +275,7 @@ final class _FakeLikeRepository implements LikeRemoteRepository {
 
 final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   final _changes = StreamController<void>.broadcast();
+  List<TagProjection> subjectiveTags = const [];
 
   @override
   Stream<void> get changes => _changes.stream;
@@ -397,7 +286,7 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
 
   @override
   Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async =>
-      const [];
+      subjectiveTags;
 
   @override
   Future<void> dispose() => _changes.close();
