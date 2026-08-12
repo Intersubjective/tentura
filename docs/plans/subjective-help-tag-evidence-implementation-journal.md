@@ -5193,3 +5193,149 @@ FINDINGS:
 - **`revokeAcknowledgement`:** no block check by design (§16.2); port keyed on `observerId: actorId` scopes delete to the actor's own row.
 
 REMAINING: E1b — wire mutation resolvers for `myRoutingTags`, `seedRoutingAttestation`, `revokeAcknowledgement`, `setRoutingMute`, and invite-seed-prompt answer/skip; client schema/routing in F1a.
+
+### Manager verdict: ACCEPTED — 2026-08-13
+
+**Acceptance mapping** (E1a's own scope: `subjectiveTags`, `forwardContext`,
+`tagExplanation` + their §16.1 predicates, and the full `CapabilityRoutingCase`
+class — the plan's combined five-scenario negative-auth acceptance list spans
+E1a+E1b together; E1a's own share of it is covered below):
+
+- `subjectiveTags`/`tagExplanation`: "actor must be able to see target under
+  existing visibility rules; no block in either direction. Fails closed" —
+  implemented as `CapabilityProjectionCase._canViewSubject` (block check via
+  `UserBlockRepositoryPort.isBlockedPair`, then self-view shortcut, then
+  `PersonVisibilityRepositoryPort.mutuallyVisiblePeerIds`), checked *before*
+  the expensive projection query runs. Both a "blocked viewer gets nothing"
+  resolver test present for each.
+- `forwardContext`: "actor must be the beacon author or an authorized
+  forwarder for that beacon" — correctly resolved by investigating
+  `ForwardCase.forward`'s own existing gate (`BeaconAccessGuard.canReadContent`,
+  not author-id equality) and mirroring it exactly, so `forwardContext`'s
+  authorization can never diverge from the mutation it previews. Test present
+  ("rejects viewer who cannot read beacon content").
+- `revokeAcknowledgement`: "original observer only... permitted even when
+  blocked" — actor-as-observerId scoping (no separate lookup needed, no block
+  check), matching §16.2's explicit exception.
+- `myRoutingTags`/`setRoutingMute`: self-only by construction (no target
+  parameter exists to misauthorize against) — correctly identified as
+  structurally untestable for a *negative* case, documented rather than
+  papered over with an artificial test.
+- No score, count, or witness identity anywhere in GraphQL output — verified
+  both by code review (`_tagProjectionToGql`/`_forwardBandRowToGql` map only
+  `subjectUserId`/`tagSlug`/`tier` and `userId`/`rowTier`/`labels`/`rank`/
+  `isExploration`) and by an explicit resolver test asserting the response
+  map's key set excludes `score`/`count`/`witnessUserId`.
+
+**A significant, unrequested-but-justified scope expansion**: my dispatch
+prompt asked for new resolver-level orchestration calling `CapabilityProjectionCase`/
+`ForwardBandCase`; the worker instead added `subjectiveTags`/`tagExplanation`
+as new methods directly on the already-accepted `CapabilityProjectionCase`
+(D1), and a new `forwardContext` method on the already-accepted `ForwardBandCase`
+(D2) — both classes' constructors gained new port dependencies as a result.
+This modifies two units this journal already reviewed and accepted, which
+demanded the same independent-verification rigor as brand-new code, not a
+pass on the grounds that "D1/D2 are already accepted." Given the size of this
+review, see the manager verification section below for exactly what was
+checked before accepting this deviation.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Confirmed BeaconAccessGuard.canReadContent is a real, pre-existing,
+# widely-used port (ForwardCase, HelpOfferCase, CoordinationCase,
+# InvitationCase, AttentionIntentCase, BeaconDisplayCase all already consume
+# it) -- not something invented for this unit:
+rg "canReadContent" packages/server/lib/ --include="*.dart" | grep -v "\.g\.dart"
+→ 12+ existing call sites across use cases, confirming this is the
+  established cross-cutting "can viewer read this beacon" mechanism.
+
+# Confirmed D1's core project() algorithm is UNTOUCHED -- the only removed
+# line across the whole diff is the constructor's trailing signature line,
+# mechanically necessary to insert two new positional params:
+git diff a457da21..0d05333f -- packages/server/lib/domain/use_case/capability_projection_case.dart | grep "^-" | grep -v "^---"
+→ exactly one line: "-    this._pairBlockQuery, {" (constructor signature only)
+
+# Confirmed D2's composeBand() is UNTOUCHED -- forwardContext is a new,
+# separate method that authorizes then calls the pre-existing, unmodified
+# composeBand():
+git diff a457da21..0d05333f -- packages/server/lib/domain/use_case/forward_band_case.dart
+→ new `forwardContext` method added; `composeBand` body has zero diff lines.
+
+# Confirmed D1's, D2's, and D4's existing test files were extended
+# PURELY additively -- zero lines removed from any pre-existing test body
+# (only new mock fields, new setUp() stubs with permissive defaults, and
+# constructor-call updates for the new required params):
+git diff a457da21..0d05333f -- packages/server/test/domain/use_case/capability_projection_case_test.dart | grep "^-" | grep -v "^---"
+→ empty (zero removed lines)
+git diff a457da21..0d05333f -- packages/server/test/domain/capability/model_world.dart | grep "^-" | grep -v "^---"
+→ empty (zero removed lines)
+git diff 2ffa97c8..0d05333f -- packages/server/test/domain/use_case/forward_band_case_test.dart
+→ diff fully contained in the setUp/buildCase section; all 9 original D2
+  test bodies byte-identical.
+
+# sqlite3 overlay applied temporarily, then reverted.
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_routing_case_test.dart test/api/controllers/graphql/query_capability_projection_test.dart test/domain/use_case/capability_projection_case_test.dart test/domain/use_case/forward_band_case_test.dart
+→ run 1/2/3: 00:00 +29: All tests passed! (confirms D1's original 10 + D2's
+  original 9 tests all still pass unchanged, alongside E1a's 11 new tests)
+
+cd packages/server && dart test -x pg test/domain/capability/model_invariant_*.dart
+→ 00:00 +37: All tests passed! (D4 unaffected by the model_world.dart extension)
+
+cd packages/server && dart test -x pg
+→ 00:07 +1428: All tests passed! (+11 vs D4's 1417 baseline, matches exactly)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/capability_routing_case.dart packages/server/lib/domain/use_case/capability_projection_case.dart packages/server/lib/domain/use_case/forward_band_case.dart
+→ empty (domain purity holds for all three touched use cases)
+
+grep -n "CapabilityRoutingCase" packages/server/lib/app/di.config.dart
+→ registered as singleton
+
+grep -n "QueryCapabilityProjection" packages/server/lib/api/controllers/graphql/query/_queries_all.dart
+→ registered (matching query_capability.dart's GetIt.I<T>() fallback
+  constructor pattern, not a separate @Injectable registration -- confirmed
+  this is the existing convention, not a gap)
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- Given the extent of this review, I'm satisfied the scope expansion onto
+  D1/D2 was the *right* architectural call despite deviating from my
+  dispatch prompt's literal phrasing: `subjectiveTags`/`tagExplanation` are
+  fundamentally "`project()` plus an authorization pre-check and fixed
+  surface/tagSlug arguments" — putting them on the same class as `project()`
+  avoids an unnecessary pass-through wrapper, and `forwardContext` is
+  identically "`composeBand()` plus the same gate `forward` itself already
+  uses." Both additions are purely additive at the code and test level, with
+  zero risk to either unit's already-verified behavior.
+- Re-derived the "fail closed" semantics from architecture §16.3's exact
+  sentence ("Blocked pairs fail closed rather than returning an empty
+  projection that leaks nothing but costs a query") before accepting the
+  worker's choice to return `[]`/`null` rather than throw: the sentence
+  contrasts *early* rejection (before the expensive query runs) against
+  *late* rejection (running the full pipeline only to have it naturally
+  return empty) — it is not mandating an exception over an empty result.
+  The implemented behavior (auth check first, short-circuit to empty/null
+  before touching `witnessWindow`/`cellPort`/etc., pinned by the "blocked
+  viewer gets empty list... verifyNever(witnessWindow.cachedWindow...)"
+  test) satisfies this reading, and additionally has the security advantage
+  of making "blocked" and "no evidence" indistinguishable to the caller —
+  consistent with this feature's broader "never reveal who's blocked"
+  posture (§12.1).
+- `CapabilityRoutingCase.setRoutingMute`'s inline slug-validation
+  (`if (!kAllowedCapabilitySlugs.contains(slug)) throw ExceptionBase(...)`)
+  duplicates rather than reuses `revokeAcknowledgement`'s call to the shared
+  `validateCapabilitySlugPayload` helper — both correctly reject invalid
+  slugs, so this is a minor style inconsistency, not a defect; not worth a
+  remediation cycle on its own, flagged for whoever next touches this file.
+
+**E1a is accepted.** E1b (Mutation resolvers + authz — `myRoutingTags`,
+`seedRoutingAttestation`, `revokeAcknowledgement`, `setRoutingMute`, invite-
+seed-prompt answer/skip) is now unblocked. Proceeding to E1b next.
