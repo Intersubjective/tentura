@@ -82,7 +82,7 @@ any order after F1b. One worker at a time.
 - [x] **C5** — Retire `commitRole` reads (depends: B2c) — `person_capability_event_repository.dart`
 - [x] **D0** — Band candidate facts port (depends: B2b) — `BandCandidatePort` + adapter
 - [x] **D1** — Projection use case (depends: C1b–C5) — `capability_projection_case.dart`
-- [ ] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
+- [x] **D2** — Band composition (depends: D1, D0) — `forward_band_case.dart`, `fnv1a64`
 - [ ] **D3** — Expiry sweep (depends: B2a) — `m0147`; lease columns; sweep case + TaskWorker registration
 - [ ] **D4** — Model invariant suite (depends: D2) — `test/domain/capability/model_invariants_test.dart`
 - [ ] **E1a** — Query resolvers + authz (depends: D2, D3, D4) — `subjectiveTags`, `forwardContext`, `tagExplanation`, `CapabilityRoutingCase` read methods
@@ -2609,3 +2609,102 @@ git diff --check
 **D1 remains accepted**, now on the corrected implementation. D2 was not
 yet dispatched when this was found, so no downstream unit inherited the
 defect. Proceeding to D2 next, as originally planned.
+
+## D2 — checkpoint — 2026-08-12
+
+Started `ForwardBandCase` + `fnv1a64`. Composition consumes D0
+`BandCandidatePort`, `BeaconRepositoryPort.getBeaconById` (needs +
+`primaryNeedSlug`), and D1 `CapabilityProjectionCase.project(surface:
+forwardBand)` — no new ports. Evidence sort key:
+`(rowTier strength asc index, max score at rowTier desc, forward_mr desc,
+userId asc)`; labels capped at 2 same-tier tags (primary need first, then
+score desc, then slug asc). Exploration pool excludes **all**
+evidence-bearing candidates (not only top-3 evidence rows), recently-forwarded
+IDs, and `canForwardTo=false` peers.
+
+**Judgment call (`canForwardTo`):** band membership (evidence + exploration)
+is restricted to `canForwardTo == true` before projection/ranking. Grounding:
+architecture §8 mock-up shows `[Forward]` on every band row; D0 documents
+`canForwardTo` as mirroring client `ForwardCandidate.canForwardTo`; D0 keeps
+helpOffered/withdrawn in the candidate list for the main MR list but marks
+them non-forwardable. Architecture §8 "candidate set unchanged" and D4 B1
+("tag evidence never removes a candidate from the underlying list") apply to
+the main list below the band, not to the capped band strip.
+
+## D2 — complete — 2026-08-12
+
+STATUS: complete
+
+COMMITS: (filled after commit)
+
+TESTS:
+
+```bash
+# Temporary root pubspec.yaml hooks.user_defines.sqlite3.source: system overlay
+# for sqlite3 code-assets download failure; reverted before commit.
+
+cd packages/server && dart run build_runner build -d
+→ Built with build_runner/aot; wrote outputs (injectable registration for ForwardBandCase)
+
+cd packages/server && dart test -x pg test/domain/capability/fnv1a64_test.dart test/domain/use_case/forward_band_case_test.dart
+→ 00:00 +14: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1380: All tests passed! (+14 vs D1 baseline of 1366)
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+rg "package:tentura_server/data/" packages/server/lib/domain/use_case/forward_band_case.dart packages/server/lib/domain/capability/fnv1a64.dart
+→ 0 matches
+
+git diff --check pubspec.yaml
+→ no diff (sqlite3 overlay reverted)
+```
+
+FILES:
+
+- `packages/server/lib/domain/capability/fnv1a64.dart` (created)
+- `packages/server/lib/domain/use_case/forward_band_case.dart` (created)
+- `packages/server/test/domain/capability/fnv1a64_test.dart` (created)
+- `packages/server/test/domain/use_case/forward_band_case_test.dart` (created)
+- `packages/server/test/domain/use_case/forward_band_case_mocks.dart` (created)
+- `packages/server/test/domain/use_case/forward_band_case_mocks.mocks.dart` (generated)
+- `packages/server/lib/app/di.config.dart` (generated — ForwardBandCase registration)
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` (manifest + this entry)
+
+FINDINGS:
+
+- **`canForwardTo` band filter:** both evidence and exploration rows require
+  `canForwardTo == true` (see checkpoint). Non-forwardable peers remain in D0's
+  candidate list for the untouched main MR list but never appear in the band.
+- **Exploration pool vs evidence cap:** candidates with matched evidence who
+  miss the top `kCapBandEvidenceSlots` evidence rows must still be excluded
+  from exploration — pool membership uses the full `projectionsBySubject` key
+  set, not only rendered evidence row userIds. Initial implementation used
+  evidence-row IDs only; fixed before commit (would have surfaced julia-with-
+  evidence as an exploration row in the deterministic fixture).
+- **Label secondary ordering:** after `primaryNeedSlug` first among same-tier
+  tags, tie-break by `score` descending then `tagSlug` ascending (matches D1
+  profile-cap `networkOutcome` pattern from `_profileRowOrder`).
+- **`rank` convention:** 0-based contiguous integers; evidence rows first
+  (`0..n-1`), exploration rows continue (`n..`). Sorting by `rank` alone
+  reproduces display order without needing `isExploration` as a secondary key.
+- **`fnv1a64` pinned vectors (signed Dart int / hex):**
+  `""` → `0xcbf29ce484222325` (`-3750763034362895579`);
+  `"a"` → `0xaf63dc4c8601ec8c` (`-5808556873153909620`);
+  `"foobar"` → `0x85944171f73967e8` (`-8821353812377114648`).
+  Implementation uses masked 64-bit `int` arithmetic (not `BigInt.toInt()` —
+  the latter clamps values with the high nibble ≥ `0x8` to `int64 max`).
+  `fnv1a64Mod` applies `hash & 0xFFFFFFFFFFFFFFFF` before `%` for unsigned
+  semantics.
+- **Test double for D1:** `CapabilityProjectionCase` is `final` — Mockito
+  cannot mock/implement it; band tests wire the real projection case with D1's
+  existing port mocks (`capability_projection_case_mocks.mocks.dart`).
+- **Row-tier precedence:** uses `ProjectionTier.values.indexOf` (declaration
+  order: `ownOutcome > networkOutcome > ownRouting > networkSeed`), not a
+  stale three-bucket A/B/C mapping — cross-checked against architecture §8.1,
+  plan D2 text, and D1 manager correction discipline.
+
+REMAINING: none — D4 (model invariant suite) is next per manifest; D3 (expiry
+sweep) remains dependency-ready from B2a.
