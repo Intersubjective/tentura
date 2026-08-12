@@ -69,7 +69,7 @@ any order after F1b. One worker at a time.
 - [x] **A2** — Derived tables + context fn (depends: A1) — `m0142`; cell/window/mute/generation/epoch tables + Drift; `cap_normalize_context`
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
-- [x] **B2a** — Cell write adapter (depends: B1) — `capability_evidence_repository.dart`
+- [~] **B2a** — Cell write adapter (depends: B1) — remediation required: seed-pair replacement serialization
 - [ ] **B2b** — Witness window adapter (depends: B1) — `witness_window_repository.dart`
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
@@ -635,3 +635,51 @@ FINDINGS:
 - Idempotent retries skip bump/rebuild when ledger state already matches desired outcome/forward/seed/revoke inputs.
 
 REMAINING: manager acceptance pending; B2b/B2c remain blocked
+
+## Manager review — B2a rejected for further remediation — 2026-08-12
+
+The remediation commit `8283570a` is not accepted yet. Independent execution
+passed the worker's stated commands:
+
+```bash
+cd packages/server && dart test -t pg test/data/repository/capability_evidence_repository_pg_test.dart
+→ +10: All tests passed! (Drift emits its expected multi-database debug warning)
+
+cd packages/server && dart test -x pg
+→ +1337: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ exit 0; tentura_lints total: 0
+
+git diff --check
+→ no whitespace errors
+```
+
+However, `upsertSeedAttestation` reads `_activeSeedSlugs` before acquiring any
+lock that serializes the complete `(observer, subject)` replacement. It then
+locks only the stale union of per-tag cells. Two disjoint concurrent desired
+sets can therefore both observe the old set. They may commit their union, or a
+later stale replacement can soft-delete a newly written tag without bumping or
+rebuilding that tag's cell. The ledger and derived cache can diverge.
+
+Required remediation:
+
+- acquire a transaction-scoped, collision-unambiguous advisory lock for the
+  seed-attestation `(observerId, subjectId)` pair **before** reading active
+  seed rows; retain the existing lexicographic per-cell locks for the post-lock
+  current/desired union;
+- re-read current seed rows after that pair lock;
+- add a deterministic PG concurrency test: block a first replacement at its
+  `transport` cell lock, start a competing `pets` replacement, release the
+  first block, then prove the pair-serialized final state is exactly `pets`
+  and only its rebuilt cell remains. The test must fail against `8283570a` and
+  must not rely on scheduler luck.
+
+Fresh Claude CLI diagnosis was attempted twice as required after the second
+Cursor attempt, first broadly and then with the exact source lines; both
+produced no output and hit the bounded timeout. This is an external-tool
+failure, not supporting evidence. The next Cursor remediation must use the
+manager's concrete causal finding above.
+
+REMAINING: fresh B2a remediation and manager acceptance; B2b/B2c remain
+blocked.
