@@ -74,15 +74,29 @@ final class InviteSeedAttestationCase extends UseCaseBase {
     );
   }
 
+  /// Replaces the standing seed attestation without touching prompt state.
+  Future<void> replaceAttestation({
+    required String actorId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {
+    await _authorizeInviter(actorId: actorId, subjectId: subjectId);
+    final validated = validateCapabilitySlugPayload(slugs);
+    await _capabilityEvidence.upsertSeedAttestation(
+      observerId: actorId,
+      subjectId: subjectId,
+      slugs: validated,
+    );
+  }
+
   /// Clears any prior seed attestation from this inviter; prompt state is left
   /// unchanged (the inviter already engaged with the prompt).
   Future<void> withdraw({
     required String actorId,
     required String subjectId,
   }) async {
-    await _authorizeInviter(actorId: actorId, subjectId: subjectId);
-    await _capabilityEvidence.upsertSeedAttestation(
-      observerId: actorId,
+    await replaceAttestation(
+      actorId: actorId,
       subjectId: subjectId,
       slugs: const [],
     );
