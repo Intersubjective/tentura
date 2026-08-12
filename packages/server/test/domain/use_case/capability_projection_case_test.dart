@@ -226,57 +226,64 @@ void main() {
     ).called(1);
   });
 
-  test('routing mute suppresses networkSeed only, not networkOutcome', () async {
-    const bob = 'bob';
-    when(
-      witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
-    ).thenAnswer(
-      (_) async => [
-        const WitnessWeight(witnessUserId: bob, m: 1.0, admitted: true),
-      ],
-    );
-    when(
-      cellPort.fetchCells(
-        subjectIds: anyNamed('subjectIds'),
-        tagSlugs: anyNamed('tagSlugs'),
-        admittedWitnesses: anyNamed('admittedWitnesses'),
-      ),
-    ).thenAnswer(
-      (_) async => [
-        const WitnessCellRow(
-          observerUserId: bob,
-          subjectUserId: carol,
-          tagSlug: 'transport',
-          eOut: 0.35,
-          eSeed: 0,
-          m: 1.0,
+  test(
+    'routing mute suppresses both networkOutcome and networkSeed for the '
+    'muted pair, leaving an unmuted tag untouched (architecture D4/§5.5/'
+    '§12.2/§14: mute anti-joins the row feeding both S_out and S_seed)',
+    () async {
+      const bob = 'bob';
+      when(
+        witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
+      ).thenAnswer(
+        (_) async => [
+          const WitnessWeight(witnessUserId: bob, m: 1.0, admitted: true),
+        ],
+      );
+      when(
+        cellPort.fetchCells(
+          subjectIds: anyNamed('subjectIds'),
+          tagSlugs: anyNamed('tagSlugs'),
+          admittedWitnesses: anyNamed('admittedWitnesses'),
         ),
-        const WitnessCellRow(
-          observerUserId: bob,
-          subjectUserId: carol,
-          tagSlug: 'pets',
-          eOut: 0,
-          eSeed: 0.30,
-          m: 1.0,
-        ),
-      ],
-    );
-    when(
-      routingMute.mutedSlugsFor(subjectIds: anyNamed('subjectIds')),
-    ).thenAnswer((_) async => {carol: {'pets'}});
+      ).thenAnswer(
+        (_) async => [
+          const WitnessCellRow(
+            observerUserId: bob,
+            subjectUserId: carol,
+            tagSlug: 'transport',
+            eOut: 0.35,
+            eSeed: 0,
+            m: 1.0,
+          ),
+          // 'pets' would qualify for BOTH networkOutcome (eOut 0.35 >= 0.30)
+          // and networkSeed (eSeed 0.30 >= 0.25) if it were not muted.
+          const WitnessCellRow(
+            observerUserId: bob,
+            subjectUserId: carol,
+            tagSlug: 'pets',
+            eOut: 0.35,
+            eSeed: 0.30,
+            m: 1.0,
+          ),
+        ],
+      );
+      when(
+        routingMute.mutedSlugsFor(subjectIds: anyNamed('subjectIds')),
+      ).thenAnswer((_) async => {carol: {'pets'}});
 
-    final rows = await case_.project(
-      egoId: ego,
-      subjectIds: [carol],
-      tagSlugs: ['transport', 'pets'],
-      normalizedContext: ctx,
-      surface: ProjectionSurface.forwardBand,
-    );
+      final rows = await case_.project(
+        egoId: ego,
+        subjectIds: [carol],
+        tagSlugs: ['transport', 'pets'],
+        normalizedContext: ctx,
+        surface: ProjectionSurface.forwardBand,
+      );
 
-    expect(rows.map((r) => (r.tagSlug, r.tier)), [
-      ('transport', ProjectionTier.networkOutcome),
-    ]);
-  });
+      expect(rows.map((r) => (r.tagSlug, r.tier)), [
+        ('transport', ProjectionTier.networkOutcome),
+      ]);
+    },
+  );
 
   test('tombstone suppresses network and own evidence for the pair', () async {
     const bob = 'bob';

@@ -161,13 +161,17 @@ final class CapabilityProjectionCase extends UseCaseBase {
         continue;
       }
 
-      final key = (cell.subjectUserId, cell.tagSlug);
-      outSums[key] = (outSums[key] ?? 0) + cell.m * cell.eOut;
-
       final mutedSlugs = mutedBySubject[cell.subjectUserId];
       if (mutedSlugs != null && mutedSlugs.contains(cell.tagSlug)) {
+        // Architecture D4 / §5.5 / §12.2 / §14: a routing mute anti-joins the
+        // cell out of the SAME row set that feeds both S_out and S_seed — it
+        // suppresses all third-party (network) projection for the pair, not
+        // only the seed channel. Only the ego's own Tier A survives a mute.
         continue;
       }
+
+      final key = (cell.subjectUserId, cell.tagSlug);
+      outSums[key] = (outSums[key] ?? 0) + cell.m * cell.eOut;
       seedSums[key] = (seedSums[key] ?? 0) + cell.m * cell.eSeed;
     }
 
