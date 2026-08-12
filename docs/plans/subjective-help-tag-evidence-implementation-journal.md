@@ -5339,3 +5339,99 @@ FINDINGS (manager, beyond what the worker reported):
 **E1a is accepted.** E1b (Mutation resolvers + authz — `myRoutingTags`,
 `seedRoutingAttestation`, `revokeAcknowledgement`, `setRoutingMute`, invite-
 seed-prompt answer/skip) is now unblocked. Proceeding to E1b next.
+
+## E1b — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: E1b only — GraphQL wiring for `myRoutingTags`, `inviteSeedPromptState`,
+`revokeAcknowledgement`, `setRoutingMute`, `seedRoutingAttestation`,
+`inviteSeedPromptAnswer`, `inviteSeedPromptSkip` on top of accepted E1a/C4 use
+cases.
+
+PLAN:
+1. Resolve `seedRoutingAttestation` vs `InviteSeedPromptAnswer` mapping against
+   architecture §11, plan §731, and C4's four use-case methods.
+2. Add `replaceAttestation` to `InviteSeedAttestationCase` if the standing
+   attestation replace path cannot reuse `answer()` without touching prompt
+   state.
+3. Wire query/mutation resolvers + `custom_types.dart` + registration.
+4. Resolver-level pass-through and non-inviter rejection tests.
+5. `dart test -x pg`, `check-custom-lints.sh`, journal, focused commits.
+
+FINDINGS (so far):
+- Plan line 731 explicitly splits prompt-state transitions (`answer`/`skip`)
+  from standing attestation writes (`seedRoutingAttestation`); F1 mirrors this
+  with separate client documents.
+- `markAnswered` is idempotent on state (UPDATE to answered succeeds from
+  answered) but still bumps `updated_at` — not a pure no-op for F4b edit.
+- `InviteSeedAttestationCase` is `final`; resolver tests use real case +
+  mocked ports (Mockito cannot mock final classes).
+
+## E1b — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `205eb8b7` feat(server): add replaceAttestation for standing seed edits (E1b)
+- `1a270858` feat(server): wire E1b capability routing and invite-seed GraphQL
+- `5b2f5443` test(server): add E1b resolver pass-through and auth tests
+
+TESTS:
+```bash
+cd packages/server && dart test -x pg test/api/controllers/graphql/mutation_capability_routing_test.dart test/api/controllers/graphql/query_capability_routing_test.dart test/api/controllers/graphql/query_capability_projection_test.dart
+→ 00:00 +15: All tests passed!
+
+cd packages/server && dart test -x pg
+→ 00:07 +1438: All tests passed!
+
+./scripts/check-custom-lints.sh packages/server
+→ total: 0 (baseline: 0)
+```
+
+FILES:
+- `packages/server/lib/domain/use_case/invite_seed_attestation_case.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_capability_routing.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/_mutations_all.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_capability_projection.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_invite_seed_prompt.dart`
+- `packages/server/lib/api/controllers/graphql/query/_queries_all.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/test/api/controllers/graphql/mutation_capability_routing_test.dart`
+- `packages/server/test/api/controllers/graphql/query_capability_routing_test.dart`
+- `packages/server/test/api/controllers/graphql/query_capability_projection_test.dart`
+- `packages/server/test/api/controllers/graphql/invite_seed_resolver_mocks.dart`
+- `packages/server/test/api/controllers/graphql/invite_seed_resolver_mocks.mocks.dart`
+- `packages/server/test/api/controllers/graphql/invite_seed_resolver_test_helper.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Operation mapping (resolved):** `inviteSeedPromptAnswer` → `answer()` (F4a
+  `invite_accepted` receipt — atomically `markAnswered` + attestation upsert per
+  plan §731). `inviteSeedPromptSkip` → `skip()`. `inviteSeedPromptState` →
+  `promptStateFor()`. `seedRoutingAttestation` → F4b standing attestation
+  create/replace/clear **without** prompt-state transition: non-empty slugs →
+  new `replaceAttestation()`; empty slugs → `withdraw()` (delegates to
+  `replaceAttestation` with `[]`). Architecture §16 API prose lists
+  `seedRoutingAttestation` as "Create / replace / clear"; plan C4 §731 states
+  `seedRoutingAttestation` alone cannot carry prompt transitions — the split is
+  intentional.
+- **`replaceAttestation` added (minimal C4 gap-fill):** C4 shipped `answer`,
+  `skip`, `withdraw` (clear-only). Non-empty F4b edits need upsert without
+  `markAnswered`. `withdraw` now delegates to `replaceAttestation([])`; no
+  duplicate auth/validation paths.
+- **`markAnswered` idempotency:** repository `markAnswered` UPDATEs state to
+  `answered` regardless of prior state (no error on repeat) but always sets
+  `updated_at` — functionally safe to call twice, not a pure no-op. Deliberately
+  **not** routed through `seedRoutingAttestation` for that reason.
+- **`myRoutingTags` / `setRoutingMute` negative auth:** same structural
+  impossibility as E1a — self-only APIs with no target parameter; pass-through
+  tests only.
+- **Architecture §16 vs implementation for `myRoutingTags`:** architecture draft
+  shows `[{ slug, muted }]`; E1b spec and `CapabilityRoutingCase.myRoutingTags`
+  return muted slug strings only (`[String!]!`). Implemented per live case + E1b
+  dispatch; F1 may need to align client entity shape.
+
+REMAINING: F1a — `schema.graphql`, `_tenturaDirectOperationNames`, then F1b
+client `.graphql` documents and repository.
+
