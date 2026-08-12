@@ -28,6 +28,9 @@ class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
   }) async {}
 
   @override
+  Future<String?> inviterOf(String userId) async => null;
+
+  @override
   Future<InviteGenealogyGraphEntity> fetchLineage({
     required String userId,
   }) async {

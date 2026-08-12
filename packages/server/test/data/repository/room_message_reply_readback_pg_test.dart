@@ -18,6 +18,7 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -515,6 +516,7 @@ WHERE id = '${reply.id}'
           database,
           _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
+          InviteSeedPromptRepositoryMock(),
         ),
         BeaconAccessRepository(database),
         FakeUserBlockRepository(),

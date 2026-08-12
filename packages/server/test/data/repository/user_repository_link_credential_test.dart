@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
+import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/mock/trust_evidence_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -44,6 +45,7 @@ Future<void> main() async {
         db,
         const TrustEvidenceRepositoryMock(),
         InviteGenealogyRepository(env, db, UserBlockRepository(env, db)),
+        InviteSeedPromptRepository(db),
       );
     });
 

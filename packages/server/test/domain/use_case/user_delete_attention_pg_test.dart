@@ -14,6 +14,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -66,6 +67,7 @@ Future<void> main() async {
           database,
           _NoopTrustEvidenceRepository(),
           _NoopInviteGenealogyRepository(),
+          InviteSeedPromptRepositoryMock(),
         ),
         _NoopTaskRepository(),
         env: Env(environment: Environment.test),
