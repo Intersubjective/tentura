@@ -70,7 +70,7 @@ any order after F1b. One worker at a time.
 - [x] **A3** — Evidence SQL functions (depends: A2) — `m0143`; `cap_strength`, `cap_cell_lock`, `cap_generation_bump`, `cap_cell_rebuild`
 - [x] **B1** — Domain types + ports (depends: A3) — `domain/capability/*`, `domain/port/capability_*`, `capability_consts.dart`
 - [x] **B2a** — Cell write adapter (depends: B1) — accepted after pair-lock remediation (`c3e81896`)
-- [ ] **B2b** — Witness window adapter (depends: B1) — remediation complete 2026-08-12, manager acceptance pending
+- [x] **B2b** — Witness window adapter (depends: B1) — accepted after fixture-isolation remediation + flakiness repair (`81249774`, `88a09c21`)
 - [ ] **B2c** — Read adapters (depends: B1) — own-evidence, tombstone, mute, block-query repositories
 - [ ] **B3** — MR epoch ownership (depends: B2b) — `m0144`; epoch bump in `trust_rebuild_effective_edge`; block/vote invalidation
 - [ ] **C1a** — Ack schema + atomic adapter (depends: B2a) — `m0145`; `beacon_evaluation_ack_tag`; `submitEvaluationAtomic`
@@ -908,3 +908,64 @@ FINDINGS:
 - Shared `postgres` database untouched by remediation run: `mr_publish_epoch.epoch` before=0, after=0; no new disposable witness-window DB left after suite (`tearDownAll` drops target DB; stale `tentura_test_witness_window_528830_*` from the rejected run predates this remediation).
 
 REMAINING: manager acceptance pending; B2c remains blocked until B2b accepted
+
+---
+
+### Manager verdict: ACCEPTED (after one manager-authored repair) — 2026-08-12
+
+Independent review, not a re-run of the worker's own claims:
+
+- Read the full diff of `81249774` and `aca3df07`. Isolation fix matches the
+  dispatched instructions: `_DisposablePgTarget` (own `CREATE DATABASE`/`DROP
+  DATABASE`), `CREATE EXTENSION IF NOT EXISTS pgmer2` before `migrateDbSchema`
+  on the disposable database only, `meritRank.init()` removed, and `_clearMrEdge`
+  added to `_cleanup` covering every ego↔peer pair among the `Ucapb2b*` IDs the
+  test creates (all `_mrEdge` calls in this file are ego→peer, so bidirectional
+  clearing of ego↔each-peer is complete coverage). All 7 pre-existing causal
+  assertions (canonical `person_visibility_peers`, top-K vs. unbounded trusted,
+  zero-MR-trusted exclusion, cache round trip, stale-epoch miss, TTL miss, empty
+  replacement, `invalidateFor`) are unchanged and present.
+- Independently confirmed against the shared local Postgres (not the worker's
+  self-report): `mr_publish_epoch.epoch` read `0` before and after every run in
+  this review, both the worker's and mine; no new schema objects appeared on
+  `postgres`; no disposable `tentura_test_witness_window_*` database was left
+  behind by any successful run (the one stale database predates the fix and is
+  debris from the earlier rejected/probe attempts, not something this fix
+  created).
+- Ran the worker-reported commands myself from a temporary `hooks.user_defines.sqlite3.source: system`
+  overlay on the root `pubspec.yaml` (reverted before committing anything —
+  confirmed via `git status` showing no diff on `pubspec.yaml`): the domain
+  policy test (14/14) and lints/whitespace checks matched the worker's report.
+
+**Found the worker's "All tests passed" PG-test claim to be false on
+independent re-run:** `dart test -t pg .../witness_window_repository_pg_test.dart`
+passed on my first run but failed on my second (fresh disposable database
+each time) on `rawWindowFacts limits topPeers by topK but trustedScores are
+unbounded` — `Ucapb2bp03` ranked above `Ucapb2bp02` despite a lower seeded
+weight (0.7 vs 0.8). Root-caused directly against `pgmer2` (probe database,
+not the test fixture): `mr_node_score` for the same, unmodified graph state
+returns slightly different values across repeated reads (e.g. `0.15153558...`
+then `0.15072883...` on the next two reads) — MeritRank's `forward_mr` is a
+randomized-walk score, not a deterministic function of the raw `mr_put_edge`
+weight, and the seeded gaps (0.9/0.8/0.7/0.05) were narrow enough for that
+noise to invert rank between `p02`/`p03` on some runs. This is a pre-existing
+defect from the original `44f2c79b`, not something the isolation remediation
+introduced — the original worker's own (superseded) FINDINGS note had already
+flagged the underlying risk ("PG topK test asserts structure and
+`trustedScores` presence, not exact MR magnitudes") without actually acting on
+it in the test body.
+
+This was small, local, and quick to verify, so the manager fixed it directly
+rather than dispatching a third worker turn: widened the seeded weights to
+0.9/0.5/0.1/0.02 (`88a09c21`), after confirming empirically against `pgmer2`
+that this gap size produces stable, well-separated scores across 5 repeated
+reads with no intervening graph mutation. Reran the full PG-tagged suite 5x
+against 5 independently fresh disposable databases — all green every time.
+Also reran `dart test -x pg` (1351 tests, all passing) and
+`./scripts/check-custom-lints.sh packages/server` (0, matches baseline) after
+the fix.
+
+**B2b is accepted.** Commits: `44f2c79b` (original policy + adapter, unchanged),
+`81249774` (isolation fix), `aca3df07` (journal checkpoint), `88a09c21`
+(manager flakiness repair). B2c, C1a, C3a, D3 are dependency-ready; B3 and D0
+are now unblocked (both depended on accepted B2b).
