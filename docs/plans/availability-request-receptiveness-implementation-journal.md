@@ -989,8 +989,9 @@ Remediation:
   tests assert `DateTime.now().timeZoneOffset != Duration.zero` (no `dart:io`
   on web). Default UTC suites omit the offset assertion.
 
-COMMITS: (see remediation commits below; baseline preserved:
-`7a2646216`, `0c25d9155`, `90bd82718`)
+COMMITS: `b7574fc04` fix(client): strict calendar date parsing for availability;
+`9b10d22bd` docs: record UNIT 08 strict calendar parser remediation (baseline
+preserved: `7a2646216`, `0c25d9155`, `90bd82718`)
 TESTS:
 - `TZ=America/New_York flutter test --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart test/data/model/availability_read_parity_test.dart` → 12 passed
 - `TZ=America/New_York flutter test --platform chrome --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart` → 6 passed
