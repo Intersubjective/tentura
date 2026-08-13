@@ -7941,3 +7941,86 @@ FINDINGS:
 
 REMAINING: none for G2. Next plan unit: **G3** (integration tests).
 
+## G2 — Manager verdict: ACCEPTED — 2026-08-13
+
+**Process note first:** the dispatched worker's background wrapper
+process was reported "killed" by the harness, but its log showed the
+worker had reached and executed its final verification step
+(`git diff --check`) and committed before that happened — a timing
+race between natural completion and the external kill signal, not a
+task failure (the same pattern seen once before, in F6's second
+attempt). Working tree was fully clean with 5 coherent commits and no
+stray uncommitted state, so I reviewed this as complete work rather
+than discarding or re-dispatching.
+
+Given this unit's only failure mode is being factually wrong (the
+whole point of the unit is that the *previous* version of
+`trust_edges.md` was wrong and got cited as design authority), I did
+not spot-check — I independently verified essentially every concrete
+technical claim in the rewritten doc against the actual migration
+source myself, not the worker's self-reported verification:
+
+- Confirmed `trust_resync_source(_subject text)` — the new
+  single-argument signature — is exactly what m0122 defines
+  (`grep CREATE OR REPLACE FUNCTION public.trust_resync_source` across
+  all migrations), and confirmed the OLD two-argument signature
+  (`trust_resync_source(text, double precision)`) is explicitly dropped
+  via `DROP FUNCTION IF EXISTS` in m0122, alongside `trust_apply_evidence`,
+  `meritrank_sweep(double precision, double precision)`, and
+  `trust_recompute_all(double precision)` — all four matching the doc's
+  "Dropped in m0122" list exactly, verified against the literal DROP
+  statements, not inferred.
+- Confirmed every other named SQL function
+  (`trust_pair_lock`, `trust_apply_source_evidence`,
+  `trust_rebuild_effective_edge`, `trust_rebuild_effective_batch`,
+  `trust_edge_on_effective_delete`) is defined in m0122 with exactly
+  the name used in the doc.
+- Read the actual, latest (`m0144`-redefined) body of
+  `trust_rebuild_effective_edge` line by line and confirmed both
+  claims the doc makes about it: it reads `half_life_seconds`/`epsilon`
+  from `trust_policy` (not from Dart-passed params); it zeroes the
+  published weight when `user_block` has a matching blocker→blocked row
+  (m0137); and on a successful epsilon-gated publish it calls
+  `mr_bump_publish_epoch()` immediately after `mr_put_edge` (m0144) —
+  every one of these matched the doc's prose exactly, not
+  approximately.
+- Confirmed every Dart class named in the "Dart call graph" table
+  (`TrustEvidenceRepository`, `UserTrustEdgeRepository`,
+  `TrustMaintenanceCase`, `UserTrustEdgeCase`, `MeritrankCase`) exists
+  with those exact names.
+- Confirmed all four `TRUST_SWEEP_*` env vars exist in `env.dart` with
+  defaults matching the doc's config table exactly (24h / 15min / 200 /
+  5min), and confirmed the OLD `TRUST_EDGE_HALF_LIFE_DAYS`/
+  `TRUST_EDGE_EPSILON` vars the doc says were removed genuinely do not
+  appear anywhere in `env.dart` — the doc is correctly reporting an
+  absence, not just omitting something it forgot to check.
+- Read the new ADR (`docs/adr/0012-subjective-help-tag-evidence.md`)
+  in full: all of D1–D24 present, D23 correctly shown struck through
+  with its full two-ground withdrawal reasoning preserved (not just
+  "withdrawn"), the implementation plan's §3 deviations (3.1–3.5) kept
+  as a visibly distinct category rather than folded into the D-numbered
+  list as instructed, and a brief, appropriately-scoped paragraph
+  recording the witness-window remediation as context rather than a
+  design decision of its own. The "Consequences" section shows genuine
+  synthesis beyond restating the table — e.g. "D23 withdrawal and plan
+  §3.2 are coupled: never reintroduce per-request weight splitting
+  without revisiting monotonicity under per-ego admission" is a real,
+  useful forward-looking warning, not filler.
+- README diff correctly indexes ADR 0012, updates the `trust_edges.md`
+  one-line description to match the rewrite, and — a good, low-risk,
+  clearly-beneficial extra the worker noticed on its own — also indexes
+  ADR 0011, which existed as a file but had never been added to the
+  README's ADR table before this unit.
+- Independently reran all verification myself:
+  ```bash
+  bash scripts/check-doc-drift.sh → no legacy terms or rule/doc drift found
+  bash scripts/check-user-facing-terminology.sh → ok
+  git diff --check → clean
+  ```
+
+No defects found — no factual error located anywhere in the rewritten
+doc or the ADR after this level of scrutiny. Accepted as-is. Proceeding
+to G3 (integration tests) — G3a (server-side proof) first, per the
+plan's stated split rationale (fast, deterministic, and where admission
+is actually decided).
+
