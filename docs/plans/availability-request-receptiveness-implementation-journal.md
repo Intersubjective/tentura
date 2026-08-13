@@ -234,3 +234,11 @@ TESTS: `git diff --check` → clean (no conflict markers); baseline reconfirmed 
 FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
 FINDINGS: none
 REMAINING: none — UNIT 01 (`feat: add availability domain model`) is next
+
+## Manager review — UNIT 00 accepted — 2026-08-13
+
+COMMITS: `77a017913` docs: start availability implementation journal; `3b2c53af3` docs: record UNIT 00 evidence in availability journal
+TESTS: independent inspection of both commits; `git diff 9c9bcf518..HEAD --check` → clean; baseline symbols remain absent for `m0148`, `AvailabilityView`, `user_availability`, `userAvailability`, and `ForwardDeliveryResult`
+FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
+FINDINGS: accepted. The worker made two narrowly scoped documentation commits because the final evidence needed the first commit hash; both are intentional and preserve the protected worktree exactly.
+REMAINING: UNIT 01 is dependency-ready.
