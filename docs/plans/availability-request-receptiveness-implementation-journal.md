@@ -679,3 +679,29 @@ INDEPENDENT VERIFICATION:
 - `git diff --check 79112d3e5..HEAD` -> clean
 REMAINING: UNIT 07 forward/pause linearization, typed GraphQL delivery parity,
 read-permission parity, and the recorded Hasura candidate-limit diagnostic.
+
+## UNIT 07B forward/pause linearization proof — complete — 2026-08-13
+
+COMMITS: `cb730570e` test(server): prove forward/pause availability linearization
+TESTS:
+- `(cd packages/server && dart test -t pg test/data/repository/forward_edge_availability_pg_test.dart)` → 5 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/test/data/repository/forward_edge_availability_pg_test.dart`
+FINDINGS:
+- Builds on manager-accepted UNIT 07A baseline `be9f92532`.
+- Live `ForwardEdgeRepository.createBatch` acquires the production
+  `pg_advisory_xact_lock(hashtextextended('user_availability:' || userId, 4242))`
+  **before** its conditional `INSERT … SELECT … WHERE` availability predicate; the plan's
+  stale “pre-read” wording is reconciled as an open/missing initial availability row, not a
+  separate pre-read implementation.
+- Two-race proof uses three independent `TenturaDb` pools (blocker, pause, forward) plus
+  `pg_locks` causal observation of exactly two ungranted advisory waits on the production key
+  before release; enqueue order forces pause-then-forward or forward-then-pause linearization.
+- Mixed-batch, dedup-silent, and `is_limited=true` deliverable cases exercise real
+  `createBatch` only; downstream `onAfterEdgesInserted` / `ForwardCase` / GraphQL typed-result
+  effects remain outside this repository proof boundary.
+REMAINING: UNIT 07 GraphQL typed-result proof (`forward_delivery_result_test.dart`),
+read-permission parity (`availability_read_parity_test.dart`), and Hasura candidate-limit
+diagnostic; manager acceptance not recorded here.
