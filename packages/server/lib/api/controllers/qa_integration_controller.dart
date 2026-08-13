@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
+import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_base_controller.dart';
@@ -24,6 +25,7 @@ final class QaIntegrationController extends BaseController {
     this._invitationCase,
     this._friendshipLookup,
     this._realtimeSocketGate,
+    this._userTrustEdgeCase,
   );
 
   final EmailAuthCase _emailAuthCase;
@@ -31,6 +33,7 @@ final class QaIntegrationController extends BaseController {
   final InvitationCase _invitationCase;
   final VoteUserFriendshipLookupPort _friendshipLookup;
   final QaRealtimeSocketGate _realtimeSocketGate;
+  final UserTrustEdgeCase _userTrustEdgeCase;
 
   Future<Response> bootstrap(Request request) async {
     if (!_qaAllowed(request)) {
@@ -67,7 +70,11 @@ final class QaIntegrationController extends BaseController {
     _realtimeSocketGate
       ..registerBootstrappedUser(author.id)
       ..registerBootstrappedUser(helper.id);
-    await _ensureFriendship(author: author, helper: helper, runId: runId);
+    await _ensureFriendship(
+      a: author,
+      b: helper,
+      addresseeName: 'IT helper $runId',
+    );
 
     return Response.ok(
       jsonEncode({
@@ -75,6 +82,90 @@ final class QaIntegrationController extends BaseController {
         'authorUserId': author.id,
         'helperEmail': helperEmail,
         'helperUserId': helper.id,
+      }),
+      headers: _jsonNoStore,
+    );
+  }
+
+  /// Four-role witness-admission fixture (G3b): Alice/Eve each mutually
+  /// befriend Carol (so both see her as an equally visible forward
+  /// candidate); Alice alone casts a one-way explicit vouch for Bob (Bob
+  /// does not vouch back) — the single controlled variable the resulting
+  /// browser test exercises. Distinct from [bootstrap]'s two-role contract;
+  /// existing bootstrap-based integration tests are unaffected.
+  Future<Response> witnessFixture(Request request) async {
+    if (!_qaAllowed(request)) {
+      return Response.notFound(null);
+    }
+
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+
+    final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
+    if (runId.isEmpty) {
+      return Response.badRequest(body: 'runId is required');
+    }
+    if (!RegExp(r'^[a-z0-9_-]{3,64}$').hasMatch(runId)) {
+      return Response.badRequest(body: 'runId must match [a-z0-9_-]{3,64}');
+    }
+
+    final emails = {
+      for (final role in const ['alice', 'bob', 'carol', 'eve'])
+        role: _normalizeQaEmail('it-$role-$runId@test.tentura.local'),
+    };
+    if (emails.values.any((e) => e == null)) {
+      return Response.badRequest(body: 'invalid QA email');
+    }
+
+    final alice = await _ensureQaUser(emails['alice']!);
+    final bob = await _ensureQaUser(emails['bob']!);
+    final carol = await _ensureQaUser(emails['carol']!);
+    final eve = await _ensureQaUser(emails['eve']!);
+    _realtimeSocketGate
+      ..registerBootstrappedUser(alice.id)
+      ..registerBootstrappedUser(bob.id)
+      ..registerBootstrappedUser(carol.id)
+      ..registerBootstrappedUser(eve.id);
+
+    // Bob and Carol must be mutually reachable contacts before Bob can
+    // select her as a direct forward recipient at all (D8/§16.1 "direct
+    // request routing requires mutual visibility") — separate from, and
+    // upstream of, the witness-admission graph below.
+    await _ensureFriendship(
+      a: bob,
+      b: carol,
+      addresseeName: 'IT carol-bob $runId',
+    );
+    await _ensureFriendship(
+      a: alice,
+      b: carol,
+      addresseeName: 'IT carol $runId',
+    );
+    await _ensureFriendship(
+      a: eve,
+      b: carol,
+      addresseeName: 'IT carol-eve $runId',
+    );
+    await _userTrustEdgeCase.setUserVote(
+      subjectUserId: alice.id,
+      objectUserId: bob.id,
+      amount: 1,
+    );
+
+    return Response.ok(
+      jsonEncode({
+        'aliceEmail': emails['alice'],
+        'aliceUserId': alice.id,
+        'bobEmail': emails['bob'],
+        'bobUserId': bob.id,
+        'carolEmail': emails['carol'],
+        'carolUserId': carol.id,
+        'eveEmail': emails['eve'],
+        'eveUserId': eve.id,
       }),
       headers: _jsonNoStore,
     );
@@ -129,29 +220,28 @@ final class QaIntegrationController extends BaseController {
   }
 
   Future<void> _ensureFriendship({
-    required UserEntity author,
-    required UserEntity helper,
-    required String runId,
+    required UserEntity a,
+    required UserEntity b,
+    required String addresseeName,
   }) async {
     final alreadyFriends = await _friendshipLookup.isReciprocalSubscribe(
-      viewerId: author.id,
-      peerId: helper.id,
+      viewerId: a.id,
+      peerId: b.id,
     );
     if (alreadyFriends) {
       return;
     }
     // Contact names are capped at 32 chars (ContactCase.normalizeName);
     // runIds carry a microsecond suffix, so clamp instead of embedding it all.
-    final addresseeName = 'IT helper $runId';
     final invitation = await _invitationCase.create(
-      userId: author.id,
+      userId: a.id,
       addresseeName: addresseeName.length <= 32
           ? addresseeName
           : addresseeName.substring(0, 32),
     );
     await _invitationCase.acceptAsExisting(
       code: invitation.id,
-      userId: helper.id,
+      userId: b.id,
     );
   }
 

@@ -185,6 +185,10 @@ class RootRouter {
       )
       ..post('/_qa/integration/bootstrap', _qaIntegrationController.bootstrap)
       ..post(
+        '/_qa/integration/witness-fixture',
+        _qaIntegrationController.witnessFixture,
+      )
+      ..post(
         '/_qa/send-fcm',
         _qaSendFcmController.sendFcm,
       )
