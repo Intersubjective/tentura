@@ -98,7 +98,7 @@ any order after F1b. One worker at a time.
 - [ ] **G1a** — Telemetry — producers (depends: F6) — band fill/conversion, seed renewal, mute rate
 - [ ] **G1b** — Telemetry — analysis signals (depends: G1a) — window coverage, floor margin, eligible-witness coverage, reciprocity histogram
 - [ ] **G2** — Docs and ADR (depends: G1) — `trust_edges.md` rewrite, ADR
-- [ ] **G3a** — Server-side e2e proof (depends: G2) — pg-level 4-user fixture
+- [x] **G3a** — Server-side e2e proof (depends: G2) — pg-level 4-user fixture
 - [ ] **G3b** — Browser e2e proof (depends: G3a) — web harness assertions on rendered band
 
 ## Verification commands (plan §2)
@@ -8023,4 +8023,105 @@ doc or the ADR after this level of scrutiny. Accepted as-is. Proceeding
 to G3 (integration tests) — G3a (server-side proof) first, per the
 plan's stated split rationale (fast, deterministic, and where admission
 is actually decided).
+
+## G3a — fixture/lifecycle checkpoint — 2026-08-13
+
+STATUS: Disposable Postgres target, four-user trust/MR graph, beacon
+close/finalize lifecycle, and Bob→Carol outcome-ledger assertion wired.
+Real `ReviewFinalizationCase` + `CapabilityEvidenceRepository`; no
+`ForwardBandCase` chain yet.
+
+COMMITS: `797fbb5af` test(server): G3a integration fixture and outcome evidence lifecycle
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart
+→ 1/1 pass (~9s)
+```
+
+FILES:
+
+- `packages/server/test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart` — lifecycle half only
+
+FINDINGS:
+
+- Mutual trust + bidirectional MR required for Carol to appear in
+  `BandCandidateRepository.candidatesFor` (`is_mutually_visible`); one-way
+  MR alone is insufficient (confirmed while shaping the graph).
+- `UserBlockRepository` accepts optional `WitnessWindowPort` for
+  invalidation side effects; tests omit it until the projection chain lands.
+
+REMAINING: wire `ForwardBandCase` → `CapabilityProjectionCase` read chain;
+add candidate-visibility, witness-window, band, and mute assertions.
+
+## G3a — precondition + band assertions checkpoint — 2026-08-13
+
+STATUS: Full G3a acceptance test complete — real Postgres repositories
+composed into `CapabilityProjectionCase` + `ForwardBandCase`; all six
+plan-ordered assertion steps in one test function.
+
+COMMITS: (pending — see final entry)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -t pg test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart (×3)
+→ 1/1 pass each run (~9s)
+cd packages/server && dart test -x pg → 1454/1454 pass
+```
+
+FILES:
+
+- `packages/server/test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart` — full G3a spec
+
+FINDINGS:
+
+- Precondition assertions (steps 3–4) **passed cleanly on first try** with
+  the final fixture — no ordering bug surfaced in a failing first draft.
+  The mutual-visibility graph work during lifecycle scaffolding was
+  sufficient; the explicit candidate/window checks still document *why*
+  Alice vs Eve differ rather than only *that* they differ.
+- First end-to-end wiring of real repos into the projection+band read
+  chain; no production code changes required.
+- Carol mute via `RoutingMuteRepository.setMute` removes Tier B transport
+  from Alice's band as expected (D4 anti-join on network projection).
+
+REMAINING: journal final entry + focused commit for band assertions.
+
+## G3a — complete — 2026-08-13
+
+STATUS: UNIT G3a (server-side integration proof) complete. Four-user
+fixture proves witness admission gates Tier B band rows; mute removes them.
+
+COMMITS:
+
+- `797fbb5af` test(server): G3a integration fixture and outcome evidence lifecycle
+- `224a1dd14` test(server): G3a witness admission band integration assertions
+- `4fe99a7ea` docs: G3a server integration test journal checkpoints
+
+TESTS:
+
+```bash
+cd packages/server && dart analyze test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart → 0 errors (info only)
+cd packages/server && dart test -t pg test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart (×3) → 1/1 pass each run
+cd packages/server && dart test -x pg → 1454/1454 pass
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total 0 (baseline 0)
+git diff --check → clean
+```
+
+FILES:
+
+- `packages/server/test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart` — new; only file touched
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` — this entry
+
+FINDINGS:
+
+- Precondition assertions passed first try (see checkpoint above).
+- No production code changes; all repository constructors matched plan
+  grounding without gaps.
+- Env var `TENTURA_G3A_INTEGRATION_TEST_DB` for disposable DB isolation.
+
+REMAINING: none for G3a. Next plan unit: **G3b** (browser e2e proof).
 
