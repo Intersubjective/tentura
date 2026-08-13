@@ -23,7 +23,7 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';

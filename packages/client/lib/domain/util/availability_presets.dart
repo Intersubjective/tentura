@@ -3,6 +3,12 @@ import 'package:tentura_root/domain/availability.dart';
 /// Maximum inclusive calendar-day horizon for pause `resume_on` (plan §0).
 const int availabilityResumeHorizonDays = 90;
 
+/// UTC calendar date for "today" per plan §0.6 (`clock` is test-only).
+DateTime availabilityTodayUtc([DateTime Function()? clock]) {
+  final now = (clock ?? DateTime.now)();
+  return DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
+}
+
 /// Calendar date [date] plus [days] whole calendar days (UTC date-only).
 DateTime addUtcCalendarDays(DateTime date, int days) {
   assert(isUtcCalendarDate(date));

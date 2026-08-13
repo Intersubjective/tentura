@@ -64,6 +64,18 @@ void main() {
     });
   });
 
+  group('availabilityTodayUtc', () {
+    test('uses UTC y/m/d from clock', () {
+      final clock = () => DateTime.utc(2026, 8, 14, 23, 45);
+      expect(availabilityTodayUtc(clock), DateTime.utc(2026, 8, 14));
+    });
+
+    test('uses UTC calendar date when clock is local evening', () {
+      final clock = () => DateTime(2026, 8, 14, 23, 45);
+      expect(availabilityTodayUtc(clock), DateTime.utc(2026, 8, 14));
+    });
+  });
+
   group('utcCalendarDateFromLocalPicker', () {
     test('uses picker y/m/d as UTC calendar date', () {
       final picked = DateTime(2026, 8, 18);

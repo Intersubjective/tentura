@@ -14,7 +14,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
-import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

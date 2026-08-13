@@ -6,7 +6,7 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';

@@ -12,13 +12,6 @@ import 'package:tentura_root/domain/enums.dart';
 
 import '../bloc/profile_cubit.dart';
 
-/// UTC calendar date for "today" per plan §0.6 (`clock` is test-only).
-@visibleForTesting
-DateTime availabilityTodayUtc([DateTime Function()? clock]) {
-  final now = (clock ?? DateTime.now)();
-  return DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
-}
-
 /// Local calendar midnight for [showDatePicker] bounds (y/m/d only; not `toLocal()` on availability).
 @visibleForTesting
 DateTime availabilityPickerLocalDate(DateTime utcCalendarDate) =>

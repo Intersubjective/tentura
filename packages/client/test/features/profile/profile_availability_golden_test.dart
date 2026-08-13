@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/profile/ui/widget/profile_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';

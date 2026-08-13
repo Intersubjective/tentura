@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../bloc/profile_cubit.dart';
