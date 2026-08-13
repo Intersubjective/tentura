@@ -146,7 +146,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): wire availability commands`
 - [x] **UNIT 10 — Calendar presets, formatting, localization** — depends: 08 — commit:
   `feat(client): add availability copy and dates`
-- [ ] **UNIT 11 — Own-profile control and status** — depends: 09–10 — commit:
+- [x] **UNIT 11 — Own-profile control and status** — depends: 09–10 — commit:
   `feat(client): add availability profile control`
 - [ ] **UNIT 12 — Other-profile and graph policy/rendering** — depends: 10 — commit:
   `feat(client): gate person request actions`
@@ -1200,3 +1200,43 @@ FINDINGS: Manager review required the separate 7-day beacon-deadline integration
 test because testing the shared formatter alone did not prove the adapted branch
 was wired. The remediation adds no production behavior.
 REMAINING: UNIT 11 is dependency-ready.
+
+## UNIT 11 — complete — 2026-08-14
+
+COMMITS: `fcf1d344c` feat(client): add availability profile control
+TESTS:
+- `(cd packages/client && flutter test test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` → 26 passed
+- `(cd packages/client && flutter test test/features/profile/profile_availability_golden_test.dart --update-goldens)` → 13 passed (regenerated PNGs)
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/features/profile/ui/sheet/availability_sheet.dart`
+- `packages/client/lib/features/profile/ui/screen/profile_screen.dart`
+- `packages/client/lib/features/profile/ui/widget/profile_body.dart`
+- `packages/client/test/features/profile/availability_sheet_test.dart`
+- `packages/client/test/features/profile/profile_availability_golden_test.dart`
+- `packages/client/test/features/profile/goldens/profile_availability_*.png` (12 PNGs)
+GOLDEN PNG INSPECTION (visual review after `--update-goldens`):
+- `.../profile_availability_open_compact.png` — neutral “Open to requests” + blue Change; no second line
+- `.../profile_availability_limited_compact.png` — info-toned “Only important requests” + Change
+- `.../profile_availability_paused_expanded.png` — warn-toned paused-until line + Change on wide layout
+- `.../profile_availability_limited_paused_compact.png` — warn primary + info “Then: only important requests” two-line stack + Change
+- `.../profile_availability_open_compact_s1_3.png` — 1.3 text scale enlarges status/Change without clipping
+FINDINGS:
+- `showDatePicker` bounds use local y/m/d via `availabilityPickerLocalDate`; picked values convert through `utcCalendarDateFromLocalPicker` (no `toLocal()` on availability storage).
+- Injectable `clock` seam on sheet/profile body and `@visibleForTesting` `availabilityTodayUtc` keep `todayUtc` deterministic in tests.
+- Sheet closes only after cubit-confirmed pause/resume profile state; limited toggle keeps the sheet open and reads confirmed `Profile.availability`.
+REMAINING: none for UNIT 11; UNIT 12 (`feat(client): gate person request actions`) is next.
+
+## UNIT 11 final evidence — 2026-08-14
+
+COMMITS: `fcf1d344c` feat(client): add availability profile control
+TESTS:
+- `(cd packages/client && flutter test test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` → 26 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean after implementation commit
+FILES: UNIT 11 owned paths listed above (12 golden PNGs under `test/features/profile/goldens/`)
+FINDINGS: none beyond UNIT 11 entry
+REMAINING: manager acceptance of UNIT 11; UNIT 12 is next
