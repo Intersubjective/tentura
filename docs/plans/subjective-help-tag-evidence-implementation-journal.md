@@ -6565,3 +6565,83 @@ FINDINGS (manager, beyond what the worker reported):
 Per document order, F5 (Routing mute screen) is next — the last
 independent F2–F5 unit — after which F6 (Client release checks) is the
 final client-side unit.
+
+## F5 — checkpoint — 2026-08-13
+
+STATUS: in progress
+
+SCOPE: F5 — routing mute screen (`RoutingMuteScreen`), cubit/state,
+`kPathRoutingMute` AutoRoute registration, Settings entry, l10n, tests.
+
+PLAN:
+1. Cubit via `fetchMyRoutingTags` / `setRoutingMute` with optimistic
+   rollback (BlockedUsersCubit + NotificationSettingsCubit shape).
+2. Screen body — `CapabilityGroup` accordion sections, 37 `SwitchListTile`
+   rows, no evidence dependency.
+3. Router + Settings `TenturaCommandButton`, widget/cubit tests, verify
+   lints flat at 106.
+
+FINDINGS (so far):
+- **Feature placement:** `lib/features/capability/ui/screen/` — first screen
+  in the capability feature; API and taxonomy already live there.
+- **Switch component:** no `TenturaSwitchListTile`; raw `SwitchListTile`
+  matches `NotificationSettingsScreen`.
+- **Accordion perf:** `maintainState: false` on group tiles; desktop
+  (`!compact`) expands all sections by default.
+
+## F5 — complete — 2026-08-13
+
+STATUS: complete
+
+COMMITS:
+- `8c855c06` feat(client): add routing mute settings screen (F5)
+- `5e92798e` test(client): add routing mute screen and cubit tests (F5)
+
+TESTS:
+
+```bash
+cd packages/client && flutter test test/features/capability/routing_mute_cubit_test.dart test/features/capability/routing_mute_screen_test.dart test/features/settings/settings_screen_routing_mute_presence_test.dart
+→ 00:00 +0: loading .../routing_mute_cubit_test.dart
+→ 00:00 +0: ... fetch loads the muted slug set
+→ 00:00 +1: ... toggleMute persists optimistically and calls setRoutingMute
+→ 00:00 +2: ... reverts muted slug and emits ShowError when setRoutingMute fails
+→ 00:00 +3: ... renders all 37 capability mute toggles with an empty muted set
+→ 00:01 +4: ... Settings exposes routing mute entry and navigates to screen
+→ 00:01 +5: All tests passed!
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111)
+→ check-custom-lints: packages/client OK
+```
+
+FILES:
+- `packages/client/lib/features/capability/ui/bloc/routing_mute_cubit.dart`
+- `packages/client/lib/features/capability/ui/bloc/routing_mute_state.dart`
+- `packages/client/lib/features/capability/ui/screen/routing_mute_screen.dart`
+- `packages/client/lib/app/router/root_router.dart`
+- `packages/client/lib/consts.dart`
+- `packages/client/lib/features/settings/ui/screen/settings_screen.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/capability/routing_mute_cubit_test.dart`
+- `packages/client/test/features/capability/routing_mute_screen_test.dart`
+- `packages/client/test/features/settings/settings_screen_routing_mute_presence_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **Feature directory:** `lib/features/capability/ui/screen/routing_mute_screen.dart`
+  — capability feature's first screen; keeps mute API and taxonomy co-located
+  rather than a separate `routing_mute` top-level feature.
+- **Design-system switch:** no `TenturaSwitchListTile`; used raw
+  `SwitchListTile` per `NotificationSettingsScreen` precedent.
+- **Lint count:** stayed flat at **106** (baseline 111) — no regression.
+- **Mute semantics:** `fetchMyRoutingTags` returns only muted slugs; screen
+  renders all 37 `CapabilityTag` rows with `value = mutedSlugs.contains(slug)`.
+- **Router tests:** child route has intro guard on native — widget tests set
+  `introEnabled: false` on fake `SettingsCubit` and register `UiEffectPort`.
+
+REMAINING: F6 (Client release checks) — semver bump, web cache-buster,
+min-client-version decision for new V2 operations.
