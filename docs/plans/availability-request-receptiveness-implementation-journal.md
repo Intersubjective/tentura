@@ -359,3 +359,29 @@ require a new `di.config.dart` diff (bindings already present). Other server tes
 using `UserPublicRecord` need `userAvailability: null` for compilation; fixed
 locally but not staged per boundary rules.
 REMAINING: none for UNIT 04; UNIT 05 (`feat(server): add availability mutations`) is next
+
+## UNIT 04 remediation — complete — 2026-08-13
+
+COMMITS: `6cf0d7d09` fix(server): include viewer in invite genealogy availability batch
+TESTS:
+- `(cd packages/server && dart test test/api/controllers/graphql/query_invite_genealogy_test.dart test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart)` → 18 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- multi-line constructor audit over `packages/server/lib` + `packages/server/test` → all
+  `UserPublicRecord(` blocks include `userAvailability:`
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/api/controllers/graphql/query/query_invite_genealogy.dart`
+- `packages/server/test/api/controllers/graphql/query_invite_genealogy_test.dart`
+- `packages/server/test/api/controllers/graphql/mappers/help_offer_with_coordination_gql_map_test.dart`
+- `packages/server/test/api/controllers/graphql/user_block_graphql_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart`
+- `packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart`
+- `packages/server/test/domain/use_case/mutual_friends_case_test.dart`
+FINDINGS: confirmed defect — `_viewerRelativeOverlay` reused the trust/score
+`candidateIds` set (viewer excluded) for availability; viewer-only graphs returned
+`user_availability: null` for the viewer node. Existing query tests needed an injected
+`UserAvailabilityCase` after UNIT 04 added the dependency. Prior worker commits
+`6d6970ac5` / `0f7d02a6c` remain not manager-accepted; this remediation does not
+change that status.
+REMAINING: manager acceptance of UNIT 04; UNIT 07 `availability_read_parity_test.dart`
+PostgreSQL/API proof for read-path invariants; UNIT 05+ downstream work unchanged
