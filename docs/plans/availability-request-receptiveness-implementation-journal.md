@@ -753,3 +753,21 @@ FINDINGS:
   invocation.
 REMAINING: UNIT 07 read-permission parity (`availability_read_parity_test.dart`)
 and Hasura candidate-limit diagnostic; manager acceptance not recorded here.
+
+## UNIT 07C manager acceptance — 2026-08-13
+
+VERDICT: accepted: `9d389ae23` and `73b647968`.
+REVIEW: The test executes a GraphQL document through `graphql_server2` and
+`MutationForward` with JWT credentials; it does not directly call a resolver
+or response mapper. The actual `ForwardCase` invokes the real forward and
+availability repositories against a fresh migrated disposable PostgreSQL
+database. The response's ordered outcomes are tied to the rows for its returned
+batch ID, with explicit no-edge checks for pauses and silent-dedup checks. The
+attention harness proves only newly inserted recipients received the forward
+effect. Small fake ports only supply non-forward collaborators.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test test/api/controllers/graphql/forward_delivery_result_test.dart)` -> 2 passed
+- `./scripts/check-custom-lints.sh packages/server` -> pass, custom-rule total 0
+- `git diff --check 57f38b9e2..HEAD` -> clean
+REMAINING: UNIT 07 Hasura/read-permission parity and the candidate-limit
+diagnostic.
