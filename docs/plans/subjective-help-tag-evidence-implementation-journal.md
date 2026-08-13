@@ -7687,3 +7687,47 @@ review:
 No defects found. Accepted as-is. G1 (Telemetry) is now fully complete
 (G1a, G1b, G1c) except G1d (acknowledgement reciprocity). Proceeding to
 G1d.
+
+## G1d — acknowledgement reciprocity — complete — 2026-08-13
+
+COMMITS: `e07f8cb09` feat(server): add reciprocal acknowledgement ring telemetry (G1d)
+
+TESTS:
+
+```bash
+cd packages/server && dart analyze <changed paths>
+→ zero new errors on changed files
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ +8 (+2 G1d cases among eight total), all passed, identical 3x
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ +23 (+4 G1d pg cases: empty, isolated mutual pair, third-party exclusion,
+  runDue privacy), all passed, identical 3x (against live postgres-tentura)
+
+cd packages/server && dart test -x pg
+→ +1454 (+2 vs G1c baseline +1452), all passed
+
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+git diff --check → clean
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/capability_telemetry_port.dart` — `countReciprocalIsolatedAcknowledgementPairs()`
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart` — single aggregate SQL query (mutual + isolation + tag-span histogram)
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` — `capability_reciprocal_ring_pairs` log line in 45-minute sweep
+- `packages/server/test/domain/use_case/capability_telemetry_case_test.dart` — log format + all-records privacy assertion on fake port
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart` — fixture-backed count proofs + end-to-end runDue privacy test
+
+FINDINGS:
+
+- **"Mutual" scope (documented choice): any-tag reciprocity.** For unordered pair `{A,B}`, mutual means at least one active `closeAcknowledgement` row in each direction (`observer→subject`), regardless of `tag_slug`. Rationale: §13.3's worked example farms one tag, but cross-tag mutual acknowledgement between the same two people is the same collusion signature; tag span is reported separately via the histogram rather than gating membership. **Alternative not chosen:** same-tag-only reciprocity (would miss pairs farming multiple tags asymmetrically and undercount the §13.3 pattern when tags differ per direction).
+- **"No third-party overlap" (documented choice): full graph isolation.** A pair counts only when neither user has any active `closeAcknowledgement` edge (as observer or subject) involving anyone other than their partner — the pair's acknowledgement subgraph is `{A,B}` only. This matches the user-facing attack framing ("ONLY ever acknowledges each other, isolated from the rest of the acknowledgement graph") and §13.3's closed farming ring. **Alternative not chosen:** "no *common* third-party collaborator" (both users may acknowledge others, but never the same third party) — looser, would still flag embedded pairs in broad networks where A and B farm each other but also have disjoint outside relationships; closer to the literal phrase "share no third-party collaborators" but weaker for detecting the isolated two-person ring §13.3 describes.
+- **Privacy enforcement:** pair detection runs entirely in one Postgres aggregate query; Dart receives only `(count, tags1, tags2, tags3plus)`. No pair rows, no user ids, no intermediate structures with `toString()` risk. Pg integration test asserts fixture ids (`Ug1dtestpairA`/`Ug1dtestpairB`) appear in **no** captured log record message (all lines from `runDue`, not just the reciprocity line).
+- **Log format:** `capability_reciprocal_ring_pairs count=<n>` when zero; when non-zero adds `tags_1=<n> tags_2=<n> tags_3plus=<n>` histogram over distinct tags spanned by each pair's mutual acknowledgement rows.
+- **Limitation:** counts the full population each sweep (no sampling cap unlike G1c signals 2–3); acceptable on 45-minute interval given the query is set-oriented with no per-pair round-trips. Deleted/negative/non-`closeAcknowledgement` rows excluded per G1b/G1c idioms.
+
+REMAINING: G1 (Telemetry) fully complete (G1a–G1d). Next plan units: G2 (Docs and ADR), G3a/G3b (Integration tests).
+
