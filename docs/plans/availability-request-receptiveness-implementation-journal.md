@@ -577,3 +577,27 @@ clear-limited case with PostgreSQL 23514 and both pause cases with the
 unsupported bind error. Tests used only a unique disposable migrated database.
 RECOVERY: assign a fresh narrow source remediation for
 `UserAvailabilityRepository`, then recreate this proof in a fresh worker.
+
+## UNIT 07A repository remediation — complete — 2026-08-13
+
+COMMITS: `31ba3b77e` fix(server): avoid empty availability rows and bind pause dates
+TESTS:
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart)` → 4 passed
+- `(cd packages/server && dart test test/domain/use_case/user_availability_case_test.dart test/domain/entity/user_availability_entity_test.dart)` → 25 passed
+- `dart test test/domain/availability_test.dart` → 11 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/data/repository/user_availability_repository.dart`
+- `packages/server/test/data/repository/user_availability_repository_pg_test.dart`
+FINDINGS:
+- `setLimited(false)` and `resume` both tripped `user_availability_not_empty`
+  because PostgreSQL enforces CHECK on UPDATE before a same-statement DELETE
+  could remove the row; fixed by deleting open rows (`resume_on IS NULL` or
+  pause-only) without ever writing `(false, NULL)`.
+- `pause` now binds strict `YYYY-MM-DD` strings with `$2::date` instead of
+  `PgDate`, which drift_postgres 1.3.1 rejects in `customStatement`.
+- `cleanupExpired` still passes `PgDate` to `customStatement`; not exercised by
+  this proof and left unchanged per narrow remediation scope.
+REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
+concurrency proof; manager acceptance not recorded here.
