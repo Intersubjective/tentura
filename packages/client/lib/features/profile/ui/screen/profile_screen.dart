@@ -40,6 +40,7 @@ class ProfileScreen extends StatelessWidget {
                       sliver: ProfileBody(
                         key: Key('ProfileBody:${profile.id}'),
                         profile: profile,
+                        profileCubit: GetIt.I<ProfileCubit>(),
                       ),
                     ),
                   ],
