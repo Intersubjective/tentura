@@ -140,7 +140,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(server): enforce availability on forwards`
 - [x] **UNIT 07 — Server PostgreSQL/concurrency/API proof** — depends: 04–06 — commit:
   `test(server): prove availability invariants`
-- [ ] **UNIT 08 — Client schema, date scalar, entities, read parity** — depends: 04–06 — commit:
+- [x] **UNIT 08 — Client schema, date scalar, entities, read parity** — depends: 04–06 — commit:
   `feat(client): map availability data`
 - [ ] **UNIT 09 — Client availability command repository and Cubit** — depends: 05, 08 — commit:
   `feat(client): wire availability commands`
@@ -923,3 +923,49 @@ PostgreSQL volume because it predates m0148. That does not weaken the accepted
 candidate-limit observation; UNIT 07D already proved availability read
 visibility in an isolated migrated database.
 REMAINING: UNIT 07 is accepted and UNIT 08 is dependency-ready.
+
+## UNIT 08 — complete — 2026-08-14
+
+COMMITS: `7a2646216` feat(client): map availability data; `430f0ec73`
+docs: record UNIT 08 client availability data evidence
+TESTS:
+- Temporary local schema fetch: applied m0148 to shared `postgres`, started
+  updated server, `./scripts/hasura_apply_metadata.sh`, then
+  `docker compose run --rm schema_fetcher` → committed `schema.graphql` diff
+  includes `scalar date`, `user_availability`, `v2_user_availability`,
+  `v2_ForwardDeliveryResult`, and typed `beaconForward` return; restored shared
+  postgres (dropped m0148) and pre-fetch Hasura metadata from
+  `/tmp/tentura-unit08/hasura_metadata_pre.json`.
+- `(cd packages/client && dart run build_runner build -d)` → exit 0
+- `(cd packages/client && TZ=America/New_York flutter test test/data/gql/calendar_date_serializer_test.dart test/data/model/availability_read_parity_test.dart)` → 9 passed
+- `(cd packages/client && TZ=America/New_York flutter test --platform chrome test/data/gql/calendar_date_serializer_test.dart)` → 4 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/data/gql/calendar_date_serializer.dart`
+- `packages/client/build.yaml`
+- `packages/client/lib/data/gql/schema.graphql`
+- `packages/client/lib/data/gql/user_model.graphql`
+- `packages/client/lib/data/gql/user_public_model.graphql`
+- `packages/client/lib/data/model/user_model.dart`
+- `packages/client/lib/data/model/user_public_model.dart`
+- `packages/client/lib/features/profile_view/data/repository/mutual_friends_repository.dart`
+- `packages/client/lib/features/beacon_view/data/repository/coordination_repository.dart`
+- `packages/client/lib/features/forward/domain/entity/forward_delivery_result.dart`
+- `packages/client/lib/features/forward/data/gql/forward_beacon.graphql`
+- `packages/client/test/data/gql/calendar_date_serializer_test.dart`
+- `packages/client/test/data/model/availability_read_parity_test.dart`
+- `packages/client/lib/features/profile_view/data/gql/mutual_friends_fetch.graphql` (required query selections; omitted from nominal ownership list)
+- `packages/client/lib/features/beacon_view/data/gql/help_offers_with_coordination.graphql` (required query selections; omitted from nominal ownership list)
+- `packages/client/lib/features/forward/data/repository/forward_repository.dart` (compile-only `.batchId` bridge; full `ForwardDeliveryResult` mapping deferred to UNIT 14)
+FINDINGS:
+- Shared local postgres was at m0147 pre-fetch; temporary m0148 apply + metadata
+  apply + schema fetch + full restore left no fixture rows and returned Hasura
+  metadata to the pre-unit export (`user_availability` untracked again).
+- Ferry type for Hasura nested availability is `GUserModel_user_availability`
+  (not `GUserModelUserAvailability`).
+- Nominal UNIT 08 ownership omitted three dependent paths needed for a green
+  build: two V2 user GraphQL queries and a one-line `forward_repository` bridge
+  until UNIT 14 maps the typed forward result entity.
+REMAINING: UNIT 09 (`feat(client): wire availability commands`); UNIT 14 owns
+full `ForwardDeliveryResult` repository/use-case mapping and delivery UX.
