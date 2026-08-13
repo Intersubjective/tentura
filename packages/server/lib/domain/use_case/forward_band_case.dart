@@ -109,7 +109,38 @@ final class ForwardBandCase extends UseCaseBase {
       startingRank: evidenceRows.length,
     );
 
-    return [...evidenceRows, ...explorationRows];
+    final band = [...evidenceRows, ...explorationRows];
+    _logBandComposed(beaconId: beaconId, band: band);
+    return band;
+  }
+
+  /// §21 telemetry: band fill rate and slot occupancy by tier. Counts only
+  /// — never candidate/recipient user ids.
+  void _logBandComposed({
+    required String beaconId,
+    required List<ForwardBandRow> band,
+  }) {
+    if (band.isEmpty) {
+      logger.info('forward_band_composed beacon=$beaconId filled=false');
+      return;
+    }
+    final tierCounts = <ProjectionTier, int>{};
+    var explorationCount = 0;
+    for (final row in band) {
+      if (row.isExploration) {
+        explorationCount++;
+      } else if (row.rowTier != null) {
+        tierCounts[row.rowTier!] = (tierCounts[row.rowTier!] ?? 0) + 1;
+      }
+    }
+    final tierSummary = [
+      for (final tier in ProjectionTier.values)
+        '${tier.name}=${tierCounts[tier] ?? 0}',
+    ].join(' ');
+    logger.info(
+      'forward_band_composed beacon=$beaconId filled=true '
+      'total=${band.length} $tierSummary exploration=$explorationCount',
+    );
   }
 
   Map<String, List<ScoredProjection>> _groupProjectionsBySubject(
