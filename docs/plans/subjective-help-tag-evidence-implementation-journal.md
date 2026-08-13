@@ -6645,3 +6645,85 @@ FINDINGS:
 
 REMAINING: F6 (Client release checks) — semver bump, web cache-buster,
 min-client-version decision for new V2 operations.
+
+## F5 — Manager verdict: ACCEPTED — 2026-08-13
+
+Independent review performed before acceptance (worker output trusted for
+nothing beyond pointing at what to inspect):
+
+- Read `routing_mute_cubit.dart` and `routing_mute_state.dart` in full.
+  Confirmed the optimistic-update-with-rollback shape matches
+  `BlockedUsersCubit`: `toggleMute` computes `next` from `state.mutedSlugs`,
+  emits immediately, then on `setRoutingMute` failure reverts to the
+  captured `previous` set and emits `ShowError` — no window where a failed
+  call leaves stale UI state uncorrected.
+- Read `routing_mute_screen.dart` in full. Confirmed:
+  - All `CapabilityGroup.values` (7) are iterated unconditionally, and
+    within each group all matching `CapabilityTag.values` render as
+    `SwitchListTile` rows regardless of `mutedSlugs` content — so the
+    "renders all 37 slugs" acceptance criterion holds structurally, not
+    just for the empty-set case the worker's own test happened to check.
+  - The one `EdgeInsets.fromLTRB(...)` call passes four token expressions
+    (`screenHPadding`, `sectionGap`, `screenHPadding`, `tightGap`) — no
+    raw literal, correctly avoiding the exact F4a `no_raw_edge_insets`
+    regression mistake.
+  - Unrequested but sound touch: `expanded = initiallyExpanded ||
+    mutedInGroup > 0` — a group containing an existing mute auto-expands
+    on mobile even when the screen default is collapsed, so a user is
+    never left hunting through a collapsed section to find why routing
+    feels muted.
+- `git show 8c855c06 -- packages/client/lib/app/router/root_router.dart
+  packages/client/lib/consts.dart` — `kPathRoutingMute =
+  '/settings/routing-mute'` and the new `AutoRoute(page:
+  RoutingMuteRoute.page, ...)` entry reproduce `NotificationSettingsRoute`'s
+  guard pair exactly (intro-pending redirect + unauthenticated redirect),
+  no new guard behavior invented.
+- `git show 8c855c06 -- .../settings_screen.dart` — new
+  `TenturaCommandButton` insertion follows the existing
+  `_SettingsCommandList` pattern used by neighboring entries.
+- Read both l10n diffs — `routingMuteScreenTitle` = "How requests reach
+  you" (matches architecture §12.2 verbatim), real distinct Russian
+  translations for every new key, no counts or witness-derived copy
+  leaking into static strings.
+- Read `routing_mute_cubit_test.dart` in full (reproduced above by the
+  Read tool) — covers fetch, optimistic toggle-on/off with correct
+  `setRoutingMute` args, and failure-triggers-rollback-plus-`ShowError`.
+  No gaps.
+- Applied the sqlite3 `pubspec.yaml` overlay and reran the 3 new F5 test
+  files 3x independently: identical `+5: All tests passed!` each time,
+  same 5 named tests, no flake.
+- Ran the full client suite: `+2031 ~18`, all passed, 0 failed — the
+  expected +5 over the pre-F5 baseline with no regressions elsewhere.
+- Reran `bash scripts/check-user-facing-terminology.sh` myself → ok.
+- Reran `./scripts/check-custom-lints.sh packages/client` myself → total
+  106 (baseline 111), matching the worker's reported count exactly — flat,
+  no silent regression (this is the exact check that caught a real
+  regression in F4a, so it was not skipped here).
+- `git diff --check` → clean, no whitespace errors.
+- Reverted the sqlite3 `pubspec.yaml` overlay after testing; working tree
+  contains no owned uncommitted changes.
+
+ACCEPTANCE CRITERIA MAPPING (plan wording: "toggling persists and
+round-trips; the screen renders all 37 slugs regardless of evidence"):
+
+- **Toggling persists and round-trips** — `toggleMute` calls
+  `setRoutingMute({slug, muted})` on every flip and `fetch()` reloads from
+  `fetchMyRoutingTags()`; cubit test asserts both the optimistic state and
+  the repository call args for on and off. MET.
+- **Screen renders all 37 slugs regardless of evidence** — verified by
+  code inspection (unconditional iteration over `CapabilityTag.values`
+  grouped by `CapabilityGroup`) and by the widget test asserting 37
+  `SwitchListTile` rows with an empty muted set. MET.
+- **Settings entry present and navigable** — `settings_screen_routing_mute
+  _presence_test.dart` asserts the command button exists and navigates to
+  `RoutingMuteRoute`. MET.
+- **No design-system regression** — lint count flat at 106; no raw
+  `EdgeInsets`/`BorderRadius` literals introduced. MET.
+- **Localization** — real, distinct English and Russian strings for every
+  new key; terminology script clean. MET.
+
+No defects found. F5 accepted as-is, no remediation required.
+
+STATUS: F2, F3, F4a, F4b, F5 all now accepted — every independently
+orderable client UI unit is complete. Proceeding to F6 (Client release
+checks), the final client-side unit.
