@@ -545,4 +545,72 @@ void main() {
       expectedExploration,
     );
   });
+
+  group('band fill/occupancy telemetry (G1a)', () {
+    test('logs filled=false when the band is empty', () async {
+      final records = <LogRecord>[];
+      Logger('ForwardBandCaseTest').onRecord.listen(records.add);
+
+      stubBeaconAndCandidates(
+        candidates: [candidate(userId: 'carol', forwardMr: 0.9)],
+      );
+      stubProjectionInputs();
+
+      await case_.composeBand(
+        egoId: egoId,
+        beaconId: beaconId,
+        normalizedContext: ctx,
+      );
+
+      final composed = records.where(
+        (r) => r.message.startsWith('forward_band_composed'),
+      );
+      expect(composed, hasLength(1));
+      expect(composed.single.message, contains('beacon=$beaconId'));
+      expect(composed.single.message, contains('filled=false'));
+    });
+
+    test(
+      'logs slot occupancy by tier and exploration count when filled, no user ids',
+      () async {
+        final records = <LogRecord>[];
+        Logger('ForwardBandCaseTest').onRecord.listen(records.add);
+
+        stubBeaconAndCandidates(
+          candidates: [
+            candidate(userId: 'carol', forwardMr: 0.95),
+            candidate(userId: 'p0', forwardMr: 0.9),
+          ],
+        );
+        stubProjectionInputs(
+          cells: [
+            networkCell(
+              subjectUserId: 'carol',
+              tagSlug: 'transport',
+              eOut: 0.4,
+            ),
+          ],
+        );
+
+        await case_.composeBand(
+          egoId: egoId,
+          beaconId: beaconId,
+          normalizedContext: ctx,
+        );
+
+        final composed = records.where(
+          (r) => r.message.startsWith('forward_band_composed'),
+        );
+        expect(composed, hasLength(1));
+        final message = composed.single.message;
+        expect(message, contains('beacon=$beaconId'));
+        expect(message, contains('filled=true'));
+        expect(message, contains('total=2'));
+        expect(message, contains('networkOutcome=1'));
+        expect(message, contains('exploration=1'));
+        expect(message, isNot(contains('carol')));
+        expect(message, isNot(contains('p0')));
+      },
+    );
+  });
 }

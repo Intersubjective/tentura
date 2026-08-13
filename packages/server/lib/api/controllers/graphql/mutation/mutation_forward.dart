@@ -74,6 +74,7 @@ final class MutationForward extends GqlNodeBase {
       InputFieldAttributionParentEdgeIds.field,
       _reasons,
       InputFieldForwardRecipientReasons.field,
+      InputFieldForwardRecipientBandProvenance.field,
     ],
     resolve: (_, args) {
       final recipientReasonsList =
@@ -84,6 +85,18 @@ final class MutationForward extends GqlNodeBase {
               : {
                   for (final r in recipientReasonsList)
                     r.recipientId: r.slugs,
+                };
+      final recipientBandProvenanceList =
+          InputFieldForwardRecipientBandProvenance.fromArgs(args);
+      final perRecipientBandProvenance =
+          recipientBandProvenanceList == null
+              ? null
+              : {
+                  for (final p in recipientBandProvenanceList)
+                    p.recipientId: (
+                      tier: p.tier,
+                      isExploration: p.isExploration,
+                    ),
                 };
       return _forwardCase.forward(
         senderId: getCredentials(args).sub,
@@ -96,6 +109,7 @@ final class MutationForward extends GqlNodeBase {
             InputFieldAttributionParentEdgeIds.fromArgs(args),
         sharedReasonSlugs: _reasonsFromArgs(args),
         perRecipientReasonSlugs: perRecipientReasonSlugs,
+        perRecipientBandProvenance: perRecipientBandProvenance,
         perRecipientNotes: switch (_perRecipientNotes.fromArgs(args)) {
           final String s when s.isNotEmpty => Map<String, String>.from(
             (json.decode(s) as Map).map(

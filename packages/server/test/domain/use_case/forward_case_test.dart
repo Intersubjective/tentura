@@ -862,4 +862,51 @@ void main() {
       );
     });
   });
+
+  group('forward — band provenance telemetry (G1a)', () {
+    test('logs conversion counts by tier and exploration, no recipient ids', () async {
+      final records = <LogRecord>[];
+      Logger('ForwardCaseTest').onRecord.listen(records.add);
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1', 'R2', 'R3'],
+        perRecipientBandProvenance: {
+          'R1': (tier: 'networkOutcome', isExploration: false),
+          'R2': (tier: null, isExploration: true),
+          // R3 intentionally omitted: not selected from the band.
+        },
+      );
+
+      final conversionRecords = records.where(
+        (r) => r.message.startsWith('forward_band_conversion'),
+      );
+      expect(conversionRecords, hasLength(1));
+      final message = conversionRecords.single.message;
+      expect(message, contains('beacon=B1'));
+      expect(message, contains('networkOutcome=1'));
+      expect(message, contains('exploration=1'));
+      expect(message, contains('main_list=1'));
+      expect(message, isNot(contains('R1')));
+      expect(message, isNot(contains('R2')));
+      expect(message, isNot(contains('R3')));
+    });
+
+    test('does not log band conversion when provenance is omitted', () async {
+      final records = <LogRecord>[];
+      Logger('ForwardCaseTest').onRecord.listen(records.add);
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1'],
+      );
+
+      expect(
+        records.where((r) => r.message.startsWith('forward_band_conversion')),
+        isEmpty,
+      );
+    });
+  });
 }

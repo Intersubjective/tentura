@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/forward/forward_constants.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
@@ -164,6 +165,8 @@ final class ForwardCase extends UseCaseBase {
     Map<String, String>? perRecipientNotes,
     List<String>? sharedReasonSlugs,
     Map<String, List<String>>? perRecipientReasonSlugs,
+    Map<String, ({String? tier, bool isExploration})>?
+    perRecipientBandProvenance,
   }) async {
     if (recipientIds.isEmpty) {
       throw ArgumentError('recipientIds must not be empty');
@@ -283,6 +286,14 @@ final class ForwardCase extends UseCaseBase {
           );
         }
 
+        if (perRecipientBandProvenance != null) {
+          _logBandConversion(
+            beaconId: beaconId,
+            createdEdges: createdEdges,
+            perRecipientBandProvenance: perRecipientBandProvenance,
+          );
+        }
+
         if (createdEdges.isNotEmpty) {
           final insertedRecipientIds = createdEdges
               .map((edge) => edge.recipientId)
@@ -308,6 +319,32 @@ final class ForwardCase extends UseCaseBase {
         return batchId;
       },
     );
+  }
+
+  /// §21 telemetry: forwards initiated from a band row vs the main list,
+  /// split by tier and by exploration slot. Counts only — never recipient
+  /// user ids.
+  void _logBandConversion({
+    required String beaconId,
+    required List<ForwardEdgeCreated> createdEdges,
+    required Map<String, ({String? tier, bool isExploration})>
+    perRecipientBandProvenance,
+  }) {
+    final buckets = <String, int>{};
+    for (final created in createdEdges) {
+      final provenance = perRecipientBandProvenance[created.recipientId];
+      final key = provenance == null
+          ? 'main_list'
+          : provenance.isExploration
+          ? 'exploration'
+          : (provenance.tier ?? 'unknown');
+      buckets[key] = (buckets[key] ?? 0) + 1;
+    }
+    if (buckets.isEmpty) return;
+    final summary = buckets.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join(' ');
+    logger.info('forward_band_conversion beacon=$beaconId $summary');
   }
 
   Future<void> _recordAttributionIfEligible({

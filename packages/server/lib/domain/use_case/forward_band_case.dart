@@ -56,6 +56,20 @@ final class ForwardBandCase extends UseCaseBase {
     required String beaconId,
     required String normalizedContext,
   }) async {
+    final band = await _composeBandRows(
+      egoId: egoId,
+      beaconId: beaconId,
+      normalizedContext: normalizedContext,
+    );
+    _logBandComposed(beaconId: beaconId, band: band);
+    return band;
+  }
+
+  Future<List<ForwardBandRow>> _composeBandRows({
+    required String egoId,
+    required String beaconId,
+    required String normalizedContext,
+  }) async {
     final beacon = await _beaconRepositoryPort.getBeaconById(
       beaconId: beaconId,
     );
@@ -109,9 +123,7 @@ final class ForwardBandCase extends UseCaseBase {
       startingRank: evidenceRows.length,
     );
 
-    final band = [...evidenceRows, ...explorationRows];
-    _logBandComposed(beaconId: beaconId, band: band);
-    return band;
+    return [...evidenceRows, ...explorationRows];
   }
 
   /// §21 telemetry: band fill rate and slot occupancy by tier. Counts only
