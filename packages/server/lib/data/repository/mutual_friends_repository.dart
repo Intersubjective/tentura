@@ -7,9 +7,11 @@ import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dar
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import '../mapper/user_availability_mapper.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 @Injectable(
@@ -24,6 +26,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
   MutualFriendsRepository(
     this._database,
     this._userPresenceRepository,
+    this._userAvailabilityRepository,
     this._voteUserFriendshipLookup,
     this._meritScoreLookup,
   );
@@ -31,6 +34,8 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
   final TenturaDb _database;
 
   final UserPresenceRepositoryPort _userPresenceRepository;
+
+  final UserAvailabilityRepositoryPort _userAvailabilityRepository;
 
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
@@ -64,6 +69,12 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
     final peerScores = await _meritScoreLookup.reciprocalScoresForViewer(
       viewerId: aliceId,
       context: context,
+    );
+
+    final userIds = rows.map((r) => r.data['id']! as String).toSet();
+    final todayUtc = publicUserAvailabilityTodayUtc();
+    final availabilityEntities = await _userAvailabilityRepository.fetchByUserIds(
+      userIds,
     );
 
     final out = <UserPublicRecord>[];
@@ -108,6 +119,10 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
               lastSeenAt: presence.lastSeenAt,
               status: presence.status.index,
             );
+      final userAvailability = userAvailabilityEntityToPublicRecord(
+        entity: availabilityEntities[id],
+        todayUtc: todayUtc,
+      );
       out.add(
         UserPublicRecord(
           id: id,
@@ -121,6 +136,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           image: imageRecord,
           scores: scores,
           userPresence: userPresence,
+          userAvailability: userAvailability,
         ),
       );
     }

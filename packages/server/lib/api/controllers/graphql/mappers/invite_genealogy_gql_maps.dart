@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -10,6 +11,7 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
   Set<String> trustsViewerUserIds = const {},
+  Map<String, UserAvailabilityRecord?> availabilityByUserId = const {},
 }) => {
   'viewer_node_key': graph.viewerNodeKey,
   'target_node_key': graph.targetNodeKey,
@@ -22,6 +24,7 @@ Map<String, dynamic> inviteGenealogyGraphToGqlMap(
         scoresByUserId: scoresByUserId,
         mutualFriendUserIds: mutualFriendUserIds,
         trustsViewerUserIds: trustsViewerUserIds,
+        availabilityByUserId: availabilityByUserId,
       ),
   ],
   'edges': [
@@ -35,6 +38,7 @@ Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
   Set<String> trustsViewerUserIds = const {},
+  Map<String, UserAvailabilityRecord?> availabilityByUserId = const {},
 }) => {
   'nodes': [
     for (final node in page.nodes)
@@ -44,6 +48,7 @@ Map<String, dynamic> inviteGenealogyChildrenPageToGqlMap(
         scoresByUserId: scoresByUserId,
         mutualFriendUserIds: mutualFriendUserIds,
         trustsViewerUserIds: trustsViewerUserIds,
+        availabilityByUserId: availabilityByUserId,
       ),
   ],
   'edges': [
@@ -57,6 +62,7 @@ Map<String, dynamic> inviteGenealogyNodeToGqlMap(
   Map<String, MutualScoreRecord> scoresByUserId = const {},
   Set<String> mutualFriendUserIds = const {},
   Set<String> trustsViewerUserIds = const {},
+  Map<String, UserAvailabilityRecord?> availabilityByUserId = const {},
 }) {
   final user = node.user;
   return {
@@ -73,6 +79,7 @@ Map<String, dynamic> inviteGenealogyNodeToGqlMap(
               subjectExplicitlyTrustsViewer: trustsViewerUserIds.contains(
                 user.id,
               ),
+              userAvailability: availabilityByUserId[user.id],
             ),
           ),
   };
@@ -96,6 +103,7 @@ UserPublicRecord _userToPublic(
   UserEntity user, {
   required bool isMutualFriend,
   required bool subjectExplicitlyTrustsViewer,
+  required UserAvailabilityRecord? userAvailability,
   MutualScoreRecord? score,
 }) {
   final image = user.image;
@@ -117,5 +125,6 @@ UserPublicRecord _userToPublic(
             authorId: image.authorId,
             createdAt: image.createdAt.toUtc(),
           ),
+    userAvailability: userAvailability,
   );
 }

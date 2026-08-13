@@ -2,20 +2,28 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
+import '../mapper/user_availability_mapper.dart';
 import '../mapper/user_mapper.dart';
 import '../mapper/user_presence_mapper.dart';
 
 @LazySingleton(as: UserProfileBatchLookup)
 class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
-  DriftUserProfileBatchLookup(this._database);
+  DriftUserProfileBatchLookup(
+    this._database,
+    this._userAvailabilityRepository,
+  );
 
   final TenturaDb _database;
+
+  final UserAvailabilityRepositoryPort _userAvailabilityRepository;
 
   @override
   Future<Map<String, UserEntity>> userEntitiesByIds(
@@ -52,6 +60,10 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
 
     final imageByUuid = await _imagesByUuidForUsers(users);
     final presenceByUserId = await _presenceByUserId(idList);
+    final todayUtc = publicUserAvailabilityTodayUtc();
+    final availabilityEntities = await _userAvailabilityRepository.fetchByUserIds(
+      idList.toSet(),
+    );
 
     return {
       for (final user in users)
@@ -61,6 +73,10 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
           isMutualFriend: reciprocalPeerIds.contains(user.id),
           subjectExplicitlyTrustsViewer: trustsViewerPeerIds.contains(user.id),
           presence: presenceByUserId[user.id],
+          userAvailability: userAvailabilityEntityToPublicRecord(
+            entity: availabilityEntities[user.id],
+            todayUtc: todayUtc,
+          ),
         ),
     };
   }
@@ -104,6 +120,7 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
     required bool isMutualFriend,
     required bool subjectExplicitlyTrustsViewer,
     required UserPresenceRecord? presence,
+    required UserAvailabilityRecord? userAvailability,
   }) {
     ImagePublicRecord? imageRecord;
     if (image != null) {
@@ -126,6 +143,7 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
       subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
       image: imageRecord,
       userPresence: presence,
+      userAvailability: userAvailability,
     );
   }
 

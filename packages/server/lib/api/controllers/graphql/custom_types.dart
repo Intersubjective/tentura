@@ -459,6 +459,13 @@ final gqlTypeUserPresence = GraphQLObjectType('user_presence', null)
     field('status', graphQLInt.nonNullable()),
   ]);
 
+/// Matches Hasura `user_availability` for `UserModel.user_availability` on merged `v2_user`.
+final gqlTypeUserAvailability = GraphQLObjectType('user_availability', null)
+  ..fields.addAll([
+    field('is_limited', graphQLBoolean.nonNullable()),
+    field('resume_on', graphQLString),
+  ]);
+
 /// Matches Hasura `user` table shape for `invitationById.issuer` / `UserModel`.
 final gqlTypeUserPublic = GraphQLObjectType('user', null)
   ..fields.addAll([
@@ -475,6 +482,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
       GraphQLListType(gqlTypeMutualScore.nonNullable()),
     ),
     field('user_presence', gqlTypeUserPresence),
+    field('user_availability', gqlTypeUserAvailability),
   ]);
 
 final gqlTypeInvitation = GraphQLObjectType('Invitation', null)

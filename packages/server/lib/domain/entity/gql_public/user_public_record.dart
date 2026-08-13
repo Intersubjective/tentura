@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'image_public_record.dart';
 import 'mutual_score_record.dart';
+import 'user_availability_record.dart';
 import 'user_presence_record.dart';
 
 /// Public user projection used by `mutualFriends` and nested `user` on
@@ -19,6 +20,7 @@ class UserPublicRecord {
     this.image,
     this.scores = const [],
     this.userPresence,
+    required this.userAvailability,
   });
 
   final String id;
@@ -40,4 +42,7 @@ class UserPublicRecord {
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;
+
+  /// Null means open / no visible availability relationship.
+  final UserAvailabilityRecord? userAvailability;
 }

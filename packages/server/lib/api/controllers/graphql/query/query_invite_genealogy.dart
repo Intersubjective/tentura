@@ -1,7 +1,10 @@
+import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/invite_genealogy_case.dart';
+import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -14,15 +17,19 @@ final class QueryInviteGenealogy extends GqlNodeBase {
     InviteGenealogyCase? inviteGenealogyCase,
     MeritScoreLookupPort? meritScoreLookup,
     VoteUserFriendshipLookupPort? voteUserFriendshipLookup,
+    UserAvailabilityCase? userAvailabilityCase,
   }) : _inviteGenealogyCase =
            inviteGenealogyCase ?? GetIt.I<InviteGenealogyCase>(),
        _meritScoreLookup = meritScoreLookup ?? GetIt.I<MeritScoreLookupPort>(),
        _voteUserFriendshipLookup =
-           voteUserFriendshipLookup ?? GetIt.I<VoteUserFriendshipLookupPort>();
+           voteUserFriendshipLookup ?? GetIt.I<VoteUserFriendshipLookupPort>(),
+       _userAvailabilityCase =
+           userAvailabilityCase ?? GetIt.I<UserAvailabilityCase>();
 
   final InviteGenealogyCase _inviteGenealogyCase;
   final MeritScoreLookupPort _meritScoreLookup;
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
+  final UserAvailabilityCase _userAvailabilityCase;
 
   static final _targetId = InputFieldString(fieldName: 'target_id');
   static final _nodeKey = InputFieldString(fieldName: 'node_key');
@@ -61,6 +68,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
             scoresByUserId: overlay.scores,
             mutualFriendUserIds: overlay.mutualFriends,
             trustsViewerUserIds: overlay.trustsViewer,
+            availabilityByUserId: overlay.availabilityByUserId,
           );
         },
       );
@@ -87,6 +95,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
             scoresByUserId: overlay.scores,
             mutualFriendUserIds: overlay.mutualFriends,
             trustsViewerUserIds: overlay.trustsViewer,
+            availabilityByUserId: overlay.availabilityByUserId,
           );
         },
       );
@@ -157,6 +166,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
         scoresByUserId: overlay.scores,
         mutualFriendUserIds: overlay.mutualFriends,
         trustsViewerUserIds: overlay.trustsViewer,
+        availabilityByUserId: overlay.availabilityByUserId,
       );
     },
   );
@@ -210,6 +220,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
       Map<String, MutualScoreRecord> scores,
       Set<String> mutualFriends,
       Set<String> trustsViewer,
+      Map<String, UserAvailabilityRecord?> availabilityByUserId,
     })
   >
   _viewerRelativeOverlay({
@@ -225,6 +236,7 @@ final class QueryInviteGenealogy extends GqlNodeBase {
         scores: const <String, MutualScoreRecord>{},
         mutualFriends: const <String>{},
         trustsViewer: const <String>{},
+        availabilityByUserId: const <String, UserAvailabilityRecord?>{},
       );
     }
     final scores = await _meritScoreLookup.reciprocalScoresForViewer(
@@ -239,10 +251,22 @@ final class QueryInviteGenealogy extends GqlNodeBase {
     final mutualFriends = directional.viewerTrusts.intersection(
       directional.trustsViewer,
     );
+    final todayUtc = _userAvailabilityCase.todayUtcFrom(DateTime.timestamp());
+    final availabilityEntities = await _userAvailabilityCase.fetchByUserIds(
+      candidateIds,
+    );
+    final availabilityByUserId = {
+      for (final entry in availabilityEntities.entries)
+        entry.key: userAvailabilityEntityToPublicRecord(
+          entity: entry.value,
+          todayUtc: todayUtc,
+        ),
+    };
     return (
       scores: scores,
       mutualFriends: mutualFriends,
       trustsViewer: directional.trustsViewer,
+      availabilityByUserId: availabilityByUserId,
     );
   }
 }

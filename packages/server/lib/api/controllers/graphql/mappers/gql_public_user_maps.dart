@@ -1,8 +1,12 @@
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/entity/user_availability_entity.dart';
+
+import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
 
 Map<String, dynamic> imagePublicToGqlMap(ImagePublicRecord image) => {
   'id': image.id,
@@ -32,6 +36,29 @@ List<Map<String, dynamic>> mutualScoresToGqlList(List<MutualScoreRecord> s) => s
     )
     .toList();
 
+Map<String, dynamic>? userAvailabilityToGqlMap(UserAvailabilityRecord? availability) {
+  if (availability == null) {
+    return null;
+  }
+  return {
+    'is_limited': availability.isLimited,
+    'resume_on': availability.resumeOn == null
+        ? null
+        : utcCalendarDateToWireString(availability.resumeOn!),
+  };
+}
+
+Map<String, dynamic>? userAvailabilityEntityToGqlMap({
+  required UserAvailabilityEntity? entity,
+  required DateTime todayUtc,
+}) =>
+    userAvailabilityToGqlMap(
+      userAvailabilityEntityToPublicRecord(
+        entity: entity,
+        todayUtc: todayUtc,
+      ),
+    );
+
 Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'id': u.id,
   'displayName': u.displayName,
@@ -43,6 +70,7 @@ Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'image': u.image == null ? null : imagePublicToGqlMap(u.image!),
   'scores': mutualScoresToGqlList(u.scores),
   'user_presence': userPresenceToGqlMap(u.userPresence),
+  'user_availability': userAvailabilityToGqlMap(u.userAvailability),
 };
 
 Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
